@@ -7,12 +7,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+
 import static org.simulation.hkt.list.ListKindHelper.*;
 
 /**
  * Monad implementation for ListKind.
  */
-public class ListMonad  extends ListFunctor implements Monad<ListKind<?>> {
+public class ListMonad extends ListFunctor implements Monad<ListKind<?>> {
 
   @Override
   public <A> ListKind<A> pure(A value) {
@@ -36,8 +37,6 @@ public class ListMonad  extends ListFunctor implements Monad<ListKind<?>> {
     // Wrap the flattened list back into ListKind
     return wrap(resultList);
   }
-
-
 
 }
 

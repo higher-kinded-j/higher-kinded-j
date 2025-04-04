@@ -33,12 +33,5 @@ public interface Monad<M> extends Functor<M> {
    */
   <A, B> Kind<M, B> flatMap(Function<A, Kind<M, B>> f, Kind<M, A> ma);
 
-  /**
-   * The map operation (required by Functor).
-   * Can often be defined in terms of pure and flatMap:
-   * map(f, ma) = flatMap(a -> pure(f.apply(a)), ma)
-   * Implementing it directly might be more efficient sometimes.
-   */
-  @Override
-  <A, B> Kind<M, B> map(Function<A, B> f, Kind<M, A> ma);
+
 }

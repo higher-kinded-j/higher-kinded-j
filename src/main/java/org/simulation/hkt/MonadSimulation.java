@@ -24,11 +24,11 @@ import java.util.function.Function;
 public class MonadSimulation {
 
   public static void main(String[] args) {
-   var monadSimulation = new MonadSimulation();
+    var monadSimulation = new MonadSimulation();
 
-   monadSimulation.listMonadExample();
-   monadSimulation.optionalMonadExample();
-   monadSimulation.maybeMonadExample();
+    monadSimulation.listMonadExample();
+    monadSimulation.optionalMonadExample();
+    monadSimulation.maybeMonadExample();
     monadSimulation.eitherMonadExample();
   }
 
