@@ -6,6 +6,7 @@ import org.simulation.hkt.Functor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+
 import static org.simulation.hkt.list.ListKindHelper.*;
 
 
@@ -17,7 +18,6 @@ public class ListFunctor implements Functor<ListKind<?>> {
     list.forEach(element -> result.add(f.apply(element)));
     return wrap(result);
   }
-
 }
 
 
