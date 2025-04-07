@@ -39,9 +39,9 @@ public class MonadSimulation {
     // --- List Monad Example ---
     System.out.println("--- List Monad ---");
 
-    // 1. Using pure
-    ListKind<Integer> pureList = listMonad.pure(10);
-    System.out.println("pure(10): " + ListKindHelper.unwrap(pureList)); // Output: [10]
+    // 1. Using of
+    ListKind<Integer> ofList = listMonad.of(10);
+    System.out.println("of(10): " + ListKindHelper.unwrap(ofList)); // Output: [10]
 
     // 2. Using map (from Functor, inherited by Monad)
     List<Integer> numbers = Arrays.asList(1, 2, 3);
@@ -65,11 +65,11 @@ public class MonadSimulation {
     // --- Optional Monad Example ---
     System.out.println("\n--- Optional Monad ---");
 
-    // 1. Using pure
-    OptionalKind<String> pureOpt = optionalMonad.pure("hello");
-    OptionalKind<Object> pureNullOpt = optionalMonad.pure(null); // Handled by Optional.ofNullable
-    System.out.println("pure(\"hello\"): " + OptionalKindHelper.unwrap(pureOpt)); // Output: Optional[hello]
-    System.out.println("pure(null): " + OptionalKindHelper.unwrap(pureNullOpt));   // Output: Optional.empty
+    // 1. Using of
+    OptionalKind<String> ofOpt = optionalMonad.of("hello");
+    OptionalKind<Object> ofNullOpt = optionalMonad.of(null); // Handled by Optional.ofNullable
+    System.out.println("of(\"hello\"): " + OptionalKindHelper.unwrap(ofOpt)); // Output: Optional[hello]
+    System.out.println("of(null): " + OptionalKindHelper.unwrap(ofNullOpt));   // Output: Optional.empty
 
     // 2. Using map
     OptionalKind<Integer> valueOptKind = OptionalKindHelper.wrap(Optional.of(5));
@@ -133,11 +133,11 @@ public class MonadSimulation {
     // --- Maybe Monad Example ---
     System.out.println("\n--- Maybe Monad ---");
 
-    // 1. Using pure
-    MaybeKind<String> pureMaybe = maybeMonad.pure("world");
-    MaybeKind<Object> pureNullMaybe = maybeMonad.pure(null); // Becomes Nothing
-    System.out.println("pure(\"world\"): " + MaybeKindHelper.unwrap(pureMaybe)); // Output: Just(world)
-    System.out.println("pure(null): " + MaybeKindHelper.unwrap(pureNullMaybe));   // Output: Nothing
+    // 1. Using of
+    MaybeKind<String> ofMaybe = maybeMonad.of("world");
+    MaybeKind<Object> ofNullMaybe = maybeMonad.of(null); // Becomes Nothing
+    System.out.println("of(\"world\"): " + MaybeKindHelper.unwrap(ofMaybe)); // Output: Just(world)
+    System.out.println("of(null): " + MaybeKindHelper.unwrap(ofNullMaybe));   // Output: Nothing
 
     // 2. Using map
     MaybeKind<Integer> justKind = MaybeKindHelper.wrap(Maybe.just(36));
@@ -204,9 +204,9 @@ public class MonadSimulation {
 
     System.out.println("\n--- Either Monad (Left = String) ---");
 
-    // 1. Using pure (creates a Right)
-    Kind<EitherKind<String, ?>, Integer> pureEither = eitherMonad.pure(123);
-    System.out.println("pure(123): " + EitherKindHelper.unwrap(pureEither)); // Output: Right(123)
+    // 1. Using of (creates a Right)
+    Kind<EitherKind<String, ?>, Integer> ofEither = eitherMonad.of(123);
+    System.out.println("of(123): " + EitherKindHelper.unwrap(ofEither)); // Output: Right(123)
 
     // 2. Using map
     Kind<EitherKind<String, ?>, Integer> rightKind = EitherKindHelper.wrap(Either.right(100));

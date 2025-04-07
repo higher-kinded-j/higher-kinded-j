@@ -14,7 +14,7 @@ import static org.simulation.hkt.maybe.MaybeKindHelper.*;
 public class MaybeMonad  extends MaybeFunctor implements Monad<MaybeKind<?>> {
 
   @Override
-  public <A> MaybeKind<A> pure(A value) {
+  public <A> MaybeKind<A> of(A value) {
     // Lifts a value into the Maybe context.
     // Use Maybe.fromNullable for safety, allowing null input to become Nothing.
     return wrap(Maybe.fromNullable(value));

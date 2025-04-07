@@ -16,7 +16,7 @@ import static org.simulation.hkt.list.ListKindHelper.*;
 public class ListMonad extends ListFunctor implements Monad<ListKind<?>> {
 
   @Override
-  public <A> ListKind<A> pure(A value) {
+  public <A> ListKind<A> of(A value) {
     // Lifts a single value into a List context (singleton list).
     return wrap(Collections.singletonList(value));
   }

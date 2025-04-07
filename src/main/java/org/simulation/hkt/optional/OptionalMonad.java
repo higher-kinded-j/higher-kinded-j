@@ -15,7 +15,7 @@ public class OptionalMonad extends OptionalFunctor implements Monad<OptionalKind
   // --- Monad Operations ---
 
   @Override
-  public <A> OptionalKind<A> pure(A value) {
+  public <A> OptionalKind<A> of(A value) {
     // Lifts a value into Optional context. Use ofNullable for safety.
     return wrap(Optional.ofNullable(value));
   }
