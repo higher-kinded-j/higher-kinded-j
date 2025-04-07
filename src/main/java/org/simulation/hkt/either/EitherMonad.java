@@ -20,14 +20,14 @@ public class EitherMonad<L> extends EitherFunctor<L> implements Monad<EitherKind
 
   /**
    * Lifts a value into the 'Right' side of the Either context.
-   * pure(value) is equivalent to Either.right(value) wrapped in the Kind.
+   * of(value) is equivalent to Either.right(value) wrapped in the Kind.
    *
    * @param value The value to lift (becomes the Right value).
    * @param <R>   The type of the Right value.
    * @return An EitherKind representing Right(value).
    */
   @Override
-  public <R> Kind<EitherKind<L, ?>, R> pure(R value) {
+  public <R> Kind<EitherKind<L, ?>, R> of(R value) {
     // Create a Right instance and wrap it.
     return wrap(Either.right(value));
   }
