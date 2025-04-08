@@ -80,9 +80,9 @@ Type Inference: Java's type inference can struggle with the complex generic type
 ### Project Structure
 The code is organized into packages:
 
-`org.simulation.hkt`: Core interfaces (Kind, Functor, Monad).
-`org.simulation.hkt.list`: Components for List simulation.
-`org.simulation.hkt.optional`: Components for Optional simulation.
-`org.simulation.hkt.maybe`: Components for Maybe simulation and the Maybe type itself.
-`org.simulation.hkt.either`: Components for Either simulation and the Either type itself.
-`MonadSimulation.java`: Contains executable examples demonstrating usage.
+- `org.simulation.hkt`: Core interfaces (Kind, Functor, Monad).
+- `org.simulation.hkt.list`: Components for List simulation.
+- `org.simulation.hkt.optional`: Components for Optional simulation.
+- `org.simulation.hkt.maybe`: Components for Maybe simulation and the Maybe type itself.
+- `org.simulation.hkt.either`: Components for Either simulation and the Either type itself.
+- `MonadSimulation.java`: Contains executable examples demonstrating usage.
