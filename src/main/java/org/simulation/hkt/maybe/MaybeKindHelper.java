@@ -16,5 +16,15 @@ public class MaybeKindHelper {
     return new MaybeHolder<>(maybe);
   }
 
+
+ public static <A> Kind<MaybeKind<?>, A> just(A value) {
+    // Maybe.just throws if value is null
+    return wrap(Maybe.just(value));
+  }
+
+  public static <A> Kind<MaybeKind<?>, A> nothing() {
+    return wrap(Maybe.nothing());
+  }
+
   record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> { }
 }
