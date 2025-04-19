@@ -61,6 +61,20 @@ public class EitherMonad<L> extends EitherFunctor<L> implements Monad<EitherKind
   }
 
 
+  @Override
+  public <A, B> Kind<EitherKind<L, ?>, B> ap(Kind<EitherKind<L, ?>, Function<A, B>> ff, Kind<EitherKind<L, ?>, A> fa) {
+    Either<L, Function<A, B>> eitherF = unwrap(ff);
+    Either<L, A> eitherA = unwrap(fa);
+
+    // If eitherF is Left, return it.
+    // If eitherA is Left, return it.
+    // If both are Right, apply the function.
+    // Either's flatMap/map handles the Left propagation.
+    Either<L, B> resultEither = eitherF.flatMap(f -> eitherA.map(f)); // flatMap on function, map on value
+
+    return wrap(resultEither);
+  }
+
 
 }
 
