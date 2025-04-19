@@ -3,22 +3,16 @@ package org.simulation.hkt;
 import java.util.function.Function;
 
 /**
- * Represents the Monad type class, extending Functor.
- * Provides 'of' (lifting a value) and 'flatMap' (sequencing operations).
+ * Represents the Monad type class, extending Applicative.
+ * Inherits 'of', 'ap', 'map' and adds 'flatMap' (sequencing operations).
  *
  * @param <M> The witness type for the Monad (e.g., ListKind.class, OptionalKind.class)
  */
-public interface Monad<M> extends Functor<M> {
+public interface Monad<M> extends Applicative<M> {
 
-  /**
-   * Lifts a plain value 'a' into the monadic context.
-   * Also known as 'return' or 'unit' or 'pure'.
-   *
-   * @param value The value to lift.
-   * @param <A>   The type of the value.
-   * @return The value wrapped in the monadic context (e.g., ListKind<A>, OptionalKind<A>).
-   */
-  <A> Kind<M, A> of(A value);
+  // 'of' is now inherited from Applicative
+  // 'map' is inherited from Functor (via Applicative)
+  // 'ap' is inherited from Applicative
 
   /**
    * Sequences monadic operations. Takes a monadic value and a function that produces
@@ -33,5 +27,11 @@ public interface Monad<M> extends Functor<M> {
    */
   <A, B> Kind<M, B> flatMap(Function<A, Kind<M, B>> f, Kind<M, A> ma);
 
-
+  // flatMap can define ap: ap(ff, fa) = flatMap(f -> map(f, fa), ff)
+  // You could provide a default implementation of ap here if desired,
+  // but typically specific implementations are more efficient.
+  // @Override
+  // default <A, B> Kind<M, B> ap(Kind<M, Function<A, B>> ff, Kind<M, A> fa) {
+  //     return flatMap(f -> map(f, fa), ff);
+  // }
 }

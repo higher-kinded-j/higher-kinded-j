@@ -18,6 +18,9 @@ public class ListMonad extends ListFunctor implements Monad<ListKind<?>> {
   @Override
   public <A> ListKind<A> of(A value) {
     // Lifts a single value into a List context (singleton list).
+    if (value == null) {
+      return wrap(Collections.emptyList());
+    }
     return wrap(Collections.singletonList(value));
   }
 
@@ -35,6 +38,21 @@ public class ListMonad extends ListFunctor implements Monad<ListKind<?>> {
       resultList.addAll(listB);
     }
     // Wrap the flattened list back into ListKind
+    return wrap(resultList);
+  }
+
+  @Override
+  public <A, B> Kind<ListKind<?>, B> ap(Kind<ListKind<?>, Function<A, B>> ff, Kind<ListKind<?>, A> fa) {
+    List<Function<A, B>> listF = unwrap(ff);
+    List<A> listA = unwrap(fa);
+    List<B> resultList = new ArrayList<>();
+
+    // Standard List applicative behavior: apply each function to each element (Cartesian product style)
+    for (Function<A, B> f : listF) {
+      for (A a : listA) {
+        resultList.add(f.apply(a));
+      }
+    }
     return wrap(resultList);
   }
 
