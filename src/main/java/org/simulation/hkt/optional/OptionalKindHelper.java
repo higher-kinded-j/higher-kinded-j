@@ -9,12 +9,13 @@ import java.util.Optional;
 public class OptionalKindHelper {
 
   public static <A> Optional<A> unwrap(Kind<OptionalKind<?>, A> kind){
+    // Now returns Optional.empty() for null or unknown types instead of throwing
     return switch(kind) {
-      case OptionalHolder<A>  holder -> holder.optional();
-      case null -> Optional.empty(); // or throw??
-      default -> throw new IllegalArgumentException("Kind instance is not an OptionalHolder: " + kind.getClass().getName());
+      case OptionalHolder<A> holder -> holder.optional();
+      case null, default -> Optional.empty(); // Return default for null or unknown types
     };
   }
+
   public  static <A> OptionalKind<A> wrap(Optional<A> optional){
     return new OptionalHolder<>(optional);
   }
