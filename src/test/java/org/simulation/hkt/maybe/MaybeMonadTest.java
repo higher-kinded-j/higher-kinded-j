@@ -19,6 +19,43 @@ class MaybeMonadTest {
   private final MaybeMonad maybeMonad = new MaybeMonad();
 
 
+  // Helper Functions for Laws
+  private final Function<Integer, String> intToString = Object::toString;
+  private final Function<String, String> appendWorld = s -> s + " world";
+  private final Function<Integer, String> intToStringAppendWorld = intToString.andThen(appendWorld);
+
+  // Function a -> M b (Integer -> MaybeKind<String>)
+  private final Function<Integer, Kind<MaybeKind<?>, String>> f =
+          i -> wrap(Maybe.just("v" + i));
+  // Function b -> M c (String -> MaybeKind<String>)
+  private final Function<String, Kind<MaybeKind<?>, String>> g =
+          s -> wrap(Maybe.just(s + "!"));
+
+
+
+  @Nested
+  @DisplayName("unwrap robustness tests")
+  class UnwrapRobustnessTests {
+
+    // Dummy Kind implementation that is not MaybeHolder
+    record DummyMaybeKind<A>() implements Kind<MaybeKind<?>, A> {}
+
+    @Test
+    void unwrap_shouldReturnNothingForNullInput() {
+      Maybe<String> result = MaybeKindHelper.unwrap(null);
+      assertThat(result).isNotNull();
+      assertThat(result.isNothing()).isTrue();
+    }
+
+    @Test
+    void unwrap_shouldReturnNothingForUnknownKindType() {
+      Kind<MaybeKind<?>, Integer> unknownKind = new DummyMaybeKind<>();
+      Maybe<Integer> result = MaybeKindHelper.unwrap(unknownKind);
+      assertThat(result).isNotNull();
+      assertThat(result.isNothing()).isTrue();
+    }
+  }
+
   @Nested
   @DisplayName("Applicative 'of' tests")
   class OfTests {
@@ -164,6 +201,274 @@ class MaybeMonadTest {
       );
 
       assertThat(unwrap(finalResult).isNothing()).isTrue();
+    }
+  }
+
+  // --- Law Tests ---
+
+  @Nested
+  @DisplayName("Functor Laws")
+  class FunctorLaws {
+    @Test
+    @DisplayName("1. Identity: map(id, fa) == fa")
+    void identity() {
+      Kind<MaybeKind<?>, Integer> fa = just(10);
+      Kind<MaybeKind<?>, Integer> faNothing = nothing();
+
+      assertThat(unwrap(maybeMonad.map(Function.identity(), fa)))
+              .isEqualTo(unwrap(fa));
+      assertThat(unwrap(maybeMonad.map(Function.identity(), faNothing)))
+              .isEqualTo(unwrap(faNothing));
+    }
+
+    @Test
+    @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
+    void composition() {
+      Kind<MaybeKind<?>, Integer> fa = just(10);
+      Kind<MaybeKind<?>, Integer> faNothing = nothing();
+
+      Kind<MaybeKind<?>, String> leftSide = maybeMonad.map(intToStringAppendWorld, fa);
+      Kind<MaybeKind<?>, String> rightSide = maybeMonad.map(appendWorld, maybeMonad.map(intToString, fa));
+
+      Kind<MaybeKind<?>, String> leftSideNothing = maybeMonad.map(intToStringAppendWorld, faNothing);
+      Kind<MaybeKind<?>, String> rightSideNothing = maybeMonad.map(appendWorld, maybeMonad.map(intToString, faNothing));
+
+      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(unwrap(leftSideNothing)).isEqualTo(unwrap(rightSideNothing));
+    }
+  }
+
+  @Nested
+  @DisplayName("Applicative Laws")
+  class ApplicativeLaws {
+
+    Kind<MaybeKind<?>, Integer> v = just(5);
+    Kind<MaybeKind<?>, Integer> vNothing = nothing();
+    Kind<MaybeKind<?>, Function<Integer, String>> fKind = just(intToString);
+    Kind<MaybeKind<?>, Function<Integer, String>> fKindNothing = nothing();
+    Kind<MaybeKind<?>, Function<String, String>> gKind = just(appendWorld);
+    Kind<MaybeKind<?>, Function<String, String>> gKindNothing = nothing();
+
+
+    @Test
+    @DisplayName("1. Identity: ap(of(id), v) == v")
+    void identity() {
+      Kind<MaybeKind<?>, Function<Integer, Integer>> idFuncKind = maybeMonad.of(Function.identity());
+      assertThat(unwrap(maybeMonad.ap(idFuncKind, v))).isEqualTo(unwrap(v));
+      assertThat(unwrap(maybeMonad.ap(idFuncKind, vNothing))).isEqualTo(unwrap(vNothing));
+    }
+
+    @Test
+    @DisplayName("2. Homomorphism: ap(of(f), of(x)) == of(f(x))")
+    void homomorphism() {
+      int x = 10;
+      Function<Integer, String> f = intToString;
+      Kind<MaybeKind<?>, Function<Integer, String>> apFunc = maybeMonad.of(f);
+      Kind<MaybeKind<?>, Integer> apVal = maybeMonad.of(x);
+
+      Kind<MaybeKind<?>, String> leftSide = maybeMonad.ap(apFunc, apVal);
+      Kind<MaybeKind<?>, String> rightSide = maybeMonad.of(f.apply(x));
+
+      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+    }
+
+    @Test
+    @DisplayName("3. Interchange: ap(fKind, of(y)) == ap(of(f -> f(y)), fKind)")
+    void interchange() {
+      int y = 20;
+      // Left Side: ap(fKind, of(y))
+      Kind<MaybeKind<?>, String> leftSide = maybeMonad.ap(fKind, maybeMonad.of(y));
+      Kind<MaybeKind<?>, String> leftSideNothing = maybeMonad.ap(fKindNothing, maybeMonad.of(y)); // Should be Nothing
+
+      // Right Side: ap(of(f -> f(y)), fKind)
+      Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
+      Kind<MaybeKind<?>, Function<Function<Integer, String>, String>> evalKind = maybeMonad.of(evalWithY);
+
+      Kind<MaybeKind<?>, String> rightSide = maybeMonad.ap(evalKind, fKind);
+      Kind<MaybeKind<?>, String> rightSideNothing = maybeMonad.ap(evalKind, fKindNothing); // Should be Nothing
+
+      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(unwrap(leftSideNothing)).isEqualTo(unwrap(rightSideNothing));
+    }
+
+    @Test
+    @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v)) - Adjusted")
+    void composition() {
+      Function<Function<String, String>, Function<Function<Integer, String>, Function<Integer, String>>> composeMap =
+              g -> f -> g.compose(f);
+
+      // Left side: ap(ap(map(composeMap, gKind), fKind), v)
+      Kind<MaybeKind<?>, Function<Function<Integer, String>, Function<Integer, String>>> mappedCompose =
+              maybeMonad.map(composeMap, gKind);
+      Kind<MaybeKind<?>, Function<Integer, String>> ap1 =
+              maybeMonad.ap(mappedCompose, fKind);
+      Kind<MaybeKind<?>, String> leftSide = maybeMonad.ap(ap1, v);
+
+      // Right side: ap(gKind, ap(fKind, v))
+      Kind<MaybeKind<?>, String> innerAp = maybeMonad.ap(fKind, v);
+      Kind<MaybeKind<?>, String> rightSide = maybeMonad.ap(gKind, innerAp);
+
+      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+
+      // Test with Nothing propagation
+      assertThat(unwrap(maybeMonad.ap(maybeMonad.ap(maybeMonad.map(composeMap, gKindNothing), fKind), v)).isNothing()).isTrue();
+      assertThat(unwrap(maybeMonad.ap(gKindNothing, maybeMonad.ap(fKind, v))).isNothing()).isTrue();
+      assertThat(unwrap(maybeMonad.ap(maybeMonad.ap(maybeMonad.map(composeMap, gKind), fKindNothing), v)).isNothing()).isTrue();
+      assertThat(unwrap(maybeMonad.ap(gKind, maybeMonad.ap(fKindNothing, v))).isNothing()).isTrue();
+      assertThat(unwrap(maybeMonad.ap(maybeMonad.ap(maybeMonad.map(composeMap, gKind), fKind), vNothing)).isNothing()).isTrue();
+      assertThat(unwrap(maybeMonad.ap(gKind, maybeMonad.ap(fKind, vNothing))).isNothing()).isTrue();
+    }
+  }
+
+
+  @Nested
+  @DisplayName("Monad Laws")
+  class MonadLaws {
+
+    int value = 5;
+    Kind<MaybeKind<?>, Integer> mValue = just(value);
+    Kind<MaybeKind<?>, Integer> mValueNothing = nothing();
+
+
+    @Test
+    @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
+    void leftIdentity() {
+      Kind<MaybeKind<?>, Integer> ofValue = maybeMonad.of(value);
+      Kind<MaybeKind<?>, String> leftSide = maybeMonad.flatMap(f, ofValue);
+      Kind<MaybeKind<?>, String> rightSide = f.apply(value);
+
+      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+    }
+
+    @Test
+    @DisplayName("2. Right Identity: flatMap(m, of) == m")
+    void rightIdentity() {
+      Function<Integer, Kind<MaybeKind<?>, Integer>> ofFunc = i -> maybeMonad.of(i);
+
+      Kind<MaybeKind<?>, Integer> leftSide = maybeMonad.flatMap(ofFunc, mValue);
+      Kind<MaybeKind<?>, Integer> leftSideNothing = maybeMonad.flatMap(ofFunc, mValueNothing);
+
+      assertThat(unwrap(leftSide)).isEqualTo(unwrap(mValue));
+      assertThat(unwrap(leftSideNothing)).isEqualTo(unwrap(mValueNothing));
+    }
+
+
+    @Test
+    @DisplayName("3. Associativity: flatMap(g, flatMap(m, f)) == flatMap(a -> flatMap(f(a), g), m)")
+    void associativity() {
+      // Left Side: flatMap(flatMap(m, f), g)
+      Kind<MaybeKind<?>, String> innerFlatMap = maybeMonad.flatMap(f, mValue);
+      Kind<MaybeKind<?>, String> leftSide = maybeMonad.flatMap(g, innerFlatMap);
+
+      // Right Side: flatMap(a -> flatMap(g, f(a)), m)
+      Function<Integer, Kind<MaybeKind<?>, String>> rightSideFunc =
+              a -> maybeMonad.flatMap(g, f.apply(a));
+      Kind<MaybeKind<?>, String> rightSide = maybeMonad.flatMap(rightSideFunc, mValue);
+
+      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+
+      // Check Nothing propagation
+      Kind<MaybeKind<?>, String> innerFlatMapNothing = maybeMonad.flatMap(f, mValueNothing); // Nothing
+      Kind<MaybeKind<?>, String> leftSideNothing = maybeMonad.flatMap(g, innerFlatMapNothing); // Nothing
+      Kind<MaybeKind<?>, String> rightSideNothing = maybeMonad.flatMap(rightSideFunc, mValueNothing); // Nothing
+      assertThat(unwrap(leftSideNothing)).isEqualTo(unwrap(rightSideNothing));
+    }
+  }
+
+  @Nested
+  @DisplayName("MonadError tests")
+  class MonadErrorTests {
+
+    Kind<MaybeKind<?>, Integer> justVal = just(100);
+    Kind<MaybeKind<?>, Integer> nothingVal = nothing();
+    // Error type is Void, so just use null for the error value
+    Kind<MaybeKind<?>, Integer> raisedErrorKind = maybeMonad.raiseError(null);
+
+
+    @Test
+    void raiseError_shouldCreateNothing() {
+      assertThat(unwrap(raisedErrorKind).isNothing()).isTrue();
+    }
+
+    @Test
+    void handleErrorWith_shouldHandleNothing() {
+      // Handler recovers Nothing with Just(0)
+      Function<Void, Kind<MaybeKind<?>, Integer>> handler = err -> just(0);
+
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.handleErrorWith(nothingVal, handler);
+
+      assertThat(unwrap(result).isJust()).isTrue();
+      assertThat(unwrap(result).get()).isEqualTo(0);
+    }
+
+    @Test
+    void handleErrorWith_shouldHandleRaisedError() {
+      // Handler recovers Nothing with Just(0)
+      Function<Void, Kind<MaybeKind<?>, Integer>> handler = err -> just(0);
+
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.handleErrorWith(raisedErrorKind, handler);
+
+      assertThat(unwrap(result).isJust()).isTrue();
+      assertThat(unwrap(result).get()).isEqualTo(0);
+    }
+
+    @Test
+    void handleErrorWith_shouldIgnoreJust() {
+      Function<Void, Kind<MaybeKind<?>, Integer>> handler = err -> just(-1); // Should not be called
+
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.handleErrorWith(justVal, handler);
+
+      assertThat(result).isSameAs(justVal); // Should return original Kind instance
+      assertThat(unwrap(result).isJust()).isTrue();
+      assertThat(unwrap(result).get()).isEqualTo(100);
+    }
+
+    @Test
+    void handleError_shouldHandleNothingWithPureValue() {
+      Function<Void, Integer> handler = err -> -99;
+
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.handleError(nothingVal, handler);
+
+      assertThat(unwrap(result).isJust()).isTrue();
+      assertThat(unwrap(result).get()).isEqualTo(-99);
+    }
+
+    @Test
+    void handleError_shouldIgnoreJust() {
+      Function<Void, Integer> handler = err -> -1; // Should not be called
+
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.handleError(justVal, handler);
+
+      assertThat(result).isSameAs(justVal); // Should return original Kind instance
+      assertThat(unwrap(result).isJust()).isTrue();
+      assertThat(unwrap(result).get()).isEqualTo(100);
+    }
+
+    @Test
+    void recoverWith_shouldReplaceNothingWithFallbackKind() {
+      Kind<MaybeKind<?>, Integer> fallback = just(0);
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.recoverWith(nothingVal, fallback);
+      assertThat(result).isSameAs(fallback);
+    }
+
+    @Test
+    void recoverWith_shouldIgnoreJust() {
+      Kind<MaybeKind<?>, Integer> fallback = just(0);
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.recoverWith(justVal, fallback);
+      assertThat(result).isSameAs(justVal);
+    }
+
+    @Test
+    void recover_shouldReplaceNothingWithOfValue() {
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.recover(nothingVal, 0);
+      assertThat(unwrap(result).isJust()).isTrue();
+      assertThat(unwrap(result).get()).isEqualTo(0);
+    }
+
+    @Test
+    void recover_shouldIgnoreJust() {
+      Kind<MaybeKind<?>, Integer> result = maybeMonad.recover(justVal, 0);
+      assertThat(result).isSameAs(justVal);
     }
   }
 }
