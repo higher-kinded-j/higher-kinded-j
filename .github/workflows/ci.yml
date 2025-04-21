@@ -1,0 +1,50 @@
+name: Java CI with Gradle, JaCoCo, and Codecov
+
+# Trigger workflow on pushes to the main branch and any pull request
+on:
+  push:
+    branches: [ "main" ] # Adjust if your main branch is named differently
+  pull_request:
+    branches: [ "main" ] # Adjust if your main branch is named differently
+
+# Set default permissions for the GITHUB_TOKEN
+permissions:
+  contents: read # Allow checkout
+
+jobs:
+  build-and-test: # Define a job named 'build-and-test'
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      # 1. Check out repository code so the workflow can access it
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up the specified JDK version (using Java 23 from your build file)
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin' # Or 'zulu', 'adopt', etc.
+
+      # 3. Grant execute permissions to the Gradle wrapper script
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 4. Run the Gradle build task.
+      #    This will compile, run tests (triggering jacocoTestReport via finalizedBy)
+      #    and generate the XML report needed by Codecov.
+      - name: Build with Gradle & Generate JaCoCo Report
+        run: ./gradlew build
+
+      # 5. Upload the generated JaCoCo XML report to Codecov
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4 # Use the official Codecov action
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }} # Read the token from GitHub secrets
+          # Optional configurations for the Codecov action:
+          # with:
+          # files: ./build/reports/jacoco/test/jacocoTestReport.xml # Specify report file if not default
+          # flags: unittests # Add flags to categorize coverage reports
+          # fail_ci_if_error: true # Make the workflow fail if Codecov upload fails
+
