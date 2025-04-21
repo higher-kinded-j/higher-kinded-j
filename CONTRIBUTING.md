@@ -50,6 +50,6 @@ Unsure where to begin contributing? You can start by looking through `good first
 
 ## Coding Style
 
-Please follow standard Java coding conventions. Keep code simple, readable, and well-tested.
+Please follow the [**Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html). Keep code simple, readable, and well-tested. Consistent formatting is encouraged.
 
 Thank you for contributing!
