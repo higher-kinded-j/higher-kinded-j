@@ -1,5 +1,7 @@
 # Java Higher-Kinded Type (HKT) Simulation
 
+[![codecov](https://codecov.io/gh/MagnusSmith/simulation-hkt/branch/main/graph/badge.svg?token=XO7GSI0ECI)](https://codecov.io/gh/MagnusSmith/simulation-hkt)
+
 This simulation was created for the blog post [Higher Kinded Types with Java and Scala](https://magnussmith.github.io/blog/2025/04/01/higher-kinded-types-with-java-and-scala.html) to help illustrate different approaches.
 
 This project demonstrates a technique to simulate Higher-Kinded Types (HKTs) in Java, a feature not natively supported by the language's type system. It uses a defunctionalisation approach, representing type constructors and type classes as interfaces and objects.
