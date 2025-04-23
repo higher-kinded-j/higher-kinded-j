@@ -73,7 +73,7 @@ class MaybeMonadTest {
     @Test
     void map_shouldHandleMappingToNullAsNothing() {
       Kind<MaybeKind<?>, Integer> input = just(5);
-      Kind<MaybeKind<?>, String> result = maybeMonad.map(x -> (String)null, input);
+      Kind<MaybeKind<?>, String> result = maybeMonad.map(x -> null, input);
       // Maybe.map uses fromNullable, so null result becomes Nothing
       assertThat(unwrap(result).isNothing()).isTrue();
     }

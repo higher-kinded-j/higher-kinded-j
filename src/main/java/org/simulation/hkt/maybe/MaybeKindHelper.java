@@ -4,7 +4,11 @@ import org.simulation.hkt.Kind;
 
 import java.util.Objects;
 
-public class MaybeKindHelper {
+public final class MaybeKindHelper {
+
+  private MaybeKindHelper() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  }
 
   /**
    * Unwraps a MaybeKind back to the concrete Maybe<A> type.

@@ -110,7 +110,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
   /**
    * Represents the Left side of an Either.
    */
-  final record Left<L, R>(L value) implements Either<L, R> {
+  record Left<L, R>(L value) implements Either<L, R> {
     @Override
     public boolean isLeft() {
       return true;
@@ -176,7 +176,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
   /**
    * Represents the Right side of an Either.
    */
-  final record Right<L, R>(R value) implements Either<L, R> {
+  record Right<L, R>(R value) implements Either<L, R> {
     @Override
     public boolean isLeft() {
       return false;

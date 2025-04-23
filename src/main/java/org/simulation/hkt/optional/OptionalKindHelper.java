@@ -5,7 +5,11 @@ import org.simulation.hkt.Kind;
 import java.util.Objects;
 import java.util.Optional;
 
-public class OptionalKindHelper {
+public final class OptionalKindHelper {
+
+  private OptionalKindHelper() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  }
 
   /**
    * Unwraps an OptionalKind back to the concrete Optional<A> type.

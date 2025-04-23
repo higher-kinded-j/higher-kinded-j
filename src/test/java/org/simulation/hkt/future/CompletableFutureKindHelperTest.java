@@ -4,9 +4,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.trymonad.TryKindHelper;
 
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.CancellationException; // Added
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -106,7 +109,7 @@ class CompletableFutureKindHelperTest {
       CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
       // Need to cast to satisfy the Kind type parameter in unwrap
       @SuppressWarnings("unchecked")
-      Kind<CompletableFutureKind<?>, Boolean> kind = (Kind<CompletableFutureKind<?>, Boolean>) holderWithNull;
+      Kind<CompletableFutureKind<?>, Boolean> kind = holderWithNull;
 
       // The current unwrap implementation will return the null future directly
       CompletableFuture<Boolean> future = unwrap(kind);
@@ -217,12 +220,35 @@ class CompletableFutureKindHelperTest {
       // Test the case where unwrap returns null (e.g., holder with null future)
       CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
       @SuppressWarnings("unchecked")
-      Kind<CompletableFutureKind<?>, Boolean> kind = (Kind<CompletableFutureKind<?>, Boolean>) holderWithNull;
+      Kind<CompletableFutureKind<?>, Boolean> kind = holderWithNull;
 
       // join will call unwrap(kind), get null, then call null.join() -> NPE
       assertThatThrownBy(() -> join(kind))
           .isInstanceOf(NullPointerException.class);
       // Note: No specific message check as it comes from calling join() on null
+    }
+  }
+
+  @Nested
+  @DisplayName("Private Constructor")
+  class PrivateConstructorTest {
+
+    @Test
+    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
+    void constructor_shouldThrowException() throws NoSuchMethodException {
+      // Get the private constructor
+      Constructor<CompletableFutureKindHelper> constructor = CompletableFutureKindHelper.class.getDeclaredConstructor();
+
+      // Make it accessible
+      constructor.setAccessible(true);
+
+      // Assert that invoking the constructor throws the expected exception
+      // InvocationTargetException wraps the actual exception thrown by the constructor
+      assertThatThrownBy(constructor::newInstance)
+          .isInstanceOf(InvocationTargetException.class)
+          .hasCauseInstanceOf(UnsupportedOperationException.class)
+          .cause() // Get the wrapped UnsupportedOperationException
+          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }
