@@ -6,7 +6,7 @@ This document provides guidelines for contributing to this project.
 
 ## Code of Conduct
 
-This project and everyone participating in it is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to magnus.smith@gmail.com.
+This project and everyone participating in it is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to simulation.hkt@gmail.com.
 
 ## How Can I Contribute?
 

@@ -4,22 +4,26 @@ import org.simulation.hkt.Kind;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class ListKindHelper {
   /**
-   * returns empty list for null or unknown types instead of throwing
+   * returns empty list for null or unknown types, or if the holder contains a null list.
    * @param kind
-   * @return
+   * @return The underlying list or an empty list.
    * @param <A>
    */
   public static <A> List<A> unwrap(Kind<ListKind<?>, A> kind) {
     return switch(kind) {
-      case ListHolder<A> holder -> holder.list();
+      // Check if the holder's list is null, return emptyList if it is
+      case ListHolder<A> holder -> holder.list() != null ? holder.list() : Collections.emptyList();
       case null, default -> Collections.emptyList(); // Return default for null or unknown types
     };
   }
 
   public static <A> ListKind<A> wrap(List<A> list) {
+    // It's good practice to prevent wrapping null lists directly if unintended
+    Objects.requireNonNull(list, "Input list cannot be null for wrap");
     return new ListHolder<>(list);
   }
 

@@ -1,4 +1,4 @@
-package org.simulation.hkt.example.order.workflow;
+package org.simulation.example.order.workflow;
 
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.MonadError;
@@ -6,8 +6,7 @@ import org.simulation.hkt.either.Either;
 import org.simulation.hkt.either.EitherKind; // Result type inside Future OR Sync result
 import org.simulation.hkt.either.EitherKindHelper; // Needed to unwrap sync result
 import org.simulation.hkt.either.EitherMonad; // Needed for inner Either ops
-import org.simulation.hkt.example.order.error.DomainError;
-import org.simulation.hkt.example.order.model.WorkflowModels;
+import org.simulation.example.order.error.DomainError;
 import org.simulation.hkt.future.CompletableFutureKind;
 import org.simulation.hkt.future.CompletableFutureKindHelper;
 import org.simulation.hkt.future.CompletableFutureMonadError;
@@ -15,8 +14,8 @@ import org.simulation.hkt.future.CompletableFutureMonadError;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-import static org.simulation.hkt.example.order.model.WorkflowModels.WorkflowContext;
-import static org.simulation.hkt.example.order.model.WorkflowModels.*;
+import static org.simulation.example.order.model.WorkflowModels.WorkflowContext;
+import static org.simulation.example.order.model.WorkflowModels.*;
 
 /**
  * Orchestrates an order processing workflow using the HKT simulation framework.

@@ -1,15 +1,15 @@
-package org.simulation.hkt.example.order.workflow;
+package org.simulation.example.order.workflow;
 
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.either.Either;
 import org.simulation.hkt.either.EitherKind;
 import org.simulation.hkt.either.EitherKindHelper;
-import org.simulation.hkt.example.order.error.DomainError;
+import org.simulation.example.order.error.DomainError;
 import org.simulation.hkt.future.CompletableFutureKind;
 import org.simulation.hkt.future.CompletableFutureKindHelper;
 
-import static org.simulation.hkt.example.order.error.DomainError.*;
-import static org.simulation.hkt.example.order.model.WorkflowModels.*;
+import static org.simulation.example.order.error.DomainError.*;
+import static org.simulation.example.order.model.WorkflowModels.*;
 
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;

@@ -2,6 +2,7 @@ package org.simulation.hkt.future;
 
 import org.simulation.hkt.Kind;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -23,6 +24,8 @@ public class CompletableFutureKindHelper {
      * Wraps a concrete CompletableFuture<A> value into the CompletableFutureKind simulation type.
      */
     public static <A> CompletableFutureKind<A> wrap(CompletableFuture<A> future) {
+        // Explicitly check for null to ensure consistent behavior
+        Objects.requireNonNull(future, "Input CompletableFuture cannot be null for wrap");
         return new CompletableFutureHolder<>(future);
     }
 
