@@ -214,8 +214,6 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       }
     }
 
-    @Override
-    public String toString() { return "Success(" + value + ")"; }
   }
 
   /** Represents a failed computation. */
@@ -292,7 +290,5 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       }
     }
 
-    @Override
-    public String toString() { return "Failure(" + cause + ")"; }
   }
 }

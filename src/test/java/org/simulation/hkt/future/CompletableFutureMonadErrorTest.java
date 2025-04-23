@@ -384,8 +384,31 @@ class CompletableFutureMonadErrorTest {
             assertThat(caughtError.get()).isSameAs(checkedException);
         }
 
+        // Example Test for Branch 3a (likely already covered but good to be explicit):
+        // Exception IS CompletionException WITH cause
         @Test
-        void handleErrorWith_shouldHandleCompletionExceptionWithCause() { // Added
+        void handleErrorWith_shouldHandleCompletionExceptionWithCause() {
+            IOException ioCause = new IOException("Underlying IO failure");
+            // Create a future that fails with CompletionException wrapping IOException
+            Kind<CompletableFutureKind<?>, Integer> failedKindWithCause = wrap(CompletableFuture.failedFuture(new CompletionException(ioCause)));
+            AtomicReference<Throwable> caughtError = new AtomicReference<>();
+
+            Function<Throwable, Kind<CompletableFutureKind<?>, Integer>> handler =
+                err -> {
+                    caughtError.set(err); // Capture the error passed to the handler
+                    return futureMonad.of(77); // Recover
+                };
+
+            Kind<CompletableFutureKind<?>, Integer> result = futureMonad.handleErrorWith(failedKindWithCause, handler);
+
+            // Verify recovery happened
+            assertThat(joinFuture(result)).isEqualTo(77);
+            // Verify the handler received the UNWRAPPED cause (the IOException)
+            assertThat(caughtError.get()).isSameAs(ioCause);
+        }
+
+        @Test
+        void handleErrorWith_shouldHandleCompletionExceptionWithCauseDirctly() { // Added
             // Simulate a future that fails internally with a specific cause
             CompletableFuture<Integer> internalFailure = new CompletableFuture<>();
             internalFailure.completeExceptionally(testError); // Fail with original error
@@ -404,9 +427,29 @@ class CompletableFutureMonadErrorTest {
             // Verify the handler received the *unwrapped* cause
             assertThat(caughtError.get()).isSameAs(testError);
         }
+        // Test for Branch 3b: Exception IS CompletionException but WITHOUT cause
+        @Test
+        void handleErrorWith_shouldHandleCompletionExceptionWithoutCause() {
+            CompletionException completionExNoCause = new CompletionException("Failed Future No Cause", null); // Explicit null cause
+            Kind<CompletableFutureKind<?>, Integer> failedKindNoCause = futureMonad.raiseError(completionExNoCause);
+            AtomicReference<Throwable> caughtError = new AtomicReference<>();
+
+            Function<Throwable, Kind<CompletableFutureKind<?>, Integer>> handler =
+                err -> {
+                    caughtError.set(err); // Capture the error passed to the handler
+                    return futureMonad.of(88); // Recover
+                };
+
+            Kind<CompletableFutureKind<?>, Integer> result = futureMonad.handleErrorWith(failedKindNoCause, handler);
+
+            // Verify recovery happened
+            assertThat(joinFuture(result)).isEqualTo(88);
+            // Verify the handler received the original CompletionException (since cause was null)
+            assertThat(caughtError.get()).isSameAs(completionExNoCause);
+        }
 
         @Test
-        void handleErrorWith_shouldHandleCompletionExceptionWithoutCause() { // Added
+        void handleErrorWith_shouldHandleCompletionExceptionWithoutCauseDirectly() {
             // Simulate a future that fails with CompletionException directly (no cause)
             CompletionException completionEx = new CompletionException("No cause here", null);
             CompletableFuture<Integer> internalFailure = new CompletableFuture<>();
@@ -467,6 +510,71 @@ class CompletableFutureMonadErrorTest {
             assertThat(joinFuture(result)).isEqualTo(200);
             // Optionally check if the same future instance is returned (though not strictly required by MonadError)
             assertThat(unwrapFuture(result)).isSameAs(alreadyDone);
+        }
+
+        // Test for Branch 1: Input future already successfully completed
+        @Test
+        void handleErrorWith_shouldReturnOriginalKindIfAlreadyCompletedSuccessfully() {
+            CompletableFuture<Integer> alreadyDone = CompletableFuture.completedFuture(200);
+            Kind<CompletableFutureKind<?>, Integer> alreadyDoneKind = wrap(alreadyDone);
+
+            AtomicBoolean handlerCalled = new AtomicBoolean(false);
+            Function<Throwable, Kind<CompletableFutureKind<?>, Integer>> handler =
+                err -> {
+                    handlerCalled.set(true); // Track if handler was erroneously called
+                    return futureMonad.of(-1);
+                };
+
+            Kind<CompletableFutureKind<?>, Integer> result = futureMonad.handleErrorWith(alreadyDoneKind, handler);
+
+            // Verify the handler was NOT called
+            assertThat(handlerCalled).isFalse();
+            // Verify the result is the original value
+            assertThat(joinFuture(result)).isEqualTo(200);
+            // Verify the original Kind instance is returned (due to the optimization)
+            assertThat(result).isSameAs(alreadyDoneKind);
+        }
+
+        // Test for Branch 3b: Exception is NOT CompletionException with cause
+        @Test
+        void handleErrorWith_shouldHandleDirectRuntimeException() {
+            RuntimeException directError = new IllegalStateException("Direct Failure");
+            Kind<CompletableFutureKind<?>, Integer> failedKindDirect = futureMonad.raiseError(directError);
+            AtomicReference<Throwable> caughtError = new AtomicReference<>();
+
+            Function<Throwable, Kind<CompletableFutureKind<?>, Integer>> handler =
+                err -> {
+                    caughtError.set(err); // Capture the error passed to the handler
+                    return futureMonad.of(99); // Recover
+                };
+
+            Kind<CompletableFutureKind<?>, Integer> result = futureMonad.handleErrorWith(failedKindDirect, handler);
+
+            // Verify recovery happened
+            assertThat(joinFuture(result)).isEqualTo(99);
+            // Verify the handler received the ORIGINAL direct exception
+            assertThat(caughtError.get()).isSameAs(directError);
+        }
+
+
+        // Optional: Test case where the handler itself throws
+        @Test
+        void handleErrorWith_shouldPropagateExceptionFromHandler() {
+            RuntimeException handlerException = new RuntimeException("Handler itself failed!");
+            Kind<CompletableFutureKind<?>, Integer> failedKind = futureMonad.raiseError(testError); // Initial failure
+
+            Function<Throwable, Kind<CompletableFutureKind<?>, Integer>> handler =
+                err -> {
+                    // This handler throws an exception instead of returning a Kind
+                    throw handlerException;
+                };
+
+            Kind<CompletableFutureKind<?>, Integer> result = futureMonad.handleErrorWith(failedKind, handler);
+
+            // Expect the exception thrown by the handler to be the final failure cause
+            assertThatThrownBy(() -> joinFuture(result))
+                .isInstanceOf(RuntimeException.class) // It's a RuntimeException
+                .isSameAs(handlerException);        // Verify it's the specific one from the handler
         }
 
 
@@ -555,6 +663,8 @@ class CompletableFutureMonadErrorTest {
                 .isInstanceOf(RuntimeException.class)
                 .isSameAs(testError);
         }
+
+
 
     }
 
