@@ -1,4 +1,4 @@
-package org.simulation.hkt.example.order.error;
+package org.simulation.example.order.error;
 
 import java.io.Serializable;
 

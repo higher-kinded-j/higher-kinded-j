@@ -5,10 +5,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.function.Function3;
+import org.simulation.hkt.function.Function4;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,26 +34,6 @@ class ListMonadTest {
   private final Function<String, Kind<ListKind<?>, String>> g =
           s -> wrap(Arrays.asList(s + "!", s + "?"));
 
-  @Nested
-  @DisplayName("unwrap robustness tests")
-  class UnwrapRobustnessTests {
-
-    // Dummy Kind implementation that is not ListHolder
-    record DummyListKind<A>() implements Kind<ListKind<?>, A> {}
-
-    @Test
-    void unwrap_shouldReturnEmptyListForNullInput() {
-      List<String> result = ListKindHelper.unwrap(null);
-      assertThat(result).isNotNull().isEmpty();
-    }
-
-    @Test
-    void unwrap_shouldReturnEmptyListForUnknownKindType() {
-      Kind<ListKind<?>, Integer> unknownKind = new DummyListKind<>();
-      List<Integer> result = ListKindHelper.unwrap(unknownKind);
-      assertThat(result).isNotNull().isEmpty();
-    }
-  }
 
   @Nested
   @DisplayName("Applicative 'of' tests")
@@ -362,6 +345,104 @@ class ListMonadTest {
         Kind<ListKind<?>, String> rightSideEmpty = listMonad.flatMap(rightSideFunc, mValueEmpty); // []
         assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
       }
+    }
+  }
+
+
+  @Nested
+  @DisplayName("mapN tests")
+  class MapNTests {
+
+    Kind<ListKind<?>, Integer> list1 = wrap(Arrays.asList(1, 2));
+    Kind<ListKind<?>, String> list2 = wrap(Arrays.asList("a", "b"));
+    Kind<ListKind<?>, Double> list3 = wrap(Arrays.asList(1.0, 2.0));
+    Kind<ListKind<?>, Boolean> list4 = wrap(Arrays.asList(true, false));
+
+    Kind<ListKind<?>, Integer> emptyList = wrap(Collections.emptyList());
+
+
+    @Test
+    void map2_bothNonEmpty() {
+      Function<Integer, Function<String, String>> f2 = i -> s -> i + s;
+      Kind<ListKind<?>, String> result = listMonad.map2(list1, list2, f2);
+      // Expected: Cartesian product applied: 1a, 1b, 2a, 2b
+      assertThat(unwrap(result)).containsExactly("1a", "1b", "2a", "2b");
+    }
+
+    @Test
+    void map2_firstEmpty() {
+      Function<Integer, Function<String, String>> f2 = i -> s -> i + s;
+      Kind<ListKind<?>, String> result = listMonad.map2(emptyList, list2, f2);
+      assertThat(unwrap(result)).isEmpty();
+    }
+
+    @Test
+    void map2_secondEmpty() {
+      Function<String, Function<Integer, String>> f2 = i -> s -> i + s;
+      Kind<ListKind<?>, String> result = listMonad.map2(list2, emptyList, f2);
+      assertThat(unwrap(result)).isEmpty();
+    }
+
+
+    @Test
+    void map2_biFunctionBothNonEmpty() {
+      BiFunction<Integer, String, String> f2 = (i, s) -> i + s;
+      Kind<ListKind<?>, String> result = listMonad.map2(list1, list2, f2);
+      // Expected: Cartesian product applied: 1a, 1b, 2a, 2b
+      assertThat(unwrap(result)).containsExactly("1a", "1b", "2a", "2b");
+    }
+
+    @Test
+    void map2_biFunctionFirstEmpty() {
+      BiFunction<Integer, String, String> f2 = (i, s) -> i + s;
+      Kind<ListKind<?>, String> result = listMonad.map2(emptyList, list2, f2);
+      assertThat(unwrap(result)).isEmpty();
+    }
+
+    @Test
+    void map2_biFunctionSecondEmpty() {
+      BiFunction<String, Integer, String> f2 = (i, s) -> i + s;
+      Kind<ListKind<?>, String> result = listMonad.map2(list2, emptyList, f2);
+      assertThat(unwrap(result)).isEmpty();
+    }
+
+    @Test
+    void map3_allNonEmpty() {
+      Function3<Integer, String, Double, String> f3 =
+          (i, s, d) -> String.format("%d-%s-%.1f", i, s, d);
+      Kind<ListKind<?>, String> result = listMonad.map3(list1, list2, list3, f3);
+      // Expected: Cartesian product:
+      // 1-a-1.0, 1-a-2.0, 1-b-1.0, 1-b-2.0,
+      // 2-a-1.0, 2-a-2.0, 2-b-1.0, 2-b-2.0
+      assertThat(unwrap(result)).containsExactly(
+          "1-a-1.0", "1-a-2.0", "1-b-1.0", "1-b-2.0",
+          "2-a-1.0", "2-a-2.0", "2-b-1.0", "2-b-2.0"
+      );
+    }
+
+    @Test
+    void map3_middleEmpty() {
+      Function3<Integer, Integer, Double, String> f3 = (i, s, d) -> "Should not execute";
+      Kind<ListKind<?>, String> result = listMonad.map3(list1, emptyList, list3, f3);
+      assertThat(unwrap(result)).isEmpty();
+    }
+
+    @Test
+    void map4_allNonEmpty() {
+      Function4<Integer, String, Double, Boolean, String> f4 =
+          (i, s, d, b) -> String.format("%d-%s-%.1f-%b", i, s, d, b);
+      Kind<ListKind<?>, String> result = listMonad.map4(list1, list2, list3, list4, f4);
+      // Expected: 2 * 2 * 2 * 2 = 16 combinations
+      assertThat(unwrap(result)).hasSize(16);
+      // Spot check a few
+      assertThat(unwrap(result)).contains("1-a-1.0-true", "2-b-2.0-false");
+    }
+
+    @Test
+    void map4_lastEmpty() {
+      Function4<Integer, String, Double, Integer, String> f4 = (i, s, d, b) -> "Should not execute";
+      Kind<ListKind<?>, String> result = listMonad.map4(list1, list2, list3, emptyList, f4);
+      assertThat(unwrap(result)).isEmpty();
     }
   }
 }

@@ -41,10 +41,8 @@ tasks.jacocoTestReport {
     classDirectories.setFrom(files(compiledClasses.map { dir ->
         fileTree(dir).apply {
             exclude(
-                "**/example/**", // Exclude the example package if desired
-                "**/MonadSimulation.class",
+                "**/example/**", // Exclude the example package
                 "**/*Kind.class", // Exclude Kind interfaces
-                "**/*KindHelper*.class", // Exclude helpers
                 "**/*Holder*.class" // Exclude internal holders
 
             )

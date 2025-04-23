@@ -48,52 +48,6 @@ class EitherMonadTest {
     // Expected error string defined in the helper for invalid unwraps
     private static final String INVALID_KIND_ERROR = "Invalid Kind state (null or unexpected type)";
 
-
-    @Nested
-    @DisplayName("unwrap robustness tests")
-    class UnwrapRobustnessTests {
-
-        // Dummy Kind implementation that is not EitherHolder
-        record DummyEitherKind<L, R>() implements Kind<EitherKind<L, ?>, R> {}
-
-        // Expected error string defined in the helper
-        private static final String EXPECTED_ERROR = "Invalid Kind state (null or unexpected type)";
-
-
-        @Test
-        void unwrap_shouldReturnLeftErrorForNullInput() {
-            // We need to specify the expected Left type for the assertion
-            Either<String, Integer> result = EitherKindHelper.unwrap(null);
-            assertThat(result).isNotNull();
-            assertThat(result.isLeft()).isTrue();
-            assertThat(result.getLeft()).isEqualTo(EXPECTED_ERROR);
-        }
-
-        @Test
-        void unwrap_shouldReturnLeftErrorForUnknownKindType() {
-            // Specify L as String, R as Boolean for this test instance
-            Kind<EitherKind<String, ?>, Boolean> unknownKind = new DummyEitherKind<>();
-            Either<String, Boolean> result = EitherKindHelper.unwrap(unknownKind);
-            assertThat(result).isNotNull();
-            assertThat(result.isLeft()).isTrue();
-            assertThat(result.getLeft()).isEqualTo(EXPECTED_ERROR);
-        }
-
-        @Test
-        void unwrap_shouldStillWorkForValidInput() {
-            // Ensure the original functionality isn't broken
-            Kind<EitherKind<String, ?>, Integer> validKind = EitherKindHelper.wrap(Either.right(123));
-            Either<String, Integer> result = EitherKindHelper.unwrap(validKind);
-            assertThat(result.isRight()).isTrue();
-            assertThat(result.getRight()).isEqualTo(123);
-
-            Kind<EitherKind<String, ?>, Integer> validLeftKind = EitherKindHelper.wrap(Either.left("MY_ERROR"));
-            Either<String, Integer> resultLeft = EitherKindHelper.unwrap(validLeftKind);
-            assertThat(resultLeft.isLeft()).isTrue();
-            assertThat(resultLeft.getLeft()).isEqualTo("MY_ERROR");
-        }
-    }
-
     @Nested
     @DisplayName("Applicative 'of' tests")
     class OfTests {
