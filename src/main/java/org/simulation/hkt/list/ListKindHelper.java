@@ -6,7 +6,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public class ListKindHelper {
+public final class ListKindHelper {
+
+  private ListKindHelper() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  }
+
   /**
    * returns empty list for null or unknown types, or if the holder contains a null list.
    * @param kind

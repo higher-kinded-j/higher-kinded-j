@@ -29,7 +29,7 @@ public class WorkflowModels {
     // "Lens"-like methods to create updated context copies
     public WorkflowContext withValidatedOrder(ValidatedOrder vo) {
       // Ensure initialData is carried over if it exists
-      return new WorkflowContext(this.initialData != null ? this.initialData : null, vo, this.inventoryChecked, this.paymentConfirmation, this.shipmentInfo);
+      return new WorkflowContext(this.initialData, vo, this.inventoryChecked, this.paymentConfirmation, this.shipmentInfo);
     }
 
     public WorkflowContext withInventoryChecked() {

@@ -99,9 +99,9 @@ public class OrderWorkflowSteps {
     System.out.println("Step (async): Checking inventory for " + quantity + " of " + productId);
     CompletableFuture<Either<DomainError, Void>> future = simulateAsync(() -> {
       if ("OUT_OF_STOCK".equalsIgnoreCase(productId) && quantity > 0) {
-        return Either.<DomainError, Void>left(new StockError(productId));
+        return Either.left(new StockError(productId));
       }
-      return Either.<DomainError, Void>right(null); // Use Void for success
+      return Either.right(null); // Use Void for success
     }, 50); // Simulate 50ms delay
     // Wrap the CompletableFuture<Either<...>> using the CompletableFutureKindHelper
     return CompletableFutureKindHelper.wrap(future);
@@ -119,9 +119,9 @@ public class OrderWorkflowSteps {
     System.out.println("Step (async): Processing payment of " + amount + " using " + paymentDetails);
     CompletableFuture<Either<DomainError, PaymentConfirmation>> future = simulateAsync(() -> {
       if ("INVALID_CARD".equalsIgnoreCase(paymentDetails)) {
-        return Either.<DomainError, PaymentConfirmation>left(new PaymentError("Card declined"));
+        return Either.left(new PaymentError("Card declined"));
       }
-      return Either.<DomainError, PaymentConfirmation>right(new PaymentConfirmation("async-txn-" + System.nanoTime()));
+      return Either.right(new PaymentConfirmation("async-txn-" + System.nanoTime()));
     }, 80); // Simulate 80ms delay
     return CompletableFutureKindHelper.wrap(future);
   }
@@ -139,16 +139,16 @@ public class OrderWorkflowSteps {
     System.out.println("Step (async): Creating shipment for order " + orderId + " to " + shippingAddress);
     CompletableFuture<Either<DomainError, ShipmentInfo>> future = simulateAsync(() -> {
       if (shippingAddress == null || shippingAddress.isBlank()) {
-        return Either.<DomainError, ShipmentInfo>left(new ShippingError("Address invalid for order " + orderId));
+        return Either.left(new ShippingError("Address invalid for order " + orderId));
       }
       // Simulate some random shipment failure or a specific recoverable failure
       if ("FAIL_SHIPMENT".equalsIgnoreCase(orderId) || random.nextInt(10) == 0) {
         System.out.println("!!! Simulating shipment failure for " + orderId);
         // Use a specific reason for the recovery example in the runner
         String reason = "FAIL_SHIPMENT".equalsIgnoreCase(orderId) ? "Temporary Glitch" : "Simulated random shipment service failure for " + orderId;
-        return Either.<DomainError, ShipmentInfo>left(new ShippingError(reason));
+        return Either.left(new ShippingError(reason));
       }
-      return Either.<DomainError, ShipmentInfo>right(new ShipmentInfo("async-track-" + System.nanoTime()));
+      return Either.right(new ShipmentInfo("async-track-" + System.nanoTime()));
     }, 60); // Simulate 60ms delay
     return CompletableFutureKindHelper.wrap(future);
   }
@@ -170,7 +170,7 @@ public class OrderWorkflowSteps {
         // Decide if this is a workflow failure or just a logged issue
         // return Either.<DomainError, Void>left(new NotificationError("Email bounced for " + customerId));
       }
-      return Either.<DomainError, Void>right(null);
+      return Either.right(null);
     }, 20); // Simulate 20ms delay
     return CompletableFutureKindHelper.wrap(future);
   }
