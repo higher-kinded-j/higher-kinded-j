@@ -563,14 +563,14 @@ class TryTest {
   class ToStringTests {
     @Test
     void toString_onSuccess() {
-      assertThat(successInstance.toString()).isEqualTo("Success(" + successValue + ")");
-      assertThat(successNullInstance.toString()).isEqualTo("Success(null)");
+      assertThat(successInstance.toString()).isEqualTo("Success[value=" + successValue + "]");
+      assertThat(successNullInstance.toString()).isEqualTo("Success[value=null]");
     }
 
     @Test
     void toString_onFailure() {
-      assertThat(failureInstance.toString()).isEqualTo("Failure(" + failureException + ")");
-      assertThat(failureCheckedInstance.toString()).isEqualTo("Failure(" + checkedException + ")");
+      assertThat(failureInstance.toString()).isEqualTo("Failure[cause=" + failureException + "]");
+      assertThat(failureCheckedInstance.toString()).isEqualTo("Failure[cause=" + checkedException + "]");
     }
   }
 
