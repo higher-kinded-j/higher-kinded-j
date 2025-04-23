@@ -92,7 +92,7 @@ class OptionalKindHelperTest {
       OptionalHolder<String> holderWithNull = new OptionalHolder<>(null);
       // Need to cast to satisfy the Kind type parameter in unwrap
       @SuppressWarnings("unchecked")
-      Kind<OptionalKind<?>, String> kind = (Kind<OptionalKind<?>, String>) holderWithNull;
+      Kind<OptionalKind<?>, String> kind = holderWithNull;
 
       Optional<String> result = unwrap(kind);
       assertThat(result).isNotNull().isEmpty();

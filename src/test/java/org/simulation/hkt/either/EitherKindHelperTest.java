@@ -112,7 +112,7 @@ class EitherKindHelperTest {
       EitherHolder<String, Integer> holderWithNull = new EitherHolder<>(null);
       // Need to cast to satisfy the Kind type parameter in unwrap
       @SuppressWarnings("unchecked")
-      Kind<EitherKind<String, ?>, Integer> kind = (Kind<EitherKind<String, ?>, Integer>) holderWithNull;
+      Kind<EitherKind<String, ?>, Integer> kind = holderWithNull;
 
       Either<String, Integer> result = unwrap(kind);
       assertThat(result).isNotNull();

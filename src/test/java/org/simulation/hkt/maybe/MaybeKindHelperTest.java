@@ -122,7 +122,7 @@ class MaybeKindHelperTest {
       MaybeHolder<Double> holderWithNull = new MaybeHolder<>(null);
       // Need to cast to satisfy the Kind type parameter in unwrap
       @SuppressWarnings("unchecked")
-      Kind<MaybeKind<?>, Double> kind = (Kind<MaybeKind<?>, Double>) holderWithNull;
+      Kind<MaybeKind<?>, Double> kind = holderWithNull;
 
       // The unwrap switch case should match the holder but return Maybe.nothing()
       // because holder.maybe() returns null, triggering the null check.
@@ -146,7 +146,7 @@ class MaybeKindHelperTest {
   void unwrap_explicitNullCheckHandlesHolderWithNullMaybe() {
     MaybeHolder<Double> holderWithNull = new MaybeHolder<>(null);
     @SuppressWarnings("unchecked")
-    Kind<MaybeKind<?>, Double> kind = (Kind<MaybeKind<?>, Double>) holderWithNull;
+    Kind<MaybeKind<?>, Double> kind = holderWithNull;
 
     Maybe<Double> result = unwrapWithExplicitNullCheck(kind);
     assertThat(result).isNotNull();

@@ -3,7 +3,13 @@ package org.simulation.hkt.either;
 import org.simulation.hkt.Kind;
 
 
-public class EitherKindHelper {
+public final class EitherKindHelper {
+
+
+  private EitherKindHelper() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  }
+
 
   private static final String INVALID_KIND_STATE_ERROR = "Invalid Kind state (null or unexpected type)";
 
@@ -32,7 +38,7 @@ public class EitherKindHelper {
       // Cast L is unsafe, assumes L can hold String or user handles it. Consider a dedicated Error type for L.
       //I think A better approach in a real system would be to have L be a type that can represent this error state,
       // or use a more sophisticated error handling
-      case null, default -> Either.<L, R>left((L) INVALID_KIND_STATE_ERROR);
+      case null, default -> Either.left((L) INVALID_KIND_STATE_ERROR);
     };
 
   }

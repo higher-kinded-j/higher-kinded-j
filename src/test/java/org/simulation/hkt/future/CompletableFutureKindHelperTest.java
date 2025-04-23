@@ -106,7 +106,7 @@ class CompletableFutureKindHelperTest {
       CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
       // Need to cast to satisfy the Kind type parameter in unwrap
       @SuppressWarnings("unchecked")
-      Kind<CompletableFutureKind<?>, Boolean> kind = (Kind<CompletableFutureKind<?>, Boolean>) holderWithNull;
+      Kind<CompletableFutureKind<?>, Boolean> kind = holderWithNull;
 
       // The current unwrap implementation will return the null future directly
       CompletableFuture<Boolean> future = unwrap(kind);
@@ -217,7 +217,7 @@ class CompletableFutureKindHelperTest {
       // Test the case where unwrap returns null (e.g., holder with null future)
       CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
       @SuppressWarnings("unchecked")
-      Kind<CompletableFutureKind<?>, Boolean> kind = (Kind<CompletableFutureKind<?>, Boolean>) holderWithNull;
+      Kind<CompletableFutureKind<?>, Boolean> kind = holderWithNull;
 
       // join will call unwrap(kind), get null, then call null.join() -> NPE
       assertThatThrownBy(() -> join(kind))

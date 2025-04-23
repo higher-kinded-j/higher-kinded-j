@@ -62,7 +62,7 @@ class OptionalMonadTest {
     @Test
     void map_shouldHandleMappingToNullAsEmpty() {
       Kind<OptionalKind<?>, Integer> input = wrap(Optional.of(5));
-      Kind<OptionalKind<?>, String> result = optionalMonad.map(x -> (String)null, input);
+      Kind<OptionalKind<?>, String> result = optionalMonad.map(x -> null, input);
       // Note: Optional.map handles mapping to null by returning Optional.empty
       assertThat(unwrap(result)).isEmpty();
     }

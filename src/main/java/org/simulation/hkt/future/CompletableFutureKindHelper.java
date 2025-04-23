@@ -6,7 +6,12 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-public class CompletableFutureKindHelper {
+public final class CompletableFutureKindHelper {
+
+
+    private CompletableFutureKindHelper() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     /**
      * Unwraps a CompletableFutureKind back to the concrete CompletableFuture<A> type.
@@ -15,8 +20,8 @@ public class CompletableFutureKindHelper {
     public static <A> CompletableFuture<A> unwrap(Kind<CompletableFutureKind<?>, A> kind) {
         return switch (kind) {
             case CompletableFutureHolder<A> holder -> holder.future();
-            case null -> CompletableFuture.<A>failedFuture(new NullPointerException("Cannot unwrap null Kind for CompletableFuture"));
-            default -> CompletableFuture.<A>failedFuture(new IllegalArgumentException("Kind instance is not a CompletableFutureHolder: " + kind.getClass().getName()));
+            case null -> CompletableFuture.failedFuture(new NullPointerException("Cannot unwrap null Kind for CompletableFuture"));
+            default -> CompletableFuture.failedFuture(new IllegalArgumentException("Kind instance is not a CompletableFutureHolder: " + kind.getClass().getName()));
         };
     }
 

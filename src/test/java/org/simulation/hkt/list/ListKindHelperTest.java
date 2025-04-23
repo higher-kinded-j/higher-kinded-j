@@ -91,7 +91,7 @@ class ListKindHelperTest {
       ListHolder<Double> holderWithNull = new ListHolder<>(null);
       // Need to cast to satisfy the Kind type parameter in unwrap
       @SuppressWarnings("unchecked")
-      Kind<ListKind<?>, Double> kind = (Kind<ListKind<?>, Double>) holderWithNull;
+      Kind<ListKind<?>, Double> kind = holderWithNull;
 
       List<Double> result = unwrap(kind);
       assertThat(result).isNotNull().isEmpty();

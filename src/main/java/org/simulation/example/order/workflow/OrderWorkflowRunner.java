@@ -89,7 +89,7 @@ public class OrderWorkflowRunner {
                 eitherCtx -> eitherCtx.fold(
                         // Case 1: Previous step (initial) resulted in an error. Propagate it.
                         // (This path shouldn't be hit here as initialKind is always Right)
-                        error -> futureMonad.of(Either.<DomainError, WorkflowContext>left(error)), // Lift Either.left into Future
+                        error -> futureMonad.of(Either.left(error)), // Lift Either.left into Future
 
                         // Case 2: Previous step (initial) succeeded. Run the sync validation.
                         ctx -> {
@@ -110,7 +110,7 @@ public class OrderWorkflowRunner {
         Kind<CompletableFutureKind<?>, Either<DomainError, WorkflowContext>> contextAfterInventory = futureMonad.flatMap(
                 eitherCtx -> eitherCtx.fold(
                         // Case 1: Previous step (validation) resulted in Left(error). Propagate it.
-                        error -> futureMonad.of(Either.<DomainError, WorkflowContext>left(error)), // Lift Either.left into Future
+                        error -> futureMonad.of(Either.left(error)), // Lift Either.left into Future
 
                         // Case 2: Previous step (validation) succeeded. Run async inventory check.
                         ctx -> {
@@ -133,7 +133,7 @@ public class OrderWorkflowRunner {
         Kind<CompletableFutureKind<?>, Either<DomainError, WorkflowContext>> contextAfterPayment = futureMonad.flatMap(
                 eitherCtx -> eitherCtx.fold(
                         // Case 1: Previous step resulted in Left(error). Propagate it.
-                        error -> futureMonad.of(Either.<DomainError, WorkflowContext>left(error)), // Lift Either.left into Future
+                        error -> futureMonad.of(Either.left(error)), // Lift Either.left into Future
 
                         // Case 2: Previous step succeeded. Run async payment processing.
                         ctx -> {
@@ -155,7 +155,7 @@ public class OrderWorkflowRunner {
         Kind<CompletableFutureKind<?>, Either<DomainError, WorkflowContext>> contextAfterShipment = futureMonad.flatMap(
                 eitherCtx -> eitherCtx.fold(
                         // Case 1: Previous step resulted in Left(error). Propagate it.
-                        error -> futureMonad.of(Either.<DomainError, WorkflowContext>left(error)), // Lift Either.left into Future
+                        error -> futureMonad.of(Either.left(error)), // Lift Either.left into Future
 
                         // Case 2: Previous step succeeded. Run async shipment creation.
                         ctx -> {
@@ -171,17 +171,19 @@ public class OrderWorkflowRunner {
                                             eitherShipment -> // eitherShipment is Either<DomainError, ShipmentInfo>
                                                     eitherShipment.fold( // Use Either's fold for error handling/recovery
                                                             error -> { // Handle Left(error)
-                                                                if (error instanceof DomainError.ShippingError se && "Temporary Glitch".equals(se.reason())) {
+                                                                if (error instanceof DomainError.ShippingError(
+                                                                    String reason
+                                                                ) && "Temporary Glitch".equals(reason)) {
                                                                     System.out.println("WARN (mixed): Recovering from temporary shipping glitch with default.");
                                                                     // Recover by returning a new Right value
-                                                                    return Either.<DomainError, ShipmentInfo>right(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
+                                                                    return Either.right(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
                                                                 } else {
                                                                     // Non-recoverable error, return the original Left
-                                                                    return Either.<DomainError, ShipmentInfo>left(error);
+                                                                    return Either.left(error);
                                                                 }
                                                             },
                                                             shipmentInfo -> // Handle Right(shipmentInfo)
-                                                                    Either.<DomainError, ShipmentInfo>right(shipmentInfo) // Return original Right
+                                                                    Either.right(shipmentInfo) // Return original Right
                                                     )
                                             , shipmentAttemptKind); // Apply this mapping/folding to the shipment attempt future
 
@@ -216,7 +218,7 @@ public class OrderWorkflowRunner {
         Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>> finalKindWithNotificationAttempt =
                 futureMonad.flatMap(eitherResult -> eitherResult.fold(
                         // Case 1: Main workflow failed. Propagate the error.
-                        error -> futureMonad.of(Either.<DomainError, FinalResult>left(error)), // Lift error back into Future
+                        error -> futureMonad.of(Either.left(error)), // Lift error back into Future
 
                         // Case 2: Main workflow succeeded. Attempt notification.
                         finalResult -> {
@@ -229,7 +231,7 @@ public class OrderWorkflowRunner {
                                                         + finalResult.orderId() + ": " + notifyError.message())
                                         );
                                         // Always return the original success result of the main workflow
-                                        return Either.<DomainError, FinalResult>right(finalResult);
+                                        return Either.right(finalResult);
                                     },
                                     notifyKind // Map the notification future's result
                             );
