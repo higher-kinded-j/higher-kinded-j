@@ -4,14 +4,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.trymonad.TryKindHelper;
 
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.*;
 import static org.simulation.hkt.list.ListKindHelper.*;
 
 @DisplayName("ListKindHelper Tests")
@@ -95,6 +97,29 @@ class ListKindHelperTest {
 
       List<Double> result = unwrap(kind);
       assertThat(result).isNotNull().isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Private Constructor")
+  class PrivateConstructorTest {
+
+    @Test
+    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
+    void constructor_shouldThrowException() throws NoSuchMethodException {
+      // Get the private constructor
+      Constructor<ListKindHelper> constructor = ListKindHelper.class.getDeclaredConstructor();
+
+      // Make it accessible
+      constructor.setAccessible(true);
+
+      // Assert that invoking the constructor throws the expected exception
+      // InvocationTargetException wraps the actual exception thrown by the constructor
+      assertThatThrownBy(constructor::newInstance)
+          .isInstanceOf(InvocationTargetException.class)
+          .hasCauseInstanceOf(UnsupportedOperationException.class)
+          .cause() // Get the wrapped UnsupportedOperationException
+          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }

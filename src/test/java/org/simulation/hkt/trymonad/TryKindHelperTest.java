@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.simulation.hkt.trymonad.TryKindHelper.*;
@@ -147,6 +149,29 @@ class TryKindHelperTest {
       assertThatNullPointerException()
           .isThrownBy(() -> TryKindHelper.tryOf(null))
           .withMessageContaining("Supplier cannot be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Private Constructor")
+  class PrivateConstructorTest {
+
+    @Test
+    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
+    void constructor_shouldThrowException() throws NoSuchMethodException {
+      // Get the private constructor
+      Constructor<TryKindHelper> constructor = TryKindHelper.class.getDeclaredConstructor();
+
+      // Make it accessible
+      constructor.setAccessible(true);
+
+      // Assert that invoking the constructor throws the expected exception
+      // InvocationTargetException wraps the actual exception thrown by the constructor
+      assertThatThrownBy(constructor::newInstance)
+          .isInstanceOf(InvocationTargetException.class)
+          .hasCauseInstanceOf(UnsupportedOperationException.class)
+          .cause() // Get the wrapped UnsupportedOperationException
+          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }

@@ -4,13 +4,38 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.trymonad.TryKindHelper;
 
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.simulation.hkt.maybe.MaybeKindHelper.*;
 
 @DisplayName("MaybeKindHelper Tests")
 class MaybeKindHelperTest {
+
+  // Helper method to add explicit null check in unwrap (if needed, currently handled by switch)
+  // Modify unwrap if direct null check is preferred over relying on switch behavior for holder.maybe() == null
+  private static <A> Maybe<A> unwrapWithExplicitNullCheck(Kind<MaybeKind<?>, A> kind) {
+    return switch (kind) {
+      case MaybeHolder<A> holder -> holder.maybe() != null ? holder.maybe() : Maybe.nothing();
+      case null, default -> Maybe.nothing();
+    };
+  }
+
+  @Test
+  @DisplayName("Unwrap with Explicit Null Check (Alternative)")
+  void unwrap_explicitNullCheckHandlesHolderWithNullMaybe() {
+    MaybeHolder<Double> holderWithNull = new MaybeHolder<>(null);
+    @SuppressWarnings("unchecked")
+    Kind<MaybeKind<?>, Double> kind = holderWithNull;
+
+    Maybe<Double> result = unwrapWithExplicitNullCheck(kind);
+    assertThat(result).isNotNull();
+    assertThat(result.isNothing()).isTrue();
+  }
 
   @Nested
   @DisplayName("wrap()")
@@ -98,9 +123,6 @@ class MaybeKindHelperTest {
 
     // --- Robustness / Failure Cases ---
 
-    // Dummy Kind implementation that is not MaybeHolder
-    record DummyMaybeKind<A>() implements Kind<MaybeKind<?>, A> {}
-
     @Test
     void unwrap_shouldReturnNothingForNullInput() {
       Maybe<String> result = unwrap(null);
@@ -130,28 +152,35 @@ class MaybeKindHelperTest {
       assertThat(result).isNotNull();
       assertThat(result.isNothing()).isTrue();
     }
+
+    // Dummy Kind implementation that is not MaybeHolder
+    record DummyMaybeKind<A>() implements Kind<MaybeKind<?>, A> {
+    }
   }
 
-  // Helper method to add explicit null check in unwrap (if needed, currently handled by switch)
-  // Modify unwrap if direct null check is preferred over relying on switch behavior for holder.maybe() == null
-  private static <A> Maybe<A> unwrapWithExplicitNullCheck(Kind<MaybeKind<?>, A> kind) {
-    return switch (kind) {
-      case MaybeHolder<A> holder -> holder.maybe() != null ? holder.maybe() : Maybe.nothing();
-      case null, default -> Maybe.nothing();
-    };
-  }
+  @Nested
+  @DisplayName("Private Constructor")
+  class PrivateConstructorTest {
 
-  @Test
-  @DisplayName("Unwrap with Explicit Null Check (Alternative)")
-  void unwrap_explicitNullCheckHandlesHolderWithNullMaybe() {
-    MaybeHolder<Double> holderWithNull = new MaybeHolder<>(null);
-    @SuppressWarnings("unchecked")
-    Kind<MaybeKind<?>, Double> kind = holderWithNull;
+    @Test
+    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
+    void constructor_shouldThrowException() throws NoSuchMethodException {
+      // Get the private constructor
+      Constructor<MaybeKindHelper> constructor = MaybeKindHelper.class.getDeclaredConstructor();
 
-    Maybe<Double> result = unwrapWithExplicitNullCheck(kind);
-    assertThat(result).isNotNull();
-    assertThat(result.isNothing()).isTrue();
+      // Make it accessible
+      constructor.setAccessible(true);
+
+      // Assert that invoking the constructor throws the expected exception
+      // InvocationTargetException wraps the actual exception thrown by the constructor
+      assertThatThrownBy(constructor::newInstance)
+          .isInstanceOf(InvocationTargetException.class)
+          .hasCauseInstanceOf(UnsupportedOperationException.class)
+          .cause() // Get the wrapped UnsupportedOperationException
+          .hasMessageContaining("This is a utility class and cannot be instantiated");
+    }
   }
 
 }
+
 
