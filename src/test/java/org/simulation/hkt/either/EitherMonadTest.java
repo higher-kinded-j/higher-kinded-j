@@ -11,7 +11,7 @@ import org.simulation.hkt.function.Function4;
 
 import java.util.function.Function;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 // Define a simple error type for testing
 record TestError(String code) {}
@@ -131,6 +131,20 @@ class EitherMonadTest {
             assertThat(either.isLeft()).isTrue();
             assertThat(either.getLeft()).isEqualTo(new TestError("FE")); // Function's error propagates first due to flatMap structure
         }
+
+        @Test
+        @DisplayName("ap should propagate exception from function application")
+        void ap_shouldPropagateFunctionException() {
+            RuntimeException applyException = new RuntimeException("Apply failed!");
+            Kind<EitherKind<TestError, ?>, Function<Integer, String>> funcKindThrows =
+                wrap(Either.right(i -> { throw applyException; }));
+            Kind<EitherKind<TestError, ?>, Integer> valueKindRight = right(10);
+
+            // Exception occurs during the f.apply(a) inside the flatMap/map of 'ap'
+            assertThatThrownBy(() -> eitherMonad.ap(funcKindThrows, valueKindRight))
+                .isInstanceOf(RuntimeException.class)
+                .isSameAs(applyException);
+        }
     }
 
 
@@ -214,6 +228,43 @@ class EitherMonadTest {
             Either<TestError, Double> either = unwrap(finalResult);
             assertThat(either.isLeft()).isTrue();
             assertThat(either.getLeft()).isEqualTo(new TestError("PARSE_ERR"));
+        }
+
+        @Test
+        @DisplayName("flatMap should propagate exception thrown by mapper function")
+        void flatMap_shouldPropagateMapperException() {
+            Kind<EitherKind<TestError, ?>, Integer> rightInput = right(10);
+            RuntimeException mapperException = new RuntimeException("Mapper failed!");
+            Function<Integer, Kind<EitherKind<TestError, ?>, String>> throwingMapper = i -> {
+                throw mapperException;
+            };
+
+            // Either.Right.flatMap does not catch exceptions from the mapper
+            assertThatThrownBy(() -> eitherMonad.flatMap(throwingMapper, rightInput))
+                .isInstanceOf(RuntimeException.class)
+                .isSameAs(mapperException);
+        }
+
+        @Test
+        @DisplayName("flatMap should return Left error if mapper returns null Kind") // Adjusted name
+        void flatMap_shouldReturnLeftErrorForNullMapperResult() { // Adjusted name
+            Kind<EitherKind<TestError, ?>, Integer> rightInput = right(10);
+            // Mapper function explicitly returns null
+            Function<Integer, Kind<EitherKind<TestError, ?>, String>> nullReturningMapper = i -> null;
+
+            // Call the method under test
+            Kind<EitherKind<TestError, ?>, String> resultKind = eitherMonad.flatMap(nullReturningMapper, rightInput);
+
+            // Assert that the actual result is Left with the specific error from unwrap(null)
+            Either<TestError, String> resultEither = EitherKindHelper.unwrap(resultKind);
+
+            assertThat(resultEither.isLeft()).isTrue();
+
+            // Safely get the Left value (we know it's String here due to the helper)
+            // and check its content
+            Object leftValue = resultEither.getLeft();
+            assertThat(leftValue).isInstanceOf(String.class); // Verify it's the String from the helper
+            assertThat(leftValue).isEqualTo("Invalid Kind state (null or unexpected type)");
         }
     }
 
@@ -518,7 +569,7 @@ class EitherMonadTest {
         @Test
         void handleErrorWith_shouldHandleLeft() {
             Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> handler =
-                    err -> right(Integer.parseInt(err.code().substring(1))); // "E404" -> Right(404)
+                err -> right(Integer.parseInt(err.code().substring(1))); // "E404" -> Right(404)
 
             Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.handleErrorWith(leftVal, handler);
 
@@ -529,7 +580,7 @@ class EitherMonadTest {
         @Test
         void handleErrorWith_shouldIgnoreRight() {
             Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> handler =
-                    err -> right(-1); // Should not be called
+                err -> right(-1); // Should not be called
 
             Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.handleErrorWith(rightVal, handler);
 
@@ -584,6 +635,40 @@ class EitherMonadTest {
         void recover_shouldIgnoreRight() {
             Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.recover(rightVal, 0);
             assertThat(result).isSameAs(rightVal);
+        }
+
+        @Test
+        @DisplayName("handleErrorWith should propagate exception thrown by handler function")
+        void handleErrorWith_shouldPropagateHandlerException() {
+            Kind<EitherKind<TestError, ?>, Integer> leftVal = left("E1");
+            RuntimeException handlerException = new RuntimeException("Handler failed!");
+            Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> throwingHandler = err -> {
+                throw handlerException;
+            };
+
+            // Exception happens during handler.apply(leftValue) within the fold
+            assertThatThrownBy(() -> eitherMonad.handleErrorWith(leftVal, throwingHandler))
+                .isInstanceOf(RuntimeException.class)
+                .isSameAs(handlerException);
+        }
+
+        @Test
+        @DisplayName("handleErrorWith should result in Left Error when handler returns null Kind")
+        void handleErrorWith_shouldResultInErrorForNullHandlerResult() {
+            Kind<EitherKind<TestError, ?>, Integer> leftVal = left("E1");
+            Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> nullReturningHandler = err -> null;
+
+            Kind<EitherKind<TestError, ?>, Integer> resultKind = eitherMonad.handleErrorWith(leftVal, nullReturningHandler);
+
+            // When the null resultKind is unwrapped, EitherKindHelper.unwrap(null) is called.
+            Either<TestError, Integer> finalUnwrapped = EitherKindHelper.unwrap(resultKind);
+
+            // Assert it's Left
+            assertThat(finalUnwrapped.isLeft()).isTrue();
+
+            // Assert directly on the toString() representation, which doesn't rely on L's type
+            assertThat(finalUnwrapped.toString())
+                .isEqualTo("Left(Invalid Kind state (null or unexpected type))");
         }
     }
 

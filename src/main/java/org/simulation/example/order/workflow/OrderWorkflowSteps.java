@@ -7,6 +7,8 @@ import org.simulation.hkt.either.EitherKindHelper;
 import org.simulation.example.order.error.DomainError;
 import org.simulation.hkt.future.CompletableFutureKind;
 import org.simulation.hkt.future.CompletableFutureKindHelper;
+import org.simulation.hkt.trymonad.TryKind;
+import org.simulation.hkt.trymonad.TryKindHelper;
 
 import static org.simulation.example.order.error.DomainError.*;
 import static org.simulation.example.order.model.WorkflowModels.*;
@@ -34,32 +36,65 @@ public class OrderWorkflowSteps {
   // --- Synchronous Step ---
 
   /**
-   * Validates the initial order data synchronously.
+   * Validates the initial order data synchronously using {@link Either} for explicit domain errors.
    * Checks for positive quantity and the presence of a product ID.
    * Calculates the order amount.
+   *
+   * Use this when validation failures are expected, defined business rule violations,
+   * and should be represented explicitly by subtypes of {@link DomainError}.
    *
    * @param data The initial {@link OrderData}.
    * @return A {@code Kind<EitherKind<DomainError, ?>, ValidatedOrder>} containing either a {@link ValidatedOrder}
    * on success, or a {@link DomainError.ValidationError} on failure. The result is available immediately.
    */
   public Kind<EitherKind<DomainError, ?>, ValidatedOrder> validateOrder(OrderData data) {
-    System.out.println("Step (sync): Validating order " + data.orderId());
+    System.out.println("Step (sync - Either): Validating order " + data.orderId());
     // Simulate immediate validation logic
     if (data.quantity() <= 0) {
-      // Wrap the Left (error) result using the EitherKindHelper
       return EitherKindHelper.wrap(Either.left(new ValidationError("Quantity must be positive for order " + data.orderId())));
     }
     if (data.productId() == null || data.productId().isEmpty()) {
-      // Wrap the Left (error) result using the EitherKindHelper
       return EitherKindHelper.wrap(Either.left(new ValidationError("Product ID missing for order " + data.orderId())));
     }
     // Simulate calculation
     double amount = data.quantity() * 19.99;
     ValidatedOrder validated = new ValidatedOrder(data.orderId(), data.productId(), data.quantity(),
-            data.paymentDetails(), amount, data.shippingAddress(), data.customerId());
-    // Wrap the Right (success) result using the EitherKindHelper
+        data.paymentDetails(), amount, data.shippingAddress(), data.customerId());
     return EitherKindHelper.wrap(Either.right(validated));
   }
+
+  /**
+   * Validates the initial order data synchronously using {@link Try} to capture potential exceptions.
+   * Checks for positive quantity and the presence of a product ID by throwing exceptions on failure.
+   * Calculates the order amount.
+   *
+   * Use this when the validation logic itself might throw runtime exceptions (e.g., during complex
+   * calculations, parsing, or accessing potentially inconsistent state) that aren't explicitly
+   * modeled as specific {@link DomainError} subtypes beforehand.
+   *
+   * @param data The initial {@link OrderData}.
+   * @return A {@code Kind<TryKind<?>, ValidatedOrder>} containing either a {@link Try.Success<ValidatedOrder>}
+   * or a {@link Try.Failure} wrapping the thrown exception.
+   */
+  public Kind<TryKind<?>, ValidatedOrder> validateOrderWithTry(OrderData data) {
+    // Wrap potentially throwing logic using TryKindHelper.tryOf
+    return TryKindHelper.tryOf(() -> {
+      System.out.println("Step (sync - Try): Validating order " + data.orderId());
+      // Use standard checks that throw exceptions on failure
+      if (data.quantity() <= 0) {
+        throw new IllegalArgumentException("Quantity must be positive for order " + data.orderId());
+      }
+      if (data.productId() == null || data.productId().isEmpty()) {
+        throw new IllegalArgumentException("Product ID missing for order " + data.orderId());
+      }
+      // Simulate calculation (could potentially throw ArithmeticException etc. in real code)
+      double amount = data.quantity() * 19.99;
+      // If all checks pass and calculations succeed, return the validated order
+      return new ValidatedOrder(data.orderId(), data.productId(), data.quantity(),
+          data.paymentDetails(), amount, data.shippingAddress(), data.customerId());
+    });
+  }
+
 
 
   // --- Asynchronous Steps ---
@@ -89,11 +124,7 @@ public class OrderWorkflowSteps {
 
   /**
    * Checks inventory asynchronously.
-   *
-   * @param productId The ID of the product to check.
-   * @param quantity The quantity required.
-   * @return A {@code Kind<CompletableFutureKind<?>, Either<DomainError, Void>>} representing the future result.
-   * The inner {@link Either} contains {@code Void} on success or a {@link DomainError.StockError} if out of stock.
+   * Returns: Kind<CompletableFutureKind<?>, Either<DomainError, Void>>
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, Void>> checkInventoryAsync(String productId, int quantity) {
     System.out.println("Step (async): Checking inventory for " + quantity + " of " + productId);
@@ -102,18 +133,13 @@ public class OrderWorkflowSteps {
         return Either.left(new StockError(productId));
       }
       return Either.right(null); // Use Void for success
-    }, 50); // Simulate 50ms delay
-    // Wrap the CompletableFuture<Either<...>> using the CompletableFutureKindHelper
+    }, 50);
     return CompletableFutureKindHelper.wrap(future);
   }
 
   /**
    * Processes payment asynchronously.
-   *
-   * @param paymentDetails Details for processing the payment (e.g., card info).
-   * @param amount The amount to charge.
-   * @return A {@code Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>>} representing the future result.
-   * The inner {@link Either} contains a {@link PaymentConfirmation} on success or a {@link DomainError.PaymentError} on failure.
+   * Returns: Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>>
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>> processPaymentAsync(String paymentDetails, double amount) {
     System.out.println("Step (async): Processing payment of " + amount + " using " + paymentDetails);
@@ -122,18 +148,13 @@ public class OrderWorkflowSteps {
         return Either.left(new PaymentError("Card declined"));
       }
       return Either.right(new PaymentConfirmation("async-txn-" + System.nanoTime()));
-    }, 80); // Simulate 80ms delay
+    }, 80);
     return CompletableFutureKindHelper.wrap(future);
   }
 
   /**
    * Creates a shipment asynchronously.
-   * Includes simulated random failures and a specific failure case for recovery demonstration.
-   *
-   * @param orderId The ID of the order being shipped.
-   * @param shippingAddress The destination address.
-   * @return A {@code Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>>} representing the future result.
-   * The inner {@link Either} contains {@link ShipmentInfo} on success or a {@link DomainError.ShippingError} on failure.
+   * Returns: Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>>
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>> createShipmentAsync(String orderId, String shippingAddress) {
     System.out.println("Step (async): Creating shipment for order " + orderId + " to " + shippingAddress);
@@ -141,37 +162,30 @@ public class OrderWorkflowSteps {
       if (shippingAddress == null || shippingAddress.isBlank()) {
         return Either.left(new ShippingError("Address invalid for order " + orderId));
       }
-      // Simulate some random shipment failure or a specific recoverable failure
       if ("FAIL_SHIPMENT".equalsIgnoreCase(orderId) || random.nextInt(10) == 0) {
         System.out.println("!!! Simulating shipment failure for " + orderId);
-        // Use a specific reason for the recovery example in the runner
         String reason = "FAIL_SHIPMENT".equalsIgnoreCase(orderId) ? "Temporary Glitch" : "Simulated random shipment service failure for " + orderId;
         return Either.left(new ShippingError(reason));
       }
       return Either.right(new ShipmentInfo("async-track-" + System.nanoTime()));
-    }, 60); // Simulate 60ms delay
+    }, 60);
     return CompletableFutureKindHelper.wrap(future);
   }
 
   /**
    * Notifies the customer asynchronously (optional step).
-   * Simulates sending a notification, potentially failing but treated as non-critical.
-   *
-   * @param customerId The ID of the customer to notify.
-   * @param message The notification message.
-   * @return A {@code Kind<CompletableFutureKind<?>, Either<DomainError, Void>>} representing the future result.
-   * The inner {@link Either} usually contains {@code Void} (success), but could contain a {@code NotificationError} if designed to fail.
+   * Returns: Kind<CompletableFutureKind<?>, Either<DomainError, Void>>
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, Void>> notifyCustomerAsync(String customerId, String message) {
     System.out.println("Notify (async): Customer " + customerId + ": " + message);
     CompletableFuture<Either<DomainError, Void>> future = simulateAsync(() -> {
       if ("UNREACHABLE".equalsIgnoreCase(customerId)) {
         System.err.println("WARN (async): Failed to notify unreachable customer " + customerId);
-        // Decide if this is a workflow failure or just a logged issue
-        // return Either.<DomainError, Void>left(new NotificationError("Email bounced for " + customerId));
+        // Return Right, as notification failure isn't critical here
       }
       return Either.right(null);
-    }, 20); // Simulate 20ms delay
+    }, 20);
     return CompletableFutureKindHelper.wrap(future);
   }
+
 }
