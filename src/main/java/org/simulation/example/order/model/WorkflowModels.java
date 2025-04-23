@@ -1,4 +1,4 @@
-package org.simulation.hkt.example.order.model;
+package org.simulation.example.order.model;
 
 import org.jspecify.annotations.Nullable;
 

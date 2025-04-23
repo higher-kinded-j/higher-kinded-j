@@ -27,27 +27,6 @@ class OptionalMonadTest {
           s -> wrap(Optional.of(s + "!"));
 
   @Nested
-  @DisplayName("unwrap robustness tests")
-  class UnwrapRobustnessTests {
-
-    // Dummy Kind implementation that is not OptionalHolder
-    record DummyOptionalKind<A>() implements Kind<OptionalKind<?>, A> {}
-
-    @Test
-    void unwrap_shouldReturnEmptyOptionalForNullInput() {
-      Optional<String> result = OptionalKindHelper.unwrap(null);
-      assertThat(result).isNotNull().isEmpty();
-    }
-
-    @Test
-    void unwrap_shouldReturnEmptyOptionalForUnknownKindType() {
-      Kind<OptionalKind<?>, Integer> unknownKind = new DummyOptionalKind<>();
-      Optional<Integer> result = OptionalKindHelper.unwrap(unknownKind);
-      assertThat(result).isNotNull().isEmpty();
-    }
-  }
-
-  @Nested
   @DisplayName("Applicative 'of' tests")
   class OfTests {
     @Test

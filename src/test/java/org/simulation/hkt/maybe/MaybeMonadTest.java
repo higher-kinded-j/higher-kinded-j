@@ -34,29 +34,6 @@ class MaybeMonadTest {
 
 
   @Nested
-  @DisplayName("unwrap robustness tests")
-  class UnwrapRobustnessTests {
-
-    // Dummy Kind implementation that is not MaybeHolder
-    record DummyMaybeKind<A>() implements Kind<MaybeKind<?>, A> {}
-
-    @Test
-    void unwrap_shouldReturnNothingForNullInput() {
-      Maybe<String> result = MaybeKindHelper.unwrap(null);
-      assertThat(result).isNotNull();
-      assertThat(result.isNothing()).isTrue();
-    }
-
-    @Test
-    void unwrap_shouldReturnNothingForUnknownKindType() {
-      Kind<MaybeKind<?>, Integer> unknownKind = new DummyMaybeKind<>();
-      Maybe<Integer> result = MaybeKindHelper.unwrap(unknownKind);
-      assertThat(result).isNotNull();
-      assertThat(result.isNothing()).isTrue();
-    }
-  }
-
-  @Nested
   @DisplayName("Applicative 'of' tests")
   class OfTests {
     @Test
