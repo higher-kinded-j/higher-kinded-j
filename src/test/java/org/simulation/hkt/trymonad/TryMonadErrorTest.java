@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 import org.simulation.hkt.function.Function3;
 import org.simulation.hkt.function.Function4;
 
@@ -14,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.trymonad.TryKindHelper.*;
+
 
 @DisplayName("TryMonadError Tests")
 class TryMonadErrorTest {
@@ -297,17 +298,25 @@ class TryMonadErrorTest {
     }
 
     @Test
+    @DisplayName("handleErrorWith should return Failure(KindUnwrapException) when handler returns null Kind")
     void handleErrorWith_shouldReturnFailureWhenHandlerReturnsNullKind() {
-      // This tests if the MonadError impl correctly handles the unwrap(null) case
+      // Handler function explicitly returns null
       Function<Throwable, Kind<TryKind<?>, Integer>> handler = err -> null;
 
-      Kind<TryKind<?>, Integer> result = tryMonad.handleErrorWith(failedKRuntime, handler);
-      assertThat(unwrapTry(result).isFailure()).isTrue();
-      // The exception comes from TryKindHelper.unwrap(null)
-      assertThatThrownBy(() -> getOrThrow(result))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Cannot unwrap null Kind");
+      Kind<TryKind<?>, Integer> resultKind = tryMonad.handleErrorWith(failedKRuntime, handler); // failedKind is defined elsewhere in the test class
+
+      // Unwrap the result to get the Try
+      Try<Integer> resultTry = unwrapTry(resultKind); // unwrapTry is a helper in the test class
+
+      // Assert that the result is a Failure
+      assertThat(resultTry.isFailure()).isTrue();
+
+      // Assert that the cause of the Failure is the KindUnwrapException from TryKindHelper.unwrap(null)
+      assertThatThrownBy(resultTry::get) // This throws the cause of the Failure
+          .isInstanceOf(KindUnwrapException.class) // Check the cause type
+          .hasMessageContaining("Cannot unwrap null Kind for Try"); // Check the specific message
     }
+
 
     @Test
     void handleErrorWith_shouldIgnoreSuccess() throws Throwable {

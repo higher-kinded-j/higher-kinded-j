@@ -1,6 +1,8 @@
 package org.simulation.hkt.either;
 
 
+import org.jspecify.annotations.NonNull;
+
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Function;
@@ -42,25 +44,43 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
   R getRight() throws NoSuchElementException;
 
   /**
-   * Applies one of two functions depending on whether this is a Left or a Right.
+   * Applies one of two functions depending on whether this is a Left or a Right,
+   * using pattern matching for switch (Java 21+).
    *
-   * @param leftMapper  the function to apply if this is a Left
-   * @param rightMapper the function to apply if this is a Right
+   * @param leftMapper  the function to apply if this is a Left (NonNull)
+   * @param rightMapper the function to apply if this is a Right (NonNull)
    * @param <T>         the target type of the mapping functions
    * @return the result of applying the appropriate function
    */
-  <T> T fold(Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper);
+  default <T> T fold(@NonNull Function<? super L, ? extends T> leftMapper,
+                     @NonNull Function<? super R, ? extends T> rightMapper) {
+    Objects.requireNonNull(leftMapper, "leftMapper cannot be null");
+    Objects.requireNonNull(rightMapper, "rightMapper cannot be null");
+
+    return switch (this) {
+      // Use record patterns to match and extract value
+      case Left<L, R>(var leftValue) -> leftMapper.apply(leftValue);
+      case Right<L, R>(var rightValue) -> rightMapper.apply(rightValue);
+    };
+  }
+
 
   /**
    * If this is a Right, applies the given function to the Right value.
-   * If this is a Left, returns this Left unchanged.
-   * This operation is right-biased.
+   * If this is a Left, returns this Left unchanged. (Using switch)
    *
-   * @param mapper the function to apply to the Right value
+   * @param mapper the function to apply to the Right value (NonNull)
    * @param <R2>   the type of the Right value of the resulting Either
    * @return a new Either potentially with a mapped Right value, or the original Left
    */
-  <R2> Either<L, R2> map(Function<? super R, ? extends R2> mapper);
+  @SuppressWarnings("unchecked") // Required for casting Left case
+  default <R2> @NonNull Either<L, R2> map(@NonNull Function<? super R, ? extends R2> mapper) {
+    Objects.requireNonNull(mapper, "mapper function cannot be null");
+    return switch(this) {
+      case Left<L, R> l -> (Either<L, R2>) l; // Return self, cast needed
+      case Right<L, R>(var rValue) -> Either.right(mapper.apply(rValue)); // Create new Right
+    };
+  }
 
   /**
    * If this is a Right, applies the given Either-bearing function to the Right value.
@@ -71,7 +91,13 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @param <R2>   the type of the Right value of the resulting Either
    * @return the result of applying the function if this is a Right, or the original Left
    */
-  <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, ? extends R2>> mapper);
+ default <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
+    Objects.requireNonNull(mapper, "mapper function cannot be null");
+    // flatMap does nothing on Left, return this instance cast appropriately
+    @SuppressWarnings("unchecked")
+    Either<L, R2> self = (Either<L, R2>) this;
+    return self;
+  }
 
   /**
    * Performs the given action on the Left value if this is a Left.
@@ -111,66 +137,14 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * Represents the Left side of an Either.
    */
   record Left<L, R>(L value) implements Either<L, R> {
-    @Override
-    public boolean isLeft() {
-      return true;
-    }
+    @Override public boolean isLeft() { return true; }
+    @Override public boolean isRight() { return false; }
+    @Override public L getLeft() { return value; }
+    @Override public R getRight() { throw new NoSuchElementException("Cannot getRight() on a Left"); }
+    @Override public void ifLeft(@NonNull Consumer<? super L> action) { Objects.requireNonNull(action, "action cannot be null"); action.accept(value); }
+    @Override public void ifRight(@NonNull Consumer<? super R> action) { Objects.requireNonNull(action, "action cannot be null"); /* Do nothing */ }
+    @Override public @NonNull String toString() { return "Left(" + value + ")"; }
 
-    @Override
-    public boolean isRight() {
-      return false;
-    }
-
-    @Override
-    public L getLeft() {
-      return value;
-    }
-
-    @Override
-    public R getRight() {
-      throw new NoSuchElementException("Cannot getRight() on a Left");
-    }
-
-    @Override
-    public <T> T fold(Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
-      Objects.requireNonNull(leftMapper, "leftMapper cannot be null");
-      return leftMapper.apply(value);
-    }
-
-    @Override
-    public <R2> Either<L, R2> map(Function<? super R, ? extends R2> mapper) {
-      Objects.requireNonNull(mapper, "mapper function cannot be null");
-      // Map does nothing on Left, return this instance cast appropriately
-      @SuppressWarnings("unchecked")
-      Either<L, R2> self = (Either<L, R2>) this;
-      return self;
-    }
-
-    @Override
-    public <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      Objects.requireNonNull(mapper, "mapper function cannot be null");
-      // flatMap does nothing on Left, return this instance cast appropriately
-      @SuppressWarnings("unchecked")
-      Either<L, R2> self = (Either<L, R2>) this;
-      return self;
-    }
-
-    @Override
-    public void ifLeft(Consumer<? super L> action) {
-      Objects.requireNonNull(action, "action cannot be null");
-      action.accept(value);
-    }
-
-    @Override
-    public void ifRight(Consumer<? super R> action) {
-      Objects.requireNonNull(action, "action cannot be null");
-      // Do nothing for Left
-    }
-
-    @Override
-    public String toString() {
-      return "Left(" + value + ")";
-    }
   }
 
   /**
@@ -197,18 +171,6 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
       return value;
     }
 
-    @Override
-    public <T> T fold(Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
-      Objects.requireNonNull(rightMapper, "rightMapper cannot be null");
-      return rightMapper.apply(value);
-    }
-
-    @Override
-    public <R2> Either<L, R2> map(Function<? super R, ? extends R2> mapper) {
-      Objects.requireNonNull(mapper, "mapper function cannot be null");
-      // Apply the mapper and wrap the result in a new Right
-      return new Right<>(mapper.apply(value));
-    }
 
     @Override
     public <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
@@ -235,7 +197,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     }
 
     @Override
-    public String toString() {
+    public @NonNull String toString() {
       return "Right(" + value + ")";
     }
   }

@@ -8,18 +8,17 @@ import org.simulation.hkt.function.Function3;
 import org.simulation.hkt.function.Function4;
 
 
-import java.io.IOException; // Import IOException
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference; // Added for Error test
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy; // Correct import
-import static org.assertj.core.api.Assertions.assertThatNullPointerException; // Added for null handler test
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.simulation.hkt.future.CompletableFutureKindHelper.*;
 
 class CompletableFutureMonadErrorTest {
@@ -253,14 +252,14 @@ class CompletableFutureMonadErrorTest {
     class MonadErrorTests {
         RuntimeException testError = new RuntimeException("TestError");
         Error testErrorSubclass = new StackOverflowError("Test StackOverflow");
-        IOException checkedException = new IOException("Checked IO Error"); // Added
+        IOException checkedException = new IOException("Checked IO Error");
         RuntimeException handlerError = new RuntimeException("HandlerError");
         RuntimeException handlerApplyError = new RuntimeException("HandlerApplyError");
 
         Kind<CompletableFutureKind<?>, Integer> successKind = futureMonad.of(100);
         Kind<CompletableFutureKind<?>, Integer> failedKind = futureMonad.raiseError(testError);
         Kind<CompletableFutureKind<?>, Integer> failedKindWithError = futureMonad.raiseError(testErrorSubclass);
-        Kind<CompletableFutureKind<?>, Integer> failedKindChecked = futureMonad.raiseError(checkedException); // Added
+        Kind<CompletableFutureKind<?>, Integer> failedKindChecked = futureMonad.raiseError(checkedException);
 
         @Test
         void raiseError_shouldCreateFailedFuture() {
@@ -408,7 +407,7 @@ class CompletableFutureMonadErrorTest {
         }
 
         @Test
-        void handleErrorWith_shouldHandleCompletionExceptionWithCauseDirctly() { // Added
+        void handleErrorWith_shouldHandleCompletionExceptionWithCauseDirectly() { // Added
             // Simulate a future that fails internally with a specific cause
             CompletableFuture<Integer> internalFailure = new CompletableFuture<>();
             internalFailure.completeExceptionally(testError); // Fail with original error
@@ -533,6 +532,35 @@ class CompletableFutureMonadErrorTest {
             assertThat(joinFuture(result)).isEqualTo(200);
             // Verify the original Kind instance is returned (due to the optimization)
             assertThat(result).isSameAs(alreadyDoneKind);
+        }
+
+        @Test
+        @DisplayName("handleErrorWith should ignore already completed success future (optimization path)")
+        void handleErrorWith_shouldReturnOriginalKindForAlreadyCompletedSuccess() {
+            // 1. Create an already successfully completed future
+            String successValue = "Already Done";
+            CompletableFuture<String> alreadyDoneFuture = CompletableFuture.completedFuture(successValue);
+            Kind<CompletableFutureKind<?>, String> alreadyDoneKind = wrap(alreadyDoneFuture);
+
+            // 2. Define a handler that should NOT be called
+            AtomicBoolean handlerCalled = new AtomicBoolean(false);
+            Function<Throwable, Kind<CompletableFutureKind<?>, String>> handler =
+                err -> {
+                    handlerCalled.set(true); // Track if handler was erroneously called
+                    return futureMonad.of("Recovered?"); // Should not happen
+                };
+
+            // 3. Call handleErrorWith
+            Kind<CompletableFutureKind<?>, String> resultKind = futureMonad.handleErrorWith(alreadyDoneKind, handler);
+
+            // 4. Assert handler was not called
+            assertThat(handlerCalled).isFalse();
+
+            // 5. Assert the returned Kind is the *same instance* as the input (optimization check)
+            assertThat(resultKind).isSameAs(alreadyDoneKind);
+
+            // 6. Assert the result value is correct
+            assertThat(joinFuture(resultKind)).isEqualTo(successValue);
         }
 
         // Test for Branch 3b: Exception is NOT CompletionException with cause

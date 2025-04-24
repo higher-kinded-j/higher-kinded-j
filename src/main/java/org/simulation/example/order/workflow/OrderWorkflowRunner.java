@@ -210,7 +210,7 @@ public class OrderWorkflowRunner {
           Try<ValidatedOrder> tryResult = TryKindHelper.unwrap(tryResultKind);
 
           Either<DomainError, ValidatedOrder> eitherResult = tryResult.fold(
-              validated -> Either.right(validated), // Success(v) -> Right(v)
+              Either::right, // Success(v) -> Right(v)
               // Failure(t) -> Left(DomainError). Convert generic Throwable to a specific DomainError.
               throwable -> Either.left(new DomainError.ValidationError(throwable.getMessage()))
           );
@@ -255,14 +255,23 @@ public class OrderWorkflowRunner {
               EitherT.fromKind(shipmentAttemptFutureKind);
 
           Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ShipmentInfo> recoveredShipmentET =
-              eitherTMonad.handleErrorWith(shipmentAttemptET, error -> { // Handles DomainError
-                if (error instanceof DomainError.ShippingError(String reason) && "Temporary Glitch".equals(reason)) {
-                  System.out.println("WARN (Try Validation): Recovering from temporary shipping glitch with default.");
-                  return eitherTMonad.of(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
-                } else {
-                  return eitherTMonad.raiseError(error);
-                }
-              });
+              eitherTMonad.handleErrorWith(shipmentAttemptET, error ->
+                  switch (error) {
+                    case DomainError.ShippingError(String reason) when "Temporary Glitch".equals(reason) -> {
+                      System.out.printf("WARN (%s Validation): Recovering from temporary shipping glitch with default.%n",
+                          // Determine context based on which method we are in - slightly hacky
+                          ctx.validatedOrder() != null ? "Either/Try" : "Unknown");
+                      // Recover by returning a successful EitherT with default info
+                      yield eitherTMonad.of(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
+                    }
+                    // Add more cases for other specific DomainError subtypes if needed
+                    // case DomainError.ValidationError ve -> { /* Handle differently */ yield eitherTMonad.raiseError(ve); }
+
+                    // Default case: Re-raise any other DomainError
+                    default -> eitherTMonad.raiseError(error);
+                  }
+              ); // End of handleErrorWith
+          // Map the (potentially recovered) ShipmentInfo back into the context
           return eitherTMonad.map(ctx::withShipmentInfo, recoveredShipmentET);
         }, paymentET);
 

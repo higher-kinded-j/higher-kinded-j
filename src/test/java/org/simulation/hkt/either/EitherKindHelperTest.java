@@ -4,7 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
-import org.simulation.hkt.future.CompletableFutureKindHelper;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 
 import java.lang.reflect.Constructor;
@@ -17,9 +17,13 @@ import static org.simulation.hkt.either.EitherKindHelper.*;
 @DisplayName("EitherKindHelper Tests")
 class EitherKindHelperTest {
 
+  // Error Messages from EitherKindHelper (copy or import if made public)
+  private static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Either";
+  private static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an EitherHolder: ";
+  private static final String INVALID_HOLDER_STATE_MSG = "EitherHolder contained null Either instance";
+
   // Define a simple error type for testing
   record TestError(String code) {}
-  private static final String INVALID_KIND_ERROR = "Invalid Kind state (null or unexpected type)";
 
   @Nested
   @DisplayName("wrap()")
@@ -31,7 +35,6 @@ class EitherKindHelperTest {
       Kind<EitherKind<TestError, ?>, Integer> kind = wrap(right);
 
       assertThat(kind).isInstanceOf(EitherHolder.class);
-      // Unwrap to verify
       assertThat(unwrap(kind)).isSameAs(right);
     }
 
@@ -42,7 +45,6 @@ class EitherKindHelperTest {
       Kind<EitherKind<TestError, ?>, Integer> kind = wrap(left);
 
       assertThat(kind).isInstanceOf(EitherHolder.class);
-      // Unwrap to verify
       assertThat(unwrap(kind)).isSameAs(left);
     }
 
@@ -71,7 +73,7 @@ class EitherKindHelperTest {
   @DisplayName("unwrap()")
   class UnwrapTests {
 
-    // --- Success Cases (already implicitly tested by wrap tests) ---
+    // --- Success Cases ---
     @Test
     void unwrap_shouldReturnOriginalRight() {
       Either<TestError, String> original = Either.right("Success");
@@ -86,46 +88,37 @@ class EitherKindHelperTest {
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
-    // --- Robustness / Failure Cases ---
+    // --- Failure Cases ---
 
     // Dummy Kind implementation that is not EitherHolder
     record DummyEitherKind<L, R>() implements Kind<EitherKind<L, ?>, R> {}
 
     @Test
-    void unwrap_shouldReturnLeftErrorForNullInput() {
-      // We need to specify the expected Left type for the assertion
-      // Note: The helper returns Left(String), so L must be String or Object here.
-      Either<String, Integer> result = unwrap(null);
-      assertThat(result).isNotNull();
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isEqualTo(INVALID_KIND_ERROR);
+    void unwrap_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> unwrap(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldReturnLeftErrorForUnknownKindType() {
-      // Specify L as String, R as Boolean for this test instance
+    void unwrap_shouldThrowForUnknownKindType() {
       Kind<EitherKind<String, ?>, Boolean> unknownKind = new DummyEitherKind<>();
-      Either<String, Boolean> result = unwrap(unknownKind);
-      assertThat(result).isNotNull();
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isEqualTo(INVALID_KIND_ERROR);
+      assertThatThrownBy(() -> unwrap(unknownKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyEitherKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldReturnLeftErrorForHolderWithNullEither() {
-      // Test the specific case where the holder exists but its internal either is null
+    void unwrap_shouldThrowForHolderWithNullEither() {
       EitherHolder<String, Integer> holderWithNull = new EitherHolder<>(null);
-      // Need to cast to satisfy the Kind type parameter in unwrap
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // Cast needed for test setup
       Kind<EitherKind<String, ?>, Integer> kind = holderWithNull;
 
-      Either<String, Integer> result = unwrap(kind);
-      assertThat(result).isNotNull();
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isEqualTo(INVALID_KIND_ERROR);
+      assertThatThrownBy(() -> unwrap(kind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
     }
   }
-
 
   @Nested
   @DisplayName("Private Constructor")
@@ -134,18 +127,12 @@ class EitherKindHelperTest {
     @Test
     @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
     void constructor_shouldThrowException() throws NoSuchMethodException {
-      // Get the private constructor
       Constructor<EitherKindHelper> constructor = EitherKindHelper.class.getDeclaredConstructor();
-
-      // Make it accessible
       constructor.setAccessible(true);
-
-      // Assert that invoking the constructor throws the expected exception
-      // InvocationTargetException wraps the actual exception thrown by the constructor
       assertThatThrownBy(constructor::newInstance)
           .isInstanceOf(InvocationTargetException.class)
           .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause() // Get the wrapped UnsupportedOperationException
+          .cause()
           .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }

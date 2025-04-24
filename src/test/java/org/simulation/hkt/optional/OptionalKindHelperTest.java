@@ -4,8 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
-import org.simulation.hkt.trymonad.TryKindHelper;
-
+import org.simulation.hkt.exception.KindUnwrapException;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -27,7 +26,6 @@ class OptionalKindHelperTest {
       Kind<OptionalKind<?>, String> kind = wrap(present);
 
       assertThat(kind).isInstanceOf(OptionalHolder.class);
-      // Unwrap to verify
       assertThat(unwrap(kind)).isSameAs(present);
     }
 
@@ -37,17 +35,13 @@ class OptionalKindHelperTest {
       Kind<OptionalKind<?>, String> kind = wrap(empty);
 
       assertThat(kind).isInstanceOf(OptionalHolder.class);
-      // Unwrap to verify
       assertThat(unwrap(kind)).isSameAs(empty);
     }
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      // Optional.wrap itself doesn't accept null, unlike Optional.ofNullable
-      // So wrap(null) is not a valid use case here.
-      // If wrap were to accept null, it should likely return wrap(Optional.empty())
-      // Let's assume wrap requires a non-null Optional.
-      assertThatNullPointerException().isThrownBy(() -> wrap(null));
+      assertThatNullPointerException().isThrownBy(() -> wrap(null))
+          .withMessageContaining("Input Optional cannot be null"); // Check message from wrap
     }
   }
 
@@ -55,7 +49,7 @@ class OptionalKindHelperTest {
   @DisplayName("unwrap()")
   class UnwrapTests {
 
-    // --- Success Cases (already implicitly tested by wrap tests) ---
+    // --- Success Cases ---
     @Test
     void unwrap_shouldReturnOriginalPresentOptional() {
       Optional<Integer> original = Optional.of(123);
@@ -65,39 +59,39 @@ class OptionalKindHelperTest {
 
     @Test
     void unwrap_shouldReturnOriginalEmptyOptional() {
-      Optional<Integer> original = Optional.empty();
-      Kind<OptionalKind<?>, Integer> kind = wrap(original);
+      Optional<Float> original = Optional.empty();
+      Kind<OptionalKind<?>, Float> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
-    // --- Robustness / Failure Cases ---
-
+    // --- Failure Cases ---
     // Dummy Kind implementation that is not OptionalHolder
     record DummyOptionalKind<A>() implements Kind<OptionalKind<?>, A> {}
 
     @Test
-    void unwrap_shouldReturnEmptyOptionalForNullInput() {
-      Optional<String> result = unwrap(null);
-      assertThat(result).isNotNull().isEmpty();
+    void unwrap_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> unwrap(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldReturnEmptyOptionalForUnknownKindType() {
+    void unwrap_shouldThrowForUnknownKindType() {
       Kind<OptionalKind<?>, Integer> unknownKind = new DummyOptionalKind<>();
-      Optional<Integer> result = unwrap(unknownKind);
-      assertThat(result).isNotNull().isEmpty();
+      assertThatThrownBy(() -> unwrap(unknownKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOptionalKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldReturnEmptyOptionalForHolderWithNullOptional() {
-      // Test the specific case where the holder exists but its internal optional is null
+    void unwrap_shouldThrowForHolderWithNullOptional() {
       OptionalHolder<String> holderWithNull = new OptionalHolder<>(null);
-      // Need to cast to satisfy the Kind type parameter in unwrap
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // Cast needed for test setup
       Kind<OptionalKind<?>, String> kind = holderWithNull;
 
-      Optional<String> result = unwrap(kind);
-      assertThat(result).isNotNull().isEmpty();
+      assertThatThrownBy(() -> unwrap(kind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
     }
   }
 
@@ -108,18 +102,12 @@ class OptionalKindHelperTest {
     @Test
     @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
     void constructor_shouldThrowException() throws NoSuchMethodException {
-      // Get the private constructor
       Constructor<OptionalKindHelper> constructor = OptionalKindHelper.class.getDeclaredConstructor();
-
-      // Make it accessible
       constructor.setAccessible(true);
-
-      // Assert that invoking the constructor throws the expected exception
-      // InvocationTargetException wraps the actual exception thrown by the constructor
       assertThatThrownBy(constructor::newInstance)
           .isInstanceOf(InvocationTargetException.class)
           .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause() // Get the wrapped UnsupportedOperationException
+          .cause()
           .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }

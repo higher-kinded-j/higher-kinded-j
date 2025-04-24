@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 import org.simulation.hkt.function.Function3;
 import org.simulation.hkt.function.Function4;
 
@@ -246,25 +247,16 @@ class EitherMonadTest {
         }
 
         @Test
-        @DisplayName("flatMap should return Left error if mapper returns null Kind") // Adjusted name
-        void flatMap_shouldReturnLeftErrorForNullMapperResult() { // Adjusted name
-            Kind<EitherKind<TestError, ?>, Integer> rightInput = right(10);
+        @DisplayName("flatMap should throw KindUnwrapException if mapper returns null Kind")
+        void flatMap_shouldThrowWhenMapperReturnsNullKind() {
+            Kind<EitherKind<TestError, ?>, Integer> rightInput = right(10); // Assuming right() helper exists
             // Mapper function explicitly returns null
             Function<Integer, Kind<EitherKind<TestError, ?>, String>> nullReturningMapper = i -> null;
 
-            // Call the method under test
-            Kind<EitherKind<TestError, ?>, String> resultKind = eitherMonad.flatMap(nullReturningMapper, rightInput);
-
-            // Assert that the actual result is Left with the specific error from unwrap(null)
-            Either<TestError, String> resultEither = EitherKindHelper.unwrap(resultKind);
-
-            assertThat(resultEither.isLeft()).isTrue();
-
-            // Safely get the Left value (we know it's String here due to the helper)
-            // and check its content
-            Object leftValue = resultEither.getLeft();
-            assertThat(leftValue).isInstanceOf(String.class); // Verify it's the String from the helper
-            assertThat(leftValue).isEqualTo("Invalid Kind state (null or unexpected type)");
+            // Assert that calling flatMap with this mapper throws the exception directly
+            assertThatThrownBy(() -> eitherMonad.flatMap(nullReturningMapper, rightInput))
+                .isInstanceOf(KindUnwrapException.class)
+                .hasMessageContaining("Cannot unwrap null Kind for Either"); // Exception originates from unwrap(null) call inside flatMap
         }
     }
 
@@ -653,22 +645,22 @@ class EitherMonadTest {
         }
 
         @Test
-        @DisplayName("handleErrorWith should result in Left Error when handler returns null Kind")
-        void handleErrorWith_shouldResultInErrorForNullHandlerResult() {
-            Kind<EitherKind<TestError, ?>, Integer> leftVal = left("E1");
+        @DisplayName("handleErrorWith should result in Exception when unwrapping null Kind from handler")
+        void handleErrorWith_shouldThrowWhenUnwrappingNullHandlerResult() {
+            Kind<EitherKind<TestError, ?>, Integer> leftVal = left("E1"); // Assuming left() helper exists
+            // Handler function explicitly returns null Kind
             Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> nullReturningHandler = err -> null;
 
+            // Call the method under test
             Kind<EitherKind<TestError, ?>, Integer> resultKind = eitherMonad.handleErrorWith(leftVal, nullReturningHandler);
 
-            // When the null resultKind is unwrapped, EitherKindHelper.unwrap(null) is called.
-            Either<TestError, Integer> finalUnwrapped = EitherKindHelper.unwrap(resultKind);
+            // Assert that the resultKind itself is null (because the handler returned null)
+            assertThat(resultKind).isNull();
 
-            // Assert it's Left
-            assertThat(finalUnwrapped.isLeft()).isTrue();
-
-            // Assert directly on the toString() representation, which doesn't rely on L's type
-            assertThat(finalUnwrapped.toString())
-                .isEqualTo("Left(Invalid Kind state (null or unexpected type))");
+            // Assert that attempting to unwrap this null result throws KindUnwrapException
+            assertThatThrownBy(() -> EitherKindHelper.unwrap(resultKind)) // Pass the null resultKind to unwrap
+                .isInstanceOf(KindUnwrapException.class)
+                .hasMessageContaining("Cannot unwrap null Kind for Either");
         }
     }
 

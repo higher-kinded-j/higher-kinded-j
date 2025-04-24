@@ -4,8 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
-import org.simulation.hkt.trymonad.TryKindHelper;
-
+import org.simulation.hkt.exception.KindUnwrapException;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -18,6 +17,7 @@ import static org.simulation.hkt.list.ListKindHelper.*;
 
 @DisplayName("ListKindHelper Tests")
 class ListKindHelperTest {
+
 
   @Nested
   @DisplayName("wrap()")
@@ -45,8 +45,8 @@ class ListKindHelperTest {
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      // Assuming wrap requires a non-null List input
-      assertThatNullPointerException().isThrownBy(() -> wrap(null));
+      assertThatNullPointerException().isThrownBy(() -> wrap(null))
+          .withMessageContaining("Input list cannot be null"); // Check message from wrap
     }
   }
 
@@ -54,7 +54,7 @@ class ListKindHelperTest {
   @DisplayName("unwrap()")
   class UnwrapTests {
 
-    // --- Success Cases (already implicitly tested by wrap tests) ---
+    // --- Success Cases ---
     @Test
     void unwrap_shouldReturnOriginalNonEmptyList() {
       List<String> original = List.of("a", "b");
@@ -69,34 +69,35 @@ class ListKindHelperTest {
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
-    // --- Robustness / Failure Cases ---
+    // --- Failure Cases ---
 
     // Dummy Kind implementation that is not ListHolder
     record DummyListKind<A>() implements Kind<ListKind<?>, A> {}
 
     @Test
-    void unwrap_shouldReturnEmptyListForNullInput() {
-      List<String> result = unwrap(null);
-      assertThat(result).isNotNull().isEmpty();
+    void unwrap_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> unwrap(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldReturnEmptyListForUnknownKindType() {
+    void unwrap_shouldThrowForUnknownKindType() {
       Kind<ListKind<?>, Integer> unknownKind = new DummyListKind<>();
-      List<Integer> result = unwrap(unknownKind);
-      assertThat(result).isNotNull().isEmpty();
+      assertThatThrownBy(() -> unwrap(unknownKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyListKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldReturnEmptyListForHolderWithNullList() {
-      // Test the specific case where the holder exists but its internal list is null
+    void unwrap_shouldThrowForHolderWithNullList() {
       ListHolder<Double> holderWithNull = new ListHolder<>(null);
-      // Need to cast to satisfy the Kind type parameter in unwrap
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // Cast needed for test setup
       Kind<ListKind<?>, Double> kind = holderWithNull;
 
-      List<Double> result = unwrap(kind);
-      assertThat(result).isNotNull().isEmpty();
+      assertThatThrownBy(() -> unwrap(kind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
     }
   }
 
@@ -107,18 +108,12 @@ class ListKindHelperTest {
     @Test
     @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
     void constructor_shouldThrowException() throws NoSuchMethodException {
-      // Get the private constructor
       Constructor<ListKindHelper> constructor = ListKindHelper.class.getDeclaredConstructor();
-
-      // Make it accessible
       constructor.setAccessible(true);
-
-      // Assert that invoking the constructor throws the expected exception
-      // InvocationTargetException wraps the actual exception thrown by the constructor
       assertThatThrownBy(constructor::newInstance)
           .isInstanceOf(InvocationTargetException.class)
           .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause() // Get the wrapped UnsupportedOperationException
+          .cause()
           .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
