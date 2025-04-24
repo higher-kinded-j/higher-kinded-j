@@ -4,7 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
-import org.simulation.hkt.trymonad.TryKindHelper;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 
 import java.lang.reflect.Constructor;
@@ -15,27 +15,6 @@ import static org.simulation.hkt.maybe.MaybeKindHelper.*;
 
 @DisplayName("MaybeKindHelper Tests")
 class MaybeKindHelperTest {
-
-  // Helper method to add explicit null check in unwrap (if needed, currently handled by switch)
-  // Modify unwrap if direct null check is preferred over relying on switch behavior for holder.maybe() == null
-  private static <A> Maybe<A> unwrapWithExplicitNullCheck(Kind<MaybeKind<?>, A> kind) {
-    return switch (kind) {
-      case MaybeHolder<A> holder -> holder.maybe() != null ? holder.maybe() : Maybe.nothing();
-      case null, default -> Maybe.nothing();
-    };
-  }
-
-  @Test
-  @DisplayName("Unwrap with Explicit Null Check (Alternative)")
-  void unwrap_explicitNullCheckHandlesHolderWithNullMaybe() {
-    MaybeHolder<Double> holderWithNull = new MaybeHolder<>(null);
-    @SuppressWarnings("unchecked")
-    Kind<MaybeKind<?>, Double> kind = holderWithNull;
-
-    Maybe<Double> result = unwrapWithExplicitNullCheck(kind);
-    assertThat(result).isNotNull();
-    assertThat(result.isNothing()).isTrue();
-  }
 
   @Nested
   @DisplayName("wrap()")
@@ -51,17 +30,17 @@ class MaybeKindHelperTest {
 
     @Test
     void wrap_shouldReturnHolderForNothing() {
-      Maybe<Integer> nothing = Maybe.nothing();
-      Kind<MaybeKind<?>, Integer> kind = wrap(nothing);
+      Maybe<Integer> nothingVal = Maybe.nothing(); // Use variable for clarity
+      Kind<MaybeKind<?>, Integer> kind = wrap(nothingVal);
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
-      assertThat(unwrap(kind)).isSameAs(nothing);
+      assertThat(unwrap(kind)).isSameAs(nothingVal);
     }
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      // Wrap requires a non-null Maybe instance
-      assertThatNullPointerException().isThrownBy(() -> wrap(null));
+      assertThatNullPointerException().isThrownBy(() -> wrap(null))
+          .withMessageContaining("Input Maybe cannot be null"); // Check message from wrap
     }
   }
 
@@ -81,7 +60,6 @@ class MaybeKindHelperTest {
 
     @Test
     void just_shouldThrowForNullInput() {
-      // Maybe.just itself throws for null
       assertThatNullPointerException()
           .isThrownBy(() -> just(null))
           .withMessageContaining("Value for Just cannot be null");
@@ -98,7 +76,7 @@ class MaybeKindHelperTest {
       assertThat(kind).isInstanceOf(MaybeHolder.class);
       Maybe<Integer> maybe = unwrap(kind);
       assertThat(maybe.isNothing()).isTrue();
-      assertThat(maybe).isSameAs(Maybe.nothing()); // Verify singleton
+      assertThat(maybe).isSameAs(Maybe.nothing());
     }
   }
 
@@ -106,7 +84,7 @@ class MaybeKindHelperTest {
   @DisplayName("unwrap()")
   class UnwrapTests {
 
-    // --- Success Cases (implicitly tested by wrap/just/nothing tests) ---
+    // --- Success Cases ---
     @Test
     void unwrap_shouldReturnOriginalJust() {
       Maybe<Integer> original = Maybe.just(123);
@@ -116,45 +94,39 @@ class MaybeKindHelperTest {
 
     @Test
     void unwrap_shouldReturnOriginalNothing() {
-      Maybe<Integer> original = Maybe.nothing();
-      Kind<MaybeKind<?>, Integer> kind = wrap(original);
+      Maybe<String> original = Maybe.nothing();
+      Kind<MaybeKind<?>, String> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
-    // --- Robustness / Failure Cases ---
+    // --- Failure Cases ---
+    // Dummy Kind implementation that is not MaybeHolder
+    record DummyMaybeKind<A>() implements Kind<MaybeKind<?>, A> {}
 
     @Test
-    void unwrap_shouldReturnNothingForNullInput() {
-      Maybe<String> result = unwrap(null);
-      assertThat(result).isNotNull();
-      assertThat(result.isNothing()).isTrue();
+    void unwrap_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> unwrap(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldReturnNothingForUnknownKindType() {
+    void unwrap_shouldThrowForUnknownKindType() {
       Kind<MaybeKind<?>, Integer> unknownKind = new DummyMaybeKind<>();
-      Maybe<Integer> result = unwrap(unknownKind);
-      assertThat(result).isNotNull();
-      assertThat(result.isNothing()).isTrue();
+      assertThatThrownBy(() -> unwrap(unknownKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyMaybeKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldReturnNothingForHolderWithNullMaybe() {
-      // Test the specific case where the holder exists but its internal maybe is null
+    void unwrap_shouldThrowForHolderWithNullMaybe() {
       MaybeHolder<Double> holderWithNull = new MaybeHolder<>(null);
-      // Need to cast to satisfy the Kind type parameter in unwrap
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // Cast needed for test setup
       Kind<MaybeKind<?>, Double> kind = holderWithNull;
 
-      // The unwrap switch case should match the holder but return Maybe.nothing()
-      // because holder.maybe() returns null, triggering the null check.
-      Maybe<Double> result = unwrap(kind);
-      assertThat(result).isNotNull();
-      assertThat(result.isNothing()).isTrue();
-    }
-
-    // Dummy Kind implementation that is not MaybeHolder
-    record DummyMaybeKind<A>() implements Kind<MaybeKind<?>, A> {
+      assertThatThrownBy(() -> unwrap(kind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
     }
   }
 
@@ -165,22 +137,13 @@ class MaybeKindHelperTest {
     @Test
     @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
     void constructor_shouldThrowException() throws NoSuchMethodException {
-      // Get the private constructor
       Constructor<MaybeKindHelper> constructor = MaybeKindHelper.class.getDeclaredConstructor();
-
-      // Make it accessible
       constructor.setAccessible(true);
-
-      // Assert that invoking the constructor throws the expected exception
-      // InvocationTargetException wraps the actual exception thrown by the constructor
       assertThatThrownBy(constructor::newInstance)
           .isInstanceOf(InvocationTargetException.class)
           .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause() // Get the wrapped UnsupportedOperationException
+          .cause()
           .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
-
 }
-
-

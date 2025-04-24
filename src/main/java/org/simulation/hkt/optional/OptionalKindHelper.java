@@ -3,11 +3,18 @@ package org.simulation.hkt.optional;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 import java.util.Objects;
 import java.util.Optional;
 
 public final class OptionalKindHelper {
+
+  // Error Messages
+  public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Optional";
+  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an OptionalHolder: ";
+  public static final String INVALID_HOLDER_STATE_MSG = "OptionalHolder contained null Optional instance";
+
 
   private OptionalKindHelper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
@@ -15,37 +22,39 @@ public final class OptionalKindHelper {
 
   /**
    * Unwraps an OptionalKind back to the concrete Optional<A> type.
-   * Handles null Kind, unknown Kind types, and holders containing null Optionals
-   * by returning Optional.empty().
-   * @param kind The Kind instance (Nullable).
-   * @return The underlying Optional or Optional.empty() (NonNull).
+   * Throws KindUnwrapException if the Kind is null, not an OptionalHolder,
+   * or the holder contains a null Optional instance.
+   *
+   * @param kind The OptionalKind instance. (@Nullable allows checking null input)
+   * @param <A>  The element type.
+   * @return The underlying, non-null Optional<A>. (@NonNull assumes success)
+   * @throws KindUnwrapException if unwrapping fails.
    */
-  @SuppressWarnings("unchecked") // For casting OptionalHolder
+  @SuppressWarnings("unchecked")
   public static <A> @NonNull Optional<A> unwrap(@Nullable Kind<OptionalKind<?>, A> kind){
-    return switch(kind) {
-      // Check if the holder's optional is null, return empty() if it is
-      case OptionalHolder<?> holder -> {
-        Optional<?> heldOptional = holder.optional();
-        yield heldOptional != null ? (Optional<A>) heldOptional : Optional.empty();
+    if (kind == null) {
+      throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+    }
+
+    if (kind instanceof OptionalHolder<?>(Optional<?> optional)) {
+      if (optional == null) {
+        throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
       }
-      case null, default -> Optional.empty(); // Return default for null or unknown types
-    };
+      return (Optional<A>) optional; // Cast is safe here
+    } else {
+      throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+    }
   }
 
   /**
    * Wraps a concrete Optional<A> value into the OptionalKind simulation type.
    * Requires a non-null Optional as input.
-   * @param optional The Optional instance to wrap (NonNull).
-   * @return The wrapped OptionalKind (NonNull).
    */
   public static <A> @NonNull OptionalKind<A> wrap(@NonNull Optional<A> optional){
-    // Prevent wrapping null Optionals directly
     Objects.requireNonNull(optional, "Input Optional cannot be null for wrap");
     return new OptionalHolder<>(optional);
   }
 
-
-  // Internal holder record - field assumed NonNull based on wrap check
-  record OptionalHolder<A>(@NonNull Optional<A> optional) implements OptionalKind<A> {
+  record OptionalHolder<A>(Optional<A> optional) implements OptionalKind<A> {
   }
 }
