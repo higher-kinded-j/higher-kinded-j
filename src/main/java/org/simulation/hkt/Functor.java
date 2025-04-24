@@ -1,5 +1,6 @@
 package org.simulation.hkt;
 
+import org.jspecify.annotations.NonNull;
 import java.util.function.Function;
 
 /**
@@ -24,12 +25,12 @@ public interface Functor<F> {
    * <li>Composition: {@code map(g.compose(f), fa)} should be equivalent to {@code map(g, map(f, fa))}.</li>
    * </ol>
    *
-   * @param f   The function to apply to the wrapped value(s).
-   * @param fa  The Functor structure containing the value(s) of type A.
+   * @param f   The function to apply to the wrapped value(s). Assumed non-null.
+   * @param fa  The Functor structure containing the value(s) of type A. Assumed non-null.
    * @param <A> The type of the value(s) inside the input Functor structure.
    * @param <B> The type of the value(s) inside the output Functor structure.
    * @return A new Functor structure containing the result(s) of applying the function {@code f},
-   * maintaining the original structure F.
+   * maintaining the original structure F. Guaranteed non-null.
    */
-  <A, B> Kind<F, B> map(Function<A, B> f, Kind<F, A> fa);
+  <A, B> @NonNull Kind<F, B> map(@NonNull Function<A, B> f, @NonNull Kind<F, A> fa);
 }

@@ -1,5 +1,7 @@
 package org.simulation.hkt.trans;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.Monad;
 import org.simulation.hkt.MonadError;
@@ -19,7 +21,7 @@ import java.util.function.Function;
 // Implement MonadError<WitnessType, ErrorType>
 public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
 
-  private final Monad<F> outerMonad;
+  private final @NonNull Monad<F> outerMonad;
   // Note: We only need Monad<F> capabilities to implement MonadError for the inner Either.
   // If we wanted to *also* handle errors from F itself (type E), we'd need MonadError<F, E>.
 
@@ -27,20 +29,20 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
    * Creates a MonadError instance for EitherT.
    * @param outerMonad The Monad instance for the outer context F. Must not be null.
    */
-  public EitherTMonad(Monad<F> outerMonad) {
+  public EitherTMonad(@NonNull Monad<F> outerMonad) {
     this.outerMonad = Objects.requireNonNull(outerMonad, "Outer Monad instance cannot be null");
   }
 
   // --- Applicative Methods ---
 
   @Override
-  public <A> Kind<EitherTKind<F, L, ?>, A> of(A value) {
+  public <A> @NonNull Kind<EitherTKind<F, L, ?>, A> of( @Nullable A value) {
     // Lift a pure value 'a' into Right(a) within the outer monad F.
     return EitherT.right(outerMonad, value);
   }
 
   @Override
-  public <A, B> Kind<EitherTKind<F, L, ?>, B> map(Function<A, B> f, Kind<EitherTKind<F, L, ?>, A> fa) {
+  public <A, B> @NonNull Kind<EitherTKind<F, L, ?>, B> map(@NonNull Function<A, B> f, @NonNull Kind<EitherTKind<F, L, ?>, A> fa) {
     EitherT<F, L, A> eitherT = (EitherT<F, L, A>) fa; // Safe cast in HKT simulation
     // Map the inner Either using the outer monad's map
     Kind<F, Either<L, B>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());
@@ -48,7 +50,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
   }
 
   @Override
-  public <A, B> Kind<EitherTKind<F, L, ?>, B> ap(Kind<EitherTKind<F, L, ?>, Function<A, B>> ff, Kind<EitherTKind<F, L, ?>, A> fa) {
+  public <A, B> @NonNull Kind<EitherTKind<F, L, ?>, B> ap(@NonNull Kind<EitherTKind<F, L, ?>, Function<A, B>> ff, @NonNull Kind<EitherTKind<F, L, ?>, A> fa) {
     EitherT<F, L, Function<A, B>> funcT = (EitherT<F, L, Function<A, B>>) ff;
     EitherT<F, L, A> valT = (EitherT<F, L, A>) fa;
 
@@ -75,7 +77,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
   // --- Monad Method ---
 
   @Override
-  public <A, B> Kind<EitherTKind<F, L, ?>, B> flatMap(Function<A, Kind<EitherTKind<F, L, ?>, B>> f, Kind<EitherTKind<F, L, ?>, A> ma) {
+  public <A, B> @NonNull Kind<EitherTKind<F, L, ?>, B> flatMap(@NonNull  Function<A, Kind<EitherTKind<F, L, ?>, B>> f, @NonNull  Kind<EitherTKind<F, L, ?>, A> ma) {
     EitherT<F, L, A> eitherT = (EitherT<F, L, A>) ma; // Safe cast in HKT simulation
 
     Kind<F, Either<L, B>> newValue = outerMonad.flatMap(
@@ -101,7 +103,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
    * @return An EitherT representing the error.
    */
   @Override
-  public <A> Kind<EitherTKind<F, L, ?>, A> raiseError(L error) {
+  public <A> @NonNull Kind<EitherTKind<F, L, ?>, A> raiseError(L error) {
     // Lift the Either error 'L' into the context using the static helper
     return EitherT.left(outerMonad, error);
   }
@@ -121,7 +123,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
    * @return Original EitherT if Right, or the result of the handler applied to the Left value.
    */
   @Override
-  public <A> Kind<EitherTKind<F, L, ?>, A> handleErrorWith(Kind<EitherTKind<F, L, ?>, A> ma, Function<L, Kind<EitherTKind<F, L, ?>, A>> handler) {
+  public <A> @NonNull Kind<EitherTKind<F, L, ?>, A> handleErrorWith(@NonNull Kind<EitherTKind<F, L, ?>, A> ma, @NonNull Function<L, Kind<EitherTKind<F, L, ?>, A>> handler) {
     EitherT<F, L, A> eitherT = (EitherT<F, L, A>) ma; // Safe cast
 
     // Use outerMonad's flatMap to access the inner Either<L, A> once F completes.
@@ -141,6 +143,4 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
     return EitherT.fromKind(handledValue);
   }
 
-  // Default implementations for handleError, recover, recoverWith are inherited from MonadError
-  // and will use the `raiseError` and `handleErrorWith` implementations above.
 }
