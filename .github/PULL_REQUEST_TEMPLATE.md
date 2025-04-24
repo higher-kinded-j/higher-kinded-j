@@ -26,7 +26,7 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 
 ## Checklist:
 
-- [ ] My code follows the style guidelines of this project (Standard Java Conventions)
+- [ ] My code follows the style guidelines of this project (Standard Google Java Conventions)[**See Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html)
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation (e.g., README.md, Javadoc)
