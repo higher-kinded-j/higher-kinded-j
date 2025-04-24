@@ -4,9 +4,15 @@
 
 This library for Higher-Kinded Types in Java was initially created as a simulation for the blog post [Higher Kinded Types with Java and Scala](https://magnussmith.github.io/blog/2025/04/01/higher-kinded-types-with-java-and-scala.html) to help illustrate different approaches.
 
-
-This project demonstrates a technique to simulate Higher-Kinded Types (HKTs) in Java, a feature not natively supported by the language's type system. 
+This project demonstrates a technique to simulate Higher-Kinded Types (HKTs) in Java, a feature not natively supported by the language's type system.
 It uses a defunctionalisation approach, representing type constructors and type classes as interfaces and objects.
+
+## See [Wiki](docs/home.md) for more details and examples
+
+
+
+
+
 
 
 ## Introduction: Abstracting Over Computation in Java
@@ -137,3 +143,28 @@ The code is organized into packages:
 * `org.simulation.hkt.MonadSimulation`: Contains executable examples demonstrating basic usage.
 
 
+## Contributing
+
+Contributions to this project are welcome! Whether it's adding new features, improving existing code, or enhancing documentation, your help is GREATLY appreciated.
+
+**Areas for Contribution:**
+
+* **Simulate More Types:** Add HKT simulations and type class instances for other common Java types (e.g., `Stream`, `java.time` types) or functional concepts (e.g., an `IO` monad).
+* **Implement More Type Classes:** Add implementations for other useful type classes like `Traverse`, `Monoid`, `Semigroup`, etc., where applicable.
+* **Enhance Existing Implementations:** Improve performance, clarity, or robustness of the current simulations and type class instances.
+* **Add Examples:** Create more diverse examples showcasing different use cases for the HKT simulation.
+* **Improve Documentation:** Clarify concepts, add diagrams, or improve the Wiki/README.
+* **Refactor with New Java Features:** Explore opportunities to use features like Structured Concurrency, updated Pattern Matching, etc., to improve the simulation or examples.
+* **Testing:** Increase test coverage, particularly for type class laws and edge cases.
+
+**How to Contribute:**
+
+1.  **Fork the Repository:** Create your own fork of the project on GitHub.
+2.  **Create a Branch:** Make your changes in a dedicated branch (e.g., `feature/add-stream-kind`, `fix/optional-monad-bug`).
+3.  **Develop:** Implement your changes or fixes.
+4.  **Add Tests:** Ensure your changes are well-tested. Verify that existing tests pass.
+5.  **Commit:** Make clear, concise commit messages.
+6.  **Push:** Push your branch to your fork.
+7.  **Submit a Pull Request:** Open a Pull Request (PR) from your branch to the `main` branch of the original repository. Describe your changes clearly in the PR description.
+
+If you're unsure where to start or want to discuss an idea, feel free to open a GitHub Issue first.
