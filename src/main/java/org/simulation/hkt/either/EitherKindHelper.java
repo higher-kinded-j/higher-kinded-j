@@ -38,6 +38,8 @@ public final class EitherKindHelper {
    * Requires knowledge of the specific holder implementation (EitherHolder).
    * Throws KindUnwrapException if the Kind is null, not an EitherHolder,
    * or the holder contains a null Either instance.
+   * <p>
+   * Refactored using Java 21+ Pattern Matching for switch.
    *
    * @param kind The EitherKind instance. (@Nullable allows checking null input)
    * @param <L> The Left type.
@@ -45,25 +47,29 @@ public final class EitherKindHelper {
    * @return The underlying, non-null Either<L, R>. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
-  @SuppressWarnings("unchecked") // Suppress warning for casting holder.either()
+  @SuppressWarnings("unchecked") //  needed for the final cast due to EitherHolder<?, ?> pattern
   public static <L, R> @NonNull Either<L, R> unwrap(@Nullable Kind<EitherKind<L, ?>, R> kind) {
-    if (kind == null) {
-      // Make sure KindUnwrapException is defined and imported
-      throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-    }
+    // Use switch expression with pattern matching
+    return switch (kind) {
+      // Case 1: Input Kind is null
+      case null ->
+          throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
 
-    if (kind instanceof EitherHolder<?, ?> holder) {
-      Either<?, ?> internalEither = holder.either();
-      if (internalEither == null) {
-        // Make sure KindUnwrapException is defined and imported
-        throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
+      // Case 2: Input Kind is an EitherHolder (using record pattern to extract 'internalEither')
+      case EitherHolder(var internalEither) -> {
+        // Check if the extracted Either inside the holder is null
+        if (internalEither == null) {
+          throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
+        }
+        // Cast is  necessary because the pattern matched EitherHolder<?,?>
+        // before confirming the internal Either's specific L/R types.
+        // But it's safer now after the null check.
+        yield (Either<L, R>) internalEither;
       }
-      // Cast is now safer because we've checked the holder and internal non-nullity
-      return (Either<L, R>) internalEither;
-    } else {
-      // Make sure KindUnwrapException is defined and imported
-      throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    }
+      // Case 3: Input Kind is non-null but not an EitherHolder
+      default ->
+          throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+    };
   }
 
 
