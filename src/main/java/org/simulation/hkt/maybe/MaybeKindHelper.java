@@ -3,10 +3,16 @@ package org.simulation.hkt.maybe;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 import java.util.Objects;
 
 public final class MaybeKindHelper {
+
+  // Error Messages
+  public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Maybe";
+  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a MaybeHolder: ";
+  public static final String INVALID_HOLDER_STATE_MSG = "MaybeHolder contained null Maybe instance";
 
   private MaybeKindHelper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
@@ -14,31 +20,35 @@ public final class MaybeKindHelper {
 
   /**
    * Unwraps a MaybeKind back to the concrete Maybe<A> type.
-   * Handles null Kind, unknown Kind types, and holders containing null Maybes
-   * by returning Maybe.nothing().
-   * @param kind The Kind instance (Nullable).
-   * @return The underlying Maybe or Maybe.nothing() (NonNull).
+   * Throws KindUnwrapException if the Kind is null, not a MaybeHolder,
+   * or the holder contains a null Maybe instance.
+   *
+   * @param kind The MaybeKind instance. (@Nullable allows checking null input)
+   * @param <A>  The element type.
+   * @return The underlying, non-null Maybe<A>. (@NonNull assumes success)
+   * @throws KindUnwrapException if unwrapping fails.
    */
-  @SuppressWarnings("unchecked") // For casting MaybeHolder
+  @SuppressWarnings("unchecked") // For casting holder.maybe() - safe after checks
   public static <A> @NonNull Maybe<A> unwrap(@Nullable Kind<MaybeKind<?>, A> kind) {
-    return switch(kind) {
-      // Check if the holder's maybe is null, return nothing() if it is
-      case MaybeHolder<?> holder -> {
-        Maybe<?> heldMaybe = holder.maybe();
-        yield heldMaybe != null ? (Maybe<A>)heldMaybe : Maybe.nothing();
+    if (kind == null) {
+      throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+    }
+
+    if (kind instanceof MaybeHolder<?>(Maybe<?> maybe)) {
+      if (maybe == null) {
+        throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
       }
-      case null, default -> Maybe.nothing(); // Return default for null or unknown types
-    };
+      return (Maybe<A>) maybe; // Cast is safe here
+    } else {
+      throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+    }
   }
 
   /**
    * Wraps a concrete Maybe<A> value into the MaybeKind simulation type.
    * Requires a non-null Maybe instance as input.
-   * @param maybe The Maybe instance to wrap (NonNull).
-   * @return The wrapped MaybeKind (NonNull).
    */
   public static <A> @NonNull MaybeKind<A> wrap(@NonNull Maybe<A> maybe) {
-    // Prevent wrapping null Maybe instances directly
     Objects.requireNonNull(maybe, "Input Maybe cannot be null for wrap");
     return new MaybeHolder<>(maybe);
   }
@@ -46,22 +56,18 @@ public final class MaybeKindHelper {
   /**
    * Helper to wrap a Just value directly into MaybeKind.
    * Throws NullPointerException if value is null.
-   * @param value The value (NonNull).
-   * @return The wrapped MaybeKind (NonNull).
    */
   public static <A> @NonNull Kind<MaybeKind<?>, A> just(@NonNull A value) {
-    // Maybe.just throws if value is null, wrap handles the rest
     return wrap(Maybe.just(value));
   }
 
   /**
    * Helper to get the Nothing Kind directly.
-   * @return The wrapped MaybeKind for Nothing (NonNull).
    */
   public static <A> @NonNull Kind<MaybeKind<?>, A> nothing() {
     return wrap(Maybe.nothing());
   }
 
-  // Internal holder record - field assumed NonNull based on wrap check
-  record MaybeHolder<A>(@NonNull Maybe<A> maybe) implements MaybeKind<A> { }
+
+  record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> { }
 }

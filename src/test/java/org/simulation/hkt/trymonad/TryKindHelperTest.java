@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -14,6 +15,7 @@ import static org.simulation.hkt.trymonad.TryKindHelper.*;
 
 @DisplayName("TryKindHelper Tests")
 class TryKindHelperTest {
+
 
   private final String successValue = "value";
   private final RuntimeException testException = new RuntimeException("Test failure");
@@ -48,7 +50,7 @@ class TryKindHelperTest {
   @Nested
   @DisplayName("unwrap()")
   class UnwrapTests {
-    // --- Success Cases (implicitly tested by wrap tests) ---
+    // --- Success Cases ---
     @Test
     void unwrap_shouldReturnOriginalSuccess() {
       Kind<TryKind<?>, String> kind = wrap(successTry);
@@ -61,43 +63,35 @@ class TryKindHelperTest {
       assertThat(unwrap(kind)).isSameAs(failureTry);
     }
 
-    // --- Robustness / Failure Cases ---
+    // --- Failure Cases ---
 
     // Dummy Kind implementation that is not TryHolder
     record DummyTryKind<A>() implements Kind<TryKind<?>, A> {}
 
     @Test
-    void unwrap_shouldReturnFailureForNullInput() {
-      Try<String> result = unwrap(null);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get)
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Cannot unwrap null Kind");
+    void unwrap_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> unwrap(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldReturnFailureForUnknownKindType() {
+    void unwrap_shouldThrowForUnknownKindType() {
       Kind<TryKind<?>, Integer> unknownKind = new DummyTryKind<>();
-      Try<Integer> result = unwrap(unknownKind);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get)
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Kind instance is not a TryHolder");
+      assertThatThrownBy(() -> unwrap(unknownKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyTryKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldReturnFailureForHolderWithNullTry() {
-      // Test the specific case where the holder exists but its internal Try is null
+    void unwrap_shouldThrowForHolderWithNullTry() {
       TryHolder<Double> holderWithNull = new TryHolder<>(null);
-      // Need to cast to satisfy the Kind type parameter in unwrap
-      @SuppressWarnings("unchecked")
-      Kind<TryKind<?>, Double> kind = (Kind<TryKind<?>, Double>) holderWithNull;
+      @SuppressWarnings("unchecked") // Cast needed for test setup
+      Kind<TryKind<?>, Double> kind = holderWithNull;
 
-      Try<Double> result = unwrap(kind);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get)
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("TryHolder contained null Try instance");
+      assertThatThrownBy(() -> unwrap(kind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
     }
   }
 
@@ -134,13 +128,11 @@ class TryKindHelperTest {
     void tryOf_helperShouldWrapFailure() {
       ArithmeticException arithEx = new ArithmeticException("/ by zero");
       Kind<TryKind<?>, Integer> kind = TryKindHelper.tryOf(() -> {
-        // Simulate the exception being thrown
-        if (true) throw arithEx;
-        return 1; // Unreachable
+        if (true) throw arithEx; // Simulate throwing
+        return 1;
       });
       Try<Integer> tryResult = unwrap(kind);
       assertThat(tryResult.isFailure()).isTrue();
-      // Check that the cause is the original exception instance
       assertThatThrownBy(tryResult::get).isSameAs(arithEx);
     }
 
@@ -159,18 +151,12 @@ class TryKindHelperTest {
     @Test
     @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
     void constructor_shouldThrowException() throws NoSuchMethodException {
-      // Get the private constructor
       Constructor<TryKindHelper> constructor = TryKindHelper.class.getDeclaredConstructor();
-
-      // Make it accessible
       constructor.setAccessible(true);
-
-      // Assert that invoking the constructor throws the expected exception
-      // InvocationTargetException wraps the actual exception thrown by the constructor
       assertThatThrownBy(constructor::newInstance)
           .isInstanceOf(InvocationTargetException.class)
           .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause() // Get the wrapped UnsupportedOperationException
+          .cause()
           .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }

@@ -210,7 +210,7 @@ public class OrderWorkflowRunner {
           Try<ValidatedOrder> tryResult = TryKindHelper.unwrap(tryResultKind);
 
           Either<DomainError, ValidatedOrder> eitherResult = tryResult.fold(
-              validated -> Either.right(validated), // Success(v) -> Right(v)
+              Either::right, // Success(v) -> Right(v)
               // Failure(t) -> Left(DomainError). Convert generic Throwable to a specific DomainError.
               throwable -> Either.left(new DomainError.ValidationError(throwable.getMessage()))
           );
