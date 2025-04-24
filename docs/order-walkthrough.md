@@ -4,10 +4,10 @@ This page provides a detailed walkthrough of the Order Processing example found 
 
 **Key Files:**
 
-* [invalid URL removed]: Orchestrates the workflow steps.
-* [invalid URL removed]: Defines the individual (sync/async) steps.
-* [invalid URL removed]: Contains the data records used (e.g., `OrderData`, `ValidatedOrder`, `WorkflowContext`).
-* [invalid URL removed]: Defines the sealed interface for specific business errors.
+* [OrderWorkflowRunner.java](../src/main/java/org/simulation/example/order/workflow/OrderWorkflowRunner.java): Orchestrates the workflow steps.
+* [OrderWorkflowSteps.java](../src/main/java/org/simulation/example/order/workflow/OrderWorkflowSteps.java): Defines the individual (sync/async) steps.
+* [WorkflowModels.java](../src/main/java/org/simulation/example/order/model/WorkflowModels.java): Contains the data records used (e.g., `OrderData`, `ValidatedOrder`, `WorkflowContext`).
+* [DomainError.java](../src/main/java/org/simulation/example/order/error/DomainError.java): Defines the sealed interface for specific business errors.
 
 ## The Challenge: Async + Domain Errors
 

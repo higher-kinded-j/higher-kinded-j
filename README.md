@@ -7,7 +7,7 @@ This library for Higher-Kinded Types in Java was initially created as a simulati
 This project demonstrates a technique to simulate Higher-Kinded Types (HKTs) in Java, a feature not natively supported by the language's type system.
 It uses a defunctionalisation approach, representing type constructors and type classes as interfaces and objects.
 
-## See [Wiki]([home.md](docs/home.md)) for more details and examples
+## See [Wiki](docs/home.md) for more details and examples
 
 
 
