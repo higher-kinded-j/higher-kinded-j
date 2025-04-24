@@ -15,9 +15,9 @@ public class WorkflowModels {
   public record FinalResult(String orderId, String transactionId, String trackingId) {}
 
   public record WorkflowContext(
-          OrderData initialData, // Keep initial data if needed later (e.g., for notification)
+          OrderData initialData,
           @Nullable ValidatedOrder validatedOrder,
-          boolean inventoryChecked, // Simple flag instead of Void
+          boolean inventoryChecked,
           @Nullable PaymentConfirmation paymentConfirmation,
           @Nullable ShipmentInfo shipmentInfo
   ) {
@@ -44,7 +44,7 @@ public class WorkflowModels {
       return new WorkflowContext(this.initialData, this.validatedOrder, this.inventoryChecked, this.paymentConfirmation, si);
     }
 
-    // --- Convenience Getters (could throw if accessed at wrong stage) ---
+
     // These assume the workflow progresses linearly and checks are made
     public ValidatedOrder validatedOrder() {
       if (validatedOrder == null) throw new IllegalStateException("ValidatedOrder not available yet.");

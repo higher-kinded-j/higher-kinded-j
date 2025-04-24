@@ -1,5 +1,7 @@
 package org.simulation.hkt.trymonad;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Applicative;
 import org.simulation.hkt.Kind;
 import java.util.function.Function;
@@ -8,18 +10,18 @@ import static org.simulation.hkt.trymonad.TryKindHelper.*;
 public class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
 
   @Override
-  public <A> Kind<TryKind<?>, A> of(A value) {
+  public <A> @NonNull Kind<TryKind<?>, A> of(@Nullable A value) {
     // Lifts a pure value into a Success context.
-    return wrap(Try.success(value));
+    return wrap(Try.success(value)); // Try.success allows null
     // Note: Try.of(() -> value) could also be used if you wanted to
     // potentially catch issues even during simple lifting, but standard 'of'
     // usually just wraps a known good value.
   }
 
   @Override
-  public <A, B> Kind<TryKind<?>, B> ap(Kind<TryKind<?>, Function<A, B>> ff, Kind<TryKind<?>, A> fa) {
-    Try<Function<A, B>> tryF = unwrap(ff);
-    Try<A> tryA = unwrap(fa);
+  public <A, B> @NonNull Kind<TryKind<?>, B> ap(@NonNull Kind<TryKind<?>, Function<A, B>> ff, @NonNull Kind<TryKind<?>, A> fa) {
+    Try<Function<A, B>> tryF = unwrap(ff); // unwrap handles null/invalid ff
+    Try<A> tryA = unwrap(fa); // unwrap handles null/invalid fa
 
     // Use fold for pattern matching on the function Try
     Try<B> resultTry = tryF.fold(
@@ -28,12 +30,12 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind<?>
             // Case 1a: Value is Success(a) -> Apply f(a) within a Try
             a -> Try.of(() -> f.apply(a)), // Use Try.of to catch exceptions from f.apply(a)
             // Case 1b: Value is Failure(e) -> Propagate value's failure
-            failureA -> Try.failure(failureA) // Need type hint for failure
+            failureA -> Try.failure(failureA) // failureA is NonNull Throwable
         ),
         // Case 2: Function is Failure(e) -> Propagate function's failure
-        failureF -> Try.failure(failureF) // Need type hint for failure
+        failureF -> Try.failure(failureF) // failureF is NonNull Throwable
     );
 
-    return wrap(resultTry);
+    return wrap(resultTry); // resultTry is NonNull
   }
 }

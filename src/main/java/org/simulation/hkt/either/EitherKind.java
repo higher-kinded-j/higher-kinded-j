@@ -1,7 +1,6 @@
 package org.simulation.hkt.either;
 
 import org.simulation.hkt.Kind;
-
 /**
  * Kind interface marker for the Either<L, R> type in the HKT simulation.
  * Represents Either<L, -> as a type constructor 'F' in Kind<F, A>,
@@ -12,8 +11,8 @@ import org.simulation.hkt.Kind;
  * @param <R> The Right type (variable type 'A' in Kind<F, A>).
  */
 public interface EitherKind<L, R> extends Kind<EitherKind<L, ?>, R> {
-    // No methods needed, purely a marker for the type system simulation.
-    // The Witness type F is EitherKind<L, ?>
-    // The Value type A is R
+  // No methods needed, purely a marker for the type system simulation.
+  // The Witness type F is EitherKind<L, ?>
+  // The Value type A is R
 
 }

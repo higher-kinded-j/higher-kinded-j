@@ -1,5 +1,7 @@
 package org.simulation.hkt.list;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
 
 import java.util.Collections;
@@ -14,24 +16,35 @@ public final class ListKindHelper {
 
   /**
    * returns empty list for null or unknown types, or if the holder contains a null list.
-   * @param kind
-   * @return The underlying list or an empty list.
-   * @param <A>
+   * @param kind The Kind instance (Nullable).
+   * @return The underlying list or an empty list (NonNull).
+   * @param <A> The element type.
    */
-  public static <A> List<A> unwrap(Kind<ListKind<?>, A> kind) {
+  @SuppressWarnings("unchecked") // For casting ListHolder
+  public static <A> @NonNull List<A> unwrap(@Nullable Kind<ListKind<?>, A> kind) {
     return switch(kind) {
       // Check if the holder's list is null, return emptyList if it is
-      case ListHolder<A> holder -> holder.list() != null ? holder.list() : Collections.emptyList();
+      case ListHolder<?> holder -> {
+        List<?> heldList = holder.list();
+        yield heldList != null ? (List<A>) heldList : Collections.emptyList();
+      }
       case null, default -> Collections.emptyList(); // Return default for null or unknown types
     };
   }
 
-  public static <A> ListKind<A> wrap(List<A> list) {
+  /**
+   * Wraps a concrete List<A> value into the ListKind simulation type.
+   * Requires a non-null List as input.
+   * @param list The List instance to wrap (NonNull).
+   * @return The wrapped ListKind (NonNull).
+   */
+  public static <A> @NonNull ListKind<A> wrap(@NonNull List<A> list) {
     // It's good practice to prevent wrapping null lists directly if unintended
     Objects.requireNonNull(list, "Input list cannot be null for wrap");
     return new ListHolder<>(list);
   }
 
-  record ListHolder<A>(List<A> list) implements ListKind<A> {
+  // Internal holder record - field assumed NonNull based on wrap check
+  record ListHolder<A>(@NonNull List<A> list) implements ListKind<A> {
   }
 }

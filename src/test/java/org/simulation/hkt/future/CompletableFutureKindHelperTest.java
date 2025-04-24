@@ -4,17 +4,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
-import org.simulation.hkt.trymonad.TryKindHelper;
-
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.concurrent.CancellationException; // Added
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit; // Added
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.simulation.hkt.future.CompletableFutureKindHelper.*;
@@ -51,7 +49,7 @@ class CompletableFutureKindHelperTest {
     void wrap_shouldThrowForNullInput() {
       // Assuming wrap requires a non-null CompletableFuture
       assertThatNullPointerException().isThrownBy(() -> wrap(null))
-          .withMessageContaining("Input CompletableFuture cannot be null"); // Check message from explicit check
+          .withMessageContaining("Input CompletableFuture cannot be null");
     }
   }
 
@@ -104,18 +102,23 @@ class CompletableFutureKindHelperTest {
     }
 
     @Test
-    void unwrap_shouldReturnInternalFutureWhenHolderHasNullFuture() {
+    void unwrap_shouldReturnFailedFutureForHolderWithNullFuture() {
       // Test the specific case where the holder exists but its internal future is null
-      CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
-      // Need to cast to satisfy the Kind type parameter in unwrap
-      @SuppressWarnings("unchecked")
-      Kind<CompletableFutureKind<?>, Boolean> kind = holderWithNull;
+      Kind<CompletableFutureKind<?>, Boolean> kind = new CompletableFutureHolder<>(null);
 
-      // The current unwrap implementation will return the null future directly
+      // The unwrap method now returns a failed future in this case
       CompletableFuture<Boolean> future = unwrap(kind);
-      assertThat(future).isNull();
-      // Note: If unwrap were modified to return a *failed* future in this case,
-      // the assertion would change.
+
+      // Assert that the future completed exceptionally
+      assertThat(future.isDone()).isTrue();
+      assertThat(future.isCompletedExceptionally()).isTrue();
+
+      // Assert that the cause of the failure is the expected NullPointerException
+      assertThatThrownBy(future::get) // Use get() or join() to trigger the exception check
+          .isInstanceOf(ExecutionException.class) // Or CompletionException if using join directly
+          .cause()
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("CompletableFutureHolder contained null Future"); // Match the message
     }
   }
 
@@ -218,9 +221,7 @@ class CompletableFutureKindHelperTest {
     @Test
     void join_shouldThrowNPEIfUnwrapReturnsNull() {
       // Test the case where unwrap returns null (e.g., holder with null future)
-      CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
-      @SuppressWarnings("unchecked")
-      Kind<CompletableFutureKind<?>, Boolean> kind = holderWithNull;
+      Kind<CompletableFutureKind<?>, Boolean> kind = new CompletableFutureHolder<>(null);
 
       // join will call unwrap(kind), get null, then call null.join() -> NPE
       assertThatThrownBy(() -> join(kind))

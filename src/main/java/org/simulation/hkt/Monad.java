@@ -1,5 +1,6 @@
 package org.simulation.hkt;
 
+import org.jspecify.annotations.NonNull;
 import java.util.function.Function;
 
 /**
@@ -19,13 +20,13 @@ public interface Monad<M> extends Applicative<M> {
    * a new monadic value, returning the result within the monadic context.
    * Also known as 'bind' or '>>='.
    *
-   * @param f   The function to apply, which returns a monadic value (e.g., A -> ListKind<B>).
-   * @param ma  The input monadic value (e.g., ListKind<A>).
+   * @param f   The function to apply, which returns a monadic value (e.g., A -> ListKind<B>). Assumed non-null.
+   * @param ma  The input monadic value (e.g., ListKind<A>). Assumed non-null.
    * @param <A> The input type within the monad.
    * @param <B> The result type within the monad.
-   * @return The resulting monadic value (e.g., ListKind<B>).
+   * @return The resulting monadic value (e.g., ListKind<B>). Guaranteed non-null.
    */
-  <A, B> Kind<M, B> flatMap(Function<A, Kind<M, B>> f, Kind<M, A> ma);
+  <A, B> @NonNull Kind<M, B> flatMap(@NonNull Function<A, Kind<M, B>> f, @NonNull Kind<M, A> ma);
 
   // flatMap can define ap: ap(ff, fa) = flatMap(f -> map(f, fa), ff)
   // You could provide a default implementation of ap here if desired,
