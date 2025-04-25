@@ -65,8 +65,7 @@ public class OrderWorkflowRunner {
    * @param dependencies The external dependencies for the workflow. (NonNull)
    */
   public OrderWorkflowRunner(@NonNull Dependencies dependencies) {
-    this.dependencies =
-       Objects.requireNonNull(dependencies, "Dependencies cannot be null");
+    this.dependencies = Objects.requireNonNull(dependencies, "Dependencies cannot be null");
     // Pass dependencies to the steps
     this.steps = new OrderWorkflowSteps(dependencies);
     this.futureMonad = new CompletableFutureMonadError();

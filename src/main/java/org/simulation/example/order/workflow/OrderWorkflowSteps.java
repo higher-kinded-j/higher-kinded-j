@@ -40,8 +40,7 @@ public class OrderWorkflowSteps {
    * @param dependencies The external dependencies needed by the steps. (NonNull)
    */
   public OrderWorkflowSteps(@NonNull Dependencies dependencies) {
-    this.dependencies =
-        Objects.requireNonNull(dependencies, "Dependencies cannot be null");
+    this.dependencies = Objects.requireNonNull(dependencies, "Dependencies cannot be null");
   }
 
   // --- Synchronous Step ---
