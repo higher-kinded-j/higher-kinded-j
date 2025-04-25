@@ -1,0 +1,22 @@
+package org.simulation.hkt.reader;
+
+import org.jspecify.annotations.NonNull;
+import org.simulation.hkt.Functor;
+import org.simulation.hkt.Kind;
+import java.util.function.Function;
+import static org.simulation.hkt.reader.ReaderKindHelper.*;
+
+public class ReaderFunctor<R> implements Functor<ReaderKind<R, ?>> {
+
+  @Override
+  public <A, B> @NonNull Kind<ReaderKind<R, ?>, B> map(
+      @NonNull Function<A, B> f,
+      @NonNull Kind<ReaderKind<R, ?>, A> fa) {
+    // 1. Unwrap to get the underlying Reader<R, A>
+    Reader<R, A> readerA = unwrap(fa);
+    // 2. Use the Reader's own map method
+    Reader<R, B> readerB = readerA.map(f);
+    // 3. Wrap the result back into the Kind
+    return wrap(readerB);
+  }
+}
