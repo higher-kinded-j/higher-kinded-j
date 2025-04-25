@@ -531,14 +531,31 @@ class TryTest {
     }
 
     @Test
+    @DisplayName("match on Failure should catch exception from failureAction")
     void match_onFailure_shouldCatchExceptionFromFailureAction() {
+      // Use the existing failureInstance and throwingFailureAction defined in the test class
+      // failureInstance = Try.failure(failureException);
+      // throwingFailureAction = t -> { throw new IllegalStateException("Failure action failed"); };
+
+      // Reset/clear any tracking variables if they were used (like successResult, failureResult)
+      // In this specific test, we only care that match doesn't re-throw.
       successResult.set(null);
       failureResult.set(null);
-      // Should not throw, but might log an error internally
+
+      // Call match with the Failure instance and the action that throws
+      // This forces the execution into the 'case Failure -> { try { ... } catch { ... } }' block,
+      // and specifically into the 'catch' part within that block.
       assertThatCode(() -> failureInstance.match(successAction, throwingFailureAction))
-          .doesNotThrowAnyException();
+          .doesNotThrowAnyException(); // Verify the match method itself doesn't throw
+
+      // We cannot easily assert the System.err output without more complex test setup.
+      // However, by confirming no exception is thrown *by match*, we know the internal
+      // catch block handled the exception from throwingFailureAction.
+      // This test ensures the code path leading to and executing the catch block is taken.
+
+      // Assert that the non-throwing actions were not called or completed
       assertThat(successResult.get()).isNull();
-      assertThat(failureResult.get()).isNull(); // Action didn't complete
+      assertThat(failureResult.get()).isNull(); // failureResult isn't set because throwingFailureAction failed
     }
 
 

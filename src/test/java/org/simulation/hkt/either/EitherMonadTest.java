@@ -533,6 +533,24 @@ class EitherMonadTest {
         }
 
         @Test
+        void map4_thirdLeft() { // Test specifically hitting the check for fc
+            Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
+
+            // Inputs: Right, Right, Left, Right (fd doesn't matter here)
+            Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map4(
+                r1,       // Right(10)
+                r2,       // Right("hello")
+                l3,       // Left("L3") <-- This should cause the short-circuit
+                r4,       // Right(true)
+                f4
+            );
+
+            // Assert that the result is the Left from the third argument (l3)
+            assertThat(unwrap(result).isLeft()).isTrue();
+            assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L3"));
+        }
+
+        @Test
         void map4_lastLeft() {
             Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
             Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map4(r1, r2, r3, l4, f4);
