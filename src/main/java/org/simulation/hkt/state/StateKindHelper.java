@@ -1,12 +1,11 @@
 package org.simulation.hkt.state;
 
+import java.util.Objects;
+import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
-import java.util.Objects;
-import java.util.function.Function;
 
 public final class StateKindHelper {
 
@@ -20,9 +19,8 @@ public final class StateKindHelper {
   }
 
   /**
-   * Unwraps a StateKind back to the concrete State<S, A> type.
-   * Throws KindUnwrapException if the Kind is null, not a StateHolder,
-   * or the holder contains a null State instance.
+   * Unwraps a StateKind back to the concrete State<S, A> type. Throws KindUnwrapException if the
+   * Kind is null, not a StateHolder, or the holder contains a null State instance.
    */
   @SuppressWarnings("unchecked")
   public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind<S, ?>, A> kind) {
@@ -42,8 +40,8 @@ public final class StateKindHelper {
   }
 
   /**
-   * Wraps a concrete State<S, A> value into the StateKind simulation type.
-   * Requires a non-null State instance as input.
+   * Wraps a concrete State<S, A> value into the StateKind simulation type. Requires a non-null
+   * State instance as input.
    */
   public static <S, A> @NonNull StateKind<S, A> wrap(@NonNull State<S, A> state) {
     Objects.requireNonNull(state, "Input State cannot be null for wrap");
@@ -51,66 +49,50 @@ public final class StateKindHelper {
   }
 
   /**
-   * Creates a StateKind that returns the given value and leaves the state unchanged.
-   * Equivalent to State.pure(value) wrapped in Kind.
+   * Creates a StateKind that returns the given value and leaves the state unchanged. Equivalent to
+   * State.pure(value) wrapped in Kind.
    */
   public static <S, A> @NonNull StateKind<S, A> pure(@Nullable A value) {
     return wrap(State.pure(value));
   }
 
-  /**
-   * Creates a StateKind that returns the current state as the value.
-   */
+  /** Creates a StateKind that returns the current state as the value. */
   public static <S> @NonNull StateKind<S, S> get() {
     return wrap(State.get());
   }
 
-  /**
-   * Creates a StateKind that replaces the state and returns Void.
-   */
+  /** Creates a StateKind that replaces the state and returns Void. */
   public static <S> @NonNull StateKind<S, Void> set(@NonNull S newState) {
     return wrap(State.set(newState));
   }
 
-  /**
-   * Creates a StateKind that modifies the state using a function and returns Void.
-   */
-  public static <S> @NonNull StateKind<S, Void> modify(@NonNull Function<@NonNull S, @NonNull S> f) {
+  /** Creates a StateKind that modifies the state using a function and returns Void. */
+  public static <S> @NonNull StateKind<S, Void> modify(
+      @NonNull Function<@NonNull S, @NonNull S> f) {
     return wrap(State.modify(f));
   }
 
-  /**
-   * Creates a StateKind that inspects the state using a function, returning the result.
-   */
-  public static <S, A> @NonNull StateKind<S, A> inspect(@NonNull Function<@NonNull S, @Nullable A> f) {
+  /** Creates a StateKind that inspects the state using a function, returning the result. */
+  public static <S, A> @NonNull StateKind<S, A> inspect(
+      @NonNull Function<@NonNull S, @Nullable A> f) {
     return wrap(State.inspect(f));
   }
 
-
-  /**
-   * Runs the State computation within the Kind with the given initial state.
-   */
+  /** Runs the State computation within the Kind with the given initial state. */
   public static <S, A> State.@NonNull StateTuple<S, A> runState(
-      @NonNull Kind<StateKind<S, ?>, A> kind,
-      @NonNull S initialState) {
+      @NonNull Kind<StateKind<S, ?>, A> kind, @NonNull S initialState) {
     return unwrap(kind).run(initialState);
   }
 
-  /**
-   * Evaluates the State computation, returning only the final value.
-   */
+  /** Evaluates the State computation, returning only the final value. */
   public static <S, A> @Nullable A evalState(
-      @NonNull Kind<StateKind<S, ?>, A> kind,
-      @NonNull S initialState) {
+      @NonNull Kind<StateKind<S, ?>, A> kind, @NonNull S initialState) {
     return runState(kind, initialState).value();
   }
 
-  /**
-   * Executes the State computation, returning only the final state.
-   */
+  /** Executes the State computation, returning only the final state. */
   public static <S, A> @NonNull S execState(
-      @NonNull Kind<StateKind<S, ?>, A> kind,
-      @NonNull S initialState) {
+      @NonNull Kind<StateKind<S, ?>, A> kind, @NonNull S initialState) {
     return runState(kind, initialState).state();
   }
 

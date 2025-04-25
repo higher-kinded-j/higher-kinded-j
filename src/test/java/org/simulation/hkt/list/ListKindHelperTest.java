@@ -1,23 +1,21 @@
 package org.simulation.hkt.list;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.exception.KindUnwrapException;
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.list.ListKindHelper.*;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.list.ListKindHelper.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 @DisplayName("ListKindHelper Tests")
 class ListKindHelperTest {
-
 
   @Nested
   @DisplayName("wrap()")
@@ -45,7 +43,8 @@ class ListKindHelperTest {
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      assertThatNullPointerException().isThrownBy(() -> wrap(null))
+      assertThatNullPointerException()
+          .isThrownBy(() -> wrap(null))
           .withMessageContaining("Input list cannot be null"); // Check message from wrap
     }
   }

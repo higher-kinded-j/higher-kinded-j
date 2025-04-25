@@ -1,5 +1,10 @@
 package org.simulation.hkt.state;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.simulation.hkt.state.StateKindHelper.*;
+
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -9,16 +14,7 @@ import org.simulation.hkt.function.Function3;
 import org.simulation.hkt.function.Function4;
 import org.simulation.hkt.state.State.StateTuple; // Ensure import
 
-
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.simulation.hkt.state.StateKindHelper.*;
-
-/**
- * Tests for StateMonad<S>. Using Integer as the state type S.
- */
+/** Tests for StateMonad<S>. Using Integer as the state type S. */
 @DisplayName("StateMonad<Integer> Tests")
 class StateMonadTest {
 
@@ -64,7 +60,8 @@ class StateMonadTest {
     @Test
     void map_shouldApplyFunctionToResultValueAndKeepStateTransition() {
       // State: s -> (s+1, s+1)
-      Kind<StateKind<Integer, ?>, Integer> incKind = wrap(State.of(s -> new StateTuple<>(s + 1, s + 1)));
+      Kind<StateKind<Integer, ?>, Integer> incKind =
+          wrap(State.of(s -> new StateTuple<>(s + 1, s + 1)));
 
       // Map: x -> "Val:" + x
       Kind<StateKind<Integer, ?>, String> mappedKind = stateMonad.map(i -> "Val:" + i, incKind);
@@ -78,15 +75,16 @@ class StateMonadTest {
     @Test
     void map_shouldChainFunctions() {
       // State: s -> (s * 2, s + 5)
-      Kind<StateKind<Integer, ?>, Integer> initialKind = wrap(State.of(s -> new StateTuple<>(s * 2, s + 5)));
+      Kind<StateKind<Integer, ?>, Integer> initialKind =
+          wrap(State.of(s -> new StateTuple<>(s * 2, s + 5)));
 
       // Map: double -> string
-      Kind<StateKind<Integer, ?>, String> mappedKind = stateMonad.map(
-          value -> "Str:" + value, // Second map (applies to Double)
+      Kind<StateKind<Integer, ?>, String> mappedKind =
           stateMonad.map(
-              val -> val / 2.0, // First map (applies to Integer)
-              initialKind)
-      );
+              value -> "Str:" + value, // Second map (applies to Double)
+              stateMonad.map(
+                  val -> val / 2.0, // First map (applies to Integer)
+                  initialKind));
 
       // Run with 10:
       // initial: (20, 15)
@@ -127,7 +125,8 @@ class StateMonadTest {
 
     @Test
     void ap_shouldWorkWithPureFunctionAndValue() {
-      Kind<StateKind<Integer, ?>, Function<Integer, String>> funcKind = stateMonad.of(i -> "Num" + i); // (i->"Num"+i, s)
+      Kind<StateKind<Integer, ?>, Function<Integer, String>> funcKind =
+          stateMonad.of(i -> "Num" + i); // (i->"Num"+i, s)
       Kind<StateKind<Integer, ?>, Integer> valKind = stateMonad.of(100); // (100, s)
       Kind<StateKind<Integer, ?>, String> resultKind = stateMonad.ap(funcKind, valKind);
 
@@ -173,26 +172,32 @@ class StateMonadTest {
       Kind<StateKind<Integer, ?>, Void> incState = StateKindHelper.modify((Integer i) -> i + 1);
 
       // Combine get and modify using flatMap
-      Kind<StateKind<Integer, ?>, Integer> getStateAndInc = stateMonad.flatMap(
-          originalState -> stateMonad.map(
-              voidResult -> originalState, // After modify returns Void, map the result back to the original state value
-              incState                    // The action to perform (modifies state, returns Void)
-          ),
-          getState // Start by getting the state
-      );
+      Kind<StateKind<Integer, ?>, Integer> getStateAndInc =
+          stateMonad.flatMap(
+              originalState ->
+                  stateMonad.map(
+                      voidResult ->
+                          originalState, // After modify returns Void, map the result back to the
+                      // original state value
+                      incState // The action to perform (modifies state, returns Void)
+                      ),
+              getState // Start by getting the state
+              );
       // --- End of definition for getStateAndInc ---
-
 
       // State 2 (Function): Takes value from State 1 (which is the original state value),
       //                    multiplies it by 2, returns as value. Adds 10 to current state.
       // Action: original_s -> State: current_s -> ("Val:" + (original_s * 2), current_s + 10)
       Function<Integer, Kind<StateKind<Integer, ?>, String>> processValueAndAdd10 =
-          originalStateValue -> wrap(State.of(
-              currentState -> new StateTuple<>("Val:" + (originalStateValue * 2), currentState + 10)
-          ));
+          originalStateValue ->
+              wrap(
+                  State.of(
+                      currentState ->
+                          new StateTuple<>("Val:" + (originalStateValue * 2), currentState + 10)));
 
       // Chain State 1 and State 2
-      Kind<StateKind<Integer, ?>, String> resultKind = stateMonad.flatMap(processValueAndAdd10, getStateAndInc);
+      Kind<StateKind<Integer, ?>, String> resultKind =
+          stateMonad.flatMap(processValueAndAdd10, getStateAndInc);
 
       // Run the combined state computation starting with state 10:
       // 1. getStateAndInc runs:
@@ -211,7 +216,6 @@ class StateMonadTest {
     }
   }
 
-
   // --- Law Tests ---
 
   // Helper functions for laws
@@ -219,7 +223,8 @@ class StateMonadTest {
   final Function<String, String> appendWorld = s -> s + " world";
 
   // Kind<StateKind<Integer, ?>, Integer>
-  final Kind<StateKind<Integer, ?>, Integer> mValue = wrap(State.of(s -> new StateTuple<>(s * 10, s + 1))); // (s*10, s+1)
+  final Kind<StateKind<Integer, ?>, Integer> mValue =
+      wrap(State.of(s -> new StateTuple<>(s * 10, s + 1))); // (s*10, s+1)
 
   // Function Integer -> Kind<StateKind<Integer, ?>, String>
   final Function<Integer, Kind<StateKind<Integer, ?>, String>> f =
@@ -227,11 +232,14 @@ class StateMonadTest {
 
   // Function String -> Kind<StateKind<Integer, ?>, String>
   final Function<String, Kind<StateKind<Integer, ?>, String>> g =
-      str -> wrap(State.of(s -> new StateTuple<>(str + "!", s + str.length()))); // (str+"!", s+len(str))
-
+      str ->
+          wrap(
+              State.of(
+                  s -> new StateTuple<>(str + "!", s + str.length()))); // (str+"!", s+len(str))
 
   // Helper to compare results of running state computations
-  private <A> void assertStateEquals(Kind<StateKind<Integer, ?>, A> k1, Kind<StateKind<Integer, ?>, A> k2, Integer startState) {
+  private <A> void assertStateEquals(
+      Kind<StateKind<Integer, ?>, A> k1, Kind<StateKind<Integer, ?>, A> k2, Integer startState) {
     StateTuple<Integer, A> res1 = runS(k1, startState);
     StateTuple<Integer, A> res2 = runS(k2, startState);
     assertThat(res1).isEqualTo(res2);
@@ -258,7 +266,8 @@ class StateMonadTest {
       Function<Integer, String> gComposeF = gMap.compose(fMap);
 
       Kind<StateKind<Integer, ?>, String> leftSide = stateMonad.map(gComposeF, fa);
-      Kind<StateKind<Integer, ?>, String> rightSide = stateMonad.map(gMap, stateMonad.map(fMap, fa));
+      Kind<StateKind<Integer, ?>, String> rightSide =
+          stateMonad.map(gMap, stateMonad.map(fMap, fa));
 
       assertStateEquals(leftSide, rightSide, initialState);
       assertStateEquals(leftSide, rightSide, 5);
@@ -269,13 +278,16 @@ class StateMonadTest {
   @DisplayName("Applicative Laws")
   class ApplicativeLaws {
     Kind<StateKind<Integer, ?>, Integer> v = mValue; // (s*10, s+1)
-    Kind<StateKind<Integer, ?>, Function<Integer, String>> fKind = wrap(State.of(s -> new StateTuple<>(intToString, s * 2))); // (intToString, s*2)
-    Kind<StateKind<Integer, ?>, Function<String, String>> gKind = wrap(State.of(s -> new StateTuple<>(appendWorld, s + 5))); // (appendWorld, s+5)
+    Kind<StateKind<Integer, ?>, Function<Integer, String>> fKind =
+        wrap(State.of(s -> new StateTuple<>(intToString, s * 2))); // (intToString, s*2)
+    Kind<StateKind<Integer, ?>, Function<String, String>> gKind =
+        wrap(State.of(s -> new StateTuple<>(appendWorld, s + 5))); // (appendWorld, s+5)
 
     @Test
     @DisplayName("1. Identity: ap(of(id), v) == v")
     void identity() {
-      Kind<StateKind<Integer, ?>, Function<Integer, Integer>> idFuncKind = stateMonad.of(Function.identity()); // (id, s)
+      Kind<StateKind<Integer, ?>, Function<Integer, Integer>> idFuncKind =
+          stateMonad.of(Function.identity()); // (id, s)
       Kind<StateKind<Integer, ?>, Integer> result = stateMonad.ap(idFuncKind, v);
       assertStateEquals(result, v, initialState);
       assertStateEquals(result, v, 7);
@@ -286,7 +298,8 @@ class StateMonadTest {
     void homomorphism() {
       int x = 10;
       Function<Integer, String> func = i -> "X" + i;
-      Kind<StateKind<Integer, ?>, Function<Integer, String>> apFunc = stateMonad.of(func); // (func, s)
+      Kind<StateKind<Integer, ?>, Function<Integer, String>> apFunc =
+          stateMonad.of(func); // (func, s)
       Kind<StateKind<Integer, ?>, Integer> apVal = stateMonad.of(x); // (x, s)
       Kind<StateKind<Integer, ?>, String> leftSide = stateMonad.ap(apFunc, apVal);
       Kind<StateKind<Integer, ?>, String> rightSide = stateMonad.of(func.apply(x)); // (func(x), s)
@@ -301,7 +314,8 @@ class StateMonadTest {
       int y = 20;
       Kind<StateKind<Integer, ?>, String> leftSide = stateMonad.ap(fKind, stateMonad.of(y));
       Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<StateKind<Integer, ?>, Function<Function<Integer, String>, String>> evalKind = stateMonad.of(evalWithY);
+      Kind<StateKind<Integer, ?>, Function<Function<Integer, String>, String>> evalKind =
+          stateMonad.of(evalWithY);
       Kind<StateKind<Integer, ?>, String> rightSide = stateMonad.ap(evalKind, fKind);
 
       assertStateEquals(leftSide, rightSide, initialState);
@@ -311,24 +325,22 @@ class StateMonadTest {
     @Test
     @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
     void composition() {
-      Function<Function<String, String>, Function<Function<Integer, String>, Function<Integer, String>>> composeMap =
-          gg -> ff -> gg.compose(ff);
-      Kind<StateKind<Integer, ?>, Function<Function<Integer, String>, Function<Integer, String>>> mappedCompose =
-          stateMonad.map(composeMap, gKind);
+      Function<
+              Function<String, String>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
+          composeMap = gg -> ff -> gg.compose(ff);
+      Kind<StateKind<Integer, ?>, Function<Function<Integer, String>, Function<Integer, String>>>
+          mappedCompose = stateMonad.map(composeMap, gKind);
       Kind<StateKind<Integer, ?>, Function<Integer, String>> ap1 =
           stateMonad.ap(mappedCompose, fKind);
-      Kind<StateKind<Integer, ?>, String> leftSide =
-          stateMonad.ap(ap1, v);
-      Kind<StateKind<Integer, ?>, String> innerAp =
-          stateMonad.ap(fKind, v);
-      Kind<StateKind<Integer, ?>, String> rightSide =
-          stateMonad.ap(gKind, innerAp);
+      Kind<StateKind<Integer, ?>, String> leftSide = stateMonad.ap(ap1, v);
+      Kind<StateKind<Integer, ?>, String> innerAp = stateMonad.ap(fKind, v);
+      Kind<StateKind<Integer, ?>, String> rightSide = stateMonad.ap(gKind, innerAp);
 
       assertStateEquals(leftSide, rightSide, 10);
       assertStateEquals(leftSide, rightSide, 3); // Test another state
     }
   }
-
 
   @Nested
   @DisplayName("Monad Laws")
@@ -339,7 +351,8 @@ class StateMonadTest {
       int value = 5;
       Kind<StateKind<Integer, ?>, Integer> ofValue = stateMonad.of(value); // (5, s)
       Kind<StateKind<Integer, ?>, String> leftSide = stateMonad.flatMap(f, ofValue);
-      Kind<StateKind<Integer, ?>, String> rightSide = f.apply(value); // f(5) -> State: s -> ("v5", s+5)
+      Kind<StateKind<Integer, ?>, String> rightSide =
+          f.apply(value); // f(5) -> State: s -> ("v5", s+5)
 
       assertStateEquals(leftSide, rightSide, initialState);
       assertStateEquals(leftSide, rightSide, 11);
@@ -348,7 +361,8 @@ class StateMonadTest {
     @Test
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
-      Function<Integer, Kind<StateKind<Integer, ?>, Integer>> ofFunc = i -> stateMonad.of(i); // i -> (i, s)
+      Function<Integer, Kind<StateKind<Integer, ?>, Integer>> ofFunc =
+          i -> stateMonad.of(i); // i -> (i, s)
       Kind<StateKind<Integer, ?>, Integer> leftSide = stateMonad.flatMap(ofFunc, mValue);
       assertStateEquals(leftSide, mValue, initialState);
       assertStateEquals(leftSide, mValue, 12);
@@ -374,16 +388,18 @@ class StateMonadTest {
   @DisplayName("mapN tests")
   class MapNTests {
     // s -> (value, newState)
-    Kind<StateKind<Integer, ?>, Integer> st1 = wrap(State.of(s -> new StateTuple<>(s + 1, s + 1))); // (s+1, s+1)
-    Kind<StateKind<Integer, ?>, String> st2 = wrap(State.of(s -> new StateTuple<>("S" + s, s * 2))); // ("Ss", s*2)
-    Kind<StateKind<Integer, ?>, Double> st3 = wrap(State.of(s -> new StateTuple<>(s / 2.0, s + 5))); // (s/2.0, s+5)
-    Kind<StateKind<Integer, ?>, Boolean> st4 = wrap(State.of(s -> new StateTuple<>(s > 10, s - 1))); // (s>10, s-1)
+    Kind<StateKind<Integer, ?>, Integer> st1 =
+        wrap(State.of(s -> new StateTuple<>(s + 1, s + 1))); // (s+1, s+1)
+    Kind<StateKind<Integer, ?>, String> st2 =
+        wrap(State.of(s -> new StateTuple<>("S" + s, s * 2))); // ("Ss", s*2)
+    Kind<StateKind<Integer, ?>, Double> st3 =
+        wrap(State.of(s -> new StateTuple<>(s / 2.0, s + 5))); // (s/2.0, s+5)
+    Kind<StateKind<Integer, ?>, Boolean> st4 =
+        wrap(State.of(s -> new StateTuple<>(s > 10, s - 1))); // (s>10, s-1)
 
     @Test
     void map2_combinesStateAndValues() {
-      Kind<StateKind<Integer, ?>, String> result = stateMonad.map2(
-          st1, st2, (i, s) -> i + ":" + s
-      );
+      Kind<StateKind<Integer, ?>, String> result = stateMonad.map2(st1, st2, (i, s) -> i + ":" + s);
       StateTuple<Integer, String> res = runS(result, 10);
       assertThat(res.value()).isEqualTo("11:S11");
       assertThat(res.state()).isEqualTo(22);

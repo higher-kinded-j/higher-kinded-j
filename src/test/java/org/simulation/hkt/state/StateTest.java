@@ -1,19 +1,15 @@
 package org.simulation.hkt.state;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
-import java.util.function.Function;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.simulation.hkt.state.State.StateTuple; // Import the inner record
 
+import java.util.function.Function;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
-/**
- * Direct tests for the State<S, A> implementation.
- */
+/** Direct tests for the State<S, A> implementation. */
 @DisplayName("State<S, A> Direct Tests")
 class StateTest {
 
@@ -121,7 +117,8 @@ class StateTest {
   @DisplayName("Instance Methods")
   class InstanceMethods {
 
-    final State<Integer, Integer> incrementState = State.of(s -> new StateTuple<>(s + 1, s + 1)); // val=s+1, state=s+1
+    final State<Integer, Integer> incrementState =
+        State.of(s -> new StateTuple<>(s + 1, s + 1)); // val=s+1, state=s+1
     final State<Integer, String> initialValueState = State.pure("Start"); // val="Start", state=s
 
     @Test
@@ -152,7 +149,8 @@ class StateTest {
     void flatMap_shouldComposeStateComputations() {
       // Step 1: State that increments state and returns the new state as value.
       State<Integer, Integer> state1 = State.of(s -> new StateTuple<>(s + 1, s + 1));
-      // Step 2: State that takes the value (new state from step 1), multiplies it by 2 for the result,
+      // Step 2: State that takes the value (new state from step 1), multiplies it by 2 for the
+      // result,
       //         and adds 5 to the state it receives.
       Function<Integer, State<Integer, String>> state2Func =
           val -> State.of(s1 -> new StateTuple<>("Result:" + (val * 2), s1 + 5));
@@ -161,7 +159,8 @@ class StateTest {
       // Run with initialState = 10:
       // 1. state1.run(10) -> (value=11, state=11)
       // 2. state2Func.apply(11) -> returns State.of(s1 -> new StateTuple<>("Result:22", s1 + 5))
-      // 3. The returned state runs with state=11: run(11) -> ("Result:22", 11 + 5) -> ("Result:22", 16)
+      // 3. The returned state runs with state=11: run(11) -> ("Result:22", 11 + 5) -> ("Result:22",
+      // 16)
       State<Integer, String> composedState = state1.flatMap(state2Func);
       StateTuple<Integer, String> result = composedState.run(initialState);
 

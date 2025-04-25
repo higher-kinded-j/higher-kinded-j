@@ -1,16 +1,14 @@
 package org.simulation.hkt.maybe;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
+import static org.assertj.core.api.Assertions.*;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import static org.assertj.core.api.Assertions.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("Maybe<T> Direct Tests")
 class MaybeTest {
@@ -110,10 +108,11 @@ class MaybeTest {
     @Test
     void orElseGet_onJust_shouldReturnValueAndNotCallSupplier() {
       AtomicBoolean supplierCalled = new AtomicBoolean(false);
-      Supplier<String> trackingSupplier = () -> {
-        supplierCalled.set(true);
-        return defaultValue;
-      };
+      Supplier<String> trackingSupplier =
+          () -> {
+            supplierCalled.set(true);
+            return defaultValue;
+          };
       assertThat(justInstance.orElseGet(trackingSupplier)).isEqualTo(justValue);
       assertThat(supplierCalled).isFalse();
     }
@@ -121,10 +120,11 @@ class MaybeTest {
     @Test
     void orElseGet_onNothing_shouldCallSupplierAndReturnResult() {
       AtomicBoolean supplierCalled = new AtomicBoolean(false);
-      Supplier<String> trackingSupplier = () -> {
-        supplierCalled.set(true);
-        return defaultValue;
-      };
+      Supplier<String> trackingSupplier =
+          () -> {
+            supplierCalled.set(true);
+            return defaultValue;
+          };
       assertThat(nothingInstance.orElseGet(trackingSupplier)).isEqualTo(defaultValue);
       assertThat(supplierCalled).isTrue();
     }
@@ -139,8 +139,7 @@ class MaybeTest {
     @Test
     void orElseGet_onJust_shouldNotThrowIfSupplierIsNull() {
       // Supplier isn't called for Just, so null supplier is ok
-      assertThatCode(() -> justInstance.orElseGet(nullSupplier))
-          .doesNotThrowAnyException();
+      assertThatCode(() -> justInstance.orElseGet(nullSupplier)).doesNotThrowAnyException();
       assertThat(justInstance.orElseGet(nullSupplier)).isEqualTo(justValue);
     }
   }
@@ -263,7 +262,7 @@ class MaybeTest {
       Maybe<String> just1 = Maybe.just("A");
 
       assertThat(nothing1).isEqualTo(nothing2); // Should be equal due to singleton
-      assertThat(nothing1).isSameAs(nothing2);   // Should be same instance
+      assertThat(nothing1).isSameAs(nothing2); // Should be same instance
       assertThat(nothing1).hasSameHashCodeAs(nothing2);
       assertThat(nothing1).isNotEqualTo(just1);
       assertThat(nothing1).isNotEqualTo(null);

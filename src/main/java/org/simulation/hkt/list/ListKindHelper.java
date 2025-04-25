@@ -1,12 +1,11 @@
 package org.simulation.hkt.list;
 
+import java.util.List;
+import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
-import java.util.List;
-import java.util.Objects;
 
 public final class ListKindHelper {
 
@@ -20,12 +19,11 @@ public final class ListKindHelper {
   }
 
   /**
-   * Unwraps a ListKind back to the concrete List<A> type.
-   * Throws KindUnwrapException if the Kind is null, not a ListHolder,
-   * or the holder contains a null List instance.
+   * Unwraps a ListKind back to the concrete List<A> type. Throws KindUnwrapException if the Kind is
+   * null, not a ListHolder, or the holder contains a null List instance.
    *
    * @param kind The ListKind instance. (@Nullable allows checking null input)
-   * @param <A>  The element type.
+   * @param <A> The element type.
    * @return The underlying, non-null List<A>. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
@@ -45,14 +43,13 @@ public final class ListKindHelper {
   }
 
   /**
-   * Wraps a concrete List<A> value into the ListKind simulation type.
-   * Requires a non-null List instance as input.
+   * Wraps a concrete List<A> value into the ListKind simulation type. Requires a non-null List
+   * instance as input.
    */
   public static <A> @NonNull ListKind<A> wrap(@NonNull List<A> list) {
     Objects.requireNonNull(list, "Input list cannot be null for wrap");
     return new ListHolder<>(list);
   }
 
-  record ListHolder<A>(List<A> list) implements ListKind<A> {
-  }
+  record ListHolder<A>(List<A> list) implements ListKind<A> {}
 }

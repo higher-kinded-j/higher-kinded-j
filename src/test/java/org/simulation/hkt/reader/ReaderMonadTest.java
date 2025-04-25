@@ -1,5 +1,9 @@
 package org.simulation.hkt.reader;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.simulation.hkt.reader.ReaderKindHelper.*;
+
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -7,22 +11,14 @@ import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.function.Function3;
 import org.simulation.hkt.function.Function4;
-import org.simulation.hkt.reader.ReaderKind;
-import org.simulation.hkt.reader.ReaderMonad;
 
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.simulation.hkt.reader.ReaderKindHelper.*;
-
-/**
- * Tests for ReaderMonad<R>.
- */
+/** Tests for ReaderMonad<R>. */
 @DisplayName("ReaderMonad Tests")
 class ReaderMonadTest {
 
   // Simple environment for tests
   record Config(String url, int connections) {}
+
   final Config testConfig = new Config("db://localhost", 5);
 
   // Monad instance for Reader<Config, ?>
@@ -64,7 +60,8 @@ class ReaderMonadTest {
     @Test
     void map_shouldApplyFunctionToResult() {
       Kind<ReaderKind<Config, ?>, String> urlReaderKind = reader(Config::url);
-      Kind<ReaderKind<Config, ?>, Integer> lengthReaderKind = readerMonad.map(String::length, urlReaderKind);
+      Kind<ReaderKind<Config, ?>, Integer> lengthReaderKind =
+          readerMonad.map(String::length, urlReaderKind);
       assertThat(run(lengthReaderKind)).isEqualTo(testConfig.url().length());
     }
 
@@ -72,10 +69,10 @@ class ReaderMonadTest {
     void map_shouldChainFunctions() {
       Kind<ReaderKind<Config, ?>, Integer> connectionsReaderKind = reader(Config::connections);
       // Map connections -> double -> string
-      Kind<ReaderKind<Config, ?>, String> mappedKind = readerMonad.map(
-          conns -> "Connections: " + conns,
-          readerMonad.map(c -> c * 2.0, connectionsReaderKind)
-      );
+      Kind<ReaderKind<Config, ?>, String> mappedKind =
+          readerMonad.map(
+              conns -> "Connections: " + conns,
+              readerMonad.map(c -> c * 2.0, connectionsReaderKind));
       assertThat(run(mappedKind)).isEqualTo("Connections: " + (testConfig.connections() * 2.0));
     }
   }
@@ -99,7 +96,8 @@ class ReaderMonadTest {
 
     @Test
     void ap_shouldWorkWithConstantFunctionAndValue() {
-      Kind<ReaderKind<Config, ?>, Function<Integer, String>> funcKind = readerMonad.of(i -> "Num" + i);
+      Kind<ReaderKind<Config, ?>, Function<Integer, String>> funcKind =
+          readerMonad.of(i -> "Num" + i);
       Kind<ReaderKind<Config, ?>, Integer> valKind = readerMonad.of(100);
       Kind<ReaderKind<Config, ?>, String> resultKind = readerMonad.ap(funcKind, valKind);
       assertThat(run(resultKind)).isEqualTo("Num100");
@@ -115,11 +113,13 @@ class ReaderMonadTest {
       Kind<ReaderKind<Config, ?>, String> urlKind = reader(Config::url);
 
       Function<String, Kind<ReaderKind<Config, ?>, Integer>> getConnectionsBasedOnUrl =
-          url -> url.startsWith("db:")
-              ? reader(Config::connections) // Use original env
-              : constant(-1); // Return constant if URL doesn't match
+          url ->
+              url.startsWith("db:")
+                  ? reader(Config::connections) // Use original env
+                  : constant(-1); // Return constant if URL doesn't match
 
-      Kind<ReaderKind<Config, ?>, Integer> resultKind = readerMonad.flatMap(getConnectionsBasedOnUrl, urlKind);
+      Kind<ReaderKind<Config, ?>, Integer> resultKind =
+          readerMonad.flatMap(getConnectionsBasedOnUrl, urlKind);
 
       assertThat(run(resultKind)).isEqualTo(testConfig.connections());
 
@@ -136,13 +136,17 @@ class ReaderMonadTest {
       Function<Integer, Kind<ReaderKind<Config, ?>, String>> getUrlAndAppendConns =
           conns -> reader(env -> env.url() + " [" + conns + "]"); // Uses env passed to *its* run
 
-      Kind<ReaderKind<Config, ?>, String> resultKind = readerMonad.flatMap(getUrlAndAppendConns, connKind);
+      Kind<ReaderKind<Config, ?>, String> resultKind =
+          readerMonad.flatMap(getUrlAndAppendConns, connKind);
 
       // run(resultKind) is equivalent to:
-      // r -> { int c = connKind.run(r); Reader<R,String> r2 = getUrlAndAppendConns(c); return r2.run(r); }
-      // r -> { int c = r.connections(); Reader<R,String> r2 = env -> env.url() + " [" + c + "]"; return r2.run(r); }
+      // r -> { int c = connKind.run(r); Reader<R,String> r2 = getUrlAndAppendConns(c); return
+      // r2.run(r); }
+      // r -> { int c = r.connections(); Reader<R,String> r2 = env -> env.url() + " [" + c + "]";
+      // return r2.run(r); }
       // r -> { int c = r.connections(); return r.url() + " [" + c + "]"; }
-      assertThat(run(resultKind)).isEqualTo(testConfig.url() + " [" + testConfig.connections() + "]");
+      assertThat(run(resultKind))
+          .isEqualTo(testConfig.url() + " [" + testConfig.connections() + "]");
     }
   }
 
@@ -160,7 +164,6 @@ class ReaderMonadTest {
   // Function String -> Kind<ReaderKind<Config, ?>, String>
   final Function<String, Kind<ReaderKind<Config, ?>, String>> g =
       s -> reader(env -> s + " (" + env.connections() + ")");
-
 
   @Nested
   @DisplayName("Functor Laws")
@@ -183,7 +186,8 @@ class ReaderMonadTest {
       Function<Integer, String> gComposeF = gMap.compose(fMap);
 
       Kind<ReaderKind<Config, ?>, String> leftSide = readerMonad.map(gComposeF, fa);
-      Kind<ReaderKind<Config, ?>, String> rightSide = readerMonad.map(gMap, readerMonad.map(fMap, fa));
+      Kind<ReaderKind<Config, ?>, String> rightSide =
+          readerMonad.map(gMap, readerMonad.map(fMap, fa));
 
       assertThat(run(leftSide)).isEqualTo(run(rightSide));
     }
@@ -194,13 +198,16 @@ class ReaderMonadTest {
   class ApplicativeLaws {
 
     Kind<ReaderKind<Config, ?>, Integer> v = reader(Config::connections);
-    Kind<ReaderKind<Config, ?>, Function<Integer, String>> fKind = reader(env -> i -> env.url() + i);
-    Kind<ReaderKind<Config, ?>, Function<String, String>> gKind = reader(env -> s -> s + env.connections());
+    Kind<ReaderKind<Config, ?>, Function<Integer, String>> fKind =
+        reader(env -> i -> env.url() + i);
+    Kind<ReaderKind<Config, ?>, Function<String, String>> gKind =
+        reader(env -> s -> s + env.connections());
 
     @Test
     @DisplayName("1. Identity: ap(of(id), v) == v")
     void identity() {
-      Kind<ReaderKind<Config, ?>, Function<Integer, Integer>> idFuncKind = readerMonad.of(Function.identity());
+      Kind<ReaderKind<Config, ?>, Function<Integer, Integer>> idFuncKind =
+          readerMonad.of(Function.identity());
       assertThat(run(readerMonad.ap(idFuncKind, v))).isEqualTo(run(v));
     }
 
@@ -225,7 +232,8 @@ class ReaderMonadTest {
       Kind<ReaderKind<Config, ?>, String> leftSide = readerMonad.ap(fKind, readerMonad.of(y));
 
       Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<ReaderKind<Config, ?>, Function<Function<Integer, String>, String>> evalKind = readerMonad.of(evalWithY);
+      Kind<ReaderKind<Config, ?>, Function<Function<Integer, String>, String>> evalKind =
+          readerMonad.of(evalWithY);
       Kind<ReaderKind<Config, ?>, String> rightSide = readerMonad.ap(evalKind, fKind);
 
       assertThat(run(leftSide)).isEqualTo(run(rightSide));
@@ -234,11 +242,13 @@ class ReaderMonadTest {
     @Test
     @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
     void composition() {
-      Function<Function<String, String>, Function<Function<Integer, String>, Function<Integer, String>>> composeMap =
-          gg -> ff -> gg.compose(ff);
+      Function<
+              Function<String, String>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
+          composeMap = gg -> ff -> gg.compose(ff);
 
-      Kind<ReaderKind<Config, ?>, Function<Function<Integer, String>, Function<Integer, String>>> mappedCompose =
-          readerMonad.map(composeMap, gKind);
+      Kind<ReaderKind<Config, ?>, Function<Function<Integer, String>, Function<Integer, String>>>
+          mappedCompose = readerMonad.map(composeMap, gKind);
       Kind<ReaderKind<Config, ?>, Function<Integer, String>> ap1 =
           readerMonad.ap(mappedCompose, fKind);
       Kind<ReaderKind<Config, ?>, String> leftSide = readerMonad.ap(ap1, v);
@@ -297,9 +307,8 @@ class ReaderMonadTest {
 
     @Test
     void map2_combinesResults() {
-      Kind<ReaderKind<Config, ?>, String> result = readerMonad.map2(
-          r1, r2, (conns, url) -> url + " (" + conns + ")"
-      );
+      Kind<ReaderKind<Config, ?>, String> result =
+          readerMonad.map2(r1, r2, (conns, url) -> url + " (" + conns + ")");
       assertThat(run(result)).isEqualTo(testConfig.url() + " (" + testConfig.connections() + ")");
     }
 
@@ -308,8 +317,11 @@ class ReaderMonadTest {
       Function3<Integer, String, Double, String> f3 =
           (i, s, d) -> String.format("I:%d S:%s D:%.1f", i, s, d);
       Kind<ReaderKind<Config, ?>, String> result = readerMonad.map3(r1, r2, r3, f3);
-      assertThat(run(result)).isEqualTo(String.format("I:%d S:%s D:%.1f",
-          testConfig.connections(), testConfig.url(), testConfig.connections() * 1.5));
+      assertThat(run(result))
+          .isEqualTo(
+              String.format(
+                  "I:%d S:%s D:%.1f",
+                  testConfig.connections(), testConfig.url(), testConfig.connections() * 1.5));
     }
 
     @Test
@@ -317,9 +329,14 @@ class ReaderMonadTest {
       Function4<Integer, String, Double, Boolean, String> f4 =
           (i, s, d, b) -> String.format("I:%d S:%s D:%.1f B:%b", i, s, d, b);
       Kind<ReaderKind<Config, ?>, String> result = readerMonad.map4(r1, r2, r3, r4, f4);
-      assertThat(run(result)).isEqualTo(String.format("I:%d S:%s D:%.1f B:%b",
-          testConfig.connections(), testConfig.url(), testConfig.connections() * 1.5, testConfig.url().startsWith("db")));
+      assertThat(run(result))
+          .isEqualTo(
+              String.format(
+                  "I:%d S:%s D:%.1f B:%b",
+                  testConfig.connections(),
+                  testConfig.url(),
+                  testConfig.connections() * 1.5,
+                  testConfig.url().startsWith("db")));
     }
   }
 }
-

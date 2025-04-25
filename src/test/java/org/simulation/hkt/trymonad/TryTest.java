@@ -1,8 +1,6 @@
 package org.simulation.hkt.trymonad;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -10,8 +8,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import static org.assertj.core.api.Assertions.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("Try<T> Direct Tests")
 class TryTest {
@@ -27,7 +26,6 @@ class TryTest {
   private final Try<String> failureCheckedInstance = Try.failure(checkedException);
   private final Try<String> failureErrorInstance = Try.failure(error);
 
-
   @Nested
   @DisplayName("Factory Methods")
   class FactoryMethods {
@@ -37,7 +35,8 @@ class TryTest {
       assertThat(successInstance.isSuccess()).isTrue();
       assertThat(successInstance.isFailure()).isFalse();
       assertThatCode(() -> successInstance.get()).doesNotThrowAnyException();
-      assertThatCode(() -> assertThat(successInstance.get()).isEqualTo(successValue)).doesNotThrowAnyException();
+      assertThatCode(() -> assertThat(successInstance.get()).isEqualTo(successValue))
+          .doesNotThrowAnyException();
     }
 
     @Test
@@ -45,7 +44,8 @@ class TryTest {
       assertThat(successNullInstance).isInstanceOf(Try.Success.class);
       assertThat(successNullInstance.isSuccess()).isTrue();
       assertThatCode(() -> successNullInstance.get()).doesNotThrowAnyException();
-      assertThatCode(() -> assertThat(successNullInstance.get()).isNull()).doesNotThrowAnyException();
+      assertThatCode(() -> assertThat(successNullInstance.get()).isNull())
+          .doesNotThrowAnyException();
     }
 
     @Test
@@ -99,7 +99,10 @@ class TryTest {
 
     @Test
     void of_shouldCreateFailureWhenSupplierThrowsRuntimeException() {
-      Supplier<String> supplier = () -> { throw failureException; };
+      Supplier<String> supplier =
+          () -> {
+            throw failureException;
+          };
       Try<String> tryResult = Try.of(supplier);
       assertThat(tryResult.isFailure()).isTrue();
       assertThatThrownBy(tryResult::get).isSameAs(failureException);
@@ -112,7 +115,10 @@ class TryTest {
 
     @Test
     void of_shouldCreateFailureWhenSupplierThrowsError() {
-      Supplier<String> supplier = () -> { throw error; };
+      Supplier<String> supplier =
+          () -> {
+            throw error;
+          };
       Try<String> tryResult = Try.of(supplier);
       assertThat(tryResult.isFailure()).isTrue();
       assertThatThrownBy(tryResult::get).isSameAs(error);
@@ -168,13 +174,17 @@ class TryTest {
   class OrElseTests {
     final String defaultValue = "Default";
     final Supplier<String> defaultSupplier = () -> defaultValue;
-    final Supplier<String> throwingSupplier = () -> { throw new IllegalStateException("Supplier failed"); };
+    final Supplier<String> throwingSupplier =
+        () -> {
+          throw new IllegalStateException("Supplier failed");
+        };
     final Supplier<String> nullSupplier = null;
 
     @Test
     void orElse_onSuccess_shouldReturnValue() {
       assertThat(successInstance.orElse(defaultValue)).isEqualTo(successValue);
-      assertThat(successNullInstance.orElse(defaultValue)).isNull(); // Returns null if Success(null)
+      assertThat(successNullInstance.orElse(defaultValue))
+          .isNull(); // Returns null if Success(null)
     }
 
     @Test
@@ -187,10 +197,11 @@ class TryTest {
     @Test
     void orElseGet_onSuccess_shouldReturnValueAndNotCallSupplier() {
       AtomicBoolean supplierCalled = new AtomicBoolean(false);
-      Supplier<String> trackingSupplier = () -> {
-        supplierCalled.set(true);
-        return defaultValue;
-      };
+      Supplier<String> trackingSupplier =
+          () -> {
+            supplierCalled.set(true);
+            return defaultValue;
+          };
       assertThat(successInstance.orElseGet(trackingSupplier)).isEqualTo(successValue);
       assertThat(supplierCalled).isFalse();
 
@@ -201,10 +212,11 @@ class TryTest {
     @Test
     void orElseGet_onFailure_shouldCallSupplierAndReturnResult() {
       AtomicBoolean supplierCalled = new AtomicBoolean(false);
-      Supplier<String> trackingSupplier = () -> {
-        supplierCalled.set(true);
-        return defaultValue;
-      };
+      Supplier<String> trackingSupplier =
+          () -> {
+            supplierCalled.set(true);
+            return defaultValue;
+          };
       assertThat(failureInstance.orElseGet(trackingSupplier)).isEqualTo(defaultValue);
       assertThat(supplierCalled).isTrue();
     }
@@ -226,8 +238,7 @@ class TryTest {
     @Test
     void orElseGet_onSuccess_shouldNotThrowIfSupplierIsNull() {
       // Supplier isn't called for Success, so null supplier is ok
-      assertThatCode(() -> successInstance.orElseGet(nullSupplier))
-          .doesNotThrowAnyException();
+      assertThatCode(() -> successInstance.orElseGet(nullSupplier)).doesNotThrowAnyException();
       assertThat(successInstance.orElseGet(nullSupplier)).isEqualTo(successValue);
     }
   }
@@ -237,7 +248,10 @@ class TryTest {
   class FoldTests {
     final Function<String, String> successMapper = s -> "Success mapped: " + s;
     final Function<Throwable, String> failureMapper = t -> "Failure mapped: " + t.getMessage();
-    final Function<Throwable, String> throwingFailureMapper = t -> { throw new IllegalStateException("Failure mapper failed"); };
+    final Function<Throwable, String> throwingFailureMapper =
+        t -> {
+          throw new IllegalStateException("Failure mapper failed");
+        };
 
     @Test
     void fold_onSuccess_shouldApplySuccessMapper() {
@@ -282,19 +296,22 @@ class TryTest {
     }
   }
 
-
   @Nested
   @DisplayName("map()")
   class MapTests {
     final Function<String, Integer> mapper = String::length;
-    final Function<String, Integer> throwingMapper = s -> { throw new IllegalArgumentException("Mapper failed"); };
+    final Function<String, Integer> throwingMapper =
+        s -> {
+          throw new IllegalArgumentException("Mapper failed");
+        };
     final Function<String, String> mapperToNull = s -> null;
 
     @Test
     void map_onSuccess_shouldApplyMapperAndReturnSuccess() {
       Try<Integer> result = successInstance.map(mapper);
       assertThat(result.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(result.get()).isEqualTo(successValue.length())).doesNotThrowAnyException();
+      assertThatCode(() -> assertThat(result.get()).isEqualTo(successValue.length()))
+          .doesNotThrowAnyException();
     }
 
     @Test
@@ -337,19 +354,26 @@ class TryTest {
   @DisplayName("flatMap()")
   class FlatMapTests {
     final Function<String, Try<Integer>> mapperSuccess = s -> Try.success(s.length());
-    final Function<String, Try<Integer>> mapperFailure = s -> Try.failure(new IOException("Inner flatMap failure"));
-    final Function<String, Try<Integer>> mapperThrows = s -> { throw new IllegalStateException("FlatMap mapper func failed"); };
+    final Function<String, Try<Integer>> mapperFailure =
+        s -> Try.failure(new IOException("Inner flatMap failure"));
+    final Function<String, Try<Integer>> mapperThrows =
+        s -> {
+          throw new IllegalStateException("FlatMap mapper func failed");
+        };
     final Function<String, Try<Integer>> mapperNull = s -> null;
 
     @Test
     void flatMap_onSuccess_shouldApplyMapperAndReturnResult() {
       Try<Integer> resultSuccess = successInstance.flatMap(mapperSuccess);
       assertThat(resultSuccess.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(resultSuccess.get()).isEqualTo(successValue.length())).doesNotThrowAnyException();
+      assertThatCode(() -> assertThat(resultSuccess.get()).isEqualTo(successValue.length()))
+          .doesNotThrowAnyException();
 
       Try<Integer> resultFailure = successInstance.flatMap(mapperFailure);
       assertThat(resultFailure.isFailure()).isTrue();
-      assertThatThrownBy(resultFailure::get).isInstanceOf(IOException.class).hasMessageContaining("Inner flatMap failure");
+      assertThatThrownBy(resultFailure::get)
+          .isInstanceOf(IOException.class)
+          .hasMessageContaining("Inner flatMap failure");
     }
 
     @Test
@@ -392,7 +416,10 @@ class TryTest {
   @DisplayName("recover()")
   class RecoverTests {
     final Function<Throwable, String> recoveryFunc = t -> "Recovered: " + t.getMessage();
-    final Function<Throwable, String> throwingRecoveryFunc = t -> { throw new IllegalStateException("Recovery failed"); };
+    final Function<Throwable, String> throwingRecoveryFunc =
+        t -> {
+          throw new IllegalStateException("Recovery failed");
+        };
     final Function<Throwable, String> nullRecoveryFunc = null;
 
     @Test
@@ -405,11 +432,18 @@ class TryTest {
     void recover_onFailure_shouldApplyRecoveryFuncAndReturnSuccess() {
       Try<String> result = failureInstance.recover(recoveryFunc);
       assertThat(result.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(result.get()).isEqualTo("Recovered: " + failureException.getMessage())).doesNotThrowAnyException();
+      assertThatCode(
+              () ->
+                  assertThat(result.get()).isEqualTo("Recovered: " + failureException.getMessage()))
+          .doesNotThrowAnyException();
 
       Try<String> resultChecked = failureCheckedInstance.recover(recoveryFunc);
       assertThat(resultChecked.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(resultChecked.get()).isEqualTo("Recovered: " + checkedException.getMessage())).doesNotThrowAnyException();
+      assertThatCode(
+              () ->
+                  assertThat(resultChecked.get())
+                      .isEqualTo("Recovered: " + checkedException.getMessage()))
+          .doesNotThrowAnyException();
     }
 
     @Test
@@ -436,12 +470,16 @@ class TryTest {
   @Nested
   @DisplayName("recoverWith()")
   class RecoverWithTests {
-    final Function<Throwable, Try<String>> recoveryFuncSuccess = t -> Try.success("Recovered: " + t.getMessage());
-    final Function<Throwable, Try<String>> recoveryFuncFailure = t -> Try.failure(new IOException("Recovery with failure"));
-    final Function<Throwable, Try<String>> throwingRecoveryFunc = t -> { throw new IllegalStateException("RecoveryWith failed"); };
+    final Function<Throwable, Try<String>> recoveryFuncSuccess =
+        t -> Try.success("Recovered: " + t.getMessage());
+    final Function<Throwable, Try<String>> recoveryFuncFailure =
+        t -> Try.failure(new IOException("Recovery with failure"));
+    final Function<Throwable, Try<String>> throwingRecoveryFunc =
+        t -> {
+          throw new IllegalStateException("RecoveryWith failed");
+        };
     final Function<Throwable, Try<String>> nullReturningRecoveryFunc = t -> null;
     final Function<Throwable, Try<String>> nullRecoveryFunc = null;
-
 
     @Test
     void recoverWith_onSuccess_shouldReturnOriginalSuccess() {
@@ -453,7 +491,11 @@ class TryTest {
     void recoverWith_onFailure_shouldApplyRecoveryFuncAndReturnItsResult() {
       Try<String> resultSuccess = failureInstance.recoverWith(recoveryFuncSuccess);
       assertThat(resultSuccess.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(resultSuccess.get()).isEqualTo("Recovered: " + failureException.getMessage())).doesNotThrowAnyException();
+      assertThatCode(
+              () ->
+                  assertThat(resultSuccess.get())
+                      .isEqualTo("Recovered: " + failureException.getMessage()))
+          .doesNotThrowAnyException();
 
       Try<String> resultFailure = failureInstance.recoverWith(recoveryFuncFailure);
       assertThat(resultFailure.isFailure()).isTrue();
@@ -497,9 +539,14 @@ class TryTest {
     final AtomicReference<Throwable> failureResult = new AtomicReference<>();
     final Consumer<String> successAction = s -> successResult.set("Success saw: " + s);
     final Consumer<Throwable> failureAction = t -> failureResult.set(t);
-    final Consumer<String> throwingSuccessAction = s -> { throw new IllegalStateException("Success action failed"); };
-    final Consumer<Throwable> throwingFailureAction = t -> { throw new IllegalStateException("Failure action failed"); };
-
+    final Consumer<String> throwingSuccessAction =
+        s -> {
+          throw new IllegalStateException("Success action failed");
+        };
+    final Consumer<Throwable> throwingFailureAction =
+        t -> {
+          throw new IllegalStateException("Failure action failed");
+        };
 
     @Test
     void match_onSuccess_shouldExecuteSuccessAction() {
@@ -555,9 +602,9 @@ class TryTest {
 
       // Assert that the non-throwing actions were not called or completed
       assertThat(successResult.get()).isNull();
-      assertThat(failureResult.get()).isNull(); // failureResult isn't set because throwingFailureAction failed
+      assertThat(failureResult.get())
+          .isNull(); // failureResult isn't set because throwingFailureAction failed
     }
-
 
     @Test
     void match_shouldThrowIfSuccessActionIsNull() {
@@ -574,7 +621,6 @@ class TryTest {
     }
   }
 
-
   @Nested
   @DisplayName("toString()")
   class ToStringTests {
@@ -587,7 +633,8 @@ class TryTest {
     @Test
     void toString_onFailure() {
       assertThat(failureInstance.toString()).isEqualTo("Failure[cause=" + failureException + "]");
-      assertThat(failureCheckedInstance.toString()).isEqualTo("Failure[cause=" + checkedException + "]");
+      assertThat(failureCheckedInstance.toString())
+          .isEqualTo("Failure[cause=" + checkedException + "]");
     }
   }
 
@@ -629,7 +676,6 @@ class TryTest {
       Try<String> failure3 = Try.failure(ex3);
       Try<String> failureIO = Try.failure(ioEx);
       Try<String> success1 = Try.success("A");
-
 
       assertThat(failure1).isEqualTo(failure1Again); // Equal because same exception instance
       assertThat(failure1).hasSameHashCodeAs(failure1Again);

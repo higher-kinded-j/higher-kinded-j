@@ -1,18 +1,16 @@
 package org.simulation.hkt.either;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.simulation.hkt.either.EitherKindHelper.*;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.simulation.hkt.either.EitherKindHelper.*;
 
 @DisplayName("EitherKindHelper Tests")
 class EitherKindHelperTest {
@@ -20,7 +18,8 @@ class EitherKindHelperTest {
   // Error Messages from EitherKindHelper (copy or import if made public)
   private static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Either";
   private static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an EitherHolder: ";
-  private static final String INVALID_HOLDER_STATE_MSG = "EitherHolder contained null Either instance";
+  private static final String INVALID_HOLDER_STATE_MSG =
+      "EitherHolder contained null Either instance";
 
   // Define a simple error type for testing
   record TestError(String code) {}
