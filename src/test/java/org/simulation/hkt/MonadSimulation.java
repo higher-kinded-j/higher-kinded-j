@@ -1,5 +1,9 @@
 package org.simulation.hkt;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 import org.simulation.hkt.either.Either;
 import org.simulation.hkt.either.EitherKind;
 import org.simulation.hkt.either.EitherKindHelper;
@@ -14,11 +18,6 @@ import org.simulation.hkt.maybe.MaybeMonad;
 import org.simulation.hkt.optional.OptionalKind;
 import org.simulation.hkt.optional.OptionalKindHelper;
 import org.simulation.hkt.optional.OptionalMonad;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
 
 public class MonadSimulation {
 

@@ -1,11 +1,11 @@
 package org.simulation.hkt;
 
-import org.jspecify.annotations.NonNull;
 import java.util.function.Function;
+import org.jspecify.annotations.NonNull;
 
 /**
- * Represents the Monad type class, extending Applicative.
- * Inherits 'of', 'ap', 'map' and adds 'flatMap' (sequencing operations).
+ * Represents the Monad type class, extending Applicative. Inherits 'of', 'ap', 'map' and adds
+ * 'flatMap' (sequencing operations).
  *
  * @param <M> The witness type for the Monad (e.g., ListKind.class, OptionalKind.class)
  */
@@ -16,12 +16,12 @@ public interface Monad<M> extends Applicative<M> {
   // 'ap' is inherited from Applicative
 
   /**
-   * Sequences monadic operations. Takes a monadic value and a function that produces
-   * a new monadic value, returning the result within the monadic context.
-   * Also known as 'bind' or '>>='.
+   * Sequences monadic operations. Takes a monadic value and a function that produces a new monadic
+   * value, returning the result within the monadic context. Also known as 'bind' or '>>='.
    *
-   * @param f   The function to apply, which returns a monadic value (e.g., A -> ListKind<B>). Assumed non-null.
-   * @param ma  The input monadic value (e.g., ListKind<A>). Assumed non-null.
+   * @param f The function to apply, which returns a monadic value (e.g., A -> ListKind<B>). Assumed
+   *     non-null.
+   * @param ma The input monadic value (e.g., ListKind<A>). Assumed non-null.
    * @param <A> The input type within the monad.
    * @param <B> The result type within the monad.
    * @return The resulting monadic value (e.g., ListKind<B>). Guaranteed non-null.

@@ -2,9 +2,7 @@ package org.simulation.hkt.typeclass;
 
 import org.jspecify.annotations.NonNull;
 
-/**
- * A concrete Monoid implementation for String concatenation.
- */
+/** A concrete Monoid implementation for String concatenation. */
 public class StringMonoid implements Monoid<String> {
 
   @Override
@@ -22,4 +20,3 @@ public class StringMonoid implements Monoid<String> {
     return x + y;
   }
 }
-

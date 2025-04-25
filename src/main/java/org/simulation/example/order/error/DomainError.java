@@ -2,8 +2,7 @@ package org.simulation.example.order.error;
 
 import java.io.Serializable;
 
-public sealed interface DomainError extends Serializable
-    {
+public sealed interface DomainError extends Serializable {
   String message();
 
   record ValidationError(String message) implements DomainError {

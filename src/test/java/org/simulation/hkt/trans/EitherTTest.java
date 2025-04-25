@@ -1,6 +1,10 @@
 // Create this file: src/test/java/org/simulation/hkt/trans/EitherTTest.java
 package org.simulation.hkt.trans;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -11,11 +15,6 @@ import org.simulation.hkt.either.Either;
 import org.simulation.hkt.optional.OptionalKind;
 import org.simulation.hkt.optional.OptionalKindHelper;
 import org.simulation.hkt.optional.OptionalMonad;
-
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 @DisplayName("EitherT Class Tests (Outer: Optional, Left: String)")
 class EitherTTest {
@@ -35,7 +34,6 @@ class EitherTTest {
 
   private Either<String, String> plainRight;
   private Either<String, String> plainLeft;
-
 
   @BeforeEach
   void setUp() {
@@ -163,15 +161,22 @@ class EitherTTest {
     @DisplayName("equals should compare based on wrapped value")
     void equals_comparesWrappedValue() {
       // Create distinct wrapped Kinds with equal content
-      Kind<OptionalKind<?>, Either<String, String>> wrappedRight1 = OptionalKindHelper.wrap(Optional.of(Either.right("A")));
-      Kind<OptionalKind<?>, Either<String, String>> wrappedRight2 = OptionalKindHelper.wrap(Optional.of(Either.right("A")));
-      Kind<OptionalKind<?>, Either<String, String>> wrappedRight3 = OptionalKindHelper.wrap(Optional.of(Either.right("B")));
-      Kind<OptionalKind<?>, Either<String, String>> wrappedLeft1 = OptionalKindHelper.wrap(Optional.of(Either.left("E")));
-      Kind<OptionalKind<?>, Either<String, String>> wrappedEmpty1 = OptionalKindHelper.wrap(Optional.empty());
+      Kind<OptionalKind<?>, Either<String, String>> wrappedRight1 =
+          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+      Kind<OptionalKind<?>, Either<String, String>> wrappedRight2 =
+          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+      Kind<OptionalKind<?>, Either<String, String>> wrappedRight3 =
+          OptionalKindHelper.wrap(Optional.of(Either.right("B")));
+      Kind<OptionalKind<?>, Either<String, String>> wrappedLeft1 =
+          OptionalKindHelper.wrap(Optional.of(Either.left("E")));
+      Kind<OptionalKind<?>, Either<String, String>> wrappedEmpty1 =
+          OptionalKindHelper.wrap(Optional.empty());
 
       EitherT<OptionalKind<?>, String, String> et1 = EitherT.fromKind(wrappedRight1);
-      EitherT<OptionalKind<?>, String, String> et2 = EitherT.fromKind(wrappedRight2); // Equal content
-      EitherT<OptionalKind<?>, String, String> et3 = EitherT.fromKind(wrappedRight3); // Different content
+      EitherT<OptionalKind<?>, String, String> et2 =
+          EitherT.fromKind(wrappedRight2); // Equal content
+      EitherT<OptionalKind<?>, String, String> et3 =
+          EitherT.fromKind(wrappedRight3); // Different content
       EitherT<OptionalKind<?>, String, String> etLeft = EitherT.fromKind(wrappedLeft1);
       EitherT<OptionalKind<?>, String, String> etEmpty = EitherT.fromKind(wrappedEmpty1);
 
@@ -182,8 +187,6 @@ class EitherTTest {
       assertThat(et1).isNotEqualTo(null);
       assertThat(et1).isNotEqualTo(wrappedRight1); // Different type
     }
-
-
 
     @Test
     @DisplayName("equals should return true for self comparison")
@@ -214,9 +217,12 @@ class EitherTTest {
     @Test
     @DisplayName("equals should differentiate based on wrapped Kind content")
     void equals_differentiatesContent() {
-      EitherT<OptionalKind<?>, String, String> etRight = EitherT.fromKind(wrappedRight); // Optional[Right("Success")]
-      EitherT<OptionalKind<?>, String, String> etLeft = EitherT.fromKind(wrappedLeft);   // Optional[Left("Error")]
-      EitherT<OptionalKind<?>, String, String> etEmpty = EitherT.fromKind(wrappedEmpty); // Optional.empty
+      EitherT<OptionalKind<?>, String, String> etRight =
+          EitherT.fromKind(wrappedRight); // Optional[Right("Success")]
+      EitherT<OptionalKind<?>, String, String> etLeft =
+          EitherT.fromKind(wrappedLeft); // Optional[Left("Error")]
+      EitherT<OptionalKind<?>, String, String> etEmpty =
+          EitherT.fromKind(wrappedEmpty); // Optional.empty
 
       assertThat(etRight).isNotEqualTo(etLeft);
       assertThat(etLeft).isNotEqualTo(etRight);
@@ -234,8 +240,10 @@ class EitherTTest {
     @DisplayName("equals should return true for equal wrapped Kinds")
     void equals_comparesEqualWrappedValue() {
       // Re-create wrapped Kinds to ensure they are equal but not the same instance
-      Kind<OptionalKind<?>, Either<String, String>> wrapped1 = OptionalKindHelper.wrap(Optional.of(Either.right("A")));
-      Kind<OptionalKind<?>, Either<String, String>> wrapped2 = OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+      Kind<OptionalKind<?>, Either<String, String>> wrapped1 =
+          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+      Kind<OptionalKind<?>, Either<String, String>> wrapped2 =
+          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
 
       EitherT<OptionalKind<?>, String, String> et1 = EitherT.fromKind(wrapped1);
       EitherT<OptionalKind<?>, String, String> et2 = EitherT.fromKind(wrapped2); // Equal content
@@ -243,20 +251,22 @@ class EitherTTest {
       assertThat(et1).isEqualTo(et2);
     }
 
-
-
     @Test
     @DisplayName("hashCode should be consistent with equals")
     void hashCode_consistentWithEquals() {
       // Create distinct wrapped Kinds with equal content
-      Kind<OptionalKind<?>, Either<String, String>> wrappedRight1 = OptionalKindHelper.wrap(Optional.of(Either.right("A")));
-      Kind<OptionalKind<?>, Either<String, String>> wrappedRight2 = OptionalKindHelper.wrap(Optional.of(Either.right("A")));
-      Kind<OptionalKind<?>, Either<String, String>> wrappedLeft1 = OptionalKindHelper.wrap(Optional.of(Either.left("E")));
-
+      Kind<OptionalKind<?>, Either<String, String>> wrappedRight1 =
+          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+      Kind<OptionalKind<?>, Either<String, String>> wrappedRight2 =
+          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+      Kind<OptionalKind<?>, Either<String, String>> wrappedLeft1 =
+          OptionalKindHelper.wrap(Optional.of(Either.left("E")));
 
       EitherT<OptionalKind<?>, String, String> et1 = EitherT.fromKind(wrappedRight1);
-      EitherT<OptionalKind<?>, String, String> et2 = EitherT.fromKind(wrappedRight2); // Equal content
-      EitherT<OptionalKind<?>, String, String> etLeft = EitherT.fromKind(wrappedLeft1); // Different content
+      EitherT<OptionalKind<?>, String, String> et2 =
+          EitherT.fromKind(wrappedRight2); // Equal content
+      EitherT<OptionalKind<?>, String, String> etLeft =
+          EitherT.fromKind(wrappedLeft1); // Different content
 
       assertThat(et1.hashCode()).isEqualTo(et2.hashCode());
       // It's not guaranteed that non-equal objects have different hash codes,

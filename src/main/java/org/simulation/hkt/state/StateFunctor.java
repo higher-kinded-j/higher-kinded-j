@@ -1,13 +1,12 @@
 package org.simulation.hkt.state;
 
+import static org.simulation.hkt.state.StateKindHelper.unwrap;
+import static org.simulation.hkt.state.StateKindHelper.wrap;
+
+import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.simulation.hkt.Functor;
 import org.simulation.hkt.Kind;
-
-import java.util.function.Function;
-
-import static org.simulation.hkt.state.StateKindHelper.unwrap;
-import static org.simulation.hkt.state.StateKindHelper.wrap;
 
 /**
  * Functor implementation for StateKind<S, ?>.
@@ -18,8 +17,7 @@ public class StateFunctor<S> implements Functor<StateKind<S, ?>> {
 
   @Override
   public <A, B> @NonNull Kind<StateKind<S, ?>, B> map(
-      @NonNull Function<A, B> f,
-      @NonNull Kind<StateKind<S, ?>, A> fa) {
+      @NonNull Function<A, B> f, @NonNull Kind<StateKind<S, ?>, A> fa) {
     // 1. Unwrap the input Kind<StateKind<S, ?>, A> to get the underlying State<S, A>
     State<S, A> stateA = unwrap(fa);
 

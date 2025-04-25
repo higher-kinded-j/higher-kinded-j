@@ -1,18 +1,17 @@
 package org.simulation.hkt.state;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.state.State.StateTuple; // Import inner record
+import static org.simulation.hkt.state.StateKindHelper.*;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.state.StateKindHelper.*;
-import static org.simulation.hkt.state.State.StateTuple; // Import inner record
 
 @DisplayName("StateKindHelper Tests")
 class StateKindHelperTest {
@@ -20,7 +19,6 @@ class StateKindHelperTest {
   // Simple Integer state for testing
   private final Integer initialState = 100;
   private final State<Integer, String> baseState = State.of(s -> new StateTuple<>("V:" + s, s + 1));
-
 
   @Nested
   @DisplayName("wrap()")
@@ -73,7 +71,8 @@ class StateKindHelperTest {
       StateHolder<Integer, String> holderWithNull = new StateHolder<>(null);
       // Cast needed for test setup
       @SuppressWarnings("unchecked")
-      Kind<StateKind<Integer, ?>, String> kind = (Kind<StateKind<Integer, ?>, String>) (Kind<?,?>) holderWithNull;
+      Kind<StateKind<Integer, ?>, String> kind =
+          (Kind<StateKind<Integer, ?>, String>) (Kind<?, ?>) holderWithNull;
 
       assertThatThrownBy(() -> unwrap(kind))
           .isInstanceOf(KindUnwrapException.class)
@@ -157,18 +156,19 @@ class StateKindHelperTest {
       assertThatThrownBy(() -> runState(null, initialState))
           .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
     }
+
     @Test
     void evalState_shouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> evalState(null, initialState))
           .isInstanceOf(KindUnwrapException.class);
     }
+
     @Test
     void execState_shouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> execState(null, initialState))
           .isInstanceOf(KindUnwrapException.class);
     }
   }
-
 
   @Nested
   @DisplayName("Private Constructor")

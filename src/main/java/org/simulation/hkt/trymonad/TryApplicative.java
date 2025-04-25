@@ -1,11 +1,12 @@
 package org.simulation.hkt.trymonad;
 
+import static org.simulation.hkt.trymonad.TryKindHelper.*;
+
+import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Applicative;
 import org.simulation.hkt.Kind;
-import java.util.function.Function;
-import static org.simulation.hkt.trymonad.TryKindHelper.*;
 
 public class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
 
@@ -19,22 +20,25 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind<?>
   }
 
   @Override
-  public <A, B> @NonNull Kind<TryKind<?>, B> ap(@NonNull Kind<TryKind<?>, Function<A, B>> ff, @NonNull Kind<TryKind<?>, A> fa) {
+  public <A, B> @NonNull Kind<TryKind<?>, B> ap(
+      @NonNull Kind<TryKind<?>, Function<A, B>> ff, @NonNull Kind<TryKind<?>, A> fa) {
     Try<Function<A, B>> tryF = unwrap(ff); // unwrap handles null/invalid ff
     Try<A> tryA = unwrap(fa); // unwrap handles null/invalid fa
 
     // Use fold for pattern matching on the function Try
-    Try<B> resultTry = tryF.fold(
-        // Case 1: Function is Success(f)
-        f -> tryA.fold(
-            // Case 1a: Value is Success(a) -> Apply f(a) within a Try
-            a -> Try.of(() -> f.apply(a)), // Use Try.of to catch exceptions from f.apply(a)
-            // Case 1b: Value is Failure(e) -> Propagate value's failure
-            failureA -> Try.failure(failureA) // failureA is NonNull Throwable
-        ),
-        // Case 2: Function is Failure(e) -> Propagate function's failure
-        failureF -> Try.failure(failureF) // failureF is NonNull Throwable
-    );
+    Try<B> resultTry =
+        tryF.fold(
+            // Case 1: Function is Success(f)
+            f ->
+                tryA.fold(
+                    // Case 1a: Value is Success(a) -> Apply f(a) within a Try
+                    a -> Try.of(() -> f.apply(a)), // Use Try.of to catch exceptions from f.apply(a)
+                    // Case 1b: Value is Failure(e) -> Propagate value's failure
+                    failureA -> Try.failure(failureA) // failureA is NonNull Throwable
+                    ),
+            // Case 2: Function is Failure(e) -> Propagate function's failure
+            failureF -> Try.failure(failureF) // failureF is NonNull Throwable
+            );
 
     return wrap(resultTry); // resultTry is NonNull
   }

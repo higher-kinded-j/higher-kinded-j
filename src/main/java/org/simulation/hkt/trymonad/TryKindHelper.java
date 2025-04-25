@@ -1,12 +1,11 @@
 package org.simulation.hkt.trymonad;
 
+import java.util.Objects;
+import java.util.function.Supplier;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
-import java.util.Objects;
-import java.util.function.Supplier;
 
 public final class TryKindHelper {
 
@@ -20,12 +19,11 @@ public final class TryKindHelper {
   }
 
   /**
-   * Unwraps a TryKind back to the concrete Try<A> type.
-   * Throws KindUnwrapException if the Kind is null, not a TryHolder,
-   * or the holder contains a null Try instance.
+   * Unwraps a TryKind back to the concrete Try<A> type. Throws KindUnwrapException if the Kind is
+   * null, not a TryHolder, or the holder contains a null Try instance.
    *
    * @param kind The TryKind instance. (@Nullable allows checking null input)
-   * @param <A>  The element type.
+   * @param <A> The element type.
    * @return The underlying, non-null Try<A>. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
@@ -46,36 +44,30 @@ public final class TryKindHelper {
   }
 
   /**
-   * Wraps a concrete Try<A> value into the TryKind simulation type.
-   * Requires a non-null Try instance as input.
+   * Wraps a concrete Try<A> value into the TryKind simulation type. Requires a non-null Try
+   * instance as input.
    */
   public static <A> @NonNull TryKind<A> wrap(@NonNull Try<A> tryInstance) {
     Objects.requireNonNull(tryInstance, "Input Try cannot be null for wrap");
     return new TryHolder<>(tryInstance);
   }
 
-  /**
-   * Wraps a successful value directly into TryKind.
-   */
-  public static <A> @NonNull Kind<TryKind<?>, A> success(@Nullable A value) { // Allow null success value
+  /** Wraps a successful value directly into TryKind. */
+  public static <A> @NonNull Kind<TryKind<?>, A> success(
+      @Nullable A value) { // Allow null success value
     return wrap(Try.success(value));
   }
 
-  /**
-   * Wraps a failure directly into TryKind.
-   */
+  /** Wraps a failure directly into TryKind. */
   public static <A> @NonNull Kind<TryKind<?>, A> failure(@NonNull Throwable throwable) {
     return wrap(Try.failure(throwable));
   }
 
-  /**
-   * Executes a supplier and wraps the result or exception in TryKind.
-   */
+  /** Executes a supplier and wraps the result or exception in TryKind. */
   public static <A> @NonNull Kind<TryKind<?>, A> tryOf(@NonNull Supplier<? extends A> supplier) {
     return wrap(Try.of(supplier));
   }
 
-
   // Internal holder record
-  record TryHolder<A>(Try<A> tryInstance) implements TryKind<A> { }
+  record TryHolder<A>(Try<A> tryInstance) implements TryKind<A> {}
 }

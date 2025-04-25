@@ -1,16 +1,14 @@
 package org.simulation.hkt.either;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
+import static org.assertj.core.api.Assertions.*;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("Either<L, R> Direct Tests")
 class EitherTest {
@@ -21,7 +19,6 @@ class EitherTest {
   private final Either<String, Integer> rightInstance = Either.right(rightValue);
   private final Either<String, Integer> leftNullInstance = Either.left(null); // Test null Left
   private final Either<String, Integer> rightNullInstance = Either.right(null); // Test null Right
-
 
   @Nested
   @DisplayName("Factory Methods")
@@ -71,8 +68,7 @@ class EitherTest {
       assertThatThrownBy(rightInstance::getLeft)
           .isInstanceOf(NoSuchElementException.class)
           .hasMessageContaining("Cannot getLeft() on a Right");
-      assertThatThrownBy(rightNullInstance::getLeft)
-          .isInstanceOf(NoSuchElementException.class);
+      assertThatThrownBy(rightNullInstance::getLeft).isInstanceOf(NoSuchElementException.class);
     }
 
     @Test
@@ -86,8 +82,7 @@ class EitherTest {
       assertThatThrownBy(leftInstance::getRight)
           .isInstanceOf(NoSuchElementException.class)
           .hasMessageContaining("Cannot getRight() on a Left");
-      assertThatThrownBy(leftNullInstance::getRight)
-          .isInstanceOf(NoSuchElementException.class);
+      assertThatThrownBy(leftNullInstance::getRight).isInstanceOf(NoSuchElementException.class);
     }
   }
 
@@ -186,7 +181,8 @@ class EitherTest {
   @Nested
   @DisplayName("flatMap()")
   class FlatMapTests {
-    final Function<Integer, Either<String, String>> mapperRight = i -> Either.right("FlatMapped: " + i);
+    final Function<Integer, Either<String, String>> mapperRight =
+        i -> Either.right("FlatMapped: " + i);
     final Function<Integer, Either<String, String>> mapperLeft = i -> Either.left("FlatMap Error");
     final Function<Integer, Either<String, String>> mapperNull = i -> null;
 
@@ -251,10 +247,11 @@ class EitherTest {
     @Test
     void ifLeft_onLeft_shouldExecuteAction() {
       AtomicBoolean executed = new AtomicBoolean(false);
-      Consumer<String> action = s -> {
-        assertThat(s).isEqualTo(leftValue);
-        executed.set(true);
-      };
+      Consumer<String> action =
+          s -> {
+            assertThat(s).isEqualTo(leftValue);
+            executed.set(true);
+          };
       leftInstance.ifLeft(action);
       assertThat(executed).isTrue();
     }
@@ -270,10 +267,11 @@ class EitherTest {
     @Test
     void ifRight_onRight_shouldExecuteAction() {
       AtomicBoolean executed = new AtomicBoolean(false);
-      Consumer<Integer> action = i -> {
-        assertThat(i).isEqualTo(rightValue);
-        executed.set(true);
-      };
+      Consumer<Integer> action =
+          i -> {
+            assertThat(i).isEqualTo(rightValue);
+            executed.set(true);
+          };
       rightInstance.ifRight(action);
       assertThat(executed).isTrue();
     }

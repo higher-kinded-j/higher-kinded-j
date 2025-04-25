@@ -1,5 +1,9 @@
 package org.simulation.hkt.writer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -7,14 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.simulation.hkt.typeclass.Monoid;
 import org.simulation.hkt.typeclass.StringMonoid;
 
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
-
-/**
- * Direct tests for the Writer<W, A> record.
- */
+/** Direct tests for the Writer<W, A> record. */
 @DisplayName("Writer<W, A> Direct Tests")
 class WriterTest {
 
@@ -68,7 +65,8 @@ class WriterTest {
       // This test should now pass after the fix in Writer.value
       assertThatNullPointerException()
           .isThrownBy(() -> Writer.value(null, 10))
-          .withMessageContaining("monoidW cannot be null"); // Check message matches the explicit check
+          .withMessageContaining(
+              "monoidW cannot be null"); // Check message matches the explicit check
     }
 
     @Test
@@ -134,11 +132,16 @@ class WriterTest {
       Function<Void, Writer<String, String>> finalStep =
           v -> Writer.create("Final;", "Done"); // ("Final;", "Done")
 
-
-      Writer<String, String> result = start
-          .flatMap(stringMonoid, i -> logStep.apply(i)) // Combines "" and "Logged 10;", value becomes null
-          .flatMap(stringMonoid, v -> finalStep.apply(v)); // Combines "Logged 10;" and "Final;", value becomes "Done"
-
+      Writer<String, String> result =
+          start
+              .flatMap(
+                  stringMonoid,
+                  i -> logStep.apply(i)) // Combines "" and "Logged 10;", value becomes null
+              .flatMap(
+                  stringMonoid,
+                  v ->
+                      finalStep.apply(
+                          v)); // Combines "Logged 10;" and "Final;", value becomes "Done"
 
       assertThat(result.log()).isEqualTo("Logged 10;Final;");
       assertThat(result.value()).isEqualTo("Done");
@@ -170,7 +173,7 @@ class WriterTest {
     @Test
     void run_shouldReturnValue() {
       assertThat(writer1.run()).isEqualTo(5);
-      assertThat(Writer.create("Log", (String)null).run()).isNull();
+      assertThat(Writer.create("Log", (String) null).run()).isNull();
     }
 
     @Test

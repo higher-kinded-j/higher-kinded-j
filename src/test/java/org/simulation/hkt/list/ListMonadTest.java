@@ -1,22 +1,19 @@
 package org.simulation.hkt.list;
 
-import org.junit.jupiter.api.BeforeEach;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.simulation.hkt.list.ListKindHelper.unwrap;
+import static org.simulation.hkt.list.ListKindHelper.wrap;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.function.Function3;
 import org.simulation.hkt.function.Function4;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.simulation.hkt.list.ListKindHelper.unwrap;
-import static org.simulation.hkt.list.ListKindHelper.wrap;
 
 class ListMonadTest {
 
@@ -29,11 +26,10 @@ class ListMonadTest {
 
   // Function a -> M b (Integer -> ListKind<String>)
   private final Function<Integer, Kind<ListKind<?>, String>> f =
-          i -> wrap(Arrays.asList("v" + i, "x" + i));
+      i -> wrap(Arrays.asList("v" + i, "x" + i));
   // Function b -> M c (String -> ListKind<String>)
   private final Function<String, Kind<ListKind<?>, String>> g =
-          s -> wrap(Arrays.asList(s + "!", s + "?"));
-
+      s -> wrap(Arrays.asList(s + "!", s + "?"));
 
   @Nested
   @DisplayName("Applicative 'of' tests")
@@ -81,10 +77,8 @@ class ListMonadTest {
   class ApTests {
     @Test
     void ap_shouldApplyEachFunctionToEachValue() {
-      Kind<ListKind<?>, Function<Integer, String>> funcsKind = wrap(Arrays.asList(
-              x -> "N" + x,
-              x -> "X" + (x * 2)
-      ));
+      Kind<ListKind<?>, Function<Integer, String>> funcsKind =
+          wrap(Arrays.asList(x -> "N" + x, x -> "X" + (x * 2)));
       Kind<ListKind<?>, Integer> valuesKind = wrap(Arrays.asList(1, 2));
 
       Kind<ListKind<?>, String> result = listMonad.ap(funcsKind, valuesKind);
@@ -103,7 +97,8 @@ class ListMonadTest {
 
     @Test
     void ap_shouldReturnEmptyWhenValuesListIsEmpty() {
-      Kind<ListKind<?>, Function<Integer, String>> funcsKind = wrap(Collections.singletonList(x -> "N" + x));
+      Kind<ListKind<?>, Function<Integer, String>> funcsKind =
+          wrap(Collections.singletonList(x -> "N" + x));
       Kind<ListKind<?>, Integer> valuesKind = wrap(Collections.emptyList());
       Kind<ListKind<?>, String> result = listMonad.ap(funcsKind, valuesKind);
       assertThat(unwrap(result)).isEmpty();
@@ -118,13 +113,12 @@ class ListMonadTest {
     }
   }
 
-
   @Nested
   @DisplayName("Monad 'flatMap' tests")
   class FlatMapTests {
 
     Function<Integer, Kind<ListKind<?>, String>> duplicateAndStringify =
-            x -> wrap(Arrays.asList("v" + x, "v" + x));
+        x -> wrap(Arrays.asList("v" + x, "v" + x));
 
     @Test
     void flatMap_shouldApplyFunctionAndFlattenResults() {
@@ -143,7 +137,7 @@ class ListMonadTest {
     @Test
     void flatMap_shouldHandleFunctionReturningEmptyList() {
       Function<Integer, Kind<ListKind<?>, String>> funcReturningEmpty =
-              x -> wrap(Collections.emptyList());
+          x -> wrap(Collections.emptyList());
       Kind<ListKind<?>, Integer> input = wrap(Arrays.asList(1, 2));
       Kind<ListKind<?>, String> result = listMonad.flatMap(funcReturningEmpty, input);
       assertThat(unwrap(result)).isEmpty();
@@ -154,16 +148,13 @@ class ListMonadTest {
       Kind<ListKind<?>, Integer> initial = wrap(Arrays.asList(1, 2));
 
       // Step 1: x -> List(x, x+10)
-      Kind<ListKind<?>, Integer> step1Result = listMonad.flatMap(
-              x -> wrap(Arrays.asList(x, x + 10)),
-              initial
-      ); // Expected: List(1, 11, 2, 12)
+      Kind<ListKind<?>, Integer> step1Result =
+          listMonad.flatMap(
+              x -> wrap(Arrays.asList(x, x + 10)), initial); // Expected: List(1, 11, 2, 12)
 
       // Step 2: y -> List("N" + y)
-      Kind<ListKind<?>, String> finalResult = listMonad.flatMap(
-              y -> wrap(Collections.singletonList("N" + y)),
-              step1Result
-      );
+      Kind<ListKind<?>, String> finalResult =
+          listMonad.flatMap(y -> wrap(Collections.singletonList("N" + y)), step1Result);
 
       assertThat(unwrap(finalResult)).containsExactly("N1", "N11", "N2", "N12");
     }
@@ -179,10 +170,8 @@ class ListMonadTest {
         Kind<ListKind<?>, Integer> fa = wrap(Arrays.asList(1, 2, 3));
         Kind<ListKind<?>, Integer> faEmpty = wrap(Collections.emptyList());
 
-        assertThat(unwrap(listMonad.map(Function.identity(), fa)))
-                .isEqualTo(unwrap(fa));
-        assertThat(unwrap(listMonad.map(Function.identity(), faEmpty)))
-                .isEqualTo(unwrap(faEmpty));
+        assertThat(unwrap(listMonad.map(Function.identity(), fa))).isEqualTo(unwrap(fa));
+        assertThat(unwrap(listMonad.map(Function.identity(), faEmpty))).isEqualTo(unwrap(faEmpty));
       }
 
       @Test
@@ -192,10 +181,12 @@ class ListMonadTest {
         Kind<ListKind<?>, Integer> faEmpty = wrap(Collections.emptyList());
 
         Kind<ListKind<?>, String> leftSide = listMonad.map(intToStringAppendWorld, fa);
-        Kind<ListKind<?>, String> rightSide = listMonad.map(appendWorld, listMonad.map(intToString, fa));
+        Kind<ListKind<?>, String> rightSide =
+            listMonad.map(appendWorld, listMonad.map(intToString, fa));
 
         Kind<ListKind<?>, String> leftSideEmpty = listMonad.map(intToStringAppendWorld, faEmpty);
-        Kind<ListKind<?>, String> rightSideEmpty = listMonad.map(appendWorld, listMonad.map(intToString, faEmpty));
+        Kind<ListKind<?>, String> rightSideEmpty =
+            listMonad.map(appendWorld, listMonad.map(intToString, faEmpty));
 
         assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
         assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
@@ -208,15 +199,18 @@ class ListMonadTest {
 
       Kind<ListKind<?>, Integer> v = wrap(Arrays.asList(1, 2));
       Kind<ListKind<?>, Integer> vEmpty = wrap(Collections.emptyList());
-      Kind<ListKind<?>, Function<Integer, String>> fKind = wrap(Arrays.asList(intToString, i -> "X" + i));
+      Kind<ListKind<?>, Function<Integer, String>> fKind =
+          wrap(Arrays.asList(intToString, i -> "X" + i));
       Kind<ListKind<?>, Function<Integer, String>> fKindEmpty = wrap(Collections.emptyList());
-      Kind<ListKind<?>, Function<String, String>> gKind = wrap(Arrays.asList(appendWorld, s -> s.toUpperCase()));
+      Kind<ListKind<?>, Function<String, String>> gKind =
+          wrap(Arrays.asList(appendWorld, s -> s.toUpperCase()));
       Kind<ListKind<?>, Function<String, String>> gKindEmpty = wrap(Collections.emptyList());
 
       @Test
       @DisplayName("1. Identity: ap(of(id), v) == v")
       void identity() {
-        Kind<ListKind<?>, Function<Integer, Integer>> idFuncKind = listMonad.of(Function.identity()); // List(id)
+        Kind<ListKind<?>, Function<Integer, Integer>> idFuncKind =
+            listMonad.of(Function.identity()); // List(id)
         assertThat(unwrap(listMonad.ap(idFuncKind, v))).isEqualTo(unwrap(v));
         assertThat(unwrap(listMonad.ap(idFuncKind, vEmpty))).isEqualTo(unwrap(vEmpty));
       }
@@ -241,14 +235,18 @@ class ListMonadTest {
         int y = 20;
         // Left Side: ap(fKind, of(y)) -> applies each function in fKind to y
         Kind<ListKind<?>, String> leftSide = listMonad.ap(fKind, listMonad.of(y));
-        Kind<ListKind<?>, String> leftSideEmpty = listMonad.ap(fKindEmpty, listMonad.of(y)); // Should be empty
+        Kind<ListKind<?>, String> leftSideEmpty =
+            listMonad.ap(fKindEmpty, listMonad.of(y)); // Should be empty
 
-        // Right Side: ap(of(f -> f(y)), fKind) -> applies the ($ y) function to each function in fKind
+        // Right Side: ap(of(f -> f(y)), fKind) -> applies the ($ y) function to each function in
+        // fKind
         Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-        Kind<ListKind<?>, Function<Function<Integer, String>, String>> evalKind = listMonad.of(evalWithY); // List(fn -> fn(y))
+        Kind<ListKind<?>, Function<Function<Integer, String>, String>> evalKind =
+            listMonad.of(evalWithY); // List(fn -> fn(y))
 
         Kind<ListKind<?>, String> rightSide = listMonad.ap(evalKind, fKind);
-        Kind<ListKind<?>, String> rightSideEmpty = listMonad.ap(evalKind, fKindEmpty); // Should be empty
+        Kind<ListKind<?>, String> rightSideEmpty =
+            listMonad.ap(evalKind, fKindEmpty); // Should be empty
 
         // Both sides should evaluate to List(f1(y), f2(y), ...)
         assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
@@ -256,34 +254,47 @@ class ListMonadTest {
       }
 
       @Test
-      @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v)) - Adjusted")
+      @DisplayName(
+          "4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v)) -"
+              + " Adjusted")
       void composition() {
-        Function<Function<String, String>, Function<Function<Integer, String>, Function<Integer, String>>> composeMap =
-                g -> f -> g.compose(f);
+        Function<
+                Function<String, String>,
+                Function<Function<Integer, String>, Function<Integer, String>>>
+            composeMap = g -> f -> g.compose(f);
 
         // Left side: ap(ap(map(composeMap, gKind), fKind), v)
-        Kind<ListKind<?>, Function<Function<Integer, String>, Function<Integer, String>>> mappedCompose =
-                listMonad.map(composeMap, gKind); // List(g -> f -> g.compose(f), ...)
+        Kind<ListKind<?>, Function<Function<Integer, String>, Function<Integer, String>>>
+            mappedCompose = listMonad.map(composeMap, gKind); // List(g -> f -> g.compose(f), ...)
         Kind<ListKind<?>, Function<Integer, String>> ap1 =
-                listMonad.ap(mappedCompose, fKind); // List(g1.compose(f1), g1.compose(f2), g2.compose(f1), g2.compose(f2))
+            listMonad.ap(
+                mappedCompose,
+                fKind); // List(g1.compose(f1), g1.compose(f2), g2.compose(f1), g2.compose(f2))
         Kind<ListKind<?>, String> leftSide = listMonad.ap(ap1, v); // Apply composed functions to v
 
         // Right side: ap(gKind, ap(fKind, v))
-        Kind<ListKind<?>, String> innerAp = listMonad.ap(fKind, v); // List(f1(v1), f1(v2), f2(v1), f2(v2))
-        Kind<ListKind<?>, String> rightSide = listMonad.ap(gKind, innerAp); // Apply g functions to results of innerAp
+        Kind<ListKind<?>, String> innerAp =
+            listMonad.ap(fKind, v); // List(f1(v1), f1(v2), f2(v1), f2(v2))
+        Kind<ListKind<?>, String> rightSide =
+            listMonad.ap(gKind, innerAp); // Apply g functions to results of innerAp
 
         // Both sides represent applying all combinations of g(f(v))
         assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
         // Test with empty lists
-        assertThat(unwrap(listMonad.ap(listMonad.ap(listMonad.map(composeMap, gKindEmpty), fKind), v))).isEmpty();
+        assertThat(
+                unwrap(listMonad.ap(listMonad.ap(listMonad.map(composeMap, gKindEmpty), fKind), v)))
+            .isEmpty();
         assertThat(unwrap(listMonad.ap(gKindEmpty, listMonad.ap(fKind, v)))).isEmpty();
-        assertThat(unwrap(listMonad.ap(listMonad.ap(listMonad.map(composeMap, gKind), fKindEmpty), v))).isEmpty();
+        assertThat(
+                unwrap(listMonad.ap(listMonad.ap(listMonad.map(composeMap, gKind), fKindEmpty), v)))
+            .isEmpty();
         assertThat(unwrap(listMonad.ap(gKind, listMonad.ap(fKindEmpty, v)))).isEmpty();
-        assertThat(unwrap(listMonad.ap(listMonad.ap(listMonad.map(composeMap, gKind), fKind), vEmpty))).isEmpty();
+        assertThat(
+                unwrap(listMonad.ap(listMonad.ap(listMonad.map(composeMap, gKind), fKind), vEmpty)))
+            .isEmpty();
         assertThat(unwrap(listMonad.ap(gKind, listMonad.ap(fKind, vEmpty)))).isEmpty();
       }
     }
-
 
     @Nested
     @DisplayName("Monad Laws")
@@ -293,12 +304,12 @@ class ListMonadTest {
       Kind<ListKind<?>, Integer> mValue = wrap(Arrays.asList(value, value + 1)); // List(5, 6)
       Kind<ListKind<?>, Integer> mValueEmpty = wrap(Collections.emptyList());
 
-
       @Test
       @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
       void leftIdentity() {
         Kind<ListKind<?>, Integer> ofValue = listMonad.of(value); // List(5)
-        Kind<ListKind<?>, String> leftSide = listMonad.flatMap(f, ofValue); // f(5) -> List("v5", "x5")
+        Kind<ListKind<?>, String> leftSide =
+            listMonad.flatMap(f, ofValue); // f(5) -> List("v5", "x5")
         Kind<ListKind<?>, String> rightSide = f.apply(value); // f(5) -> List("v5", "x5")
 
         assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
@@ -310,16 +321,18 @@ class ListMonadTest {
         // Function a -> Kind<..., a>
         Function<Integer, Kind<ListKind<?>, Integer>> ofFunc = i -> listMonad.of(i); // i -> List(i)
 
-        Kind<ListKind<?>, Integer> leftSide = listMonad.flatMap(ofFunc, mValue); // flatMap( i->List(i), List(5,6)) -> List(5,6)
-        Kind<ListKind<?>, Integer> leftSideEmpty = listMonad.flatMap(ofFunc, mValueEmpty); // flatMap(i->List(i), []) -> []
+        Kind<ListKind<?>, Integer> leftSide =
+            listMonad.flatMap(ofFunc, mValue); // flatMap( i->List(i), List(5,6)) -> List(5,6)
+        Kind<ListKind<?>, Integer> leftSideEmpty =
+            listMonad.flatMap(ofFunc, mValueEmpty); // flatMap(i->List(i), []) -> []
 
         assertThat(unwrap(leftSide)).isEqualTo(unwrap(mValue));
         assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(mValueEmpty));
       }
 
-
       @Test
-      @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+      @DisplayName(
+          "3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
       void associativity() {
         // Left Side: flatMap(flatMap(m, f), g)
         // flatMap(List(5, 6), f) -> List("v5", "x5", "v6", "x6")
@@ -332,7 +345,7 @@ class ListMonadTest {
         // 5 -> flatMap(g, List("v5", "x5")) -> List("v5!", "v5?", "x5!", "x5?")
         // 6 -> flatMap(List("v6", "x6"), g) -> List("v6!", "v6?", "x6!", "x6?")
         Function<Integer, Kind<ListKind<?>, String>> rightSideFunc =
-                a -> listMonad.flatMap(g, f.apply(a));
+            a -> listMonad.flatMap(g, f.apply(a));
         // flatMap(List(5, 6), a -> ...) -> applies func to 5 and 6 and flattens
         Kind<ListKind<?>, String> rightSide = listMonad.flatMap(rightSideFunc, mValue);
 
@@ -342,12 +355,12 @@ class ListMonadTest {
         // Check empty case
         Kind<ListKind<?>, String> innerFlatMapEmpty = listMonad.flatMap(f, mValueEmpty); // []
         Kind<ListKind<?>, String> leftSideEmpty = listMonad.flatMap(g, innerFlatMapEmpty); // []
-        Kind<ListKind<?>, String> rightSideEmpty = listMonad.flatMap(rightSideFunc, mValueEmpty); // []
+        Kind<ListKind<?>, String> rightSideEmpty =
+            listMonad.flatMap(rightSideFunc, mValueEmpty); // []
         assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
       }
     }
   }
-
 
   @Nested
   @DisplayName("mapN tests")
@@ -359,7 +372,6 @@ class ListMonadTest {
     Kind<ListKind<?>, Boolean> list4 = wrap(Arrays.asList(true, false));
 
     Kind<ListKind<?>, Integer> emptyList = wrap(Collections.emptyList());
-
 
     @Test
     void map2_bothNonEmpty() {
@@ -382,7 +394,6 @@ class ListMonadTest {
       Kind<ListKind<?>, String> result = listMonad.map2(list2, emptyList, f2);
       assertThat(unwrap(result)).isEmpty();
     }
-
 
     @Test
     void map2_biFunctionBothNonEmpty() {
@@ -414,10 +425,10 @@ class ListMonadTest {
       // Expected: Cartesian product:
       // 1-a-1.0, 1-a-2.0, 1-b-1.0, 1-b-2.0,
       // 2-a-1.0, 2-a-2.0, 2-b-1.0, 2-b-2.0
-      assertThat(unwrap(result)).containsExactly(
-          "1-a-1.0", "1-a-2.0", "1-b-1.0", "1-b-2.0",
-          "2-a-1.0", "2-a-2.0", "2-b-1.0", "2-b-2.0"
-      );
+      assertThat(unwrap(result))
+          .containsExactly(
+              "1-a-1.0", "1-a-2.0", "1-b-1.0", "1-b-2.0", "2-a-1.0", "2-a-2.0", "2-b-1.0",
+              "2-b-2.0");
     }
 
     @Test

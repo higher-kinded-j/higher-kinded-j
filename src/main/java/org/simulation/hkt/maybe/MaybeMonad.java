@@ -1,22 +1,19 @@
 package org.simulation.hkt.maybe;
 
+import static org.simulation.hkt.maybe.MaybeKindHelper.*;
+
+import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
-import org.simulation.hkt.Monad;
 import org.simulation.hkt.MonadError;
 
-import java.util.function.Function;
-
-import static org.simulation.hkt.maybe.MaybeKindHelper.*;
-
 /**
- * Monad and MonadError implementation for MaybeKind.
- * The error type E is Void, representing the Nothing state.
- * Provides Functor and Monad operations for the Maybe type within the HKT simulation.
+ * Monad and MonadError implementation for MaybeKind. The error type E is Void, representing the
+ * Nothing state. Provides Functor and Monad operations for the Maybe type within the HKT
+ * simulation.
  */
 public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind<?>, Void> {
-
 
   @Override
   public <A> @NonNull MaybeKind<A> of(@Nullable A value) { // Value can be null
@@ -24,20 +21,23 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind<?>,
   }
 
   @Override
-  public <A, B> @NonNull MaybeKind<B> flatMap(@NonNull Function<A, Kind<MaybeKind<?>, B>> f, @NonNull Kind<MaybeKind<?>, A> ma) {
+  public <A, B> @NonNull MaybeKind<B> flatMap(
+      @NonNull Function<A, Kind<MaybeKind<?>, B>> f, @NonNull Kind<MaybeKind<?>, A> ma) {
     Maybe<A> maybeA = unwrap(ma); // Handles null/invalid ma
 
-    Maybe<B> resultMaybe = maybeA.flatMap(a -> { // a is NonNull here
-      Kind<MaybeKind<?>, B> kindB = f.apply(a); // f is NonNull
-      return unwrap(kindB); // unwrap returns NonNull Maybe
-    });
+    Maybe<B> resultMaybe =
+        maybeA.flatMap(
+            a -> { // a is NonNull here
+              Kind<MaybeKind<?>, B> kindB = f.apply(a); // f is NonNull
+              return unwrap(kindB); // unwrap returns NonNull Maybe
+            });
 
     return wrap(resultMaybe); // wrap requires NonNull Maybe
   }
 
-
   @Override
-  public <A, B> @NonNull Kind<MaybeKind<?>, B> ap(@NonNull Kind<MaybeKind<?>, Function<A, B>> ff, @NonNull Kind<MaybeKind<?>, A> fa) {
+  public <A, B> @NonNull Kind<MaybeKind<?>, B> ap(
+      @NonNull Kind<MaybeKind<?>, Function<A, B>> ff, @NonNull Kind<MaybeKind<?>, A> fa) {
     Maybe<Function<A, B>> maybeF = unwrap(ff); // Handles null/invalid ff
     Maybe<A> maybeA = unwrap(fa); // Handles null/invalid fa
 
@@ -51,11 +51,10 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind<?>,
   // --- MonadError Methods ---
 
   /**
-   * Lifts the error state (Nothing) into the Maybe context.
-   * The input 'error' (Void) is ignored.
+   * Lifts the error state (Nothing) into the Maybe context. The input 'error' (Void) is ignored.
    *
    * @param error The error value (Void, Nullable).
-   * @param <A>   The phantom type parameter of the value.
+   * @param <A> The phantom type parameter of the value.
    * @return A MaybeKind representing Nothing. (NonNull)
    */
   @Override
@@ -65,17 +64,18 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind<?>,
   }
 
   /**
-   * Handles the error state (Nothing) within the Maybe context.
-   * If 'ma' is Just, it's returned unchanged.
-   * If 'ma' is Nothing, the 'handler' function is applied (with null input as error is Void).
+   * Handles the error state (Nothing) within the Maybe context. If 'ma' is Just, it's returned
+   * unchanged. If 'ma' is Nothing, the 'handler' function is applied (with null input as error is
+   * Void).
    *
-   * @param ma      The MaybeKind value. (NonNull)
+   * @param ma The MaybeKind value. (NonNull)
    * @param handler Function Void -> Kind<MaybeKind<?>, A> to handle the Nothing state. (NonNull)
-   * @param <A>     The type of the value within the Maybe.
+   * @param <A> The type of the value within the Maybe.
    * @return Original Kind if Just, or result of handler if Nothing. (NonNull)
    */
   @Override
-  public <A> @NonNull Kind<MaybeKind<?>, A> handleErrorWith(@NonNull Kind<MaybeKind<?>, A> ma, @NonNull Function<Void, Kind<MaybeKind<?>, A>> handler) {
+  public <A> @NonNull Kind<MaybeKind<?>, A> handleErrorWith(
+      @NonNull Kind<MaybeKind<?>, A> ma, @NonNull Function<Void, Kind<MaybeKind<?>, A>> handler) {
     Maybe<A> maybe = unwrap(ma); // Handles null/invalid ma
 
     if (maybe.isNothing()) { //
