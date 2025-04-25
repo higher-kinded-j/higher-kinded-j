@@ -1,23 +1,23 @@
-// src/main/java/org/simulation/example/order/workflow/OrderWorkflowRunner.java
 package org.simulation.example.order.workflow;
 
 import static org.simulation.example.order.model.WorkflowModels.*;
-import static org.simulation.example.order.model.WorkflowModels.WorkflowContext;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
+import org.jspecify.annotations.NonNull;
 import org.simulation.example.order.error.DomainError;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.MonadError;
 import org.simulation.hkt.either.Either;
-import org.simulation.hkt.either.EitherKindHelper; // Needed for unwrapping sync step result
+import org.simulation.hkt.either.EitherKindHelper;
 import org.simulation.hkt.future.CompletableFutureKind;
 import org.simulation.hkt.future.CompletableFutureKindHelper;
 import org.simulation.hkt.future.CompletableFutureMonadError;
 import org.simulation.hkt.trans.EitherT;
 import org.simulation.hkt.trans.EitherTKind;
 import org.simulation.hkt.trans.EitherTMonad;
-// Import Try related classes
 import org.simulation.hkt.trymonad.Try;
 import org.simulation.hkt.trymonad.TryKind;
 import org.simulation.hkt.trymonad.TryKindHelper;
@@ -26,52 +26,48 @@ import org.simulation.hkt.trymonad.TryKindHelper;
  * Orchestrates an order processing workflow using the HKT simulation framework, primarily
  * leveraging the {@link EitherT} monad transformer over {@link CompletableFuture}.
  *
- * <h2>Core Concepts Demonstrated:</h2>
+ * <p>This version demonstrates:
  *
  * <ul>
- *   <li><b>Monad Transformers (EitherT):</b> Simplifies working with nested monadic structures like
- *       {@code CompletableFuture<Either<DomainError, T>>}. It allows chaining operations within the
- *       nested context using standard {@code flatMap} and {@code map}, automatically handling the
- *       short-circuiting logic of the inner {@link Either}.
- *   <li><b>Asynchronous Flow (CompletableFuture):</b> The outer monad {@code F} in {@code
- *       EitherT<F, L, R>} is {@code CompletableFutureKind<?>}, managed by {@link
- *       CompletableFutureMonadError}. This handles the asynchronous execution of steps and manages
- *       system-level exceptions (`Throwable`).
- *   <li><b>Domain Error Handling (Either):</b> The inner structure is {@code Either<DomainError,
- *       T>}. {@link DomainError} represents specific, known business rule violations or expected
- *       failure modes (e.g., validation error, out of stock). The {@code Left} side of the {@code
- *       Either} carries these domain errors.
- *   <li><b>Exception Handling (Try):</b> Demonstrates an alternative for synchronous steps where
- *       failures might manifest as thrown exceptions rather than specific domain errors. {@link
- *       Try} captures these exceptions, which can then be converted to an appropriate {@link
- *       DomainError}.
- *   <li><b>MonadError Abstraction:</b> Uses the {@link MonadError} interface for both the outer
- *       {@code CompletableFuture} (handling {@code Throwable}) and the combined {@code EitherT}
- *       (handling {@code DomainError}). This allows for consistent error handling and recovery
- *       patterns.
- *   <li><b>Integration of Sync/Async Steps:</b> Shows how to lift the results of both synchronous
- *       (returning {@code Either} or {@code Try}) and asynchronous (returning {@code
- *       CompletableFuture<Either>}) steps into the unified {@code EitherT} context for seamless
- *       composition.
+ *   <li><b>Dependency Injection:</b> The {@link OrderWorkflowSteps} instance is now created with a
+ *       {@link Dependencies} object, making dependencies like logging explicit.
+ *   <li><b>Structured Logging:</b> Workflow steps use the logger provided in {@code Dependencies}
+ *       instead of direct console output.
+ *   <li><b>EitherT for Async/Error Flow:</b> Continues to use {@code EitherT} to manage the nested
+ *       {@code CompletableFuture<Either<DomainError, T>>} structure, handling asynchronicity and
+ *       domain errors gracefully.
+ *   <li><b>Integration of Sync/Async Steps:</b> Shows lifting results from synchronous steps
+ *       (returning {@code Either} or {@code Try}) and asynchronous steps into the unified {@code
+ *       EitherT} context.
+ *   <li><b>Error Handling and Recovery:</b> Uses {@code MonadError} capabilities of {@code
+ *       EitherTMonad} to handle specific {@link DomainError}s (e.g., recoverable shipping errors).
  * </ul>
  *
  * <h2>Workflow Structure:</h2>
  *
- * The workflow is defined as a sequence of operations chained using {@code eitherTMonad.flatMap}.
- * If any step results in a {@code Left<DomainError>} (either directly or converted from a {@code
- * Try.Failure}), subsequent steps in the main chain are automatically skipped, and the {@code Left}
- * value is propagated. System-level errors during async execution (e.g., network issues simulated
- * by exceptions in steps) are caught by the underlying {@code CompletableFuture} mechanism.
+ * The workflow remains a sequence of operations chained using {@code eitherTMonad.flatMap}. If any
+ * step results in a {@code Left<DomainError>}, subsequent steps are skipped. System-level errors
+ * during async execution are caught by the underlying {@code CompletableFuture}. Logging occurs
+ * within each step via the injected logger.
  */
 public class OrderWorkflowRunner {
 
-  private final OrderWorkflowSteps steps;
-  private final MonadError<CompletableFutureKind<?>, Throwable> futureMonad;
-  private final MonadError<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, DomainError>
+  private final @NonNull OrderWorkflowSteps steps; // Now requires Dependencies
+  private final @NonNull Dependencies dependencies; // Store dependencies
+  private final @NonNull MonadError<CompletableFutureKind<?>, Throwable> futureMonad;
+  private final @NonNull
+      MonadError<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, DomainError>
       eitherTMonad;
 
-  public OrderWorkflowRunner(OrderWorkflowSteps steps) {
-    this.steps = steps;
+  /**
+   * Constructor accepting dependencies.
+   *
+   * @param dependencies The external dependencies for the workflow. (NonNull)
+   */
+  public OrderWorkflowRunner(@NonNull Dependencies dependencies) {
+    this.dependencies = Objects.requireNonNull(dependencies, "Dependencies cannot be null");
+    // Pass dependencies to the steps
+    this.steps = new OrderWorkflowSteps(dependencies);
     this.futureMonad = new CompletableFutureMonadError();
     this.eitherTMonad = new EitherTMonad<>(this.futureMonad);
   }
@@ -80,16 +76,15 @@ public class OrderWorkflowRunner {
    * Runs the order processing workflow using EitherT, with the validation step returning {@code
    * Either<DomainError, ValidatedOrder>}.
    *
-   * <p>This approach is suitable when validation rules explicitly define different types of domain
-   * errors that should be propagated directly. See {@link
-   * OrderWorkflowSteps#validateOrder(OrderData)}.
-   *
    * @param orderData The initial data for the order.
    * @return A {@code Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>>} representing
    *     the final outcome.
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>> runOrderWorkflowEitherT(
       OrderData orderData) {
+
+    // Log workflow start
+    dependencies.log("Starting runOrderWorkflowEitherT for Order: " + orderData.orderId());
 
     WorkflowContext initialContext = WorkflowContext.start(orderData);
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> initialET =
@@ -99,12 +94,9 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> validatedET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Validate Order (sync - Either): Processing Order "
-                      + ctx.initialData().orderId());
+              // Logging is now done inside steps.validateOrder
               Either<DomainError, ValidatedOrder> syncResultEither =
-                  EitherKindHelper.unwrap(
-                      steps.validateOrder(ctx.initialData())); // Unwrap Kind<EitherKind, ...>
+                  EitherKindHelper.unwrap(steps.validateOrder(ctx.initialData()));
               // Lift Either into EitherT<Future, ...>
               Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ValidatedOrder>
                   validatedOrderET = EitherT.fromEither(futureMonad, syncResultEither);
@@ -112,15 +104,11 @@ public class OrderWorkflowRunner {
             },
             initialET);
 
-    // --- Subsequent steps are the same as before ---
-
     // Step 2: Check Inventory (Asynchronous)
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> inventoryET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Check Inventory (async): Context has ValidatedOrder: "
-                      + ctx.validatedOrder().orderId());
+              // Logging done inside steps.checkInventoryAsync
               Kind<CompletableFutureKind<?>, Either<DomainError, Void>> inventoryCheckFutureKind =
                   steps.checkInventoryAsync(
                       ctx.validatedOrder().productId(), ctx.validatedOrder().quantity());
@@ -134,9 +122,7 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> paymentET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Process Payment (async): Context has ValidatedOrder: "
-                      + ctx.validatedOrder().orderId());
+              // Logging done inside steps.processPaymentAsync
               Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>>
                   paymentFutureKind =
                       steps.processPaymentAsync(
@@ -151,9 +137,7 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> shipmentET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Create Shipment (async): Context has PaymentConfirmation: "
-                      + ctx.paymentConfirmation().transactionId());
+              // Logging done inside steps.createShipmentAsync
               Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>>
                   shipmentAttemptFutureKind =
                       steps.createShipmentAsync(
@@ -161,6 +145,7 @@ public class OrderWorkflowRunner {
               Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ShipmentInfo>
                   shipmentAttemptET = EitherT.fromKind(shipmentAttemptFutureKind);
 
+              // Attempt recovery for specific shipping errors
               Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ShipmentInfo>
                   recoveredShipmentET =
                       eitherTMonad.handleErrorWith(
@@ -168,14 +153,19 @@ public class OrderWorkflowRunner {
                           error -> { // Handles DomainError
                             if (error instanceof DomainError.ShippingError(String reason)
                                 && "Temporary Glitch".equals(reason)) {
-                              System.out.println(
+                              // Log recovery attempt
+                              dependencies.log(
                                   "WARN (EitherT): Recovering from temporary shipping glitch with"
-                                      + " default.");
+                                      + " default for order "
+                                      + ctx.validatedOrder().orderId());
+                              // Recover by returning a successful EitherT with default info
                               return eitherTMonad.of(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
                             } else {
+                              // Re-raise other errors
                               return eitherTMonad.raiseError(error);
                             }
                           });
+              // Map the (potentially recovered) ShipmentInfo back into the context
               return eitherTMonad.map(ctx::withShipmentInfo, recoveredShipmentET);
             },
             paymentET);
@@ -184,7 +174,7 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult> finalResultET =
         eitherTMonad.map(
             ctx -> {
-              System.out.println(
+              dependencies.log(
                   "Mapping final context to FinalResult (EitherT) for Order: "
                       + ctx.validatedOrder().orderId());
               return new FinalResult(
@@ -194,33 +184,36 @@ public class OrderWorkflowRunner {
             },
             shipmentET);
 
-    // Optional: Attempt Notification (Asynchronous) as a final step
+    // Step 6: Attempt Notification (Asynchronous) - Optional, non-critical failure
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult>
         finalResultWithNotificationET =
             eitherTMonad.flatMap(
                 finalResult -> {
+                  // Logging done inside steps.notifyCustomerAsync
                   Kind<CompletableFutureKind<?>, Either<DomainError, Void>> notifyFutureKind =
                       steps.notifyCustomerAsync(
                           orderData.customerId(), "Order processed: " + finalResult.orderId());
                   Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, Void> notifyET =
                       EitherT.fromKind(notifyFutureKind);
 
+                  // Handle potential notification failure without failing the whole workflow
                   return eitherTMonad.map(
-                      ignored -> finalResult,
+                      ignored -> finalResult, // Return the original FinalResult
                       eitherTMonad.handleError(
                           notifyET,
                           notifyError -> {
-                            System.err.println(
+                            // Log the notification error but don't fail the order
+                            dependencies.log(
                                 "WARN (EitherT): Notification failed for successful order "
                                     + finalResult.orderId()
                                     + ": "
                                     + notifyError.message());
-                            return null; // Recover with Void
+                            return null; // Recover with Void (null)
                           }));
                 },
                 finalResultET);
 
-    // Unwrap the final EitherT
+    // Unwrap the final EitherT to get the underlying CompletableFuture<Either<...>>
     EitherT<CompletableFutureKind<?>, DomainError, FinalResult> finalET =
         (EitherT<CompletableFutureKind<?>, DomainError, FinalResult>) finalResultWithNotificationET;
     return finalET.value();
@@ -230,16 +223,15 @@ public class OrderWorkflowRunner {
    * Runs the order processing workflow using EitherT, with the validation step returning {@code
    * Try<ValidatedOrder>}.
    *
-   * <p>This approach is suitable when validation logic might throw runtime exceptions that need to
-   * be captured and converted into a {@link DomainError}. See {@link
-   * OrderWorkflowSteps#validateOrderWithTry(OrderData)}.
-   *
    * @param orderData The initial data for the order.
    * @return A {@code Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>>} representing
    *     the final outcome.
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>>
       runOrderWorkflowEitherTWithTryValidation(OrderData orderData) {
+
+    dependencies.log(
+        "Starting runOrderWorkflowEitherTWithTryValidation for Order: " + orderData.orderId());
 
     WorkflowContext initialContext = WorkflowContext.start(orderData);
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> initialET =
@@ -249,22 +241,23 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> validatedET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Validate Order (sync - Try): Processing Order "
-                      + ctx.initialData().orderId());
-              // Synchronous step returns Kind<TryKind<?>, ValidatedOrder>
+              // Logging is now done inside steps.validateOrderWithTry
               Kind<TryKind<?>, ValidatedOrder> tryResultKind =
                   steps.validateOrderWithTry(ctx.initialData());
-              // Unwrap the Kind<TryKind, ...>
               Try<ValidatedOrder> tryResult = TryKindHelper.unwrap(tryResultKind);
 
+              // Convert Try<ValidatedOrder> to Either<DomainError, ValidatedOrder>
               Either<DomainError, ValidatedOrder> eitherResult =
                   tryResult.fold(
                       Either::right, // Success(v) -> Right(v)
-                      // Failure(t) -> Left(DomainError). Convert generic Throwable to a specific
-                      // DomainError.
-                      throwable ->
-                          Either.left(new DomainError.ValidationError(throwable.getMessage())));
+                      throwable -> {
+                        // Failure(t) -> Left(DomainError)
+                        // Log the conversion
+                        dependencies.log(
+                            "Converting Try.Failure to DomainError.ValidationError: "
+                                + throwable.getMessage());
+                        return Either.left(new DomainError.ValidationError(throwable.getMessage()));
+                      });
 
               // Lift the converted Either result into EitherT<Future, ..., ValidatedOrder>
               Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ValidatedOrder>
@@ -274,13 +267,12 @@ public class OrderWorkflowRunner {
             },
             initialET);
 
+    // --- Subsequent steps are identical to the runOrderWorkflowEitherT method ---
+
     // Step 2: Check Inventory (Asynchronous)
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> inventoryET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Check Inventory (async): Context has ValidatedOrder: "
-                      + ctx.validatedOrder().orderId());
               Kind<CompletableFutureKind<?>, Either<DomainError, Void>> inventoryCheckFutureKind =
                   steps.checkInventoryAsync(
                       ctx.validatedOrder().productId(), ctx.validatedOrder().quantity());
@@ -294,9 +286,6 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> paymentET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Process Payment (async): Context has ValidatedOrder: "
-                      + ctx.validatedOrder().orderId());
               Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>>
                   paymentFutureKind =
                       steps.processPaymentAsync(
@@ -311,9 +300,6 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> shipmentET =
         eitherTMonad.flatMap(
             ctx -> {
-              System.out.println(
-                  "flatMap Create Shipment (async): Context has PaymentConfirmation: "
-                      + ctx.paymentConfirmation().transactionId());
               Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>>
                   shipmentAttemptFutureKind =
                       steps.createShipmentAsync(
@@ -329,23 +315,14 @@ public class OrderWorkflowRunner {
                               switch (error) {
                                 case DomainError.ShippingError(String reason)
                                     when "Temporary Glitch".equals(reason) -> {
-                                  System.out.printf(
-                                      "WARN (%s Validation): Recovering from temporary shipping"
-                                          + " glitch with default.%n",
-                                      // Determine context based on which method we are in -
-                                      // slightly hacky
-                                      ctx.validatedOrder() != null ? "Either/Try" : "Unknown");
-                                  // Recover by returning a successful EitherT with default info
+                                  dependencies.log(
+                                      "WARN (Try Validation): Recovering from temporary shipping"
+                                          + " glitch with default for order "
+                                          + ctx.validatedOrder().orderId());
                                   yield eitherTMonad.of(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
                                 }
-                                // Add more cases for other specific DomainError subtypes if needed
-                                // case DomainError.ValidationError ve -> { /* Handle differently */
-                                // yield eitherTMonad.raiseError(ve); }
-
-                                // Default case: Re-raise any other DomainError
                                 default -> eitherTMonad.raiseError(error);
-                              }); // End of handleErrorWith
-              // Map the (potentially recovered) ShipmentInfo back into the context
+                              });
               return eitherTMonad.map(ctx::withShipmentInfo, recoveredShipmentET);
             },
             paymentET);
@@ -354,7 +331,7 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult> finalResultET =
         eitherTMonad.map(
             ctx -> {
-              System.out.println(
+              dependencies.log(
                   "Mapping final context to FinalResult (Try Validation) for Order: "
                       + ctx.validatedOrder().orderId());
               return new FinalResult(
@@ -364,7 +341,7 @@ public class OrderWorkflowRunner {
             },
             shipmentET);
 
-    // Optional: Attempt Notification (Asynchronous) as a final step
+    // Step 6: Attempt Notification (Asynchronous) - Optional, non-critical failure
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult>
         finalResultWithNotificationET =
             eitherTMonad.flatMap(
@@ -380,7 +357,7 @@ public class OrderWorkflowRunner {
                       eitherTMonad.handleError(
                           notifyET,
                           notifyError -> {
-                            System.err.println(
+                            dependencies.log(
                                 "WARN (Try Validation): Notification failed for successful order "
                                     + finalResult.orderId()
                                     + ": "
@@ -396,12 +373,18 @@ public class OrderWorkflowRunner {
     return finalET.value();
   }
 
-  /** Main method demonstrating both workflow runners. */
+  /** Main method demonstrating the refactored workflow runners. */
   public static void main(String[] args) {
-    OrderWorkflowSteps steps = new OrderWorkflowSteps();
-    OrderWorkflowRunner runner = new OrderWorkflowRunner(steps);
+    // --- Setup Dependencies ---
+    // Create a simple logger that prints to System.out
+    Consumer<String> consoleLogger = System.out::println;
+    // You could add other dependencies here (config, db connections, etc.)
+    Dependencies appDependencies = new Dependencies(consoleLogger);
 
-    // --- Test Data ---
+    // Create the runner, injecting dependencies
+    OrderWorkflowRunner runner = new OrderWorkflowRunner(appDependencies);
+
+    // --- Test Data (same as before) ---
     OrderData goodData =
         new OrderData("Order-Good-001", "PROD-123", 2, "VALID_CARD", "123 Main St", "cust-good");
     OrderData badQtyData =
@@ -417,6 +400,7 @@ public class OrderWorkflowRunner {
     OrderData nonRecoverableShippingData =
         new OrderData("Order-ShipFail-005", "PROD-SHIP", 1, "VALID_CARD", "", "cust-ship");
 
+    // --- Run Workflows ---
     System.out.println("\n--- Running Workflow with EitherT (Validate using Either) ---");
     runAndPrintResult("Good (Either Valid)", runner::runOrderWorkflowEitherT, goodData);
     runAndPrintResult("Bad Qty (Either Valid)", runner::runOrderWorkflowEitherT, badQtyData);
@@ -434,8 +418,6 @@ public class OrderWorkflowRunner {
     System.out.println("\n--- Running Workflow with EitherT (Validate using Try) ---");
     runAndPrintResult(
         "Good (Try Valid)", runner::runOrderWorkflowEitherTWithTryValidation, goodData);
-    // For Bad Qty, validateOrderWithTry throws IllegalArgumentException, which Try catches,
-    // and the runner converts it to Left(ValidationError("Quantity must be positive..."))
     runAndPrintResult(
         "Bad Qty (Try Valid)", runner::runOrderWorkflowEitherTWithTryValidation, badQtyData);
     runAndPrintResult(
@@ -452,37 +434,38 @@ public class OrderWorkflowRunner {
         nonRecoverableShippingData);
   }
 
-  // Generic helper method using a Function to pass the runner method
+  // Generic helper method to run a workflow and print the outcome
   private static void runAndPrintResult(
       String label,
       java.util.function.Function<
               OrderData, Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>>>
           runnerMethod,
       OrderData data) {
-    System.out.println("Starting workflow for: " + label);
+    System.out.println("=== Executing Workflow: " + label + " ===");
     Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>> resultKind =
         runnerMethod.apply(data);
     CompletableFuture<Either<DomainError, FinalResult>> future =
         CompletableFutureKindHelper.unwrap(resultKind);
 
     try {
+      // Block and wait for the future to complete
       Either<DomainError, FinalResult> resultEither = future.join();
+      // Print the final Either result (Left or Right)
       System.out.println("Final Result (" + label + "): " + resultEither);
     } catch (CompletionException e) {
+      // Handle exceptions thrown *during* the CompletableFuture execution
       Throwable cause = e.getCause();
-      // Default handling for unexpected execution errors
       System.err.println(
-          "Workflow execution failed unexpectedly for "
+          "ERROR ("
               + label
-              + ": "
+              + "): Workflow execution failed unexpectedly: "
               + (cause != null ? cause : e));
-      // Optionally, you could add specific checks for other RuntimeExceptions if needed
-      // e.g., if (cause instanceof SomeSpecificRuntimeException) { ... }
+      // Optionally log stack trace for debugging
+      // e.printStackTrace();
     } catch (Exception e) {
-      // Catch other potential exceptions during join/processing (like CancellationException if not
-      // caught above)
-      System.err.println("Unexpected error for " + label + ": " + e);
+      // Catch other potential exceptions (less likely with CompletableFuture.join)
+      System.err.println("ERROR (" + label + "): Unexpected error during result processing: " + e);
     }
-    System.out.println("----------------------------------------");
+    System.out.println("========================================");
   }
 }

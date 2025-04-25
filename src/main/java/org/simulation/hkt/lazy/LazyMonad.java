@@ -10,8 +10,8 @@ import org.simulation.hkt.Functor;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.Monad;
 
-
-public class LazyMonad implements Monad<LazyKind<?>>, Applicative<LazyKind<?>>, Functor<LazyKind<?>> {
+public class LazyMonad
+    implements Monad<LazyKind<?>>, Applicative<LazyKind<?>>, Functor<LazyKind<?>> {
 
   // Functor map
   @Override

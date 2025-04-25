@@ -1,14 +1,12 @@
 package org.simulation.hkt.io;
 
-import org.jspecify.annotations.NonNull;
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.Monad;
-
-import java.util.function.Function;
-
 import static org.simulation.hkt.io.IOKindHelper.unwrap;
 import static org.simulation.hkt.io.IOKindHelper.wrap;
 
+import java.util.function.Function;
+import org.jspecify.annotations.NonNull;
+import org.simulation.hkt.Kind;
+import org.simulation.hkt.Monad;
 
 public class IOMonad extends IOApplicative implements Monad<IOKind<?>> {
   @Override

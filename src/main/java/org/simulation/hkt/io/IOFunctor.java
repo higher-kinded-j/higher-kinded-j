@@ -1,10 +1,10 @@
 package org.simulation.hkt.io;
 
-import org.jspecify.annotations.NonNull;
-import org.simulation.hkt.*;
-import java.util.function.Function;
 import static org.simulation.hkt.io.IOKindHelper.*;
 
+import java.util.function.Function;
+import org.jspecify.annotations.NonNull;
+import org.simulation.hkt.*;
 
 public class IOFunctor implements Functor<IOKind<?>> {
   @Override
@@ -15,5 +15,3 @@ public class IOFunctor implements Functor<IOKind<?>> {
     return wrap(ioB);
   }
 }
-
-

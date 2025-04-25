@@ -1,6 +1,5 @@
 package org.simulation.hkt.io;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.simulation.hkt.io.IOKindHelper.*; // Import static helpers
@@ -416,4 +415,3 @@ class IOMonadTest {
     }
   }
 }
-
