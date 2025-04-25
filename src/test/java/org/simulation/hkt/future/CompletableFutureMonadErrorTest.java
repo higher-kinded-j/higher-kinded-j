@@ -692,6 +692,31 @@ class CompletableFutureMonadErrorTest {
                 .isSameAs(testError);
         }
 
+        @Test
+        @DisplayName("handleErrorWith should handle future that fails later")
+        void handleErrorWith_shouldHandleDelayedFailure() {
+            RuntimeException delayedException = new RuntimeException("DelayedFail");
+            // Create a future that is NOT done yet, but will fail after a delay
+            Kind<CompletableFutureKind<?>, Integer> delayedFailedKind = delayedFailure(delayedException, 50);
+
+            // Ensure the future isn't done when we call handleErrorWith
+            assertThat(unwrapFuture(delayedFailedKind).isDone()).isFalse();
+
+            AtomicBoolean handlerCalled = new AtomicBoolean(false);
+            Function<Throwable, Kind<CompletableFutureKind<?>, Integer>> handler =
+                err -> {
+                    handlerCalled.set(true);
+                    assertThat(err).isSameAs(delayedException);
+                    return futureMonad.of(99); // Recover
+                };
+
+            Kind<CompletableFutureKind<?>, Integer> result = futureMonad.handleErrorWith(delayedFailedKind, handler);
+
+            // Block until the result is available
+            assertThat(joinFuture(result)).isEqualTo(99);
+            // Verify the handler was actually called
+            assertThat(handlerCalled).isTrue();
+        }
 
 
     }
