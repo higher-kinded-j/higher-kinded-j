@@ -1,6 +1,6 @@
 # Welcome to the Java Higher-Kinded Type (HKT) Simulation!
 
-**(Simulation created for the blog post [Higher Kinded Types with Java and Scala](https://magnussmith.github.io/blog/2025/04/01/higher-kinded-types-with-java-and-scala.html))**
+**This simulation was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) but since then has grown into a bigger functional library**
 
 ## Introduction: Abstracting Over Computation in Java
 
