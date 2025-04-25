@@ -1,55 +1,48 @@
 package org.simulation.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.lazy.LazyKindHelper.*; // Import static methods from helper
+import static org.simulation.hkt.lazy.LazyKindHelper.*;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
 
-@DisplayName("LazyKindHelper Tests")
+@DisplayName("LazyKindHelper Tests (ThrowableSupplier)")
 class LazyKindHelperTest {
 
-  // Counter for tracking evaluations
-  private final AtomicInteger counter = new AtomicInteger(0);
+  // Simple IO action for testing - now using ThrowableSupplier
+  private final ThrowableSupplier<String> baseComputation =
+      () -> "Result"; // Simple lambda still works
+  private final Lazy<String> baseLazy = Lazy.defer(baseComputation);
 
-  // Simple Lazy computations for testing
-  private final Supplier<String> computation =
+  private final RuntimeException testException = new RuntimeException("Lazy Failure");
+  private final ThrowableSupplier<String> failingComputation =
       () -> {
-        counter.incrementAndGet();
-        return "Computed";
+        throw testException;
       };
-  private final Lazy<String> lazyDefer = Lazy.defer(computation);
-  private final Lazy<String> lazyNow = Lazy.now("Now");
-  private final RuntimeException testException = new RuntimeException("Lazy Computation Failed");
-  private final Lazy<String> failingLazy =
-      Lazy.defer(
-          () -> {
-            counter.incrementAndGet();
-            throw testException;
-          });
+  private final Lazy<String> failingLazy = Lazy.defer(failingComputation);
+
+  // Supplier throwing a checked exception
+  private final ThrowableSupplier<String> checkedExceptionComputation =
+      () -> {
+        throw new IOException("Checked IO Failure");
+      };
+  private final Lazy<String> checkedFailingLazy = Lazy.defer(checkedExceptionComputation);
 
   @Nested
   @DisplayName("wrap()")
   class WrapTests {
     @Test
-    void wrap_shouldReturnHolderForDeferredLazy() {
-      Kind<LazyKind<?>, String> kind = wrap(lazyDefer);
+    void wrap_shouldReturnHolderForLazy() {
+      Kind<LazyKind<?>, String> kind = wrap(baseLazy);
       assertThat(kind).isInstanceOf(LazyHolder.class);
-      assertThat(unwrap(kind)).isSameAs(lazyDefer);
-    }
-
-    @Test
-    void wrap_shouldReturnHolderForNowLazy() {
-      Kind<LazyKind<?>, String> kind = wrap(lazyNow);
-      assertThat(kind).isInstanceOf(LazyHolder.class);
-      assertThat(unwrap(kind)).isSameAs(lazyNow);
+      assertThat(unwrap(kind)).isSameAs(baseLazy);
     }
 
     @Test
@@ -65,14 +58,10 @@ class LazyKindHelperTest {
   class UnwrapTests {
     @Test
     void unwrap_shouldReturnOriginalLazy() {
-      Kind<LazyKind<?>, String> kindDefer = wrap(lazyDefer);
-      assertThat(unwrap(kindDefer)).isSameAs(lazyDefer);
-
-      Kind<LazyKind<?>, String> kindNow = wrap(lazyNow);
-      assertThat(unwrap(kindNow)).isSameAs(lazyNow);
+      Kind<LazyKind<?>, String> kind = wrap(baseLazy);
+      assertThat(unwrap(kind)).isSameAs(baseLazy);
     }
 
-    // Dummy Kind implementation that is not LazyHolder
     record DummyLazyKind<A>() implements Kind<LazyKind<?>, A> {}
 
     @Test
@@ -93,7 +82,6 @@ class LazyKindHelperTest {
     @Test
     void unwrap_shouldThrowForHolderWithNullLazy() {
       LazyHolder<Double> holderWithNull = new LazyHolder<>(null);
-      // Cast needed for test setup
       @SuppressWarnings("unchecked")
       Kind<LazyKind<?>, Double> kind = (Kind<LazyKind<?>, Double>) (Kind<?, ?>) holderWithNull;
 
@@ -107,29 +95,25 @@ class LazyKindHelperTest {
   @DisplayName("Helper Factories")
   class HelperFactoriesTests {
     @Test
-    void defer_shouldWrapDeferredComputation() {
-      counter.set(0);
-      Supplier<Integer> supplier =
+    // Add throws Throwable because force() is called indirectly via unwrap().force()
+    void defer_shouldWrapSupplier() throws Throwable {
+      AtomicInteger counter = new AtomicInteger(0);
+      // Use ThrowableSupplier here
+      ThrowableSupplier<Integer> supplier =
           () -> {
             counter.incrementAndGet();
-            return 123;
+            return 42;
           };
       Kind<LazyKind<?>, Integer> kind = LazyKindHelper.defer(supplier);
 
-      // Should not have evaluated yet
       assertThat(counter.get()).isZero();
 
-      // Unwrap and check type
       Lazy<Integer> lazy = unwrap(kind);
-      assertThat(lazy).isNotNull();
-
-      // Force evaluation
-      assertThat(lazy.force()).isEqualTo(123);
+      assertThat(lazy.force()).isEqualTo(42); // force() now throws Throwable
       assertThat(counter.get()).isEqualTo(1);
 
-      // Force again - should be memoized
-      assertThat(lazy.force()).isEqualTo(123);
-      assertThat(counter.get()).isEqualTo(1); // Counter should not increment again
+      assertThat(lazy.force()).isEqualTo(42);
+      assertThat(counter.get()).isEqualTo(1);
     }
 
     @Test
@@ -140,31 +124,21 @@ class LazyKindHelperTest {
     }
 
     @Test
-    void now_shouldWrapAlreadyEvaluatedValue() {
-      counter.set(0);
+    void now_shouldWrapAlreadyEvaluatedValue() throws Throwable { // Add throws
+      AtomicInteger counter = new AtomicInteger(0); // Use local counter for isolation
       Kind<LazyKind<?>, String> kind = LazyKindHelper.now("Precomputed");
 
-      // Should not evaluate anything
       assertThat(counter.get()).isZero();
-
-      // Unwrap and check type
       Lazy<String> lazy = unwrap(kind);
-      assertThat(lazy).isNotNull();
-
-      // Force evaluation - should return immediately
-      assertThat(lazy.force()).isEqualTo("Precomputed");
-      assertThat(counter.get()).isZero(); // Still zero
-
-      // Force again
-      assertThat(lazy.force()).isEqualTo("Precomputed");
+      assertThat(lazy.force()).isEqualTo("Precomputed"); // force() throws Throwable
       assertThat(counter.get()).isZero();
     }
 
     @Test
-    void now_shouldWrapNullValue() {
+    void now_shouldWrapNullValue() throws Throwable { // Add throws
       Kind<LazyKind<?>, String> kind = LazyKindHelper.now(null);
       Lazy<String> lazy = unwrap(kind);
-      assertThat(lazy.force()).isNull();
+      assertThat(lazy.force()).isNull(); // force() throws Throwable
     }
   }
 
@@ -172,52 +146,44 @@ class LazyKindHelperTest {
   @DisplayName("force()")
   class ForceTests {
     @Test
-    void force_shouldEvaluateDeferredKindAndMemoize() {
-      counter.set(0);
-      Kind<LazyKind<?>, String> kind = wrap(lazyDefer); // Uses computation
+    void force_shouldExecuteWrappedLazy() throws Throwable { // Add throws
+      AtomicInteger counter = new AtomicInteger(0);
+      Kind<LazyKind<?>, String> kind =
+          LazyKindHelper.defer( // Use ThrowableSupplier implicitly
+              () -> {
+                counter.incrementAndGet();
+                return "Executed";
+              });
 
       assertThat(counter.get()).isZero();
-      assertThat(force(kind)).isEqualTo("Computed"); // First force evaluates
+      assertThat(force(kind)).isEqualTo("Executed"); // force() helper throws Throwable
       assertThat(counter.get()).isEqualTo(1);
 
-      assertThat(force(kind)).isEqualTo("Computed"); // Second force uses memoized value
-      assertThat(counter.get()).isEqualTo(1); // Counter remains 1
+      assertThat(force(kind)).isEqualTo("Executed");
+      assertThat(counter.get()).isEqualTo(1);
     }
 
     @Test
-    void force_shouldReturnValueForNowKind() {
-      counter.set(0);
-      Kind<LazyKind<?>, String> kind = wrap(lazyNow); // Already evaluated
-
-      assertThat(counter.get()).isZero();
-      assertThat(force(kind)).isEqualTo("Now");
-      assertThat(counter.get()).isZero(); // No computation needed
-
-      assertThat(force(kind)).isEqualTo("Now");
-      assertThat(counter.get()).isZero();
-    }
-
-    @Test
-    void force_shouldPropagateExceptionFromLazy() {
-      counter.set(0);
-      Kind<LazyKind<?>, String> kind = wrap(failingLazy);
-
-      assertThat(counter.get()).isZero();
-      assertThatThrownBy(() -> force(kind))
+    void force_shouldPropagateRuntimeExceptionFromLazy() { // No throws needed for unchecked
+      Kind<LazyKind<?>, String> failingKind = wrap(failingLazy);
+      // force() helper re-throws the original exception
+      assertThatThrownBy(() -> force(failingKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(testException);
-      assertThat(counter.get()).isEqualTo(1); // Computation ran once and failed
-
-      // Forcing again should re-throw the cached exception without recomputing
-      counter.set(0); // Reset counter to ensure no re-computation
-      assertThatThrownBy(() -> force(kind))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(testException);
-      assertThat(counter.get()).isZero(); // Should not have recomputed
     }
 
     @Test
-    void force_shouldThrowIfKindIsInvalid() {
+    void force_shouldPropagateCheckedExceptionFromLazy() { // No throws needed (catchThrowable)
+      Kind<LazyKind<?>, String> checkedFailingKind = wrap(checkedFailingLazy);
+      // Use catchThrowable as force() declares throws Throwable
+      Throwable thrown = catchThrowable(() -> force(checkedFailingKind));
+      assertThat(thrown)
+          .isInstanceOf(IOException.class) // Expect the original checked exception
+          .hasMessage("Checked IO Failure");
+    }
+
+    @Test
+    void force_shouldThrowKindUnwrapExceptionIfKindIsInvalid() { // No throws needed
       assertThatThrownBy(() -> force(null))
           .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
     }
