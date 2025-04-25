@@ -85,8 +85,7 @@ public final class Lazy<A> {
       if (this.exception instanceof RuntimeException re) throw re;
       if (this.exception instanceof Error err) throw err;
       // Wrap checked exceptions
-      throw new RuntimeException(
-          "Lazy computation failed with checked exception", this.exception);
+      throw new RuntimeException("Lazy computation failed with checked exception", this.exception);
     }
     // If no exception was cached, return the value (which might be null)
     return this.value;
@@ -139,6 +138,4 @@ public final class Lazy<A> {
       return "Lazy[unevaluated...]";
     }
   }
-
-
 }

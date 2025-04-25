@@ -8,9 +8,9 @@ import org.jspecify.annotations.NonNull;
  * dependency injection, making the steps more testable and configurable.
  *
  * @param logger A Consumer function to handle log messages. In a real application, this could be a
- * structured logger instance (e.g., SLF4j Logger).
+ *     structured logger instance (e.g., SLF4j Logger).
  * @param config Optional configuration object (e.g., for feature flags, timeouts). Add fields as
- * needed.
+ *     needed.
  */
 public record Dependencies(@NonNull Consumer<String> logger /* , Add other dependencies here */) {
 

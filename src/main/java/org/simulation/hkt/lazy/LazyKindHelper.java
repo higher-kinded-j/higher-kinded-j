@@ -1,11 +1,11 @@
 package org.simulation.hkt.lazy;
+
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
 
 public final class LazyKindHelper {
 
@@ -38,7 +38,8 @@ public final class LazyKindHelper {
    * @return The underlying, non-null Lazy<A>. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
-  @SuppressWarnings("unchecked") // Cast inside switch is necessary due to pattern matching on LazyHolder<?>
+  @SuppressWarnings(
+      "unchecked") // Cast inside switch is necessary due to pattern matching on LazyHolder<?>
   public static <A> @NonNull Lazy<A> unwrap(@Nullable Kind<LazyKind<?>, A> kind) {
     // Use switch expression with pattern matching
     return switch (kind) {

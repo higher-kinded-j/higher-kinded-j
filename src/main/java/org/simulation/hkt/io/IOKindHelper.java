@@ -1,12 +1,11 @@
 package org.simulation.hkt.io;
 
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.Supplier;
-
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 public final class IOKindHelper {
 

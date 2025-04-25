@@ -3,11 +3,12 @@ package org.simulation.example.order.workflow;
 import static org.simulation.example.order.error.DomainError.*;
 import static org.simulation.example.order.model.WorkflowModels.*;
 
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import org.jspecify.annotations.NonNull; // Import NonNull
+import org.jspecify.annotations.NonNull;
 import org.simulation.example.order.error.DomainError;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.either.Either;
@@ -39,7 +40,8 @@ public class OrderWorkflowSteps {
    * @param dependencies The external dependencies needed by the steps. (NonNull)
    */
   public OrderWorkflowSteps(@NonNull Dependencies dependencies) {
-    this.dependencies = java.util.Objects.requireNonNull(dependencies, "Dependencies cannot be null");
+    this.dependencies =
+        Objects.requireNonNull(dependencies, "Dependencies cannot be null");
   }
 
   // --- Synchronous Step ---
@@ -51,7 +53,7 @@ public class OrderWorkflowSteps {
    *
    * @param data The initial {@link OrderData}.
    * @return A {@code Kind<EitherKind<DomainError, ?>, ValidatedOrder>} containing either a {@link
-   * ValidatedOrder} on success, or a {@link DomainError.ValidationError} on failure.
+   *     ValidatedOrder} on success, or a {@link DomainError.ValidationError} on failure.
    */
   public Kind<EitherKind<DomainError, ?>, ValidatedOrder> validateOrder(OrderData data) {
     dependencies.log("Step (sync - Either): Validating order " + data.orderId());
@@ -88,7 +90,7 @@ public class OrderWorkflowSteps {
    *
    * @param data The initial {@link OrderData}.
    * @return A {@code Kind<TryKind<?>, ValidatedOrder>} containing either a {@link
-   * Try.Success<ValidatedOrder>} or a {@link Try.Failure} wrapping the thrown exception.
+   *     Try.Success<ValidatedOrder>} or a {@link Try.Failure} wrapping the thrown exception.
    */
   public Kind<TryKind<?>, ValidatedOrder> validateOrderWithTry(OrderData data) {
     // Wrap potentially throwing logic using TryKindHelper.tryOf
@@ -138,7 +140,8 @@ public class OrderWorkflowSteps {
     return CompletableFuture.supplyAsync(
         () -> {
           try {
-            dependencies.log(String.format("... %s: simulating %dms delay ...", stepName, delayMillis));
+            dependencies.log(
+                String.format("... %s: simulating %dms delay ...", stepName, delayMillis));
             TimeUnit.MILLISECONDS.sleep(delayMillis);
             T result = action.get(); // Execute the core logic
             dependencies.log(String.format("... %s: delay complete.", stepName));
@@ -149,7 +152,9 @@ public class OrderWorkflowSteps {
             throw new CompletionException(e); // Wrap interruption
           } catch (Exception e) {
             // Log the exception from the action itself
-            dependencies.log(String.format("... %s: action failed with %s.", stepName, e.getClass().getSimpleName()));
+            dependencies.log(
+                String.format(
+                    "... %s: action failed with %s.", stepName, e.getClass().getSimpleName()));
             // Wrap other exceptions thrown by the action
             throw new CompletionException(e);
           }
@@ -163,12 +168,14 @@ public class OrderWorkflowSteps {
   public Kind<CompletableFutureKind<?>, Either<DomainError, Void>> checkInventoryAsync(
       String productId, int quantity) {
     String step = "Check Inventory";
-    dependencies.log(String.format("Step (async - %s): Checking %d of %s", step, quantity, productId));
+    dependencies.log(
+        String.format("Step (async - %s): Checking %d of %s", step, quantity, productId));
     CompletableFuture<Either<DomainError, Void>> future =
         simulateAsync(
             () -> {
               if ("OUT_OF_STOCK".equalsIgnoreCase(productId) && quantity > 0) {
-                dependencies.log(String.format("%s: Failed - Out of stock for %s", step, productId));
+                dependencies.log(
+                    String.format("%s: Failed - Out of stock for %s", step, productId));
                 return Either.left(new StockError(productId));
               }
               dependencies.log(String.format("%s: Succeeded for %s", step, productId));
@@ -184,9 +191,10 @@ public class OrderWorkflowSteps {
    * PaymentConfirmation>>
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>>
-  processPaymentAsync(String paymentDetails, double amount) {
+      processPaymentAsync(String paymentDetails, double amount) {
     String step = "Process Payment";
-    dependencies.log(String.format("Step (async - %s): Processing %.2f using %s", step, amount, paymentDetails));
+    dependencies.log(
+        String.format("Step (async - %s): Processing %.2f using %s", step, amount, paymentDetails));
     CompletableFuture<Either<DomainError, PaymentConfirmation>> future =
         simulateAsync(
             () -> {
@@ -210,7 +218,8 @@ public class OrderWorkflowSteps {
   public Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>> createShipmentAsync(
       String orderId, String shippingAddress) {
     String step = "Create Shipment";
-    dependencies.log(String.format("Step (async - %s): Order %s to %s", step, orderId, shippingAddress));
+    dependencies.log(
+        String.format("Step (async - %s): Order %s to %s", step, orderId, shippingAddress));
     CompletableFuture<Either<DomainError, ShipmentInfo>> future =
         simulateAsync(
             () -> {
@@ -224,7 +233,8 @@ public class OrderWorkflowSteps {
                 String reason =
                     "FAIL_SHIPMENT".equalsIgnoreCase(orderId)
                         ? "Temporary Glitch" // Recoverable reason
-                        : "Simulated random shipment service failure for " + orderId; // Non-recoverable
+                        : "Simulated random shipment service failure for "
+                            + orderId; // Non-recoverable
                 dependencies.log(String.format("%s: Failed - %s", step, reason));
                 return Either.left(new ShippingError(reason));
               }
@@ -244,14 +254,16 @@ public class OrderWorkflowSteps {
   public Kind<CompletableFutureKind<?>, Either<DomainError, Void>> notifyCustomerAsync(
       String customerId, String message) {
     String step = "Notify Customer";
-    dependencies.log(String.format("Step (async - %s): Customer %s: %s", step, customerId, message));
+    dependencies.log(
+        String.format("Step (async - %s): Customer %s: %s", step, customerId, message));
     CompletableFuture<Either<DomainError, Void>> future =
         simulateAsync(
             () -> {
               if ("UNREACHABLE".equalsIgnoreCase(customerId)) {
                 // Simulate a non-critical failure (e.g., email bounce)
                 // We log it but still return success (Right) because the main order succeeded.
-                dependencies.log(String.format("WARN (%s): Failed - Unreachable customer %s", step, customerId));
+                dependencies.log(
+                    String.format("WARN (%s): Failed - Unreachable customer %s", step, customerId));
               } else {
                 dependencies.log(String.format("%s: Succeeded for customer %s", step, customerId));
               }

@@ -1,14 +1,12 @@
 package org.simulation.hkt.io;
 
+import static org.simulation.hkt.io.IOKindHelper.unwrap;
+import static org.simulation.hkt.io.IOKindHelper.wrap;
 
+import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.simulation.hkt.Applicative;
 import org.simulation.hkt.Kind;
-
-import java.util.function.Function;
-
-import static org.simulation.hkt.io.IOKindHelper.unwrap;
-import static org.simulation.hkt.io.IOKindHelper.wrap;
 
 public class IOApplicative extends IOFunctor implements Applicative<IOKind<?>> {
   @Override

@@ -121,7 +121,9 @@ class LazyTest {
 
   // --- Test Classes ---
 
-  /** Tests for the static factory methods {@link Lazy#defer(Supplier)} and {@link Lazy#now(Object)}. */
+  /**
+   * Tests for the static factory methods {@link Lazy#defer(Supplier)} and {@link Lazy#now(Object)}.
+   */
   @Nested
   @DisplayName("Factory Methods (defer, now)")
   class FactoryTests {
@@ -167,11 +169,16 @@ class LazyTest {
     }
   }
 
-  /** Tests for the {@link Lazy#force()} method, covering evaluation, memoization, and exception handling. */
+  /**
+   * Tests for the {@link Lazy#force()} method, covering evaluation, memoization, and exception
+   * handling.
+   */
   @Nested
   @DisplayName("force() Method")
   class ForceTests {
-    /** Verifies that force() evaluates the supplier only on the first call and caches the result. */
+    /**
+     * Verifies that force() evaluates the supplier only on the first call and caches the result.
+     */
     @Test
     void force_shouldEvaluateDeferredSupplierOnlyOnce() {
       Lazy<String> lazy = Lazy.defer(successSupplier());
@@ -226,7 +233,8 @@ class LazyTest {
       assertThat(thrown2).isInstanceOf(IllegalStateException.class).hasMessage("Runtime Failure");
       assertThat(counter.get()).isEqualTo(1); // Not evaluated again
 
-      // Verify the specific re-throwing branch (line 84) was likely hit by checking instance equality
+      // Verify the specific re-throwing branch (line 84) was likely hit by checking instance
+      // equality
       assertThat(thrown2).isSameAs(thrown1);
     }
 
@@ -251,8 +259,8 @@ class LazyTest {
     }
 
     /**
-     * Verifies that force() caches and re-throws wrapped checked exceptions. Note: The supplier wraps
-     * the checked exception in a RuntimeException. force() catches this wrapper.
+     * Verifies that force() caches and re-throws wrapped checked exceptions. Note: The supplier
+     * wraps the checked exception in a RuntimeException. force() catches this wrapper.
      */
     @Test
     void force_shouldCacheAndRethrowWrappedCheckedException() {
@@ -386,7 +394,12 @@ class LazyTest {
     void map_shouldPropagateFailure() {
       Lazy<String> lazy = Lazy.defer(runtimeFailSupplier()); // This Lazy will fail
       AtomicInteger mapCounter = new AtomicInteger(0);
-      Lazy<Integer> mappedLazy = lazy.map(s -> { mapCounter.incrementAndGet(); return s.length(); });
+      Lazy<Integer> mappedLazy =
+          lazy.map(
+              s -> {
+                mapCounter.incrementAndGet();
+                return s.length();
+              });
 
       assertThat(counter.get()).isZero();
       assertThat(mapCounter.get()).isZero();
@@ -437,7 +450,9 @@ class LazyTest {
   @Nested
   @DisplayName("flatMap() Method")
   class FlatMapTests {
-    /** Verifies that flatMap sequences lazy computations correctly and memoizes the final result. */
+    /**
+     * Verifies that flatMap sequences lazy computations correctly and memoizes the final result.
+     */
     @Test
     void flatMap_shouldSequenceLazily() {
       AtomicInteger innerCounter = new AtomicInteger(0);

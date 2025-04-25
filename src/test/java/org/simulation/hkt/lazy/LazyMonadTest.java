@@ -112,19 +112,20 @@ class LazyMonadTest {
     @Test
     void map_shouldPropagateExceptionFromOriginalLazy() {
       RuntimeException ex = new RuntimeException("OriginalFail");
-      Kind<LazyKind<?>, Integer> initialKind = countingDefer("A", () -> { throw ex; });
+      Kind<LazyKind<?>, Integer> initialKind =
+          countingDefer(
+              "A",
+              () -> {
+                throw ex;
+              });
       Kind<LazyKind<?>, String> mappedKind = lazyMonad.map(i -> "Val:" + i, initialKind);
 
       assertThat(counterA.get()).isZero();
-      assertThatThrownBy(() -> force(mappedKind))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(ex);
+      assertThatThrownBy(() -> force(mappedKind)).isInstanceOf(RuntimeException.class).isSameAs(ex);
       assertThat(counterA.get()).isEqualTo(1); // Original evaluated once (and failed)
 
       // Force again - should throw memoized exception
-      assertThatThrownBy(() -> force(mappedKind))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(ex);
+      assertThatThrownBy(() -> force(mappedKind)).isInstanceOf(RuntimeException.class).isSameAs(ex);
       assertThat(counterA.get()).isEqualTo(1); // Still 1
     }
 
@@ -184,7 +185,12 @@ class LazyMonadTest {
     @Test
     void ap_shouldPropagateExceptionFromFunctionLazy() {
       RuntimeException funcEx = new RuntimeException("FuncFail");
-      Kind<LazyKind<?>, Function<Integer, String>> funcKind = countingDefer("A", () -> { throw funcEx; });
+      Kind<LazyKind<?>, Function<Integer, String>> funcKind =
+          countingDefer(
+              "A",
+              () -> {
+                throw funcEx;
+              });
       Kind<LazyKind<?>, Integer> valKind = countingDefer("B", () -> 20);
 
       Kind<LazyKind<?>, String> resultKind = lazyMonad.ap(funcKind, valKind);
@@ -200,7 +206,12 @@ class LazyMonadTest {
       RuntimeException valEx = new RuntimeException("ValFail");
       Kind<LazyKind<?>, Function<Integer, String>> funcKind =
           countingDefer("A", () -> i -> "F" + i);
-      Kind<LazyKind<?>, Integer> valKind = countingDefer("B", () -> { throw valEx; });
+      Kind<LazyKind<?>, Integer> valKind =
+          countingDefer(
+              "B",
+              () -> {
+                throw valEx;
+              });
 
       Kind<LazyKind<?>, String> resultKind = lazyMonad.ap(funcKind, valKind);
       assertThatThrownBy(() -> force(resultKind))
@@ -266,7 +277,12 @@ class LazyMonadTest {
     @Test
     void flatMap_shouldPropagateExceptionFromInitialLazy() {
       RuntimeException exA = new RuntimeException("FailA");
-      Kind<LazyKind<?>, Integer> initialKind = countingDefer("A", () -> { throw exA; });
+      Kind<LazyKind<?>, Integer> initialKind =
+          countingDefer(
+              "A",
+              () -> {
+                throw exA;
+              });
       Function<Integer, Kind<LazyKind<?>, String>> f =
           i -> {
             counterF.incrementAndGet();
@@ -308,7 +324,11 @@ class LazyMonadTest {
       Function<Integer, Kind<LazyKind<?>, String>> f =
           i -> {
             counterF.incrementAndGet();
-            return countingDefer("B", () -> { throw exB; }); // Resulting Lazy fails
+            return countingDefer(
+                "B",
+                () -> {
+                  throw exB;
+                }); // Resulting Lazy fails
           };
 
       Kind<LazyKind<?>, String> resultKind = lazyMonad.flatMap(f, initialKind);
@@ -352,33 +372,50 @@ class LazyMonadTest {
       Kind<LazyKind<?>, Integer> ofValue = lazyMonad.of(value); // Already evaluated
 
       // Run left side: flatMap(fLaw, ofValue)
-      counterA.set(0); counterB.set(0); counterC.set(0); counterF.set(0); // Reset counters
+      counterA.set(0);
+      counterB.set(0);
+      counterC.set(0);
+      counterF.set(0); // Reset counters
       Kind<LazyKind<?>, String> leftSide = lazyMonad.flatMap(fLaw, ofValue);
       String leftResult = force(leftSide);
-      int leftEvalA = counterA.get(); int leftEvalB = counterB.get(); int leftEvalC = counterC.get(); int leftEvalF = counterF.get();
+      int leftEvalA = counterA.get();
+      int leftEvalB = counterB.get();
+      int leftEvalC = counterC.get();
+      int leftEvalF = counterF.get();
 
       // Run right side: fLaw.apply(value)
-      counterA.set(0); counterB.set(0); counterC.set(0); counterF.set(0); // Reset counters
+      counterA.set(0);
+      counterB.set(0);
+      counterC.set(0);
+      counterF.set(0); // Reset counters
       Kind<LazyKind<?>, String> rightSide = fLaw.apply(value);
       String rightResult = force(rightSide);
-      int rightEvalA = counterA.get(); int rightEvalB = counterB.get(); int rightEvalC = counterC.get(); int rightEvalF = counterF.get();
+      int rightEvalA = counterA.get();
+      int rightEvalB = counterB.get();
+      int rightEvalC = counterC.get();
+      int rightEvalF = counterF.get();
 
       assertThat(leftResult).isEqualTo(rightResult);
       // Check counts: f applied once, B evaluated once
-      assertThat(leftEvalF).isEqualTo(1); assertThat(leftEvalB).isEqualTo(1);
-      assertThat(rightEvalF).isEqualTo(1); assertThat(rightEvalB).isEqualTo(1);
+      assertThat(leftEvalF).isEqualTo(1);
+      assertThat(leftEvalB).isEqualTo(1);
+      assertThat(rightEvalF).isEqualTo(1);
+      assertThat(rightEvalB).isEqualTo(1);
       // A and C should not be evaluated
-      assertThat(leftEvalA).isZero(); assertThat(leftEvalC).isZero();
-      assertThat(rightEvalA).isZero(); assertThat(rightEvalC).isZero();
-
+      assertThat(leftEvalA).isZero();
+      assertThat(leftEvalC).isZero();
+      assertThat(rightEvalA).isZero();
+      assertThat(rightEvalC).isZero();
     }
 
     @Test
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
       // --- Left Side Evaluation ---
-      counterA.set(0); counterF.set(0); // Reset relevant counters
-      Kind<LazyKind<?>, Integer> mValueLeft = countingDefer("A", () -> 10); // Instance for left side
+      counterA.set(0);
+      counterF.set(0); // Reset relevant counters
+      Kind<LazyKind<?>, Integer> mValueLeft =
+          countingDefer("A", () -> 10); // Instance for left side
       Function<Integer, Kind<LazyKind<?>, Integer>> ofFunc = i -> lazyMonad.of(i); // Uses Lazy.now
       Kind<LazyKind<?>, Integer> leftSide = lazyMonad.flatMap(ofFunc, mValueLeft);
       Integer leftResult = force(leftSide);
@@ -386,8 +423,10 @@ class LazyMonadTest {
       int leftEvalF = counterF.get(); // Track function application count
 
       // --- Right Side Evaluation ---
-      counterA.set(0); counterF.set(0); // Reset relevant counters
-      Kind<LazyKind<?>, Integer> mValueRight = countingDefer("A", () -> 10); // *** Create NEW instance ***
+      counterA.set(0);
+      counterF.set(0); // Reset relevant counters
+      Kind<LazyKind<?>, Integer> mValueRight =
+          countingDefer("A", () -> 10); // *** Create NEW instance ***
       Integer rightResult = force(mValueRight); // Force the new instance
       int rightEvalA = counterA.get();
       int rightEvalF = counterF.get(); // Track function application count
@@ -405,26 +444,44 @@ class LazyMonadTest {
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
       // --- Left Side Evaluation ---
-      counterA.set(0); counterB.set(0); counterC.set(0); counterF.set(0);
-      Kind<LazyKind<?>, Integer> mValueLeft = countingDefer("A", () -> 10); // Instance for left side
+      counterA.set(0);
+      counterB.set(0);
+      counterC.set(0);
+      counterF.set(0);
+      Kind<LazyKind<?>, Integer> mValueLeft =
+          countingDefer("A", () -> 10); // Instance for left side
       Kind<LazyKind<?>, String> innerLeft = lazyMonad.flatMap(fLaw, mValueLeft);
       Kind<LazyKind<?>, String> leftSide = lazyMonad.flatMap(gLaw, innerLeft);
       String leftResult = force(leftSide);
-      int leftEvalA = counterA.get(); int leftEvalB = counterB.get(); int leftEvalC = counterC.get(); int leftEvalF = counterF.get();
+      int leftEvalA = counterA.get();
+      int leftEvalB = counterB.get();
+      int leftEvalC = counterC.get();
+      int leftEvalF = counterF.get();
 
       // --- Right Side Evaluation ---
-      counterA.set(0); counterB.set(0); counterC.set(0); counterF.set(0); // Reset counters
-      Kind<LazyKind<?>, Integer> mValueRight = countingDefer("A", () -> 10); // *** Create NEW instance ***
+      counterA.set(0);
+      counterB.set(0);
+      counterC.set(0);
+      counterF.set(0); // Reset counters
+      Kind<LazyKind<?>, Integer> mValueRight =
+          countingDefer("A", () -> 10); // *** Create NEW instance ***
       Function<Integer, Kind<LazyKind<?>, String>> rightSideFunc =
           a -> lazyMonad.flatMap(gLaw, fLaw.apply(a));
       Kind<LazyKind<?>, String> rightSide = lazyMonad.flatMap(rightSideFunc, mValueRight);
       String rightResult = force(rightSide);
-      int rightEvalA = counterA.get(); int rightEvalB = counterB.get(); int rightEvalC = counterC.get(); int rightEvalF = counterF.get();
+      int rightEvalA = counterA.get();
+      int rightEvalB = counterB.get();
+      int rightEvalC = counterC.get();
+      int rightEvalF = counterF.get();
 
       assertThat(leftResult).isEqualTo(rightResult);
       // Check counts: A, B, C evaluated once each.
-      assertThat(leftEvalA).isEqualTo(1); assertThat(leftEvalB).isEqualTo(1); assertThat(leftEvalC).isEqualTo(1);
-      assertThat(rightEvalA).isEqualTo(1); assertThat(rightEvalB).isEqualTo(1); assertThat(rightEvalC).isEqualTo(1);
+      assertThat(leftEvalA).isEqualTo(1);
+      assertThat(leftEvalB).isEqualTo(1);
+      assertThat(leftEvalC).isEqualTo(1);
+      assertThat(rightEvalA).isEqualTo(1);
+      assertThat(rightEvalB).isEqualTo(1);
+      assertThat(rightEvalC).isEqualTo(1);
       // Function application count should be 2 (once for f, once for g) on both sides
       assertThat(leftEvalF).isEqualTo(2);
       assertThat(rightEvalF).isEqualTo(2);
@@ -442,16 +499,18 @@ class LazyMonadTest {
     Kind<LazyKind<?>, Boolean> lz4;
 
     @BeforeEach
-      // Reset counters and initialize lazy kinds before each mapN test
+    // Reset counters and initialize lazy kinds before each mapN test
     void setUpMapN() {
-      counterA.set(0); counterB.set(0); counterC.set(0); counterD.set(0);
+      counterA.set(0);
+      counterB.set(0);
+      counterC.set(0);
+      counterD.set(0);
       // Initialize lazy kinds here, AFTER counters are initialized
       lz1 = countingDefer("A", () -> 1);
       lz2 = countingDefer("B", () -> "X");
       lz3 = countingDefer("C", () -> 2.5);
       lz4 = countingDefer("D", () -> true);
     }
-
 
     @Test
     void map2_combinesLazily() {
@@ -518,7 +577,12 @@ class LazyMonadTest {
     @Test
     void mapN_propagatesFailure() {
       RuntimeException ex = new RuntimeException("FailMapN");
-      Kind<LazyKind<?>, String> lzFail = countingDefer("B", () -> { throw ex; });
+      Kind<LazyKind<?>, String> lzFail =
+          countingDefer(
+              "B",
+              () -> {
+                throw ex;
+              });
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Won't run";
 
       Kind<LazyKind<?>, String> result = lazyMonad.map3(lz1, lzFail, lz3, f3);
@@ -526,13 +590,11 @@ class LazyMonadTest {
       assertThat(counterB.get()).isZero();
       assertThat(counterC.get()).isZero();
 
-      assertThatThrownBy(() -> force(result))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(ex);
+      assertThatThrownBy(() -> force(result)).isInstanceOf(RuntimeException.class).isSameAs(ex);
       // Check which computations ran
       assertThat(counterA.get()).isEqualTo(1); // lz1 ran
       assertThat(counterB.get()).isEqualTo(1); // lzFail ran (and failed)
-      assertThat(counterC.get()).isZero();    // lz3 did not run
+      assertThat(counterC.get()).isZero(); // lz3 did not run
     }
   }
 }
