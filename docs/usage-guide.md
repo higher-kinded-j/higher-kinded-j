@@ -1,115 +1,182 @@
 # Usage Guide: Working with the HKT Simulation
 
-This guide explains how to use the simulated Higher-Kinded Types and associated type classes (`Functor`, `Monad`, etc.) provided by this library.
+This guide explains the step-by-step process of using the simulated Higher-Kinded Types (HKTs) and associated type classes (`Functor`, `Monad`, `MonadError`, etc.) provided by this library.
 
-## Steps for Usage
+## Core Workflow
 
-1. **Identify the Context (`F`):** Determine which type constructor (computational context) you want to work with abstractly. Examples: `List`, `Optional`, `Maybe`, `Either<L, ?>`, `Try`, `CompletableFuture`.
-2. **Find the Type Class Instance:** Obtain an instance of the required type class (`Functor`, `Applicative`, `Monad`, `MonadError`) for your chosen context `F`. These are typically concrete classes provided in the corresponding package.
+The general process involves these steps:
 
-   * Example: For `Optional`, you'd use an instance of `OptionalMonad`. For `List`, use `ListMonad`. For `CompletableFuture`, use `CompletableFutureMonadError`. For `Either<String, ?>`, use `new EitherMonad<String>()`.
-3. **Wrap Your Value (`JavaType<A>` -> `Kind<F, A>`):** Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`) into the simulation's `Kind` representation using the static `wrap` method from the corresponding `*KindHelper` class.
+1. **Identify the Context (`F`):** Determine which type constructor (computational context) you want to work with abstractly. Examples: `List`, `Optional`, `Maybe`, `Either<L, ?>`, `Try`, `CompletableFuture`, `IO`, `Lazy`, `Reader<R, ?>`, `State<S, ?>`, `Writer<W, ?>`.
+2. **Find the Type Class Instance:** Obtain an instance of the required type class (`Functor`, `Applicative`, `Monad`, `MonadError`) for your chosen context `F`. These are concrete classes provided in the corresponding package, often requiring necessary context like a `Monoid` for `Writer` or the fixed `Left` type `L` for `Either`.
 
-   ```java
+   * Example (`Optional`): `OptionalMonad optionalMonad = new OptionalMonad();`
+   * Example (`List`): `ListMonad listMonad = new ListMonad();`
+   * Example (`CompletableFuture`): `CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();`
+   * Example (`Either<String, ?>`): `EitherMonad<String> eitherMonad = new EitherMonad<>();`
+   * Example (`IO`): `IOMonad ioMonad = new IOMonad();`
+   * Example (`Writer<String, ?>`): `WriterMonad<String> writerMonad = new WriterMonad<>(new StringMonoid());`
+3. **Wrap Your Value (`JavaType<A>` -> `Kind<F, A>`):** Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into the simulation's `Kind` representation using the static `wrap` method from the corresponding `*KindHelper` class. **Java**
+
+   ```
    import java.util.Optional;
    import org.simulation.hkt.optional.OptionalKind;
    import org.simulation.hkt.optional.OptionalKindHelper;
    import org.simulation.hkt.Kind;
 
+   // Your standard Java value
    Optional<String> myOptional = Optional.of("test");
-   // Wrap the Optional into Kind<OptionalKind<?>, String>
+
+   // Wrap it into the HKT simulation type
    Kind<OptionalKind<?>, String> optionalKind = OptionalKindHelper.wrap(myOptional);
    ```
 
-   * Some helpers provide convenience factories like `MaybeKindHelper.just("value")` or `TryKindHelper.failure(ex)`.
-4. **Apply Type Class Methods:** Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the *type class instance* obtained in Step 2, passing your `Kind` value(s) as arguments.
+   * Some helpers provide convenience factories like `MaybeKindHelper.just("value")`, `TryKindHelper.failure(ex)`, `IOKindHelper.delay(() -> ...)`, `LazyKindHelper.defer(() -> ...)`. Use these when appropriate.
+4. **Apply Type Class Methods:** Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the ***type class instance*** obtained in Step 2, passing your `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object.****Java**
 
-   ```java
+   ```
    import org.simulation.hkt.optional.OptionalMonad;
+   import org.simulation.hkt.optional.OptionalKindHelper;
+   import org.simulation.hkt.Kind;
+   import org.simulation.hkt.optional.OptionalKind; // Import the specific Kind
    import java.util.function.Function;
+   import java.util.Optional;
 
-   OptionalMonad optMonad = new OptionalMonad(); // Get the instance
+   // Assume optionalMonad and optionalKind from previous steps
 
-   // Example: Using map
+   // --- Using map ---
    Function<String, Integer> lengthFunc = String::length;
-   Kind<OptionalKind<?>, Integer> lengthKind = optMonad.map(lengthFunc, optionalKind);
+   // Apply map using the monad instance
+   Kind<OptionalKind<?>, Integer> lengthKind = optionalMonad.map(lengthFunc, optionalKind);
+   // lengthKind now represents Kind<OptionalKind<?>, Integer> containing Optional.of(5)
 
-   // Example: Using flatMap
+   // --- Using flatMap ---
+   // Function A -> Kind<F, B>
    Function<Integer, Kind<OptionalKind<?>, String>> checkLength =
        len -> OptionalKindHelper.wrap(len > 3 ? Optional.of("Long enough") : Optional.empty());
-   Kind<OptionalKind<?>, String> checkedKind = optMonad.flatMap(checkLength, lengthKind);
+   // Apply flatMap using the monad instance
+   Kind<OptionalKind<?>, String> checkedKind = optionalMonad.flatMap(checkLength, lengthKind);
+   // checkedKind now represents Kind<OptionalKind<?>, String> containing Optional.of("Long enough")
 
-   // Example: Using MonadError
-   Kind<OptionalKind<?>, String> errorKind = optMonad.raiseError(null); // Represents Optional.empty
-   Kind<OptionalKind<?>, String> handledKind = optMonad.handleError(errorKind, ignoredError -> "Default Value");
+   // --- Using MonadError (for Optional, error type is Void) ---
+   Kind<OptionalKind<?>, String> emptyKind = optionalMonad.raiseError(null); // Represents Optional.empty()
+   // Handle the empty case (error state) using handleError
+   Kind<OptionalKind<?>, String> handledKind = optionalMonad.handleError(
+       emptyKind,
+       ignoredError -> "Default Value" // Provide a default value
+   );
+   // handledKind now represents Kind<OptionalKind<?>, String> containing Optional.of("Default Value")
    ```
-5. **Unwrap the Result (`Kind<F, A>` -> `JavaType<A>`):** When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects), use the static `unwrap` method from the corresponding `*KindHelper` class.
+5. **Unwrap the Result (`Kind<F, A>` -> `JavaType<A>`):** When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running IO), use the static `unwrap` method from the corresponding `*KindHelper` class. **Java**
 
-   ```java
+   ```
+   // Continuing the Optional example:
    Optional<String> finalOptional = OptionalKindHelper.unwrap(checkedKind);
    System.out.println("Final Optional: " + finalOptional); // Output: Optional[Long enough]
 
    Optional<String> handledOptional = OptionalKindHelper.unwrap(handledKind);
    System.out.println("Handled Optional: " + handledOptional); // Output: Optional[Default Value]
+
+   // Example for IO:
+   // Kind<IOKind<?>, String> ioKind = IOKindHelper.delay(() -> "Hello from IO!");
+   // String ioResult = IOKindHelper.unsafeRunSync(ioKind); // Use specific run method if available
+   // System.out.println(ioResult);
    ```
 
 ## Handling `KindUnwrapException`
 
-The `unwrap` methods in all `*KindHelper` classes are designed to be robust against invalid inputs *within the HKT simulation layer*. If you pass `null`, a `Kind` object of the wrong type (e.g., passing a `ListKind` to `OptionalKindHelper.unwrap`), or a `*Holder` record that internally contains `null` (which shouldn't happen if constructed via `wrap`), `unwrap` will throw an unchecked `KindUnwrapException`.
+The `unwrap` methods in all `*KindHelper` classes are designed to be robust against *structural* errors within the HKT simulation layer.
 
-```java
+* **When it's thrown:** If you pass `null` to `unwrap`, or pass a `Kind` object of the wrong type (e.g., passing a `ListKind` to `OptionalKindHelper.unwrap`), or (if it were possible through incorrect usage) pass a `Holder` record that internally contains `null` where the helper expects a non-null underlying object, `unwrap` will throw an unchecked `KindUnwrapException`.
+* **What it means:** This exception signals a problem with how you are using the HKT simulation itself – usually a programming error in creating or passing `Kind` objects.
+* **How to handle:** You generally **should not** need to catch `KindUnwrapException` in typical application logic. Its occurrence points to a bug that needs fixing in the code using the simulation.
+
+**Java**
+
+```
 import org.simulation.hkt.exception.KindUnwrapException;
 import org.simulation.hkt.list.ListKindHelper;
-import java.util.List; // Import List
+import org.simulation.hkt.optional.OptionalKindHelper; // Use Optional helper
+import org.simulation.hkt.optional.OptionalKind; // Use Optional kind
+import org.simulation.hkt.Kind;
+import java.util.Optional;
+
+// ...
+
+Kind<OptionalKind<?>, String> validOptionalKind = OptionalKindHelper.wrap(Optional.of("abc"));
 
 try {
-    // Example: Attempting to unwrap null
-    List<String> result = ListKindHelper.unwrap(null);
+    // ERROR: Attempting to unwrap an OptionalKind using ListKindHelper
+    java.util.List<String> result = ListKindHelper.unwrap(validOptionalKind);
 } catch (KindUnwrapException e) {
-    System.err.println("HKT Simulation Error: " + e.getMessage());
-    // Handle the infrastructure error appropriately
+    // This indicates incorrect usage of the helpers
+    System.err.println("HKT Simulation Usage Error: " + e.getMessage());
+    // In real code, fix the call to use OptionalKindHelper.unwrap instead of catching.
 }
-Important Distinction:KindUnwrapException: Signals a problem with the HKT simulation structure itself (invalid Kind object). This usually indicates a programming error in how Kind objects are being created or passed around.Domain Errors/Absence: Represented within a valid Kind structure (e.g., Optional.empty wrapped in OptionalKind, Either.Left wrapped in EitherKind, Try.Failure wrapped in TryKind). These should be handled using the monad's specific methods (orElse, fold, handleErrorWith, etc.) after successfully unwrapping the Kind.Example: Generic Function (Illustrative)Imagine wanting a function that doubles the number inside any Functor context F:import org.simulation.hkt.Functor;
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.list.*;
-import org.simulation.hkt.optional.*;
+
+try {
+    // ERROR: Attempting to unwrap null
+    Optional<String> result = OptionalKindHelper.unwrap(null);
+} catch (KindUnwrapException e) {
+    System.err.println("HKT Simulation Usage Error: " + e.getMessage());
+    // Fix: Ensure the Kind being unwrapped is not null.
+}
+```
+
+**Important Distinction:**
+
+* **`KindUnwrapException`:** Signals a problem with the HKT simulation structure itself (invalid `Kind` object passed to `unwrap`). Fix the code using the simulation.
+* **Domain Errors / Absence:** Represented *within* a valid `Kind` structure (e.g., `Optional.empty` wrapped in `OptionalKind`, `Either.Left` wrapped in `EitherKind`, `Try.Failure` wrapped in `TryKind`). These should be handled using the monad's specific methods (`orElse`, `fold`, `handleErrorWith`, etc.) *after* successfully unwrapping the `Kind` or by using the `MonadError` methods *before* unwrapping.
+
+## Example: Generic Function
+
+This simulation allows writing functions generic over the simulated type constructor `F`.
+
+**Java**
+
+```
+import org.simulation.hkt.*; // Import core interfaces
+import org.simulation.hkt.list.*; // Import List specific components
+import org.simulation.hkt.optional.*; // Import Optional specific components
 import java.util.List;
 import java.util.Optional;
 
 public class GenericExample {
 
-    // Generic function requiring a Functor instance for F
+    // Generic function: Doubles the number inside any Functor context F.
+    // Requires the specific Functor<F> instance to be passed in.
     public static <F> Kind<F, Integer> doubleInContext(
-        Functor<F> functor, // Pass the type class instance
-        Kind<F, Integer> numberKind)
-    {
-        return functor.map(x -> x * 2, numberKind);
+        Functor<F> functorInstance, // Pass the type class instance for F
+        Kind<F, Integer> numberKind // The value wrapped in the Kind<F, A> simulation
+    ) {
+        // Use the map method from the provided Functor instance
+        return functorInstance.map(x -> x * 2, numberKind);
     }
 
     public static void main(String[] args) {
-        // Instances for List and Optional
+        // Get instances of the type classes for the specific types (F) we want to use
         ListMonad listMonad = new ListMonad(); // Implements Functor<ListKind<?>>
         OptionalMonad optionalMonad = new OptionalMonad(); // Implements Functor<OptionalKind<?>>
 
         // --- Use with List ---
         List<Integer> nums = List.of(1, 2, 3);
-        Kind<ListKind<?>, Integer> listKind = ListKindHelper.wrap(nums);
+        Kind<ListKind<?>, Integer> listKind = ListKindHelper.wrap(nums); // Wrap the List
+        // Call the generic function, passing the ListMonad instance and the wrapped List
         Kind<ListKind<?>, Integer> doubledListKind = doubleInContext(listMonad, listKind);
-        System.out.println("Doubled List: " + ListKindHelper.unwrap(doubledListKind)); // [2, 4, 6]
+        System.out.println("Doubled List: " + ListKindHelper.unwrap(doubledListKind)); // Output: [2, 4, 6]
 
-        // --- Use with Optional ---
+        // --- Use with Optional (Present) ---
         Optional<Integer> optNum = Optional.of(10);
-        Kind<OptionalKind<?>, Integer> optKind = OptionalKindHelper.wrap(optNum);
+        Kind<OptionalKind<?>, Integer> optKind = OptionalKindHelper.wrap(optNum); // Wrap the Optional
+        // Call the generic function, passing the OptionalMonad instance and the wrapped Optional
         Kind<OptionalKind<?>, Integer> doubledOptKind = doubleInContext(optionalMonad, optKind);
-        System.out.println("Doubled Optional: " + OptionalKindHelper.unwrap(doubledOptKind)); // Optional[20]
+        System.out.println("Doubled Optional: " + OptionalKindHelper.unwrap(doubledOptKind)); // Output: Optional[20]
 
+        // --- Use with Optional (Empty) ---
         Optional<Integer> emptyOpt = Optional.empty();
         Kind<OptionalKind<?>, Integer> emptyOptKind = OptionalKindHelper.wrap(emptyOpt);
+        // Call the generic function, map does nothing on empty
         Kind<OptionalKind<?>, Integer> doubledEmptyOptKind = doubleInContext(optionalMonad, emptyOptKind);
-        System.out.println("Doubled Empty Optional: " + OptionalKindHelper.unwrap(doubledEmptyOptKind)); // Optional.empty
+        System.out.println("Doubled Empty Optional: " + OptionalKindHelper.unwrap(doubledEmptyOptKind)); // Output: Optional.empty
     }
 }
-
 ```
-
-This demonstrates how the type class (`Functor`) and `Kind` allow writing code (`doubleInContext`) that is generic across different simulated HKTs.
