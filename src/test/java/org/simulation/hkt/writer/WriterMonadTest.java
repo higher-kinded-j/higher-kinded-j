@@ -1,5 +1,9 @@
 package org.simulation.hkt.writer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.simulation.hkt.writer.WriterKindHelper.*;
+
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -10,15 +14,7 @@ import org.simulation.hkt.function.Function4;
 import org.simulation.hkt.typeclass.Monoid;
 import org.simulation.hkt.typeclass.StringMonoid;
 
-
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.simulation.hkt.writer.WriterKindHelper.*;
-
-/**
- * Tests for WriterMonad<W, A>. Uses StringMonoid for W.
- */
+/** Tests for WriterMonad<W, A>. Uses StringMonoid for W. */
 @DisplayName("WriterMonad Tests (W=String)")
 class WriterMonadTest {
 
@@ -90,8 +86,7 @@ class WriterMonadTest {
           wrap(Writer.create("FuncLog;", i -> "Res:" + i));
 
       // Writer<String, Integer>
-      Kind<WriterKind<String, ?>, Integer> valKind =
-          wrap(Writer.create("ValLog;", 10));
+      Kind<WriterKind<String, ?>, Integer> valKind = wrap(Writer.create("ValLog;", 10));
 
       Kind<WriterKind<String, ?>, String> resultKind = writerMonad.ap(funcKind, valKind);
       Writer<String, String> w = runW(resultKind);
@@ -147,10 +142,11 @@ class WriterMonadTest {
           ignored -> wrap(Writer.create("End;", "Complete")); // ("End;", "Complete")
 
       // Chain: of(5) >>= logValue >>= finalStep
-      Kind<WriterKind<String, ?>, String> resultKind = writerMonad.flatMap(
-          v -> finalStep.apply(v), // Apply finalStep to the Void result of logValue
-          writerMonad.flatMap(logValue, initialKind) // Apply logValue to initial 5
-      );
+      Kind<WriterKind<String, ?>, String> resultKind =
+          writerMonad.flatMap(
+              v -> finalStep.apply(v), // Apply finalStep to the Void result of logValue
+              writerMonad.flatMap(logValue, initialKind) // Apply logValue to initial 5
+              );
 
       Writer<String, String> w = runW(resultKind);
       assertThat(w.log()).isEqualTo("Logged:5;End;");
@@ -193,7 +189,8 @@ class WriterMonadTest {
       Function<Integer, String> gComposeF = gMap.compose(fMap);
 
       Kind<WriterKind<String, ?>, String> leftSide = writerMonad.map(gComposeF, fa);
-      Kind<WriterKind<String, ?>, String> rightSide = writerMonad.map(gMap, writerMonad.map(fMap, fa));
+      Kind<WriterKind<String, ?>, String> rightSide =
+          writerMonad.map(gMap, writerMonad.map(fMap, fa));
 
       // Logs should be the same, values should be the same
       assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
@@ -204,15 +201,18 @@ class WriterMonadTest {
   @DisplayName("Applicative Laws")
   class ApplicativeLaws {
     Kind<WriterKind<String, ?>, Integer> v = wrap(Writer.create("ValLog;", 5));
-    Kind<WriterKind<String, ?>, Function<Integer, String>> fKind = wrap(Writer.create("FuncLog;", intToString));
-    Kind<WriterKind<String, ?>, Function<String, String>> gKind = wrap(Writer.create("GFuncLog;", appendWorld));
-
+    Kind<WriterKind<String, ?>, Function<Integer, String>> fKind =
+        wrap(Writer.create("FuncLog;", intToString));
+    Kind<WriterKind<String, ?>, Function<String, String>> gKind =
+        wrap(Writer.create("GFuncLog;", appendWorld));
 
     @Test
     @DisplayName("1. Identity: ap(of(id), v) == v")
     void identity() {
-      Kind<WriterKind<String, ?>, Function<Integer, Integer>> idFuncKind = writerMonad.of(Function.identity()); // ("", id)
-      Kind<WriterKind<String, ?>, Integer> result = writerMonad.ap(idFuncKind, v); // ("", id) ap ("ValLog;", 5) -> ("ValLog;", 5)
+      Kind<WriterKind<String, ?>, Function<Integer, Integer>> idFuncKind =
+          writerMonad.of(Function.identity()); // ("", id)
+      Kind<WriterKind<String, ?>, Integer> result =
+          writerMonad.ap(idFuncKind, v); // ("", id) ap ("ValLog;", 5) -> ("ValLog;", 5)
       assertThat(runW(result)).isEqualTo(runW(v));
     }
 
@@ -221,7 +221,8 @@ class WriterMonadTest {
     void homomorphism() {
       int x = 10;
       Function<Integer, String> func = i -> "X" + i;
-      Kind<WriterKind<String, ?>, Function<Integer, String>> apFunc = writerMonad.of(func); // ("", func)
+      Kind<WriterKind<String, ?>, Function<Integer, String>> apFunc =
+          writerMonad.of(func); // ("", func)
       Kind<WriterKind<String, ?>, Integer> apVal = writerMonad.of(x); // ("", 10)
 
       Kind<WriterKind<String, ?>, String> leftSide = writerMonad.ap(apFunc, apVal); // ("", "X10")
@@ -239,7 +240,8 @@ class WriterMonadTest {
 
       // Right: ("", fn->fn(y)) ap ("FuncLog;", f) -> ("FuncLog;", f(20))
       Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<WriterKind<String, ?>, Function<Function<Integer, String>, String>> evalKind = writerMonad.of(evalWithY);
+      Kind<WriterKind<String, ?>, Function<Function<Integer, String>, String>> evalKind =
+          writerMonad.of(evalWithY);
       Kind<WriterKind<String, ?>, String> rightSide = writerMonad.ap(evalKind, fKind);
 
       assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
@@ -248,13 +250,15 @@ class WriterMonadTest {
     @Test
     @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
     void composition() {
-      Function<Function<String, String>, Function<Function<Integer, String>, Function<Integer, String>>> composeMap =
-          gg -> ff -> gg.compose(ff);
+      Function<
+              Function<String, String>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
+          composeMap = gg -> ff -> gg.compose(ff);
 
       // Left side:
       // map(composeMap, gKind) -> ("GFuncLog;", f -> g.compose(f))
-      Kind<WriterKind<String, ?>, Function<Function<Integer, String>, Function<Integer, String>>> mappedCompose =
-          writerMonad.map(composeMap, gKind);
+      Kind<WriterKind<String, ?>, Function<Function<Integer, String>, Function<Integer, String>>>
+          mappedCompose = writerMonad.map(composeMap, gKind);
       // ap(mappedCompose, fKind) -> ("GFuncLog;FuncLog;", g.compose(f))
       Kind<WriterKind<String, ?>, Function<Integer, String>> ap1 =
           writerMonad.ap(mappedCompose, fKind);
@@ -290,7 +294,8 @@ class WriterMonadTest {
     @Test
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
-      Function<Integer, Kind<WriterKind<String, ?>, Integer>> ofFunc = i -> writerMonad.of(i); // i -> ("", i)
+      Function<Integer, Kind<WriterKind<String, ?>, Integer>> ofFunc =
+          i -> writerMonad.of(i); // i -> ("", i)
       // flatMap(ofFunc, mValue) -> flatMap(i->("",i), ("mVal;", 5)) -> ("mVal;", 5)
       Kind<WriterKind<String, ?>, Integer> leftSide = writerMonad.flatMap(ofFunc, mValue);
       assertThat(runW(leftSide)).isEqualTo(runW(mValue));
@@ -300,16 +305,19 @@ class WriterMonadTest {
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
       // Left Side: flatMap(g, flatMap(f, mValue))
-      // inner = flatMap(f, mValue) -> flatMap(i->("f(i);","vi"), ("mVal;", 5)) -> ("mVal;f(5);", "v5")
+      // inner = flatMap(f, mValue) -> flatMap(i->("f(i);","vi"), ("mVal;", 5)) -> ("mVal;f(5);",
+      // "v5")
       Kind<WriterKind<String, ?>, String> innerFlatMap = writerMonad.flatMap(f, mValue);
-      // flatMap(g, inner) -> flatMap(s->("g(s);",s+"!"), ("mVal;f(5);", "v5")) -> ("mVal;f(5);g(v5);", "v5!")
+      // flatMap(g, inner) -> flatMap(s->("g(s);",s+"!"), ("mVal;f(5);", "v5")) ->
+      // ("mVal;f(5);g(v5);", "v5!")
       Kind<WriterKind<String, ?>, String> leftSide = writerMonad.flatMap(g, innerFlatMap);
 
       // Right Side: flatMap(a -> flatMap(g, f(a)), mValue)
       Function<Integer, Kind<WriterKind<String, ?>, String>> rightSideFunc =
           a -> {
             Kind<WriterKind<String, ?>, String> fa = f.apply(a); // ("f(a);", "va")
-            return writerMonad.flatMap(g, fa); // flatMap(s->("g(s);",s+"!"), ("f(a);", "va")) -> ("f(a);g(va);", "va!")
+            return writerMonad.flatMap(
+                g, fa); // flatMap(s->("g(s);",s+"!"), ("f(a);", "va")) -> ("f(a);g(va);", "va!")
           };
       // flatMap(rightSideFunc, mValue) -> flatMap(a -> ("f(a);g(va);", "va!"), ("mVal;", 5))
       // -> ("mVal;" + "f(5);g(v5);", "v5!")
@@ -330,9 +338,7 @@ class WriterMonadTest {
 
     @Test
     void map2_combinesLogsAndValues() {
-      Kind<WriterKind<String, ?>, String> result = writerMonad.map2(
-          w1, w2, (i, s) -> s + i
-      );
+      Kind<WriterKind<String, ?>, String> result = writerMonad.map2(w1, w2, (i, s) -> s + i);
       Writer<String, String> w = runW(result);
       assertThat(w.log()).isEqualTo("L1;L2;");
       assertThat(w.value()).isEqualTo("A1");
@@ -359,4 +365,3 @@ class WriterMonadTest {
     }
   }
 }
-

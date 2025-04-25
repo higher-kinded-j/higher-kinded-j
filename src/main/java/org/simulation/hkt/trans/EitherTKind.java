@@ -1,13 +1,11 @@
 package org.simulation.hkt.trans;
 
 import org.simulation.hkt.Kind;
-import org.simulation.hkt.either.Either;
 
 /**
- * Kind interface marker for the EitherT<F, L, R> monad transformer.
- * Represents EitherT<F, L, -> as a type constructor 'G' in Kind<G, A>,
- * where 'F' and 'L' are fixed, and 'A' corresponds to the 'R' (Right) type parameter.
- * The wrapped value is of type Kind<F, Either<L, R>>.
+ * Kind interface marker for the EitherT<F, L, R> monad transformer. Represents EitherT<F, L, -> as
+ * a type constructor 'G' in Kind<G, A>, where 'F' and 'L' are fixed, and 'A' corresponds to the 'R'
+ * (Right) type parameter. The wrapped value is of type Kind<F, Either<L, R>>.
  *
  * @param <F> The witness type of the outer monad (e.g., CompletableFutureKind<?>).
  * @param <L> The fixed Left type for the inner Either.

@@ -1,17 +1,15 @@
 package org.simulation.hkt.maybe;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.maybe.MaybeKindHelper.*;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.maybe.MaybeKindHelper.*;
 
 @DisplayName("MaybeKindHelper Tests")
 class MaybeKindHelperTest {
@@ -39,7 +37,8 @@ class MaybeKindHelperTest {
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      assertThatNullPointerException().isThrownBy(() -> wrap(null))
+      assertThatNullPointerException()
+          .isThrownBy(() -> wrap(null))
           .withMessageContaining("Input Maybe cannot be null"); // Check message from wrap
     }
   }

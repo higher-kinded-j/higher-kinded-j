@@ -1,5 +1,10 @@
 package org.simulation.hkt.trymonad;
 
+import static org.assertj.core.api.Assertions.*;
+
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -8,14 +13,6 @@ import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
 import org.simulation.hkt.function.Function3;
 import org.simulation.hkt.function.Function4;
-
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.*;
-
 
 @DisplayName("TryMonadError Tests")
 class TryMonadErrorTest {
@@ -43,10 +40,10 @@ class TryMonadErrorTest {
   }
 
   // Test Exceptions
-  private final RuntimeException testRuntimeException = new RuntimeException("Test Runtime Failure");
+  private final RuntimeException testRuntimeException =
+      new RuntimeException("Test Runtime Failure");
   private final IOException testIOException = new IOException("Test IO Failure");
   private final Error testError = new StackOverflowError("Test Stack Overflow");
-
 
   // --- Basic Functionality Tests ---
 
@@ -92,7 +89,12 @@ class TryMonadErrorTest {
     void map_shouldTurnIntoFailureIfFunctionThrows() {
       RuntimeException mapEx = new RuntimeException("Map function failed");
       Kind<TryKind<?>, Integer> input = successKind(10);
-      Kind<TryKind<?>, String> result = tryMonad.map(i -> { throw mapEx; }, input);
+      Kind<TryKind<?>, String> result =
+          tryMonad.map(
+              i -> {
+                throw mapEx;
+              },
+              input);
 
       assertThat(unwrapTry(result).isFailure()).isTrue();
       assertThatThrownBy(() -> getOrThrow(result)).isSameAs(mapEx);
@@ -108,7 +110,11 @@ class TryMonadErrorTest {
 
     Kind<TryKind<?>, Function<Integer, String>> funcKindSuccess = tryMonad.of(i -> "N" + i);
     Kind<TryKind<?>, Function<Integer, String>> funcKindFailure = failureKind(funcException);
-    Kind<TryKind<?>, Function<Integer, String>> funcKindThrows = tryMonad.of(i -> { throw applyException; });
+    Kind<TryKind<?>, Function<Integer, String>> funcKindThrows =
+        tryMonad.of(
+            i -> {
+              throw applyException;
+            });
 
     Kind<TryKind<?>, Integer> valueKindSuccess = tryMonad.of(20);
     Kind<TryKind<?>, Integer> valueKindFailure = failureKind(valueException);
@@ -157,12 +163,12 @@ class TryMonadErrorTest {
     RuntimeException outerException = new RuntimeException("FlatMapOuterFail");
     RuntimeException funcApplyException = new RuntimeException("FuncApplyFail");
 
-    Function<Integer, Kind<TryKind<?>, String>> fSuccess =
-        i -> successKind("Flat" + i);
-    Function<Integer, Kind<TryKind<?>, String>> fFailure =
-        i -> failureKind(innerException);
+    Function<Integer, Kind<TryKind<?>, String>> fSuccess = i -> successKind("Flat" + i);
+    Function<Integer, Kind<TryKind<?>, String>> fFailure = i -> failureKind(innerException);
     Function<Integer, Kind<TryKind<?>, String>> fThrows =
-        i -> { throw funcApplyException; };
+        i -> {
+          throw funcApplyException;
+        };
 
     Kind<TryKind<?>, Integer> inputSuccess = successKind(5);
     Kind<TryKind<?>, Integer> inputFailure = failureKind(outerException);
@@ -183,7 +189,8 @@ class TryMonadErrorTest {
 
     @Test
     void flatMap_shouldReturnFailureIfInputFails() {
-      Kind<TryKind<?>, String> result = tryMonad.flatMap(fSuccess, inputFailure); // fSuccess should not run
+      Kind<TryKind<?>, String> result =
+          tryMonad.flatMap(fSuccess, inputFailure); // fSuccess should not run
       assertThat(unwrapTry(result).isFailure()).isTrue();
       assertThatThrownBy(() -> getOrThrow(result)).isSameAs(outerException);
     }
@@ -199,12 +206,13 @@ class TryMonadErrorTest {
     void flatMap_shouldHandleChaining() throws Throwable {
       Kind<TryKind<?>, Integer> initial = successKind(10);
       Function<Integer, Kind<TryKind<?>, Double>> f1 = i -> successKind(i * 2.0); // 10 -> 20.0
-      Function<Double, Kind<TryKind<?>, String>> f2 = d -> successKind("Final: " + d); // 20.0 -> "Final: 20.0"
+      Function<Double, Kind<TryKind<?>, String>> f2 =
+          d -> successKind("Final: " + d); // 20.0 -> "Final: 20.0"
 
-      Kind<TryKind<?>, String> result = tryMonad.flatMap(
-          i -> tryMonad.flatMap(f2, f1.apply(i)), // flatMap(d -> f2(d), f1(10))
-          initial
-      );
+      Kind<TryKind<?>, String> result =
+          tryMonad.flatMap(
+              i -> tryMonad.flatMap(f2, f1.apply(i)), // flatMap(d -> f2(d), f1(10))
+              initial);
 
       assertThat(unwrapTry(result).isSuccess()).isTrue();
       assertThat(getOrThrow(result)).isEqualTo("Final: 20.0");
@@ -214,12 +222,11 @@ class TryMonadErrorTest {
     void flatMap_shouldHandleChainingWithFailure() {
       Kind<TryKind<?>, Integer> initial = successKind(10);
       Function<Integer, Kind<TryKind<?>, Double>> f1Fails = i -> failureKind(testIOException);
-      Function<Double, Kind<TryKind<?>, String>> f2 = d -> successKind("Final: " + d); // Should not run
+      Function<Double, Kind<TryKind<?>, String>> f2 =
+          d -> successKind("Final: " + d); // Should not run
 
-      Kind<TryKind<?>, String> result = tryMonad.flatMap(
-          i -> tryMonad.flatMap(f2, f1Fails.apply(i)),
-          initial
-      );
+      Kind<TryKind<?>, String> result =
+          tryMonad.flatMap(i -> tryMonad.flatMap(f2, f1Fails.apply(i)), initial);
 
       assertThat(unwrapTry(result).isFailure()).isTrue();
       assertThatThrownBy(() -> getOrThrow(result)).isSameAs(testIOException);
@@ -298,12 +305,15 @@ class TryMonadErrorTest {
     }
 
     @Test
-    @DisplayName("handleErrorWith should return Failure(KindUnwrapException) when handler returns null Kind")
+    @DisplayName(
+        "handleErrorWith should return Failure(KindUnwrapException) when handler returns null Kind")
     void handleErrorWith_shouldReturnFailureWhenHandlerReturnsNullKind() {
       // Handler function explicitly returns null
       Function<Throwable, Kind<TryKind<?>, Integer>> handler = err -> null;
 
-      Kind<TryKind<?>, Integer> resultKind = tryMonad.handleErrorWith(failedKRuntime, handler); // failedKind is defined elsewhere in the test class
+      Kind<TryKind<?>, Integer> resultKind =
+          tryMonad.handleErrorWith(
+              failedKRuntime, handler); // failedKind is defined elsewhere in the test class
 
       // Unwrap the result to get the Try
       Try<Integer> resultTry = unwrapTry(resultKind); // unwrapTry is a helper in the test class
@@ -311,12 +321,12 @@ class TryMonadErrorTest {
       // Assert that the result is a Failure
       assertThat(resultTry.isFailure()).isTrue();
 
-      // Assert that the cause of the Failure is the KindUnwrapException from TryKindHelper.unwrap(null)
+      // Assert that the cause of the Failure is the KindUnwrapException from
+      // TryKindHelper.unwrap(null)
       assertThatThrownBy(resultTry::get) // This throws the cause of the Failure
           .isInstanceOf(KindUnwrapException.class) // Check the cause type
           .hasMessageContaining("Cannot unwrap null Kind for Try"); // Check the specific message
     }
-
 
     @Test
     void handleErrorWith_shouldIgnoreSuccess() throws Throwable {
@@ -339,7 +349,10 @@ class TryMonadErrorTest {
 
     @Test
     void handleError_shouldHandleFailureWhenPureHandlerThrows() {
-      Function<Throwable, Integer> handler = err -> { throw handlerApplyError; };
+      Function<Throwable, Integer> handler =
+          err -> {
+            throw handlerApplyError;
+          };
       Kind<TryKind<?>, Integer> result = tryMonad.handleError(failedKIO, handler);
       assertThat(unwrapTry(result).isFailure()).isTrue();
       assertThatThrownBy(() -> getOrThrow(result)).isSameAs(handlerApplyError);
@@ -396,13 +409,14 @@ class TryMonadErrorTest {
 
     @Test
     void handleErrorWith_shouldHandleSpecificExceptionType() throws Throwable {
-      Function<Throwable, Kind<TryKind<?>, Integer>> handler = err -> {
-        if (err instanceof IOException) {
-          return successKind(55);
-        } else {
-          return failureKind(err); // Re-raise other errors
-        }
-      };
+      Function<Throwable, Kind<TryKind<?>, Integer>> handler =
+          err -> {
+            if (err instanceof IOException) {
+              return successKind(55);
+            } else {
+              return failureKind(err); // Re-raise other errors
+            }
+          };
 
       // Test handling the specific type
       Kind<TryKind<?>, Integer> resultIO = tryMonad.handleErrorWith(failedKIO, handler);
@@ -415,7 +429,6 @@ class TryMonadErrorTest {
       assertThatThrownBy(() -> getOrThrow(resultRuntime)).isSameAs(testRuntimeException);
     }
   }
-
 
   // --- Law Tests ---
   // Note: Comparing Try instances directly is fine if content matches.
@@ -452,7 +465,8 @@ class TryMonadErrorTest {
       // Failure case
       Kind<TryKind<?>, String> leftSideFailure = tryMonad.map(gComposeF, faFailure);
       Kind<TryKind<?>, String> rightSideFailure = tryMonad.map(g, tryMonad.map(f, faFailure));
-      assertThat(unwrapTry(leftSideFailure)).isEqualTo(unwrapTry(rightSideFailure)); // Both should be Failure(testRuntimeException)
+      assertThat(unwrapTry(leftSideFailure))
+          .isEqualTo(unwrapTry(rightSideFailure)); // Both should be Failure(testRuntimeException)
     }
   }
 
@@ -498,7 +512,8 @@ class TryMonadErrorTest {
       Kind<TryKind<?>, String> leftSide = tryMonad.ap(fKind, tryMonad.of(y));
 
       Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<TryKind<?>, Function<Function<Integer, String>, String>> evalKind = tryMonad.of(evalWithY);
+      Kind<TryKind<?>, Function<Function<Integer, String>, String>> evalKind =
+          tryMonad.of(evalWithY);
       Kind<TryKind<?>, String> rightSide = tryMonad.ap(evalKind, fKind);
 
       assertThat(unwrapTry(leftSide)).isEqualTo(unwrapTry(rightSide));
@@ -512,17 +527,19 @@ class TryMonadErrorTest {
     @Test
     @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
     void composition() {
-      // Using the standard definition: compose = f -> g -> f.compose(g) is tricky with currying in Java Kind
+      // Using the standard definition: compose = f -> g -> f.compose(g) is tricky with currying in
+      // Java Kind
       // Let's use the equivalent structure: ap(u, ap(v, w)) == ap(ap(map(compose, u), v), w)
       // Let u = gKind, v = fKind, w = v
-      Function<Function<String, String>, Function<Function<Integer, String>, Function<Integer, String>>> composeMap =
-          gg -> ff -> gg.compose(ff);
+      Function<
+              Function<String, String>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
+          composeMap = gg -> ff -> gg.compose(ff);
 
       // Left side: ap(ap(map(composeMap, gKind), fKind), v)
-      Kind<TryKind<?>, Function<Function<Integer, String>, Function<Integer, String>>> mappedCompose =
-          tryMonad.map(composeMap, gKind);
-      Kind<TryKind<?>, Function<Integer, String>> ap1 =
-          tryMonad.ap(mappedCompose, fKind);
+      Kind<TryKind<?>, Function<Function<Integer, String>, Function<Integer, String>>>
+          mappedCompose = tryMonad.map(composeMap, gKind);
+      Kind<TryKind<?>, Function<Integer, String>> ap1 = tryMonad.ap(mappedCompose, fKind);
       Kind<TryKind<?>, String> leftSide = tryMonad.ap(ap1, v);
 
       // Right side: ap(gKind, ap(fKind, v))
@@ -532,20 +549,25 @@ class TryMonadErrorTest {
       assertThat(unwrapTry(leftSide)).isEqualTo(unwrapTry(rightSide));
 
       // Check failure propagation (simplified check, assumes first failure propagates)
-      Kind<TryKind<?>, String> leftSideFailG = tryMonad.ap(tryMonad.ap(tryMonad.map(composeMap, gKindFail), fKind), v);
+      Kind<TryKind<?>, String> leftSideFailG =
+          tryMonad.ap(tryMonad.ap(tryMonad.map(composeMap, gKindFail), fKind), v);
       Kind<TryKind<?>, String> rightSideFailG = tryMonad.ap(gKindFail, tryMonad.ap(fKind, v));
-      assertThat(unwrapTry(leftSideFailG)).isEqualTo(unwrapTry(rightSideFailG)); // Should be Failure(gException)
+      assertThat(unwrapTry(leftSideFailG))
+          .isEqualTo(unwrapTry(rightSideFailG)); // Should be Failure(gException)
 
-      Kind<TryKind<?>, String> leftSideFailF = tryMonad.ap(tryMonad.ap(tryMonad.map(composeMap, gKind), fKindFail), v);
+      Kind<TryKind<?>, String> leftSideFailF =
+          tryMonad.ap(tryMonad.ap(tryMonad.map(composeMap, gKind), fKindFail), v);
       Kind<TryKind<?>, String> rightSideFailF = tryMonad.ap(gKind, tryMonad.ap(fKindFail, v));
-      assertThat(unwrapTry(leftSideFailF)).isEqualTo(unwrapTry(rightSideFailF)); // Should be Failure(fException)
+      assertThat(unwrapTry(leftSideFailF))
+          .isEqualTo(unwrapTry(rightSideFailF)); // Should be Failure(fException)
 
-      Kind<TryKind<?>, String> leftSideFailV = tryMonad.ap(tryMonad.ap(tryMonad.map(composeMap, gKind), fKind), vFail);
+      Kind<TryKind<?>, String> leftSideFailV =
+          tryMonad.ap(tryMonad.ap(tryMonad.map(composeMap, gKind), fKind), vFail);
       Kind<TryKind<?>, String> rightSideFailV = tryMonad.ap(gKind, tryMonad.ap(fKind, vFail));
-      assertThat(unwrapTry(leftSideFailV)).isEqualTo(unwrapTry(rightSideFailV)); // Should be Failure(vException)
+      assertThat(unwrapTry(leftSideFailV))
+          .isEqualTo(unwrapTry(rightSideFailV)); // Should be Failure(vException)
     }
   }
-
 
   @Nested
   @DisplayName("Monad Laws")
@@ -557,8 +579,8 @@ class TryMonadErrorTest {
 
     Function<Integer, Kind<TryKind<?>, String>> f = i -> successKind("v" + i);
     Function<String, Kind<TryKind<?>, String>> g = s -> successKind(s + "!");
-    Function<Integer, Kind<TryKind<?>, String>> fFails = i -> failureKind(new IOException("f failed"));
-
+    Function<Integer, Kind<TryKind<?>, String>> fFails =
+        i -> failureKind(new IOException("f failed"));
 
     @Test
     @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
@@ -581,7 +603,6 @@ class TryMonadErrorTest {
       assertThat(unwrapTry(leftSideFail)).isEqualTo(unwrapTry(mValueFail));
     }
 
-
     @Test
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
@@ -599,15 +620,21 @@ class TryMonadErrorTest {
       Kind<TryKind<?>, String> innerFlatMapFailM = tryMonad.flatMap(f, mValueFail);
       Kind<TryKind<?>, String> leftSideFailM = tryMonad.flatMap(g, innerFlatMapFailM);
       Kind<TryKind<?>, String> rightSideFailM = tryMonad.flatMap(rightSideFunc, mValueFail);
-      assertThat(unwrapTry(leftSideFailM)).isEqualTo(unwrapTry(rightSideFailM)); // Failure(mException)
+      assertThat(unwrapTry(leftSideFailM))
+          .isEqualTo(unwrapTry(rightSideFailM)); // Failure(mException)
 
       // Failure case 2: function f fails
-      Kind<TryKind<?>, String> innerFlatMapFailF = tryMonad.flatMap(fFails, mValue); // Failure(IOException)
-      Kind<TryKind<?>, String> leftSideFailF = tryMonad.flatMap(g, innerFlatMapFailF); // Failure(IOException)
+      Kind<TryKind<?>, String> innerFlatMapFailF =
+          tryMonad.flatMap(fFails, mValue); // Failure(IOException)
+      Kind<TryKind<?>, String> leftSideFailF =
+          tryMonad.flatMap(g, innerFlatMapFailF); // Failure(IOException)
 
       Function<Integer, Kind<TryKind<?>, String>> rightSideFuncFailF =
-          a -> tryMonad.flatMap(g, fFails.apply(a)); // applies fFails, gets Failure, flatMap propagates
-      Kind<TryKind<?>, String> rightSideFailF = tryMonad.flatMap(rightSideFuncFailF, mValue); // Failure(IOException)
+          a ->
+              tryMonad.flatMap(
+                  g, fFails.apply(a)); // applies fFails, gets Failure, flatMap propagates
+      Kind<TryKind<?>, String> rightSideFailF =
+          tryMonad.flatMap(rightSideFuncFailF, mValue); // Failure(IOException)
 
       // Assert that both sides result in Failure with the same exception type and message
       // because fFails creates a new exception instance each time.
@@ -616,18 +643,22 @@ class TryMonadErrorTest {
       assertThat(leftTry.isFailure()).isTrue();
       assertThat(rightTry.isFailure()).isTrue();
       // Compare exception type and message, not instance equality
-      assertThat(leftTry).asInstanceOf(InstanceOfAssertFactories.type(Try.Failure.class))
+      assertThat(leftTry)
+          .asInstanceOf(InstanceOfAssertFactories.type(Try.Failure.class))
           .extracting(Try.Failure::cause)
-          .satisfies(cause -> {
-            assertThat(cause).isInstanceOf(IOException.class);
-            assertThat(cause.getMessage()).isEqualTo("f failed");
-          });
-      assertThat(rightTry).asInstanceOf(InstanceOfAssertFactories.type(Try.Failure.class))
+          .satisfies(
+              cause -> {
+                assertThat(cause).isInstanceOf(IOException.class);
+                assertThat(cause.getMessage()).isEqualTo("f failed");
+              });
+      assertThat(rightTry)
+          .asInstanceOf(InstanceOfAssertFactories.type(Try.Failure.class))
           .extracting(Try.Failure::cause)
-          .satisfies(cause -> {
-            assertThat(cause).isInstanceOf(IOException.class);
-            assertThat(cause.getMessage()).isEqualTo("f failed");
-          });
+          .satisfies(
+              cause -> {
+                assertThat(cause).isInstanceOf(IOException.class);
+                assertThat(cause.getMessage()).isEqualTo("f failed");
+              });
     }
   }
 
@@ -646,7 +677,8 @@ class TryMonadErrorTest {
 
     @Test
     void map2_bothSuccess() throws Throwable {
-      Function<Integer, Function<String, String>> f2 = i -> s -> i + s; // Using curried version for default map2
+      Function<Integer, Function<String, String>> f2 =
+          i -> s -> i + s; // Using curried version for default map2
       Kind<TryKind<?>, String> result = tryMonad.map2(try1, try2, f2);
       assertThat(unwrapTry(result).isSuccess()).isTrue();
       assertThat(getOrThrow(result)).isEqualTo("10hello");
@@ -697,7 +729,8 @@ class TryMonadErrorTest {
     @Test
     void map4_lastFails() {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
-      Kind<TryKind<?>, String> result = tryMonad.map4(try1, try2, try3, failureKind(testException), f4);
+      Kind<TryKind<?>, String> result =
+          tryMonad.map4(try1, try2, try3, failureKind(testException), f4);
       assertThat(unwrapTry(result).isFailure()).isTrue();
       assertThatThrownBy(() -> getOrThrow(result)).isSameAs(testException);
     }

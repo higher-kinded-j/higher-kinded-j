@@ -1,20 +1,14 @@
 package org.simulation.hkt.reader;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
-
-/**
- * Direct tests for the Reader<R, A> implementation.
- */
+/** Direct tests for the Reader<R, A> implementation. */
 @DisplayName("Reader<R, A> Direct Tests")
 class ReaderTest {
 
@@ -89,10 +83,11 @@ class ReaderTest {
     void flatMap_shouldComposeReaders() {
       // Reader 1: Gets the timeout
       // Reader 2 (created by function): Gets URL if timeout > 1000, else constant "low"
-      Function<Integer, Reader<Config, String>> getUrlIfHighTimeout = timeout ->
-          (timeout > 1000)
-              ? Reader.of(Config::dbUrl) // Uses original env implicitly
-              : Reader.constant("low timeout");
+      Function<Integer, Reader<Config, String>> getUrlIfHighTimeout =
+          timeout ->
+              (timeout > 1000)
+                  ? Reader.of(Config::dbUrl) // Uses original env implicitly
+                  : Reader.constant("low timeout");
 
       Reader<Config, String> composedReader = getTimeoutReader.flatMap(getUrlIfHighTimeout);
 
@@ -131,7 +126,8 @@ class ReaderTest {
     @Test
     void readerEqualityIsReferenceBased() {
       Reader<String, Integer> r1 = String::length;
-      Reader<String, Integer> r2 = String::length; // Same logic, different lambda instance (usually)
+      Reader<String, Integer> r2 =
+          String::length; // Same logic, different lambda instance (usually)
       Reader<String, Integer> r3 = s -> s.length(); // Different lambda syntax
       Reader<String, Integer> r4 = r1; // Same instance
 

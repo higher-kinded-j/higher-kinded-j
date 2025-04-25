@@ -1,15 +1,17 @@
 package org.simulation.hkt.trymonad;
 
+import static org.simulation.hkt.trymonad.TryKindHelper.*;
+
+import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.simulation.hkt.Functor;
 import org.simulation.hkt.Kind;
-import java.util.function.Function;
-import static org.simulation.hkt.trymonad.TryKindHelper.*;
 
 public class TryFunctor implements Functor<TryKind<?>> {
 
   @Override
-  public <A, B> @NonNull Kind<TryKind<?>, B> map(@NonNull Function<A, B> f, @NonNull Kind<TryKind<?>, A> fa) {
+  public <A, B> @NonNull Kind<TryKind<?>, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<TryKind<?>, A> fa) {
     // 1. Unwrap the input Kind<TryKind<?>, A> to get the underlying Try<A>
     Try<A> tryA = unwrap(fa); // unwrap handles null/invalid fa
 

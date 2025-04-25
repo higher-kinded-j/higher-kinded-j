@@ -1,30 +1,25 @@
 package org.simulation.hkt.reader;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.reader.ReaderKindHelper.*;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-import org.simulation.hkt.reader.Reader;
-import org.simulation.hkt.reader.ReaderKind;
-import org.simulation.hkt.reader.ReaderKindHelper;
-import org.simulation.hkt.reader.ReaderMonad;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.reader.ReaderKindHelper.*;
 
 @DisplayName("ReaderKindHelper Tests")
 class ReaderKindHelperTest {
 
   record Env(String value) {}
+
   final Env testEnv = new Env("test-env");
   final Reader<Env, String> baseReader = Env::value;
   final Reader<Env, Integer> lenReader = env -> env.value().length();
-
 
   @Nested
   @DisplayName("wrap()")
@@ -77,7 +72,8 @@ class ReaderKindHelperTest {
       ReaderHolder<Env, String> holderWithNull = new ReaderHolder<>(null);
       // Cast needed for test setup
       @SuppressWarnings("unchecked")
-      Kind<ReaderKind<Env, ?>, String> kind = (Kind<ReaderKind<Env, ?>, String>) (Kind<?,?>) holderWithNull;
+      Kind<ReaderKind<Env, ?>, String> kind =
+          (Kind<ReaderKind<Env, ?>, String>) (Kind<?, ?>) holderWithNull;
 
       assertThatThrownBy(() -> unwrap(kind))
           .isInstanceOf(KindUnwrapException.class)

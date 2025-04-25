@@ -1,17 +1,16 @@
 package org.simulation.hkt.optional;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.optional.OptionalKindHelper.*;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.optional.OptionalKindHelper.*;
 
 @DisplayName("OptionalKindHelper Tests")
 class OptionalKindHelperTest {
@@ -40,7 +39,8 @@ class OptionalKindHelperTest {
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      assertThatNullPointerException().isThrownBy(() -> wrap(null))
+      assertThatNullPointerException()
+          .isThrownBy(() -> wrap(null))
           .withMessageContaining("Input Optional cannot be null"); // Check message from wrap
     }
   }
@@ -102,7 +102,8 @@ class OptionalKindHelperTest {
     @Test
     @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
     void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<OptionalKindHelper> constructor = OptionalKindHelper.class.getDeclaredConstructor();
+      Constructor<OptionalKindHelper> constructor =
+          OptionalKindHelper.class.getDeclaredConstructor();
       constructor.setAccessible(true);
       assertThatThrownBy(constructor::newInstance)
           .isInstanceOf(InvocationTargetException.class)

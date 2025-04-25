@@ -1,21 +1,19 @@
 package org.simulation.hkt.trymonad;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.trymonad.TryKindHelper.*;
+
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
 
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.trymonad.TryKindHelper.*;
-
 @DisplayName("TryKindHelper Tests")
 class TryKindHelperTest {
-
 
   private final String successValue = "value";
   private final RuntimeException testException = new RuntimeException("Test failure");
@@ -104,7 +102,8 @@ class TryKindHelperTest {
       Kind<TryKind<?>, String> kind = TryKindHelper.success(successValue);
       Try<String> tryResult = unwrap(kind);
       assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(successValue)).doesNotThrowAnyException();
+      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(successValue))
+          .doesNotThrowAnyException();
     }
 
     @Test
@@ -127,10 +126,12 @@ class TryKindHelperTest {
     @Test
     void tryOf_helperShouldWrapFailure() {
       ArithmeticException arithEx = new ArithmeticException("/ by zero");
-      Kind<TryKind<?>, Integer> kind = TryKindHelper.tryOf(() -> {
-        if (true) throw arithEx; // Simulate throwing
-        return 1;
-      });
+      Kind<TryKind<?>, Integer> kind =
+          TryKindHelper.tryOf(
+              () -> {
+                if (true) throw arithEx; // Simulate throwing
+                return 1;
+              });
       Try<Integer> tryResult = unwrap(kind);
       assertThat(tryResult.isFailure()).isTrue();
       assertThatThrownBy(tryResult::get).isSameAs(arithEx);

@@ -1,16 +1,17 @@
 package org.simulation.hkt.writer;
 
+import static org.simulation.hkt.writer.WriterKindHelper.*;
+
+import java.util.Objects;
+import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.simulation.hkt.Applicative;
 import org.simulation.hkt.Kind;
 import org.simulation.hkt.typeclass.Monoid;
 
-import java.util.Objects;
-import java.util.function.Function;
-import static org.simulation.hkt.writer.WriterKindHelper.*;
-
-public class WriterApplicative<W> extends WriterFunctor<W> implements Applicative<WriterKind<W, ?>> {
+public class WriterApplicative<W> extends WriterFunctor<W>
+    implements Applicative<WriterKind<W, ?>> {
 
   protected final @NonNull Monoid<W> monoidW;
 
@@ -26,8 +27,7 @@ public class WriterApplicative<W> extends WriterFunctor<W> implements Applicativ
 
   @Override
   public <A, B> @NonNull Kind<WriterKind<W, ?>, B> ap(
-      @NonNull Kind<WriterKind<W, ?>, Function<A, B>> ff,
-      @NonNull Kind<WriterKind<W, ?>, A> fa) {
+      @NonNull Kind<WriterKind<W, ?>, Function<A, B>> ff, @NonNull Kind<WriterKind<W, ?>, A> fa) {
 
     Writer<W, Function<A, B>> writerF = unwrap(ff);
     Writer<W, A> writerA = unwrap(fa);
@@ -37,7 +37,7 @@ public class WriterApplicative<W> extends WriterFunctor<W> implements Applicativ
 
     // Apply the function from writerF to the value from writerA
     Function<A, B> func = writerF.value(); // Function might be null if W is complex
-    A val = writerA.value();             // Value might be null
+    A val = writerA.value(); // Value might be null
 
     // Handle potential null function - decide if this should fail or map to null/default
     // Assuming function should ideally be non-null for 'ap' to make sense.

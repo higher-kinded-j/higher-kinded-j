@@ -1,11 +1,7 @@
 package org.simulation.hkt.future;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.exception.KindUnwrapException;
-
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.future.CompletableFutureKindHelper.*;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -14,13 +10,14 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.future.CompletableFutureKindHelper.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.simulation.hkt.Kind;
+import org.simulation.hkt.exception.KindUnwrapException;
 
 @DisplayName("CompletableFutureKindHelper Tests")
 class CompletableFutureKindHelperTest {
-
 
   @Nested
   @DisplayName("wrap()")
@@ -47,7 +44,8 @@ class CompletableFutureKindHelperTest {
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      assertThatNullPointerException().isThrownBy(() -> wrap(null))
+      assertThatNullPointerException()
+          .isThrownBy(() -> wrap(null))
           .withMessageContaining("Input CompletableFuture cannot be null");
     }
   }
@@ -110,18 +108,24 @@ class CompletableFutureKindHelperTest {
 
     @Test
     void join_shouldReturnResultOnSuccess() {
-      Kind<CompletableFutureKind<?>, String> kind = wrap(CompletableFuture.completedFuture("Success"));
+      Kind<CompletableFutureKind<?>, String> kind =
+          wrap(CompletableFuture.completedFuture("Success"));
       assertThat(join(kind)).isEqualTo("Success");
     }
 
     @Test
     void join_shouldBlockAndWaitForCompletion() {
-      CompletableFuture<String> delayedFuture = CompletableFuture.supplyAsync(() -> {
-        try {
-          TimeUnit.MILLISECONDS.sleep(50);
-        } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new CompletionException(e); }
-        return "Delayed Result";
-      });
+      CompletableFuture<String> delayedFuture =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  TimeUnit.MILLISECONDS.sleep(50);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  throw new CompletionException(e);
+                }
+                return "Delayed Result";
+              });
       Kind<CompletableFutureKind<?>, String> kind = wrap(delayedFuture);
       long startTime = System.nanoTime();
       String result = join(kind);
@@ -134,27 +138,21 @@ class CompletableFutureKindHelperTest {
     void join_shouldThrowRuntimeExceptionDirectly() {
       RuntimeException ex = new IllegalStateException("Fail State");
       Kind<CompletableFutureKind<?>, String> kind = wrap(CompletableFuture.failedFuture(ex));
-      assertThatThrownBy(() -> join(kind))
-          .isInstanceOf(IllegalStateException.class)
-          .isSameAs(ex);
+      assertThatThrownBy(() -> join(kind)).isInstanceOf(IllegalStateException.class).isSameAs(ex);
     }
 
     @Test
     void join_shouldThrowErrorDirectly() {
       Error err = new StackOverflowError("Fail Error");
       Kind<CompletableFutureKind<?>, String> kind = wrap(CompletableFuture.failedFuture(err));
-      assertThatThrownBy(() -> join(kind))
-          .isInstanceOf(StackOverflowError.class)
-          .isSameAs(err);
+      assertThatThrownBy(() -> join(kind)).isInstanceOf(StackOverflowError.class).isSameAs(err);
     }
 
     @Test
     void join_shouldKeepCheckedExceptionWrappedInCompletionException() {
       IOException ex = new IOException("IO Fail");
       Kind<CompletableFutureKind<?>, String> kind = wrap(CompletableFuture.failedFuture(ex));
-      assertThatThrownBy(() -> join(kind))
-          .isInstanceOf(CompletionException.class)
-          .hasCause(ex);
+      assertThatThrownBy(() -> join(kind)).isInstanceOf(CompletionException.class).hasCause(ex);
     }
 
     @Test
@@ -162,8 +160,7 @@ class CompletableFutureKindHelperTest {
       CompletableFuture<String> cancelledFuture = new CompletableFuture<>();
       cancelledFuture.cancel(true);
       Kind<CompletableFutureKind<?>, String> kind = wrap(cancelledFuture);
-      assertThatThrownBy(() -> join(kind))
-          .isInstanceOf(CancellationException.class);
+      assertThatThrownBy(() -> join(kind)).isInstanceOf(CancellationException.class);
     }
 
     @Test
@@ -194,7 +191,8 @@ class CompletableFutureKindHelperTest {
     @Test
     @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
     void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<CompletableFutureKindHelper> constructor = CompletableFutureKindHelper.class.getDeclaredConstructor();
+      Constructor<CompletableFutureKindHelper> constructor =
+          CompletableFutureKindHelper.class.getDeclaredConstructor();
       constructor.setAccessible(true);
       assertThatThrownBy(constructor::newInstance)
           .isInstanceOf(InvocationTargetException.class)

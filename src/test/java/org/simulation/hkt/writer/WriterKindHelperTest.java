@@ -1,5 +1,10 @@
 package org.simulation.hkt.writer;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.simulation.hkt.writer.WriterKindHelper.*;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -8,17 +13,6 @@ import org.simulation.hkt.Kind;
 import org.simulation.hkt.exception.KindUnwrapException;
 import org.simulation.hkt.typeclass.Monoid;
 import org.simulation.hkt.typeclass.StringMonoid;
-import org.simulation.hkt.writer.Writer;
-import org.simulation.hkt.writer.WriterKind;
-import org.simulation.hkt.writer.WriterKindHelper;
-import org.simulation.hkt.writer.WriterMonad;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.simulation.hkt.writer.WriterKindHelper.*;
 
 @DisplayName("WriterKindHelper Tests")
 class WriterKindHelperTest {
@@ -85,7 +79,8 @@ class WriterKindHelperTest {
       WriterHolder<String, Double> holderWithNull = new WriterHolder<>(null);
       // Cast needed for test setup
       @SuppressWarnings("unchecked")
-      Kind<WriterKind<String, ?>, Double> kind = (Kind<WriterKind<String, ?>, Double>)(Kind<?,?>) holderWithNull;
+      Kind<WriterKind<String, ?>, Double> kind =
+          (Kind<WriterKind<String, ?>, Double>) (Kind<?, ?>) holderWithNull;
 
       assertThatThrownBy(() -> unwrap(kind))
           .isInstanceOf(KindUnwrapException.class)
