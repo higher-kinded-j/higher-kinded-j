@@ -1,0 +1,65 @@
+@startuml
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+interface "Either<L, R>" as Either {
+  + {abstract} isLeft() : boolean
+  + {abstract} isRight() : boolean
+  + {abstract} getLeft() : L
+  + {abstract} getRight() : R
+  + fold(Function<? super L, ? extends T>, Function<? super R, ? extends T>) : T
+  + map(Function<? super R, ? extends R2>) : Either<L, R2>
+  + flatMap(Function<? super R, ? extends Either<L, ? extends R2>>) : Either<L, R2>
+  + ifLeft(Consumer<? super L>) : void
+  + ifRight(Consumer<? super R>) : void
+  + {static} left(L) : Either<L, R>
+  + {static} right(R) : Either<L, R>
+}
+
+class "Left<L, R>" <<record>> implements Either {
+  + Left(L value)
+  __ Methods __
+  + isLeft() : true
+  + isRight() : false
+  + getLeft() : L
+  + getRight() : throws NoSuchElementException
+  + ifLeft(Consumer<? super L>) : void
+  + ifRight(Consumer<? super R>) : void
+  + map(...) : Left<L, R2>
+  + flatMap(...) : Left<L, R2>
+}
+
+class "Right<L, R>" <<record>> implements Either {
+  + Right(R value)
+  __ Methods __
+  + isLeft() : false
+  + isRight() : true
+  + getLeft() : throws NoSuchElementException
+  + getRight() : R
+  + ifLeft(Consumer<? super L>) : void
+  + ifRight(Consumer<? super R>) : void
+  + map(...) : Either<L, R2>
+  + flatMap(...) : Either<L, R2>
+}
+
+package HKT_Integration {
+  interface "EitherKind<L, R>" as EitherKind
+  class "EitherKindHelper" as Helper {
+   + {static} wrap(Either<L,R>) : Kind<EitherKind<L,?>, R>
+   + {static} unwrap(Kind<EitherKind<L,?>, R>) : Either<L,R>
+  }
+  class "EitherMonad<L>" as Monad {
+    __ Implements MonadError<EitherKind<L,?>, L> __
+    + map(...) : Kind<...>
+    + flatMap(...) : Kind<...>
+    + ap(...) : Kind<...>
+    + of(R) : Kind<...>
+    + raiseError(L) : Kind<...>
+    + handleErrorWith(...) : Kind<...>
+  }
+  EitherKind <|.. "org.simulation.hkt.Kind"
+  Monad ..> Helper : uses
+}
+
+Either <.. Helper : operates on
+@enduml

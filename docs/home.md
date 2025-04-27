@@ -30,16 +30,17 @@ To understand and use this simulation effectively, explore these documents:
 
 1.  **[Core Concepts](core-concepts.md):** Understand the fundamental building blocks – `Kind`, Witness Types, Type Classes (`Functor`, `Monad`, etc.), and the helper classes that bridge the simulation with standard Java types. **Start here!**
 2.  **[Supported Types](supported-types.md):** See which Java types (like `List`, `Optional`, `CompletableFuture`) and custom types (`Maybe`, `Either`, `Try`, `IO`, `Lazy`) are currently simulated and have corresponding type class instances.
-3.  **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using the simulation: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
-4.  **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
-5.  **[Extending the Simulation](extending-simulation.md):** Learn the pattern for adding HKT support and type class instances for your *own* custom Java types or other standard library types.
+3.  **[Supported Types in Detail](supported_types_in_detail.md):** More in depth detailed explanations of how to use.
+4   **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using the simulation: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
+5   **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
+6   **[Extending the Simulation](extending-simulation.md):** Learn the pattern for adding HKT support and type class instances for your *own* custom Java types or other standard library types.
 
 ## How to Use This Simulation (In Your Project)
 
 While primarily a demonstration, you could adapt this simulation for use in your own projects:
 
 1.  **Include the Code:** Copy the relevant packages (`org.simulation.hkt` and the packages for the types you need, e.g., `org.simulation.hkt.optional`) into your project's source code.
-2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `*Kind` interfaces (e.g., `OptionalKind`), the `*KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
+2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `Kind` interfaces (e.g., `OptionalKind`), the `KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
 3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
 4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending the Simulation](extending-simulation.md).
 
