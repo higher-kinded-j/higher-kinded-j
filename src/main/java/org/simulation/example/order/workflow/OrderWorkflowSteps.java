@@ -16,6 +16,7 @@ import org.simulation.hkt.either.EitherKind;
 import org.simulation.hkt.either.EitherKindHelper;
 import org.simulation.hkt.future.CompletableFutureKind;
 import org.simulation.hkt.future.CompletableFutureKindHelper;
+import org.simulation.hkt.trymonad.Try;
 import org.simulation.hkt.trymonad.TryKind;
 import org.simulation.hkt.trymonad.TryKindHelper;
 
@@ -43,7 +44,7 @@ public class OrderWorkflowSteps {
     this.dependencies = Objects.requireNonNull(dependencies, "Dependencies cannot be null");
   }
 
-  // --- Synchronous Step ---
+  // --- Synchronous Steps ---
 
   /**
    * Validates the initial order data synchronously using {@link Either} for explicit domain errors.
