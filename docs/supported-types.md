@@ -2,6 +2,8 @@
 
 This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) and corresponding type class instances (`Functor`, `Applicative`, `Monad`, `MonadError`) for the following Java types and custom types.
 
+![supported_types.svg](puml/supported_types.svg)
+
 ---
 
 ### 1. `java.util.List<A>`
@@ -160,3 +162,5 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 * **Type Class Instances:**
   * `EitherTMonad<F, L>` (`MonadError<EitherTKind<F, L, ?>, L>`)
 * **Notes:** Simplifies working with nested structures like `F<Either<L, R>>`. Requires a `Monad<F>` instance for the outer monad `F` passed to its constructor. Implements `MonadError` for the *inner* `Either`'s `Left` type `L`. See the [Order Example Walkthrough](order-walkthrough.md) for practical usage with `CompletableFuture` as `F`.
+
+![transformers.svg](puml/transformers.svg)

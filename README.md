@@ -26,6 +26,8 @@ While this simulation introduces some boilerplate compared to languages with nat
 
 ## Core Concepts Explained
 
+![core_interfaces.svg](docs/puml/core_interfaces.svg)
+
 The simulation hinges on a few key ideas:
 
 1.  **`Kind<F, A>` Interface:** The cornerstone, simulating the application of a type constructor `F` (like `List`, `Optional`) to a type `A`. Since Java can't express `F<_>` directly as a parameter, `Kind<F, A>` acts as this bridge.
@@ -38,13 +40,18 @@ The simulation hinges on a few key ideas:
     * `Monad<F>`: Adds `flatMap(A -> F<B>, F<A>) -> F<B>` (sequencing).
     * `MonadError<F, E>`: Adds `raiseError(E) -> F<A>` and `handleErrorWith(F<A>, E -> F<A>)` for contexts that have a specific error type `E`.
 
-3.  **Simulation Plumbing:** For each simulated type (e.g., `List`), we need:
+3.  **Defunctionalisation:** For each simulated type (e.g., `List`), we need:
     * **`*Kind` Interface:** e.g., `ListKind<A> extends Kind<ListKind<?>, A>`.
     * **`*Holder` Record:** An internal record holding the actual Java type (e.g., `ListHolder` holds `List<A>`).
     * **`*KindHelper` Class:** Static `wrap` and `unwrap` methods to bridge `Kind<F, A>` and the underlying Java type (e.g., `ListKindHelper.wrap/unwrap`). The `unwrap` methods now throw `KindUnwrapException` for invalid `Kind` inputs, ensuring robustness.
     * **Type Class Instances:** Concrete implementations (e.g., `ListMonad` implements `Monad<ListKind<?>>`).
 
+
+
+
 ## Simulated Types
+
+[supported_types.puml](docs/puml/supported_types.puml)
 
 This simulation provides HKT wrappers and type class instances for:
 
@@ -107,11 +114,11 @@ You can apply the patterns and techniques from this simulation in various ways:
 
 While demonstrating the concept, this simulation approach has inherent limitations in Java compared to languages with native HKTs:
 
-* **Boilerplate:** Requires significant setup code for each simulated type.
+* **Boilerplate:** Requires additional setup code for each simulated type.
 * **Verbosity:** Usage often involves explicit wrapping/unwrapping and witness types.
 * **Complexity:** Adds cognitive load to understand the simulation mechanism.
 * **Type Safety Gaps:** Relies on some internal casting (`unwrap` methods), although the helpers are designed to be robust (throwing `KindUnwrapException` on structural failure).
-* **Type Inference:** Java's inference may sometimes need help with the complex generics.
+* **Type Inference:** Java's inference can sometimes need help with the complex generics.
 
 ## Project Structure
 

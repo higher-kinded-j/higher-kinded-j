@@ -1,0 +1,52 @@
+@startuml
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+left to right direction
+
+package "Core Interfaces" {
+    interface "Kind<F, A>" as Kind
+    interface "Functor<F>" {
+        + map(Function<A,B>, Kind<F,A>) : Kind<F,B>
+    }
+    interface "Applicative<F>" {
+        + of(A) : Kind<F,A>
+        + ap(Kind<F, Function<A,B>>, Kind<F,A>) : Kind<F,B>
+        + map2(Kind<F,A>, Kind<F,B>, BiFunction<A,B,C>) : Kind<F,C>
+        + mapN(...) : Kind<F,R>
+    }
+    interface "Monad<F>" {
+        + flatMap(Function<A, Kind<F,B>>, Kind<F,A>) : Kind<F,B>
+    }
+    interface "MonadError<F, E>" {
+        + raiseError(E) : Kind<F,A>
+        + handleErrorWith(Kind<F,A>, Function<E, Kind<F,A>>) : Kind<F,A>
+        + handleError(Kind<F,A>, Function<E,A>) : Kind<F,A>
+        + recoverWith(Kind<F,A>, Kind<F,A>) : Kind<F,A>
+        + recover(Kind<F,A>, A) : Kind<F,A>
+    }
+
+    Functor --|> Kind : operates on
+    Applicative --|> Functor
+    Monad --|> Applicative
+    MonadError --|> Monad
+}
+
+package "Defunctionalisation (Pattern)" {
+    class KindUnwrapException
+    class "XKindHelper" as Helper {
+        + {static} wrap(JavaType<A>) : Kind<XKind, A>
+        + {static} unwrap(Kind<XKind, A>) : JavaType<A>
+    }
+    class "XHolder<A>" as Holder {
+        - javaValue : JavaType<A>
+    }
+    interface "XKind<A>" as XKind {
+       __ Witness Type F = XKind<?> __
+    }
+
+    XKind <|.. Kind
+    Holder <|.. XKind : (internal)
+    Helper ..> Holder : creates/unwraps
+}
+@enduml

@@ -6,6 +6,10 @@ This simulation employs several key components to emulate Higher-Kinded Types (H
 
 Java's type system lacks native Higher-Kinded Types. We can easily parameterise a type by another type (like `List<String>`), but we cannot easily parameterise a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
 
+![core_interfaces.svg](puml/core_interfaces.svg)
+
+
+
 ## 2. The `Kind<F, A>` Bridge
 
 * **Purpose:** To simulate the application of a type constructor `F` (like `List`, `Optional`, `IO`) to a type argument `A` (like `String`, `Integer`), representing the concept of `F<A>`.
@@ -46,7 +50,7 @@ These are interfaces that define standard functional operations that work *gener
   * Provides default recovery methods like `handleError`, `recover`, `recoverWith`.
   * Reference: [`MonadError.java`](../src/main/java/org/simulation/hkt/MonadError.java)
 
-## 4. Simulation Plumbing (Per Type Constructor)
+## 4. Defunctionalisation (Per Type Constructor)
 
 For each Java type constructor (like `List`, `Optional`, `IO`) you want to simulate:
 
