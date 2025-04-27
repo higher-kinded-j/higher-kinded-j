@@ -56,7 +56,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `EitherFunctor<L>` (`Functor`)
   * `EitherMonad<L>` (`Monad`, `Applicative`, `MonadError<..., L>`)
 * **Notes:** Represents computations that can fail with a *typed* error. Instances are right-biased (`map`/`flatMap` operate on `Right`). Implements `MonadError` where the error type `E` is the `Left` type `L`. `raiseError(l)` creates a `Left(l)` `EitherKind`. `of(r)` creates `Right(r)`. Useful for handling domain-specific errors explicitly.
-
+* **Usage:** How to use the [Either Monad](either_monad.md) with HKT Simulation 
 ---
 
 ### 5. `Try<T>` (Custom Type)
