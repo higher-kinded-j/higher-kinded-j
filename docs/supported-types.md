@@ -1,5 +1,8 @@
 # Supported Types in HKT Simulation
 
+![monads_everywhere.webp](images/monads_everywhere.webp)
+
+
 This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) and corresponding type class instances (`Functor`, `Applicative`, `Monad`, `MonadError`) for the following Java types and custom types.
 
 ![supported_types.svg](puml/supported_types.svg)

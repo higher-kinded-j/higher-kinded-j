@@ -51,7 +51,7 @@ The simulation hinges on a few key ideas:
 
 ## Simulated Types
 
-[supported_types.puml](docs/puml/supported_types.puml)
+[supported_types.puml](docs/puml/supported_types.svg)
 
 This simulation provides HKT wrappers and type class instances for:
 
