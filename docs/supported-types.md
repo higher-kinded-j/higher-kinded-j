@@ -99,13 +99,13 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 8. `Lazy<A>` (Custom Type)
 
-* **Definition:** A custom type ([`Lazy.java`](../src/main/java/org/simulation/hkt/lazy/Lazy.java)) representing a value whose computation is deferred until explicitly requested via `force()` and then memoized (cached).
+* **Definition:** A custom type ([`Lazy.java`](../src/main/java/org/simulation/hkt/lazy/Lazy.java)) representing a value whose computation is deferred until explicitly requested via `force()` and then memoised (cached).
 * **Kind Interface:** `LazyKind<A>`
 * **Witness Type `F`:** `LazyKind<?>`
 * **Helper:** `LazyKindHelper` (`wrap`, `unwrap`, `defer`, `now`, `force`)
 * **Type Class Instances:**
   * `LazyMonad` (`Monad`, `Applicative`, `Functor`)
-* **Notes:** Useful for expensive computations or values that should only be calculated if needed. `map` and `flatMap` preserve laziness. `of(a)` creates an already evaluated `Lazy` instance (`Lazy.now`). `LazyKindHelper.defer(() -> ...)` creates an unevaluated `Lazy`. Exceptions during computation are caught, memoized, and re-thrown by `force()`.
+* **Notes:** Useful for expensive computations or values that should only be calculated if needed. `map` and `flatMap` preserve laziness. `of(a)` creates an already evaluated `Lazy` instance (`Lazy.now`). `LazyKindHelper.defer(() -> ...)` creates an unevaluated `Lazy`. Exceptions during computation are caught, memoised, and re-thrown by `force()`.
 
 ---
 

@@ -13,7 +13,7 @@ It uses a defunctionalisation approach, representing type constructors and type 
 
 Java's powerful type system excels in many areas, but it lacks native support for Higher-Kinded Types (HKTs). This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>` in the same way we abstract over the type `A` itself. We can't easily define a generic function that works identically for *any* container or computational context (like List, Optional, Future, IO).
 
-This project tackles that challenge by demonstrating a **simulation of HKTs in Java** using a technique inspired by defunctionalization. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
+This project tackles that challenge by demonstrating a **simulation of HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
 
 **Why bother?** This simulation unlocks several benefits:
 
@@ -55,7 +55,7 @@ This simulation provides HKT wrappers and type class instances for:
 * `java.util.concurrent.CompletableFuture<T>` ([`CompletableFutureKind`](src/main/java/org/simulation/hkt/future/CompletableFutureKind.java), [`CompletableFutureMonadError`](src/main/java/org/simulation/hkt/future/CompletableFutureMonadError.java) implementing `MonadError<..., Throwable>`)
 * `Try<T>` (custom type) ([`TryKind`](src/main/java/org/simulation/hkt/trymonad/TryKind.java), [`TryMonadError`](src/main/java/org/simulation/hkt/trymonad/TryMonadError.java) implementing `MonadError<..., Throwable>`)
 * `IO<A>` (custom type) ([`IOKind`](src/main/java/org/simulation/hkt/io/IOKind.java), [`IOMonad`](src/main/java/org/simulation/hkt/io/IOMonad.java)) - For deferred, side-effecting computations.
-* `Lazy<A>` (custom type) ([`LazyKind`](src/main/java/org/simulation/hkt/lazy/LazyKind.java), [`LazyMonad`](src/main/java/org/simulation/hkt/lazy/LazyMonad.java)) - For deferred, memoized computations.
+* `Lazy<A>` (custom type) ([`LazyKind`](src/main/java/org/simulation/hkt/lazy/LazyKind.java), [`LazyMonad`](src/main/java/org/simulation/hkt/lazy/LazyMonad.java)) - For deferred, memoised computations.
 * `Reader<R, A>` (custom type) ([`ReaderKind`](src/main/java/org/simulation/hkt/reader/ReaderKind.java), [`ReaderMonad`](src/main/java/org/simulation/hkt/reader/ReaderMonad.java)) - For computations depending on a read-only environment.
 * `State<S, A>` (custom type) ([`StateKind`](src/main/java/org/simulation/hkt/state/StateKind.java), [`StateMonad`](src/main/java/org/simulation/hkt/state/StateMonad.java)) - For stateful computations.
 * `Writer<W, A>` (custom type) ([`WriterKind`](src/main/java/org/simulation/hkt/writer/WriterKind.java), [`WriterMonad`](src/main/java/org/simulation/hkt/writer/WriterMonad.java)) - For computations that accumulate a log/output (requires `Monoid<W>`).
@@ -83,7 +83,7 @@ Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWit
 If you want to leverage this simulation in your own code:
 
 1.  **Include the Code:** Copy the relevant packages (`org.simulation.hkt` and the packages for the types you need, e.g., `org.simulation.hkt.optional`) into your project's source code.
-2.  **Understand the Pattern:** Familiarize yourself with the `Kind` interface, the specific `*Kind` interfaces (e.g., `OptionalKind`), the `*KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
+2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `*Kind` interfaces (e.g., `OptionalKind`), the `*KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
 3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](docs/usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
 4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending the Simulation](docs/extending-simulation.md).
 
