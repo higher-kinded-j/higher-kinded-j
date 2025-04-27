@@ -1,14 +1,17 @@
 # Extending the Simulation
 
-You can add support for new Java types (type constructors) to this HKT simulation framework. Here’s a general guide on how to do it, using a hypothetical `java.util.Set<A>` as an example.
+We can add support for new Java types (type constructors) to the simulation framework. 
+
+
+Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an example.
 
 **Goal:** Simulate `java.util.Set<A>` as a `Kind<SetKind<?>, A>` and provide `Functor`, `Applicative`, and `Monad` instances for it.
 
 ## Steps
 
-1. **Create the `*Kind` Interface:**
+1. **Create the `Kind` Interface:**
    * Define a marker interface that extends `Kind<F, A>`, where `F` is the witness type (usually the interface name with wildcards).
-   * **Example (`SetKind.java`):****Java**
+   * **Example (`SetKind.java`):**
 
      ```java
      package org.simulation.hkt.set; // Create a new package
@@ -23,19 +26,19 @@ You can add support for new Java types (type constructors) to this HKT simulatio
      public interface SetKind<A> extends Kind<SetKind<?>, A> {
      }
      ```
-2. **Create the `*Holder` Record:**
-   * Define an internal (usually package-private) record that implements the `*Kind` interface and holds the actual Java type instance.
-   * **Example (inside `SetKindHelper.java`):****Java**
+2. **Create the `Holder` Record:**
+   * Define an internal (usually package-private) record that implements the `Kind` interface and holds the actual Java type instance.
+   * Example (inside `SetKindHelper.java`):
 
      ```
      // Inside SetKindHelper.java
      record SetHolder<A>(java.util.Set<A> set) implements SetKind<A> { }
      ```
-3. **Create the `*KindHelper` Class:**
+3. **Create the `KindHelper` Class:**
    * Define a `final` class with static `wrap` and `unwrap` methods.
-   * `wrap`: Takes the Java type (e.g., `Set<A>`), checks for null, and returns a new `*Holder` instance wrapped as `Kind<F, A>`. Use appropriate annotations (`@NonNull`, `@Nullable`).
-   * `unwrap`: Takes `Kind<F, A>`, checks for null, checks `instanceof *Holder`, extracts the internal Java type, checks if *that* is null, and returns it. Throws `KindUnwrapException` for any structural invalidity. Use appropriate annotations.
-   * **Example (`SetKindHelper.java`):****Java**
+   * `wrap`: Takes the Java type (e.g., `Set<A>`), checks for null, and returns a new `Holder` instance wrapped as `Kind<F, A>`. Use appropriate annotations (`@NonNull`, `@Nullable`).
+   * `unwrap`: Takes `Kind<F, A>`, checks for null, checks `instanceof Holder`, extracts the internal Java type, checks if *that* is null, and returns it. Throws `KindUnwrapException` for any structural invalidity. Use appropriate annotations.
+   * **Example (`SetKindHelper.java`):**
 
      ```java 
      package org.simulation.hkt.set;
@@ -88,7 +91,6 @@ You can add support for new Java types (type constructors) to this HKT simulatio
    * Create classes implementing `Functor<F>`, `Applicative<F>`, `Monad<F>`, etc., using the specific witness type `F` (e.g., `SetKind<?>`).
    * Implement the required methods (`map`, `of`, `ap`, `flatMap`) using the `wrap` and `unwrap` helpers to interact with the underlying Java type.
    * **Example (`SetFunctor.java`, `SetApplicative.java`, `SetMonad.java`):**
-     **Java**
 
      ```java
      // SetFunctor.java
@@ -165,4 +167,4 @@ You can add support for new Java types (type constructors) to this HKT simulatio
    * *Note: `Set` doesn't have a standard monadic error state, so `MonadError` isn't typically implemented for it.*
 6. **Add Tests:** Create corresponding test classes (`SetKindHelperTest`, `SetMonadTest`) to verify the `wrap`/`unwrap` behavior (including `KindUnwrapException` cases) and ensure the type class instances adhere to the Functor/Applicative/Monad laws.
 
-By following these steps, you can integrate new types into the HKT simulation, allowing you to use them with the generic functional abstractions provided.
+By following these steps, we can integrate new types into the HKT simulation, allowing us to use them with the generic functional abstractions provided.

@@ -4,7 +4,11 @@ This simulation employs several key components to emulate Higher-Kinded Types (H
 
 ## 1. The HKT Problem in Java
 
-Java's type system lacks native Higher-Kinded Types. We can easily parameterize a type by another type (like `List<String>`), but we cannot easily parameterize a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
+Java's type system lacks native Higher-Kinded Types. We can easily parameterise a type by another type (like `List<String>`), but we cannot easily parameterise a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
+
+![core_interfaces.svg](puml/core_interfaces.svg)
+
+
 
 ## 2. The `Kind<F, A>` Bridge
 
@@ -14,7 +18,7 @@ Java's type system lacks native Higher-Kinded Types. We can easily parameterize 
   * `OptionalKind<?>` represents the `Optional` type constructor.
   * `EitherKind<L, ?>` represents the `Either<L, _>` type constructor (where `L` is fixed).
   * `IOKind<?>` represents the `IO` type constructor.
-* **`A` (Type Argument):** The concrete type contained within or parameterized by the constructor (e.g., `Integer` in `List<Integer>`).
+* **`A` (Type Argument):** The concrete type contained within or parameterised by the constructor (e.g., `Integer` in `List<Integer>`).
 * **How it Works:** An actual object, like a `java.util.List<Integer>`, is wrapped in a helper class (e.g., `ListHolder`) which implements `Kind<ListKind<?>, Integer>`. This `Kind` object can then be passed to generic functions that expect `Kind<F, A>`.
 * **Reference:** [`Kind.java`](../src/main/java/org/simulation/hkt/Kind.java)
 
@@ -35,7 +39,7 @@ These are interfaces that define standard functional operations that work *gener
   * Reference: [`Applicative.java`](../src/main/java/org/simulation/hkt/Applicative.java)
 * **`Monad<F>`:**
   * Extends `Applicative<F>`.
-  * Adds `flatMap(Function<A, Kind<F, B>> f, Kind<F, A> ma)`: Sequences operations within the context `F`. Takes a value `A` from context `F`, applies a function `f` that returns a *new context* `Kind<F, B>`, and returns the result flattened into a single `Kind<F, B>`. Essential for chaining dependent computations (e.g., chaining `Optional` calls, sequencing `CompletableFuture`s, combining `IO` actions). Also known as `bind` or `>>=`.
+  * Adds `flatMap(Function<A, Kind<F, B>> f, Kind<F, A> ma)`: Sequences operations within the context `F`. Takes a value `A` from context `F`, applies a function `f` that returns a *new context* `Kind<F, B>`, and returns the result flattened into a single `Kind<F, B>`. Essential for chaining dependent computations (e.g., chaining `Optional` calls, sequencing `CompletableFuture`s, combining `IO` actions). Also known in functional languages as `bind` or `>>=`.
   * Laws: Left Identity, Right Identity, Associativity.
   * Reference: [`Monad.java`](../src/main/java/org/simulation/hkt/Monad.java)
 * **`MonadError<F, E>`:**
@@ -46,13 +50,13 @@ These are interfaces that define standard functional operations that work *gener
   * Provides default recovery methods like `handleError`, `recover`, `recoverWith`.
   * Reference: [`MonadError.java`](../src/main/java/org/simulation/hkt/MonadError.java)
 
-## 4. Simulation Plumbing (Per Type Constructor)
+## 4. Defunctionalisation (Per Type Constructor)
 
 For each Java type constructor (like `List`, `Optional`, `IO`) you want to simulate:
 
-* **`*Kind` Interface:** A specific marker interface extending `Kind<F, A>` (e.g., `OptionalKind<A> extends Kind<OptionalKind<?>, A>`). The `OptionalKind<?>` part is the witness `F`.
-* **`*Holder` Record:** An internal (often package-private) record that implements the `*Kind` interface and holds the actual underlying Java object (e.g., `OptionalHolder` holds a `java.util.Optional`). This is the concrete implementation of the `Kind`.
-* **`*KindHelper` Class:** A crucial utility class with static `wrap` and `unwrap` methods:
+* **`Kind` Interface:** A specific marker interface extending `Kind<F, A>` (e.g., `OptionalKind<A> extends Kind<OptionalKind<?>, A>`). The `OptionalKind<?>` part is the witness `F`.
+* **`Holder` Record:** An internal (often package-private) record that implements the `*Kind` interface and holds the actual underlying Java object (e.g., `OptionalHolder` holds a `java.util.Optional`). This is the concrete implementation of the `Kind`.
+* **`KindHelper` Class:** A crucial utility class with static `wrap` and `unwrap` methods:
   * `wrap(JavaType<A> value)`: Takes the standard Java type (e.g., `Optional<String>`) and returns the `Kind<F, A>` simulation type (by creating and returning a `*Holder`). Requires non-null input for the container itself (e.g., the `Optional` instance cannot be null, though it can be `Optional.empty()`).
   * `unwrap(Kind<F, A> kind)`: Takes the `Kind<F, A>` simulation type and returns the underlying Java type (e.g., `Optional<String>`). **Crucially, this method throws `KindUnwrapException` if the input `kind` is structurally invalid** (e.g., `null`, the wrong `Kind` type, or a `Holder` containing `null` where it shouldn't). This ensures robustness within the simulation layer.
   * May contain other convenience factories (e.g., `MaybeKindHelper.just(...)`, `IOKindHelper.delay(...)`).

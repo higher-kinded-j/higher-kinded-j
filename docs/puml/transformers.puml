@@ -1,0 +1,22 @@
+@startuml
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+left to right direction
+
+package Transformers {
+     class "EitherTMonad<F, L>" as EitherTMonad
+     class "EitherT<F, L, R>" as EitherT
+     interface "EitherTKind<F, L, R>" as EitherTKind {
+        __ Witness Type G = EitherTKind<F,L,?> __
+     }
+
+     EitherTMonad <|.. CoreInterfaces.MonadError
+     EitherT <|.. EitherTKind
+     EitherTKind <|.. CoreInterfaces.Kind
+     EitherTMonad ..> CoreInterfaces.Monad : requires F
+     EitherT ..> CoreInterfaces.Kind : wraps Kind<F, Either<L,R>>
+}
+
+
+@enduml
