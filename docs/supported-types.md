@@ -1,6 +1,10 @@
 # Supported Types in HKT Simulation
 
+![monads_everywhere.webp](images/monads_everywhere.webp)
+
 This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) and corresponding type class instances (`Functor`, `Applicative`, `Monad`, `MonadError`) for the following Java types and custom types.
+
+![supported_types.svg](puml/supported_types.svg)
 
 ---
 
@@ -51,6 +55,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `EitherFunctor<L>` (`Functor`)
   * `EitherMonad<L>` (`Monad`, `Applicative`, `MonadError<..., L>`)
 * **Notes:** Represents computations that can fail with a *typed* error. Instances are right-biased (`map`/`flatMap` operate on `Right`). Implements `MonadError` where the error type `E` is the `Left` type `L`. `raiseError(l)` creates a `Left(l)` `EitherKind`. `of(r)` creates `Right(r)`. Useful for handling domain-specific errors explicitly.
+* **Usage:** How to use the [Either Monad](either_monad.md) 
 
 ---
 
@@ -66,6 +71,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `TryMonad` (`Monad`)
   * `TryMonadError` (`MonadError<..., Throwable>`)
 * **Notes:** Useful for wrapping computations that might throw arbitrary exceptions. Implements `MonadError` where the error type `E` is `Throwable`. `raiseError(t)` creates a `Failure(t)` `TryKind`. `of(v)` creates `Success(v)`. `flatMap` propagates failures or exceptions thrown during mapping.
+* **Usage:** How to use the [Try Monad](try_monad.md) 
 
 ---
 
@@ -99,13 +105,13 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 8. `Lazy<A>` (Custom Type)
 
-* **Definition:** A custom type ([`Lazy.java`](../src/main/java/org/simulation/hkt/lazy/Lazy.java)) representing a value whose computation is deferred until explicitly requested via `force()` and then memoized (cached).
+* **Definition:** A custom type ([`Lazy.java`](../src/main/java/org/simulation/hkt/lazy/Lazy.java)) representing a value whose computation is deferred until explicitly requested via `force()` and then memoised (cached).
 * **Kind Interface:** `LazyKind<A>`
 * **Witness Type `F`:** `LazyKind<?>`
 * **Helper:** `LazyKindHelper` (`wrap`, `unwrap`, `defer`, `now`, `force`)
 * **Type Class Instances:**
   * `LazyMonad` (`Monad`, `Applicative`, `Functor`)
-* **Notes:** Useful for expensive computations or values that should only be calculated if needed. `map` and `flatMap` preserve laziness. `of(a)` creates an already evaluated `Lazy` instance (`Lazy.now`). `LazyKindHelper.defer(() -> ...)` creates an unevaluated `Lazy`. Exceptions during computation are caught, memoized, and re-thrown by `force()`.
+* **Notes:** Useful for expensive computations or values that should only be calculated if needed. `map` and `flatMap` preserve laziness. `of(a)` creates an already evaluated `Lazy` instance (`Lazy.now`). `LazyKindHelper.defer(() -> ...)` creates an unevaluated `Lazy`. Exceptions during computation are caught, memoised, and re-thrown by `force()`.
 
 ---
 
@@ -120,7 +126,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `ReaderApplicative<R>` (`Applicative`)
   * `ReaderMonad<R>` (`Monad`)
 * **Notes:** Facilitates dependency injection. `map` and `flatMap` compose functions that operate within the context of the environment `R`. `ask()` provides access to the environment itself. `of(a)` creates a `Reader` that ignores the environment and returns `a`.
-
+* **Usage:** How to use the [Reader Monad](reader_monad.md) 
 ---
 
 ### 10. `State<S, A>` (Custom Type)
@@ -134,7 +140,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `StateApplicative<S>` (`Applicative`)
   * `StateMonad<S>` (`Monad`)
 * **Notes:** Models computations where state needs to be threaded through a sequence of operations. `flatMap` sequences computations, passing the resulting state from one step to the next. `get()` retrieves the current state, `set(s)` updates it, `modify(f)` updates it using a function. `of(a)` (`pure`) returns `a` without changing state.
-
+* **Usage:** How to use the [State Monad](state_monad.md) 
 ---
 
 ### 11. `Writer<W, A>` (Custom Type)
@@ -148,7 +154,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `WriterApplicative<W>` (`Applicative`)
   * `WriterMonad<W>` (`Monad`)
 * **Notes:** Useful for logging or accumulating results alongside the main computation. `flatMap` sequences computations and combines their logs using the provided `Monoid`. `tell(w)` logs a value `w` without producing a main result. `of(a)` (`value`) produces `a` with an empty log.
-
+* **Usage:** How to use the [Writer Monad](writer_monad.md) 
 ---
 
 ### 12. `EitherT<F, L, R>` (Monad Transformer)
@@ -160,3 +166,8 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 * **Type Class Instances:**
   * `EitherTMonad<F, L>` (`MonadError<EitherTKind<F, L, ?>, L>`)
 * **Notes:** Simplifies working with nested structures like `F<Either<L, R>>`. Requires a `Monad<F>` instance for the outer monad `F` passed to its constructor. Implements `MonadError` for the *inner* `Either`'s `Left` type `L`. See the [Order Example Walkthrough](order-walkthrough.md) for practical usage with `CompletableFuture` as `F`.
+
+![transformers.svg](puml/transformers.svg)
+
+**Usage:** How to use the [EitherT Monad Transformer](eithert_transformer.md) 
+

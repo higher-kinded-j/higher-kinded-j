@@ -1,0 +1,78 @@
+@startuml State_Monad_Diagram
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
+package "Core HKT Interfaces" {
+    interface Kind<F, A>
+    interface Functor<F>
+    interface Applicative<F>
+    interface Monad<F>
+}
+
+package "State Type" {
+    interface State<S, A> <<Functional Interface>> {
+       + StateTuple<S, A> run(S initialState)
+       + {static} State<S, A> of(Function<S, StateTuple<S, A>> func)
+       + {static} State<S, A> pure(A value)
+       + {static} State<S, S> get()
+       + {static} State<S, Void> set(S newState)
+       + {static} State<S, Void> modify(Function<S, S> f)
+       + {static} State<S, A> inspect(Function<S, A> f)
+       + State<S, B> map(Function<A, B> f)
+       + State<S, B> flatMap(Function<A, State<S, B>> f)
+    }
+    State +-- StateTuple : uses >
+
+    class StateTuple<S, A> <<record>>  {
+      + StateTuple(A value, S state)
+    }
+}
+
+package "State HKT Simulation" {
+    interface "StateKind<S, A> extends Kind<StateKind<S, ?>, A>"
+
+    class StateKindHelper {
+      + {static} State<S, A> unwrap(Kind<StateKind<S, ?>, A> kind)
+      + {static} StateKind<S, A> wrap(State<S, A> state)
+      + {static} StateKind<S, A> pure(A value)
+      + {static} StateKind<S, S> get()
+      + {static} StateKind<S, Void> set(S newState)
+      + {static} StateKind<S, Void> modify(Function<S, S> f)
+      + {static} StateKind<S, A> inspect(Function<S, A> f)
+      + {static} StateTuple<S, A> runState(Kind<StateKind<S, ?>, A> kind, S initialState)
+      + {static} A evalState(Kind<StateKind<S, ?>, A> kind, S initialState)
+      + {static} S execState(Kind<StateKind<S, ?>, A> kind, S initialState)
+    }
+
+    class StateFunctor<S> implements Functor<StateKind<S, ?>> {
+       + Kind<StateKind<S, ?>, B> map(Function<A, B> f, Kind<StateKind<S, ?>, A> fa)
+    }
+    class StateApplicative<S> extends StateFunctor<S> implements Applicative<StateKind<S, ?>> {
+       + Kind<StateKind<S, ?>, A> of(A value)
+       + Kind<StateKind<S, ?>, B> ap(Kind<StateKind<S, ?>, Function<A, B>> ff, Kind<StateKind<S, ?>, A> fa)
+    }
+    class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind<S, ?>> {
+       + Kind<StateKind<S, ?>, B> flatMap(Function<A, Kind<StateKind<S, ?>, B>> f, Kind<StateKind<S, ?>, A> ma)
+    }
+}
+
+' Relationships
+StateKind -- Kind : extends
+StateFunctor -- Functor : implements
+StateApplicative -- Applicative : implements
+StateMonad -- Monad : implements
+
+StateApplicative .u.> StateFunctor : extends
+StateMonad .u.> StateApplicative : extends
+
+StateKindHelper ..> State : creates/unwraps
+StateKindHelper ..> StateKind : creates/unwraps
+
+StateMonad ..> StateKind : operates on <StateKind<S,?>>
+StateMonad ..> State : uses methods of
+
+@enduml

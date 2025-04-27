@@ -1,0 +1,38 @@
+@startuml
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+left to right direction
+
+package "Supported Types (Monad Implementations)" {
+    class ListMonad
+    class OptionalMonad
+    class MaybeMonad
+    class "EitherMonad<L>" as EitherMonad
+    class CompletableFutureMonadError
+    class TryMonadError
+    class IOMonad
+    class LazyMonad
+    class "ReaderMonad<R>" as ReaderMonad
+    class "StateMonad<S>" as StateMonad
+    class "WriterMonad<W>" as WriterMonad
+
+    ListMonad <|.. CoreInterfaces.Monad
+    OptionalMonad <|.. CoreInterfaces.MonadError
+    MaybeMonad <|.. CoreInterfaces.MonadError
+    EitherMonad <|.. CoreInterfaces.MonadError
+    CompletableFutureMonadError <|.. CoreInterfaces.MonadError
+    TryMonadError <|.. CoreInterfaces.MonadError
+    IOMonad <|.. CoreInterfaces.Monad
+    LazyMonad <|.. CoreInterfaces.Monad
+    ReaderMonad <|.. CoreInterfaces.Monad
+    StateMonad <|.. CoreInterfaces.Monad
+    WriterMonad <|.. CoreInterfaces.Monad
+
+    ' Example relation for Optional
+    OptionalMonad ..> SimulationPlumbing.OptionalKind : operates on witness
+}
+
+
+
+@enduml

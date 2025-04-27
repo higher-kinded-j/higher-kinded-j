@@ -15,9 +15,9 @@ The general process involves these steps:
    * Example (`Either<String, ?>`): `EitherMonad<String> eitherMonad = new EitherMonad<>();`
    * Example (`IO`): `IOMonad ioMonad = new IOMonad();`
    * Example (`Writer<String, ?>`): `WriterMonad<String> writerMonad = new WriterMonad<>(new StringMonoid());`
-3. **Wrap Your Value (`JavaType<A>` -> `Kind<F, A>`):** Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into the simulation's `Kind` representation using the static `wrap` method from the corresponding `*KindHelper` class. **Java**
+3. **Wrap Your Value (`JavaType<A>` -> `Kind<F, A>`):** Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into the simulation's `Kind` representation using the static `wrap` method from the corresponding `KindHelper` class. **Java**
 
-   ```
+   ```java
    import java.util.Optional;
    import org.simulation.hkt.optional.OptionalKind;
    import org.simulation.hkt.optional.OptionalKindHelper;
@@ -33,7 +33,7 @@ The general process involves these steps:
    * Some helpers provide convenience factories like `MaybeKindHelper.just("value")`, `TryKindHelper.failure(ex)`, `IOKindHelper.delay(() -> ...)`, `LazyKindHelper.defer(() -> ...)`. Use these when appropriate.
 4. **Apply Type Class Methods:** Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the ***type class instance*** obtained in Step 2, passing your `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object.****Java**
 
-   ```
+   ```java
    import org.simulation.hkt.optional.OptionalMonad;
    import org.simulation.hkt.optional.OptionalKindHelper;
    import org.simulation.hkt.Kind;
@@ -66,9 +66,10 @@ The general process involves these steps:
    );
    // handledKind now represents Kind<OptionalKind<?>, String> containing Optional.of("Default Value")
    ```
-5. **Unwrap the Result (`Kind<F, A>` -> `JavaType<A>`):** When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running IO), use the static `unwrap` method from the corresponding `*KindHelper` class. **Java**
+   
+5. **Unwrap the Result (`Kind<F, A>` -> `JavaType<A>`):** When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running IO), use the static `unwrap` method from the corresponding `KindHelper` class. **Java**
 
-   ```
+   ```java
    // Continuing the Optional example:
    Optional<String> finalOptional = OptionalKindHelper.unwrap(checkedKind);
    System.out.println("Final Optional: " + finalOptional); // Output: Optional[Long enough]
@@ -84,15 +85,14 @@ The general process involves these steps:
 
 ## Handling `KindUnwrapException`
 
-The `unwrap` methods in all `*KindHelper` classes are designed to be robust against *structural* errors within the HKT simulation layer.
+The `unwrap` methods in all `KindHelper` classes are designed to be robust against *structural* errors within the HKT simulation layer.
 
 * **When it's thrown:** If you pass `null` to `unwrap`, or pass a `Kind` object of the wrong type (e.g., passing a `ListKind` to `OptionalKindHelper.unwrap`), or (if it were possible through incorrect usage) pass a `Holder` record that internally contains `null` where the helper expects a non-null underlying object, `unwrap` will throw an unchecked `KindUnwrapException`.
 * **What it means:** This exception signals a problem with how you are using the HKT simulation itself – usually a programming error in creating or passing `Kind` objects.
 * **How to handle:** You generally **should not** need to catch `KindUnwrapException` in typical application logic. Its occurrence points to a bug that needs fixing in the code using the simulation.
 
-**Java**
 
-```
+```java
 import org.simulation.hkt.exception.KindUnwrapException;
 import org.simulation.hkt.list.ListKindHelper;
 import org.simulation.hkt.optional.OptionalKindHelper; // Use Optional helper
@@ -131,12 +131,11 @@ try {
 
 This simulation allows writing functions generic over the simulated type constructor `F`.
 
-**Java**
 
-```
-import org.simulation.hkt.*; // Import core interfaces
-import org.simulation.hkt.list.*; // Import List specific components
-import org.simulation.hkt.optional.*; // Import Optional specific components
+```java
+import org.simulation.hkt.*; 
+import org.simulation.hkt.list.*; 
+import org.simulation.hkt.optional.*; 
 import java.util.List;
 import java.util.Optional;
 

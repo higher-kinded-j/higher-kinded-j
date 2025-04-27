@@ -1,5 +1,6 @@
 package org.simulation.example.order.model;
 
+import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -43,7 +44,7 @@ public class WorkflowModels {
     // Static factory for initial state
     public static @NonNull WorkflowContext start(@NonNull OrderData data) {
       // Assuming OrderData itself should not be null
-      java.util.Objects.requireNonNull(data, "Initial OrderData cannot be null");
+      Objects.requireNonNull(data, "Initial OrderData cannot be null");
       return new WorkflowContext(data, null, false, null, null);
     }
 
@@ -62,8 +63,7 @@ public class WorkflowModels {
 
     public @NonNull WorkflowContext withPaymentConfirmation(@NonNull PaymentConfirmation pc) {
       // Assuming the payment confirmation passed in is non-null
-      java.util.Objects.requireNonNull(
-          pc, "PaymentConfirmation cannot be null for withPaymentConfirmation");
+      Objects.requireNonNull(pc, "PaymentConfirmation cannot be null for withPaymentConfirmation");
       return new WorkflowContext(
           this.initialData, this.validatedOrder, this.inventoryChecked, pc, this.shipmentInfo);
     }

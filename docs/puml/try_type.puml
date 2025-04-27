@@ -1,0 +1,52 @@
+@startuml Try_Type_Diagram
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+
+interface "Try<T>" as Try {
+  + {abstract} boolean isSuccess()
+  + {abstract} boolean isFailure()
+  + {abstract} T get() throws Throwable
+  + {abstract} Try<U> map(Function<T, U> mapper)
+  + {abstract} Try<U> flatMap(Function<T, Try<U>> mapper)
+  + {abstract} Try<T> recover(Function<Throwable, T> recoveryFunc)
+  + {abstract} Try<T> recoverWith(Function<Throwable, Try<T>> recoveryFunc)
+  + {abstract} U fold(Function<T, U> successMapper, Function<Throwable, U> failureMapper)
+  + {abstract} void match(Consumer<T> successAction, Consumer<Throwable> failureAction)
+  + {static} Try<T> of(Supplier<T> supplier)
+  + {static} Try<T> success(T value)
+  + {static} Try<T> failure(Throwable throwable)
+}
+
+  class "Success<T>(T value)" <<record>> implements Try {
+    + Success(T value)
+    __ Methods __
+     + boolean isSuccess()
+     + boolean isFailure()
+     + T get()
+     + Try<U> map(Function<T, U> mapper)
+     + Try<U> flatMap(Function<T, Try<U>> mapper)
+     + Try<T> recover(Function<Throwable, T> recoveryFunc)
+     + Try<T> recoverWith(Function<Throwable, Try<T>> recoveryFunc)
+  }
+
+
+
+  class "Failure<T>(Throwable cause)" <<record>> implements Try {
+    + Failure(Throwable cause)
+    __ Methods __
+     + boolean isSuccess()
+     + boolean isFailure()
+     + T get() throws Throwable
+     + Try<U> map(Function<T, U> mapper)
+     + Try<U> flatMap(Function<T, Try<U>> mapper)
+     + Try<T> recover(Function<Throwable, T> recoveryFunc)
+     + Try<T> recoverWith(Function<Throwable, Try<T>> recoveryFunc)
+  }
+
+
+Try <|-- Success
+Try <|-- Failure
+
+@enduml

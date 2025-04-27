@@ -1,0 +1,59 @@
+@startuml Try_Monad_Hierarchy
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
+package "Core HKT Interfaces" {
+    interface Kind<F, A>
+    interface Functor<F>
+    interface Applicative<F>
+    interface Monad<F>
+    interface MonadError<F, E>
+}
+
+package "Try Type" {
+    interface "Try<T>" as Try
+    /' Use notes or hidden classes for Success/Failure if diagram gets too busy
+    record Success<T> implements Try
+    record Failure<T> implements Try '/
+}
+
+package "Try HKT Simulation" {
+    interface "TryKind<T>" extends "Kind<TryKind<?>, T>" as TryKind
+
+    class TryFunctor implements Functor<TryKind<?>> {
+      + Kind<TryKind<?>, B> map(Function<A, B> f, Kind<TryKind<?>, A> fa)
+    }
+    class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
+      + Kind<TryKind<?>, A> of(A value)
+      + Kind<TryKind<?>, B> ap(Kind<TryKind<?>, Function<A, B>> ff, Kind<TryKind<?>, A> fa)
+    }
+    class TryMonad extends TryApplicative implements Monad<TryKind<?>> {
+      + Kind<TryKind<?>, B> flatMap(Function<A, Kind<TryKind<?>, B>> f, Kind<TryKind<?>, A> ma)
+    }
+    class TryMonadError extends TryMonad implements MonadError<TryKind<?>, Throwable> {
+      + Kind<TryKind<?>, A> raiseError(Throwable error)
+      + Kind<TryKind<?>, A> handleErrorWith(Kind<TryKind<?>, A> ma, Function<Throwable, Kind<TryKind<?>, A>> handler)
+    }
+
+}
+
+' Relationships between packages/main classes
+TryFunctor --> Functor : implements
+TryApplicative --> Applicative : implements
+TryMonad --> Monad : implements
+TryMonadError --> MonadError : implements
+
+TryMonadError --> TryMonad : extends
+TryMonad --> TryApplicative : extends
+TryApplicative --> TryFunctor : extends
+
+TryKind -- Kind : extends
+
+TryMonadError ..> TryKind : operates on <TryKind<?>>
+TryMonadError ..> Try : uses methods of
+
+@enduml

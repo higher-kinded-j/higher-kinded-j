@@ -1,0 +1,66 @@
+@startuml Reader_Monad_Diagram
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
+package "Core HKT Interfaces" {
+    interface Kind<F, A>
+    interface Functor<F>
+    interface Applicative<F>
+    interface Monad<F>
+}
+
+package "Reader Type" {
+    interface Reader<R, A> <<Functional Interface>> {
+       + A run(R r)
+       + {static} Reader<R, A> of(Function<R, A> func)
+       + {static} Reader<R, A> constant(A value)
+       + {static} Reader<R, R> ask()
+       + Reader<R, B> map(Function<A, B> f)
+       + Reader<R, B> flatMap(Function<A, Reader<R, B>> f)
+    }
+}
+
+package "Reader HKT Simulation" {
+    interface "ReaderKind<R, A> extends Kind<ReaderKind<R, ?>, A>"
+
+    class ReaderKindHelper {
+      + {static} Reader<R, A> unwrap(Kind<ReaderKind<R, ?>, A> kind)
+      + {static} ReaderKind<R, A> wrap(Reader<R, A> reader)
+      + {static} ReaderKind<R, A> reader(Function<R, A> runFunction)
+      + {static} ReaderKind<R, A> constant(A value)
+      + {static} ReaderKind<R, R> ask()
+      + {static} A runReader(Kind<ReaderKind<R, ?>, A> kind, R environment)
+    }
+
+    class ReaderFunctor<R> implements Functor<ReaderKind<R, ?>> {
+       + Kind<ReaderKind<R, ?>, B> map(Function<A, B> f, Kind<ReaderKind<R, ?>, A> fa)
+    }
+    class ReaderApplicative<R> extends ReaderFunctor<R> implements Applicative<ReaderKind<R, ?>> {
+       + Kind<ReaderKind<R, ?>, A> of(A value)
+       + Kind<ReaderKind<R, ?>, B> ap(Kind<ReaderKind<R, ?>, Function<A, B>> ff, Kind<ReaderKind<R, ?>, A> fa)
+    }
+    class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind<R, ?>> {
+       + Kind<ReaderKind<R, ?>, B> flatMap(Function<A, Kind<ReaderKind<R, ?>, B>> f, Kind<ReaderKind<R, ?>, A> ma)
+    }
+}
+
+' Relationships
+ReaderKind -- Kind : extends
+ReaderFunctor -- Functor : implements
+ReaderApplicative -- Applicative : implements
+ReaderMonad -- Monad : implements
+
+ReaderApplicative .u.> ReaderFunctor : extends
+ReaderMonad .u.> ReaderApplicative : extends
+
+ReaderKindHelper ..> Reader : creates/unwraps
+ReaderKindHelper ..> ReaderKind : creates/unwraps
+
+ReaderMonad ..> ReaderKind : operates on <ReaderKind<R,?>>
+ReaderMonad ..> Reader : uses methods of
+
+@enduml

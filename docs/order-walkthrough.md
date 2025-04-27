@@ -18,7 +18,7 @@ This document provides a detailed walkthrough of the Order Processing example fo
 Before diving in, it's helpful to have a basic understanding of:
 
 * [Core Concepts](core-concepts.md) of the HKT simulation (`Kind`, Type Classes).
-* The specific types being used: **[Supported Types](supported-types.md): See which Java types (like `List`, `Optional`, `CompletableFuture`) and custom types (`Maybe`, `Either`, `Try`, `IO`, `Lazy`) are currently simulated and have corresponding type class instances.
+* The specific types being used: [Supported Types](supported-types.md): See which Java types (like `List`, `Optional`, `CompletableFuture`) and custom types (`Maybe`, `Either`, `Try`, `IO`, `Lazy`) are currently simulated and have corresponding type class instances.
 * The general [Usage Guide](usage-guide.md):.
 
 **Key Files:**
@@ -66,9 +66,7 @@ This example tackles these challenges using:
 
 In `OrderWorkflowRunner`, we get the necessary type class instances:
 
-**Java**
-
-```
+```java
 // Get MonadError instance for CompletableFuture (handles Throwable)
 MonadError<CompletableFutureKind<?>, Throwable> futureMonad = new CompletableFutureMonadError();
 
@@ -91,9 +89,7 @@ Let's trace the execution flow defined in `OrderWorkflowRunner.runOrderWorkflowE
 
 **Initial State:**
 
-**Java**
-
-```
+```java
 WorkflowContext initialContext = WorkflowContext.start(orderData);
 // Lift the initial context into EitherT: Represents Future<Right(initialContext)>
 Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> initialET =
@@ -102,9 +98,8 @@ Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> ini
 
 **Step 1: Validate Order (Synchronous, returns `Either`)**
 
-**Java**
 
-```
+```java
 Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> validatedET =
     eitherTMonad.flatMap( // Start chaining
         ctx -> { // Lambda receives the context if the previous step was Right
@@ -135,9 +130,8 @@ Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> val
 
 **Step 2: Check Inventory (Asynchronous)**
 
-**Java**
 
-```
+```java
 Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> inventoryET =
     eitherTMonad.flatMap( // Chain from the previous step's result (validatedET)
         ctx -> { // Executed only if validatedET was Right(context)
@@ -168,9 +162,8 @@ Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> inv
 
 **Step 3: Process Payment (Asynchronous)**
 
-**Java**
 
-```
+```java
 Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> paymentET =
     eitherTMonad.flatMap( // Chain from inventory check
         ctx -> { // Executed only if inventory check was Right
@@ -197,9 +190,7 @@ Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> pay
 
 **Step 4: Create Shipment (Asynchronous with Recovery)**
 
-**Java**
-
-```
+```java
 Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> shipmentET =
     eitherTMonad.flatMap( // Chain from payment
         ctx -> { // Executed only if payment was Right
@@ -246,9 +237,8 @@ Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> shi
 
 **Step 5: Map to Final Result**
 
-**Java**
 
-```
+```java
 Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult> finalResultET =
     eitherTMonad.map( // Use map as we are just transforming the success value
         ctx -> { // Executed only if shipment step (or recovery) was Right
@@ -267,9 +257,9 @@ Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult> finalRe
 
 **Step 6: Notify Customer (Optional Final Step with Recovery)**
 
-**Java**
 
-```
+```java 
+
 Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult>
     finalResultWithNotificationET =
         eitherTMonad.flatMap( // Use flatMap because notifyCustomerAsync returns an EitherT
@@ -309,9 +299,8 @@ Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, FinalResult>
 
 **Final Unwrapping:**
 
-**Java**
 
-```
+```java
 // Cast the final Kind back to EitherT to access the value() method
 EitherT<CompletableFutureKind<?>, DomainError, FinalResult> finalET =
     (EitherT<CompletableFutureKind<?>, DomainError, FinalResult>) finalResultWithNotificationET;
@@ -329,9 +318,8 @@ return finalET.value();
 
 This runner method shows how to handle a synchronous validation step (`validateOrderWithTry`) that might throw exceptions instead of returning `Either`.
 
-**Java**
 
-```
+```java
 // Inside the first flatMap:
 Kind<TryKind<?>, ValidatedOrder> tryResultKind =
     steps.validateOrderWithTry(ctx.initialData()); // Step returns Kind<TryKind, ...>

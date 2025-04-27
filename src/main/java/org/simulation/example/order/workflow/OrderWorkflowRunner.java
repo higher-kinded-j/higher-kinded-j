@@ -26,7 +26,7 @@ import org.simulation.hkt.trymonad.TryKindHelper;
  * Orchestrates an order processing workflow using the HKT simulation framework, primarily
  * leveraging the {@link EitherT} monad transformer over {@link CompletableFuture}.
  *
- * <p>This version demonstrates:
+ * <p>This example primarily demonstrates:
  *
  * <ul>
  *   <li><b>Dependency Injection:</b> The {@link OrderWorkflowSteps} instance is now created with a
@@ -45,10 +45,10 @@ import org.simulation.hkt.trymonad.TryKindHelper;
  *
  * <h2>Workflow Structure:</h2>
  *
- * The workflow remains a sequence of operations chained using {@code eitherTMonad.flatMap}. If any
- * step results in a {@code Left<DomainError>}, subsequent steps are skipped. System-level errors
- * during async execution are caught by the underlying {@code CompletableFuture}. Logging occurs
- * within each step via the injected logger.
+ * The workflow is a sequence of operations chained using {@code eitherTMonad.flatMap}. If any step
+ * results in a {@code Left<DomainError>}, subsequent steps are skipped. System-level errors during
+ * async execution are caught by the underlying {@code CompletableFuture}. Logging occurs within
+ * each step via the injected logger.
  */
 public class OrderWorkflowRunner {
 
@@ -62,7 +62,7 @@ public class OrderWorkflowRunner {
   /**
    * Constructor accepting dependencies.
    *
-   * @param dependencies The external dependencies for the workflow. (NonNull)
+   * @param dependencies The external dependencies for the workflow.
    */
   public OrderWorkflowRunner(@NonNull Dependencies dependencies) {
     this.dependencies = Objects.requireNonNull(dependencies, "Dependencies cannot be null");
@@ -84,7 +84,8 @@ public class OrderWorkflowRunner {
       OrderData orderData) {
 
     // Log workflow start
-    dependencies.log("Starting runOrderWorkflowEitherT for Order: " + orderData.orderId());
+    dependencies.log(
+        "Starting Order Workflow [runOrderWorkflowEitherT] for Order: " + orderData.orderId());
 
     WorkflowContext initialContext = WorkflowContext.start(orderData);
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> initialET =
@@ -94,7 +95,6 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> validatedET =
         eitherTMonad.flatMap(
             ctx -> {
-              // Logging is now done inside steps.validateOrder
               Either<DomainError, ValidatedOrder> syncResultEither =
                   EitherKindHelper.unwrap(steps.validateOrder(ctx.initialData()));
               // Lift Either into EitherT<Future, ...>
@@ -108,7 +108,6 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> inventoryET =
         eitherTMonad.flatMap(
             ctx -> {
-              // Logging done inside steps.checkInventoryAsync
               Kind<CompletableFutureKind<?>, Either<DomainError, Void>> inventoryCheckFutureKind =
                   steps.checkInventoryAsync(
                       ctx.validatedOrder().productId(), ctx.validatedOrder().quantity());
@@ -122,7 +121,6 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> paymentET =
         eitherTMonad.flatMap(
             ctx -> {
-              // Logging done inside steps.processPaymentAsync
               Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>>
                   paymentFutureKind =
                       steps.processPaymentAsync(
@@ -137,7 +135,6 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> shipmentET =
         eitherTMonad.flatMap(
             ctx -> {
-              // Logging done inside steps.createShipmentAsync
               Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>>
                   shipmentAttemptFutureKind =
                       steps.createShipmentAsync(
@@ -189,7 +186,6 @@ public class OrderWorkflowRunner {
         finalResultWithNotificationET =
             eitherTMonad.flatMap(
                 finalResult -> {
-                  // Logging done inside steps.notifyCustomerAsync
                   Kind<CompletableFutureKind<?>, Either<DomainError, Void>> notifyFutureKind =
                       steps.notifyCustomerAsync(
                           orderData.customerId(), "Order processed: " + finalResult.orderId());
@@ -241,7 +237,6 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> validatedET =
         eitherTMonad.flatMap(
             ctx -> {
-              // Logging is now done inside steps.validateOrderWithTry
               Kind<TryKind<?>, ValidatedOrder> tryResultKind =
                   steps.validateOrderWithTry(ctx.initialData());
               Try<ValidatedOrder> tryResult = TryKindHelper.unwrap(tryResultKind);
