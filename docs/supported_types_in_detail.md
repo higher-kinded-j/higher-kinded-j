@@ -3,4 +3,4 @@
 ## How to:
 
 - [Either<L, R>](either_monad.md)
-- TODO:
+- [Try](try_monad.md)
