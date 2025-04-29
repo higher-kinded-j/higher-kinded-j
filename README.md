@@ -41,9 +41,9 @@ The simulation hinges on a few key ideas:
     * `MonadError<F, E>`: Adds `raiseError(E) -> F<A>` and `handleErrorWith(F<A>, E -> F<A>)` for contexts that have a specific error type `E`.
 
 3.  **Defunctionalisation:** For each simulated type (e.g., `List`), we need:
-    * **`*Kind` Interface:** e.g., `ListKind<A> extends Kind<ListKind<?>, A>`.
-    * **`*Holder` Record:** An internal record holding the actual Java type (e.g., `ListHolder` holds `List<A>`).
-    * **`*KindHelper` Class:** Static `wrap` and `unwrap` methods to bridge `Kind<F, A>` and the underlying Java type (e.g., `ListKindHelper.wrap/unwrap`). The `unwrap` methods now throw `KindUnwrapException` for invalid `Kind` inputs, ensuring robustness.
+    * **`Kind` Interface:** e.g., `ListKind<A> extends Kind<ListKind<?>, A>`.
+    * **`Holder` Record:** An internal record holding the actual Java type (e.g., `ListHolder` holds `List<A>`).
+    * **`KindHelper` Class:** Static `wrap` and `unwrap` methods to bridge `Kind<F, A>` and the underlying Java type (e.g., `ListKindHelper.wrap/unwrap`). The `unwrap` methods now throw `KindUnwrapException` for invalid `Kind` inputs, ensuring robustness.
     * **Type Class Instances:** Concrete implementations (e.g., `ListMonad` implements `Monad<ListKind<?>>`).
 
 

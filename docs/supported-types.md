@@ -71,7 +71,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `TryMonad` (`Monad`)
   * `TryMonadError` (`MonadError<..., Throwable>`)
 * **Notes:** Useful for wrapping computations that might throw arbitrary exceptions. Implements `MonadError` where the error type `E` is `Throwable`. `raiseError(t)` creates a `Failure(t)` `TryKind`. `of(v)` creates `Success(v)`. `flatMap` propagates failures or exceptions thrown during mapping.
-
+* **Usage:** How to use the [Try Monad](try_monad.md) with HKT Simulation
 ---
 
 ### 6. `java.util.concurrent.CompletableFuture<T>`

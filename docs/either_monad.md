@@ -9,6 +9,8 @@ The `Either<L, R>` type represents a value that can be one of two possible types
 
 Unlike throwing exceptions, `Either` makes the possibility of failure explicit in the return type of a function. Unlike `Optional` or `Maybe`, which simply signal the absence of a value, `Either` allows carrying specific information about *why* a computation failed in the `Left` value.
 
+We can think of `Either` as an extension of `Maybe`.  The `Right` is equal to the `Maybe.Some`, and the `Left` is the equivelent of the `Maybe.None` **but now we can allow it to carry a value.** 
+
 The implementation in this library is a `sealed interface Either<L, R>` with two `record` implementations: `Left<L, R>` and `Right<L, R>`.
 
 ## Structure
@@ -87,7 +89,7 @@ _Note: Prefer `fold` or pattern matching over direct `getLeft`/`getRight` calls.
     System.out.println(mappedFailure); // Output: Left(File not found)
     ```
   
-  - **Chaining/Sequencing:** Chaining / Sequencing (`flatMap`): Applies a function that _itself returns an `Either`_ to a `Right` value. If the initial `Either` is `Left`, it's returned unchanged. If the function applied to the `Right` value returns a `Left`, that `Left` becomes the result. This allows sequencing operations where each step can fail.
+  - **Chaining/Sequencing:** Chaining / Sequencing (`flatMap`): Applies a function that _itself returns an `Either`_ to a `Right` value. If the initial `Either` is `Left`, it's returned unchanged. If the function applied to the `Right` value returns a `Left`, that `Left` becomes the result. This allows sequencing operations where each step can fail. The thing we must pay attention to here is that the `Left` is a functor that **dismisses the mapped function f** and returns itself `map:(f)->Left(Value)`. It preserves the value that it holds. After we reach a Left all the subsequent transformation through the map(f) are ignored.
     ```java
     // Example: Parse string, then check if positive
     Function<String, Either<String, Integer>> parse = s -> {

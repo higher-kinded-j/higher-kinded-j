@@ -31,9 +31,9 @@ To understand and use this simulation effectively, explore these documents:
 1.  **[Core Concepts](core-concepts.md):** Understand the fundamental building blocks – `Kind`, Witness Types, Type Classes (`Functor`, `Monad`, etc.), and the helper classes that bridge the simulation with standard Java types. **Start here!**
 2.  **[Supported Types](supported-types.md):** See which Java types (like `List`, `Optional`, `CompletableFuture`) and custom types (`Maybe`, `Either`, `Try`, `IO`, `Lazy`) are currently simulated and have corresponding type class instances.
 3.  **[Supported Types in Detail](supported_types_in_detail.md):** More in depth detailed explanations of how to use.
-4   **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using the simulation: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
-5   **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
-6   **[Extending the Simulation](extending-simulation.md):** Learn the pattern for adding HKT support and type class instances for your *own* custom Java types or other standard library types.
+4.   **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using the simulation: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
+5.   **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
+6.   **[Extending the Simulation](extending-simulation.md):** Learn the pattern for adding HKT support and type class instances for your *own* custom Java types or other standard library types.
 
 ## How to Use This Simulation (In Your Project)
 
