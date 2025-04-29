@@ -1,8 +1,7 @@
 # Try<T> - Typed Error Handling in simulation-hkt
 
 ## Purpose
-
-The `Try<T>` type in the `simulation-hkt` library represents a computation that might result in a value of type `T` (a `Success`) or fail with a `Throwable` (a `Failure`). It serves as a functional alternative to traditional `try-catch` blocks for handling exceptions, particularly checked exceptions, within a computation chain.
+The `Try<T>` type in the `simulation-hkt` library represents a computation that might result in a value of type `T` (a `Success`) or fail with a `Throwable` (a `Failure`). It serves as a functional alternative to traditional `try-catch` blocks for handling exceptions, particularly checked exceptions, within a computation chain.  We can think of it as an `Either` where the `Left` is an `Exception`, but also using try-catch blocks behind the scene, so that we don’t have to.
 
 ![try_type.svg](puml/try_type.svg)
 
@@ -13,10 +12,10 @@ Key benefits include:
 
 * **Explicit Error Handling:** Makes it clear from the return type (`Try<T>`) that a computation might fail.
 * **Composability:** Allows chaining operations using methods like `map` and `flatMap`, where failures are automatically propagated without interrupting the flow with exceptions.
-* **Integration with HKT:** Provides HKT simulation (`TryKind`) and type class instances (`TryMonadError`) to work seamlessly with generic functional abstractions operating over `Kind<F, A>`[cite: 3].
+* **Integration with HKT:** Provides HKT simulation (`TryKind`) and type class instances (`TryMonadError`) to work seamlessly with generic functional abstractions operating over `Kind<F, A>`.
 * **Error Recovery:** Offers methods like `recover` and `recoverWith` to handle failures gracefully within the computation chain.
 
-It implements `MonadError<TryKind<?>, Throwable>`, signifying its monadic nature and its ability to handle errors of type `Throwable`[cite: 3].
+It implements `MonadError<TryKind<?>, Throwable>`, signifying its monadic nature and its ability to handle errors of type `Throwable.
 
 ## How to Use `Try<T>`
 
