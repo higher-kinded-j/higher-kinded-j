@@ -55,7 +55,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `EitherFunctor<L>` (`Functor`)
   * `EitherMonad<L>` (`Monad`, `Applicative`, `MonadError<..., L>`)
 * **Notes:** Represents computations that can fail with a *typed* error. Instances are right-biased (`map`/`flatMap` operate on `Right`). Implements `MonadError` where the error type `E` is the `Left` type `L`. `raiseError(l)` creates a `Left(l)` `EitherKind`. `of(r)` creates `Right(r)`. Useful for handling domain-specific errors explicitly.
-* **Usage:** How to use the [Either Monad](either_monad.md) with HKT Simulation
+* **Usage:** How to use the [Either Monad](either_monad.md) 
 
 ---
 
@@ -71,7 +71,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `TryMonad` (`Monad`)
   * `TryMonadError` (`MonadError<..., Throwable>`)
 * **Notes:** Useful for wrapping computations that might throw arbitrary exceptions. Implements `MonadError` where the error type `E` is `Throwable`. `raiseError(t)` creates a `Failure(t)` `TryKind`. `of(v)` creates `Success(v)`. `flatMap` propagates failures or exceptions thrown during mapping.
-* **Usage:** How to use the [Try Monad](try_monad.md) with HKT Simulation
+* **Usage:** How to use the [Try Monad](try_monad.md) 
 
 ---
 
@@ -126,7 +126,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `ReaderApplicative<R>` (`Applicative`)
   * `ReaderMonad<R>` (`Monad`)
 * **Notes:** Facilitates dependency injection. `map` and `flatMap` compose functions that operate within the context of the environment `R`. `ask()` provides access to the environment itself. `of(a)` creates a `Reader` that ignores the environment and returns `a`.
-* **Usage:** How to use the [Reader Monad](reader_monad.md) with HKT Simulation
+* **Usage:** How to use the [Reader Monad](reader_monad.md) 
 ---
 
 ### 10. `State<S, A>` (Custom Type)
@@ -140,7 +140,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `StateApplicative<S>` (`Applicative`)
   * `StateMonad<S>` (`Monad`)
 * **Notes:** Models computations where state needs to be threaded through a sequence of operations. `flatMap` sequences computations, passing the resulting state from one step to the next. `get()` retrieves the current state, `set(s)` updates it, `modify(f)` updates it using a function. `of(a)` (`pure`) returns `a` without changing state.
-
+* **Usage:** How to use the [State Monad](state_monad.md) 
 ---
 
 ### 11. `Writer<W, A>` (Custom Type)
@@ -154,7 +154,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `WriterApplicative<W>` (`Applicative`)
   * `WriterMonad<W>` (`Monad`)
 * **Notes:** Useful for logging or accumulating results alongside the main computation. `flatMap` sequences computations and combines their logs using the provided `Monoid`. `tell(w)` logs a value `w` without producing a main result. `of(a)` (`value`) produces `a` with an empty log.
-* **Usage:** How to use the [Writer Monad](writer_monad.md) with HKT Simulation
+* **Usage:** How to use the [Writer Monad](writer_monad.md) 
 ---
 
 ### 12. `EitherT<F, L, R>` (Monad Transformer)
@@ -169,5 +169,5 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ![transformers.svg](puml/transformers.svg)
 
-**Usage:** How to use the [EitherT Monad Transformer](eithert_transformer.md) with HKT Simulation
+**Usage:** How to use the [EitherT Monad Transformer](eithert_transformer.md) 
 
