@@ -6,5 +6,6 @@
 - [Try](try_monad.md)
 - [EitherT](eithert_transformer.md)
 - [Reader Monad](reader_monad.md)
+- [Writer Monad](writer_monad.md)
 
 
