@@ -1,0 +1,58 @@
+@startuml EitherT_Diagram
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
+package "Core HKT Interfaces" {
+    interface Kind<W, A>
+    interface Monad<W>
+    interface MonadError<W, E>
+}
+
+package "Either Type" {
+     interface Either<L, R>
+}
+
+package "EitherT Transformer" {
+    interface EitherTKind<F, L, R> extends Kind<EitherTKind<F, L, ?>, R> {
+       ' Witness type G = EitherTKind<F, L, ?>
+       ' Value type   A = R
+    }
+
+    class EitherT<F, L, R> <<record>> implements EitherTKind<F, L, R> {
+     + EitherT(Kind<F, Either<L, R>> value)
+        + {static} EitherT<F, L, R> fromKind(Kind<F, Either<L, R>> value)
+        + {static} EitherT<F, L, R> right(Monad<F> outerMonad, R r)
+        + {static} EitherT<F, L, R> left(Monad<F> outerMonad, L l)
+        + {static} EitherT<F, L, R> fromEither(Monad<F> outerMonad, Either<L, R> either)
+        + {static} EitherT<F, L, R> liftF(Monad<F> outerMonad, Kind<F, R> fr)
+        + Kind<F, Either<L, R>> value()
+    }
+
+    class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
+        - outerMonad: Monad<F>
+        + EitherTMonad(Monad<F> outerMonad)
+        + Kind<G, A> of(A value)
+        + Kind<G, B> map(Function<A, B> f, Kind<G, A> fa)
+        + Kind<G, B> ap(Kind<G, Function<A, B>> ff, Kind<G, A> fa)
+        + Kind<G, B> flatMap(Function<A, Kind<G, B>> f, Kind<G, A> ma)
+        + Kind<G, A> raiseError(L error)
+        + Kind<G, A> handleErrorWith(Kind<G, A> ma, Function<L, Kind<G, A>> handler)
+    }
+}
+
+
+' Relationships
+EitherTKind -- Kind : extends
+EitherT -- EitherTKind : implements
+EitherTMonad -- MonadError : implements
+
+EitherTMonad *-- Monad : uses outerMonad >
+EitherT ..> Kind : contains Kind<F, Either>
+EitherT ..> Either : contains Kind<F, Either>
+EitherTMonad ..> EitherT : operates on
+EitherTMonad ..> Either : operates on inner Either
+
+@enduml

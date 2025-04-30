@@ -2,7 +2,6 @@
 
 ![monads_everywhere.webp](images/monads_everywhere.webp)
 
-
 This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) and corresponding type class instances (`Functor`, `Applicative`, `Monad`, `MonadError`) for the following Java types and custom types.
 
 ![supported_types.svg](puml/supported_types.svg)
@@ -56,7 +55,8 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `EitherFunctor<L>` (`Functor`)
   * `EitherMonad<L>` (`Monad`, `Applicative`, `MonadError<..., L>`)
 * **Notes:** Represents computations that can fail with a *typed* error. Instances are right-biased (`map`/`flatMap` operate on `Right`). Implements `MonadError` where the error type `E` is the `Left` type `L`. `raiseError(l)` creates a `Left(l)` `EitherKind`. `of(r)` creates `Right(r)`. Useful for handling domain-specific errors explicitly.
-* **Usage:** How to use the [Either Monad](either_monad.md) with HKT Simulation 
+* **Usage:** How to use the [Either Monad](either_monad.md) with HKT Simulation
+
 ---
 
 ### 5. `Try<T>` (Custom Type)
@@ -72,6 +72,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `TryMonadError` (`MonadError<..., Throwable>`)
 * **Notes:** Useful for wrapping computations that might throw arbitrary exceptions. Implements `MonadError` where the error type `E` is `Throwable`. `raiseError(t)` creates a `Failure(t)` `TryKind`. `of(v)` creates `Success(v)`. `flatMap` propagates failures or exceptions thrown during mapping.
 * **Usage:** How to use the [Try Monad](try_monad.md) with HKT Simulation
+
 ---
 
 ### 6. `java.util.concurrent.CompletableFuture<T>`
@@ -167,3 +168,6 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 * **Notes:** Simplifies working with nested structures like `F<Either<L, R>>`. Requires a `Monad<F>` instance for the outer monad `F` passed to its constructor. Implements `MonadError` for the *inner* `Either`'s `Left` type `L`. See the [Order Example Walkthrough](order-walkthrough.md) for practical usage with `CompletableFuture` as `F`.
 
 ![transformers.svg](puml/transformers.svg)
+
+**Usage:** How to use the [EitherT Monad Transformer](eithert_transformer.md) with HKT Simulation
+
