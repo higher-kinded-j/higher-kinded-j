@@ -2,5 +2,6 @@
 
 ## How to:
 
-- [Either<L, R>](either_monad.md)
+- [Either](either_monad.md)
 - [Try](try_monad.md)
+- [EitherT](eithert_transformer.md)

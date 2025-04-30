@@ -22,7 +22,7 @@ package "EitherT Transformer" {
     }
 
     class EitherT<F, L, R> <<record>> implements EitherTKind<F, L, R> {
-     + EitherT(LKind<F, Either<L, R>> value)
+     + EitherT(Kind<F, Either<L, R>> value)
         + {static} EitherT<F, L, R> fromKind(Kind<F, Either<L, R>> value)
         + {static} EitherT<F, L, R> right(Monad<F> outerMonad, R r)
         + {static} EitherT<F, L, R> left(Monad<F> outerMonad, L l)

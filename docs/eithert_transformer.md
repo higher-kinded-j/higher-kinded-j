@@ -11,9 +11,24 @@ When building applications, we often encounter scenarios where we need to combin
 
 Directly nesting these monadic types, like `CompletableFuture<Either<DomainError, Result>>` or `Reader<Config, Optional<Data>>`, leads to complex, deeply nested code ("callback hell" or nested `flatMap`/`map` calls). It becomes difficult to sequence operations and handle errors or contexts uniformly.
 
+For instance, an operation might need to be both asynchronous \*and\* handle potential domain-specific errors. Representing this naively leads to nested types like:
+
+```java
+// A future that, when completed, yields either a DomainError or a SuccessValue
+Kind<CompletableFutureKind<?>, Either<DomainError, SuccessValue>> nestedResult;
+```
+
 ## The Solution: Monad Transformers
 
 **Monad Transformers** are a design pattern in functional programming used to combine the effects of two different monads into a single, new monad. They provide a standard way to "stack" monadic contexts, allowing you to work with the combined structure more easily using familiar monadic operations like `map` and `flatMap`.
+
+A monad transformer `T` takes a monad `M` and produces a new monad `T<M>` that combines the effects of both `T` (conceptually) and `M`.
+
+Key characteristics:
+
+1. **Stacking:** They allow "stacking" monadic effects in a standard way.
+2. **Unified Interface:** The resulting transformed monad (e.g., `EitherT<CompletableFutureKind, ...>`) itself implements the `Monad` (and often `MonadError`, etc.) interface.
+3. **Abstraction:** They hide the complexity of manually managing the nested structure. You can use standard `map`, `flatMap`, `handleErrorWith` operations on the transformed monad, and it automatically handles the logic for both underlying monads correctly.
 
 The `simulation-hkt` library provides the `EitherT` monad transformer.
 
@@ -26,6 +41,16 @@ The `simulation-hkt` library provides the `EitherT` monad transformer.
 * **`F`**: The witness type of the **outer monad** (e.g., `CompletableFutureKind<?>`, `OptionalKind<?>`). This monad handles the primary effect (e.g., asynchronicity, optionality).
 * **`L`**: The **Left type** of the inner `Either`. This typically represents the *error* type for the computation.
 * **`R`**: The **Right type** of the inner `Either`. This typically represents the *success* value type.
+
+The `EitherT` type itself is implemented as a simple `record` that wraps the nested structure:
+
+```java
+// Simplified definition from EitherT.java
+public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
+    implements EitherTKind<F, L, R> { /* ... static factories ... */ }
+```
+
+It holds a value of type `Kind<F, Either<L, R>>`. The real power comes from its associated type class instance, `EitherTMonad`.
 
 Essentially, `EitherT<F, L, R>` wraps a value of type `Kind<F, Either<L, R>>`. It represents a computation within the context `F` that will eventually yield an `Either<L, R>`.
 
@@ -114,7 +139,7 @@ Optional<Either<String, String>> unwrappedOptional = OptionalKindHelper.unwrap(w
 
 ## Example: Async Workflow with Error Handling
 
-The most common use case for `EitherT` is combining asynchronous operations (`CompletableFuture`) with domain error handling (`Either`). The `OrderWorkflowRunner` class provides a detailed example.
+The most common use case for `EitherT` is combining asynchronous operations (`CompletableFuture`) with domain error handling (`Either`).  The `OrderWorkflowRunner` class provides a detailed example.
 
 Here's a simplified conceptual structure based on that example:
 
@@ -231,42 +256,140 @@ This example demonstrates:
 6. Automatic short-circuiting: If validation returns `Left`, the processing step is skipped.
 7. Unwrapping the final `EitherT` using `.value()` to get the `Kind<CompletableFutureKind<?>, Either<DomainError, ProcessedData>>` result.
 
+## Using `EitherTMonad` for Sequencing and Error Handling
+
+The primary use is chaining operations using `flatMap` and handling errors using `handleErrorWith` or related methods. The `OrderWorkflowRunner` is the best example. Let's break down a key part:
+
+```java
+// --- From OrderWorkflowRunner.java ---
+// Assume setup:
+// F = CompletableFutureKind<?>
+// L = DomainError
+// futureMonad = new CompletableFutureMonadError();
+// eitherTMonad = new EitherTMonad<>(futureMonad);
+// steps = new OrderWorkflowSteps(dependencies); // Contains workflow logic
+
+// Initial Context (lifted)
+WorkflowContext initialContext = WorkflowContext.start(orderData);
+Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> initialET =
+    eitherTMonad.of(initialContext); // F<Right(initialContext)>
+
+// Step 1: Validate Order (Synchronous - returns Either)
+Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> validatedET =
+    eitherTMonad.flatMap( // Use flatMap on EitherTMonad
+        ctx -> { // Lambda receives WorkflowContext if initialET was Right
+            // Call sync step -> Either<DomainError, ValidatedOrder>
+            Either<DomainError, ValidatedOrder> syncResultEither =
+                EitherKindHelper.unwrap(steps.validateOrder(ctx.initialData()));
+
+            // Lift sync Either into EitherT: -> F<Either<DomainError, ValidatedOrder>>
+            Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ValidatedOrder>
+                validatedOrderET = EitherT.fromEither(futureMonad, syncResultEither);
+
+            // If validation produced Left, map is skipped.
+            // If validation produced Right(vo), map updates the context: F<Right(ctx.withValidatedOrder(vo))>
+            return eitherTMonad.map(ctx::withValidatedOrder, validatedOrderET);
+        },
+        initialET // Input to the flatMap
+    );
+
+// Step 2: Check Inventory (Asynchronous - returns Future<Either<DomainError, Void>>)
+Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> inventoryET =
+    eitherTMonad.flatMap( // Chain from validation result
+        ctx -> { // Executed only if validatedET was F<Right(...)>
+            // Call async step -> Kind<CompletableFutureKind<?>, Either<DomainError, Void>>
+            Kind<CompletableFutureKind<?>, Either<DomainError, Void>> inventoryCheckFutureKind =
+                steps.checkInventoryAsync(ctx.validatedOrder().productId(), ctx.validatedOrder().quantity());
+
+            // Lift the F<Either> directly into EitherT using fromKind
+            Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, Void> inventoryCheckET =
+                EitherT.fromKind(inventoryCheckFutureKind);
+
+            // If inventory check resolves to Right, update context. If Left, map is skipped.
+            return eitherTMonad.map(ignored -> ctx.withInventoryChecked(), inventoryCheckET);
+        },
+        validatedET // Input is result of validation step
+    );
+
+// Step 4: Create Shipment (Asynchronous with Recovery)
+Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, WorkflowContext> shipmentET =
+    eitherTMonad.flatMap( // Chain from previous step
+        ctx -> {
+            // Call async shipment step -> F<Either<DomainError, ShipmentInfo>>
+            Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>> shipmentAttemptFutureKind =
+                steps.createShipmentAsync(ctx.validatedOrder().orderId(), ctx.validatedOrder().shippingAddress());
+
+            // Lift into EitherT
+            Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ShipmentInfo> shipmentAttemptET =
+                 EitherT.fromKind(shipmentAttemptFutureKind);
+
+            // *** Error Handling using MonadError ***
+            Kind<EitherTKind<CompletableFutureKind<?>, DomainError, ?>, ShipmentInfo> recoveredShipmentET =
+                eitherTMonad.handleErrorWith( // Operates on the EitherT value
+                    shipmentAttemptET,
+                    error -> { // Lambda receives DomainError if shipmentAttemptET resolves to Left(error)
+                        if (error instanceof DomainError.ShippingError se && "Temporary Glitch".equals(se.reason())) {
+                           // Specific recoverable error: Return a *successful* EitherT
+                           return eitherTMonad.of(new ShipmentInfo("DEFAULT_SHIPPING_USED"));
+                        } else {
+                           // Non-recoverable error: Re-raise it within EitherT
+                           return eitherTMonad.raiseError(error); // Returns F<Left(error)>
+                        }
+                    });
+
+            // Map the potentially recovered result to update context
+            return eitherTMonad.map(ctx::withShipmentInfo, recoveredShipmentET);
+        },
+        paymentET // Assuming paymentET was the previous step
+    );
+
+// ... rest of workflow ...
+
+// Final unwrap
+EitherT<CompletableFutureKind<?>, DomainError, FinalResult> finalET = ...;
+Kind<CompletableFutureKind<?>, Either<DomainError, FinalResult>> finalResultKind = finalET.value();
+This demonstrates how EitherTMonad.flatMap sequences the steps, while EitherT.fromEither, EitherT.fromKind, and eitherTMonad.of/raiseError/handleErrorWith manage the lifting and error handling within the combined Future<Either<...>> context.
+```
+
+This demonstrates how `EitherTMonad.flatMap` sequences the steps, while `EitherT.fromEither`, `EitherT.fromKind`, and `eitherTMonad.of/raiseError/handleErrorWith` manage the lifting and error handling within the combined `Future<Either<...>>` context.
+
+
 ## Key benefit of using the simulation hkt
 
 The `simulation-hkt` library simplifies the implementation and usage of concepts like monad transformers (e.g., `EitherT`) in Java precisely *because* it simulates Higher-Kinded Types (HKTs). Here's how:
 
 1. **The Core Problem Without HKTs:** Java's type system doesn't allow you to directly parameterize a type by a *type constructor* like `List`, `Optional`, or `CompletableFuture`. You can write `List<String>`, but you cannot easily write a generic class `Transformer<F, A>` where `F` itself represents *any* container type (like `List<_>`) and `A` is the value type.
    This limitation makes defining *general* monad transformers very difficult. A monad transformer like `EitherT` needs to combine an *arbitrary* outer monad `F` with the inner `Either` monad. Without HKTs, you would typically have to:
-   
+
    * Create separate, specific transformers for each outer monad (e.g., `EitherTOptional`, `EitherTFuture`, `EitherTIO`). This leads to significant code duplication.
    * Resort to complex, often unsafe casting or reflection.
    * Write extremely verbose code manually handling the nested structure for every combination.
 2. **How `simulation-hkt` Helps (Simulating HKTs):** The library introduces the `Kind<F, A>` interface. This interface, along with specific "witness types" (like `OptionalKind<?>`, `CompletableFutureKind<?>`, `EitherKind<L, ?>`), simulates the concept of `F<A>`. It allows you to pass `F` (the type constructor, represented by its witness type) as a type parameter, even though Java doesn't support it natively.
 3. **Simplifying Transformer Definition (`EitherT<F, L, R>`):** Because we can now simulate `F<A>` using `Kind<F, A>`, we can define the `EitherT` data structure generically:
-   
+
    ```java
    // Simplified from EitherT.java
    public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
        implements EitherTKind<F, L, R> { /* ... */ }
    ```
-   
+
    Here, `F` is a type parameter representing the *witness type* of the outer monad. `EitherT` doesn't need to know *which* specific monad `F` is at compile time; it just knows it holds a `Kind<F, ...>`. This makes the `EitherT` structure itself general-purpose.
 4. **Simplifying Transformer Operations (`EitherTMonad<F, L>`):** The real benefit comes with the type class instance `EitherTMonad`. This class implements `MonadError<EitherTKind<F, L, ?>, L>`, providing the standard monadic operations (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`) for the combined `EitherT` structure.
-   
+
    Critically, `EitherTMonad` takes the `Monad<F>` instance for the *specific outer monad*`F` as a constructor argument:
-   
+
    ```java
    // From EitherTMonad.java
    public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
        private final @NonNull Monad<F> outerMonad; // <-- Holds the specific outer monad instance
-   
+
        public EitherTMonad(@NonNull Monad<F> outerMonad) {
            this.outerMonad = Objects.requireNonNull(outerMonad, "Outer Monad instance cannot be null");
        }
        // ... implementation of map, flatMap etc. ...
    }
    ```
-   
+
    Inside its `map`, `flatMap`, etc., implementations, `EitherTMonad` uses the provided `outerMonad` instance (via its `map` and `flatMap` methods) to handle the outer context `F`, while also managing the inner `Either` logic (checking for `Left`/`Right`, applying functions, propagating `Left`).
    **This is where the HKT simulation drastically simplifies things:**
 
@@ -276,4 +399,3 @@ The `simulation-hkt` library simplifies the implementation and usage of concepts
 * As a user, you just instantiate `EitherTMonad` with the appropriate outer monad instance and then use its standard methods (`map`, `flatMap`, etc.) on your `EitherT` values, as seen in the `OrderWorkflowRunner` example. You don't need to manually handle the nesting.
 
 In essence, the HKT simulation provided by `simulation-hkt` allows defining the structure (`EitherT`) and the operations (`EitherTMonad`) generically over the outer monad `F`, overcoming Java's native limitations and making monad transformers feasible and much less boilerplate-heavy than they would otherwise be.
-
