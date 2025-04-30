@@ -147,7 +147,6 @@ Kind<ReaderKind<AppConfig, ?>, String> dbInfo = readerMonad.map2(
 );
 ```
 
-
 ### 5. Run the Computation
 
 Provide the actual environment using `ReaderKindHelper.runReader`:
@@ -180,3 +179,7 @@ System.out.println("Retrieved Prod Config: " + retrievedProdConfig); // Output: 
 ```
 
 Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't need `AppConfig` as a parameter, but they can access it when needed within the `reader(...)` factory or implicitly via `flatMap` composition. The configuration is only provided once at the end when `runReader` is called.
+
+## Summary
+
+The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `simulation-hkt` provides a functional approach to dependency injection and configuration management. It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using the HKT simulation and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`. This leads to more modular, testable, and less cluttered code when dealing with shared context.

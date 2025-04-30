@@ -1,0 +1,86 @@
+@startuml Writer_Monad_Diagram
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
+package "Core HKT Interfaces" {
+    interface Kind<F, A>
+    interface Functor<F>
+    interface Applicative<F>
+    interface Monad<F>
+}
+
+package "Type Classes" {
+   interface Monoid<W> {
+     + W empty()
+     + W combine(W x, W y)
+   }
+}
+
+package "Writer Type" {
+    class Writer<W, A> <<record>> {
+        + Writer(W log, A value)
+        __ Methods __
+       + {static} Writer<W, A> create(W log, A value)
+       + {static} Writer<W, A> value(Monoid<W> monoidW, A value)
+       + {static} Writer<W, Void> tell(W log)
+       + Writer<W, B> map(Function<A, B> f)
+       + Writer<W, B> flatMap(Monoid<W> monoidW, Function<A, Writer<W, B>> f)
+       + A run()
+       + W exec()
+    }
+}
+
+package "Writer HKT Simulation" {
+    interface "WriterKind<W, A> extends Kind<WriterKind<W, ?>, A>"
+
+    class WriterKindHelper {
+      + {static} Writer<W, A> unwrap(Kind<WriterKind<W, ?>, A> kind)
+      + {static} WriterKind<W, A> wrap(Writer<W, A> writer)
+      + {static} WriterKind<W, A> value(Monoid<W> monoidW, A value)
+      + {static} WriterKind<W, Void> tell(Monoid<W> monoidW, W log)
+      + {static} Writer<W, A> runWriter(Kind<WriterKind<W, ?>, A> kind)
+      + {static} A run(Kind<WriterKind<W, ?>, A> kind)
+      + {static} W exec(Kind<WriterKind<W, ?>, A> kind)
+    }
+
+    class WriterFunctor<W> implements Functor<WriterKind<W, ?>> {
+       + Kind<WriterKind<W, ?>, B> map(Function<A, B> f, Kind<WriterKind<W, ?>, A> fa)
+    }
+    class WriterApplicative<W> extends WriterFunctor<W> implements Applicative<WriterKind<W, ?>> {
+       # monoidW: Monoid<W>
+       + WriterApplicative(Monoid<W> monoidW)
+       + Kind<WriterKind<W, ?>, A> of(A value)
+       + Kind<WriterKind<W, ?>, B> ap(Kind<WriterKind<W, ?>, Function<A, B>> ff, Kind<WriterKind<W, ?>, A> fa)
+    }
+    class WriterMonad<W> extends WriterApplicative<W> implements Monad<WriterKind<W, ?>> {
+       + WriterMonad(Monoid<W> monoidW)
+       + Kind<WriterKind<W, ?>, B> flatMap(Function<A, Kind<WriterKind<W, ?>, B>> f, Kind<WriterKind<W, ?>, A> ma)
+    }
+}
+
+' Relationships
+WriterKind -- Kind : extends
+WriterFunctor -- Functor : implements
+WriterApplicative -- Applicative : implements
+WriterMonad -- Monad : implements
+
+WriterApplicative .u.> WriterFunctor : extends
+WriterMonad .u.> WriterApplicative : extends
+
+' Dependencies
+WriterApplicative *--> Monoid : uses >
+' WriterMonad inherits dependency via WriterApplicative
+
+WriterKindHelper ..> Writer : creates/unwraps
+WriterKindHelper ..> WriterKind : creates/unwraps
+WriterKindHelper ..> Monoid : uses for factories
+
+WriterMonad ..> WriterKind : operates on <WriterKind<W,?>>
+WriterMonad ..> Writer : uses methods of
+Writer ..> Monoid : uses for flatMap/value
+
+@enduml

@@ -154,7 +154,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `WriterApplicative<W>` (`Applicative`)
   * `WriterMonad<W>` (`Monad`)
 * **Notes:** Useful for logging or accumulating results alongside the main computation. `flatMap` sequences computations and combines their logs using the provided `Monoid`. `tell(w)` logs a value `w` without producing a main result. `of(a)` (`value`) produces `a` with an empty log.
-
+* **Usage:** How to use the [Writer Monad](writer_monad.md) with HKT Simulation
 ---
 
 ### 12. `EitherT<F, L, R>` (Monad Transformer)
