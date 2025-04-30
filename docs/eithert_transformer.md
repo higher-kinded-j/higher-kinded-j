@@ -1,6 +1,6 @@
-# EitherT -  Monad Transformer in simulation-hkt
+# EitherT - Combining Monadic Effects
 
-## The Problem: Combining Monadic Effects
+## The Problem
 
 When building applications, we often encounter scenarios where we need to combine different computational contexts or effects. For example:
 
@@ -352,7 +352,6 @@ This demonstrates how EitherTMonad.flatMap sequences the steps, while EitherT.fr
 ```
 
 This demonstrates how `EitherTMonad.flatMap` sequences the steps, while `EitherT.fromEither`, `EitherT.fromKind`, and `eitherTMonad.of/raiseError/handleErrorWith` manage the lifting and error handling within the combined `Future<Either<...>>` context.
-
 
 ## Key benefit of using the simulation hkt
 

@@ -1,6 +1,6 @@
-# The Reader Monad in simulation-hkt
+# Reader Monad - Managed Dependencies and Configuration
 
-## Purpose: Managing Dependencies and Configuration
+## Purpose
 
 The **Reader monad** is a functional programming pattern primarily used for managing dependencies and context propagation in a clean and composable way. Imagine you have multiple functions or components that all need access to some shared, read-only environment, such as:
 

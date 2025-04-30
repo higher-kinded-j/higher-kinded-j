@@ -126,7 +126,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `ReaderApplicative<R>` (`Applicative`)
   * `ReaderMonad<R>` (`Monad`)
 * **Notes:** Facilitates dependency injection. `map` and `flatMap` compose functions that operate within the context of the environment `R`. `ask()` provides access to the environment itself. `of(a)` creates a `Reader` that ignores the environment and returns `a`.
-
+* **Usage:** How to use the [Reader Monad](reader_monad.md) with HKT Simulation
 ---
 
 ### 10. `State<S, A>` (Custom Type)

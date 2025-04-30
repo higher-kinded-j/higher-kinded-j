@@ -1,4 +1,4 @@
-# Either<L, R> - Typed Error Handling in simulation-hkt
+# Either - Typed Error Handling
 
 ## Purpose
 
