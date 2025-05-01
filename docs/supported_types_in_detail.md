@@ -8,5 +8,5 @@
 - [Reader Monad](reader_monad.md)
 - [Writer Monad](writer_monad.md)
 - [State Monad](state_monad.md)
-
+- [Lazy Monad](lazy_monad.md)
 
