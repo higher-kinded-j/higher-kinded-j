@@ -9,4 +9,7 @@
 - [Writer Monad](writer_monad.md)
 - [State Monad](state_monad.md)
 - [Lazy Monad](lazy_monad.md)
+- [IO Monad](io_monad.md)
+- @TODO: Future, List, Maybe, Optional,
+
 

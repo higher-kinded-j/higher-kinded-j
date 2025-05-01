@@ -100,7 +100,7 @@ Higher-Kinded-J currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `IOApplicative` (`Applicative`)
   * `IOMonad` (`Monad`)
 * **Notes:** Encapsulates side effects (console I/O, file access, network calls, random numbers, system time). `map` and `flatMap` sequence effects lazily. `of(a)` creates an `IO` that returns `a` without side effects. `IOKindHelper.delay(() -> ...)` is the primary way to capture a side-effecting computation. *Does not* implement `MonadError` by default, as exceptions during `unsafeRunSync` are typically unhandled unless explicitly caught within the `IO`'s definition.
-
+* **Usage:** How to use the [IO Monad](io_monad.md)
 ---
 
 ### 8. `Lazy<A>` (Custom Type)
