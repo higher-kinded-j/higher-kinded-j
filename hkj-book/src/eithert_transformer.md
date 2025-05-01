@@ -32,7 +32,7 @@ Key characteristics:
 
 The `Higher-Kinded-J` library provides the `EitherT` monad transformer.
 
-![eithert_transformer.svg](puml/eithert_transformer.svg)
+![eithert_transformer.svg](./images/puml/eithert_transformer.svg)
 
 ## `EitherT<F, L, R>`: Combining Any Monad `F` with `Either<L, R>`
 

@@ -1,4 +1,4 @@
-# How to use the Supported Types in HKT Simulation
+# How to use the Supported Types in Higher-Kinded-J
 
 ## How to:
 
@@ -8,5 +8,9 @@
 - [Reader Monad](reader_monad.md)
 - [Writer Monad](writer_monad.md)
 - [State Monad](state_monad.md)
+- [Lazy Monad](lazy_monad.md)
+- [IO Monad](io_monad.md)
+- [CompletableFuture Monad](cf_monad.md)
+- @TODO: List, Maybe, Optional,
 
 

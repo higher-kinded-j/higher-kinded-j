@@ -1,0 +1,17 @@
+@startuml IO Class Detail
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+interface Supplier<T> {
+  + T get()
+}
+
+interface IO<A> {
+  + {abstract} A unsafeRunSync()
+  -- Factories --
+  + {static} <A> IO<A> delay(Supplier<A>)
+  -- Instance Methods --
+  + <B> IO<B> map(Function<? super A, ? extends B>)
+  + <B> IO<B> flatMap(Function<? super A, ? extends IO<B>>)
+}
+IO ..> Supplier : uses >
+
+@enduml

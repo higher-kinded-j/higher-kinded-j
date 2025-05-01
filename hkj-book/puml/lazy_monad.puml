@@ -1,0 +1,26 @@
+@startuml LazyMonad Detail
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+interface Kind<F, A>
+interface "LazyKind<A> extends Kind<LazyKind<?>, A>"
+interface Functor<F>
+interface "Applicative<F> extends Functor<F>"
+interface "Monad<F> extends Applicative<F>"
+
+class LazyKindHelper {
+ {static} LazyKind<A> wrap(Lazy<A>)
+ {static} Lazy<A> unwrap(Kind<LazyKind<?>, A>)
+ ' ...
+}
+
+class LazyMonad implements Monad<LazyKind<?>> {
+ + <A, B> @NonNull Kind<LazyKind<?>, B> map(@NonNull Function<A, B>, @NonNull Kind<LazyKind<?>, A>)
+ + <A> @NonNull Kind<LazyKind<?>, A> of(@Nullable A)
+ + <A, B> @NonNull Kind<LazyKind<?>, B> ap(@NonNull Kind<LazyKind<?>, Function<A, B>>, @NonNull Kind<LazyKind<?>, A>)
+ + <A, B> @NonNull Kind<LazyKind<?>, B> flatMap(@NonNull Function<A, Kind<LazyKind<?>, B>>, @NonNull Kind<LazyKind<?>, A>)
+}
+
+LazyMonad .u.|> Monad : implements
+LazyMonad ..> LazyKindHelper : uses
+LazyMonad ..> LazyKind : operates on
+
+@enduml
