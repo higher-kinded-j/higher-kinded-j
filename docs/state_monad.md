@@ -20,7 +20,7 @@ The key benefits are:
 3. **Composability:** State computations can be easily sequenced using standard monadic operations (`map`, `flatMap`), where the state is automatically threaded through the sequence.
 4. **Testability:** Pure state transitions are easier to test and reason about than code relying on mutable side effects.
 
-In `simulation-hkt`, the State monad pattern is implemented via the `State<S, A>` interface, its associated `StateTuple<S, A>` record, the HKT simulation types (`StateKind`, `StateKindHelper`), and the type class instances (`StateMonad`, `StateApplicative`, `StateFunctor`).
+In `Higher-Kinded-J`, the State monad pattern is implemented via the `State<S, A>` interface, its associated `StateTuple<S, A>` record, the HKT simulation types (`StateKind`, `StateKindHelper`), and the type class instances (`StateMonad`, `StateApplicative`, `StateFunctor`).
 
 ## Structure
 ![state_monad.svg](puml/state_monad.svg)
@@ -108,7 +108,7 @@ record StackState(java.util.List<Integer> stack) {}
 ### 2. Get the `StateMonad` Instance
 
 ```java
-import org.simulation.hkt.state.StateMonad;
+import org.higherkindedj.hkt.state.StateMonad;
 
 StateMonad<CounterState> counterStateMonad = new StateMonad<>();
 StateMonad<StackState> stackStateMonad = new StateMonad<>();
@@ -120,36 +120,37 @@ StateMonad<StackState> stackStateMonad = new StateMonad<>();
 Use `StateKindHelper` factories:
 
 ```java
-import static org.simulation.hkt.state.StateKindHelper.*;
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.state.StateKind;
+import static org.higherkindedj.hkt.state.StateKindHelper.*;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.state.StateKind;
 
 // Counter Example Actions:
 Kind<StateKind<CounterState, ?>, Void> incrementCounter = modify(s -> new CounterState(s.count() + 1));
-Kind<StateKind<CounterState, ?>, Integer> getCount = get().map(CounterState::count); // Use map to extract int from CounterState
+    Kind<StateKind<CounterState, ?>, Integer> getCount = get().map(CounterState::count); // Use map to extract int from CounterState
 
-// Stack Example Actions:
-Kind<StateKind<StackState, ?>, Void> push(int value) {
-    return modify(s -> {
+    // Stack Example Actions:
+    Kind<StateKind<StackState, ?>, Void> push(int value) {
+      return modify(s -> {
         java.util.List<Integer> newList = new java.util.ArrayList<>(s.stack());
         newList.add(value);
         return new StackState(java.util.Collections.unmodifiableList(newList));
-    });
-}
+      });
+    }
 
-Kind<StateKind<StackState, ?>, Integer> pop = wrap(State.of(s -> {
-    if (s.stack().isEmpty()) {
+    Kind<StateKind<StackState, ?>, Integer> pop = wrap(State.of(s -> {
+      if (s.stack().isEmpty()) {
         // Handle empty stack - return 0 and keep state same? Or throw?
         // For this example, return 0 and keep empty state.
         return new State.StateTuple<>(0, s);
-    }
-    java.util.List<Integer> currentStack = s.stack();
-    int value = currentStack.get(currentStack.size() - 1);
-    java.util.List<Integer> newStack = new java.util.ArrayList<>(currentStack.subList(0, currentStack.size() - 1));
-    return new State.StateTuple<>(value, new StackState(java.util.Collections.unmodifiableList(newStack)));
-}));
+      }
+      java.util.List<Integer> currentStack = s.stack();
+      int value = currentStack.get(currentStack.size() - 1);
+      java.util.List<Integer> newStack = new java.util.ArrayList<>(currentStack.subList(0, currentStack.size() - 1));
+      return new State.StateTuple<>(value, new StackState(java.util.Collections.unmodifiableList(newStack)));
+    }));
 
-Kind<StateKind<StackState, ?>, Integer> peek = inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1));
+    Kind<StateKind<StackState, ?>, Integer> peek = inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1));
 
 ```
 
@@ -197,43 +198,58 @@ Provide the initial state using `runState`, `evalState`, or `execState`.
 
 ```java
 
-import org.simulation.hkt.state.State.StateTuple; // Import the tuple record
+import org.higherkindedj.hkt.state.State.StateTuple; // Import the tuple record
 
 CounterState initialCounter = new CounterState(0);
 StackState initialStack = new StackState(java.util.Collections.emptyList());
 
 // Run counter example
 StateTuple<CounterState, Integer> counterResultTuple = runState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Tuple: " + counterResultTuple);
+System.out.
+
+println("Counter Final Tuple: "+counterResultTuple);
 // Output: Counter Final Tuple: StateTuple[value=2, state=CounterState[count=2]]
 
 int finalCount = evalState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Value: " + finalCount);
+System.out.
+
+println("Counter Final Value: "+finalCount);
 // Output: Counter Final Value: 2
 
 CounterState finalCounterState = execState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final State: " + finalCounterState);
+System.out.
+
+println("Counter Final State: "+finalCounterState);
 // Output: Counter Final State: CounterState[count=2]
 
 
 // Run stack example
 StateTuple<StackState, Integer> stackResultTuple = runState(stackProgram, initialStack);
-System.out.println("Stack Final Tuple: " + stackResultTuple);
+System.out.
+
+println("Stack Final Tuple: "+stackResultTuple);
 // Output: Stack Final Tuple: StateTuple[value=30, state=StackState[stack=[]]] (Value is 20 + 10)
 
 Integer stackFinalValue = evalState(stackProgram, initialStack);
-System.out.println("Stack Final Value: " + stackFinalValue); // Output: 30
+System.out.
+
+println("Stack Final Value: "+stackFinalValue); // Output: 30
+
 StackState finalStackState = execState(stackProgram, initialStack);
-System.out.println("Stack Final State: " + finalStackState); // Output: StackState[stack=[]]
+System.out.
+
+println("Stack Final State: "+finalStackState); // Output: StackState[stack=[]]
 
 
 // Run push5AndDescribe example
 StateTuple<StackState, String> pushDescribeTuple = runState(push5AndDescribe, initialStack);
-System.out.println("Push/Describe Tuple: " + pushDescribeTuple);
+System.out.
+
+println("Push/Describe Tuple: "+pushDescribeTuple);
 // Output: Push/Describe Tuple: StateTuple[value=Pushed 5, value is null, state=StackState[stack=[5]]]
 ```
 
 
 ## Summary
 
-The State monad (`State<S, A>`, `StateKind`, `StateMonad`) provides a powerful functional abstraction for managing stateful computations in `simulation-hkt`. By encapsulating state transitions within the `S -> (A, S)` function, it allows developers to write pure, composable code that explicitly tracks state changes. The HKT simulation enables using standard monadic operations (`map`, `flatMap`) via `StateMonad`, simplifying the process of sequencing complex stateful workflows while maintaining referential transparency. Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.
+The State monad (`State<S, A>`, `StateKind`, `StateMonad`) provides a powerful functional abstraction for managing stateful computations in `Higher-Kinded-J`. By encapsulating state transitions within the `S -> (A, S)` function, it allows developers to write pure, composable code that explicitly tracks state changes. The HKT simulation enables using standard monadic operations (`map`, `flatMap`) via `StateMonad`, simplifying the process of sequencing complex stateful workflows while maintaining referential transparency. Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.

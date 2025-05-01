@@ -57,7 +57,7 @@ package HKT_Integration {
     + raiseError(L) : Kind<...>
     + handleErrorWith(...) : Kind<...>
   }
-  EitherKind <|.. "org.simulation.hkt.Kind"
+  EitherKind <|.. "org.higherkindedj.hkt.Kind"
   Monad ..> Helper : uses
 }
 

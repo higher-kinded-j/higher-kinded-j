@@ -1,6 +1,6 @@
 # Order Example Walkthrough: Async Operations with Error Handling
 
-This document provides a detailed walkthrough of the Order Processing example found in the `org.simulation.hkt.example.order` package. This example is a practical demonstration of how to use the Java HKT Simulation library to manage a common real-world scenario: **a workflow involving asynchronous operations that can also fail with specific, expected business errors.**
+This document provides a detailed walkthrough of the Order Processing example found in the `org.higherkindedj.hkt.example.order` package. This example is a practical demonstration of how to use the Java HKT Simulation library to manage a common real-world scenario: **a workflow involving asynchronous operations that can also fail with specific, expected business errors.**
 
 **Goal of this Example:**
 
@@ -17,17 +17,17 @@ This document provides a detailed walkthrough of the Order Processing example fo
 
 Before diving in, it's helpful to have a basic understanding of:
 
-* [Core Concepts](core-concepts.md) of the HKT simulation (`Kind`, Type Classes).
+* [Core Concepts](core-concepts.md) of Higher-Kinded-J (`Kind`, Type Classes).
 * The specific types being used: [Supported Types](supported-types.md): See which Java types (like `List`, `Optional`, `CompletableFuture`) and custom types (`Maybe`, `Either`, `Try`, `IO`, `Lazy`) are currently simulated and have corresponding type class instances.
 * The general [Usage Guide](usage-guide.md):.
 
 **Key Files:**
 
-* [`Dependencies.java`](../src/main/java/org/simulation/example/order/workflow/Dependencies.java): Holds external dependencies (e.g., logger).
-* [`OrderWorkflowRunner.java`](../src/main/java/org/simulation/example/order/workflow/OrderWorkflowRunner.java): Orchestrates the workflow using `EitherT`.
-* [`OrderWorkflowSteps.java`](../src/main/java/org/simulation/example/order/workflow/OrderWorkflowSteps.java): Defines the individual workflow steps (sync/async), accepting `Dependencies`.
-* [`WorkflowModels.java`](../src/main/java/org/simulation/example/order/model/WorkflowModels.java): Data records (`OrderData`, `ValidatedOrder`, etc.).
-* [`DomainError.java`](../src/main/java/org/simulation/example/order/error/DomainError.java): Sealed interface defining specific business errors.
+* [`Dependencies.java`](../src/main/java/org/higherkindedj/example/order/workflow/Dependencies.java): Holds external dependencies (e.g., logger).
+* [`OrderWorkflowRunner.java`](../src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java): Orchestrates the workflow using `EitherT`.
+* [`OrderWorkflowSteps.java`](../src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowSteps.java): Defines the individual workflow steps (sync/async), accepting `Dependencies`.
+* [`WorkflowModels.java`](../src/main/java/org/higherkindedj/example/order/model/WorkflowModels.java): Data records (`OrderData`, `ValidatedOrder`, etc.).
+* [`DomainError.java`](../src/main/java/org/higherkindedj/example/order/error/DomainError.java): Sealed interface defining specific business errors.
 
 ---
 
@@ -354,7 +354,7 @@ This demonstrates how to integrate potentially exception-throwing synchronous co
 
 ## Key Takeaways & How to Apply
 
-This example illustrates several powerful patterns enabled by the HKT simulation:
+This example illustrates several powerful patterns enabled by Higher-Kinded-J:
 
 1. **`EitherT` for `Future<Either<Error, Value>>`:** This is the core pattern. Use `EitherT` whenever you need to sequence asynchronous operations (`CompletableFuture`) where each step can also fail with a specific, typed error (`Either`).
    * Instantiate `EitherTMonad` with the `CompletableFutureMonadError`.

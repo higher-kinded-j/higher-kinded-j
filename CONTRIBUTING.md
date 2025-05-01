@@ -12,8 +12,8 @@ This project and everyone participating in it is governed by the [Code of Conduc
 
 ### Reporting Bugs
 
-* Ensure the bug was not already reported by searching on GitHub under [Issues](https://github.com/MagnusSmith/simulation-hkt/issues).
-* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/MagnusSmith/simulation-hkt/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample or an executable test case** demonstrating the expected behavior that is not occurring.
+* Ensure the bug was not already reported by searching on GitHub under [Issues](https://github.com/higher-kinded-j/higher-kinded-j/issues).
+* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/higher-kinded-j/higher-kinded-j/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample or an executable test case** demonstrating the expected behavior that is not occurring.
 * Use the "Bug Report" issue template if available.
 
 ### Suggesting Enhancements
@@ -28,7 +28,7 @@ Unsure where to begin contributing? You can start by looking through `good first
 ### Pull Requests
 
 1.  **Fork the repository** on GitHub.
-2.  **Clone your fork** locally: `git clone git@github.com:MagnusSmith/simulation-hkt.git`
+2.  **Clone your fork** locally: `git clone git@github.com:higher-kinded-j/higher-kinded-j.git`
 3.  **Create a new branch** for your changes: `git checkout -b name-of-your-feature-or-fix`
 4.  **Make your changes.** Ensure you adhere to standard Java coding conventions.
 5.  **Add tests** for your changes. This is important!
