@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a report to help us improve the HKT simulation
+about: Create a report to help us improve the Higher-Kinded-J
 title: "[BUG] Brief description of bug"
 labels: bug
 assignees: ''

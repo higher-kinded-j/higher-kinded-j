@@ -4,7 +4,7 @@ plugins {
   id("com.diffplug.spotless") version "6.25.0"
 }
 
-group = "org.simulation.hkt"
+group = "org.higher-kinded-j"
 
 version = "1.0-SNAPSHOT"
 

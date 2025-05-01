@@ -1,6 +1,6 @@
 # Extending the Simulation
 
-We can add support for new Java types (type constructors) to the simulation framework. 
+We can add support for new Java types (type constructors) to the Higher-Kinded-J simulation framework. 
 
 
 Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an example.
@@ -14,9 +14,7 @@ Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an
    * **Example (`SetKind.java`):**
 
      ```java
-     package org.simulation.hkt.set; // Create a new package
-
-     import org.simulation.hkt.Kind;
+     package org.higherkindedj.hkt.set; // Create a new package
 
      /**
       * Kind interface marker for java.util.Set<A>.
@@ -41,12 +39,12 @@ Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an
    * **Example (`SetKindHelper.java`):**
 
      ```java 
-     package org.simulation.hkt.set;
+     package org.higherkindedj.hkt.set;
 
      import org.jspecify.annotations.NonNull;
      import org.jspecify.annotations.Nullable;
-     import org.simulation.hkt.Kind;
-     import org.simulation.hkt.exception.KindUnwrapException; // Import exception
+     import org.higherkindedj.hkt.Kind;
+     import org.higherkindedj.hkt.exception.KindUnwrapException; // Import exception
 
      import java.util.Objects;
      import java.util.Set; // Import Set
@@ -94,12 +92,12 @@ Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an
 
      ```java
      // SetFunctor.java
-     package org.simulation.hkt.set;
-     import org.simulation.hkt.*;
+     package org.higherkindedj.hkt.set;
+     import org.higherkindedj.hkt.*;
      import java.util.Set;
      import java.util.function.Function;
      import java.util.stream.Collectors;
-     import static org.simulation.hkt.set.SetKindHelper.*;
+     import static org.higherkindedj.hkt.set.SetKindHelper.*;
 
      public class SetFunctor implements Functor<SetKind<?>> {
          @Override
@@ -111,12 +109,12 @@ Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an
      }
 
      // SetApplicative.java
-     package org.simulation.hkt.set;
-     import org.simulation.hkt.*;
+     package org.higherkindedj.hkt.set;
+     import org.higherkindedj.hkt.*;
      import java.util.HashSet;
      import java.util.Set;
      import java.util.function.Function;
-     import static org.simulation.hkt.set.SetKindHelper.*;
+     import static org.higherkindedj.hkt.set.SetKindHelper.*;
 
      public class SetApplicative extends SetFunctor implements Applicative<SetKind<?>> {
          @Override
@@ -140,12 +138,12 @@ Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an
      }
 
      // SetMonad.java
-     package org.simulation.hkt.set;
-     import org.simulation.hkt.*;
+     package org.higherkindedj.hkt.set;
+     import org.higherkindedj.hkt.*;
      import java.util.Set;
      import java.util.function.Function;
      import java.util.stream.Collectors;
-     import static org.simulation.hkt.set.SetKindHelper.*;
+     import static org.higherkindedj.hkt.set.SetKindHelper.*;
 
      public class SetMonad extends SetApplicative implements Monad<SetKind<?>> {
          @Override
@@ -167,4 +165,4 @@ Here’s a general guide on how to approach it, using a `java.util.Set<A>` as an
    * *Note: `Set` doesn't have a standard monadic error state, so `MonadError` isn't typically implemented for it.*
 6. **Add Tests:** Create corresponding test classes (`SetKindHelperTest`, `SetMonadTest`) to verify the `wrap`/`unwrap` behavior (including `KindUnwrapException` cases) and ensure the type class instances adhere to the Functor/Applicative/Monad laws.
 
-By following these steps, we can integrate new types into the HKT simulation, allowing us to use them with the generic functional abstractions provided.
+By following these steps, we can integrate new types into Higher-Kinded-J, allowing us to use them with the generic functional abstractions provided.
