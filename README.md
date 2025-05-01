@@ -1,6 +1,6 @@
-# Welcome to the Higher-Kinded-J: Bringing Higher-Kinded Types to Java functional patterns
-
+# Welcome to the Higher-Kinded-J : Bringing Higher-Kinded Types to Java functional patterns
 [![codecov](https://codecov.io/gh/higher-kinded-j/higher-kinded-j/graph/badge.svg?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j)
+
 
 This library for Higher-Kinded Types in Java was initially created as a simulation for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) to help illustrate different approaches.
 
@@ -55,18 +55,18 @@ The simulation hinges on a few key ideas:
 
 This simulation provides HKT wrappers and type class instances for:
 
-* `java.util.List` ([`ListKind`](src/main/java/org/simulation/hkt/list/ListKind.java), [`ListMonad`](src/main/java/org/simulation/hkt/list/ListMonad.java))
-* `java.util.Optional` ([`OptionalKind`](src/main/java/org/simulation/hkt/optional/OptionalKind.java), [`OptionalMonad`](src/main/java/org/simulation/hkt/optional/OptionalMonad.java) implementing `MonadError<..., Void>`)
-* `Maybe` (custom type) ([`MaybeKind`](src/main/java/org/simulation/hkt/maybe/MaybeKind.java), [`MaybeMonad`](src/main/java/org/simulation/hkt/maybe/MaybeMonad.java) implementing `MonadError<..., Void>`)
-* `Either<L, R>` (custom type) ([`EitherKind`](src/main/java/org/simulation/hkt/either/EitherKind.java), [`EitherMonad<L>`](src/main/java/org/simulation/hkt/either/EitherMonad.java) implementing `MonadError<..., L>`)
-* `java.util.concurrent.CompletableFuture<T>` ([`CompletableFutureKind`](src/main/java/org/simulation/hkt/future/CompletableFutureKind.java), [`CompletableFutureMonadError`](src/main/java/org/simulation/hkt/future/CompletableFutureMonadError.java) implementing `MonadError<..., Throwable>`)
-* `Try<T>` (custom type) ([`TryKind`](src/main/java/org/simulation/hkt/trymonad/TryKind.java), [`TryMonadError`](src/main/java/org/simulation/hkt/trymonad/TryMonadError.java) implementing `MonadError<..., Throwable>`)
-* `IO<A>` (custom type) ([`IOKind`](src/main/java/org/simulation/hkt/io/IOKind.java), [`IOMonad`](src/main/java/org/simulation/hkt/io/IOMonad.java)) - For deferred, side-effecting computations.
-* `Lazy<A>` (custom type) ([`LazyKind`](src/main/java/org/simulation/hkt/lazy/LazyKind.java), [`LazyMonad`](src/main/java/org/simulation/hkt/lazy/LazyMonad.java)) - For deferred, memoised computations.
-* `Reader<R, A>` (custom type) ([`ReaderKind`](src/main/java/org/simulation/hkt/reader/ReaderKind.java), [`ReaderMonad`](src/main/java/org/simulation/hkt/reader/ReaderMonad.java)) - For computations depending on a read-only environment.
-* `State<S, A>` (custom type) ([`StateKind`](src/main/java/org/simulation/hkt/state/StateKind.java), [`StateMonad`](src/main/java/org/simulation/hkt/state/StateMonad.java)) - For stateful computations.
-* `Writer<W, A>` (custom type) ([`WriterKind`](src/main/java/org/simulation/hkt/writer/WriterKind.java), [`WriterMonad`](src/main/java/org/simulation/hkt/writer/WriterMonad.java)) - For computations that accumulate a log/output (requires `Monoid<W>`).
-* `EitherT<F, L, R>` (Monad Transformer) ([`EitherTKind`](src/main/java/org/simulation/hkt/trans/EitherTKind.java), [`EitherTMonad<F, L>`](src/main/java/org/simulation/hkt/trans/EitherTMonad.java)) - For combining an outer monad `F` with an inner `Either`.
+* `java.util.List` ([`ListKind`](src/main/java/org/higherkindedj/hkt/list/ListKind.java), [`ListMonad`](src/main/java/org/higherkindedj/hkt/list/ListMonad.java))
+* `java.util.Optional` ([`OptionalKind`](src/main/java/org/higherkindedj/hkt/optional/OptionalKind.java), [`OptionalMonad`](src/main/java/org/higherkindedj/hkt/optional/OptionalMonad.java) implementing `MonadError<..., Void>`)
+* `Maybe` (custom type) ([`MaybeKind`](src/main/java/org/higherkindedj/hkt/maybe/MaybeKind.java), [`MaybeMonad`](src/main/java/org/higherkindedj/hkt/maybe/MaybeMonad.java) implementing `MonadError<..., Void>`)
+* `Either<L, R>` (custom type) ([`EitherKind`](src/main/java/org/higherkindedj/hkt/either/EitherKind.java), [`EitherMonad<L>`](src/main/java/org/higherkindedj/hkt/either/EitherMonad.java) implementing `MonadError<..., L>`)
+* `java.util.concurrent.CompletableFuture<T>` ([`CompletableFutureKind`](src/main/java/org/higherkindedj/hkt/future/CompletableFutureKind.java), [`CompletableFutureMonadError`](src/main/java/org/higherkindedj/hkt/future/CompletableFutureMonadError.java) implementing `MonadError<..., Throwable>`)
+* `Try<T>` (custom type) ([`TryKind`](src/main/java/org/higherkindedj/hkt/trymonad/TryKind.java), [`TryMonadError`](src/main/java/org/higherkindedj/hkt/trymonad/TryMonadError.java) implementing `MonadError<..., Throwable>`)
+* `IO<A>` (custom type) ([`IOKind`](src/main/java/org/higherkindedj/hkt/io/IOKind.java), [`IOMonad`](src/main/java/org/higherkindedj/hkt/io/IOMonad.java)) - For deferred, side-effecting computations.
+* `Lazy<A>` (custom type) ([`LazyKind`](src/main/java/org/higherkindedj/hkt/lazy/LazyKind.java), [`LazyMonad`](src/main/java/org/higherkindedj/hkt/lazy/LazyMonad.java)) - For deferred, memoised computations.
+* `Reader<R, A>` (custom type) ([`ReaderKind`](src/main/java/org/higherkindedj/hkt/reader/ReaderKind.java), [`ReaderMonad`](src/main/java/org/higherkindedj/hkt/reader/ReaderMonad.java)) - For computations depending on a read-only environment.
+* `State<S, A>` (custom type) ([`StateKind`](src/main/java/org/higherkindedj/hkt/state/StateKind.java), [`StateMonad`](src/main/java/org/higherkindedj/hkt/state/StateMonad.java)) - For stateful computations.
+* `Writer<W, A>` (custom type) ([`WriterKind`](src/main/java/org/higherkindedj/hkt/writer/WriterKind.java), [`WriterMonad`](src/main/java/org/higherkindedj/hkt/writer/WriterMonad.java)) - For computations that accumulate a log/output (requires `Monoid<W>`).
+* `EitherT<F, L, R>` (Monad Transformer) ([`EitherTKind`](src/main/java/org/higherkindedj/hkt/trans/EitherTKind.java), [`EitherTMonad<F, L>`](src/main/java/org/higherkindedj/hkt/trans/EitherTMonad.java)) - For combining an outer monad `F` with an inner `Either`.
 
 *(See individual packages and the [Supported Types](docs/supported-types.md) document for details)*
 
@@ -92,7 +92,7 @@ If you want to leverage this simulation in your own code:
 1.  **Include the Code:** Copy the relevant packages (`org.simulation.hkt` and the packages for the types you need, e.g., `org.simulation.hkt.optional`) into your project's source code.
 2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `*Kind` interfaces (e.g., `OptionalKind`), the `*KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
 3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](docs/usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
-4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending the Simulation](docs/extending-simulation.md).
+4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending Higher-Kinded-J](docs/extending-simulation.md).
 
 **Note:** This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
 
