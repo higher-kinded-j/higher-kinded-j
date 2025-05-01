@@ -86,6 +86,7 @@ Higher-Kinded-J currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
   * `CompletableFutureMonad` (`Monad`)
   * `CompletableFutureMonadError` (`MonadError<..., Throwable>`)
 * **Notes:** Allows treating asynchronous computations monadically. `map` and `flatMap` correspond to `thenApply` and `thenCompose`. Implements `MonadError` where the error type `E` is `Throwable`, representing the exception that caused the future to fail. `raiseError(t)` creates a `failedFuture(t)`. `of(v)` creates a `completedFuture(v)`. `ap` uses `thenCombine`.
+* **Usage:** How to use the [CompletableFuture Monad](cf_monad.md)
 
 ---
 
