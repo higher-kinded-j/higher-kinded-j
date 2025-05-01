@@ -1,6 +1,6 @@
-# Java Higher-Kinded Type (HKT) Simulation
-
+# Welcome to the Higher-Kinded-J : Bringing Higher-Kinded Types to Java functional patterns
 [![codecov](https://codecov.io/gh/higher-kinded-j/higher-kinded-j/graph/badge.svg?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j)
+
 
 This library for Higher-Kinded Types in Java was initially created as a simulation for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) to help illustrate different approaches.
 
