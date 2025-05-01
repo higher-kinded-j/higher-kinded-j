@@ -205,47 +205,33 @@ StackState initialStack = new StackState(java.util.Collections.emptyList());
 
 // Run counter example
 StateTuple<CounterState, Integer> counterResultTuple = runState(incrementTwiceAndGet, initialCounter);
-System.out.
-
-println("Counter Final Tuple: "+counterResultTuple);
+System.out.println("Counter Final Tuple: "+counterResultTuple);
 // Output: Counter Final Tuple: StateTuple[value=2, state=CounterState[count=2]]
 
 int finalCount = evalState(incrementTwiceAndGet, initialCounter);
-System.out.
-
-println("Counter Final Value: "+finalCount);
+System.out.println("Counter Final Value: "+finalCount);
 // Output: Counter Final Value: 2
 
 CounterState finalCounterState = execState(incrementTwiceAndGet, initialCounter);
-System.out.
-
-println("Counter Final State: "+finalCounterState);
+System.out.println("Counter Final State: "+finalCounterState);
 // Output: Counter Final State: CounterState[count=2]
 
 
 // Run stack example
 StateTuple<StackState, Integer> stackResultTuple = runState(stackProgram, initialStack);
-System.out.
-
-println("Stack Final Tuple: "+stackResultTuple);
+System.out.println("Stack Final Tuple: "+stackResultTuple);
 // Output: Stack Final Tuple: StateTuple[value=30, state=StackState[stack=[]]] (Value is 20 + 10)
 
 Integer stackFinalValue = evalState(stackProgram, initialStack);
-System.out.
-
-println("Stack Final Value: "+stackFinalValue); // Output: 30
+System.out.println("Stack Final Value: "+stackFinalValue); // Output: 30
 
 StackState finalStackState = execState(stackProgram, initialStack);
-System.out.
-
-println("Stack Final State: "+finalStackState); // Output: StackState[stack=[]]
+System.out.println("Stack Final State: "+finalStackState); // Output: StackState[stack=[]]
 
 
 // Run push5AndDescribe example
 StateTuple<StackState, String> pushDescribeTuple = runState(push5AndDescribe, initialStack);
-System.out.
-
-println("Push/Describe Tuple: "+pushDescribeTuple);
+System.out.println("Push/Describe Tuple: "+pushDescribeTuple);
 // Output: Push/Describe Tuple: StateTuple[value=Pushed 5, value is null, state=StackState[stack=[5]]]
 ```
 
