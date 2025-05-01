@@ -1,0 +1,68 @@
+@startuml Lazy Components
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+interface ThrowableSupplier<T> {
+  + {abstract} T get() throws Throwable
+}
+
+class Lazy<A> {
+  - volatile boolean evaluated
+  - {field} A value
+  - {field} Throwable exception
+  - {field} ThrowableSupplier<? extends A> computation
+  -- Factories --
+  + {static} Lazy<A> defer(ThrowableSupplier<? extends A>)
+  + {static} Lazy<A> now(A)
+  -- Methods --
+  + A force() throws Throwable
+  + Lazy<B> map(Function<? super A, ? extends B>)
+  + Lazy<B> flatMap(Function<? super A, ? extends Lazy<? extends B>>)
+}
+Lazy --> ThrowableSupplier : uses >
+
+interface Kind<F, A> <<HKT Bridge>> {
+  ' Intentionally Empty - Marker Interface
+}
+
+interface LazyKind<A> extends Kind<LazyKind<?>, A> {
+  ' HKT Marker for Lazy
+  ' Witness F = LazyKind<?>
+  ' Value Type A = A
+}
+
+package helper <<Rectangle>> {
+  class LazyKindHelper {
+    .. Static Helper Methods ..
+    + {static} LazyKind<A> wrap(Lazy<A>)
+    + {static} Lazy<A> unwrap(Kind<LazyKind<?>, A>)
+    + {static} Kind<LazyKind<?>, A> defer(ThrowableSupplier<A>)
+    + {static} Kind<LazyKind<?>, A> now(A)
+    + {static} A force(Kind<LazyKind<?>, A>) throws Throwable
+  }
+
+  ' Internal Holder Record
+  class LazyHolder<A> implements LazyKind<A> {
+    - Lazy<A> lazyInstance
+  }
+  LazyKindHelper ..> LazyHolder : creates >
+  LazyKindHelper --> Lazy : uses >
+  LazyHolder o--> Lazy : holds
+}
+
+class LazyMonad implements Monad<LazyKind<?>> {
+  + Kind<LazyKind<?>, B> map(Function<A, B>, Kind<LazyKind<?>, A>)
+  + Kind<LazyKind<?>, A> of(A)
+  + Kind<LazyKind<?>, B> ap(Kind<LazyKind<?>, Function<A, B>>, Kind<LazyKind<?>, A>)
+  + Kind<LazyKind<?>, B> flatMap(Function<A, Kind<LazyKind<?>, B>>, Kind<LazyKind<?>, A>)
+}
+LazyMonad ..> LazyKindHelper : uses >
+LazyMonad ..> LazyKind : operates on >
+LazyMonad ..> Lazy : operates on underlying >
+
+note right of LazyMonad
+  Implements Functor, Applicative, Monad
+  for the LazyKind<?> witness type.
+end note
+
+@enduml

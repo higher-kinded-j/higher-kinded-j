@@ -1,4 +1,4 @@
-# Welcome to the Higher-Kinded-J : Bringing Higher-Kinded Types to Java functional patterns
+# Higher-Kinded-J: _Bringing Higher-Kinded Types to Java functional patterns_
 [![codecov](https://codecov.io/gh/higher-kinded-j/higher-kinded-j/graph/badge.svg?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j)
 
 

@@ -1,0 +1,27 @@
+@startuml Lazy Class Detail
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+interface ThrowableSupplier<T> {
++ {abstract} T get() throws Throwable
+}
+
+class Lazy<A> {
+- transient volatile boolean evaluated
+- {field} @Nullable A value
+- {field} @Nullable Throwable exception
+- {field} @NonNull ThrowableSupplier<? extends A> computation
+
+- Lazy(@NonNull ThrowableSupplier<? extends A>)
+
++ {static} <A> @NonNull Lazy<A> defer(@NonNull ThrowableSupplier<? extends A>)
++ {static} <A> @NonNull Lazy<A> now(@Nullable A)
+
++ @Nullable A force() throws Throwable
++ <B> @NonNull Lazy<B> map(@NonNull Function<? super A, ? extends B>)
++ <B> @NonNull Lazy<B> flatMap(@NonNull Function<? super A, ? extends @NonNull Lazy<? extends B>>)
++ String toString()
+}
+Lazy --> ThrowableSupplier : uses >
+
+@enduml

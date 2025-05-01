@@ -1,4 +1,4 @@
-# Welcome to the Higher-Kinded-J: Bringing Higher-Kinded Types to Java functional patterns
+# Higher-Kinded-J: _Bringing Higher-Kinded Types to Java functional patterns_
 
 This library aims to bring Higher-Kinded Functional patterns to Java by providing implementations of common Monads supporting Higher-Kinded Types.
 

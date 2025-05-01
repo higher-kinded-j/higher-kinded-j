@@ -112,6 +112,7 @@ Higher-Kinded-J currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 * **Type Class Instances:**
   * `LazyMonad` (`Monad`, `Applicative`, `Functor`)
 * **Notes:** Useful for expensive computations or values that should only be calculated if needed. `map` and `flatMap` preserve laziness. `of(a)` creates an already evaluated `Lazy` instance (`Lazy.now`). `LazyKindHelper.defer(() -> ...)` creates an unevaluated `Lazy`. Exceptions during computation are caught, memoised, and re-thrown by `force()`.
+* **Usage:** How to use the [Lazy Monad](lazy_monad.md)
 
 ---
 
