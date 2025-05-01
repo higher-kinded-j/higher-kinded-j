@@ -10,6 +10,7 @@
 - [State Monad](state_monad.md)
 - [Lazy Monad](lazy_monad.md)
 - [IO Monad](io_monad.md)
-- @TODO: Future, List, Maybe, Optional,
+- [CompletableFuture Monad](cf_monad.md)
+- @TODO: List, Maybe, Optional,
 
 
