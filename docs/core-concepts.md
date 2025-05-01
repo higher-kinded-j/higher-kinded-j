@@ -1,6 +1,6 @@
 # Core Concepts of the HKT Simulation
 
-This simulation employs several key components to emulate Higher-Kinded Types (HKTs) and associated functional type classes in Java. Understanding these is crucial for using and extending the library.
+Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (HKTs) and associated functional type classes in Java. Understanding these is crucial for using and extending the library.
 
 ## 1. The HKT Problem in Java
 
@@ -20,7 +20,7 @@ Java's type system lacks native Higher-Kinded Types. We can easily parameterise 
   * `IOKind<?>` represents the `IO` type constructor.
 * **`A` (Type Argument):** The concrete type contained within or parameterised by the constructor (e.g., `Integer` in `List<Integer>`).
 * **How it Works:** An actual object, like a `java.util.List<Integer>`, is wrapped in a helper class (e.g., `ListHolder`) which implements `Kind<ListKind<?>, Integer>`. This `Kind` object can then be passed to generic functions that expect `Kind<F, A>`.
-* **Reference:** [`Kind.java`](../src/main/java/org/simulation/hkt/Kind.java)
+* **Reference:** [`Kind.java`](../src/main/java/org/higherkindedj/hkt/Kind.java)
 
 ## 3. Type Classes (`Functor`, `Applicative`, `Monad`, `MonadError`)
 
@@ -29,26 +29,26 @@ These are interfaces that define standard functional operations that work *gener
 * **`Functor<F>`:**
   * Defines `map(Function<A, B> f, Kind<F, A> fa)`: Applies a function `f: A -> B` to the value(s) inside the context `F` without changing the context's structure, resulting in a `Kind<F, B>`. Think `List.map`, `Optional.map`.
   * Laws: Identity (`map(id) == id`), Composition (`map(g.compose(f)) == map(g).compose(map(f))`).
-  * Reference: [`Functor.java`](../src/main/java/org/simulation/hkt/Functor.java)
+  * Reference: [`Functor.java`](../src/main/java/org/higherkindedj/hkt/Functor.java)
 * **`Applicative<F>`:**
   * Extends `Functor<F>`.
   * Adds `of(A value)`: Lifts a pure value `A` into the context `F`, creating a `Kind<F, A>`. (e.g., `1` becomes `Optional.of(1)` wrapped in `Kind`).
   * Adds `ap(Kind<F, Function<A, B>> ff, Kind<F, A> fa)`: Applies a function wrapped in context `F` to a value wrapped in context `F`, returning a `Kind<F, B>`. This enables combining multiple independent values within the context.
   * Provides default `mapN` methods (e.g., `map2`, `map3`) built upon `ap` and `map`.
   * Laws: Identity, Homomorphism, Interchange, Composition.
-  * Reference: [`Applicative.java`](../src/main/java/org/simulation/hkt/Applicative.java)
+  * Reference: [`Applicative.java`](../src/main/java/org/higherkindedj/hkt/Applicative.java)
 * **`Monad<F>`:**
   * Extends `Applicative<F>`.
   * Adds `flatMap(Function<A, Kind<F, B>> f, Kind<F, A> ma)`: Sequences operations within the context `F`. Takes a value `A` from context `F`, applies a function `f` that returns a *new context* `Kind<F, B>`, and returns the result flattened into a single `Kind<F, B>`. Essential for chaining dependent computations (e.g., chaining `Optional` calls, sequencing `CompletableFuture`s, combining `IO` actions). Also known in functional languages as `bind` or `>>=`.
   * Laws: Left Identity, Right Identity, Associativity.
-  * Reference: [`Monad.java`](../src/main/java/org/simulation/hkt/Monad.java)
+  * Reference: [`Monad.java`](../src/main/java/org/higherkindedj/hkt/Monad.java)
 * **`MonadError<F, E>`:**
   * Extends `Monad<F>`.
   * Adds error handling capabilities for contexts `F` that have a defined error type `E`.
   * Adds `raiseError(E error)`: Lifts an error `E` into the context `F`, creating a `Kind<F, A>` representing the error state (e.g., `Either.Left`, `Try.Failure`, failed `CompletableFuture`).
   * Adds `handleErrorWith(Kind<F, A> ma, Function<E, Kind<F, A>> handler)`: Allows recovering from an error state `E` by providing a function that takes the error and returns a *new context* `Kind<F, A>`.
   * Provides default recovery methods like `handleError`, `recover`, `recoverWith`.
-  * Reference: [`MonadError.java`](../src/main/java/org/simulation/hkt/MonadError.java)
+  * Reference: [`MonadError.java`](../src/main/java/org/higherkindedj/hkt/MonadError.java)
 
 ## 4. Defunctionalisation (Per Type Constructor)
 

@@ -2,7 +2,7 @@
 
 ![monads_everywhere.webp](images/monads_everywhere.webp)
 
-This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) and corresponding type class instances (`Functor`, `Applicative`, `Monad`, `MonadError`) for the following Java types and custom types.
+Higher-Kinded-J currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) and corresponding type class instances (`Functor`, `Applicative`, `Monad`, `MonadError`) for the following Java types and custom types.
 
 ![supported_types.svg](puml/supported_types.svg)
 
@@ -34,7 +34,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 3. `Maybe<A>` (Custom Type)
 
-* **Definition:** A custom `Optional`-like type ([`Maybe.java`](../src/main/java/org/simulation/hkt/maybe/Maybe.java)) implemented as a sealed interface with `Just` and `Nothing` implementations. `Just` enforces non-null values.
+* **Definition:** A custom `Optional`-like type ([`Maybe.java`](../src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)) implemented as a sealed interface with `Just` and `Nothing` implementations. `Just` enforces non-null values.
 * **Kind Interface:** `MaybeKind<A>`
 * **Witness Type `F`:** `MaybeKind<?>`
 * **Helper:** `MaybeKindHelper` (`wrap`, `unwrap`, `just`, `nothing`)
@@ -47,7 +47,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 4. `Either<L, R>` (Custom Type)
 
-* **Definition:** A custom type ([`Either.java`](../src/main/java/org/simulation/hkt/either/Either.java)) representing a value of one of two types, `Left` (typically error) or `Right` (typically success). Implemented as a sealed interface with `Left` and `Right` record implementations.
+* **Definition:** A custom type ([`Either.java`](../src/main/java/org/higherkindedj/hkt/either/Either.java)) representing a value of one of two types, `Left` (typically error) or `Right` (typically success). Implemented as a sealed interface with `Left` and `Right` record implementations.
 * **Kind Interface:** `EitherKind<L, R>`
 * **Witness Type `F`:** `EitherKind<L, ?>` (Note: `L` is fixed for a given type class instance)
 * **Helper:** `EitherKindHelper` (`wrap`, `unwrap`)
@@ -61,7 +61,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 5. `Try<T>` (Custom Type)
 
-* **Definition:** A custom type ([`Try.java`](../src/main/java/org/simulation/hkt/trymonad/Try.java)) representing a computation that might succeed (`Success<T>`) or fail with a `Throwable` (`Failure<T>`). Implemented as a sealed interface with `Success` and `Failure` record implementations.
+* **Definition:** A custom type ([`Try.java`](../src/main/java/org/higherkindedj/hkt/trymonad/Try.java)) representing a computation that might succeed (`Success<T>`) or fail with a `Throwable` (`Failure<T>`). Implemented as a sealed interface with `Success` and `Failure` record implementations.
 * **Kind Interface:** `TryKind<T>`
 * **Witness Type `F`:** `TryKind<?>`
 * **Helper:** `TryKindHelper` (`wrap`, `unwrap`, `success`, `failure`, `tryOf`)
@@ -91,7 +91,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 7. `IO<A>` (Custom Type)
 
-* **Definition:** A custom type ([`IO.java`](../src/main/java/org/simulation/hkt/io/IO.java)) representing a potentially side-effecting computation that produces a value `A`. Evaluation is deferred until `unsafeRunSync()` is called.
+* **Definition:** A custom type ([`IO.java`](../src/main/java/org/higherkindedj/hkt/io/IO.java)) representing a potentially side-effecting computation that produces a value `A`. Evaluation is deferred until `unsafeRunSync()` is called.
 * **Kind Interface:** `IOKind<A>`
 * **Witness Type `F`:** `IOKind<?>`
 * **Helper:** `IOKindHelper` (`wrap`, `unwrap`, `delay`, `unsafeRunSync`)
@@ -105,7 +105,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 8. `Lazy<A>` (Custom Type)
 
-* **Definition:** A custom type ([`Lazy.java`](../src/main/java/org/simulation/hkt/lazy/Lazy.java)) representing a value whose computation is deferred until explicitly requested via `force()` and then memoised (cached).
+* **Definition:** A custom type ([`Lazy.java`](../src/main/java/org/higherkindedj/hkt/lazy/Lazy.java)) representing a value whose computation is deferred until explicitly requested via `force()` and then memoised (cached).
 * **Kind Interface:** `LazyKind<A>`
 * **Witness Type `F`:** `LazyKind<?>`
 * **Helper:** `LazyKindHelper` (`wrap`, `unwrap`, `defer`, `now`, `force`)
@@ -117,7 +117,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 9. `Reader<R, A>` (Custom Type)
 
-* **Definition:** A custom type ([`Reader.java`](../src/main/java/org/simulation/hkt/reader/Reader.java)) representing a computation that depends on reading a value from a shared, read-only environment `R` to produce a value `A`. Essentially wraps `Function<R, A>`.
+* **Definition:** A custom type ([`Reader.java`](../src/main/java/org/higherkindedj/hkt/reader/Reader.java)) representing a computation that depends on reading a value from a shared, read-only environment `R` to produce a value `A`. Essentially wraps `Function<R, A>`.
 * **Kind Interface:** `ReaderKind<R, A>`
 * **Witness Type `F`:** `ReaderKind<R, ?>` (Note: `R` is fixed for a given type class instance)
 * **Helper:** `ReaderKindHelper` (`wrap`, `unwrap`, `reader`, `ask`, `constant`, `runReader`)
@@ -131,7 +131,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 10. `State<S, A>` (Custom Type)
 
-* **Definition:** A custom type ([`State.java`](../src/main/java/org/simulation/hkt/state/State.java)) representing a stateful computation that takes an initial state `S`, produces a value `A`, and returns a new state `S`. Wraps `Function<S, StateTuple<S, A>>`.
+* **Definition:** A custom type ([`State.java`](../src/main/java/org/higherkindedj/hkt/state/State.java)) representing a stateful computation that takes an initial state `S`, produces a value `A`, and returns a new state `S`. Wraps `Function<S, StateTuple<S, A>>`.
 * **Kind Interface:** `StateKind<S, A>`
 * **Witness Type `F`:** `StateKind<S, ?>` (Note: `S` is fixed for a given type class instance)
 * **Helper:** `StateKindHelper` (`wrap`, `unwrap`, `pure`, `get`, `set`, `modify`, `inspect`, `runState`, `evalState`, `execState`)
@@ -145,7 +145,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 11. `Writer<W, A>` (Custom Type)
 
-* **Definition:** A custom type ([`Writer.java`](../src/main/java/org/simulation/hkt/writer/Writer.java)) representing a computation that produces a value `A` while accumulating a log or output `W`. Requires a `Monoid<W>` for combining logs.
+* **Definition:** A custom type ([`Writer.java`](../src/main/java/org/higherkindedj/hkt/writer/Writer.java)) representing a computation that produces a value `A` while accumulating a log or output `W`. Requires a `Monoid<W>` for combining logs.
 * **Kind Interface:** `WriterKind<W, A>`
 * **Witness Type `F`:** `WriterKind<W, ?>` (Note: `W` and its `Monoid` are fixed for a given type class instance)
 * **Helper:** `WriterKindHelper` (`wrap`, `unwrap`, `value`, `tell`, `runWriter`, `run`, `exec`)
@@ -159,7 +159,7 @@ This simulation currently provides Higher-Kinded Type wrappers (`Kind<F, A>`) an
 
 ### 12. `EitherT<F, L, R>` (Monad Transformer)
 
-* **Definition:** A monad transformer ([`EitherT.java`](../src/main/java/org/simulation/hkt/trans/EitherT.java)) that combines an outer monad `F` with an inner `Either<L, R>`. Implemented as a record wrapping `Kind<F, Either<L, R>>`.
+* **Definition:** A monad transformer ([`EitherT.java`](../src/main/java/org/higherkindedj/hkt/trans/EitherT.java)) that combines an outer monad `F` with an inner `Either<L, R>`. Implemented as a record wrapping `Kind<F, Either<L, R>>`.
 * **Kind Interface:** `EitherTKind<F, L, R>`
 * **Witness Type `G`:** `EitherTKind<F, L, ?>` (where `F` and `L` are fixed for a given type class instance)
 * **Helper:** No dedicated helper; use `EitherT` static factories (`fromKind`, `right`, `left`, `fromEither`, `liftF`) and access the inner value via `eitherT.value()`.

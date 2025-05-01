@@ -19,7 +19,7 @@ The benefits of using the Reader monad include:
 3. **Testability:** Dependencies are managed explicitly when the final Reader computation is run, making it easier to provide mock environments or configurations during testing.
 4. **Code Clarity:** Reduces the need to pass configuration objects through multiple layers of functions.
 
-In `simulation-hkt`, the Reader monad pattern is implemented via the `Reader<R, A>` interface and its corresponding HKT simulation types (`ReaderKind`, `ReaderKindHelper`) and type class instances (`ReaderMonad`, `ReaderApplicative`, `ReaderFunctor`).
+In `Higher-Kinded-J`, the Reader monad pattern is implemented via the `Reader<R, A>` interface and its corresponding HKT simulation types (`ReaderKind`, `ReaderKindHelper`) and type class instances (`ReaderMonad`, `ReaderApplicative`, `ReaderFunctor`).
 
 ## Structure
 
@@ -67,7 +67,7 @@ To integrate `Reader` with the generic HKT framework:
 
 ## Type Class Instances (`ReaderFunctor`, `ReaderApplicative`, `ReaderMonad`)
 
-These classes provide the standard functional operations for `ReaderKind<R, ?>`, allowing you to treat `Reader` computations generically within the HKT simulation:
+These classes provide the standard functional operations for `ReaderKind<R, ?>`, allowing you to treat `Reader` computations generically within Higher-Kinded-J:
 
 * **`ReaderFunctor<R>`:** Implements `Functor<ReaderKind<R, ?>>`. Provides the `map` operation.
 * **`ReaderApplicative<R>`:** Extends `ReaderFunctor<R>` and implements `Applicative<ReaderKind<R, ?>>`. Provides `of` (lifting a value) and `ap` (applying a wrapped function to a wrapped value).
@@ -89,21 +89,22 @@ record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}
 Use `ReaderKindHelper` factory methods:
 
 ```java
-import static org.simulation.hkt.reader.ReaderKindHelper.*;
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.reader.ReaderKind;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.reader.ReaderKind;
 
 // Reader that retrieves the database URL from the config
 Kind<ReaderKind<AppConfig, ?>, String> getDbUrl = reader(AppConfig::databaseUrl);
 
-// Reader that retrieves the timeout
-Kind<ReaderKind<AppConfig, ?>, Integer> getTimeout = reader(AppConfig::timeoutMillis);
+        // Reader that retrieves the timeout
+        Kind<ReaderKind<AppConfig, ?>, Integer> getTimeout = reader(AppConfig::timeoutMillis);
 
-// Reader that returns a constant value, ignoring the environment
-Kind<ReaderKind<AppConfig, ?>, String> getDefaultUser = constant("guest");
+        // Reader that returns a constant value, ignoring the environment
+        Kind<ReaderKind<AppConfig, ?>, String> getDefaultUser = constant("guest");
 
-// Reader that returns the entire configuration environment
-Kind<ReaderKind<AppConfig, ?>, AppConfig> getConfig = ask();
+        // Reader that returns the entire configuration environment
+        Kind<ReaderKind<AppConfig, ?>, AppConfig> getConfig = ask();
 ```
 
 ### 3. Get the `ReaderMonad` Instance
@@ -111,7 +112,7 @@ Kind<ReaderKind<AppConfig, ?>, AppConfig> getConfig = ask();
 Instantiate the monad for your specific environment type `R`.
 
 ```java
-import org.simulation.hkt.reader.ReaderMonad;
+import org.higherkindedj.hkt.reader.ReaderMonad;
 
 // Monad instance for computations depending on AppConfig
 ReaderMonad<AppConfig> readerMonad = new ReaderMonad<>();
@@ -182,4 +183,4 @@ Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't n
 
 ## Summary
 
-The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `simulation-hkt` provides a functional approach to dependency injection and configuration management. It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using the HKT simulation and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`. This leads to more modular, testable, and less cluttered code when dealing with shared context.
+The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management. It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using the HKT simulation and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`. This leads to more modular, testable, and less cluttered code when dealing with shared context.

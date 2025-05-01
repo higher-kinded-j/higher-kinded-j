@@ -90,8 +90,8 @@ You typically instantiate `WriterMonad<W>` for the specific log type `W` and its
 Decide what you want to accumulate (e.g., `String` for logs, `List<String>` for messages, `Integer` for counts) and get its `Monoid`.
 
 ```java
-import org.simulation.hkt.typeclass.*; // For Monoid
-import org.simulation.hkt.test.typeclass.StringMonoid; // Example Monoid from tests
+import org.higherkindedj.hkt.typeclass.*; // For Monoid
+import org.higherkindedj.hkt.test.typeclass.StringMonoid; // Example Monoid from tests
 // Assuming StringMonoid is accessible or you create your own Monoid impl
 
 Monoid<String> stringMonoid = new StringMonoid(); // Use String concatenation
@@ -103,7 +103,7 @@ Monoid<String> stringMonoid = new StringMonoid(); // Use String concatenation
 Instantiate the monad for your chosen log type `W`, providing its `Monoid`.
 
 ```java
-import org.simulation.hkt.writer.WriterMonad;
+import org.higherkindedj.hkt.writer.WriterMonad;
 
 // Monad instance for computations logging Strings
 WriterMonad<String> writerMonad = new WriterMonad<>(stringMonoid);
@@ -116,31 +116,32 @@ WriterMonad<String> writerMonad = new WriterMonad<>(stringMonoid);
 Use `WriterKindHelper` factory methods, providing the `Monoid` where needed.
 
 ```java
-import static org.simulation.hkt.writer.WriterKindHelper.*;
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.writer.WriterKind;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.writer.WriterKind;
 
 // Writer with an initial value and empty log
 Kind<WriterKind<String, ?>, Integer> initialValue = value(stringMonoid, 5); // ("", 5)
 
-// Writer that just logs a message (value is Void/null)
-Kind<WriterKind<String, ?>, Void> logStart = tell(stringMonoid, "Starting calculation; "); // ("Starting calculation; ", null)
+    // Writer that just logs a message (value is Void/null)
+    Kind<WriterKind<String, ?>, Void> logStart = tell(stringMonoid, "Starting calculation; "); // ("Starting calculation; ", null)
 
-// A function that performs a calculation and logs its step
-Function<Integer, Kind<WriterKind<String, ?>, Integer>> addAndLog =
-    x -> {
-        int result = x + 10;
-        String logMsg = "Added 10 to " + x + " -> " + result + "; ";
-        // Create a Writer pairing the log message and the result
-        return wrap(Writer.create(logMsg, result));
-    };
+    // A function that performs a calculation and logs its step
+    Function<Integer, Kind<WriterKind<String, ?>, Integer>> addAndLog =
+        x -> {
+          int result = x + 10;
+          String logMsg = "Added 10 to " + x + " -> " + result + "; ";
+          // Create a Writer pairing the log message and the result
+          return wrap(Writer.create(logMsg, result));
+        };
 
-Function<Integer, Kind<WriterKind<String, ?>, String>> multiplyAndLogToString =
-    x -> {
-        int result = x * 2;
-        String logMsg = "Multiplied " + x + " by 2 -> " + result + "; ";
-        return wrap(Writer.create(logMsg, "Final:" + result));
-    };
+    Function<Integer, Kind<WriterKind<String, ?>, String>> multiplyAndLogToString =
+        x -> {
+          int result = x * 2;
+          String logMsg = "Multiplied " + x + " by 2 -> " + result + "; ";
+          return wrap(Writer.create(logMsg, "Final:" + result));
+        };
 
 ```
 
@@ -179,31 +180,29 @@ Use `runWriter`, `run`, or `exec` from `WriterKindHelper`.
 
 ```java
 
-import org.simulation.hkt.writer.Writer; // Import the record type
+import org.higherkindedj.hkt.writer.Writer; // Import the record type
 
 // Get the final Writer record (log and value)
 Writer<String, String> finalResultWriter = runWriter(step4);
 String finalLog = finalResultWriter.log();
 String finalValue = finalResultWriter.value();
 
-System.out.println("Final Log: " + finalLog);
+System.out.println("Final Log: "+finalLog);
 // Output: Final Log: Processing 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
-System.out.println("Final Value: " + finalValue);
+System.out.println("Final Value: "+finalValue);
 // Output: Final Value: Final:30
-
 // Or get only the value or log
-String justValue = run(step4);
+// String justValue = run(step4);
 String justLog = exec(step4);
 
-System.out.println("Just Value: " + justValue); // Output: Just Value: Final:30
-System.out.println("Just Log: " + justLog);     // Output: Just Log: Processing 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
-
+System.out.println("Just Value: "+justValue); // Output: Just Value: Final:30
+System.out.println("Just Log: "+justLog);     // Output: Just Log: Processing 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
 Writer<String, String> mappedResult = runWriter(mappedVal);
-System.out.println("Mapped Log: " + mappedResult.log());   // Output: Mapped Log:
-System.out.println("Mapped Value: " + mappedResult.value()); // Output: Mapped Value: Value is 100
+System.out.println("Mapped Log: "+mappedResult.log());   // Output: Mapped Log:
+System.out.println("Mapped Value: "+mappedResult.value()); // Output: Mapped Value: Value is 100
 ```
 
 
 ## Summary
 
-The Writer monad (`Writer<W, A>`, `WriterKind`, `WriterMonad`) in `simulation-hkt` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. The HKT simulation allows these operations to be performed generically using standard type class interfaces.
+The Writer monad (`Writer<W, A>`, `WriterKind`, `WriterMonad`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. The HKT simulation allows these operations to be performed generically using standard type class interfaces.

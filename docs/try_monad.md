@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `Try<T>` type in the `simulation-hkt` library represents a computation that might result in a value of type `T` (a `Success`) or fail with a `Throwable` (a `Failure`). It serves as a functional alternative to traditional `try-catch` blocks for handling exceptions, particularly checked exceptions, within a computation chain.  We can think of it as an `Either` where the `Left` is an `Exception`, but also using try-catch blocks behind the scene, so that we don’t have to.
+The `Try<T>` type in the `Higher-Kinded-J` library represents a computation that might result in a value of type `T` (a `Success`) or fail with a `Throwable` (a `Failure`). It serves as a functional alternative to traditional `try-catch` blocks for handling exceptions, particularly checked exceptions, within a computation chain.  We can think of it as an `Either` where the `Left` is an `Exception`, but also using try-catch blocks behind the scene, so that we don’t have to.
 
 ![try_type.svg](puml/try_type.svg)
 
@@ -26,7 +26,7 @@ You can create `Try` instances in several ways:
 1. **`Try.of(Supplier)`:** Executes a `Supplier` and wraps the result in `Success` or catches any thrown `Throwable` (including `Error` and checked exceptions) and wraps it in `Failure`.
 
    ```java
-   import org.simulation.hkt.trymonad.Try;
+   import org.higherkindedj.hkt.trymonad.Try;
    import java.io.FileInputStream;
 
    // Success case
@@ -133,8 +133,8 @@ To use `Try` with generic code expecting `Kind<F, A>`:
 4. **Unwrap:** Use `TryKindHelper.unwrap(tryKind)` to get the `Try<T>` back.
 
 ```java
-import org.simulation.hkt.Kind;
-import org.simulation.hkt.trymonad.*;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.trymonad.*;
 
 TryMonadError tryMonad = new TryMonadError();
 
@@ -146,13 +146,13 @@ Kind<TryKind<?>, String> mappedKind = tryMonad.map(Object::toString, tryKind1); 
 
 // FlatMap using Monad instance
 Function<Integer, Kind<TryKind<?>, Double>> safeDivideKind =
-    i -> TryKindHelper.tryOf(() -> 10.0 / i);
+        i -> TryKindHelper.tryOf(() -> 10.0 / i);
 Kind<TryKind<?>, Double> flatMappedKind = tryMonad.flatMap(safeDivideKind, tryKind1); // Success(2.0) Kind
 
 // Handle error using MonadError instance
 Kind<TryKind<?>, Integer> handledKind = tryMonad.handleErrorWith(
-    tryKind2, // The Failure Kind
-    error -> TryKindHelper.success(-1) // Recover to Success(-1) Kind
+        tryKind2, // The Failure Kind
+        error -> TryKindHelper.success(-1) // Recover to Success(-1) Kind
 );
 
 // Unwrap

@@ -1,1 +1,1 @@
-rootProject.name = "simulation-hkt"
+rootProject.name = "higher-kinded-j"
