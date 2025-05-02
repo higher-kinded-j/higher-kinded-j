@@ -23,7 +23,7 @@ In `Higher-Kinded-J`, the Reader monad pattern is implemented via the `Reader<R,
 
 ## Structure
 
-![reader_monad.svg](puml/reader_monad.svg)
+![reader_monad.svg](./images/puml/reader_monad.svg)
 
 ## The `Reader<R, A>` Type
 
@@ -52,7 +52,7 @@ public interface Reader<R, A> {
 * `map(Function<A, B>)`: Transforms the result `A` to `B`*after* the reader is run, without affecting the required environment `R`.
 * `flatMap(Function<A, Reader<R, B>>)`: Sequences computations. It runs the first reader, uses its result `A` to create a *second* reader (`Reader<R, B>`), and then runs that second reader with the *original* environment `R`.
 
-## HKT Simulation Components
+##H igher-Kinded-J Components
 
 To integrate `Reader` with the generic HKT framework:
 

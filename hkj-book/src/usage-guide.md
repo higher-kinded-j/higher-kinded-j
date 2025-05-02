@@ -1,6 +1,6 @@
-# Usage Guide: Working with the HKT Simulation
+# Usage Guide: Working with Higher-Kinded-J
 
-This guide explains the step-by-step process of using the simulated Higher-Kinded Types (HKTs) and associated type classes (`Functor`, `Monad`, `MonadError`, etc.) provided by this library.
+Here we explain the step-by-step process of using Higher-Kinded-J simulated Higher-Kinded Types (HKTs) and associated type classes like `Functor`, `Applicative`, `Monad`, `MonadError.
 
 ## Core Workflow
 
@@ -15,23 +15,22 @@ The general process involves these steps:
    * Example (`Either<String, ?>`): `EitherMonad<String> eitherMonad = new EitherMonad<>();`
    * Example (`IO`): `IOMonad ioMonad = new IOMonad();`
    * Example (`Writer<String, ?>`): `WriterMonad<String> writerMonad = new WriterMonad<>(new StringMonoid());`
-3. **Wrap Your Value (`JavaType<A>` -> `Kind<F, A>`):** Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into the Higher-Kinded-J's `Kind` representation using the static `wrap` method from the corresponding `KindHelper` class. **Java**
+3. **Wrap Your Value (`JavaType<A>` -> `Kind<F, A>`):** Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into the Higher-Kinded-J's `Kind` representation using the static `wrap` method from the corresponding `KindHelper` class.
 
    ```java
-   import java.util.Optional;
    import org.higherkindedj.hkt.optional.OptionalKind;
    import org.higherkindedj.hkt.optional.OptionalKindHelper;
    import org.higherkindedj.hkt.Kind;
-
-   // Your standard Java value
+   import java.util.Optional;
+   
    Optional<String> myOptional = Optional.of("test");
 
-   // Wrap it into the HKT simulation type
+   // Wrap it into the Higher-Kinded-J Kind type
    Kind<OptionalKind<?>, String> optionalKind = OptionalKindHelper.wrap(myOptional);
    ```
 
    * Some helpers provide convenience factories like `MaybeKindHelper.just("value")`, `TryKindHelper.failure(ex)`, `IOKindHelper.delay(() -> ...)`, `LazyKindHelper.defer(() -> ...)`. Use these when appropriate.
-4. **Apply Type Class Methods:** Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the ***type class instance*** obtained in Step 2, passing your `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object.****Java**
+4. **Apply Type Class Methods:** Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the ***type class instance*** obtained in *Step 2*, passing your `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object**.
 
    ```java
    import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -40,8 +39,9 @@ The general process involves these steps:
    import org.higherkindedj.hkt.optional.OptionalKind; // Import the specific Kind
    import java.util.Optional;
 
-   // Assume optionalMonad and optionalKind from previous steps
-
+   Optional<String> myOptional = Optional.of("test");
+   Kind<OptionalKind<?>, String> optionalKind = OptionalKindHelper.wrap(myOptional);
+   
    // --- Using map ---
    Function<String, Integer> lengthFunc = String::length;
    // Apply map using the monad instance
@@ -66,7 +66,7 @@ The general process involves these steps:
    // handledKind now represents Kind<OptionalKind<?>, String> containing Optional.of("Default Value")
    ```
    
-5. **Unwrap the Result (`Kind<F, A>` -> `JavaType<A>`):** When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running IO), use the static `unwrap` method from the corresponding `KindHelper` class. **Java**
+5. **Unwrap the Result (`Kind<F, A>` -> `JavaType<A>`):** When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running IO), use the static `unwrap` method from the corresponding `KindHelper` class. 
 
    ```java
    // Continuing the Optional example:
@@ -78,7 +78,7 @@ The general process involves these steps:
 
    // Example for IO:
    // Kind<IOKind<?>, String> ioKind = IOKindHelper.delay(() -> "Hello from IO!");
-   // String ioResult = IOKindHelper.unsafeRunSync(ioKind); // Use specific run method if available
+   // String ioResult = IOKindHelper.unsafeRunSync(ioKind); 
    // System.out.println(ioResult);
    ```
 
@@ -93,8 +93,8 @@ The `unwrap` methods in all `KindHelper` classes are designed to be robust again
 ```java
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.list.ListKindHelper;
-import org.higherkindedj.hkt.optional.OptionalKindHelper; // Use Optional helper
-import org.higherkindedj.hkt.optional.OptionalKind; // Use Optional kind
+import org.higherkindedj.hkt.optional.OptionalKindHelper; 
+import org.higherkindedj.hkt.optional.OptionalKind; 
 import org.higherkindedj.hkt.Kind;
 
 import java.util.Optional;
@@ -104,27 +104,21 @@ import java.util.Optional;
 Kind<OptionalKind<?>, String> validOptionalKind = OptionalKindHelper.wrap(Optional.of("abc"));
 
 try{
-// ERROR: Attempting to unwrap an OptionalKind using ListKindHelper
-java.util.List<String> result = ListKindHelper.unwrap(validOptionalKind);
-}catch(
-KindUnwrapException e){
-        // This indicates incorrect usage of the helpers
-        System.err.
+  // ERROR: Attempting to unwrap an OptionalKind using ListKindHelper
+  java.util.List<String> result = ListKindHelper.unwrap(validOptionalKind);
+}catch(KindUnwrapException e){
+  // This indicates incorrect usage of the helpers
+  System.err.println("Higher-Kinded-J Usage Error: "+e.getMessage());
+  // In real code, fix the call to use OptionalKindHelper.unwrap instead of catching.
+}
 
-println("HKT Simulation Usage Error: "+e.getMessage());
-        // In real code, fix the call to use OptionalKindHelper.unwrap instead of catching.
-        }
-
-        try{
-// ERROR: Attempting to unwrap null
-Optional<String> result = OptionalKindHelper.unwrap(null);
-}catch(
-KindUnwrapException e){
-        System.err.
-
-println("HKT Simulation Usage Error: "+e.getMessage());
-        // Fix: Ensure the Kind being unwrapped is not null.
-        }
+try{
+  // ERROR: Attempting to unwrap null
+  Optional<String> result = OptionalKindHelper.unwrap(null);
+}catch(KindUnwrapException e){
+  System.err.println("Higher-Kinded-J Usage Error: "+e.getMessage());
+  // Fix: Ensure the Kind being unwrapped is not null.
+}
 ```
 
 **Important Distinction:**
@@ -150,8 +144,8 @@ public class GenericExample {
    // Requires the specific Functor<F> instance to be passed in.
    public static <F> Kind<F, Integer> doubleInContext(
            Functor<F> functorInstance, // Pass the type class instance for F
-           Kind<F, Integer> numberKind // The value wrapped in the Kind<F, A> higherkindedj
-   ) {
+           Kind<F, Integer> numberKind) { // The value wrapped in the Kind<F, A> higherkindedj
+   
       // Use the map method from the provided Functor instance
       return functorInstance.map(x -> x * 2, numberKind);
    }

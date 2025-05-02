@@ -15,7 +15,7 @@ The implementation in this library is a `sealed interface Either<L, R>` with two
 
 ## Structure
 
-![either_monad.svg](puml/either_monad.svg)
+![either_monad.svg](./images/puml/either_monad.svg)
 
 ## Creating Instances
 You create `Either` instances using the static factory methods:
@@ -116,8 +116,8 @@ _Note: Prefer `fold` or pattern matching over direct `getLeft`/`getRight` calls.
     System.out.println(result4);
     ```
 
-### Using `Either` with HKT Simulation
-To use `Either` within the generic HKT framework:
+### Using `Either` with Higher-Kinded-J
+To use `Either` within the generic framework:
 1. **Identify Context:** You are working with `Either<L, ?>` where `L` is your chosen error type.
 2. **Get Type Class Instance:** Obtain an instance of `EitherMonad<L>` for your specific error type `L`. This instance implements `MonadError<EitherKind<L, ?>, L>`.
     ```java

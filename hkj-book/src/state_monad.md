@@ -23,7 +23,7 @@ The key benefits are:
 In `Higher-Kinded-J`, the State monad pattern is implemented via the `State<S, A>` interface, its associated `StateTuple<S, A>` record, the HKT simulation types (`StateKind`, `StateKindHelper`), and the type class instances (`StateMonad`, `StateApplicative`, `StateFunctor`).
 
 ## Structure
-![state_monad.svg](puml/state_monad.svg)
+![state_monad.svg](./images/puml/state_monad.svg)
 
 
 ## The `State<S, A>` Type and `StateTuple<S, A>`
@@ -65,7 +65,7 @@ public interface State<S, A> {
 * `map(...)`: Transforms the *result value*`A` to `B` after the computation runs, leaving the state transition logic untouched.
 * `flatMap(...)`: The core sequencing operation. It runs the first `State` computation, takes its result value `A`, uses it to create a *second*`State` computation, and runs that second computation using the state produced by the first one. The final result and state are those from the second computation.
 
-## HKT Simulation Components
+## Higher-Kinded-J Components
 
 To integrate `State` with the generic HKT framework:
 

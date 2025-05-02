@@ -1,4 +1,5 @@
-# Higher-Kinded-J: _Bringing Higher-Kinded Types to Java functional patterns_
+# Higher-Kinded-J:
+**_Bringing Higher-Kinded Types to Java functional patterns_**
 [![codecov](https://codecov.io/gh/higher-kinded-j/higher-kinded-j/graph/badge.svg?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j)
 
 
@@ -7,68 +8,33 @@ This library for Higher-Kinded Types in Java was initially created as a simulati
 This project demonstrates a technique to simulate Higher-Kinded Types (HKTs) in Java, a feature not natively supported by the language's type system.
 It uses a defunctionalisation approach, representing type constructors and type classes as interfaces and objects.
 
-## See [Wiki](docs/home.md) for more details and examples
+## Where to start
+
+**[All the details you need to get started with Higher-Kinded-J can be found here](https://higher-kinded-j.github.io/higher-kinded-j/home.html)**
+
 
 ## Introduction: Abstracting Over Computation in Java
 
 Java's powerful type system excels in many areas, but it lacks native support for Higher-Kinded Types (HKTs). This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>` in the same way we abstract over the type `A` itself. We can't easily define a generic function that works identically for *any* container or computational context (like List, Optional, Future, IO).
 
-This project tackles that challenge by demonstrating a **simulation of HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
-
-**Why bother?** This simulation unlocks several benefits:
-
-* **Write Abstract Code:** Define functions and logic that operate polymorphically over different computational contexts (e.g., handle optionality, asynchronous operations, error handling, side effects, or collections using the *same* core logic).
-* **Leverage Functional Patterns:** Consistently apply powerful patterns like `map`, `flatMap`, `ap`, `sequence`, `traverse`, and monadic error handling (`raiseError`, `handleErrorWith`) across diverse data types.
-* **Build Composable Systems:** Create complex workflows and abstractions by composing smaller, generic pieces, as demonstrated in the included [Order Processing Example](docs/order-walkthrough.md).
-* **Understand HKT Concepts:** Provides a practical, hands-on way to understand HKTs and type classes even within Java's limitations.
-
-While this simulation introduces some boilerplate compared to languages with native HKT support, it offers a valuable way to explore these powerful functional programming concepts in Java.
-
-## Core Concepts Explained
-
-![core_interfaces.svg](docs/puml/core_interfaces.svg)
-
-The simulation hinges on a few key ideas:
-
-1.  **`Kind<F, A>` Interface:** The cornerstone, simulating the application of a type constructor `F` (like `List`, `Optional`) to a type `A`. Since Java can't express `F<_>` directly as a parameter, `Kind<F, A>` acts as this bridge.
-    * `F`: A "witness type" uniquely identifying the constructor (e.g., `ListKind<?>`, `OptionalKind<?>`, `EitherKind<L, ?>`).
-    * `A`: The type argument (e.g., `String`, `Integer`).
-
-2.  **Type Classes (`Functor`, `Applicative`, `Monad`, `MonadError`):** Interfaces defining standard operations over the generic context `F`. Implementations exist for each simulated type.
-    * `Functor<F>`: Provides `map(A -> B, F<A>) -> F<B>`.
-    * `Applicative<F>`: Adds `of(A) -> F<A>` (lifting) and `ap(F<A -> B>, F<A>) -> F<B>` (applying functions within the context). Includes default `mapN` helpers.
-    * `Monad<F>`: Adds `flatMap(A -> F<B>, F<A>) -> F<B>` (sequencing).
-    * `MonadError<F, E>`: Adds `raiseError(E) -> F<A>` and `handleErrorWith(F<A>, E -> F<A>)` for contexts that have a specific error type `E`.
-
-3.  **Defunctionalisation:** For each simulated type (e.g., `List`), we need:
-    * **`Kind` Interface:** e.g., `ListKind<A> extends Kind<ListKind<?>, A>`.
-    * **`Holder` Record:** An internal record holding the actual Java type (e.g., `ListHolder` holds `List<A>`).
-    * **`KindHelper` Class:** Static `wrap` and `unwrap` methods to bridge `Kind<F, A>` and the underlying Java type (e.g., `ListKindHelper.wrap/unwrap`). The `unwrap` methods now throw `KindUnwrapException` for invalid `Kind` inputs, ensuring robustness.
-    * **Type Class Instances:** Concrete implementations (e.g., `ListMonad` implements `Monad<ListKind<?>>`).
+This project tackles that challenge by helping  **simulate of HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
 
 
+## Applying to Your Applications
+
+You can apply the patterns and techniques from Higher-Kinded-J in many ways:
+
+* **Generic Utilities:** Write utility functions that work across different monadic types (e.g., a generic `sequence` function to turn a `List<Kind<F, A>>` into a `Kind<F, List<A>>`).
+* **Composable Workflows:** Structure complex business logic, especially involving asynchronous steps and error handling (like the Order Example), in a more functional and composable manner.
+* **Managing Side Effects:** Use the `IO` monad to explicitly track and sequence side-effecting operations.
+* **Deferred Computation:** Use the `Lazy` monad for expensive computations that should only run if needed.
+* **Dependency Injection:** Use the `Reader` monad to manage dependencies cleanly.
+* **State Management:** Use the `State` monad for computations that need to thread state through.
+* **Logging/Accumulation:** Use the `Writer` monad to accumulate logs or other values alongside a computation.
+* **Learning Tool:** Understand HKTs, type classes (Functor, Applicative, Monad), and functional error handling concepts through concrete Java examples.
+* **Simulating Custom Types:** Follow the pattern (Kind interface, Holder, Helper, Type Class instances) to make your *own* custom data types or computational contexts work with the provided functional abstractions.
 
 
-## Simulated Types
-
-![supported_types.svg](docs/puml/supported_types.svg)
-
-This simulation provides HKT wrappers and type class instances for:
-
-* `java.util.List` ([`ListKind`](src/main/java/org/higherkindedj/hkt/list/ListKind.java), [`ListMonad`](src/main/java/org/higherkindedj/hkt/list/ListMonad.java))
-* `java.util.Optional` ([`OptionalKind`](src/main/java/org/higherkindedj/hkt/optional/OptionalKind.java), [`OptionalMonad`](src/main/java/org/higherkindedj/hkt/optional/OptionalMonad.java) implementing `MonadError<..., Void>`)
-* `Maybe` (custom type) ([`MaybeKind`](src/main/java/org/higherkindedj/hkt/maybe/MaybeKind.java), [`MaybeMonad`](src/main/java/org/higherkindedj/hkt/maybe/MaybeMonad.java) implementing `MonadError<..., Void>`)
-* `Either<L, R>` (custom type) ([`EitherKind`](src/main/java/org/higherkindedj/hkt/either/EitherKind.java), [`EitherMonad<L>`](src/main/java/org/higherkindedj/hkt/either/EitherMonad.java) implementing `MonadError<..., L>`)
-* `java.util.concurrent.CompletableFuture<T>` ([`CompletableFutureKind`](src/main/java/org/higherkindedj/hkt/future/CompletableFutureKind.java), [`CompletableFutureMonadError`](src/main/java/org/higherkindedj/hkt/future/CompletableFutureMonadError.java) implementing `MonadError<..., Throwable>`)
-* `Try<T>` (custom type) ([`TryKind`](src/main/java/org/higherkindedj/hkt/trymonad/TryKind.java), [`TryMonadError`](src/main/java/org/higherkindedj/hkt/trymonad/TryMonadError.java) implementing `MonadError<..., Throwable>`)
-* `IO<A>` (custom type) ([`IOKind`](src/main/java/org/higherkindedj/hkt/io/IOKind.java), [`IOMonad`](src/main/java/org/higherkindedj/hkt/io/IOMonad.java)) - For deferred, side-effecting computations.
-* `Lazy<A>` (custom type) ([`LazyKind`](src/main/java/org/higherkindedj/hkt/lazy/LazyKind.java), [`LazyMonad`](src/main/java/org/higherkindedj/hkt/lazy/LazyMonad.java)) - For deferred, memoised computations.
-* `Reader<R, A>` (custom type) ([`ReaderKind`](src/main/java/org/higherkindedj/hkt/reader/ReaderKind.java), [`ReaderMonad`](src/main/java/org/higherkindedj/hkt/reader/ReaderMonad.java)) - For computations depending on a read-only environment.
-* `State<S, A>` (custom type) ([`StateKind`](src/main/java/org/higherkindedj/hkt/state/StateKind.java), [`StateMonad`](src/main/java/org/higherkindedj/hkt/state/StateMonad.java)) - For stateful computations.
-* `Writer<W, A>` (custom type) ([`WriterKind`](src/main/java/org/higherkindedj/hkt/writer/WriterKind.java), [`WriterMonad`](src/main/java/org/higherkindedj/hkt/writer/WriterMonad.java)) - For computations that accumulate a log/output (requires `Monoid<W>`).
-* `EitherT<F, L, R>` (Monad Transformer) ([`EitherTKind`](src/main/java/org/higherkindedj/hkt/trans/EitherTKind.java), [`EitherTMonad<F, L>`](src/main/java/org/higherkindedj/hkt/trans/EitherTMonad.java)) - For combining an outer monad `F` with an inner `Either`.
-
-*(See individual packages and the [Supported Types](docs/supported-types.md) document for details)*
 
 ## Practical Example: Order Processing Workflow
 
@@ -83,7 +49,7 @@ This example demonstrates:
 * Using `MonadError` capabilities for error handling and recovery.
 * Managing dependencies (like logging) via injection.
 
-Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWith` are used to build the workflow. See the [Order Example Walkthrough](docs/order-walkthrough.md) for a detailed explanation.
+Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWith` are used to build the workflow. See the [Order Processing Example_Walkthrough](https://higher-kinded-j.github.io/higher-kinded-j/order-walkthrough.html). for a detailed explanation.
 
 ## How to Use This Library
 
@@ -91,28 +57,15 @@ If you want to leverage this simulation in your own code:
 
 1.  **Include the Code:** Copy the relevant packages (`org.simulation.hkt` and the packages for the types you need, e.g., `org.simulation.hkt.optional`) into your project's source code.
 2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `*Kind` interfaces (e.g., `OptionalKind`), the `*KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
-3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](docs/usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
-4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending Higher-Kinded-J](docs/extending-simulation.md).
+3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/higher-kinded-j/usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
+4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/higher-kinded-j/extending-simulation.md).
 
 **Note:** This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
 
-## Applying to Your Applications
-
-You can apply the patterns and techniques from this simulation in various ways:
-
-* **Generic Utilities:** Write utility functions that work across different monadic types (e.g., a generic `sequence` function to turn a `List<Kind<F, A>>` into a `Kind<F, List<A>>`).
-* **Composable Workflows:** Structure complex business logic, especially involving asynchronous steps and error handling (like the Order Example), in a more functional and composable manner.
-* **Managing Side Effects:** Use the `IO` monad to explicitly track and sequence side-effecting operations.
-* **Deferred Computation:** Use the `Lazy` monad for expensive computations that should only run if needed.
-* **Dependency Injection:** Use the `Reader` monad to manage dependencies cleanly.
-* **State Management:** Use the `State` monad for computations that need to thread state through.
-* **Logging/Accumulation:** Use the `Writer` monad to accumulate logs or other values alongside a computation.
-* **Learning Tool:** Understand HKTs, type classes (Functor, Applicative, Monad), and functional error handling concepts through concrete Java examples.
-* **Simulating Custom Types:** Follow the pattern (Kind interface, Holder, Helper, Type Class instances) to make your *own* custom data types or computational contexts work with the provided functional abstractions.
 
 ## Limitations
 
-While demonstrating the concept, this simulation approach has inherent limitations in Java compared to languages with native HKTs:
+While useful the approach to simulating Higher-Kinded Types has inherent limitations in Java compared to languages with native HKTs:
 
 * **Boilerplate:** Requires additional setup code for each simulated type.
 * **Verbosity:** Usage often involves explicit wrapping/unwrapping and witness types.
