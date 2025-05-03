@@ -23,7 +23,7 @@ public final class CompletableFutureKindHelper {
   }
 
   /**
-   * Unwraps a CompletableFutureKind back to the concrete CompletableFuture<A> type. Throws
+   * Unwraps a CompletableFutureKind back to the concrete {@code CompletableFuture<A>} type. Throws
    * KindUnwrapException if the Kind is null, not a CompletableFutureHolder, or the holder contains
    * a null CompletableFuture instance.
    *
@@ -50,14 +50,14 @@ public final class CompletableFutureKindHelper {
   }
 
   /**
-   * Wraps a concrete {@code CompletableFuture<A> {@code value into the CompletableFutureKind type.
+   * Wraps a concrete {@code CompletableFuture<A>} value into the CompletableFutureKind type.
    */
   public static <A> @NonNull CompletableFutureKind<A> wrap(@NonNull CompletableFuture<A> future) {
     Objects.requireNonNull(future, "Input CompletableFuture cannot be null for wrap");
     return new CompletableFutureHolder<>(future);
   }
 
-  /** Internal holder record for the HKT higherkindedj of CompletableFuture. */
+  /** Internal holder record for the HKT of CompletableFuture. */
   record CompletableFutureHolder<A>(CompletableFuture<A> future)
       implements CompletableFutureKind<A> {}
 

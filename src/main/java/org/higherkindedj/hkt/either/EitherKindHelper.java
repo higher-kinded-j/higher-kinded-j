@@ -21,7 +21,7 @@ public final class EitherKindHelper {
    * Wraps a concrete {@code Either<L, R>} value into the EitherKind Higher-Kinded-J type. Uses the specific
    * holder implementation (EitherHolder).
    *
-   * @param either The concrete @code Either<L, R>} instance. (@NonNull assumed)
+   * @param either The concrete {@code Either<L, R>} instance. (@NonNull assumed)
    * @param <L> The Left type.
    * @param <R> The Right type.
    * @return The {@code EitherKind<L, R>} representation. (@NonNull)
