@@ -6,7 +6,7 @@ The key idea is that an `IO<A>` value doesn't *perform* the side effect immediat
 
 ## Core Components
 
-![io_components.svg](puml/io_components.svg)
+![io_components.svg](./images/puml/io_components.svg)
 
 ![io_detail.puml](puml/io_detail.puml)
 

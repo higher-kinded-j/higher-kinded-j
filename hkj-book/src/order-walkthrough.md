@@ -1,6 +1,6 @@
 # Order Example Walkthrough: Async Operations with Error Handling
 
-This document provides a detailed walkthrough of the Order Processing example found in the `org.higherkindedj.hkt.example.order` package. This example is a practical demonstration of how to use the Java HKT Simulation library to manage a common real-world scenario: **a workflow involving asynchronous operations that can also fail with specific, expected business errors.**
+This document provides a detailed walkthrough of the Order Processing example found in the `org.higherkindedj.hkt.example.order` package. This example is a practical demonstration of how to use the Higher-Kinded-J library to manage a common real-world scenario: **a workflow involving asynchronous operations that can also fail with specific, expected business errors.**
 
 **Goal of this Example:**
 
@@ -23,11 +23,11 @@ Before diving in, it's helpful to have a basic understanding of:
 
 **Key Files:**
 
-* [`Dependencies.java`](../src/main/java/org/higherkindedj/example/order/workflow/Dependencies.java): Holds external dependencies (e.g., logger).
-* [`OrderWorkflowRunner.java`](../src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java): Orchestrates the workflow using `EitherT`.
-* [`OrderWorkflowSteps.java`](../src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowSteps.java): Defines the individual workflow steps (sync/async), accepting `Dependencies`.
-* [`WorkflowModels.java`](../src/main/java/org/higherkindedj/example/order/model/WorkflowModels.java): Data records (`OrderData`, `ValidatedOrder`, etc.).
-* [`DomainError.java`](../src/main/java/org/higherkindedj/example/order/error/DomainError.java): Sealed interface defining specific business errors.
+* [`Dependencies.java`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Dependencies.java): Holds external dependencies (e.g., logger).
+* [`OrderWorkflowRunner.java`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java): Orchestrates the workflow using `EitherT`.
+* [`OrderWorkflowSteps.java`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowSteps.java): Defines the individual workflow steps (sync/async), accepting `Dependencies`.
+* [`WorkflowModels.java`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/model/WorkflowModels.java): Data records (`OrderData`, `ValidatedOrder`, etc.).
+* [`DomainError.java`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/error/DomainError.java): Sealed interface defining specific business errors.
 
 ---
 

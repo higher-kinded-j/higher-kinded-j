@@ -26,7 +26,7 @@ Common examples for `W` include `String` (using concatenation), `Integer` (using
 
 ## Structure
 
-![writer.svg](puml/writer.svg)
+![writer.svg](./images/puml/writer.svg)
 
 ## The `Writer<W, A>` Type
 
@@ -59,7 +59,7 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
 * `run()`: Extracts only the computed value `A`, discarding the log.
 * `exec()`: Extracts only the accumulated log `W`, discarding the value.
 
-## HKT Simulation Components
+## Higher-Kinded-J Components
 
 To integrate `Writer` with the generic HKT framework:
 

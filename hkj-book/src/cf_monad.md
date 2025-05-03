@@ -4,11 +4,11 @@ Java's `java.util.concurrent.CompletableFuture<T>` is a powerful tool for asynch
 
 ## Core Components
 
-![cf_components.svg](puml/cf_components.svg)
+![cf_components.svg](./images/puml/cf_components.svg)
 
-![cf_kind.svg](puml/cf_kind.svg)
+![cf_kind.svg](./images/puml/cf_kind.svg)
 
-![cf_monad.svg](puml/cf_monad.svg)
+![cf_monad.svg](./images/puml/cf_monad.svg)
 
 The simulation for `CompletableFuture` involves these components:
 

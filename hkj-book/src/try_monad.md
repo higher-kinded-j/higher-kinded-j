@@ -4,9 +4,9 @@
 
 The `Try<T>` type in the `Higher-Kinded-J` library represents a computation that might result in a value of type `T` (a `Success`) or fail with a `Throwable` (a `Failure`). It serves as a functional alternative to traditional `try-catch` blocks for handling exceptions, particularly checked exceptions, within a computation chain.  We can think of it as an `Either` where the `Left` is an `Exception`, but also using try-catch blocks behind the scene, so that we don’t have to.
 
-![try_type.svg](puml/try_type.svg)
+![try_type.svg](./images/puml/try_type.svg)
 
-![try_monad.svg](puml/try_monad.svg)
+![try_monad.svg](./images/puml/try_monad.svg)
 
 Key benefits include:
 
@@ -123,7 +123,7 @@ Try<Double> recoveredWith2 = result3.recoverWith(recoverWithHandler); // Failure
 
 ```
 
-### Using with HKT Simulation
+### Using Try with Higher-Kinded-J
 
 To use `Try` with generic code expecting `Kind<F, A>`:
 

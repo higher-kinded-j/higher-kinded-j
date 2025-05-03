@@ -1,4 +1,4 @@
-# How to use the Supported Types in HKT Simulation
+# How to use the Supported Types in Higher-Kinded-J
 
 ## How to:
 

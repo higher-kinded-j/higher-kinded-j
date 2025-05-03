@@ -1,0 +1,10 @@
+[book]
+authors = ["MagnusSmith"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Higher-Kinded-J"
+[output.html]
+additional-css = ["./theme/catppuccin.css"]
+default-theme = "latte"
+preferred-dark-theme = "macchiato"
