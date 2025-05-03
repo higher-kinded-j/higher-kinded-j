@@ -162,8 +162,8 @@ public class OrderWorkflowSteps {
   }
 
   /**
-   * Checks inventory asynchronously. Returns: K{@code ind<CompletableFutureKind<?>, Either<DomainError,
-   * Void>>}
+   * Checks inventory asynchronously. Returns: K{@code ind<CompletableFutureKind<?>,
+   * Either<DomainError, Void>>}
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, Void>> checkInventoryAsync(
       String productId, int quantity) {
@@ -187,8 +187,8 @@ public class OrderWorkflowSteps {
   }
 
   /**
-   * Processes payment asynchronously. Returns: {@code Kind<CompletableFutureKind<?>, Either<DomainError,
-   * PaymentConfirmation>>}
+   * Processes payment asynchronously. Returns: {@code Kind<CompletableFutureKind<?>,
+   * Either<DomainError, PaymentConfirmation>>}
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, PaymentConfirmation>>
       processPaymentAsync(String paymentDetails, double amount) {
@@ -212,8 +212,8 @@ public class OrderWorkflowSteps {
   }
 
   /**
-   * Creates a shipment asynchronously. Returns: {@code Kind<CompletableFutureKind<?>, Either<DomainError,
-   * ShipmentInfo>>}
+   * Creates a shipment asynchronously. Returns: {@code Kind<CompletableFutureKind<?>,
+   * Either<DomainError, ShipmentInfo>>}
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, ShipmentInfo>> createShipmentAsync(
       String orderId, String shippingAddress) {
@@ -248,8 +248,8 @@ public class OrderWorkflowSteps {
   }
 
   /**
-   * Notifies the customer asynchronously (optional step). Returns: {@code Kind<CompletableFutureKind<?>,
-   * Either<DomainError, Void>>}
+   * Notifies the customer asynchronously (optional step). Returns: {@code
+   * Kind<CompletableFutureKind<?>, Either<DomainError, Void>>}
    */
   public Kind<CompletableFutureKind<?>, Either<DomainError, Void>> notifyCustomerAsync(
       String customerId, String message) {

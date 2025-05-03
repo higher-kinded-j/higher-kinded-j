@@ -19,8 +19,8 @@ public interface Monad<M> extends Applicative<M> {
    * Sequences monadic operations. Takes a monadic value and a function that produces a new monadic
    * value, returning the result within the monadic context. Also known as 'bind' or '>>='.
    *
-   * @param f The function to apply, which returns a monadic value (e.g., A -> {@code ListKind<B>}). Assumed
-   *     non-null.
+   * @param f The function to apply, which returns a monadic value (e.g., A -> {@code ListKind<B>}).
+   *     Assumed non-null.
    * @param ma The input monadic value (e.g., {@code ListKind<A>}). Assumed non-null.
    * @param <A> The input type within the monad.
    * @param <B> The result type within the monad.

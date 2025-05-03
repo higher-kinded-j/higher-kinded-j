@@ -19,8 +19,8 @@ public final class TryKindHelper {
   }
 
   /**
-   * Unwraps a TryKind back to the concrete {@code Try<A>} type. Throws KindUnwrapException if the Kind is
-   * null, not a TryHolder, or the holder contains a null Try instance.
+   * Unwraps a TryKind back to the concrete {@code Try<A>} type. Throws KindUnwrapException if the
+   * Kind is null, not a TryHolder, or the holder contains a null Try instance.
    *
    * @param kind The TryKind instance. (@Nullable allows checking null input)
    * @param <A> The element type.

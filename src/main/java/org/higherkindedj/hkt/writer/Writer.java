@@ -53,8 +53,8 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
   }
 
   /**
-   * Applies a function A -> {@code Writer<W, B>} to the value A, combining the logs. Monadic bind (flatMap)
-   * operation.
+   * Applies a function A -> {@code Writer<W, B>} to the value A, combining the logs. Monadic bind
+   * (flatMap) operation.
    */
   public <B> @NonNull Writer<W, B> flatMap(
       @NonNull Monoid<W> monoidW,

@@ -19,8 +19,8 @@ public final class ListKindHelper {
   }
 
   /**
-   * Unwraps a ListKind back to the concrete {@code List<A>} type. Throws KindUnwrapException if the Kind is
-   * null, not a ListHolder, or the holder contains a null List instance.
+   * Unwraps a ListKind back to the concrete {@code List<A>} type. Throws KindUnwrapException if the
+   * Kind is null, not a ListHolder, or the holder contains a null List instance.
    *
    * @param kind The ListKind instance. (@Nullable allows checking null input)
    * @param <A> The element type.

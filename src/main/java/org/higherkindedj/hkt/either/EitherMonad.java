@@ -11,9 +11,9 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Monad and MonadError implementation for {@code EitherKind<L, R>}. This implementation is right-biased,
- * meaning map and flatMap operate on the Right value. The Left type 'L' is fixed for a given
- * instance of this Monad and represents the Error type 'E'.
+ * Monad and MonadError implementation for {@code EitherKind<L, R>}. This implementation is
+ * right-biased, meaning map and flatMap operate on the Right value. The Left type 'L' is fixed for
+ * a given instance of this Monad and represents the Error type 'E'.
  *
  * @param <L> The fixed type for the Left value (the Error type).
  */

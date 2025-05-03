@@ -57,7 +57,8 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * Wraps an existing {@code Kind<F, Either<L, R>>} value into an EitherT.
    *
    * <p>This is the most direct way to create an EitherT if you already have the nested structure,
-   * for example, as the result of an asynchronous operation defined in {@link org.higherkindedj.example.order.workflow.OrderWorkflowSteps}.
+   * for example, as the result of an asynchronous operation defined in {@link
+   * org.higherkindedj.example.order.workflow.OrderWorkflowSteps}.
    *
    * @param value The {@code Kind<F, Either<L, R>>} to wrap. Must not be null. (NonNull)
    * @param <F> The witness type of the outer monad.

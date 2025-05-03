@@ -49,9 +49,7 @@ public final class CompletableFutureKindHelper {
     }
   }
 
-  /**
-   * Wraps a concrete {@code CompletableFuture<A>} value into the CompletableFutureKind type.
-   */
+  /** Wraps a concrete {@code CompletableFuture<A>} value into the CompletableFutureKind type. */
   public static <A> @NonNull CompletableFutureKind<A> wrap(@NonNull CompletableFuture<A> future) {
     Objects.requireNonNull(future, "Input CompletableFuture cannot be null for wrap");
     return new CompletableFutureHolder<>(future);

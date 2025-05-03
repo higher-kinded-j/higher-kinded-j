@@ -20,8 +20,8 @@ public final class ReaderKindHelper {
   }
 
   /**
-   * Unwraps a ReaderKind back to the concrete {@code Reader<R, A>} type. Throws KindUnwrapException if the
-   * Kind is null, not a ReaderHolder, or the holder contains a null Reader instance.
+   * Unwraps a ReaderKind back to the concrete {@code Reader<R, A>} type. Throws KindUnwrapException
+   * if the Kind is null, not a ReaderHolder, or the holder contains a null Reader instance.
    */
   @SuppressWarnings("unchecked")
   public static <R, A> @NonNull Reader<R, A> unwrap(@Nullable Kind<ReaderKind<R, ?>, A> kind) {
@@ -40,8 +40,8 @@ public final class ReaderKindHelper {
   }
 
   /**
-   * Wraps a concrete {@code Reader<R, A>} value into the ReaderKind Higher-Kinded-J type. Requires a non-null
-   * Reader as input.
+   * Wraps a concrete {@code Reader<R, A>} value into the ReaderKind Higher-Kinded-J type. Requires
+   * a non-null Reader as input.
    */
   public static <R, A> @NonNull ReaderKind<R, A> wrap(@NonNull Reader<R, A> reader) {
     Objects.requireNonNull(reader, "Input Reader cannot be null for wrap");
