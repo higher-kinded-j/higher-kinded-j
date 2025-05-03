@@ -5,17 +5,17 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Represents a Monad that can explicitly handle errors of type E. Extends Monad<F>.
+ * Represents a Monad that can explicitly handle errors of type E. Extends {@code Monad<F>}.
  *
- * @param <F> The witness type for the Monad (e.g., EitherKind<E, ?>).
+ * @param <F> The witness type for the Monad (e.g., {@code EitherKind<E, ?>}).
  * @param <E> The type of the error value. Nullability depends on context (e.g., Throwable is
  *     NonNull, Void is Nullable).
  */
 public interface MonadError<F, E> extends Monad<F> {
 
   /**
-   * Lifts an error value 'e' into the monadic context F. For Either<E, A>, this would be
-   * Kind(Left(e)). For Maybe<A>, this would be Kind(Nothing) (E might be Void).
+   * Lifts an error value 'e' into the monadic context F. For {@code Either<E, A>}, this would be
+   * Kind(Left(e)). For {@code Maybe<A>}, this would be Kind(Nothing) (E might be Void).
    *
    * @param error The error value to lift.
    * @param <A> The phantom type parameter of the value (since this represents an error state).

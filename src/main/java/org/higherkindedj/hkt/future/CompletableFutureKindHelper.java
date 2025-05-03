@@ -23,13 +23,13 @@ public final class CompletableFutureKindHelper {
   }
 
   /**
-   * Unwraps a CompletableFutureKind back to the concrete CompletableFuture<A> type. Throws
+   * Unwraps a CompletableFutureKind back to the concrete {@code CompletableFuture<A>} type. Throws
    * KindUnwrapException if the Kind is null, not a CompletableFutureHolder, or the holder contains
    * a null CompletableFuture instance.
    *
    * @param kind The CompletableFutureKind instance. (@Nullable allows checking null input)
    * @param <A> The element type.
-   * @return The underlying, non-null CompletableFuture<A>. (@NonNull assumes success)
+   * @return The underlying, non-null {@code CompletableFuture<A>}. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
   @SuppressWarnings("unchecked") // For casting holder.future() - safe after checks
@@ -49,15 +49,13 @@ public final class CompletableFutureKindHelper {
     }
   }
 
-  /**
-   * Wraps a concrete CompletableFuture<A> value into the CompletableFutureKind higherkindedj type.
-   */
+  /** Wraps a concrete {@code CompletableFuture<A>} value into the CompletableFutureKind type. */
   public static <A> @NonNull CompletableFutureKind<A> wrap(@NonNull CompletableFuture<A> future) {
     Objects.requireNonNull(future, "Input CompletableFuture cannot be null for wrap");
     return new CompletableFutureHolder<>(future);
   }
 
-  /** Internal holder record for the HKT higherkindedj of CompletableFuture. */
+  /** Internal holder record for the HKT of CompletableFuture. */
   record CompletableFutureHolder<A>(CompletableFuture<A> future)
       implements CompletableFutureKind<A> {}
 

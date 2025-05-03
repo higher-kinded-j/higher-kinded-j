@@ -18,13 +18,13 @@ public final class EitherKindHelper {
   }
 
   /**
-   * Wraps a concrete Either<L, R> value into the EitherKind higher kindedj type. Uses the specific
-   * holder implementation (EitherHolder).
+   * Wraps a concrete {@code Either<L, R>} value into the EitherKind Higher-Kinded-J type. Uses the
+   * specific holder implementation (EitherHolder).
    *
-   * @param either The concrete Either<L, R> instance. (@NonNull assumed)
+   * @param either The concrete {@code Either<L, R>} instance. (@NonNull assumed)
    * @param <L> The Left type.
    * @param <R> The Right type.
-   * @return The EitherKind<L, R> representation. (@NonNull)
+   * @return The {@code EitherKind<L, R>} representation. (@NonNull)
    */
   public static <L, R> @NonNull Kind<EitherKind<L, ?>, R> wrap(@NonNull Either<L, R> either) {
     // Create a new instance of the holder record, wrapping the Either
@@ -32,7 +32,7 @@ public final class EitherKindHelper {
   }
 
   /**
-   * Unwraps an EitherKind back to the concrete Either<L, R> type. Requires knowledge of the
+   * Unwraps an EitherKind back to the concrete {@code Either<L, R>} type. Requires knowledge of the
    * specific holder implementation (EitherHolder). Throws KindUnwrapException if the Kind is null,
    * not an EitherHolder, or the holder contains a null Either instance.
    *
@@ -41,7 +41,7 @@ public final class EitherKindHelper {
    * @param kind The EitherKind instance. (@Nullable allows checking null input)
    * @param <L> The Left type.
    * @param <R> The Right type.
-   * @return The underlying, non-null Either<L, R>. (@NonNull assumes success)
+   * @return The underlying, non-null {@code Either<L, R>}. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
   @SuppressWarnings("unchecked") //  needed for the final cast due to EitherHolder<?, ?> pattern
@@ -68,8 +68,9 @@ public final class EitherKindHelper {
   }
 
   /**
-   * Holder record for the HKT higherkindedj of Either. Implements EitherKind<L, R> and holds the
-   * actual Either<L, R> value. This is the concrete implementation used by wrap/unwrap helpers.
+   * Holder record for the Higher-Kinded-J of Either. Implements {@code EitherKind<L, R>} and holds
+   * the actual {@code Either<L, R>} value. This is the concrete implementation used by wrap/unwrap
+   * helpers.
    *
    * @param <L> The Left type.
    * @param <R> The Right type.

@@ -4,7 +4,7 @@ import org.higherkindedj.hkt.Kind;
 
 /**
  * Kind interface marker for the Maybe type in Higher-Kinded-J. Represents Maybe as a type
- * constructor 'F' in Kind<F, A>.
+ * constructor 'F' in {@code Kind<F, A>}.
  *
  * @param <A> The type of the value potentially held by the Maybe.
  */

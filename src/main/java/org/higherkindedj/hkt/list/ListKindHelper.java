@@ -19,12 +19,12 @@ public final class ListKindHelper {
   }
 
   /**
-   * Unwraps a ListKind back to the concrete List<A> type. Throws KindUnwrapException if the Kind is
-   * null, not a ListHolder, or the holder contains a null List instance.
+   * Unwraps a ListKind back to the concrete {@code List<A>} type. Throws KindUnwrapException if the
+   * Kind is null, not a ListHolder, or the holder contains a null List instance.
    *
    * @param kind The ListKind instance. (@Nullable allows checking null input)
    * @param <A> The element type.
-   * @return The underlying, non-null List<A>. (@NonNull assumes success)
+   * @return The underlying, non-null L{@code ist<A>}. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
   public static <A> @NonNull List<A> unwrap(@Nullable Kind<ListKind<?>, A> kind) {
@@ -43,7 +43,7 @@ public final class ListKindHelper {
   }
 
   /**
-   * Wraps a concrete List<A> value into the ListKind higherkindedj type. Requires a non-null List
+   * Wraps a concrete {@code List<A>} value into the ListKind type. Requires a non-null List
    * instance as input.
    */
   public static <A> @NonNull ListKind<A> wrap(@NonNull List<A> list) {

@@ -1,0 +1,61 @@
+name: Publish Higher-Kinded-J package to GitHub Packages
+
+on:
+  push:
+    tags: # Trigger publishing only when a tag is pushed (e.g., 'v1.0.0')
+      - 'v*' # Matches tags like v1.0, v2.3.4 etc.
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # Validate Gradle wrapper checksum for security
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v2
+
+      - name: Extract tag version
+        id: tag_version # Give this step an ID to reference its output
+        # Check if the ref is a tag before trying to extract
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG_NAME="${{ github.ref }}"
+          VERSION=${TAG_NAME#refs/tags/v}
+          echo "Tag version extracted: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT" 
+
+
+      - name: Build with Gradle
+        run: |
+          if [ -n "${{ steps.tag_version.outputs.version }}" ]; then
+            echo "Building with tag version: ${{ steps.tag_version.outputs.version }}"
+            ./gradlew build -PprojectVersion=${{ steps.tag_version.outputs.version }}
+          else
+            echo "Building with default version"
+            ./gradlew build
+          fi
+      
+
+      - name: Publish package to GitHub Packages
+        run: ./gradlew publish
+        env:
+          if: steps.tag_version.outputs.version
+          run: ./gradlew publish -PprojectVersion=${{ steps.tag_version.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}

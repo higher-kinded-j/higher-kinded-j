@@ -3,8 +3,8 @@ package org.higherkindedj.hkt.future;
 import org.higherkindedj.hkt.Kind;
 
 /**
- * Kind interface marker for the CompletableFuture type in the HKT higherkindedj. Represents
- * CompletableFuture as a type constructor 'F' in Kind<F, A>.
+ * Kind interface marker for the CompletableFuture type in Higher-Kinded-J. Represents
+ * CompletableFuture as a type constructor 'F' in {@code Kind<F, A>}.
  *
  * @param <A> The type of the value potentially held by the CompletableFuture.
  */

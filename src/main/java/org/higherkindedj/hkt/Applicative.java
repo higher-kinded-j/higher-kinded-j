@@ -22,8 +22,8 @@ public interface Applicative<F> extends Functor<F> {
    *
    * @param value The value to lift. Nullability depends on specific Applicative context.
    * @param <A> The type of the value.
-   * @return The value wrapped in the context F (e.g., ListKind<A>, OptionalKind<A>). Guaranteed
-   *     non-null.
+   * @return The value wrapped in the context F (e.g., {@code ListKind<A>}, {@code
+   *     OptionalKind<A>}). Guaranteed non-null.
    */
   <A> @NonNull Kind<F, A> of(@Nullable A value); // Allow nullable input, specific impl handles it
 

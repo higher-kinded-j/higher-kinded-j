@@ -20,12 +20,13 @@ public final class OptionalKindHelper {
   }
 
   /**
-   * Unwraps an OptionalKind back to the concrete Optional<A> type. Throws KindUnwrapException if
-   * the Kind is null, not an OptionalHolder, or the holder contains a null Optional instance.
+   * Unwraps an OptionalKind back to the concrete {@code Optional<A>} type. Throws
+   * KindUnwrapException if the Kind is null, not an OptionalHolder, or the holder contains a null
+   * Optional instance.
    *
    * @param kind The OptionalKind instance. (@Nullable allows checking null input)
    * @param <A> The element type.
-   * @return The underlying, non-null Optional<A>. (@NonNull assumes success)
+   * @return The underlying, non-null {@code Optional<A>}. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
   @SuppressWarnings("unchecked")
@@ -45,8 +46,8 @@ public final class OptionalKindHelper {
   }
 
   /**
-   * Wraps a concrete Optional<A> value into the OptionalKind higherkindedj type. Requires a
-   * non-null Optional as input.
+   * Wraps a concrete {@code Optional<A>} value into the OptionalKind type. Requires a non-null
+   * Optional as input.
    */
   public static <A> @NonNull OptionalKind<A> wrap(@NonNull Optional<A> optional) {
     Objects.requireNonNull(optional, "Input Optional cannot be null for wrap");

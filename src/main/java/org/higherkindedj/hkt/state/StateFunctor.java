@@ -9,7 +9,7 @@ import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Functor implementation for StateKind<S, ?>.
+ * Functor implementation for {@code StateKind<S, ?>}.
  *
  * @param <S> The type of the state (fixed for this Functor instance).
  */

@@ -69,7 +69,8 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind<?>,
    * Void).
    *
    * @param ma The MaybeKind value. (NonNull)
-   * @param handler Function Void -> Kind<MaybeKind<?>, A> to handle the Nothing state. (NonNull)
+   * @param handler Function Void -> {@code Kind<MaybeKind<?>}, A> to handle the Nothing state.
+   *     (NonNull)
    * @param <A> The type of the value within the Maybe.
    * @return Original Kind if Just, or result of handler if Nothing. (NonNull)
    */
