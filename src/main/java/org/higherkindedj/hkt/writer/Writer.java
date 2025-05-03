@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <W> The type of the accumulated output (must have a Monoid).
  * @param <A> The type of the computed value.
- * @param log The accumulated log/output value. (@NonNull, uses Monoid<W>)
+ * @param log The accumulated log/output value. (@NonNull, uses {@code Monoid<W>})
  * @param value The computed result value. (@Nullable depends on A)
  */
 public record Writer<W, A>(@NonNull W log, @Nullable A value) {

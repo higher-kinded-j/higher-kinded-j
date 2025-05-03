@@ -18,12 +18,12 @@ public final class MaybeKindHelper {
   }
 
   /**
-   * Unwraps a MaybeKind back to the concrete Maybe<A> type. Throws KindUnwrapException if the Kind
+   * Unwraps a MaybeKind back to the concrete {@code Maybe<A>} type. Throws KindUnwrapException if the Kind
    * is null, not a MaybeHolder, or the holder contains a null Maybe instance.
    *
    * @param kind The MaybeKind instance. (@Nullable allows checking null input)
    * @param <A> The element type.
-   * @return The underlying, non-null Maybe<A>. (@NonNull assumes success)
+   * @return The underlying, non-null {@code Maybe<A>}. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
   @SuppressWarnings("unchecked") // For casting holder.maybe() - safe after checks
@@ -43,7 +43,7 @@ public final class MaybeKindHelper {
   }
 
   /**
-   * Wraps a concrete Maybe<A> value into the MaybeKind higherkindedj type. Requires a non-null
+   * Wraps a concrete {@code Maybe<A>} value into the MaybeKind type. Requires a non-null
    * Maybe instance as input.
    */
   public static <A> @NonNull MaybeKind<A> wrap(@NonNull Maybe<A> maybe) {

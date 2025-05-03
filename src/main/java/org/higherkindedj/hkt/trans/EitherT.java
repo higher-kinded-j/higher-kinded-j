@@ -57,7 +57,7 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * Wraps an existing {@code Kind<F, Either<L, R>>} value into an EitherT.
    *
    * <p>This is the most direct way to create an EitherT if you already have the nested structure,
-   * for example, as the result of an asynchronous operation defined in {@link OrderWorkflowSteps}.
+   * for example, as the result of an asynchronous operation defined in {@link org.higherkindedj.example.order.workflow.OrderWorkflowSteps}.
    *
    * @param value The {@code Kind<F, Either<L, R>>} to wrap. Must not be null. (NonNull)
    * @param <F> The witness type of the outer monad.
@@ -97,7 +97,7 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * Lifts a pure 'error' value {@code l} into the EitherT context.
    *
    * <p>This is equivalent to creating {@code Either.left(l)} and then lifting that into the outer
-   * monad {@code F} using {@code outerMonad.of()}. The result is {@code EitherT(F<Left(l)>)}.
+   * monad {@code F} using {@code outerMonad.of()}. The result is {@code EitherT<F<Left(l)>>)}.
    * Requires the {@link Monad} instance for the outer context {@code F}. This is often used as the
    * implementation for {@code MonadError.raiseError} for EitherT.
    *

@@ -41,7 +41,7 @@ public final class EitherKindHelper {
    * @param kind The EitherKind instance. (@Nullable allows checking null input)
    * @param <L> The Left type.
    * @param <R> The Right type.
-   * @return The underlying, non-null Either<L, R>. (@NonNull assumes success)
+   * @return The underlying, non-null {@code Either<L, R>}. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
   @SuppressWarnings("unchecked") //  needed for the final cast due to EitherHolder<?, ?> pattern

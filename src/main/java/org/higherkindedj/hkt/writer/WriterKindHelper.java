@@ -19,7 +19,7 @@ public final class WriterKindHelper {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
-  /** Unwraps a WriterKind back to the concrete Writer<W, A> type. */
+  /** Unwraps a WriterKind back to the concrete {@code Writer<W, A>} type. */
   @SuppressWarnings("unchecked")
   public static <W, A> @NonNull Writer<W, A> unwrap(@Nullable Kind<WriterKind<W, ?>, A> kind) {
     if (kind == null) {

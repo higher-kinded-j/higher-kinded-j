@@ -17,6 +17,6 @@ package org.higherkindedj.hkt;
  * @param <F> The witness type representing the type constructor (e.g., {@code ListKind<?>}, {@code
  *     OptionalKind<?>}). This acts as the 'F' in the conceptual type {@code F<A>}.
  * @param <A> The type argument applied to the type constructor F (e.g., {@code Integer} in
- *     List<Integer>). This acts as the 'A' in the conceptual type {@code F<A>}.
+ *     {@code List<Integer>}). This acts as the 'A' in the conceptual type {@code F<A>}.
  */
 public interface Kind<F, A> {}
