@@ -36,7 +36,7 @@ public final class WriterKindHelper {
     }
   }
 
-  /** Wraps a concrete Writer<W, A> value into the WriterKind higherkindedj type. */
+  /** Wraps a concrete {@code Writer<W, A>} value into the WriterKind type. */
   public static <W, A> @NonNull WriterKind<W, A> wrap(@NonNull Writer<W, A> writer) {
     Objects.requireNonNull(writer, "Input Writer cannot be null for wrap");
     return new WriterHolder<>(writer);

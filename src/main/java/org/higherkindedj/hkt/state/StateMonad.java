@@ -9,7 +9,7 @@ import org.higherkindedj.hkt.Monad;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Monad implementation for StateKind<S, ?>.
+ * Monad implementation for S{@code tateKind<S, ?>}.
  *
  * @param <S> The type of the state (fixed for this Monad instance).
  */

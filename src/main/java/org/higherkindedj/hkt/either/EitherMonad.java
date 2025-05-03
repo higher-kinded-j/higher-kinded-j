@@ -11,7 +11,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Monad and MonadError implementation for EitherKind<L, R>. This implementation is right-biased,
+ * Monad and MonadError implementation for {@code EitherKind<L, R>}. This implementation is right-biased,
  * meaning map and flatMap operate on the Right value. The Left type 'L' is fixed for a given
  * instance of this Monad and represents the Error type 'E'.
  *
@@ -188,7 +188,7 @@ public class EitherMonad<L> extends EitherFunctor<L> implements MonadError<Eithe
    * 'ma' is Left(e), the 'handler' function is applied to 'e'.
    *
    * @param ma The EitherKind value. (NonNull)
-   * @param handler Function L -> Kind<EitherKind<L, ?>, A> to handle the error. (NonNull)
+   * @param handler Function L -> {@code Kind<EitherKind<L, ?>, A>} to handle the error. (NonNull)
    * @param <A> The type of the Right value.
    * @return Original Kind if Right, or result of handler applied to Left value. (NonNull)
    */

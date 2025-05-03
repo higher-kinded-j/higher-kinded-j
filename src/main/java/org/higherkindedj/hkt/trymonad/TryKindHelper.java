@@ -19,12 +19,12 @@ public final class TryKindHelper {
   }
 
   /**
-   * Unwraps a TryKind back to the concrete Try<A> type. Throws KindUnwrapException if the Kind is
+   * Unwraps a TryKind back to the concrete {@code Try<A>} type. Throws KindUnwrapException if the Kind is
    * null, not a TryHolder, or the holder contains a null Try instance.
    *
    * @param kind The TryKind instance. (@Nullable allows checking null input)
    * @param <A> The element type.
-   * @return The underlying, non-null Try<A>. (@NonNull assumes success)
+   * @return The underlying, non-null {@code Try<A>}. (@NonNull assumes success)
    * @throws KindUnwrapException if unwrapping fails.
    */
   @SuppressWarnings("unchecked") // For casting holder.tryInstance() - safe after checks
@@ -44,7 +44,7 @@ public final class TryKindHelper {
   }
 
   /**
-   * Wraps a concrete Try<A> value into the TryKind simulation type. Requires a non-null Try
+   * Wraps a concrete {@code Try<A>} value into the TryKind simulation type. Requires a non-null Try
    * instance as input.
    */
   public static <A> @NonNull TryKind<A> wrap(@NonNull Try<A> tryInstance) {

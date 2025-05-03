@@ -12,7 +12,7 @@ import org.jspecify.annotations.NonNull;
  *
  * @param <F> The witness type representing the type constructor (e.g., ListKind.class,
  *     OptionalKind.class). This 'F' corresponds to the 'F' in the simulated higher-kinded type
- *     F<A>.
+ *     {@code F<A>}.
  */
 public interface Functor<F> {
 

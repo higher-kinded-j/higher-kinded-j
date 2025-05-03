@@ -3,8 +3,8 @@ package org.higherkindedj.hkt.trymonad;
 import org.higherkindedj.hkt.Kind;
 
 /**
- * Kind interface marker for the Try<T> type in Higher-Kinded-J. Represents Try as a type
- * constructor 'F' in Kind<F, A>.
+ * Kind interface marker for the {@code Try<T>} type in Higher-Kinded-J. Represents Try as a type
+ * constructor 'F' in {@code Kind<F, A>}.
  *
  * @param <T> The type of the value potentially held by the Try (in case of Success).
  */

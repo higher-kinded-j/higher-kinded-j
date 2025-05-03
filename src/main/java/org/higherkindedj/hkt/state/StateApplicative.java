@@ -10,7 +10,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Applicative implementation for StateKind<S, ?>.
+ * Applicative implementation for {@code StateKind<S, ?>}.
  *
  * @param <S> The type of the state (fixed for this Applicative instance).
  */

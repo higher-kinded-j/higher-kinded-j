@@ -3,8 +3,8 @@ package org.higherkindedj.hkt;
 /**
  * Represents a simulated Higher-Kinded Type (HKT) in Java.
  *
- * <p>Java's type system does not natively support type constructors like F<_> (e.g., List<_>,
- * Optional<_>) as first-class type parameters. This interface serves as a marker or bridge to
+ * <p>Java's type system does not natively support type constructors like {@code F<_>} (e.g., {@code List<_>},
+ * {@code Optional<_>}) as first-class type parameters. This interface serves as a marker or bridge to
  * simulate the concept of applying a type constructor {@code F} to a type argument {@code A},
  * conceptually representing {@code F<A>}.
  *

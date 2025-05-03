@@ -19,7 +19,7 @@ public final class StateKindHelper {
   }
 
   /**
-   * Unwraps a StateKind back to the concrete State<S, A> type. Throws KindUnwrapException if the
+   * Unwraps a StateKind back to the concrete {@code State<S, A>} type. Throws KindUnwrapException if the
    * Kind is null, not a StateHolder, or the holder contains a null State instance.
    */
   @SuppressWarnings("unchecked")
@@ -40,7 +40,7 @@ public final class StateKindHelper {
   }
 
   /**
-   * Wraps a concrete State<S, A> value into the StateKind simulation type. Requires a non-null
+   * Wraps a concrete {@code State<S, A>} value into the StateKind simulation type. Requires a non-null
    * State instance as input.
    */
   public static <S, A> @NonNull StateKind<S, A> wrap(@NonNull State<S, A> state) {
