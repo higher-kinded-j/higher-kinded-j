@@ -71,7 +71,8 @@ public class OptionalMonad extends OptionalFunctor implements MonadError<Optiona
    * as error is Void).
    *
    * @param ma The OptionalKind value. (NonNull)
-   * @param handler Function Void -> Kind<OptionalKind<?>, A> to handle the empty state. (NonNull)
+   * @param handler Function Void -> {@code Kind<OptionalKind<?>}, A> to handle the empty state.
+   *     (NonNull)
    * @param <A> The type of the value within the Optional.
    * @return Original Kind if present, or result of handler if empty. (NonNull)
    */

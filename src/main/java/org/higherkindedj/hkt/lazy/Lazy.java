@@ -6,8 +6,8 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Represents a lazy computation that evaluates a ThrowableSupplier<A> only once and caches the
- * result or exception.
+ * Represents a lazy computation that evaluates a {@code ThrowableSupplier<A>} only once and caches
+ * the result or exception.
  *
  * @param <A> The type of the value produced.
  */

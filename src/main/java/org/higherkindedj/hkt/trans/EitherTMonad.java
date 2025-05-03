@@ -106,7 +106,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
   // --- MonadError Methods ---
 
   /**
-   * Lifts an error value 'l' into the EitherT context as F<Left(l)>.
+   * Lifts an error value 'l' into the EitherT context as {@code F<Left(l)>}.
    *
    * @param error The error value (type L) to lift.
    * @param <A> The phantom type parameter for the Right side.

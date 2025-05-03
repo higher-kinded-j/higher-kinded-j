@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a computation that depends on a read-only environment R to produce a value A.
- * Essentially a wrapper around Function<R, A>.
+ * Essentially a wrapper around {@code Function<R, A>}.
  *
  * @param <R> The type of the environment (read-only context).
  * @param <A> The type of the value produced.

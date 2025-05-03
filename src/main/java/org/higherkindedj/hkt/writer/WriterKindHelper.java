@@ -19,7 +19,7 @@ public final class WriterKindHelper {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
-  /** Unwraps a WriterKind back to the concrete Writer<W, A> type. */
+  /** Unwraps a WriterKind back to the concrete {@code Writer<W, A>} type. */
   @SuppressWarnings("unchecked")
   public static <W, A> @NonNull Writer<W, A> unwrap(@Nullable Kind<WriterKind<W, ?>, A> kind) {
     if (kind == null) {
@@ -36,7 +36,7 @@ public final class WriterKindHelper {
     }
   }
 
-  /** Wraps a concrete Writer<W, A> value into the WriterKind higherkindedj type. */
+  /** Wraps a concrete {@code Writer<W, A>} value into the WriterKind type. */
   public static <W, A> @NonNull WriterKind<W, A> wrap(@NonNull Writer<W, A> writer) {
     Objects.requireNonNull(writer, "Input Writer cannot be null for wrap");
     return new WriterHolder<>(writer);

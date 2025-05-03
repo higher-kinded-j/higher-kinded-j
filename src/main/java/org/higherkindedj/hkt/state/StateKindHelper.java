@@ -19,8 +19,8 @@ public final class StateKindHelper {
   }
 
   /**
-   * Unwraps a StateKind back to the concrete State<S, A> type. Throws KindUnwrapException if the
-   * Kind is null, not a StateHolder, or the holder contains a null State instance.
+   * Unwraps a StateKind back to the concrete {@code State<S, A>} type. Throws KindUnwrapException
+   * if the Kind is null, not a StateHolder, or the holder contains a null State instance.
    */
   @SuppressWarnings("unchecked")
   public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind<S, ?>, A> kind) {
@@ -40,8 +40,8 @@ public final class StateKindHelper {
   }
 
   /**
-   * Wraps a concrete State<S, A> value into the StateKind simulation type. Requires a non-null
-   * State instance as input.
+   * Wraps a concrete {@code State<S, A>} value into the StateKind simulation type. Requires a
+   * non-null State instance as input.
    */
   public static <S, A> @NonNull StateKind<S, A> wrap(@NonNull State<S, A> state) {
     Objects.requireNonNull(state, "Input State cannot be null for wrap");
