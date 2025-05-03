@@ -1,0 +1,42 @@
+name: Publish Higher-Kinded-J package to GitHub Packages
+
+on:
+  push:
+    tags: # Trigger publishing only when a tag is pushed (e.g., 'v1.0.0')
+      - 'v*' # Matches tags like v1.0, v2.3.4 etc.
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # Optional: Validate Gradle wrapper checksum for security
+      # - name: Validate Gradle Wrapper
+      #   uses: gradle/wrapper-validation-action@v2
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Publish package to GitHub Packages
+        run: ./gradlew publish
+        env:
+          # GITHUB_ACTOR is automatically provided by GitHub Actions
+          # GITHUB_TOKEN is automatically provided when permissions.packages: write is set
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
