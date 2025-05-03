@@ -27,8 +27,23 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       # Optional: Validate Gradle wrapper checksum for security
-      # - name: Validate Gradle Wrapper
-      #   uses: gradle/wrapper-validation-action@v2
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v2
+
+      - name: Extract tag version
+        id: tag_version # Give this step an ID to reference its output
+        # Check if the ref is a tag before trying to extract
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # github.ref is 'refs/tags/v1.2.0', we want '1.2.0' (remove 'refs/tags/v')
+          # If your tags don't have 'v', just remove 'refs/tags/'
+          TAG_NAME="${{ github.ref }}"
+          VERSION=${TAG_NAME#refs/tags/v}
+          # If tag didn't have 'v' prefix, VERSION would still be the tag name
+          # If you *only* want tags without 'v', adjust the script or the 'on:' trigger
+          echo "Tag version extracted: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT" # Set output variable for the step
+
 
       - name: Build with Gradle
         run: ./gradlew build
