@@ -9,6 +9,14 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 
+/**
+ * Monad instance for the ReaderT transformer.
+ * Requires a Monad instance for the outer context F.
+ * The fixed type R represents the environment.
+ *
+ * @param <F> The witness type of the outer Monad.
+ * @param <R> The fixed environment type.
+ */
 public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
 
     private final @NonNull Monad<F> outerMonad;
@@ -31,14 +39,13 @@ public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
         ReaderT<F, R, Function<A, B>> ffT = ReaderTKindHelper.unwrap(ff);
         ReaderT<F, R, A> faT = ReaderTKindHelper.unwrap(fa);
 
-        if (!(outerMonad instanceof Applicative)) {
-            throw new UnsupportedOperationException("Outer Monad must be Applicative for ReaderT.ap");
-        }
+        // Cast is safe because constructor ensures outerMonad is a Monad, which extends Applicative
         Applicative<F> outerApplicative = (Applicative<F>) outerMonad;
 
         Function<R, Kind<F, B>> newRun = r -> {
             Kind<F, Function<A, B>> funcKind = ffT.run().apply(r);
             Kind<F, A> valKind = faT.run().apply(r);
+            // The actual call to the outer monad's ap happens here
             return outerApplicative.ap(funcKind, valKind);
         };
 
@@ -54,6 +61,7 @@ public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
 
         Function<R, Kind<F, B>> newRun = r -> {
             Kind<F, A> kindA = faT.run().apply(r);
+            // The actual call to the outer monad's map happens here
             return outerMonad.map(f, kindA);
         };
 
@@ -66,8 +74,6 @@ public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
             @NonNull Function<A, Kind<ReaderTKind<F, R, ?>, B>> f,
             @NonNull Kind<ReaderTKind<F, R, ?>, A> ma) {
 
-        // This is the version *before* the last debug attempt, which compiled
-        // but still had runtime errors in the test.
         ReaderT<F, R, A> maT = ReaderTKindHelper.unwrap(ma);
 
         Function<R, Kind<F, B>> newRun = r -> {
@@ -77,14 +83,13 @@ public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
                 Kind<ReaderTKind<F, R, ?>, B> resultReaderTKind = f.apply(a); // ReaderTKind<F,R,B>
                 ReaderT<F, R, B> nextReaderT = ReaderTKindHelper.unwrap(resultReaderTKind); // ReaderT<F,R,B>
                 Kind<F, B> resultKindB = nextReaderT.run().apply(r); // F<B>
-                // We previously added a null check here which didn't solve the Objects.246 NPE
                 return resultKindB;
             };
-
+            // The actual call to the outer monad's flatMap happens here
             return outerMonad.flatMap(innerFlatMapFunc, kindA); // (A -> F<B>) -> F<A> -> F<B>
         };
 
         ReaderT<F, R, B> resultReaderT = new ReaderT<>(newRun);
-        return ReaderTKindHelper.wrap(resultReaderT); // Wrap final result
+        return ReaderTKindHelper.wrap(resultReaderT);
     }
 }
