@@ -7,7 +7,7 @@ plugins {
 
 group = "org.higher-kinded-j"
 
-version = project.findProperty("projectVersion")?.toString() ?: "v1.0.0-SNAPSHOT"
+version = project.findProperty("projectVersion")?.toString() ?: "v0.1.3-SNAPSHOT"
 
 repositories { mavenCentral() }
 
