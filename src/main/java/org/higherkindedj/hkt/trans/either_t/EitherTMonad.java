@@ -1,4 +1,4 @@
-package org.higherkindedj.hkt.trans;
+package org.higherkindedj.hkt.trans.either_t;
 
 import java.util.Objects;
 import java.util.function.Function;

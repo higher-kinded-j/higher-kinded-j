@@ -1,4 +1,4 @@
-package org.higherkindedj.hkt.trans;
+package org.higherkindedj.hkt.trans.either_t;
 
 import org.higherkindedj.hkt.Kind;
 
