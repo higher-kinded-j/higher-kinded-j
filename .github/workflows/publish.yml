@@ -4,7 +4,7 @@ on:
   push:
     tags: # Trigger publishing only when a tag is pushed (e.g., 'v1.0.0')
       - 'v*' # Matches tags like v1.0, v2.3.4 etc.
-  workflow_dispatch: # Allows manual triggering from the Actions tab
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -26,7 +26,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # Optional: Validate Gradle wrapper checksum for security
+      # Validate Gradle wrapper checksum for security
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v2
 
@@ -35,23 +35,27 @@ jobs:
         # Check if the ref is a tag before trying to extract
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          # github.ref is 'refs/tags/v1.2.0', we want '1.2.0' (remove 'refs/tags/v')
-          # If your tags don't have 'v', just remove 'refs/tags/'
           TAG_NAME="${{ github.ref }}"
           VERSION=${TAG_NAME#refs/tags/v}
-          # If tag didn't have 'v' prefix, VERSION would still be the tag name
-          # If you *only* want tags without 'v', adjust the script or the 'on:' trigger
           echo "Tag version extracted: $VERSION"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT" # Set output variable for the step
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT" 
 
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: |
+          if [ -n "${{ steps.tag_version.outputs.version }}" ]; then
+            echo "Building with tag version: ${{ steps.tag_version.outputs.version }}"
+            ./gradlew build -PprojectVersion=${{ steps.tag_version.outputs.version }}
+          else
+            echo "Building with default version"
+            ./gradlew build
+          fi
+      
 
       - name: Publish package to GitHub Packages
         run: ./gradlew publish
         env:
-          # GITHUB_ACTOR is automatically provided by GitHub Actions
-          # GITHUB_TOKEN is automatically provided when permissions.packages: write is set
+          if: steps.tag_version.outputs.version
+          run: ./gradlew publish -PprojectVersion=${{ steps.tag_version.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
