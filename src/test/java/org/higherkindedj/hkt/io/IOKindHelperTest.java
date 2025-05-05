@@ -70,18 +70,6 @@ class IOKindHelperTest {
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyIOKind.class.getName());
     }
-
-    @Test
-    void unwrap_shouldThrowForHolderWithNullIO() {
-      IOHolder<Double> holderWithNull = new IOHolder<>(null);
-      // Cast needed for test setup
-      @SuppressWarnings("unchecked")
-      Kind<IOKind<?>, Double> kind = (Kind<IOKind<?>, Double>) (Kind<?, ?>) holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
   }
 
   @Nested

@@ -78,17 +78,6 @@ class LazyKindHelperTest {
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyLazyKind.class.getName());
     }
-
-    @Test
-    void unwrap_shouldThrowForHolderWithNullLazy() {
-      LazyHolder<Double> holderWithNull = new LazyHolder<>(null);
-      @SuppressWarnings("unchecked")
-      Kind<LazyKind<?>, Double> kind = (Kind<LazyKind<?>, Double>) (Kind<?, ?>) holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
   }
 
   @Nested

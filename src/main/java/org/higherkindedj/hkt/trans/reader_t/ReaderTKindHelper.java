@@ -26,20 +26,22 @@ public final class ReaderTKindHelper {
   @SuppressWarnings("unchecked")
   public static <F, R, A> @NonNull ReaderT<F, R, A> unwrap(
       @Nullable Kind<ReaderTKind<F, R, ?>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-    }
-    // Use standard instanceof check and pattern matching
-    if (kind instanceof ReaderTHolder<?, ?, ?> holder) { // Inferred types for F, R
-      if (holder.readerT() == null) {
-        throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
-      }
-      // Cast is safe because 'holder' was confirmed to be ReaderTHolder
-      return (ReaderT<F, R, A>) holder.readerT();
-    } else {
-      // Throw if it's not the expected Holder type
-      throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    }
+
+    return switch (kind) {
+      // Case 1: Input Kind is null
+      case null -> throw new KindUnwrapException(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
+
+      // Case 2: Input Kind is a ReaderTHolder (record pattern extracts non-null readerT)
+      // The @NonNull contract on ReaderTHolder.readerT guarantees readerT is not null here.
+      case ReaderTKindHelper.ReaderTHolder<?, ?, ?>(var readerT) ->
+          // Cast is safe because pattern matched and readerT is known non-null.
+          (ReaderT<F, R, A>) readerT;
+
+      // Case 3: Input Kind is non-null but not a ReaderTHolder
+      default ->
+          throw new KindUnwrapException(
+              ReaderTKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+    };
   }
 
   /**

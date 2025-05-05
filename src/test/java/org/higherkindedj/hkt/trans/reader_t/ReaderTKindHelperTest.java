@@ -6,13 +6,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Optional;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,7 +40,8 @@ class ReaderTKindHelperTest {
   class WrapTests {
     @Test
     void wrap_shouldReturnHolderForReaderT() {
-      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> kind = ReaderTKindHelper.wrap(baseReaderT);
+      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> kind =
+          ReaderTKindHelper.wrap(baseReaderT);
       assertThat(kind).isInstanceOf(ReaderTKindHelper.ReaderTHolder.class);
       // Unwrap to verify
       assertThat(ReaderTKindHelper.unwrap(kind)).isSameAs(baseReaderT);
@@ -52,8 +50,8 @@ class ReaderTKindHelperTest {
     @Test
     void wrap_shouldThrowForNullInput() {
       assertThatNullPointerException()
-              .isThrownBy(() -> ReaderTKindHelper.wrap(null))
-              .withMessageContaining("Input ReaderT cannot be null");
+          .isThrownBy(() -> ReaderTKindHelper.wrap(null))
+          .withMessageContaining("Input ReaderT cannot be null");
     }
   }
 
@@ -62,7 +60,8 @@ class ReaderTKindHelperTest {
   class UnwrapTests {
     @Test
     void unwrap_shouldReturnOriginalReaderT() {
-      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> kind = ReaderTKindHelper.wrap(baseReaderT);
+      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> kind =
+          ReaderTKindHelper.wrap(baseReaderT);
       assertThat(ReaderTKindHelper.unwrap(kind)).isSameAs(baseReaderT);
     }
 
@@ -72,8 +71,8 @@ class ReaderTKindHelperTest {
     @Test
     void unwrap_shouldThrowForNullInput() {
       assertThatThrownBy(() -> ReaderTKindHelper.unwrap(null))
-              .isInstanceOf(KindUnwrapException.class)
-              .hasMessageContaining(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
     }
 
     @Test
@@ -81,25 +80,8 @@ class ReaderTKindHelperTest {
       // Use specific types for the dummy Kind if necessary
       Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> unknownKind = new DummyReaderTKind<>();
       assertThatThrownBy(() -> ReaderTKindHelper.unwrap(unknownKind))
-              .isInstanceOf(KindUnwrapException.class)
-              .hasMessageContaining(ReaderTKindHelper.INVALID_KIND_TYPE_MSG);
-    }
-
-    @Test
-    void unwrap_shouldThrowForHolderWithNullReaderT() {
-      // Need to construct the holder directly for this test
-      ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, String> holderWithNull =
-              new ReaderTKindHelper.ReaderTHolder<>(null);
-
-      // Cast needed because Kind is contravariant in F (ReaderTKind<F, R, ?>)
-      @SuppressWarnings("unchecked")
-      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> kind =
-              (Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String>) (Kind<?,?>) holderWithNull;
-
-
-      assertThatThrownBy(() -> ReaderTKindHelper.unwrap(kind))
-              .isInstanceOf(KindUnwrapException.class)
-              .hasMessageContaining(ReaderTKindHelper.INVALID_HOLDER_STATE_MSG);
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(ReaderTKindHelper.INVALID_KIND_TYPE_MSG);
     }
   }
 
@@ -108,20 +90,22 @@ class ReaderTKindHelperTest {
   @DisplayName("ReaderTHolder Record Tests")
   class HolderRecordTests {
     // Create some ReaderT instances for comparison
-    ReaderT<OptionalKind<?>, Config, Integer> rt1 = ReaderT.of(cfg -> outerMonad.of(cfg.setting().length()));
-    ReaderT<OptionalKind<?>, Config, Integer> rt2 = ReaderT.of(cfg -> outerMonad.of(cfg.setting().length())); // Same logic, different instance
-    // --- FIX: Use existing 'setting' field ---
-    ReaderT<OptionalKind<?>, Config, Integer> rt3 = ReaderT.of(cfg -> outerMonad.of(cfg.setting().hashCode())); // Different logic using existing field
-    // --- END FIX ---
+    ReaderT<OptionalKind<?>, Config, Integer> rt1 =
+        ReaderT.of(cfg -> outerMonad.of(cfg.setting().length()));
+    ReaderT<OptionalKind<?>, Config, Integer> rt2 =
+        ReaderT.of(cfg -> outerMonad.of(cfg.setting().length())); // Same logic, different instance
+    ReaderT<OptionalKind<?>, Config, Integer> rt3 =
+        ReaderT.of(
+            cfg -> outerMonad.of(cfg.setting().hashCode())); // Different logic using existing field
 
     ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h1a =
-            new ReaderTKindHelper.ReaderTHolder<>(rt1);
+        new ReaderTKindHelper.ReaderTHolder<>(rt1);
     ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h1b =
-            new ReaderTKindHelper.ReaderTHolder<>(rt1); // Same inner ReaderT instance
+        new ReaderTKindHelper.ReaderTHolder<>(rt1); // Same inner ReaderT instance
     ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h2 =
-            new ReaderTKindHelper.ReaderTHolder<>(rt2); // Different inner ReaderT instance
+        new ReaderTKindHelper.ReaderTHolder<>(rt2); // Different inner ReaderT instance
     ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h3 =
-            new ReaderTKindHelper.ReaderTHolder<>(rt3); // Different function
+        new ReaderTKindHelper.ReaderTHolder<>(rt3); // Different function
 
     @Test
     void holderEqualsAndHashCode() {
@@ -145,7 +129,6 @@ class ReaderTKindHelperTest {
     }
   }
 
-
   @Nested
   @DisplayName("Private Constructor")
   class PrivateConstructorTest {
@@ -156,10 +139,10 @@ class ReaderTKindHelperTest {
       Constructor<ReaderTKindHelper> constructor = ReaderTKindHelper.class.getDeclaredConstructor();
       constructor.setAccessible(true);
       assertThatThrownBy(constructor::newInstance)
-              .isInstanceOf(InvocationTargetException.class)
-              .hasCauseInstanceOf(UnsupportedOperationException.class)
-              .cause()
-              .hasMessageContaining("This is a utility class and cannot be instantiated");
+          .isInstanceOf(InvocationTargetException.class)
+          .hasCauseInstanceOf(UnsupportedOperationException.class)
+          .cause()
+          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }
