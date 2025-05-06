@@ -2,13 +2,13 @@ package org.higherkindedj.hkt.trans.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Optional; // Using Optional as F for testing
+import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.optional.OptionalKind; // Using Optional as F for testing
+import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.jspecify.annotations.NonNull;
@@ -16,7 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeT Monad Tests (Outer: Optional)") // Test MaybeTMonad
+@DisplayName("MaybeT Monad Tests (Outer: Optional)")
 class MaybeTMonadTest {
 
   // Outer Monad (F = OptionalKind<?>)
@@ -27,27 +27,34 @@ class MaybeTMonadTest {
 
   // --- Helper Methods ---
 
-  // Unwrap MaybeT<OptionalKind<?>, A> -> Optional<Maybe<A>>
-  private <A> Optional<Maybe<A>> unwrapT(Kind<MaybeTKind<OptionalKind<?>, ?>, A> kind) {
-    MaybeT<OptionalKind<?>, A> maybeT = (MaybeT<OptionalKind<?>, A>) kind;
+  // Unwrap Kind<MaybeTKind<OptionalKind<?>, ?>, A> -> Optional<Maybe<A>>
+  private <A> Optional<Maybe<A>> unwrapKindToOptionalMaybe(
+      Kind<MaybeTKind<OptionalKind<?>, ?>, A> kind) {
+    // Use the helper to unwrap to the concrete MaybeT
+    MaybeT<OptionalKind<?>, A> maybeT = MaybeTKindHelper.unwrap(kind);
+    // Then get the inner Kind<OptionalKind<?>, Maybe<A>>
     Kind<OptionalKind<?>, Maybe<A>> outerKind = maybeT.value();
+    // Unwrap the OptionalKind
     return OptionalKindHelper.unwrap(outerKind);
   }
 
-  // Create MaybeT(Optional.of(Maybe.just(value))) - Requires non-null value
+  // Create a wrapped MaybeT(Optional.of(Maybe.just(value))) - Requires non-null value
   private <A extends @NonNull Object> Kind<MaybeTKind<OptionalKind<?>, ?>, A> justT(A value) {
-    return MaybeT.just(outerMonad, value);
+    MaybeT<OptionalKind<?>, A> concreteMaybeT = MaybeT.just(outerMonad, value);
+    return MaybeTKindHelper.wrap(concreteMaybeT); // Wrap using the helper
   }
 
-  // Create MaybeT(Optional.of(Maybe.nothing()))
+  // Create a wrapped MaybeT(Optional.of(Maybe.nothing()))
   private <A> Kind<MaybeTKind<OptionalKind<?>, ?>, A> nothingT() {
-    return MaybeT.nothing(outerMonad);
+    MaybeT<OptionalKind<?>, A> concreteMaybeT = MaybeT.nothing(outerMonad);
+    return MaybeTKindHelper.wrap(concreteMaybeT); // Wrap using the helper
   }
 
-  // Create MaybeT(Optional.empty()) - Represents failure/empty in the outer context
+  // Create a wrapped MaybeT(Optional.empty()) - Represents failure/empty in the outer context
   private <A> Kind<MaybeTKind<OptionalKind<?>, ?>, A> outerEmptyT() {
     Kind<OptionalKind<?>, Maybe<A>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
-    return MaybeT.fromKind(emptyOuter);
+    MaybeT<OptionalKind<?>, A> concreteMaybeT = MaybeT.fromKind(emptyOuter);
+    return MaybeTKindHelper.wrap(concreteMaybeT); // Wrap using the helper
   }
 
   // Helper Functions for Laws
@@ -55,10 +62,10 @@ class MaybeTMonadTest {
   private final Function<String, String> appendWorld = s -> s + " world";
   private final Function<Integer, String> intToStringAppendWorld = intToString.andThen(appendWorld);
 
-  // Function a -> M b (Integer -> MaybeT<Optional, String>)
+  // Function a -> M b (Integer -> Kind<MaybeTKind<Optional, ?>, String>)
   private final Function<Integer, Kind<MaybeTKind<OptionalKind<?>, ?>, String>> fT =
       i -> justT("v" + i);
-  // Function b -> M c (String -> MaybeT<Optional, String>)
+  // Function b -> M c (String -> Kind<MaybeTKind<Optional, ?>, String>)
   private final Function<String, Kind<MaybeTKind<OptionalKind<?>, ?>, String>> gT =
       s -> justT(s + "!");
 
@@ -70,7 +77,7 @@ class MaybeTMonadTest {
     @Test
     void of_shouldWrapValueAsJustInOptional() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> kind = maybeTMonad.of(10);
-      Optional<Maybe<Integer>> result = unwrapT(kind);
+      Optional<Maybe<Integer>> result = unwrapKindToOptionalMaybe(kind);
       assertThat(result).isPresent().contains(Maybe.just(10));
     }
 
@@ -78,7 +85,7 @@ class MaybeTMonadTest {
     void of_shouldWrapNullAsNothingInOptional() {
       // MaybeTMonad.of uses Maybe.fromNullable
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> kind = maybeTMonad.of(null);
-      Optional<Maybe<Integer>> result = unwrapT(kind);
+      Optional<Maybe<Integer>> result = unwrapKindToOptionalMaybe(kind);
       assertThat(result).isPresent().contains(Maybe.nothing());
     }
   }
@@ -91,7 +98,7 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> input = justT(5);
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.map(Object::toString, input);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.just("5"));
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("5"));
     }
 
     @Test
@@ -99,7 +106,7 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> input = nothingT();
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.map(Object::toString, input);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
@@ -107,15 +114,15 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> input = outerEmptyT();
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.map(Object::toString, input);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
 
     @Test
     void map_shouldHandleMappingToNullAsNothing() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> input = justT(5);
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result = maybeTMonad.map(x -> null, input);
-      // Maybe.map(null) -> Maybe.fromNullable(null) -> Nothing
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+      // Maybe.map(f) where f returns null -> Maybe.fromNullable(null) -> Nothing
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
   }
 
@@ -136,49 +143,49 @@ class MaybeTMonadTest {
     void ap_shouldApplyJustFuncToJustValue() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.ap(funcKindJust, valKindJust);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.just("N10"));
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("N10"));
     }
 
     @Test
     void ap_shouldReturnNothingIfFuncIsNothing() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.ap(funcKindNothing, valKindJust);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
     void ap_shouldReturnNothingIfValueIsNothing() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.ap(funcKindJust, valKindNothing);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
     void ap_shouldReturnNothingIfBothAreNothing() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.ap(funcKindNothing, valKindNothing);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
     void ap_shouldReturnOuterEmptyIfFuncIsOuterEmpty() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.ap(funcKindOuterEmpty, valKindJust);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnOuterEmptyIfValueIsOuterEmpty() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.ap(funcKindJust, valKindOuterEmpty);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnOuterEmptyIfBothAreOuterEmpty() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> result =
           maybeTMonad.ap(funcKindOuterEmpty, valKindOuterEmpty);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
   }
 
@@ -199,35 +206,35 @@ class MaybeTMonadTest {
     void flatMap_shouldApplyFuncWhenJust() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Double> result =
           maybeTMonad.flatMap(safeInvertT, justValue);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.just(0.2));
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(0.2));
     }
 
     @Test
     void flatMap_shouldReturnNothingWhenFuncReturnsNothing() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Double> result =
           maybeTMonad.flatMap(safeInvertT, zeroValue);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
     void flatMap_shouldPropagateNothingWhenInputIsNothing() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Double> result =
           maybeTMonad.flatMap(safeInvertT, nothingValue);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.nothing());
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
     void flatMap_shouldPropagateOuterEmptyWhenInputIsOuterEmpty() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Double> result =
           maybeTMonad.flatMap(safeInvertT, outerEmptyValue);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
 
     @Test
     void flatMap_shouldPropagateOuterEmptyWhenFuncReturnsOuterEmpty() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Double> result =
           maybeTMonad.flatMap(outerEmptyResultT, justValue);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
   }
 
@@ -243,11 +250,12 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> faNothing = nothingT();
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> faOuterEmpty = outerEmptyT();
 
-      assertThat(unwrapT(maybeTMonad.map(Function.identity(), fa))).isEqualTo(unwrapT(fa));
-      assertThat(unwrapT(maybeTMonad.map(Function.identity(), faNothing)))
-          .isEqualTo(unwrapT(faNothing));
-      assertThat(unwrapT(maybeTMonad.map(Function.identity(), faOuterEmpty)))
-          .isEqualTo(unwrapT(faOuterEmpty));
+      assertThat(unwrapKindToOptionalMaybe(maybeTMonad.map(Function.identity(), fa)))
+          .isEqualTo(unwrapKindToOptionalMaybe(fa));
+      assertThat(unwrapKindToOptionalMaybe(maybeTMonad.map(Function.identity(), faNothing)))
+          .isEqualTo(unwrapKindToOptionalMaybe(faNothing));
+      assertThat(unwrapKindToOptionalMaybe(maybeTMonad.map(Function.identity(), faOuterEmpty)))
+          .isEqualTo(unwrapKindToOptionalMaybe(faOuterEmpty));
     }
 
     @Test
@@ -272,9 +280,12 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> rightSideOuterEmpty =
           maybeTMonad.map(appendWorld, maybeTMonad.map(intToString, faOuterEmpty));
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
-      assertThat(unwrapT(leftSideNothing)).isEqualTo(unwrapT(rightSideNothing));
-      assertThat(unwrapT(leftSideOuterEmpty)).isEqualTo(unwrapT(rightSideOuterEmpty));
+      assertThat(unwrapKindToOptionalMaybe(leftSide))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSide));
+      assertThat(unwrapKindToOptionalMaybe(leftSideNothing))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSideNothing));
+      assertThat(unwrapKindToOptionalMaybe(leftSideOuterEmpty))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSideOuterEmpty));
     }
   }
 
@@ -294,9 +305,12 @@ class MaybeTMonadTest {
     void identity() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Function<Integer, Integer>> idFuncKind =
           maybeTMonad.of(Function.identity());
-      assertThat(unwrapT(maybeTMonad.ap(idFuncKind, v))).isEqualTo(unwrapT(v));
-      assertThat(unwrapT(maybeTMonad.ap(idFuncKind, vNothing))).isEqualTo(unwrapT(vNothing));
-      assertThat(unwrapT(maybeTMonad.ap(idFuncKind, vOuterEmpty))).isEqualTo(unwrapT(vOuterEmpty));
+      assertThat(unwrapKindToOptionalMaybe(maybeTMonad.ap(idFuncKind, v)))
+          .isEqualTo(unwrapKindToOptionalMaybe(v));
+      assertThat(unwrapKindToOptionalMaybe(maybeTMonad.ap(idFuncKind, vNothing)))
+          .isEqualTo(unwrapKindToOptionalMaybe(vNothing));
+      assertThat(unwrapKindToOptionalMaybe(maybeTMonad.ap(idFuncKind, vOuterEmpty)))
+          .isEqualTo(unwrapKindToOptionalMaybe(vOuterEmpty));
     }
 
     @Test
@@ -310,7 +324,8 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> leftSide = maybeTMonad.ap(apFunc, apVal);
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> rightSide = maybeTMonad.of(f.apply(x));
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalMaybe(leftSide))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSide));
     }
 
     @Test
@@ -330,21 +345,23 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> rightSideFuncNothing =
           maybeTMonad.ap(evalKind, fKindNothing);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
-      assertThat(unwrapT(leftSideFuncNothing)).isEqualTo(unwrapT(rightSideFuncNothing));
+      assertThat(unwrapKindToOptionalMaybe(leftSide))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSide));
+      assertThat(unwrapKindToOptionalMaybe(leftSideFuncNothing))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSideFuncNothing));
     }
 
     @Test
     @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
     void composition() {
       Function<
-              Function<String, String>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
+          Function<String, String>,
+          Function<Function<Integer, String>, Function<Integer, String>>>
           composeMap = gg -> ff -> gg.compose(ff);
 
       Kind<
-              MaybeTKind<OptionalKind<?>, ?>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
+          MaybeTKind<OptionalKind<?>, ?>,
+          Function<Function<Integer, String>, Function<Integer, String>>>
           mappedCompose = maybeTMonad.map(composeMap, gKind);
       Kind<MaybeTKind<OptionalKind<?>, ?>, Function<Integer, String>> ap1 =
           maybeTMonad.ap(mappedCompose, fKind);
@@ -353,7 +370,8 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> innerAp = maybeTMonad.ap(fKind, v);
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> rightSide = maybeTMonad.ap(gKind, innerAp);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalMaybe(leftSide))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSide));
       // Add tests for Nothing/OuterEmpty propagation if needed
     }
   }
@@ -373,7 +391,8 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> leftSide = maybeTMonad.flatMap(fT, ofValue);
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> rightSide = fT.apply(value);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalMaybe(leftSide))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSide));
     }
 
     @Test
@@ -388,9 +407,11 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> leftSideOuterEmpty =
           maybeTMonad.flatMap(ofFunc, mValueOuterEmpty);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(mValue));
-      assertThat(unwrapT(leftSideNothing)).isEqualTo(unwrapT(mValueNothing));
-      assertThat(unwrapT(leftSideOuterEmpty)).isEqualTo(unwrapT(mValueOuterEmpty));
+      assertThat(unwrapKindToOptionalMaybe(leftSide)).isEqualTo(unwrapKindToOptionalMaybe(mValue));
+      assertThat(unwrapKindToOptionalMaybe(leftSideNothing))
+          .isEqualTo(unwrapKindToOptionalMaybe(mValueNothing));
+      assertThat(unwrapKindToOptionalMaybe(leftSideOuterEmpty))
+          .isEqualTo(unwrapKindToOptionalMaybe(mValueOuterEmpty));
     }
 
     @Test
@@ -404,7 +425,8 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, String> rightSide =
           maybeTMonad.flatMap(rightSideFunc, mValue);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalMaybe(leftSide))
+          .isEqualTo(unwrapKindToOptionalMaybe(rightSide));
       // Add tests for Nothing/OuterEmpty propagation if needed
     }
   }
@@ -423,7 +445,7 @@ class MaybeTMonadTest {
 
     @Test
     void raiseError_shouldCreateNothingInOptional() {
-      Optional<Maybe<Integer>> result = unwrapT(raisedErrorKind);
+      Optional<Maybe<Integer>> result = unwrapKindToOptionalMaybe(raisedErrorKind);
       assertThat(result).isPresent().contains(Maybe.nothing());
     }
 
@@ -435,7 +457,7 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.handleErrorWith(nothingVal, handler);
 
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.just(0));
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(0));
     }
 
     @Test
@@ -443,7 +465,7 @@ class MaybeTMonadTest {
       Function<Void, Kind<MaybeTKind<OptionalKind<?>, ?>, Integer>> handler = err -> justT(0);
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.handleErrorWith(raisedErrorKind, handler);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.just(0));
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(0));
     }
 
     @Test
@@ -452,7 +474,7 @@ class MaybeTMonadTest {
           err -> justT(-1); // Should not be called
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.handleErrorWith(justVal, handler);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(justVal));
+      assertThat(unwrapKindToOptionalMaybe(result)).isEqualTo(unwrapKindToOptionalMaybe(justVal));
     }
 
     @Test
@@ -463,7 +485,7 @@ class MaybeTMonadTest {
           err -> justT(-1); // Should not be called
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.handleErrorWith(outerEmptyVal, handler);
-      assertThat(unwrapT(result)).isEmpty(); // Stays outer empty
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty(); // Stays outer empty
     }
 
     @Test
@@ -471,7 +493,7 @@ class MaybeTMonadTest {
       Function<Void, Integer> handler = err -> -99;
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.handleError(nothingVal, handler);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.just(-99));
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(-99));
     }
 
     @Test
@@ -479,7 +501,7 @@ class MaybeTMonadTest {
       Function<Void, Integer> handler = err -> -1;
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.handleError(justVal, handler);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(justVal));
+      assertThat(unwrapKindToOptionalMaybe(result)).isEqualTo(unwrapKindToOptionalMaybe(justVal));
     }
 
     @Test
@@ -487,7 +509,7 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> fallback = justT(0);
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.recoverWith(nothingVal, fallback);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(fallback));
+      assertThat(unwrapKindToOptionalMaybe(result)).isEqualTo(unwrapKindToOptionalMaybe(fallback));
     }
 
     @Test
@@ -495,19 +517,19 @@ class MaybeTMonadTest {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> fallback = justT(0);
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result =
           maybeTMonad.recoverWith(justVal, fallback);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(justVal));
+      assertThat(unwrapKindToOptionalMaybe(result)).isEqualTo(unwrapKindToOptionalMaybe(justVal));
     }
 
     @Test
     void recover_shouldReplaceNothingWithOfValue() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result = maybeTMonad.recover(nothingVal, 0);
-      assertThat(unwrapT(result)).isPresent().contains(Maybe.just(0));
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(0));
     }
 
     @Test
     void recover_shouldIgnoreJust() {
       Kind<MaybeTKind<OptionalKind<?>, ?>, Integer> result = maybeTMonad.recover(justVal, 0);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(justVal));
+      assertThat(unwrapKindToOptionalMaybe(result)).isEqualTo(unwrapKindToOptionalMaybe(justVal));
     }
   }
 }
