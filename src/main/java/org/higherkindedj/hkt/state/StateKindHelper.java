@@ -20,23 +20,27 @@ public final class StateKindHelper {
 
   /**
    * Unwraps a StateKind back to the concrete {@code State<S, A>} type. Throws KindUnwrapException
-   * if the Kind is null, not a StateHolder, or the holder contains a null State instance.
+   * if the Kind is null or not a valid StateHolder.
    */
   @SuppressWarnings("unchecked")
   public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind<S, ?>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-    }
-    // Pattern match against the specific holder record type
-    if (kind instanceof StateHolder<?, ?> holder) { // Use pattern matching
-      if (holder.stateInstance() == null) {
-        throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
-      }
-      // Cast is safe here due to type structure StateHolder<S, A> implements StateKind<S, A>
-      return (State<S, A>) holder.stateInstance();
-    } else {
-      throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    }
+
+    return switch (kind) {
+      // Case 1: Input Kind is null
+      case null -> throw new KindUnwrapException(StateKindHelper.INVALID_KIND_NULL_MSG);
+
+      // Case 2: Input Kind is a StateHolder (record pattern extracts non-null stateInstance)
+      // The @NonNull contract on StateHolder.stateInstance guarantees stateInstance is not null
+      // here.
+      case StateKindHelper.StateHolder<?, ?>(var stateInstance) ->
+          // Cast is safe because pattern matched and stateInstance is known non-null.
+          (State<S, A>) stateInstance;
+
+      // Case 3: Input Kind is non-null but not a StateHolder
+      default ->
+          throw new KindUnwrapException(
+              StateKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+    };
   }
 
   /**

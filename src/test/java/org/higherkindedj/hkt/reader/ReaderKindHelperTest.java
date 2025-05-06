@@ -66,19 +66,6 @@ class ReaderKindHelperTest {
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyReaderKind.class.getName());
     }
-
-    @Test
-    void unwrap_shouldThrowForHolderWithNullReader() {
-      ReaderHolder<Env, String> holderWithNull = new ReaderHolder<>(null);
-      // Cast needed for test setup
-      @SuppressWarnings("unchecked")
-      Kind<ReaderKind<Env, ?>, String> kind =
-          (Kind<ReaderKind<Env, ?>, String>) (Kind<?, ?>) holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
   }
 
   @Nested

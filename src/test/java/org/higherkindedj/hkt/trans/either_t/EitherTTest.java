@@ -1,5 +1,5 @@
 // Create this file: src/test/java/org/higherkindedj/hkt/trans/EitherTTest.java
-package org.higherkindedj.hkt.trans;
+package org.higherkindedj.hkt.trans.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;

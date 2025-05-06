@@ -89,7 +89,10 @@ The code is organized into packages:
 * `org.simulation.hkt.reader`: Components for `Reader` simulation and the `Reader` type itself.
 * `org.simulation.hkt.state`: Components for `State` simulation and the `State` type itself.
 * `org.simulation.hkt.writer`: Components for `Writer` simulation and the `Writer` type itself.
-* `org.simulation.hkt.trans`: Monad Transformer (`EitherT`) components.
+* `org.simulation.hkt.trans.either_t`: Monad Transformer (`EitherT`) components.
+* `org.simulation.hkt.trans.maybe_t`: Monad Transformer (`MaybeT`) components.
+* `org.simulation.hkt.trans.optional_t`: Monad Transformer (`OptionalT`) components.
+* `org.simulation.hkt.trans.reader_t`: Monad Transformer (`ReaderT`) components.
 * `org.simulation.hkt.function`: Helper functional interfaces (`Function3`, `Function4`).
 * `org.simulation.hkt.exception`: Custom exceptions like `KindUnwrapException`.
 * `org.simulation.hkt.typeclass`: Supporting type classes like `Monoid`.
@@ -105,9 +108,9 @@ Contributions to this project are very welcome! Whether it's adding new features
 * **Simulate More Types:** Add HKT simulations and type class instances for other common Java types (e.g., `Stream`, `java.time` types) or functional concepts.
 * **Implement More Type Classes:** Add implementations for other useful type classes like `Traverse`, `Semigroup`, etc., where applicable.
 * **Enhance Existing Implementations:** Improve performance, clarity, or robustness of the current simulations and type class instances.
-* **Add Examples:** Create more diverse examples showcasing different use cases for the HKT simulation.
+* **Add Examples:** Create more diverse examples showcasing different use cases of Higher-Kinded Type simulation.
 * **Improve Documentation:** Clarify concepts, add diagrams, or improve the Wiki/README.
-* **Refactor with New Java Features:** Explore opportunities to use features like Structured Concurrency, updated Pattern Matching, etc., to improve the simulation or examples.
+* **Refactor with New Java Features:** Explore opportunities to use features like Structured Concurrency, etc., to improve the simulation or examples.
 * **Testing:** Increase test coverage, particularly for type class laws and edge cases.
 
 **How to Contribute:**

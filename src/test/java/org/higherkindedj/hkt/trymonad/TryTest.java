@@ -108,11 +108,6 @@ class TryTest {
       assertThatThrownBy(tryResult::get).isSameAs(failureException);
     }
 
-    // Removed the test for Try.of catching checked exceptions directly via lambda,
-    // as it's hard to implement cleanly due to Supplier signature limitations.
-    // The Try.failure test covers creating Failure with checked exceptions,
-    // and Try.of catching Throwable is tested via RuntimeException/Error.
-
     @Test
     void of_shouldCreateFailureWhenSupplierThrowsError() {
       Supplier<String> supplier =
@@ -570,9 +565,14 @@ class TryTest {
     void match_onSuccess_shouldCatchExceptionFromSuccessAction() {
       successResult.set(null);
       failureResult.set(null);
-      // Should not throw, but might log an error internally
+
+      // Call match with the Success instance and the action that throws.
+      // This forces execution into the 'case Success -> { try { ... } catch { ... } }' block,
+      // and specifically into the 'catch' part within that block.
       assertThatCode(() -> successInstance.match(throwingSuccessAction, failureAction))
-          .doesNotThrowAnyException();
+          .doesNotThrowAnyException(); // Verify the match method itself doesn't throw
+
+      // Assert that the non-throwing actions were not called or completed
       assertThat(successResult.get()).isNull(); // Action didn't complete
       assertThat(failureResult.get()).isNull();
     }

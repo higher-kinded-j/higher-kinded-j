@@ -1,0 +1,296 @@
+# OptionalT - Combining Monadic Effects with `java.util.Optional`
+
+## `OptionalT` Monad Transformer
+
+The `OptionalT` monad transformer (short for Optional Transformer) is designed to combine the semantics of `java.util.Optional<A>` (representing a value that might be present or absent) with an arbitrary outer monad `F`. It effectively allows you to work with computations of type `Kind<F, Optional<A>>` as a single, unified monadic structure.
+
+This is particularly useful when operations within an effectful context `F` (such as asynchronicity with `CompletableFutureKind`, non-determinism with `ListKind`, or dependency injection with `ReaderKind`) can also result in an absence of a value (represented by `Optional.empty()`).
+
+## Structure
+
+![optional_t_transformer.svg](images/puml/optional_t_transformer.svg)
+
+## `OptionalT<F, A>`: The Core Data Type
+
+`OptionalT<F, A>` is a record that wraps a computation yielding `Kind<F, Optional<A>>`.
+
+```java
+public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value)
+    implements OptionalTKind<F, A> {
+  // ... static factory methods ...
+}
+```
+
+* **`F`**: The witness type of the **outer monad** (e.g., `CompletableFutureKind<?>`, `ListKind<?>`). This monad encapsulates the primary effect of the computation.
+* **`A`**: The type of the value that might be present within the **`Optional`, which itself is within the context of `F`.
+* **`value`**: The core wrapped value of type **`Kind<F, Optional<A>>`. This represents an effectful computation `F` that, upon completion, yields a `java.util.Optional<A>`.
+
+## `OptionalTKind<F, A>`: The Witness Type
+
+**For integration with Higher-Kinded-J's generic programming model,** `OptionalTKind<F, A>` acts as the higher-kinded type witness.
+
+* **It extends** `Kind<G, A>`, where `G` (the witness for the combined `OptionalT` monad) is `OptionalTKind<F, ?>`.
+* **The outer monad** `F` is fixed for a particular `OptionalT` context, while `A` is the variable type parameter representing the value inside the `Optional`.
+
+```java
+public interface OptionalTKind<F, A> extends Kind<OptionalTKind<F, ?>, A> {
+  // Witness type G = OptionalTKind<F, ?>
+  // Value type A = A (from Optional<A>)
+}
+```
+
+## `OptionalTKindHelper`: Utility for Wrapping and Unwrapping
+
+`OptionalTKindHelper` is a final utility class providing static methods to seamlessly convert between the concrete `OptionalT<F, A>` type and its `Kind` representation (`Kind<OptionalTKind<F, ?>, A>`).
+
+```java
+
+public final class OptionalTKindHelper {
+    // Unwraps Kind<OptionalTKind<F, ?>, A> to OptionalT<F, A>
+    public static <F, A> @NonNull OptionalT<F, A> unwrap(
+        @Nullable Kind<OptionalTKind<F, ?>, A> kind);
+
+    // Wraps OptionalT<F, A> into OptionalTKind<F, A>
+    public static <F, A> @NonNull OptionalTKind<F, A> wrap(
+        @NonNull OptionalT<F, A> optionalT);
+}
+```
+
+**Internally, it uses a private record** `OptionalTHolder` to implement `OptionalTKind`, but this is an implementation detail.
+
+## `OptionalTMonad<F>`: Operating on `OptionalT`
+
+**The** `OptionalTMonad<F>` class implements `MonadError<OptionalTKind<F, ?>, Void>`. This provides the standard monadic operations (`of`, `map`, `flatMap`, `ap`) and error handling capabilities for the `OptionalT` structure. The error type is `Void` because `Optional.empty()` signifies absence without carrying a specific error value.
+
+* **It requires a** `Monad<F>` instance for the outer monad `F`, which must be supplied during construction. This `outerMonad` is used to manage and sequence the effects of `F`.
+
+```java
+// Example: F = CompletableFutureKind<?>
+// 1. Get the Monad instance for the outer monad F
+Monad<CompletableFutureKind<?>> futureMonad = new CompletableFutureMonad();
+
+// 2. Create the OptionalTMonad
+OptionalTMonad<CompletableFutureKind<?>> optionalTFutureMonad =
+    new OptionalTMonad<>(futureMonad);
+
+// Now 'optionalTFutureMonad' can be used to operate on
+// Kind<OptionalTKind<CompletableFutureKind<?>, ?>, A> values.
+
+```
+
+### Key Operations with `OptionalTMonad`:
+
+* **`optionalTMonad.of(value)`**: Lifts a (nullable) value `A` into the `OptionalT` context. The underlying operation is `r -> outerMonad.of(Optional.ofNullable(value))`. Result: `OptionalT(F<Optional<A>>)`.
+* **`optionalTMonad.map(func, optionalTKind)`**: Applies a function `A -> B` to the value `A` if it's present within the `Optional` and the `F` context is successful. The transformation occurs within `outerMonad.map`. If `func` returns `null`, the result becomes `F<Optional.empty()>`. Result: `OptionalT(F<Optional<B>>)`.
+* **`optionalTMonad.flatMap(func, optionalTKind)`**: The primary sequencing operation. It takes a function **`A -> Kind<OptionalTKind<F, ?>, B>` (which effectively means `A -> OptionalT<F, B>`). It runs the initial `OptionalT` to get `Kind<F, Optional<A>>`. Using `outerMonad.flatMap`, if this yields an `Optional.of(a)`, `func` is applied to `a` to get the next `OptionalT<F, B>`. The `value` of this new `OptionalT` (`Kind<F, Optional<B>>`) becomes the result. If at any point an `Optional.empty()` is encountered within `F`, it short-circuits and propagates `F<Optional.empty()>`. Result: `OptionalT(F<Optional<B>>)`.
+* **`optionalTMonad.raiseError(null)`** (since error type is `Void`): Creates an `OptionalT` representing absence. Result: `OptionalT(F<Optional.empty()>)`.
+* **`optionalTMonad.handleErrorWith(optionalTKind, handler)`**: Allows recovery from an `Optional.empty()` state within `F`. The `handler` function `Void -> Kind<OptionalTKind<F, ?>, A>` is invoked with `null` if an empty state is encountered.
+
+## Creating `OptionalT` Instances
+
+`OptionalT` instances are typically created using its static factory methods. These often require a `Monad<F>` instance for the outer monad.
+
+```java
+// --- Setup ---
+// Outer Monad F = CompletableFutureKind<?>
+Monad<CompletableFutureKind<?>> futureMonad = new CompletableFutureMonad();
+String presentValue = "Data";
+Integer numericValue = 123;
+
+// 1. `OptionalT.fromKind(Kind<F, Optional<A>> value)`
+//    Wraps an existing F<Optional<A>>.
+Kind<CompletableFutureKind<?>, Optional<String>> fOptional =
+    CompletableFutureKindHelper.wrap(CompletableFuture.completedFuture(Optional.of(presentValue)));
+OptionalT<CompletableFutureKind<?>, String> ot1 = OptionalT.fromKind(fOptional);
+// Value: CompletableFuture<Optional.of("Data")>
+
+// 2. `OptionalT.some(Monad<F> monad, A a)`
+//    Creates an OptionalT with a present value, F<Optional.of(a)>.
+OptionalT<CompletableFutureKind<?>, String> ot2 = OptionalT.some(futureMonad, presentValue);
+// Value: CompletableFuture<Optional.of("Data")>
+
+// 3. `OptionalT.none(Monad<F> monad)`
+//    Creates an OptionalT representing an absent value, F<Optional.empty()>.
+OptionalT<CompletableFutureKind<?>, String> ot3 = OptionalT.none(futureMonad);
+// Value: CompletableFuture<Optional.empty()>
+
+// 4. `OptionalT.fromOptional(Monad<F> monad, Optional<A> optional)`
+//    Lifts a plain java.util.Optional into OptionalT, F<Optional<A>>.
+Optional<Integer> optInt = Optional.of(numericValue);
+OptionalT<CompletableFutureKind<?>, Integer> ot4 = OptionalT.fromOptional(futureMonad, optInt);
+// Value: CompletableFuture<Optional.of(123)>
+
+Optional<Integer> optEmpty = Optional.empty();
+OptionalT<CompletableFutureKind<?>, Integer> ot4Empty = OptionalT.fromOptional(futureMonad, optEmpty);
+// Value: CompletableFuture<Optional.empty()>
+
+// 5. `OptionalT.liftF(Monad<F> monad, Kind<F, A> fa)`
+//    Lifts an F<A> into OptionalT. If A is null, it becomes F<Optional.empty()>, otherwise F<Optional.of(A)>.
+Kind<CompletableFutureKind<?>, String> fValue =
+    CompletableFutureKindHelper.wrap(CompletableFuture.completedFuture(presentValue));
+OptionalT<CompletableFutureKind<?>, String> ot5 = OptionalT.liftF(futureMonad, fValue);
+// Value: CompletableFuture<Optional.of("Data")>
+
+Kind<CompletableFutureKind<?>, String> fNullValue =
+    CompletableFutureKindHelper.wrap(CompletableFuture.completedFuture(null)); // F<null>
+OptionalT<CompletableFutureKind<?>, String> ot5Null = OptionalT.liftF(futureMonad, fNullValue);
+// Value: CompletableFuture<Optional.empty()> (because the value inside F was null)
+
+
+// Accessing the wrapped value:
+// Kind<CompletableFutureKind<?>, Optional<String>> wrappedFVO = ot1.value();
+// CompletableFuture<Optional<String>> futureOptional = CompletableFutureKindHelper.unwrap(wrappedFVO);
+// futureOptional.thenAccept(optStr -> System.out.println("ot1 result: " + optStr));
+```
+
+## Example: Asynchronous Multi-Step Data Retrieval
+
+**Consider a scenario where you need to fetch a user, then their profile, and finally their preferences. Each step is asynchronous (`CompletableFuture`) and might return an empty `Optional` if the data is not found. `OptionalT` helps manage this composition cleanly.
+
+```java
+public class OptionalTAsyncExample {
+
+    // --- Domain Model ---
+    record User(String id, String name) {}
+    record UserProfile(String userId, String bio) {}
+    record UserPreferences(String userId, String theme) {}
+
+    // --- Monad Setup ---
+    static final Monad<CompletableFutureKind<?>> futureMonad = new CompletableFutureMonad();
+    static final OptionalTMonad<CompletableFutureKind<?>> optionalTFutureMonad =
+        new OptionalTMonad<>(futureMonad);
+    static final ExecutorService executor = Executors.newFixedThreadPool(2);
+
+    // --- Service Stubs (simulating async calls returning Future<Optional<T>>) ---
+
+    public static Kind<CompletableFutureKind<?>, Optional<User>> fetchUserAsync(String userId) {
+        return CompletableFutureKindHelper.wrap(CompletableFuture.supplyAsync(() -> {
+            System.out.println("Fetching user " + userId + " on " + Thread.currentThread().getName());
+            try { TimeUnit.MILLISECONDS.sleep(50); } catch (InterruptedException e) { /* ignore */ }
+            return "user1".equals(userId) ? Optional.of(new User(userId, "Alice")) : Optional.empty();
+        }, executor));
+    }
+
+    public static Kind<CompletableFutureKind<?>, Optional<UserProfile>> fetchProfileAsync(String userId) {
+        return CompletableFutureKindHelper.wrap(CompletableFuture.supplyAsync(() -> {
+            System.out.println("Fetching profile for " + userId + " on " + Thread.currentThread().getName());
+            try { TimeUnit.MILLISECONDS.sleep(50); } catch (InterruptedException e) { /* ignore */ }
+            return "user1".equals(userId) ? Optional.of(new UserProfile(userId, "Loves HKJ")) : Optional.empty();
+        }, executor));
+    }
+
+    public static Kind<CompletableFutureKind<?>, Optional<UserPreferences>> fetchPrefsAsync(String userId) {
+         return CompletableFutureKindHelper.wrap(CompletableFuture.supplyAsync(() -> {
+            System.out.println("Fetching preferences for " + userId + " on " + Thread.currentThread().getName());
+            try { TimeUnit.MILLISECONDS.sleep(50); } catch (InterruptedException e) { /* ignore */ }
+            // Simulate preferences sometimes missing even for a valid user
+            return "user1".equals(userId) && Math.random() > 0.3 ? Optional.of(new UserPreferences(userId, "dark")) : Optional.empty();
+        }, executor));
+    }
+
+    // --- Workflow using OptionalT ---
+    public static OptionalT<CompletableFutureKind<?>, UserPreferences> getFullUserPreferences(String userId) {
+        // Start by fetching the user, lifting into OptionalT
+        OptionalT<CompletableFutureKind<?>, User> userOT =
+            OptionalT.fromKind(fetchUserAsync(userId));
+
+        // If user exists, fetch profile
+        OptionalT<CompletableFutureKind<?>, UserProfile> profileOT =
+            OptionalTKindHelper.unwrap(
+                optionalTFutureMonad.flatMap(
+                    user -> OptionalTKindHelper.wrap(OptionalT.fromKind(fetchProfileAsync(user.id()))),
+                    OptionalTKindHelper.wrap(userOT)
+                )
+            );
+
+        // If profile exists, fetch preferences
+        OptionalT<CompletableFutureKind<?>, UserPreferences> preferencesOT =
+            OptionalTKindHelper.unwrap(
+                optionalTFutureMonad.flatMap(
+                    profile -> OptionalTKindHelper.wrap(OptionalT.fromKind(fetchPrefsAsync(profile.userId()))),
+                    OptionalTKindHelper.wrap(profileOT)
+                )
+            );
+        return preferencesOT;
+    }
+  
+    // Workflow with recovery / default
+    public static OptionalT<CompletableFutureKind<?>, UserPreferences> getPrefsWithDefault(String userId) {
+        OptionalT<CompletableFutureKind<?>, UserPreferences> prefsAttemptOT = getFullUserPreferences(userId);
+
+        Kind<OptionalTKind<CompletableFutureKind<?>,?>, UserPreferences> recoveredPrefsOTKind =
+            optionalTFutureMonad.handleErrorWith(
+                OptionalTKindHelper.wrap(prefsAttemptOT),
+                (Void v) -> { // This lambda is called if prefsAttemptOT results in F<Optional.empty()>
+                    System.out.println("Preferences not found for " + userId + ", providing default.");
+                    // Lift a default preference into OptionalT
+                    UserPreferences defaultPrefs = new UserPreferences(userId, "default-light");
+                    return OptionalTKindHelper.wrap(OptionalT.some(futureMonad, defaultPrefs));
+                }
+            );
+        return OptionalTKindHelper.unwrap(recoveredPrefsOTKind);
+    }
+
+
+    public static void main(String[] args) {
+        System.out.println("--- Attempting to get preferences for existing user (user1) ---");
+        OptionalT<CompletableFutureKind<?>, UserPreferences> resultUser1OT = getFullUserPreferences("user1");
+        CompletableFuture<Optional<UserPreferences>> future1 =
+            CompletableFutureKindHelper.unwrap(resultUser1OT.value());
+
+        future1.whenComplete((optPrefs, ex) -> {
+            if (ex != null) {
+                System.err.println("Error for user1: " + ex.getMessage());
+            } else {
+                System.out.println("User1 Preferences: " + optPrefs.map(UserPreferences::toString).orElse("NOT FOUND"));
+            }
+        });
+
+
+        System.out.println("\n--- Attempting to get preferences for non-existing user (user2) ---");
+        OptionalT<CompletableFutureKind<?>, UserPreferences> resultUser2OT = getFullUserPreferences("user2");
+        CompletableFuture<Optional<UserPreferences>> future2 =
+            CompletableFutureKindHelper.unwrap(resultUser2OT.value());
+
+        future2.whenComplete((optPrefs, ex) -> {
+            if (ex != null) {
+                System.err.println("Error for user2: " + ex.getMessage());
+            } else {
+                System.out.println("User2 Preferences: " + optPrefs.map(UserPreferences::toString).orElse("NOT FOUND (as expected)"));
+            }
+        });
+      
+        System.out.println("\n--- Attempting to get preferences for user1 WITH DEFAULT ---");
+        OptionalT<CompletableFutureKind<?>, UserPreferences> resultUser1WithDefaultOT = getPrefsWithDefault("user1");
+        CompletableFuture<Optional<UserPreferences>> future3 =
+            CompletableFutureKindHelper.unwrap(resultUser1WithDefaultOT.value());
+
+        future3.whenComplete((optPrefs, ex) -> {
+            if (ex != null) {
+                System.err.println("Error for user1 (with default): " + ex.getMessage());
+            } else {
+                // This will either be the fetched prefs or the default.
+                System.out.println("User1 Preferences (with default): " + optPrefs.map(UserPreferences::toString).orElse("THIS SHOULD NOT HAPPEN if default works"));
+            }
+             // Wait for async operations to complete for demonstration
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            executor.shutdown();
+        });
+    }
+}
+```
+
+
+**This example demonstrates:**
+
+1. **Setting up** `OptionalTMonad` with `CompletableFutureMonad`.
+2. **Using** `OptionalT.fromKind` to lift an existing `Kind<F, Optional<A>>` (the result of async service calls) into the `OptionalT` context.
+3. **Sequencing operations with** `optionalTFutureMonad.flatMap`. If any step in the chain (e.g., `fetchUserAsync`) results in `F<Optional.empty()>`, subsequent `flatMap` lambdas are short-circuited, and the overall result becomes `F<Optional.empty()>`.
+4. **Using** `handleErrorWith` to provide a default `UserPreferences` if the chain of operations results in an empty `Optional`.
+5. **Finally,** `.value()` is used to extract the underlying `Kind<CompletableFutureKind<?>, Optional<UserPreferences>>` to interact with the `CompletableFuture` directly.
+
+`OptionalT` simplifies managing sequences of operations where each step might not yield

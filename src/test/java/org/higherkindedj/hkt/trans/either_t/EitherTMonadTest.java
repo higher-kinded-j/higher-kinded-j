@@ -1,4 +1,4 @@
-package org.higherkindedj.hkt.trans;
+package org.higherkindedj.hkt.trans.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,35 +18,44 @@ import org.junit.jupiter.api.Test;
 class EitherTMonadTest {
 
   // Outer Monad (F = OptionalKind<?>)
+  // OptionalMonad itself implements MonadError<OptionalKind<?>, Void>
   private final MonadError<OptionalKind<?>, Void> outerMonad = new OptionalMonad();
+
   // EitherT Monad (G = EitherTKind<OptionalKind<?>, String, ?>)
+  // The EitherTMonad takes a Monad<F> for its operations.
   private final MonadError<EitherTKind<OptionalKind<?>, String, ?>, String> eitherTMonad =
       new EitherTMonad<>(outerMonad);
 
   // --- Helper Methods ---
 
-  // Unwrap EitherT<OptionalKind<?>, String, A> -> Optional<Either<String, A>>
-  private <A> Optional<Either<String, A>> unwrapT(
+  // Unwrap Kind<EitherTKind<OptionalKind<?>, String, ?>, A> -> Optional<Either<String, A>>
+  private <A> Optional<Either<String, A>> unwrapKindToOptionalEither(
       Kind<EitherTKind<OptionalKind<?>, String, ?>, A> kind) {
-    EitherT<OptionalKind<?>, String, A> eitherT = (EitherT<OptionalKind<?>, String, A>) kind;
+    // Use the helper to unwrap to the concrete EitherT
+    EitherT<OptionalKind<?>, String, A> eitherT = EitherTKindHelper.unwrap(kind);
+    // Then get the inner Kind<OptionalKind<?>, Either<String, A>>
     Kind<OptionalKind<?>, Either<String, A>> outerKind = eitherT.value();
+    // Unwrap the OptionalKind
     return OptionalKindHelper.unwrap(outerKind);
   }
 
-  // Create EitherT(Optional.of(Right(value)))
+  // Create a wrapped EitherT(Optional.of(Right(value)))
   private <A> Kind<EitherTKind<OptionalKind<?>, String, ?>, A> rightT(A value) {
-    return EitherT.right(outerMonad, value);
+    EitherT<OptionalKind<?>, String, A> concreteEitherT = EitherT.right(outerMonad, value);
+    return EitherTKindHelper.wrap(concreteEitherT); // Wrap using the helper
   }
 
-  // Create EitherT(Optional.of(Left(error)))
+  // Create a wrapped EitherT(Optional.of(Left(error)))
   private <A> Kind<EitherTKind<OptionalKind<?>, String, ?>, A> leftT(String error) {
-    return EitherT.left(outerMonad, error);
+    EitherT<OptionalKind<?>, String, A> concreteEitherT = EitherT.left(outerMonad, error);
+    return EitherTKindHelper.wrap(concreteEitherT); // Wrap using the helper
   }
 
-  // Create EitherT(Optional.empty())
+  // Create a wrapped EitherT(Optional.empty())
   private <A> Kind<EitherTKind<OptionalKind<?>, String, ?>, A> emptyT() {
     Kind<OptionalKind<?>, Either<String, A>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
-    return EitherT.fromKind(emptyOuter);
+    EitherT<OptionalKind<?>, String, A> concreteEitherT = EitherT.fromKind(emptyOuter);
+    return EitherTKindHelper.wrap(concreteEitherT); // Wrap using the helper
   }
 
   // Helper Functions for Laws
@@ -54,10 +63,10 @@ class EitherTMonadTest {
   private final Function<String, String> appendWorld = s -> s + " world";
   private final Function<Integer, String> intToStringAppendWorld = intToString.andThen(appendWorld);
 
-  // Function a -> M b (Integer -> EitherT<Optional, String, String>)
+  // Function a -> M b (Integer -> Kind<EitherTKind<OptionalKind<?>, String, ?>, String>)
   private final Function<Integer, Kind<EitherTKind<OptionalKind<?>, String, ?>, String>> fT =
       i -> rightT("v" + i);
-  // Function b -> M c (String -> EitherT<Optional, String, String>)
+  // Function b -> M c (String -> Kind<EitherTKind<OptionalKind<?>, String, ?>, String>)
   private final Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, String>> gT =
       s -> rightT(s + "!");
 
@@ -69,16 +78,14 @@ class EitherTMonadTest {
     @Test
     void of_shouldWrapValueAsRightInOptional() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> kind = eitherTMonad.of(10);
-      Optional<Either<String, Integer>> result = unwrapT(kind);
+      Optional<Either<String, Integer>> result = unwrapKindToOptionalEither(kind);
       assertThat(result).isPresent().contains(Either.right(10));
     }
 
     @Test
     void of_shouldWrapNullAsRightInOptional() {
-      // Optional allows null within 'ofNullable' which EitherT.right uses via outerMonad.of
-      // And Either.right allows null.
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> kind = eitherTMonad.of(null);
-      Optional<Either<String, Integer>> result = unwrapT(kind);
+      Optional<Either<String, Integer>> result = unwrapKindToOptionalEither(kind);
       assertThat(result).isPresent().contains(Either.right(null));
     }
   }
@@ -91,7 +98,7 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = rightT(5);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.map(Object::toString, input);
-      assertThat(unwrapT(result)).isPresent().contains(Either.right("5"));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right("5"));
     }
 
     @Test
@@ -99,7 +106,7 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = leftT("Error1");
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.map(Object::toString, input);
-      assertThat(unwrapT(result)).isPresent().contains(Either.left("Error1"));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("Error1"));
     }
 
     @Test
@@ -107,7 +114,7 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = emptyT();
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.map(Object::toString, input);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
 
     @Test
@@ -115,7 +122,7 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = rightT(5);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.map(x -> null, input);
-      assertThat(unwrapT(result)).isPresent().contains(Either.right(null));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(null));
     }
   }
 
@@ -137,51 +144,49 @@ class EitherTMonadTest {
     void ap_shouldApplyRightFuncToRightValue() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.ap(funcKindRight, valKindRight);
-      assertThat(unwrapT(result)).isPresent().contains(Either.right("N10"));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right("N10"));
     }
 
     @Test
     void ap_shouldReturnLeftIfFuncIsLeft() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.ap(funcKindLeft, valKindRight);
-      assertThat(unwrapT(result)).isPresent().contains(Either.left("FuncError"));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("FuncError"));
     }
 
     @Test
     void ap_shouldReturnLeftIfValueIsLeft() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.ap(funcKindRight, valKindLeft);
-      assertThat(unwrapT(result)).isPresent().contains(Either.left("ValError"));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("ValError"));
     }
 
     @Test
     void ap_shouldReturnFirstLeftIfBothAreLeft() {
-      // Behavior depends on outer monad's flatMap/map combination in 'ap' impl.
-      // For Optional used here, the function's Left ("FuncError") propagates first.
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.ap(funcKindLeft, valKindLeft);
-      assertThat(unwrapT(result)).isPresent().contains(Either.left("FuncError"));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("FuncError"));
     }
 
     @Test
     void ap_shouldReturnEmptyIfFuncIsEmpty() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.ap(funcKindEmpty, valKindRight);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnEmptyIfValueIsEmpty() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.ap(funcKindRight, valKindEmpty);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnEmptyIfBothAreEmpty() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
           eitherTMonad.ap(funcKindEmpty, valKindEmpty);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
   }
 
@@ -202,35 +207,37 @@ class EitherTMonadTest {
     void flatMap_shouldApplyFuncWhenRight() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
           eitherTMonad.flatMap(safeDivideT, rightValue);
-      assertThat(unwrapT(result)).isPresent().contains(Either.right(20.0));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(20.0));
     }
 
     @Test
     void flatMap_shouldReturnLeftWhenFuncReturnsLeft() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
           eitherTMonad.flatMap(safeDivideT, zeroValue);
-      assertThat(unwrapT(result)).isPresent().contains(Either.left("DivZero"));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("DivZero"));
     }
 
     @Test
     void flatMap_shouldPropagateLeftWhenInputIsLeft() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
           eitherTMonad.flatMap(safeDivideT, leftValue);
-      assertThat(unwrapT(result)).isPresent().contains(Either.left("InitialError"));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isPresent()
+          .contains(Either.left("InitialError"));
     }
 
     @Test
     void flatMap_shouldPropagateEmptyWhenInputIsEmpty() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
           eitherTMonad.flatMap(safeDivideT, emptyValue);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
 
     @Test
     void flatMap_shouldPropagateEmptyWhenFuncReturnsEmpty() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
           eitherTMonad.flatMap(emptyResultT, rightValue);
-      assertThat(unwrapT(result)).isEmpty();
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
   }
 
@@ -246,10 +253,12 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> faLeft = leftT("L");
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> faEmpty = emptyT();
 
-      assertThat(unwrapT(eitherTMonad.map(Function.identity(), fa))).isEqualTo(unwrapT(fa));
-      assertThat(unwrapT(eitherTMonad.map(Function.identity(), faLeft))).isEqualTo(unwrapT(faLeft));
-      assertThat(unwrapT(eitherTMonad.map(Function.identity(), faEmpty)))
-          .isEqualTo(unwrapT(faEmpty));
+      assertThat(unwrapKindToOptionalEither(eitherTMonad.map(Function.identity(), fa)))
+          .isEqualTo(unwrapKindToOptionalEither(fa));
+      assertThat(unwrapKindToOptionalEither(eitherTMonad.map(Function.identity(), faLeft)))
+          .isEqualTo(unwrapKindToOptionalEither(faLeft));
+      assertThat(unwrapKindToOptionalEither(eitherTMonad.map(Function.identity(), faEmpty)))
+          .isEqualTo(unwrapKindToOptionalEither(faEmpty));
     }
 
     @Test
@@ -274,9 +283,12 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideEmpty =
           eitherTMonad.map(appendWorld, eitherTMonad.map(intToString, faEmpty));
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
-      assertThat(unwrapT(leftSideLeft)).isEqualTo(unwrapT(rightSideLeft));
-      assertThat(unwrapT(leftSideEmpty)).isEqualTo(unwrapT(rightSideEmpty));
+      assertThat(unwrapKindToOptionalEither(leftSide))
+          .isEqualTo(unwrapKindToOptionalEither(rightSide));
+      assertThat(unwrapKindToOptionalEither(leftSideLeft))
+          .isEqualTo(unwrapKindToOptionalEither(rightSideLeft));
+      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
+          .isEqualTo(unwrapKindToOptionalEither(rightSideEmpty));
     }
   }
 
@@ -299,9 +311,12 @@ class EitherTMonadTest {
     void identity() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, Integer>> idFuncKind =
           eitherTMonad.of(Function.identity());
-      assertThat(unwrapT(eitherTMonad.ap(idFuncKind, v))).isEqualTo(unwrapT(v));
-      assertThat(unwrapT(eitherTMonad.ap(idFuncKind, vLeft))).isEqualTo(unwrapT(vLeft));
-      assertThat(unwrapT(eitherTMonad.ap(idFuncKind, vEmpty))).isEqualTo(unwrapT(vEmpty));
+      assertThat(unwrapKindToOptionalEither(eitherTMonad.ap(idFuncKind, v)))
+          .isEqualTo(unwrapKindToOptionalEither(v));
+      assertThat(unwrapKindToOptionalEither(eitherTMonad.ap(idFuncKind, vLeft)))
+          .isEqualTo(unwrapKindToOptionalEither(vLeft));
+      assertThat(unwrapKindToOptionalEither(eitherTMonad.ap(idFuncKind, vEmpty)))
+          .isEqualTo(unwrapKindToOptionalEither(vEmpty));
     }
 
     @Test
@@ -317,7 +332,8 @@ class EitherTMonadTest {
           eitherTMonad.ap(apFunc, apVal);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide = eitherTMonad.of(f.apply(x));
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalEither(leftSide))
+          .isEqualTo(unwrapKindToOptionalEither(rightSide));
     }
 
     @Test
@@ -338,9 +354,10 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideFuncLeft =
           eitherTMonad.ap(evalKind, fKindLeft);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
-      assertThat(unwrapT(leftSideFuncLeft))
-          .isEqualTo(unwrapT(rightSideFuncLeft)); // Check Left propagation
+      assertThat(unwrapKindToOptionalEither(leftSide))
+          .isEqualTo(unwrapKindToOptionalEither(rightSide));
+      assertThat(unwrapKindToOptionalEither(leftSideFuncLeft))
+          .isEqualTo(unwrapKindToOptionalEither(rightSideFuncLeft));
     }
 
     @Test
@@ -351,7 +368,6 @@ class EitherTMonadTest {
               Function<Function<Integer, String>, Function<Integer, String>>>
           composeMap = gg -> ff -> gg.compose(ff);
 
-      // Left side: ap(ap(map(composeMap, gKind), fKind), v)
       Kind<
               EitherTKind<OptionalKind<?>, String, ?>,
               Function<Function<Integer, String>, Function<Integer, String>>>
@@ -360,26 +376,26 @@ class EitherTMonadTest {
           eitherTMonad.ap(mappedCompose, fKind);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide = eitherTMonad.ap(ap1, v);
 
-      // Right side: ap(gKind, ap(fKind, v))
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerAp = eitherTMonad.ap(fKind, v);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide =
           eitherTMonad.ap(gKind, innerAp);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalEither(leftSide))
+          .isEqualTo(unwrapKindToOptionalEither(rightSide));
 
-      // Test with Left/Empty propagation (just check one case for brevity)
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideLeft =
           eitherTMonad.ap(eitherTMonad.ap(mappedCompose, fKindLeft), v);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideLeft =
           eitherTMonad.ap(gKind, eitherTMonad.ap(fKindLeft, v));
-      assertThat(unwrapT(leftSideLeft))
-          .isEqualTo(unwrapT(rightSideLeft)); // Both should be Left(F_ERR)
+      assertThat(unwrapKindToOptionalEither(leftSideLeft))
+          .isEqualTo(unwrapKindToOptionalEither(rightSideLeft));
 
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideEmpty =
           eitherTMonad.ap(eitherTMonad.ap(mappedCompose, fKind), vEmpty);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideEmpty =
           eitherTMonad.ap(gKind, eitherTMonad.ap(fKind, vEmpty));
-      assertThat(unwrapT(leftSideEmpty)).isEqualTo(unwrapT(rightSideEmpty)); // Both should be Empty
+      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
+          .isEqualTo(unwrapKindToOptionalEither(rightSideEmpty));
     }
   }
 
@@ -399,7 +415,8 @@ class EitherTMonadTest {
           eitherTMonad.flatMap(fT, ofValue);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide = fT.apply(value);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalEither(leftSide))
+          .isEqualTo(unwrapKindToOptionalEither(rightSide));
     }
 
     @Test
@@ -415,36 +432,38 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> leftSideEmpty =
           eitherTMonad.flatMap(ofFunc, mEmpty);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(mValue));
-      assertThat(unwrapT(leftSideLeft)).isEqualTo(unwrapT(mLeft));
-      assertThat(unwrapT(leftSideEmpty)).isEqualTo(unwrapT(mEmpty));
+      assertThat(unwrapKindToOptionalEither(leftSide))
+          .isEqualTo(unwrapKindToOptionalEither(mValue));
+      assertThat(unwrapKindToOptionalEither(leftSideLeft))
+          .isEqualTo(unwrapKindToOptionalEither(mLeft));
+      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
+          .isEqualTo(unwrapKindToOptionalEither(mEmpty));
     }
 
     @Test
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
-      // Left Side: flatMap(flatMap(m, f), g)
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerFlatMap =
           eitherTMonad.flatMap(fT, mValue);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide =
           eitherTMonad.flatMap(gT, innerFlatMap);
 
-      // Right Side: flatMap(m, a -> flatMap(g, f(a)))
       Function<Integer, Kind<EitherTKind<OptionalKind<?>, String, ?>, String>> rightSideFunc =
           a -> eitherTMonad.flatMap(gT, fT.apply(a));
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide =
           eitherTMonad.flatMap(rightSideFunc, mValue);
 
-      assertThat(unwrapT(leftSide)).isEqualTo(unwrapT(rightSide));
+      assertThat(unwrapKindToOptionalEither(leftSide))
+          .isEqualTo(unwrapKindToOptionalEither(rightSide));
 
-      // Check Left/Empty propagation
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerFlatMapLeft =
           eitherTMonad.flatMap(fT, mLeft);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideLeft =
           eitherTMonad.flatMap(gT, innerFlatMapLeft);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideLeft =
           eitherTMonad.flatMap(rightSideFunc, mLeft);
-      assertThat(unwrapT(leftSideLeft)).isEqualTo(unwrapT(rightSideLeft)); // Left("M_ERR")
+      assertThat(unwrapKindToOptionalEither(leftSideLeft))
+          .isEqualTo(unwrapKindToOptionalEither(rightSideLeft));
 
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerFlatMapEmpty =
           eitherTMonad.flatMap(fT, mEmpty);
@@ -452,7 +471,8 @@ class EitherTMonadTest {
           eitherTMonad.flatMap(gT, innerFlatMapEmpty);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideEmpty =
           eitherTMonad.flatMap(rightSideFunc, mEmpty);
-      assertThat(unwrapT(leftSideEmpty)).isEqualTo(unwrapT(rightSideEmpty)); // Empty
+      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
+          .isEqualTo(unwrapKindToOptionalEither(rightSideEmpty));
     }
   }
 
@@ -463,16 +483,15 @@ class EitherTMonadTest {
   class MonadErrorTests {
     Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> rightVal = rightT(100);
     Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> leftVal = leftT("E404");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> emptyVal =
-        emptyT(); // Error from outer monad context
+    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> emptyVal = emptyT();
 
-    String raisedError = "E500";
+    String raisedErrorMsg = "E500";
     Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> raisedErrorKind =
-        eitherTMonad.raiseError(raisedError);
+        eitherTMonad.raiseError(raisedErrorMsg);
 
     @Test
     void raiseError_shouldCreateLeftInOptional() {
-      Optional<Either<String, Integer>> result = unwrapT(raisedErrorKind);
+      Optional<Either<String, Integer>> result = unwrapKindToOptionalEither(raisedErrorKind);
       assertThat(result).isPresent().contains(Either.left("E500"));
     }
 
@@ -484,7 +503,7 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.handleErrorWith(leftVal, handler);
 
-      assertThat(unwrapT(result)).isPresent().contains(Either.right(404));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(404));
     }
 
     @Test
@@ -495,31 +514,31 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.handleErrorWith(leftVal, handler);
 
-      assertThat(unwrapT(result)).isPresent().contains(Either.left("Recovered_E404"));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isPresent()
+          .contains(Either.left("Recovered_E404"));
     }
 
     @Test
     void handleErrorWith_shouldIgnoreRight() {
       Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer>> handler =
-          err -> rightT(-1); // Should not be called
+          err -> rightT(-1);
 
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.handleErrorWith(rightVal, handler);
 
-      // Instance might change due to flatMap, compare content
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(rightVal));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isEqualTo(unwrapKindToOptionalEither(rightVal));
     }
 
     @Test
     void handleErrorWith_shouldIgnoreEmpty() {
-      // handleErrorWith for EitherT only handles the 'L' error type.
-      // Errors from the outer monad (Optional.empty here) are NOT handled by it.
       Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer>> handler =
-          err -> rightT(-1); // Should not be called
+          err -> rightT(-1);
 
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.handleErrorWith(emptyVal, handler);
-      assertThat(unwrapT(result)).isEmpty(); // Stays empty
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
 
     @Test
@@ -527,7 +546,7 @@ class EitherTMonadTest {
       Function<String, Integer> handler = err -> -99;
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.handleError(leftVal, handler);
-      assertThat(unwrapT(result)).isPresent().contains(Either.right(-99));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(-99));
     }
 
     @Test
@@ -535,7 +554,8 @@ class EitherTMonadTest {
       Function<String, Integer> handler = err -> -1;
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.handleError(rightVal, handler);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(rightVal));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isEqualTo(unwrapKindToOptionalEither(rightVal));
     }
 
     @Test
@@ -543,7 +563,8 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fallback = rightT(0);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.recoverWith(leftVal, fallback);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(fallback));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isEqualTo(unwrapKindToOptionalEither(fallback));
     }
 
     @Test
@@ -551,7 +572,8 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fallback = leftT("FallbackError");
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.recoverWith(leftVal, fallback);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(fallback));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isEqualTo(unwrapKindToOptionalEither(fallback));
     }
 
     @Test
@@ -559,21 +581,23 @@ class EitherTMonadTest {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fallback = rightT(0);
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.recoverWith(rightVal, fallback);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(rightVal));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isEqualTo(unwrapKindToOptionalEither(rightVal));
     }
 
     @Test
     void recover_shouldReplaceLeftWithOfValue() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.recover(leftVal, 0);
-      assertThat(unwrapT(result)).isPresent().contains(Either.right(0));
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(0));
     }
 
     @Test
     void recover_shouldIgnoreRight() {
       Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
           eitherTMonad.recover(rightVal, 0);
-      assertThat(unwrapT(result)).isEqualTo(unwrapT(rightVal));
+      assertThat(unwrapKindToOptionalEither(result))
+          .isEqualTo(unwrapKindToOptionalEither(rightVal));
     }
   }
 }

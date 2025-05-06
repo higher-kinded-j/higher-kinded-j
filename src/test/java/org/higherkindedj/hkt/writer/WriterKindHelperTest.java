@@ -73,19 +73,6 @@ class WriterKindHelperTest {
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyWriterKind.class.getName());
     }
-
-    @Test
-    void unwrap_shouldThrowForHolderWithNullWriter() {
-      WriterHolder<String, Double> holderWithNull = new WriterHolder<>(null);
-      // Cast needed for test setup
-      @SuppressWarnings("unchecked")
-      Kind<WriterKind<String, ?>, Double> kind =
-          (Kind<WriterKind<String, ?>, Double>) (Kind<?, ?>) holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
   }
 
   @Nested

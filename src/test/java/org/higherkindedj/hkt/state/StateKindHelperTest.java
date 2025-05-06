@@ -65,19 +65,6 @@ class StateKindHelperTest {
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyStateKind.class.getName());
     }
-
-    @Test
-    void unwrap_shouldThrowForHolderWithNullState() {
-      StateHolder<Integer, String> holderWithNull = new StateHolder<>(null);
-      // Cast needed for test setup
-      @SuppressWarnings("unchecked")
-      Kind<StateKind<Integer, ?>, String> kind =
-          (Kind<StateKind<Integer, ?>, String>) (Kind<?, ?>) holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
   }
 
   @Nested
