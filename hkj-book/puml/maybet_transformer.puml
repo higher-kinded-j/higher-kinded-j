@@ -1,0 +1,100 @@
+@startuml EitherT_Classes
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
+
+  interface Kind<WITNESS, VAL> {
+    .. methods ..
+  }
+  note right of Kind: Generic Kind interface from HKJ core.
+
+  interface Monad<F> extends Applicative<F> {
+    flatMap(Function<A, Kind<F, B>>, Kind<F, A>): Kind<F, B>
+  }
+  note right of Monad: Generic Monad interface from HKJ core.
+
+  interface MonadError<F, E> extends Monad<F> {
+    raiseError(E): Kind<F, A>
+    handleErrorWith(Kind<F, A>, Function<E, Kind<F, A>>): Kind<F, A>
+  }
+  note right of MonadError: Generic MonadError interface from HKJ core.
+
+
+  class EitherT<F, L, R> {
+    + value: Kind<F, Either<L, R>>
+    + EitherT(Kind<F, Either<L, R>>)
+    + {static} fromKind(Kind<F, Either<L, R>>): EitherT<F, L, R>
+    + {static} right(Monad<F>, R): EitherT<F, L, R>
+    + {static} left(Monad<F>, L): EitherT<F, L, R>
+    + {static} fromEither(Monad<F>, Either<L, R>): EitherT<F, L, R>
+    + {static} liftF(Monad<F>, Kind<F, R>): EitherT<F, L, R>
+    + value(): Kind<F, Either<L, R>>
+  }
+
+  interface EitherTKind<F, L, R> extends Kind<EitherTKind<F, L, ?>, R> {
+    .. witness type ..
+  }
+  note bottom of EitherTKind
+    F: Witness of outer monad
+    L: Left type of inner Either
+    R: Right type of inner Either (the value type A in Kind<G,A>)
+  end note
+
+  EitherT ..|> EitherTKind : implements
+
+  class EitherTKindHelper<F, L> {
+    + {static} INVALID_KIND_NULL_MSG: String
+    + {static} INVALID_KIND_TYPE_MSG: String
+    + {static} INVALID_HOLDER_STATE_MSG: String
+    - EitherTKindHelper()
+    + {static} unwrap(Kind<EitherTKind<F_IN, L_IN, ?>, R>): EitherT<F_IN, L_IN, R>
+    + {static} wrap(EitherT<F_IN, L_IN, R>): EitherTKind<F_IN, L_IN, R>
+  }
+  note right of EitherTKindHelper: Utility for safe wrapping and unwrapping.
+
+
+  class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
+    - outerMonad: Monad<F>
+    + EitherTMonad(Monad<F>)
+    + of(R): Kind<EitherTKind<F, L, ?>, R>
+    + map(Function<R_IN, R_OUT>, Kind<EitherTKind<F, L, ?>, R_IN>): Kind<EitherTKind<F, L, ?>, R_OUT>
+    + ap(Kind<EitherTKind<F, L, ?>, Function<R_IN, R_OUT>>, Kind<EitherTKind<F, L, ?>, R_IN>): Kind<EitherTKind<F, L, ?>, R_OUT>
+    + flatMap(Function<R_IN, Kind<EitherTKind<F, L, ?>, R_OUT>>, Kind<EitherTKind<F, L, ?>, R_IN>): Kind<EitherTKind<F, L, ?>, R_OUT>
+    + raiseError(L): Kind<EitherTKind<F, L, ?>, R>
+    + handleErrorWith(Kind<EitherTKind<F, L, ?>, R>, Function<L, Kind<EitherTKind<F, L, ?>, R>>): Kind<EitherTKind<F, L, ?>, R>
+  }
+  note top of EitherTMonad
+    F: Witness of outer monad
+    L: Left type (Error type E for MonadError)
+  end note
+
+  EitherTMonad ..> EitherTKindHelper : uses for wrap/unwrap
+  EitherTMonad ..> EitherT : creates/manipulates
+  EitherTMonad ..> Monad : (depends on instance of outer Monad<F>)
+  EitherTMonad --|> MonadError
+
+
+    interface Either<L,R> {
+       isLeft(): boolean
+       isRight(): boolean
+       getLeft(): L
+       getRight(): R
+       map(Function<R, R2>): Either<L,R2>
+       flatMap(Function<R, Either<L,R2>>): Either<L,R2>
+       {static} left(L): Either<L,R>
+       {static} right(R): Either<L,R>
+    }
+    note right of Either: Core Either type.
+
+
+  EitherT *-- "1" Kind : (value field holds a Kind)
+  Kind <|-- EitherTKind : (EitherTKind is a specific Kind)
+
+  ' Relationships involving generics are conceptual
+  ' Kind "F" parameter in EitherT, EitherTKind, EitherTMonad is a conceptual link
+  ' to an outer Monad (e.g. CompletableFutureKind, OptionalKind)
+
+@enduml
