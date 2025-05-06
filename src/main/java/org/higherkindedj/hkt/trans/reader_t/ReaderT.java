@@ -9,8 +9,8 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the Reader Transformer Monad (ReaderT). It wraps a computation that depends on an
- * environment R to produce a monadic value {@code F<A>}. Implemented as an immutable record holding the
- * function {@code R -> Kind<F, A>}.
+ * environment R to produce a monadic value {@code F<A>}. Implemented as an immutable record holding
+ * the function {@code R -> Kind<F, A>}.
  *
  * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}).
  * @param <R> The type of the environment (read-only context).

@@ -121,7 +121,8 @@ class OptionalTMonadTest {
     }
 
     @Test
-    @DisplayName("map should result in None when mapping function returns null") // Test name updated
+    @DisplayName(
+        "map should result in None when mapping function returns null") // Test name updated
     void map_shouldResultInNoneWhenMappingToNull() { // Method name updated
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> input = someT(5);
 
@@ -262,7 +263,8 @@ class OptionalTMonadTest {
           .isEqualTo(unwrapKindToOptionalOptional(fa));
       assertThat(unwrapKindToOptionalOptional(optionalTMonad.map(Function.identity(), faNone)))
           .isEqualTo(unwrapKindToOptionalOptional(faNone));
-      assertThat(unwrapKindToOptionalOptional(optionalTMonad.map(Function.identity(), faOuterEmpty)))
+      assertThat(
+              unwrapKindToOptionalOptional(optionalTMonad.map(Function.identity(), faOuterEmpty)))
           .isEqualTo(unwrapKindToOptionalOptional(faOuterEmpty));
     }
 
@@ -365,13 +367,13 @@ class OptionalTMonadTest {
     @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
     void composition() {
       Function<
-          Function<String, String>,
-          Function<Function<Integer, String>, Function<Integer, String>>>
+              Function<String, String>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
           composeMap = gg -> ff -> gg.compose(ff);
 
       Kind<
-          OptionalTKind<OptionalKind<?>, ?>,
-          Function<Function<Integer, String>, Function<Integer, String>>>
+              OptionalTKind<OptionalKind<?>, ?>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
           mappedCompose = optionalTMonad.map(composeMap, gKind);
       Kind<OptionalTKind<OptionalKind<?>, ?>, Function<Integer, String>> ap1 =
           optionalTMonad.ap(mappedCompose, fKind);
@@ -418,7 +420,8 @@ class OptionalTMonadTest {
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> leftSideOuterEmpty =
           optionalTMonad.flatMap(ofFunc, mValueOuterEmpty);
 
-      assertThat(unwrapKindToOptionalOptional(leftSide)).isEqualTo(unwrapKindToOptionalOptional(mValue));
+      assertThat(unwrapKindToOptionalOptional(leftSide))
+          .isEqualTo(unwrapKindToOptionalOptional(mValue));
       assertThat(unwrapKindToOptionalOptional(leftSideNone))
           .isEqualTo(unwrapKindToOptionalOptional(mValueNone));
       assertThat(unwrapKindToOptionalOptional(leftSideOuterEmpty))
@@ -483,19 +486,18 @@ class OptionalTMonadTest {
 
     @Test
     void handleErrorWith_shouldIgnoreSome() {
-      Function<Void, Kind<OptionalTKind<OptionalKind<?>, ?>, Integer>> handler =
-          err -> someT(-1);
+      Function<Void, Kind<OptionalTKind<OptionalKind<?>, ?>, Integer>> handler = err -> someT(-1);
 
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> result =
           optionalTMonad.handleErrorWith(someVal, handler);
 
-      assertThat(unwrapKindToOptionalOptional(result)).isEqualTo(unwrapKindToOptionalOptional(someVal));
+      assertThat(unwrapKindToOptionalOptional(result))
+          .isEqualTo(unwrapKindToOptionalOptional(someVal));
     }
 
     @Test
     void handleErrorWith_shouldIgnoreOuterEmpty() {
-      Function<Void, Kind<OptionalTKind<OptionalKind<?>, ?>, Integer>> handler =
-          err -> someT(-1);
+      Function<Void, Kind<OptionalTKind<OptionalKind<?>, ?>, Integer>> handler = err -> someT(-1);
 
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> result =
           optionalTMonad.handleErrorWith(outerEmptyVal, handler);
@@ -515,7 +517,8 @@ class OptionalTMonadTest {
       Function<Void, Integer> handler = err -> -1;
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> result =
           optionalTMonad.handleError(someVal, handler);
-      assertThat(unwrapKindToOptionalOptional(result)).isEqualTo(unwrapKindToOptionalOptional(someVal));
+      assertThat(unwrapKindToOptionalOptional(result))
+          .isEqualTo(unwrapKindToOptionalOptional(someVal));
     }
 
     @Test
@@ -523,7 +526,8 @@ class OptionalTMonadTest {
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> fallback = someT(0);
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> result =
           optionalTMonad.recoverWith(noneVal, fallback);
-      assertThat(unwrapKindToOptionalOptional(result)).isEqualTo(unwrapKindToOptionalOptional(fallback));
+      assertThat(unwrapKindToOptionalOptional(result))
+          .isEqualTo(unwrapKindToOptionalOptional(fallback));
     }
 
     @Test
@@ -531,7 +535,8 @@ class OptionalTMonadTest {
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> fallback = someT(0);
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> result =
           optionalTMonad.recoverWith(someVal, fallback);
-      assertThat(unwrapKindToOptionalOptional(result)).isEqualTo(unwrapKindToOptionalOptional(someVal));
+      assertThat(unwrapKindToOptionalOptional(result))
+          .isEqualTo(unwrapKindToOptionalOptional(someVal));
     }
 
     @Test
@@ -543,7 +548,8 @@ class OptionalTMonadTest {
     @Test
     void recover_shouldIgnoreSome() {
       Kind<OptionalTKind<OptionalKind<?>, ?>, Integer> result = optionalTMonad.recover(someVal, 0);
-      assertThat(unwrapKindToOptionalOptional(result)).isEqualTo(unwrapKindToOptionalOptional(someVal));
+      assertThat(unwrapKindToOptionalOptional(result))
+          .isEqualTo(unwrapKindToOptionalOptional(someVal));
     }
   }
 }
