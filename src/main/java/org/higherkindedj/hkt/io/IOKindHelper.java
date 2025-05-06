@@ -84,7 +84,6 @@ public final class IOKindHelper {
    *     {@code @NonNull}.
    * @return The result of the IO computation. Can be {@code @Nullable} depending on A.
    * @throws KindUnwrapException if the input {@code kind} is invalid.
-   * @throws Exception if the underlying IO computation throws an exception.
    */
   public static <A> @Nullable A unsafeRunSync(@NonNull Kind<IOKind<?>, A> kind) {
     return unwrap(kind).unsafeRunSync();
