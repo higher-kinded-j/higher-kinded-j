@@ -30,24 +30,20 @@ Key characteristics:
 2. **Unified Interface:** The resulting transformed monad (e.g., `EitherT<CompletableFutureKind, ...>`) itself implements the `Monad` (and often `MonadError`, etc.) interface.
 3. **Abstraction:** They hide the complexity of manually managing the nested structure. You can use standard `map`, `flatMap`, `handleErrorWith` operations on the transformed monad, and it automatically handles the logic for both underlying monads correctly.
 
-The `Higher-Kinded-J` library provides the `EitherT` monad transformer.
+## `EitherT` Monad Transformer.
 
 ![eithert_transformer.svg](./images/puml/eithert_transformer.svg)
 
 ## `EitherT<F, L, R>`: Combining Any Monad `F` with `Either<L, R>`
 
-`EitherT<F, L, R>` is a monad transformer designed specifically to combine an outer monadic context `F` (like `CompletableFutureKind`, `OptionalKind`, `IOKind`, etc.) with an inner `Either<L, R>` context.
+The `EitherT` monad transformer allows you to combine the error-handling capabilities of `Either<L, R>` with another outer monad `F`. It transforms a computation that results in `Kind<F, Either<L, R>>` into a single monadic structure that can be easily composed. This is particularly useful when dealing with operations that can fail (represented by `Left<L>`) within an effectful context `F` (like asynchronous operations using `CompletableFutureKind` or computations involving state with `StateKind`).
 
 * **`F`**: The witness type of the **outer monad** (e.g., `CompletableFutureKind<?>`, `OptionalKind<?>`). This monad handles the primary effect (e.g., asynchronicity, optionality).
-* **`L`**: The **Left type** of the inner `Either`. This typically represents the *error* type for the computation.
+* **`L`**: The **Left type** of the inner `Either`. This typically represents the *error* type for the computation or alternative result.
 * **`R`**: The **Right type** of the inner `Either`. This typically represents the *success* value type.
 
-The `EitherT` type itself is implemented as a simple `record` that wraps the nested structure:
-
 ```java
-// Simplified definition from EitherT.java
-public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
-    implements EitherTKind<F, L, R> { /* ... static factories ... */ }
+public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) { /* ... static factories ... */ }
 ```
 
 It holds a value of type `Kind<F, Either<L, R>>`. The real power comes from its associated type class instance, `EitherTMonad`.
@@ -58,18 +54,25 @@ The primary goal of `EitherT` is to provide a unified `Monad` interface (specifi
 
 ## `EitherTKind<F, L, R>`: The Witness Type
 
-Just like other types in the Higher-Kinded-J, `EitherT` needs a corresponding `Kind` interface to act as its witness type in generic functions. This is `EitherTKind<F, L, R>`.
+Just like other types in the Higher-Kinded-J, `EitherT` needs a corresponding `Kind` interface to act as its witness type in generic functions. This is `EitherTKind<F, L, R>`. 
 
 * It extends `Kind<G, R>` where `G` (the witness for the combined monad) is `EitherTKind<F, L, ?>`.
 * `F` and `L` are fixed for a specific `EitherT` context, while `R` is the variable type parameter `A` in `Kind<G, A>`.
 
 You'll primarily interact with this type when providing type signatures or receiving results from `EitherTMonad` methods.
 
+## `EitherTKindHelper` 
+* Provides static wrap and unwrap methods to safely convert between the concrete `EitherT<F, L, R>` and its Kind representation (`Kind<EitherTKind<F, L, ?>, R>`).
+
 ## `EitherTMonad<F, L>`: Operating on `EitherT`
 
-This is the type class instance that provides the monadic operations (`of`, `map`, `flatMap`, `ap`) and error handling (`raiseError`, `handleErrorWith`) for `EitherTKind<F, L, ?>`.
+* The EitherTMonad class implements `MonadError<EitherTKind<F, L, ?>, L>`.
 
-**Crucially, `EitherTMonad` requires an instance of `Monad<F>` (the outer monad) to be provided during its construction.** This outer monad instance is used internally to handle the effects of `F`.
+- It requires a Monad<F> instance for the outer monad F to be provided during construction. This outer monad instance is used internally to handle the effects of `F`.
+- It uses `EitherTKindHelper.wrap` and `EitherTKindHelper.unwrap` internally to manage the conversion between the `Kind` and the concrete `EitherT`.
+- The error type E for MonadError is fixed to L, the 'Left' type of the inner Either. Error handling operations like `raiseError(L l)` will create an `EitherT` representing `F<Left(l)>`, and `handleErrorWith` allows recovering from such Left states.
+
+
 
 ```java
 // Example: F = CompletableFutureKind<?>, L = DomainError
