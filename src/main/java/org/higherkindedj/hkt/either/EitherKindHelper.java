@@ -36,8 +36,6 @@ public final class EitherKindHelper {
    * specific holder implementation (EitherHolder). Throws KindUnwrapException if the Kind is null,
    * not an EitherHolder, or the holder contains a null Either instance.
    *
-   * <p>Refactored using Java 21+ Pattern Matching for switch.
-   *
    * @param kind The EitherKind instance. (@Nullable allows checking null input)
    * @param <L> The Left type.
    * @param <R> The Right type.
@@ -59,7 +57,6 @@ public final class EitherKindHelper {
         }
         // Cast is  necessary because the pattern matched EitherHolder<?,?>
         // before confirming the internal Either's specific L/R types.
-        // But it's safer now after the null check.
         yield (Either<L, R>) internalEither;
       }
       // Case 3: Input Kind is non-null but not an EitherHolder

@@ -5,55 +5,78 @@ skinparam classAttributeIconSize 0
 skinparam defaultFontName "Roboto, Helvetica"
 hide empty members
 
-package "Core HKT Interfaces" {
-    interface Kind<W, A>
-    interface Monad<W>
-    interface MonadError<W, E>
+interface Kind<F, A>
+
+interface "Monad<F> extends Applicative<F>"
+interface "MonadError<F, E> extends Monad<F>"
+
+' --- Either Components ---
+interface EitherKind<L, R> extends Kind<EitherKind<L, ?>, R> {
+  + {abstract} fold(Function<L, T>, Function<R, T>): T
+  + {abstract} isLeft(): boolean
+  + {abstract} isRight(): boolean
+  + {abstract} getLeft(): L <<throws>>
+  + {abstract} getRight(): R <<throws>>
+  + {abstract} map(Function<R, R_OUT>): Either<L, R_OUT>
+  + {abstract} flatMap(Function<R, Either<L, R_OUT>>): Either<L, R_OUT>
+  ' ... other Either methods
+}
+class Either<L, R> {
+  + {static} left(L): Either<L, R>
+  + {static} right(R): Either<L, R>
+}
+note right of Either: Concrete implementation (e.g., using sealed interface with Left/Right records) not shown fully.
+
+' --- EitherT Components ---
+
+interface EitherTKind<F, L, R> extends Kind<EitherTKind<F, L, ?>, R> {
+  ' Marker interface for HKT simulation '
 }
 
-package "Either Type" {
-     interface Either<L, R>
+class EitherT<F, L, R> <<record>> {
+  + EitherT(Kind<F, Either<L, R>> value)
+  __ Methods __
+  + {static} fromKind(Kind<F, Either<L, R>>): EitherT<F, L, R>
+  + {static} right(Monad<F>, R): EitherT<F, L, R>
+  + {static} left(Monad<F>, L): EitherT<F, L, R>
+  + {static} fromEither(Monad<F>, Either<L, R>): EitherT<F, L, R>
+  + {static} liftF(Monad<F>, Kind<F, R>): EitherT<F, L, R>
 }
 
-package "EitherT Transformer" {
-    interface EitherTKind<F, L, R> extends Kind<EitherTKind<F, L, ?>, R> {
-       ' Witness type G = EitherTKind<F, L, ?>
-       ' Value type   A = R
-    }
-
-    class EitherT<F, L, R> <<record>> implements EitherTKind<F, L, R> {
-        + EitherT(Kind<F, Either<L, R>> value)
-        __ Methods __
-        + {static} EitherT<F, L, R> fromKind(Kind<F, Either<L, R>> value)
-        + {static} EitherT<F, L, R> right(Monad<F> outerMonad, R r)
-        + {static} EitherT<F, L, R> left(Monad<F> outerMonad, L l)
-        + {static} EitherT<F, L, R> fromEither(Monad<F> outerMonad, Either<L, R> either)
-        + {static} EitherT<F, L, R> liftF(Monad<F> outerMonad, Kind<F, R> fr)
-        + Kind<F, Either<L, R>> value()
-    }
-
-    class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
-        - outerMonad: Monad<F>
-        + EitherTMonad(Monad<F> outerMonad)
-        + Kind<G, A> of(A value)
-        + Kind<G, B> map(Function<A, B> f, Kind<G, A> fa)
-        + Kind<G, B> ap(Kind<G, Function<A, B>> ff, Kind<G, A> fa)
-        + Kind<G, B> flatMap(Function<A, Kind<G, B>> f, Kind<G, A> ma)
-        + Kind<G, A> raiseError(L error)
-        + Kind<G, A> handleErrorWith(Kind<G, A> ma, Function<L, Kind<G, A>> handler)
-    }
+class EitherTKindHelper<F, L> <<utility>> {
+  + {static} wrap(EitherT<F, L, R>): EitherTKind<F, L, R>
+  + {static} unwrap(Kind<EitherTKind<F, L, ?>, R>): EitherT<F, L, R>
+  ' --- private internal holder --- '
+  - {static} record EitherTHolder<F_HOLDER, L_HOLDER, R_HOLDER>(EitherT<F_HOLDER, L_HOLDER, R_HOLDER>) implements EitherTKind<F_HOLDER, L_HOLDER, R_HOLDER>
 }
 
+class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
+  - outerMonad: Monad<F>
+  + EitherTMonad(Monad<F>)
+  + of(R): Kind<EitherTKind<F, L, ?>, R>
+  + map(Function<R_IN, R_OUT>, Kind<...>): Kind<...>
+  + ap(Kind<...Func...>, Kind<...Val...>): Kind<...>
+  + flatMap(Function<R_IN, Kind<...>>, Kind<...>): Kind<...>
+  + raiseError(L): Kind<EitherTKind<F, L, ?>, R>
+  + handleErrorWith(Kind<...>, Function<L, Kind<...>>): Kind<...>
+}
 
-' Relationships
-EitherTKind -- Kind : extends
-EitherT -- EitherTKind : implements
-EitherTMonad -- MonadError : implements
+' --- Relationships ---
 
-EitherTMonad *-- Monad : uses outerMonad >
-EitherT ..> Kind : contains Kind<F, Either>
-EitherT ..> Either : contains Kind<F, Either>
-EitherTMonad ..> EitherT : operates on
-EitherTMonad ..> Either : operates on inner Either
+EitherT *-- Kind : contains >
+note on link: EitherT holds Kind<F, Either<L, R>>
+
+EitherTKindHelper --> EitherT : <<uses>> wrap/unwrap
+EitherTKindHelper --> EitherTKind : <<creates>> via wrap
+
+EitherTKindHelper +-- EitherTKindHelper.EitherTHolder : internal record >
+EitherTKindHelper.EitherTHolder ..|> EitherTKind : implements
+EitherTKindHelper.EitherTHolder *-- EitherT : holds >
+
+EitherTMonad --> EitherTKindHelper : <<uses>>
+EitherTMonad --> Monad : requires >
+note on link: Requires Monad<F> instance
+
+EitherTMonad ..|> MonadError : implements
 
 @enduml

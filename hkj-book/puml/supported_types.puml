@@ -30,7 +30,7 @@ package "Supported Types (Monad Implementations)" {
     WriterMonad <|.. CoreInterfaces.Monad
 
     ' Example relation for Optional
-    OptionalMonad ..> SimulationPlumbing.OptionalKind : operates on witness
+    OptionalMonad ..> "Simulation Plumbing.OptionalKind" : operates on witness
 }
 
 

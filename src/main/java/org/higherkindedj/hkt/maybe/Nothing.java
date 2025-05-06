@@ -65,9 +65,4 @@ final class Nothing<T> implements Maybe<T> {
   public @NonNull String toString() {
     return "Nothing";
   }
-
-  // Optional: Ensure proper singleton behavior during serialization
-  private @NonNull Object readResolve() {
-    return INSTANCE;
-  }
 }
