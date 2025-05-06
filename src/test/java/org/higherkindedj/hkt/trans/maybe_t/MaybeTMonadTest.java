@@ -355,13 +355,13 @@ class MaybeTMonadTest {
     @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
     void composition() {
       Function<
-          Function<String, String>,
-          Function<Function<Integer, String>, Function<Integer, String>>>
+              Function<String, String>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
           composeMap = gg -> ff -> gg.compose(ff);
 
       Kind<
-          MaybeTKind<OptionalKind<?>, ?>,
-          Function<Function<Integer, String>, Function<Integer, String>>>
+              MaybeTKind<OptionalKind<?>, ?>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
           mappedCompose = maybeTMonad.map(composeMap, gKind);
       Kind<MaybeTKind<OptionalKind<?>, ?>, Function<Integer, String>> ap1 =
           maybeTMonad.ap(mappedCompose, fKind);

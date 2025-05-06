@@ -10,13 +10,13 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Implements the {@link MonadError} interface for the {@link MaybeTKind} monad transformer.
- * The error type {@code E} is fixed to {@link Void}, as {@code MaybeT} inherently represents
- * failure as an absence of a value (similar to {@code Maybe.nothing()}).
+ * Implements the {@link MonadError} interface for the {@link MaybeTKind} monad transformer. The
+ * error type {@code E} is fixed to {@link Void}, as {@code MaybeT} inherently represents failure as
+ * an absence of a value (similar to {@code Maybe.nothing()}).
  *
- * <p>This class requires a {@link Monad} instance for the outer monad {@code F} to operate.
- * It uses {@link MaybeTKindHelper} to convert between the {@code Kind} representation
- * ({@code MaybeTKind<F, ?>}) and the concrete {@link MaybeT} type.
+ * <p>This class requires a {@link Monad} instance for the outer monad {@code F} to operate. It uses
+ * {@link MaybeTKindHelper} to convert between the {@code Kind} representation ({@code MaybeTKind<F,
+ * ?>}) and the concrete {@link MaybeT} type.
  *
  * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}).
  */
@@ -27,8 +27,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
   /**
    * Constructs a {@code MaybeTMonad} instance.
    *
-   * @param outerMonad The {@link Monad} instance for the outer monad {@code F}.
-   * Must not be null.
+   * @param outerMonad The {@link Monad} instance for the outer monad {@code F}. Must not be null.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public MaybeTMonad(@NonNull Monad<F> outerMonad) {
@@ -37,9 +36,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
   }
 
   /**
-   * Lifts a value {@code a} into the {@code MaybeTKind<F, ?>} context.
-   * If {@code value} is non-null, it results in {@code F<Just(value)>}.
-   * If {@code value} is null, it results in {@code F<Nothing>}.
+   * Lifts a value {@code a} into the {@code MaybeTKind<F, ?>} context. If {@code value} is
+   * non-null, it results in {@code F<Just(value)>}. If {@code value} is null, it results in {@code
+   * F<Nothing>}.
    *
    * @param <A> The type of the value.
    * @param value The value to lift. Can be null.
@@ -54,11 +53,10 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
   }
 
   /**
-   * Maps a function {@code f} over the value within a {@code MaybeTKind<F, A>}.
-   * If the wrapped {@code Kind<F, Maybe<A>>} contains {@code Just(a)}, the function is applied to {@code a}.
-   * If it contains {@code Nothing}, or if the function {@code f} returns null,
-   * the result is {@code F<Nothing>}.
-   * The transformation is applied within the context of the outer monad {@code F}.
+   * Maps a function {@code f} over the value within a {@code MaybeTKind<F, A>}. If the wrapped
+   * {@code Kind<F, Maybe<A>>} contains {@code Just(a)}, the function is applied to {@code a}. If it
+   * contains {@code Nothing}, or if the function {@code f} returns null, the result is {@code
+   * F<Nothing>}. The transformation is applied within the context of the outer monad {@code F}.
    *
    * @param <A> The original type of the value.
    * @param <B> The new type of the value after applying the function.
@@ -81,17 +79,18 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
   }
 
   /**
-   * Applies a function wrapped in {@code Kind<MaybeTKind<F, ?>, Function<A, B>>}
-   * to a value wrapped in {@code Kind<MaybeTKind<F, ?>, A>}.
+   * Applies a function wrapped in {@code Kind<MaybeTKind<F, ?>, Function<A, B>>} to a value wrapped
+   * in {@code Kind<MaybeTKind<F, ?>, A>}.
    *
    * <p>The behavior is as follows:
+   *
    * <ul>
-   * <li>If both the function and value are present (i.e., {@code F<Just(Function)>} and {@code F<Just(Value)>}),
-   * the function is applied, resulting in {@code F<Just(Result)>}.
-   * <li>If either the function or value is {@code Nothing} (i.e., {@code F<Nothing>}),
-   * the result is {@code F<Nothing>}.
-   * <li>This logic is handled by {@code flatMap} and {@code map} on the inner {@link Maybe}
-   * and the outer monad {@code F}.
+   *   <li>If both the function and value are present (i.e., {@code F<Just(Function)>} and {@code
+   *       F<Just(Value)>}), the function is applied, resulting in {@code F<Just(Result)>}.
+   *   <li>If either the function or value is {@code Nothing} (i.e., {@code F<Nothing>}), the result
+   *       is {@code F<Nothing>}.
+   *   <li>This logic is handled by {@code flatMap} and {@code map} on the inner {@link Maybe} and
+   *       the outer monad {@code F}.
    * </ul>
    *
    * @param <A> The type of the input value.
@@ -109,16 +108,18 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
     MaybeT<F, Function<A, B>> funcT = MaybeTKindHelper.unwrap(ff);
     MaybeT<F, A> valT = MaybeTKindHelper.unwrap(fa);
 
-    // The logic F<Maybe<Function>> flatMap ( maybeF -> F<Maybe<Value>> map (maybeV -> maybeF.flatMap(f -> maybeV.map(f))) )
+    // The logic F<Maybe<Function>> flatMap ( maybeF -> F<Maybe<Value>> map (maybeV ->
+    // maybeF.flatMap(f -> maybeV.map(f))) )
     // can be simplified by using Maybe's applicative-like behavior.
-    // outerMonad.map(maybeFunc -> maybeFunc.flatMap(f -> maybeVal.map(f)), funcT.value()) when maybeVal is fixed.
+    // outerMonad.map(maybeFunc -> maybeFunc.flatMap(f -> maybeVal.map(f)), funcT.value()) when
+    // maybeVal is fixed.
     // Here we need to combine two F<Maybe<T>>.
     Kind<F, Maybe<B>> resultValue =
         outerMonad.flatMap( // F<Maybe<Function<A,B>>>
             maybeF -> // Maybe<Function<A,B>>
-                outerMonad.map( // F<Maybe<A>>
+            outerMonad.map( // F<Maybe<A>>
                     maybeA -> // Maybe<A>
-                        maybeF.flatMap( // Maybe<Function<A,B>> to Maybe<B>
+                    maybeF.flatMap( // Maybe<Function<A,B>> to Maybe<B>
                             maybeA::map), // f -> maybeA.map(f) which is Maybe<A> -> Maybe<B>
                     valT.value()),
             funcT.value());
@@ -127,8 +128,8 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
   }
 
   /**
-   * Applies a function {@code f} that returns a {@code Kind<MaybeTKind<F, ?>, B>} to the
-   * value within a {@code Kind<MaybeTKind<F, ?>, A>}, and flattens the result.
+   * Applies a function {@code f} that returns a {@code Kind<MaybeTKind<F, ?>, B>} to the value
+   * within a {@code Kind<MaybeTKind<F, ?>, A>}, and flattens the result.
    *
    * <p>If the input {@code ma} contains {@code F<Just(a)>}, {@code f(a)} is invoked. The resulting
    * {@code Kind<MaybeTKind<F, ?>, B>} (which internally is {@code F<Maybe<B>>}) becomes the result.
@@ -152,7 +153,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
     Kind<F, Maybe<B>> newValue =
         outerMonad.flatMap( // Operating on F<Maybe<A>>
             maybeA -> // maybeA is Maybe<A>
-                maybeA
+            maybeA
                     .map( // If Just(a), apply inner function
                         a -> {
                           // Apply f: A -> Kind<MaybeTKind<F, ?>, B>
@@ -166,9 +167,11 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
                     // We need to lift this Nothing into the context of F.
                     // So, if Maybe<A> is Nothing, this becomes Maybe<Kind<F, Maybe<B>>>.nothing()
                     // Then orElse provides a Kind<F, Maybe<B>> directly.
-                    .orElse(outerMonad.of(Maybe.nothing())), // If Maybe<A> is Nothing, result is F<Nothing>
+                    .orElse(
+                        outerMonad.of(
+                            Maybe.nothing())), // If Maybe<A> is Nothing, result is F<Nothing>
             maybeT.value() // The initial Kind<F, Maybe<A>>
-        );
+            );
     // Wrap the final MaybeT
     return MaybeTKindHelper.wrap(MaybeT.fromKind(newValue));
   }
@@ -176,10 +179,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
   // --- MonadError Methods (Error Type E = Void) ---
 
   /**
-   * Raises an error in the {@code MaybeTKind<F, ?>} context. For {@code MaybeT}, an error
-   * is represented by the {@code Nothing} state, so this method returns a
-   * {@code MaybeTKind} wrapping {@code F<Nothing>}.
-   * The provided {@code error} of type {@link Void} is ignored.
+   * Raises an error in the {@code MaybeTKind<F, ?>} context. For {@code MaybeT}, an error is
+   * represented by the {@code Nothing} state, so this method returns a {@code MaybeTKind} wrapping
+   * {@code F<Nothing>}. The provided {@code error} of type {@link Void} is ignored.
    *
    * @param <A> The type parameter for the resulting {@code Kind}, though it will be empty.
    * @param error The error value ({@code null} for {@link Void}).
@@ -193,17 +195,17 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
   }
 
   /**
-   * Handles an error (represented by {@code Nothing}) in the {@code Kind<MaybeTKind<F, ?>, A>}.
-   * If the input {@code ma} represents {@code F<Nothing>}, the {@code handler} function
-   * is applied. The {@code Void} parameter to the handler will be {@code null}.
-   * If {@code ma} represents {@code F<Just(a)>}, it is returned unchanged.
-   * This operation is performed within the context of the outer monad {@code F}.
+   * Handles an error (represented by {@code Nothing}) in the {@code Kind<MaybeTKind<F, ?>, A>}. If
+   * the input {@code ma} represents {@code F<Nothing>}, the {@code handler} function is applied.
+   * The {@code Void} parameter to the handler will be {@code null}. If {@code ma} represents {@code
+   * F<Just(a)>}, it is returned unchanged. This operation is performed within the context of the
+   * outer monad {@code F}.
    *
    * @param <A> The type of the value.
    * @param ma The {@code Kind<MaybeTKind<F, ?>, A>} to handle. Must not be null.
-   * @param handler The function to apply if {@code ma} represents {@code F<Nothing>}.
-   * It takes a {@link Void} (which will be null) and returns a new
-   * {@code Kind<MaybeTKind<F, ?>, A>}. Must not be null.
+   * @param handler The function to apply if {@code ma} represents {@code F<Nothing>}. It takes a
+   *     {@link Void} (which will be null) and returns a new {@code Kind<MaybeTKind<F, ?>, A>}. Must
+   *     not be null.
    * @return A {@code Kind<MaybeTKind<F, ?>, A>}, either the original or the result of the handler.
    */
   @Override
@@ -232,7 +234,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind<F, ?>, Void> {
               }
             },
             maybeT.value() // The initial Kind<F, Maybe<A>>
-        );
+            );
     // Wrap the final MaybeT
     return MaybeTKindHelper.wrap(MaybeT.fromKind(handledValue));
   }

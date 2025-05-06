@@ -49,18 +49,18 @@ class MaybeTKindHelperTest {
   void privateConstructor_shouldThrowException() {
     // Test the private constructor to ensure it prevents instantiation (for coverage)
     assertThatThrownBy(
-        () -> {
-          Constructor<MaybeTKindHelper> constructor =
-              MaybeTKindHelper.class.getDeclaredConstructor();
-          constructor.setAccessible(true); // Allow access to private constructor
-          try {
-            constructor.newInstance(); // Attempt to instantiate
-          } catch (InvocationTargetException e) {
-            // The actual exception thrown by the constructor is wrapped in
-            // InvocationTargetException
-            throw e.getCause();
-          }
-        })
+            () -> {
+              Constructor<MaybeTKindHelper> constructor =
+                  MaybeTKindHelper.class.getDeclaredConstructor();
+              constructor.setAccessible(true); // Allow access to private constructor
+              try {
+                constructor.newInstance(); // Attempt to instantiate
+              } catch (InvocationTargetException e) {
+                // The actual exception thrown by the constructor is wrapped in
+                // InvocationTargetException
+                throw e.getCause();
+              }
+            })
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessage("This is a utility class and cannot be instantiated");
   }
@@ -159,8 +159,7 @@ class MaybeTKindHelperTest {
     @Test
     @DisplayName("unwrap should correctly infer types")
     void unwrap_typeInference() {
-      MaybeT<OptionalKind<?>, Integer> concrete =
-          MaybeT.just(new OptionalMonad(), 123);
+      MaybeT<OptionalKind<?>, Integer> concrete = MaybeT.just(new OptionalMonad(), 123);
       MaybeTKind<OptionalKind<?>, Integer> wrapped = MaybeTKindHelper.wrap(concrete);
 
       // Explicitly type the unwrap to ensure the generic types are correctly inferred
@@ -169,8 +168,7 @@ class MaybeTKindHelperTest {
           .isEqualTo(OptionalKindHelper.wrap(Optional.of(Maybe.just(123))));
 
       // Test with a different inner type
-      MaybeT<OptionalKind<?>, Boolean> concreteBool =
-          MaybeT.just(new OptionalMonad(), true);
+      MaybeT<OptionalKind<?>, Boolean> concreteBool = MaybeT.just(new OptionalMonad(), true);
       MaybeTKind<OptionalKind<?>, Boolean> wrappedBool = MaybeTKindHelper.wrap(concreteBool);
       MaybeT<OptionalKind<?>, Boolean> unwrappedBool = MaybeTKindHelper.unwrap(wrappedBool);
       assertThat(unwrappedBool.value())

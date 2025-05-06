@@ -8,174 +8,129 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Represents the Either Transformer Monad (EitherT), implemented as an immutable record.
+ * Represents the concrete implementation of the Either Transformer Monad (EitherT). It wraps a
+ * monadic value of type {@code Kind<F, Either<L, R>>}, where {@code F} is the outer monad, {@code
+ * L} is the type of the 'left' (error/alternative) value, and {@code R} is the type of the 'right'
+ * (success) value.
  *
- * <p>EitherT simplifies working with nested monadic structures of the form {@code F<Either<L, R>>},
- * where {@code F} is an outer monad (like {@code CompletableFutureKind} or {@code OptionalKind})
- * and {@code Either} is used for inner error handling (with {@code L} typically representing an
- * error type and {@code R} representing a success type).
+ * <p>This class is a record, making it an immutable data holder for the wrapped value. To use
+ * {@code EitherT} as a {@code Kind} in higher-kinded type simulations, it should be
+ * wrapped/unwrapped using {@link EitherTKindHelper}.
  *
- * <p>This record wraps a single value of type {@link Kind}{@code <F, Either<L, R>>}. Operations
- * like {@code map}, {@code flatMap}, {@code ap}, etc., are defined in the corresponding type class
- * instance, {@link EitherTMonad}, which operates on instances of this {@code EitherT} record.
- *
- * <p>Using {@code EitherT} allows chaining operations that return {@code Either} within the context
- * of the outer monad {@code F}, automatically handling the short-circuiting logic of {@code
- * Either.Left} and propagating the context of {@code F}.
- *
- * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}, {@code
- *     CompletableFutureKind<?>}). This monad dictates the context in which the {@code Either} is
- *     evaluated (e.g., asynchronous, optional).
- * @param <L> The type for the {@code Left} side of the inner {@link Either}, typically used for
- *     errors or alternative results.
- * @param <R> The type for the {@code Right} side of the inner {@link Either}, typically used for
- *     successful results.
- * @param value The wrapped {@link Kind}{@code <F, Either<L, R>>} representing the nested monadic
- *     structure. (NonNull)
- * @see EitherTKind
- * @see EitherTMonad
- * @see Either
- * @see Kind
+ * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}).
+ * @param <L> The type of the 'left' value in the inner {@link Either}.
+ * @param <R> The type of the 'right' value in the inner {@link Either}.
+ * @param value The underlying monadic value {@code Kind<F, Either<L, R>>}. Must not be null.
  */
-public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
-    implements EitherTKind<F, L, R> {
+public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) {
 
   /**
-   * Canonical constructor for the EitherT record. Ensures the wrapped value is not null. Typically,
-   * instances should be created using the provided static factory methods.
+   * Canonical constructor for {@code EitherT}.
    *
-   * @param value The {@link Kind}{@code <F, Either<L, R>>} to wrap. Must not be null. (NonNull)
-   * @throws NullPointerException if the provided value is null.
+   * @param value The underlying monadic value {@code Kind<F, Either<L, R>>}.
+   * @throws NullPointerException if {@code value} is null.
    */
   public EitherT {
-    Objects.requireNonNull(value, "Wrapped value cannot be null");
+    Objects.requireNonNull(value, "Wrapped value cannot be null for EitherT");
   }
 
-  // --- Static Factory Methods ---
-
   /**
-   * Wraps an existing {@code Kind<F, Either<L, R>>} value into an EitherT.
+   * Creates an {@code EitherT} from an existing {@code Kind<F, Either<L, R>>}.
    *
-   * <p>This is the most direct way to create an EitherT if you already have the nested structure,
-   * for example, as the result of an asynchronous operation defined in {@link
-   * org.higherkindedj.example.order.workflow.OrderWorkflowSteps}.
-   *
-   * @param value The {@code Kind<F, Either<L, R>>} to wrap. Must not be null. (NonNull)
+   * @param value The monadic value to wrap. Must not be null.
    * @param <F> The witness type of the outer monad.
-   * @param <L> The Left type of the inner Either.
-   * @param <R> The Right type of the inner Either.
-   * @return A new {@code EitherT<F, L, R>} instance wrapping the provided value. (NonNull)
-   * @throws NullPointerException if value is null.
+   * @param <L> The type of the 'left' value.
+   * @param <R> The type of the 'right' value.
+   * @return A new {@code EitherT} instance.
+   * @throws NullPointerException if {@code value} is null.
    */
   public static <F, L, R> @NonNull EitherT<F, L, R> fromKind(@NonNull Kind<F, Either<L, R>> value) {
     return new EitherT<>(value);
   }
 
   /**
-   * Lifts a pure 'success' value {@code r} into the EitherT context.
+   * Lifts a 'right' value {@code r} into {@code EitherT<F, L, R>}, resulting in {@code
+   * F<Right(r)>}.
    *
-   * <p>This is equivalent to creating {@code Either.right(r)} and then lifting that into the outer
-   * monad {@code F} using {@code outerMonad.of()}. The result is {@code EitherT(F<Right(r)>)}.
-   * Requires the {@link Monad} instance for the outer context {@code F}.
-   *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
-   * @param r The 'Right' value to lift. Can be null if the specific {@code Either} allows it.
-   *     (Nullable)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param r The 'right' value to wrap. Can be null if {@code R} is nullable.
    * @param <F> The witness type of the outer monad.
-   * @param <L> The Left type (phantom, as this represents success).
-   * @param <R> The Right type.
-   * @return An {@code EitherT<F, L, R>} instance representing success in both the outer (F) and
-   *     inner (Either) contexts. (NonNull)
+   * @param <L> The type of the 'left' value.
+   * @param <R> The type of the 'right' value.
+   * @return A new {@code EitherT} instance representing {@code outerMonad.of(Either.right(r))}.
+   * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, L, R> @NonNull EitherT<F, L, R> right(
       @NonNull Monad<F> outerMonad, @Nullable R r) {
-    // Either.right allows null, outerMonad.of must handle null if R is nullable
-    Kind<F, Either<L, R>> lifted = outerMonad.of(Either.right(r)); // of returns NonNull Kind
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for right");
+    Kind<F, Either<L, R>> lifted = outerMonad.of(Either.right(r));
     return new EitherT<>(lifted);
   }
 
   /**
-   * Lifts a pure 'error' value {@code l} into the EitherT context.
+   * Lifts a 'left' value {@code l} into {@code EitherT<F, L, R>}, resulting in {@code F<Left(l)>}.
    *
-   * <p>This is equivalent to creating {@code Either.left(l)} and then lifting that into the outer
-   * monad {@code F} using {@code outerMonad.of()}. The result is {@code EitherT<F<Left(l)>>)}.
-   * Requires the {@link Monad} instance for the outer context {@code F}. This is often used as the
-   * implementation for {@code MonadError.raiseError} for EitherT.
-   *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
-   * @param l The 'Left' value to lift (representing an error or alternative result). (Nullable,
-   *     depends on L)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param l The 'left' value to wrap. Can be null if {@code L} is nullable.
    * @param <F> The witness type of the outer monad.
-   * @param <L> The Left type.
-   * @param <R> The Right type (phantom, as this represents failure).
-   * @return An {@code EitherT<F, L, R>} instance representing an inner failure within the outer
-   *     context {@code F}. (NonNull)
+   * @param <L> The type of the 'left' value.
+   * @param <R> The type of the 'right' value.
+   * @return A new {@code EitherT} instance representing {@code outerMonad.of(Either.left(l))}.
+   * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, L, R> @NonNull EitherT<F, L, R> left(
       @NonNull Monad<F> outerMonad, @Nullable L l) {
-    // Either.left allows null
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for left");
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.left(l));
     return new EitherT<>(lifted);
   }
 
   /**
-   * Lifts a plain {@code Either<L, R>} value into the EitherT context.
+   * Lifts a plain {@link Either<L, R>} into {@code EitherT<F, L, R>}, resulting in {@code
+   * F<Either<L, R>>}.
    *
-   * <p>This lifts the given {@code Either} into the outer monad {@code F} using {@code
-   * outerMonad.of()}. Useful for integrating results from synchronous functions that return {@code
-   * Either} into an {@code EitherT} workflow. The result is {@code EitherT(F<Either(input)>)}.
-   * Requires the {@link Monad} instance for the outer context {@code F}.
-   *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
-   * @param either The {@code Either<L, R>} value to lift. Must not be null. (NonNull)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param either The {@link Either} instance to lift. Must not be null.
    * @param <F> The witness type of the outer monad.
-   * @param <L> The Left type.
-   * @param <R> The Right type.
-   * @return An {@code EitherT<F, L, R>} instance wrapping the lifted {@code Either}. (NonNull)
-   * @throws NullPointerException if either is null.
+   * @param <L> The type of the 'left' value.
+   * @param <R> The type of the 'right' value.
+   * @return A new {@code EitherT} instance representing {@code outerMonad.of(either)}.
+   * @throws NullPointerException if {@code outerMonad} or {@code either} is null.
    */
   public static <F, L, R> @NonNull EitherT<F, L, R> fromEither(
       @NonNull Monad<F> outerMonad, @NonNull Either<L, R> either) {
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for fromEither");
     Objects.requireNonNull(either, "Input Either cannot be null for fromEither");
     Kind<F, Either<L, R>> lifted = outerMonad.of(either);
     return new EitherT<>(lifted);
   }
 
   /**
-   * Lifts a value {@code fr} already in the outer monad context {@code Kind<F, R>} into the EitherT
-   * context.
+   * Lifts a monadic value {@code Kind<F, R>} into {@code EitherT<F, L, R>}, treating the value
+   * {@code R} as a 'right' value. This results in {@code F<Either<L, R>>} where the {@code Either}
+   * is {@code Right(r)}.
    *
-   * <p>This maps the value inside {@code F} using {@code Either::right}, effectively transforming
-   * {@code F<R>} into {@code F<Right<R>>}, and then wraps the result in {@code EitherT}. The result
-   * is {@code EitherT(F<Right(R)>)}. If the original {@code fr} represented an error state in the
-   * outer monad {@code F} (e.g., an empty Optional, a failed Future), that state is preserved.
-   * Requires the {@link Monad} instance for the outer context {@code F} (as Monad extends Functor
-   * which provides map).
-   *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
-   * @param fr The value already wrapped in the outer monad context {@code Kind<F, R>}. (NonNull)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param fr The monadic value {@code Kind<F, R>} to lift. Must not be null.
    * @param <F> The witness type of the outer monad.
-   * @param <L> The Left type (phantom, as the value is lifted into the Right side).
-   * @param <R> The Right type.
-   * @return An {@code EitherT<F, L, R>} instance where the original value from {@code fr} is now on
-   *     the {@code Right} side of the inner {@code Either}. (NonNull)
+   * @param <L> The type of the 'left' value.
+   * @param <R> The type of the 'right' value.
+   * @return A new {@code EitherT} instance.
+   * @throws NullPointerException if {@code outerMonad} or {@code fr} is null.
    */
   public static <F, L, R> @NonNull EitherT<F, L, R> liftF(
       @NonNull Monad<F> outerMonad, @NonNull Kind<F, R> fr) {
-    // Either::right accepts nullable input if R is nullable
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for liftF");
+    Objects.requireNonNull(fr, "Input Kind<F, R> cannot be null for liftF");
     Kind<F, Either<L, R>> mapped = outerMonad.map(Either::right, fr);
     return new EitherT<>(mapped);
   }
 
   /**
-   * Accessor for the wrapped {@link Kind}{@code <F, Either<L, R>>} value. Generated automatically
-   * by the record. Use this method to extract the underlying nested structure when interacting with
-   * the outer monad {@code F} directly or at the boundary of an {@code EitherT} computation (e.g.,
-   * in {@link EitherTMonad}).
+   * Accessor for the underlying monadic value.
    *
-   * @return The underlying {@link Kind}{@code <F, Either<L, R>>}. (NonNull)
+   * @return The {@code @NonNull Kind<F, Either<L, R>>} wrapped by this {@code EitherT}.
    */
-  @Override
   public @NonNull Kind<F, Either<L, R>> value() {
     return value;
   }

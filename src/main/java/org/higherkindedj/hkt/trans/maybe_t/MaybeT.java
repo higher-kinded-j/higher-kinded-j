@@ -5,18 +5,18 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 /**
- * Represents the concrete implementation of the Maybe Transformer Monad (MaybeT).
- * It wraps a monadic value of type {@code Kind<F, Maybe<A>>}, where {@code F} is the
- * outer monad and {@code Maybe<A>} is the inner optional value.
+ * Represents the concrete implementation of the Maybe Transformer Monad (MaybeT). It wraps a
+ * monadic value of type {@code Kind<F, Maybe<A>>}, where {@code F} is the outer monad and {@code
+ * Maybe<A>} is the inner optional value.
  *
- * <p>This class is a record, making it an immutable data holder for the wrapped value.
- * To use {@code MaybeT} as a {@code Kind} in higher-kinded type simulations,
- * it should be wrapped/unwrapped using {@link MaybeTKindHelper}.
+ * <p>This class is a record, making it an immutable data holder for the wrapped value. To use
+ * {@code MaybeT} as a {@code Kind} in higher-kinded type simulations, it should be
+ * wrapped/unwrapped using {@link MaybeTKindHelper}.
  *
- * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}, {@code ListKind<?>}).
+ * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}, {@code
+ *     ListKind<?>}).
  * @param <A> The type of the value potentially held by the inner {@link Maybe}.
  * @param value The underlying monadic value {@code Kind<F, Maybe<A>>}. Must not be null.
  */
@@ -64,8 +64,8 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) {
   }
 
   /**
-   * Creates a {@code MaybeT<F, A>} representing the {@code Nothing} state,
-   * resulting in {@code F<Nothing>}.
+   * Creates a {@code MaybeT<F, A>} representing the {@code Nothing} state, resulting in {@code
+   * F<Nothing>}.
    *
    * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
    * @param <F> The witness type of the outer monad.
@@ -98,16 +98,16 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) {
   }
 
   /**
-   * Lifts a monadic value {@code Kind<F, A>} into {@code MaybeT<F, A>},
-   * resulting in {@code F<Maybe<A>>}.
-   * The value {@code A} inside {@code F} is mapped to {@code Maybe<A>} using
-   * {@link Maybe#fromNullable(Object)}.
+   * Lifts a monadic value {@code Kind<F, A>} into {@code MaybeT<F, A>}, resulting in {@code
+   * F<Maybe<A>>}. The value {@code A} inside {@code F} is mapped to {@code Maybe<A>} using {@link
+   * Maybe#fromNullable(Object)}.
    *
    * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
    * @param fa The monadic value {@code Kind<F, A>} to lift. Must not be null.
    * @param <F> The witness type of the outer monad.
    * @param <A> The type of the value in {@code fa}.
-   * @return A new {@code MaybeT} instance representing {@code outerMonad.map(Maybe::fromNullable, fa)}.
+   * @return A new {@code MaybeT} instance representing {@code outerMonad.map(Maybe::fromNullable,
+   *     fa)}.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, A> @NonNull MaybeT<F, A> liftF(

@@ -10,155 +10,242 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * MonadError instance for the EitherT transformer. It requires a Monad instance for the outer
- * context F. This instance handles errors of type L, corresponding to the Left type of the inner
- * Either.
+ * Implements the {@link MonadError} interface for the {@link EitherTKind} monad transformer.
  *
- * @param <F> The witness type of the outer Monad.
- * @param <L> The Left type of the inner Either (the error type E for this MonadError).
+ * <p>This class requires a {@link Monad} instance for the outer monad {@code F} to operate. The
+ * 'left' type {@code L} of the inner {@code Either} serves as the error type for this {@code
+ * MonadError} instance. It uses {@link EitherTKindHelper} to convert between the {@code Kind}
+ * representation ({@code EitherTKind<F, L, ?>}) and the concrete {@link EitherT} type.
+ *
+ * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}).
+ * @param <L> The type of the 'left' (error) value in the inner {@link Either}.
  */
-// Implement MonadError<WitnessType, ErrorType>
 public class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
 
   private final @NonNull Monad<F> outerMonad;
 
-  // Note: We only need Monad<F> capabilities to implement MonadError for the inner Either.
-  // If we wanted to *also* handle errors from F itself (type E), we'd need MonadError<F, E>.
-
   /**
-   * Creates a MonadError instance for EitherT.
+   * Constructs an {@code EitherTMonad} instance.
    *
-   * @param outerMonad The Monad instance for the outer context F. Must not be null.
+   * @param outerMonad The {@link Monad} instance for the outer monad {@code F}. Must not be null.
+   * @throws NullPointerException if {@code outerMonad} is null.
    */
   public EitherTMonad(@NonNull Monad<F> outerMonad) {
-    this.outerMonad = Objects.requireNonNull(outerMonad, "Outer Monad instance cannot be null");
+    this.outerMonad =
+        Objects.requireNonNull(outerMonad, "Outer Monad instance cannot be null for EitherTMonad");
   }
 
-  // --- Applicative Methods ---
-
+  /**
+   * Lifts a 'right' value {@code r} into the {@code EitherTKind<F, L, ?>} context. This results in
+   * {@code F<Right(r)>}.
+   *
+   * @param <R> The type of the 'right' value.
+   * @param r The 'right' value to lift. Can be null if {@code R} is nullable.
+   * @return A {@code Kind<EitherTKind<F, L, ?>, R>} representing the lifted 'right' value.
+   */
   @Override
-  public <A> @NonNull Kind<EitherTKind<F, L, ?>, A> of(@Nullable A value) {
-    // Lift a pure value 'a' into Right(a) within the outer monad F.
-    return EitherT.right(outerMonad, value);
+  public <R> @NonNull Kind<EitherTKind<F, L, ?>, R> of(@Nullable R r) {
+    // Create a concrete EitherT holding F<Right(r)>
+    EitherT<F, L, R> concreteEitherT = EitherT.right(outerMonad, r);
+    // Wrap using the helper
+    return EitherTKindHelper.wrap(concreteEitherT);
   }
 
+  /**
+   * Maps a function {@code f} over the 'right' value within a {@code Kind<EitherTKind<F, L, ?>,
+   * R_IN>}. If the wrapped {@code Kind<F, Either<L, R_IN>>} contains a 'right' value, the function
+   * is applied. If it contains a 'left' value, the 'left' value is propagated. The transformation
+   * is applied within the context of the outer monad {@code F}.
+   *
+   * @param <R_IN> The original type of the 'right' value.
+   * @param <R_OUT> The new type of the 'right' value after applying the function.
+   * @param f The function to apply to the 'right' value. Must not be null.
+   * @param fa The {@code Kind<EitherTKind<F, L, ?>, R_IN>} to map over. Must not be null.
+   * @return A new {@code Kind<EitherTKind<F, L, ?>, R_OUT>} with the function applied to the
+   *     'right' side.
+   */
   @Override
-  public <A, B> @NonNull Kind<EitherTKind<F, L, ?>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<EitherTKind<F, L, ?>, A> fa) {
-    EitherT<F, L, A> eitherT = (EitherT<F, L, A>) fa; // Safe cast in HKT higherkindedj
-    // Map the inner Either using the outer monad's map
-    Kind<F, Either<L, B>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());
-    return EitherT.fromKind(newValue);
+  public <R_IN, R_OUT> @NonNull Kind<EitherTKind<F, L, ?>, R_OUT> map(
+      @NonNull Function<R_IN, R_OUT> f, @NonNull Kind<EitherTKind<F, L, ?>, R_IN> fa) {
+    Objects.requireNonNull(f, "Function f cannot be null for map");
+    Objects.requireNonNull(fa, "Kind fa cannot be null for map");
+
+    // Unwrap to the concrete EitherT
+    EitherT<F, L, R_IN> eitherT = EitherTKindHelper.unwrap(fa);
+
+    // Map over the F<Either<L, R_IN>>:
+    // If Either is Right(r_in), it becomes Right(f.apply(r_in)).
+    // If Either is Left(l), it remains Left(l) (typed as Either<L, R_OUT>).
+    Kind<F, Either<L, R_OUT>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());
+
+    // Wrap the result
+    return EitherTKindHelper.wrap(EitherT.fromKind(newValue));
   }
 
+  /**
+   * Applies a function wrapped in {@code Kind<EitherTKind<F, L, ?>, Function<R_IN, R_OUT>>} to a
+   * 'right' value wrapped in {@code Kind<EitherTKind<F, L, ?>, R_IN>}.
+   *
+   * <p>The behavior is as follows:
+   *
+   * <ul>
+   *   <li>If both the function and value are 'right' (i.e., {@code F<Right(Function)>} and {@code
+   *       F<Right(Value)>}), the function is applied, resulting in {@code F<Right(Result)>}.
+   *   <li>If the function is 'left' (i.e., {@code F<Left(L)>}), that 'left' is propagated.
+   *   <li>If the function is 'right' but the value is 'left' (i.e., {@code F<Left(L)>}), that
+   *       'left' is propagated.
+   *   <li>This logic is handled by {@code flatMap} and {@code map} on the inner {@link Either} and
+   *       the outer monad {@code F}.
+   * </ul>
+   *
+   * @param <R_IN> The type of the input 'right' value.
+   * @param <R_OUT> The type of the result 'right' value.
+   * @param ff The wrapped function. Must not be null.
+   * @param fa The wrapped 'right' value. Must not be null.
+   * @return A new {@code Kind<EitherTKind<F, L, ?>, R_OUT>} representing the application.
+   */
   @Override
-  public <A, B> @NonNull Kind<EitherTKind<F, L, ?>, B> ap(
-      @NonNull Kind<EitherTKind<F, L, ?>, Function<A, B>> ff,
-      @NonNull Kind<EitherTKind<F, L, ?>, A> fa) {
-    EitherT<F, L, Function<A, B>> funcT = (EitherT<F, L, Function<A, B>>) ff;
-    EitherT<F, L, A> valT = (EitherT<F, L, A>) fa;
+  public <R_IN, R_OUT> @NonNull Kind<EitherTKind<F, L, ?>, R_OUT> ap(
+      @NonNull Kind<EitherTKind<F, L, ?>, Function<R_IN, R_OUT>> ff,
+      @NonNull Kind<EitherTKind<F, L, ?>, R_IN> fa) {
+    Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
+    Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
 
-    // Use outer monad's flatMap/map (or ap if available and suitable)
-    Kind<F, Either<L, B>> resultValue =
+    // Unwrap to concrete types
+    EitherT<F, L, Function<R_IN, R_OUT>> funcT = EitherTKindHelper.unwrap(ff);
+    EitherT<F, L, R_IN> valT = EitherTKindHelper.unwrap(fa);
+
+    Kind<F, Either<L, R_OUT>> resultValue =
+        outerMonad.flatMap( // F<Either<L, Function<R_IN, R_OUT>>>
+            eitherF -> // Either<L, Function<R_IN, R_OUT>>
+            outerMonad.map( // F<Either<L, R_IN>>
+                    eitherA -> // Either<L, R_IN>
+                    eitherF.flatMap( // Apply function if eitherF is Right
+                            eitherA
+                                ::map), // Maps R_IN to R_OUT if eitherA is Right, else propagates
+                    // Left
+                    valT.value()),
+            funcT.value());
+
+    return EitherTKindHelper.wrap(EitherT.fromKind(resultValue));
+  }
+
+  /**
+   * Applies a function {@code f} that returns a {@code Kind<EitherTKind<F, L, ?>, R_OUT>} to the
+   * 'right' value within a {@code Kind<EitherTKind<F, L, ?>, R_IN>}, and flattens the result.
+   *
+   * <p>If the input {@code ma} contains {@code F<Right(r_in)>}, {@code f(r_in)} is invoked. The
+   * resulting {@code Kind<EitherTKind<F, L, ?>, R_OUT>} (which internally is {@code F<Either<L,
+   * R_OUT>>}) becomes the result. If {@code ma} contains {@code F<Left(l)>}, or if the inner {@code
+   * Either} is {@code Left(l)}, that 'left' value is propagated as {@code F<Left(l)>} within the
+   * {@code EitherTKind} context.
+   *
+   * @param <R_IN> The original type of the 'right' value.
+   * @param <R_OUT> The type of the 'right' value in the resulting {@code Kind}.
+   * @param f The function to apply, returning a new {@code Kind}. Must not be null.
+   * @param ma The {@code Kind<EitherTKind<F, L, ?>, R_IN>} to transform. Must not be null.
+   * @return A new {@code Kind<EitherTKind<F, L, ?>, R_OUT>}.
+   */
+  @Override
+  public <R_IN, R_OUT> @NonNull Kind<EitherTKind<F, L, ?>, R_OUT> flatMap(
+      @NonNull Function<R_IN, Kind<EitherTKind<F, L, ?>, R_OUT>> f,
+      @NonNull Kind<EitherTKind<F, L, ?>, R_IN> ma) {
+    Objects.requireNonNull(f, "Function f cannot be null for flatMap");
+    Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
+
+    // Unwrap the input Kind
+    EitherT<F, L, R_IN> eitherT = EitherTKindHelper.unwrap(ma);
+
+    // Correct flatMap logic for EitherT:
+    // The outer monad F is flatMapped. The function given to outerMonad.flatMap
+    // takes an Either<L, R_IN> and must return a Kind<F, Either<L, R_OUT>>.
+    Kind<F, Either<L, R_OUT>> newValue =
         outerMonad.flatMap(
-            eitherF -> { // eitherF is Either<L, Function<A, B>>
-              if (eitherF.isLeft()) {
-                // Function is Left, propagate Left, lifting it into F
-                return outerMonad.of(Either.left(eitherF.getLeft()));
+            innerEither -> { // innerEither is of type Either<L, R_IN>
+              if (innerEither.isRight()) {
+                // If innerEither is Right, get the value and apply the function f.
+                R_IN r_in = innerEither.getRight();
+                // f.apply(r_in) returns Kind<EitherTKind<F, L, ?>, R_OUT>.
+                // Unwrap this to get the concrete EitherT.
+                EitherT<F, L, R_OUT> resultT = EitherTKindHelper.unwrap(f.apply(r_in));
+                // The value of resultT is Kind<F, Either<L, R_OUT>>, which is what flatMap expects.
+                return resultT.value();
               } else {
-                // Function is Right(f), now map the value monad F<Either<L, A>>
-                return outerMonad.map(
-                    eitherA -> eitherA.map(eitherF.getRight()), // Apply f only if eitherA is Right
-                    valT.value());
+                // If innerEither is Left, propagate the Left value.
+                // We need to create a Kind<F, Either<L, R_OUT>> that holds this Left.
+                // So, we create an Either.left(innerEither.getLeft()) and lift it into F.
+                return outerMonad.of(Either.left(innerEither.getLeft()));
               }
             },
-            funcT.value() // Apply flatMap to the F<Either<L, Function>>
-            );
+            eitherT.value()); // eitherT.value() is Kind<F, Either<L, R_IN>>
 
-    return EitherT.fromKind(resultValue);
-  }
-
-  // --- Monad Method ---
-
-  @Override
-  public <A, B> @NonNull Kind<EitherTKind<F, L, ?>, B> flatMap(
-      @NonNull Function<A, Kind<EitherTKind<F, L, ?>, B>> f,
-      @NonNull Kind<EitherTKind<F, L, ?>, A> ma) {
-    EitherT<F, L, A> eitherT = (EitherT<F, L, A>) ma; // Safe cast in HKT higherkindedj
-
-    Kind<F, Either<L, B>> newValue =
-        outerMonad.flatMap(
-            either ->
-                either.fold(
-                    l ->
-                        outerMonad.of(
-                            Either.left(l)), // If inner is Left(l), lift it back: F<Left(l)>
-                    r -> { // If inner is Right(r), apply f(r) which returns EitherT<F,L,B>
-                      EitherT<F, L, B> resultT =
-                          (EitherT<F, L, B>) f.apply(r); // Apply f, cast result
-                      return resultT.value(); // Get the inner F<Either<L,B>>
-                    }),
-            eitherT.value() // Apply the flatMap to the F<Either<L,A>> value
-            );
-    return EitherT.fromKind(newValue);
+    // Wrap the final EitherT
+    return EitherTKindHelper.wrap(EitherT.fromKind(newValue));
   }
 
   // --- MonadError Methods ---
 
   /**
-   * Lifts an error value 'l' into the EitherT context as {@code F<Left(l)>}.
+   * Raises an error in the {@code EitherTKind<F, L, ?>} context. For {@code EitherT}, an error is
+   * represented by a 'left' value of type {@code L}. This method returns an {@code EitherTKind}
+   * wrapping {@code F<Left(error)>}.
    *
-   * @param error The error value (type L) to lift.
-   * @param <A> The phantom type parameter for the Right side.
-   * @return An EitherT representing the error.
+   * @param <R> The type parameter for the 'right' side of the resulting {@code Kind}, though it
+   *     will be absent.
+   * @param error The 'left' (error) value. Can be null if {@code L} is nullable.
+   * @return A {@code Kind<EitherTKind<F, L, ?>, R>} representing {@code F<Left(error)>}.
    */
   @Override
-  public <A> @NonNull Kind<EitherTKind<F, L, ?>, A> raiseError(L error) {
-    // Lift the Either error 'L' into the context using the static helper
-    return EitherT.left(outerMonad, error);
+  public <R> @NonNull Kind<EitherTKind<F, L, ?>, R> raiseError(@Nullable L error) {
+    // Create a concrete EitherT holding F<Left(error)>
+    EitherT<F, L, R> concreteEitherT = EitherT.left(outerMonad, error);
+    // Wrap using the helper
+    return EitherTKindHelper.wrap(concreteEitherT);
   }
 
   /**
-   * Handles an error 'L' within the EitherT context. If the wrapped {@code Kind<F, Either<L, A>>}
-   * eventually results in a {@code Right}, it's returned unchanged. If it results in a {@code
-   * Left(l)}, the 'handler' function {@code L -> EitherT<F, L, A>} is applied to 'l'.
+   * Handles an error (represented by a 'left' value) in the {@code Kind<EitherTKind<F, L, ?>, R>}.
+   * If the input {@code ma} represents {@code F<Left(l)>}, the {@code handler} function is applied
+   * to {@code l}. If {@code ma} represents {@code F<Right(r)>}, it is returned unchanged. This
+   * operation is performed within the context of the outer monad {@code F}.
    *
-   * <p>Note: This primarily handles errors represented by the inner Either's Left type 'L'. Errors
-   * from the outer monad F (e.g., Throwable for CompletableFuture) are not directly handled here
-   * unless the outerMonad's flatMap implementation propagates them into the handler's execution
-   * context.
-   *
-   * @param ma The EitherT value potentially containing an error L.
-   * @param handler Function {@code L -> Kind<EitherTKind<F, L, ?>, A>} to handle the error.
-   * @param <A> The type of the Right value.
-   * @return Original EitherT if Right, or the result of the handler applied to the Left value.
+   * @param <R> The type of the 'right' value.
+   * @param ma The {@code Kind<EitherTKind<F, L, ?>, R>} to handle. Must not be null.
+   * @param handler The function to apply if {@code ma} represents {@code F<Left(l)>}. It takes a
+   *     value of type {@code L} and returns a new {@code Kind<EitherTKind<F, L, ?>, R>}. Must not
+   *     be null.
+   * @return A {@code Kind<EitherTKind<F, L, ?>, R>}, either the original or the result of the
+   *     handler.
    */
   @Override
-  public <A> @NonNull Kind<EitherTKind<F, L, ?>, A> handleErrorWith(
-      @NonNull Kind<EitherTKind<F, L, ?>, A> ma,
-      @NonNull Function<L, Kind<EitherTKind<F, L, ?>, A>> handler) {
-    EitherT<F, L, A> eitherT = (EitherT<F, L, A>) ma; // Safe cast
+  public <R> @NonNull Kind<EitherTKind<F, L, ?>, R> handleErrorWith(
+      @NonNull Kind<EitherTKind<F, L, ?>, R> ma,
+      @NonNull Function<L, Kind<EitherTKind<F, L, ?>, R>> handler) {
+    Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
+    Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
 
-    // Use outerMonad's flatMap to access the inner Either<L, A> once F completes.
-    Kind<F, Either<L, A>> handledValue =
-        outerMonad.flatMap(
-            either ->
-                either.fold(
-                    l -> { // Inner is Left(l), apply the handler.
-                      // handler(l) returns Kind<EitherTKind<F, L, ?>, A>
-                      EitherT<F, L, A> resultT = (EitherT<F, L, A>) handler.apply(l);
-                      // Return the F<Either<L,A>> from the handler's result.
-                      return resultT.value();
-                    },
-                    r ->
-                        outerMonad.of(
-                            Either.right(
-                                r)) // Inner is Right(r), lift it back F<Right(r)>. No handling
-                    // needed.
-                    ),
-            eitherT.value() // Apply flatMap to the original F<Either<L,A>>
+    // Unwrap the input Kind
+    EitherT<F, L, R> eitherT = EitherTKindHelper.unwrap(ma);
+
+    Kind<F, Either<L, R>> handledValue =
+        outerMonad.flatMap( // Operating on F<Either<L, R>>
+            innerEither -> { // innerEither is Either<L, R>
+              if (innerEither.isRight()) {
+                // Value is Right, lift it back into F: F<Right(r)>
+                return outerMonad.of(innerEither);
+              } else {
+                // Value is Left, apply the handler to the left value.
+                L leftVal = innerEither.getLeft();
+                Kind<EitherTKind<F, L, ?>, R> resultKind = handler.apply(leftVal);
+                // Unwrap the handler's result Kind to get EitherT<F, L, R>
+                EitherT<F, L, R> resultT = EitherTKindHelper.unwrap(resultKind);
+                // Return the F<Either<L, R>> from the handler's result.
+                return resultT.value();
+              }
+            },
+            eitherT.value() // The initial Kind<F, Either<L, R>>
             );
-
-    return EitherT.fromKind(handledValue);
+    // Wrap the final EitherT
+    return EitherTKindHelper.wrap(EitherT.fromKind(handledValue));
   }
 }
