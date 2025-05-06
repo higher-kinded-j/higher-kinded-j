@@ -10,19 +10,25 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * MonadError instance for the OptionalT transformer. Requires a Monad instance for the outer
- * context F. The error type E is Void, representing the Optional.empty() state.
+ * Implements the {@link MonadError} interface for the {@link OptionalTKind} monad transformer. The
+ * error type {@code E} is fixed to {@link Void}, as {@code OptionalT} inherently represents failure
+ * as an absence of a value (similar to {@code Optional.empty()}).
  *
- * @param <F> The witness type of the outer Monad.
+ * <p>This class requires a {@link Monad} instance for the outer monad {@code F} to operate. It uses
+ * {@link OptionalTKindHelper} to convert between the {@code Kind} representation ({@code
+ * OptionalTKind<F, ?>}) and the concrete {@link OptionalT} type.
+ *
+ * @param <F> The witness type of the outer monad (e.g., {@code IO<?>}).
  */
 public class OptionalTMonad<F> implements MonadError<OptionalTKind<F, ?>, Void> {
 
   private final @NonNull Monad<F> outerMonad;
 
   /**
-   * Creates a MonadError instance for OptionalT.
+   * Constructs an {@code OptionalTMonad} instance.
    *
-   * @param outerMonad The Monad instance for the outer context F. Must not be null.
+   * @param outerMonad The {@link Monad} instance for the outer monad {@code F}. Must not be null.
+   * @throws NullPointerException if {@code outerMonad} is null.
    */
   public OptionalTMonad(@NonNull Monad<F> outerMonad) {
     this.outerMonad =
@@ -30,138 +36,211 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind<F, ?>, Void> 
             outerMonad, "Outer Monad instance cannot be null for OptionalTMonad");
   }
 
-  // --- Applicative Methods ---
-
   /**
-   * Lifts a pure value 'a' into the OptionalT context as {@code F<Optional.ofNullable(a)>}. Note:
-   * This uses Optional.ofNullable, so null values become F<Optional.empty()>. To strictly enforce
-   * non-null and lift as F<Optional.of(a)>, use {@code OptionalT.some(outerMonad, a)}.
+   * Lifts a value {@code a} into the {@code OptionalTKind<F, ?>} context. Uses {@link
+   * Optional#ofNullable(Object)} to handle potential nulls, resulting in {@code
+   * F<Optional.of(value)>} or {@code F<Optional.empty()>}.
+   *
+   * @param <A> The type of the value.
+   * @param value The value to lift. Can be null.
+   * @return A {@code Kind<OptionalTKind<F, ?>, A>} representing the lifted value.
    */
   @Override
   public <A> @NonNull Kind<OptionalTKind<F, ?>, A> of(@Nullable A value) {
-    // Lift 'a' into Optional<A>, then lift that into F<Optional<A>>
+    // Lift using Optional.ofNullable then outerMonad.of
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.ofNullable(value));
-    return OptionalT.fromKind(lifted);
+    // Wrap the concrete OptionalT using the helper
+    return OptionalTKindHelper.wrap(OptionalT.fromKind(lifted));
   }
 
   /**
-   * Applies a function inside OptionalT to a value inside OptionalT. {@code F<Optional<A -> B>> ->
-   * F<Optional<A>> -> F<Optional<B>>}
+   * Maps a function {@code f} over the value within an {@code OptionalTKind<F, A>}. If the wrapped
+   * {@code Kind<F, Optional<A>>} contains {@code Optional.of(a)}, the function is applied. If it
+   * contains {@code Optional.empty()}, the result is {@code F<Optional.empty()>}. The
+   * transformation is applied within the context of the outer monad {@code F}.
+   *
+   * @param <A> The original type of the value.
+   * @param <B> The new type of the value after applying the function.
+   * @param f The function to apply. Must not be null. Must not return null (as Optional.map
+   *     requires).
+   * @param fa The {@code Kind<OptionalTKind<F, ?>, A>} to map over. Must not be null.
+   * @return A new {@code Kind<OptionalTKind<F, ?>, B>} with the function applied.
+   */
+  @Override
+  public <A, B> @NonNull Kind<OptionalTKind<F, ?>, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<OptionalTKind<F, ?>, A> fa) {
+    Objects.requireNonNull(f, "Function f cannot be null for map");
+    Objects.requireNonNull(fa, "Kind fa cannot be null for map");
+    // Unwrap the Kind to get the concrete OptionalT
+    OptionalT<F, A> optionalT = OptionalTKindHelper.unwrap(fa);
+    // F<Optional<A>> map (optA -> optA.map(f))
+    // Optional.map handles the empty case.
+    Kind<F, Optional<B>> newValue = outerMonad.map(opt -> opt.map(f), optionalT.value());
+    // Wrap the result OptionalT using the helper
+    return OptionalTKindHelper.wrap(OptionalT.fromKind(newValue));
+  }
+
+  /**
+   * Applies a function wrapped in {@code Kind<OptionalTKind<F, ?>, Function<A, B>>} to a value
+   * wrapped in {@code Kind<OptionalTKind<F, ?>, A>}.
+   *
+   * <p>The behavior is as follows:
+   *
+   * <ul>
+   *   <li>If both the function and value are present (i.e., {@code F<Optional.of(Function)>} and
+   *       {@code F<Optional.of(Value)>}), the function is applied, resulting in {@code
+   *       F<Optional.of(Result)>}.
+   *   <li>If either the function or value is {@code empty} (i.e., {@code F<Optional.empty()>}), the
+   *       result is {@code F<Optional.empty()>}.
+   *   <li>This logic is handled by {@code flatMap} and {@code map} on the inner {@link Optional}
+   *       and the outer monad {@code F}.
+   * </ul>
+   *
+   * @param <A> The type of the input value.
+   * @param <B> The type of the result value.
+   * @param ff The wrapped function. Must not be null.
+   * @param fa The wrapped value. Must not be null.
+   * @return A new {@code Kind<OptionalTKind<F, ?>, B>} representing the application.
    */
   @Override
   public <A, B> @NonNull Kind<OptionalTKind<F, ?>, B> ap(
       @NonNull Kind<OptionalTKind<F, ?>, Function<A, B>> ff,
       @NonNull Kind<OptionalTKind<F, ?>, A> fa) {
-    OptionalT<F, Function<A, B>> funcT = (OptionalT<F, Function<A, B>>) ff;
-    OptionalT<F, A> valT = (OptionalT<F, A>) fa;
+    Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
+    Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
+    // Unwrap the Kinds
+    OptionalT<F, Function<A, B>> funcT = OptionalTKindHelper.unwrap(ff);
+    OptionalT<F, A> valT = OptionalTKindHelper.unwrap(fa);
 
-    // Use outer monad's flatMap/map (or ap if available) to combine
-    // F<Optional<Function>> flatMap ( optF -> F<Optional<Value>> map (optV -> optF.flatMap(f ->
-    // optV.map(f))) )
+    // Logic: F<Optional<Function>> flatMap ( optF -> F<Optional<Value>> map (optV ->
+    // optF.flatMap(optV::map)) )
     Kind<F, Optional<B>> resultValue =
-        outerMonad.flatMap(
-            optF ->
-                outerMonad.map(
-                    optA ->
-                        optF.flatMap(
-                            optA::map), // Inner: Optional<A -> B> flatMap (Optional<A> map f)
+        outerMonad.flatMap( // F<Optional<Function<A,B>>>
+            optF -> // Optional<Function<A,B>>
+            outerMonad.map( // F<Optional<A>>
+                    optA -> // Optional<A>
+                    optF.flatMap( // Optional<Function<A,B>> to Optional<B>
+                            optA::map), // f -> optA.map(f) which is Optional<A> -> Optional<B>
                     valT.value()),
             funcT.value());
-
-    return OptionalT.fromKind(resultValue);
+    // Wrap the result OptionalT
+    return OptionalTKindHelper.wrap(OptionalT.fromKind(resultValue));
   }
 
-  // --- Functor Method ---
-
   /**
-   * Maps a function over the value within the OptionalT context. {@code (A -> B) -> F<Optional<A>>
-   * -> F<Optional<B>>}
-   */
-  @Override
-  public <A, B> @NonNull Kind<OptionalTKind<F, ?>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<OptionalTKind<F, ?>, A> fa) {
-    OptionalT<F, A> optionalT = (OptionalT<F, A>) fa;
-    // Map the inner Optional using the outer monad's map
-    // F<Optional<A>> map (optA -> optA.map(f))
-    Kind<F, Optional<B>> newValue = outerMonad.map(opt -> opt.map(f), optionalT.value());
-    return OptionalT.fromKind(newValue);
-  }
-
-  // --- Monad Method ---
-
-  /**
-   * Sequences operations within the OptionalT context. {@code (A -> F<Optional<B>>) ->
-   * F<Optional<A>> -> F<Optional<B>>}
+   * Applies a function {@code f} that returns a {@code Kind<OptionalTKind<F, ?>, B>} to the value
+   * within a {@code Kind<OptionalTKind<F, ?>, A>}, and flattens the result.
+   *
+   * <p>If the input {@code ma} contains {@code F<Optional.of(a)>}, {@code f(a)} is invoked. The
+   * resulting {@code Kind<OptionalTKind<F, ?>, B>} (which internally is {@code F<Optional<B>>})
+   * becomes the result. If {@code ma} contains {@code F<Optional.empty()>}, or if the inner {@code
+   * Optional} is {@code empty}, the result is {@code F<Optional.empty()>} within the {@code
+   * OptionalTKind} context.
+   *
+   * @param <A> The original type of the value.
+   * @param <B> The type of the value in the resulting {@code Kind}.
+   * @param f The function to apply, returning a new {@code Kind}. Must not be null.
+   * @param ma The {@code Kind<OptionalTKind<F, ?>, A>} to transform. Must not be null.
+   * @return A new {@code Kind<OptionalTKind<F, ?>, B>}.
    */
   @Override
   public <A, B> @NonNull Kind<OptionalTKind<F, ?>, B> flatMap(
       @NonNull Function<A, Kind<OptionalTKind<F, ?>, B>> f,
       @NonNull Kind<OptionalTKind<F, ?>, A> ma) {
-    OptionalT<F, A> optionalT = (OptionalT<F, A>) ma;
+    Objects.requireNonNull(f, "Function f cannot be null for flatMap");
+    Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
+    // Unwrap the input Kind
+    OptionalT<F, A> optionalT = OptionalTKindHelper.unwrap(ma);
 
+    // Logic: F<Optional<A>> flatMap ( optA -> optA.map(a ->
+    // f(a).unwrap().value()).orElse(F<Optional.empty>) )
     Kind<F, Optional<B>> newValue =
-        outerMonad.flatMap(
-            optA ->
-                optA.map(
+        outerMonad.flatMap( // Operating on F<Optional<A>>
+            optA -> // optA is Optional<A>
+            optA.map( // If Optional.of(a), apply inner function
                         a -> {
-                          // Apply f which returns OptionalT<F, B>
-                          OptionalT<F, B> resultT = (OptionalT<F, B>) f.apply(a);
+                          // Apply f: A -> Kind<OptionalTKind<F, ?>, B>
+                          Kind<OptionalTKind<F, ?>, B> resultKind = f.apply(a);
+                          // Unwrap the result Kind to get OptionalT<F, B>
+                          OptionalT<F, B> resultT = OptionalTKindHelper.unwrap(resultKind);
                           // Extract the inner F<Optional<B>>
-                          return resultT.value();
+                          return resultT.value(); // This is Kind<F, Optional<B>>
                         })
-                    // If optA was empty, map returns empty Optional. We need F<Optional.empty()> in
-                    // this case.
-                    // If optA was present but f(a) resulted in F<Optional.empty>, we need that.
+                    // If optA was empty, map returns empty. We need F<Optional.empty> in this case.
                     .orElse(
                         outerMonad.of(
-                            Optional.empty())), // If optA is empty, result is F<Optional.empty>
-            optionalT.value() // Apply flatMap to the initial F<Optional<A>>
+                            Optional
+                                .empty())), // If Optional<A> is empty, result is F<Optional.empty>
+            optionalT.value() // The initial Kind<F, Optional<A>>
             );
-    return OptionalT.fromKind(newValue);
+    // Wrap the final OptionalT
+    return OptionalTKindHelper.wrap(OptionalT.fromKind(newValue));
   }
 
   // --- MonadError Methods (Error Type E = Void) ---
 
   /**
-   * Lifts the error state (Optional.empty) into the OptionalT context as {@code
-   * F<Optional.empty()>}. The input 'error' (Void) is ignored.
+   * Raises an error in the {@code OptionalTKind<F, ?>} context. For {@code OptionalT}, an error is
+   * represented by the {@code empty} state, so this method returns an {@code OptionalTKind}
+   * wrapping {@code F<Optional.empty()>}. The provided {@code error} of type {@link Void} is
+   * ignored.
+   *
+   * @param <A> The type parameter for the resulting {@code Kind}, though it will be empty.
+   * @param error The error value ({@code null} for {@link Void}).
+   * @return A {@code Kind<OptionalTKind<F, ?>, A>} representing {@code F<Optional.empty()>}.
    */
   @Override
   public <A> @NonNull Kind<OptionalTKind<F, ?>, A> raiseError(@Nullable Void error) {
-    // The error state is F<Optional.empty()>
-    return OptionalT.none(outerMonad);
+    // The error state for OptionalT is F<Optional.empty()>
+    // Wrap the concrete OptionalT using the helper
+    return OptionalTKindHelper.wrap(OptionalT.none(outerMonad));
   }
 
   /**
-   * Handles the error state (empty Optional) within the OptionalT context. If the wrapped {@code
-   * Kind<F, Optional<A>>} eventually results in a present Optional, it's returned unchanged. If it
-   * results in an empty Optional, the 'handler' function {@code Void -> OptionalT<F, A>} is
-   * applied.
+   * Handles an error (represented by {@code empty}) in the {@code Kind<OptionalTKind<F, ?>, A>}. If
+   * the input {@code ma} represents {@code F<Optional.empty()>}, the {@code handler} function is
+   * applied. The {@link Void} parameter to the handler will be {@code null}. If {@code ma}
+   * represents {@code F<Optional.of(a)>}, it is returned unchanged. This operation is performed
+   * within the context of the outer monad {@code F}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The {@code Kind<OptionalTKind<F, ?>, A>} to handle. Must not be null.
+   * @param handler The function to apply if {@code ma} represents {@code F<Optional.empty()>}. It
+   *     takes a {@link Void} (which will be null) and returns a new {@code Kind<OptionalTKind<F,
+   *     ?>, A>}. Must not be null.
+   * @return A {@code Kind<OptionalTKind<F, ?>, A>}, either the original or the result of the
+   *     handler.
    */
   @Override
   public <A> @NonNull Kind<OptionalTKind<F, ?>, A> handleErrorWith(
       @NonNull Kind<OptionalTKind<F, ?>, A> ma,
       @NonNull Function<Void, Kind<OptionalTKind<F, ?>, A>> handler) {
-    OptionalT<F, A> optionalT = (OptionalT<F, A>) ma;
+    Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
+    Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
+    // Unwrap the input Kind
+    OptionalT<F, A> optionalT = OptionalTKindHelper.unwrap(ma);
 
-    // Use outerMonad's flatMap to check the inner Optional once F completes.
+    // Logic: F<Optional<A>> flatMap( optA -> optA.isPresent() ? F<Optional.of(a)> : handler() ->
+    // F<Optional<A>> )
     Kind<F, Optional<A>> handledValue =
-        outerMonad.flatMap(
-            optA -> {
+        outerMonad.flatMap( // Operating on F<Optional<A>>
+            optA -> { // optA is Optional<A>
               if (optA.isPresent()) {
-                // Value is present, lift it back: F<Optional.of(a)>
+                // Value is present, lift it back into F: F<Optional.of(a)>
                 return outerMonad.of(optA);
               } else {
                 // Value is empty, apply the handler.
                 // handler(null) returns Kind<OptionalTKind<F, ?>, A>
-                OptionalT<F, A> resultT = (OptionalT<F, A>) handler.apply(null);
+                Kind<OptionalTKind<F, ?>, A> resultKind = handler.apply(null);
+                // Unwrap the handler's result Kind to get OptionalT<F, A>
+                OptionalT<F, A> resultT = OptionalTKindHelper.unwrap(resultKind);
                 // Return the F<Optional<A>> from the handler's result.
                 return resultT.value();
               }
             },
-            optionalT.value() // Apply flatMap to the original F<Optional<A>>
+            optionalT.value() // The initial Kind<F, Optional<A>>
             );
-
-    return OptionalT.fromKind(handledValue);
+    // Wrap the final OptionalT
+    return OptionalTKindHelper.wrap(OptionalT.fromKind(handledValue));
   }
 }

@@ -7,141 +7,128 @@ import org.higherkindedj.hkt.Monad;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Represents the Optional Transformer Monad (OptionalT), implemented as an immutable record.
+ * Represents the concrete implementation of the Optional Transformer Monad (OptionalT). It wraps a
+ * monadic value of type {@code Kind<F, Optional<A>>}, where {@code F} is the outer monad and {@code
+ * Optional<A>} is the inner optional value.
  *
- * <p>OptionalT simplifies working with nested monadic structures of the form {@code
- * F<Optional<A>>}, where {@code F} is an outer monad (like {@code CompletableFutureKind} or {@code
- * IOKind}) and {@code Optional} is used for inner optionality handling.
+ * <p>This class is a record, making it an immutable data holder for the wrapped value. To use
+ * {@code OptionalT} as a {@code Kind} in higher-kinded type simulations, it should be
+ * wrapped/unwrapped using {@link OptionalTKindHelper}.
  *
- * <p>This record wraps a single value of type {@link Kind}{@code <F, Optional<A>>}. Operations like
- * {@code map}, {@code flatMap}, {@code ap}, etc., are defined in the corresponding type class
- * instance, {@link OptionalTMonad}, which operates on instances of this {@code OptionalT} record.
+ * <p>OptionalT is similar to MaybeT but specifically targets Java's {@link java.util.Optional}.
  *
- * <p>Using {@code OptionalT} allows chaining operations that return {@code Optional} within the
- * context of the outer monad {@code F}, automatically handling the short-circuiting logic of {@code
- * Optional.empty()} and propagating the context of {@code F}.
- *
- * @param <F> The witness type of the outer monad (e.g., {@code CompletableFutureKind<?>}, {@code
- *     IOKind<?>}). This monad dictates the context in which the {@code Optional} is evaluated.
+ * @param <F> The witness type of the outer monad (e.g., {@code IO<?>}, {@code ListKind<?>}).
  * @param <A> The type of the value potentially held by the inner {@link Optional}.
- * @param value The wrapped {@link Kind}{@code <F, Optional<A>>} representing the nested monadic
- *     structure. (NonNull)
+ * @param value The underlying monadic value {@code Kind<F, Optional<A>>}. Must not be null.
  * @see OptionalTKind
+ * @see OptionalTKindHelper
  * @see OptionalTMonad
- * @see Optional
- * @see Kind
  */
-public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements OptionalTKind<F, A> {
+public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) {
 
   /**
-   * Canonical constructor for the OptionalT record. Ensures the wrapped value is not null.
-   * Typically, instances should be created using the provided static factory methods.
+   * Canonical constructor for {@code OptionalT}.
    *
-   * @param value The {@link Kind}{@code <F, Optional<A>>} to wrap. Must not be null. (NonNull)
-   * @throws NullPointerException if the provided value is null.
+   * @param value The underlying monadic value {@code Kind<F, Optional<A>>}.
+   * @throws NullPointerException if {@code value} is null.
    */
   public OptionalT {
     Objects.requireNonNull(value, "Wrapped value cannot be null for OptionalT");
   }
 
-  // --- Static Factory Methods ---
-
   /**
-   * Wraps an existing {@code Kind<F, Optional<A>>} value into an OptionalT.
+   * Creates an {@code OptionalT} from an existing {@code Kind<F, Optional<A>>}.
    *
-   * @param value The {@code Kind<F, Optional<A>>} to wrap. Must not be null. (NonNull)
+   * @param value The monadic value to wrap. Must not be null.
    * @param <F> The witness type of the outer monad.
-   * @param <A> The type of the value in the Optional.
-   * @return A new {@code OptionalT<F, A>} instance wrapping the provided value. (NonNull)
-   * @throws NullPointerException if value is null.
+   * @param <A> The type of the value in the inner {@link Optional}.
+   * @return A new {@code OptionalT} instance.
+   * @throws NullPointerException if {@code value} is null.
    */
   public static <F, A> @NonNull OptionalT<F, A> fromKind(@NonNull Kind<F, Optional<A>> value) {
     return new OptionalT<>(value);
   }
 
   /**
-   * Lifts a pure 'present' value {@code a} into the OptionalT context as {@code F<Optional.of(a)>}.
-   * Requires the {@link Monad} instance for the outer context {@code F}. Note: Using Optional.of
-   * requires 'a' to be non-null. Use {@link #liftF} or {@link #fromOptional} if 'a' might be null
-   * or already wrapped.
+   * Lifts a non-null value {@code a} into {@code OptionalT<F, A>}, resulting in {@code
+   * F<Optional.of(a)>}.
    *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
-   * @param a The value to lift, must be non-null. (NonNull)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param a The value to wrap. Must not be null (enforced by {@link Optional#of(Object)}).
    * @param <F> The witness type of the outer monad.
-   * @param <A> The type of the value.
-   * @return An {@code OptionalT<F, A>} instance representing a present value. (NonNull)
-   * @throws NullPointerException if 'a' is null.
+   * @param <A> The type of the value to wrap.
+   * @return A new {@code OptionalT} instance representing {@code outerMonad.of(Optional.of(a))}.
+   * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
   public static <F, A extends @NonNull Object> @NonNull OptionalT<F, A> some(
       @NonNull Monad<F> outerMonad, @NonNull A a) {
-    // Use Optional.of which checks for null
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for some");
+    // Optional.of enforces non-null 'a'
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.of(a));
     return new OptionalT<>(lifted);
   }
 
   /**
-   * Lifts the 'empty' state into the OptionalT context as {@code F<Optional.empty()>}. Requires the
-   * {@link Monad} instance for the outer context {@code F}. This is often used as the
-   * implementation for {@code MonadError.raiseError} for OptionalT.
+   * Creates an {@code OptionalT<F, A>} representing the {@code Optional.empty()} state, resulting
+   * in {@code F<Optional.empty()>}.
    *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
    * @param <F> The witness type of the outer monad.
-   * @param <A> The type parameter for the Optional (phantom type).
-   * @return An {@code OptionalT<F, A>} instance representing an empty Optional. (NonNull)
+   * @param <A> The type of the value in the inner {@link Optional} (will be absent).
+   * @return A new {@code OptionalT} instance representing {@code outerMonad.of(Optional.empty())}.
+   * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, A> @NonNull OptionalT<F, A> none(@NonNull Monad<F> outerMonad) {
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for none");
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.empty());
     return new OptionalT<>(lifted);
   }
 
   /**
-   * Lifts a plain {@code Optional<A>} value into the OptionalT context as {@code F<Optional>}.
-   * Useful for integrating results from synchronous functions that return {@code Optional} into an
-   * {@code OptionalT} workflow. Requires the {@link Monad} instance for the outer context {@code
-   * F}.
+   * Lifts a plain {@link Optional<A>} into {@code OptionalT<F, A>}, resulting in {@code
+   * F<Optional<A>>}.
    *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
-   * @param optional The {@code Optional<A>} value to lift. Must not be null itself. (NonNull)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param optional The {@link Optional} instance to lift. Must not be null.
    * @param <F> The witness type of the outer monad.
-   * @param <A> The type of the value in the Optional.
-   * @return An {@code OptionalT<F, A>} instance wrapping the lifted {@code Optional}. (NonNull)
-   * @throws NullPointerException if optional is null.
+   * @param <A> The type of the value in the {@link Optional}.
+   * @return A new {@code OptionalT} instance representing {@code outerMonad.of(optional)}.
+   * @throws NullPointerException if {@code outerMonad} or {@code optional} is null.
    */
   public static <F, A> @NonNull OptionalT<F, A> fromOptional(
       @NonNull Monad<F> outerMonad, @NonNull Optional<A> optional) {
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for fromOptional");
     Objects.requireNonNull(optional, "Input Optional cannot be null for fromOptional");
     Kind<F, Optional<A>> lifted = outerMonad.of(optional);
     return new OptionalT<>(lifted);
   }
 
   /**
-   * Lifts a value {@code fa} already in the outer monad context {@code Kind<F, A>} into the
-   * OptionalT context as {@code F<Optional.ofNullable(a)>}. This maps the value inside {@code F}
-   * using {@code Optional::ofNullable}, transforming {@code F<A>} into {@code F<Optional<A>>}, and
-   * then wraps the result in {@code OptionalT}. If the original {@code fa} represented an error
-   * state in the outer monad {@code F} (e.g., an empty Optional, a failed Future), that state is
-   * preserved. Requires the {@link Monad} instance for the outer context {@code F}.
+   * Lifts a monadic value {@code Kind<F, A>} into {@code OptionalT<F, A>}, resulting in {@code
+   * F<Optional<A>>}. The value {@code A} inside {@code F} is mapped to {@code Optional<A>} using
+   * {@link Optional#ofNullable(Object)}.
    *
-   * @param outerMonad The Monad instance for the outer context {@code F}. (NonNull)
-   * @param fa The value already wrapped in the outer monad context {@code Kind<F, A>}. (NonNull)
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param fa The monadic value {@code Kind<F, A>} to lift. Must not be null.
    * @param <F> The witness type of the outer monad.
-   * @param <A> The type of the value.
-   * @return An {@code OptionalT<F, A>} instance where the original value from {@code fa} is now
-   *     wrapped in an {@code Optional} inside the outer context {@code F}. (NonNull)
+   * @param <A> The type of the value in {@code fa}.
+   * @return A new {@code OptionalT} instance representing {@code
+   *     outerMonad.map(Optional::ofNullable, fa)}.
+   * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, A> @NonNull OptionalT<F, A> liftF(
       @NonNull Monad<F> outerMonad, @NonNull Kind<F, A> fa) {
+    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for liftF");
+    Objects.requireNonNull(fa, "Input Kind<F, A> cannot be null for liftF");
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);
     return new OptionalT<>(mapped);
   }
 
   /**
-   * Accessor for the wrapped {@link Kind}{@code <F, Optional<A>>} value. Generated automatically by
-   * the record.
+   * Accessor for the underlying monadic value.
    *
-   * @return The underlying {@link Kind}{@code <F, Optional<A>>}. (NonNull)
+   * @return The {@code @NonNull Kind<F, Optional<A>>} wrapped by this {@code OptionalT}.
    */
-  @Override
   public @NonNull Kind<F, Optional<A>> value() {
     return value;
   }
