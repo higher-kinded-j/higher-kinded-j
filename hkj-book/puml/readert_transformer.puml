@@ -1,0 +1,60 @@
+@startuml reader_t_transformer
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+hide empty members
+
+title ReaderT Class Diagram
+
+interface Kind<F_HKT, A_VAL>
+interface Monad<F_HKT>
+
+
+
+  class ReaderT<F, R, A> <<record>> implements ReaderTKind<F, R, A> {
+    + @NonNull Function<R, Kind<F, A>> run
+    -- Factories --
+    + static <F, R, A> ReaderT<F, R, A> of(Function<R, Kind<F, A>>)
+    + static <F, R, A> ReaderT<F, R, A> lift(Monad<F>, Kind<F, A>)
+    + static <F, R, A> ReaderT<F, R, A> reader(Monad<F>, Function<R, A>)
+    + static <F, R> ReaderT<F, R, R> ask(Monad<F>)
+  }
+
+  interface ReaderTKind<F, R, A> extends Kind<ReaderTKind<F, R, ?>, A> {
+    // Witness: ReaderTKind<F, R, ?>
+    // Value: A
+  }
+
+  class ReaderTMonad<F_OUTER, R_ENV> implements Monad<ReaderTKind<F_OUTER, R_ENV, ?>> {
+    - final @NonNull Monad<F_OUTER> outerMonad
+    + ReaderTMonad(@NonNull Monad<F_OUTER> outerMonad)
+    ' Other Monad methods (of, map, flatMap, ap)
+  }
+
+  class ReaderTKindHelper {
+    ' Helper methods
+    + static <F, R, A> ReaderT<F, R, A> unwrap(Kind<ReaderTKind<F, R, ?>, A>)
+    + static <F, R, A> ReaderTKind<F, R, A> wrap(ReaderT<F, R, A>)
+
+    note right of ReaderTKindHelper::wrap
+      Uses internal ReaderTHolder
+      (not shown for brevity)
+    end note
+  }
+
+  ReaderTMonad --|> Monad
+  ReaderTMonad *-- "outerMonad (Monad<F_OUTER>)" Monad
+  ReaderTMonad ..> ReaderTKindHelper : uses
+  ReaderTMonad ..> ReaderT : creates / operates on
+
+  ReaderTKindHelper ..> ReaderT : unwrap() returns
+  ReaderTKindHelper ..> ReaderTKind : wrap() returns
+
+  ReaderT --|> ReaderTKind
+  ReaderT ..> "run() returns Kind<F,A>" Kind
+  ReaderT ..> "factories require Monad<F>" Monad
+
+  ReaderTKind --|> Kind
+
+
+@enduml

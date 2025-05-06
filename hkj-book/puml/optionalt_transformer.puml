@@ -1,0 +1,61 @@
+@startuml optional_t_transformer
+!theme plain
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
+
+interface Kind<F_HKT, A_VAL>
+interface Monad<F_HKT>
+interface "MonadError<F_HKT, E_ERR> extends Monad<F_HKT>"
+
+  class OptionalT<F, A> <<record>> implements OptionalTKind<F, A> {
+    + @NonNull Kind<F, Optional<A>> value
+    -- Factories --
+    + static <F, A> OptionalT<F, A> fromKind(Kind<F, Optional<A>> value)
+    + static <F, A> OptionalT<F, A> some(Monad<F> monad, A a)
+    + static <F, A> OptionalT<F, A> none(Monad<F> monad)
+    + static <F, A> OptionalT<F, A> fromOptional(Monad<F> monad, Optional<A> optional)
+    + static <F, A> OptionalT<F, A> liftF(Monad<F> monad, Kind<F, A> fa)
+  }
+
+  interface OptionalTKind<F, A> extends Kind<OptionalTKind<F, ?>, A> {
+    // Witness: OptionalTKind<F, ?>
+    // Value: A
+  }
+
+  class OptionalTMonad<F_OUTER> implements MonadError<OptionalTKind<F_OUTER, ?>, Void> {
+    - final @NonNull Monad<F_OUTER> outerMonad
+    + OptionalTMonad(@NonNull Monad<F_OUTER> outerMonad)
+    ' Other MonadError methods (of, map, flatMap, ap, raiseError, handleErrorWith)
+  }
+
+  class OptionalTKindHelper {
+    ' Helper methods
+    + static <F, A> OptionalT<F, A> unwrap(Kind<OptionalTKind<F, ?>, A> kind)
+    + static <F, A> OptionalTKind<F, A> wrap(OptionalT<F, A> optionalT)
+
+    note right of OptionalTKindHelper::wrap
+      Uses internal OptionalTHolder
+      (not shown for brevity)
+    end note
+  }
+
+  OptionalTMonad --|> MonadError
+  OptionalTMonad *-- "outerMonad (Monad<F_OUTER>)" Monad
+  OptionalTMonad ..> OptionalTKindHelper : uses
+  OptionalTMonad ..> OptionalT : creates / operates on
+
+  OptionalTKindHelper ..> OptionalT : unwrap() returns
+  OptionalTKindHelper ..> OptionalTKind : wrap() returns
+
+  OptionalT --|> OptionalTKind
+  OptionalT ..> "value is Kind<F, Optional<A>>" Kind
+  OptionalT ..> "factories require Monad<F>" Monad
+
+  OptionalTKind --|> Kind
+
+
+@enduml

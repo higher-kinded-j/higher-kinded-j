@@ -23,6 +23,8 @@
 - [Overview](./transformers.md)
 - [EitherT Transformer](./eithert_transformer.md)
 - [MaybeT Transformer](./maybet_transformer.md)
+- [OptionalT Transformer](./optionalt_transformer.md)
+- [ReaderT Transformer](./readertt_transformer.md)
 
 # Examples
 - [Order Workflow](./order-walkthrough.md)
