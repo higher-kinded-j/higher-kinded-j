@@ -33,6 +33,9 @@ Key characteristics:
 
 ## Transformers in Higher-Kinded-J
 
+![supported_transformers.svg](images/puml/supported_transformers.svg)
+
+
 ### 1. `EitherT<F, L, R>` (Monad Transformer)
 
 * **Definition:** A monad transformer ([`EitherT`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/either_t/EitherT.java)) that combines an outer monad `F` with an inner `Either<L, R>`. Implemented as a record wrapping `Kind<F, Either<L, R>>`.
