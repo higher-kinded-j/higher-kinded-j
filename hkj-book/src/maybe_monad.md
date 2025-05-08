@@ -19,7 +19,6 @@ It implements `MonadError<MaybeKind<?>, Void>`, which transitively includes `Mon
 
 ![maybe_monad.svg](./images/puml/maybe_monad.svg)
 
-*(This assumes the PlantUML diagram below is saved as `maybe_monad.puml` in `hkj-book/src/images/puml/` and then converted to `maybe_monad.svg`)*
 
 ## How to Use `MaybeMonad` and `Maybe`
 
