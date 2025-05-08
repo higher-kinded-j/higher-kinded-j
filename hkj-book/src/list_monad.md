@@ -1,11 +1,5 @@
 # List - Monadic Operations on Java Lists
 
-### Key Operations
-
-The `ListMonad` provides standard monadic operations:
-
-* **`map(Function<A, B> f, Kind<ListKind<?>, A> fa)`:** Applies a function `f` to each element of the list within `fa`, returning a new `ListKind` containing the transformed elements.
-
 ## Purpose
 
 The `ListMonad` in the `Higher-Kinded-J` library provides a monadic interface for Java's standard `java.util.List`. It allows developers to work with lists in a more functional style, enabling operations like `map`, `flatMap`, and `ap` (apply) within the higher-kinded type system. This is particularly useful for sequencing operations that produce lists, transforming list elements, and applying functions within a list context, all while integrating with the generic `Kind<F, A>` abstractions.
@@ -22,7 +16,6 @@ It implements `Monad<ListKind<?>>`, inheriting from `Functor<ListKind<?>>` and `
 
 ![list_monad.svg](./images/puml/list_monad.svg)
 
-*(This assumes the PlantUML diagram below is saved as `list_monad.puml` in `hkj-book/src/images/puml/` and then converted to `list_monad.svg`)*
 
 ## How to Use `ListMonad` and `ListKind`
 

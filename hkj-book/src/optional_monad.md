@@ -16,7 +16,6 @@ It implements `MonadError<OptionalKind<?>, Void>`, which means it also transitiv
 
 ![optional_monad.svg](./images/puml/optional_monad.svg)
 
-*(This assumes the PlantUML diagram below is saved as `optional_monad.puml` in `hkj-book/src/images/puml/` and then converted to `optional_monad.svg`)*
 
 ## How to Use `OptionalMonad` and `OptionalKind`
 
