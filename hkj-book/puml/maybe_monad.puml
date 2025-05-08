@@ -1,0 +1,84 @@
+@startuml maybe_monad
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+
+interface "Kind<F, A>" as Kind
+interface "Functor<F>" as Functor
+interface "Applicative<F>" as Applicative
+interface "Monad<M>" as MonadBase
+interface "MonadError<M, E>" as MonadErrorBase
+
+
+  interface "Maybe<T>" as MaybeInterface << (M,LightBlue) >> {
+    + static <T> Maybe<T> just(T)
+    + static <T> Maybe<T> nothing()
+    + static <T> Maybe<T> fromNullable(T)
+    + boolean isJust()
+    + boolean isNothing()
+    + T get()
+    + T orElse(T)
+    + T orElseGet(Supplier<T>)
+    + Maybe<U> map(Function<T,U>)
+    + Maybe<U> flatMap(Function<T,Maybe<U>>)
+  }
+
+  class "Just<T>" extends MaybeInterface {
+    - T value
+    + Just(T)
+  }
+
+  class "Nothing<T>" extends MaybeInterface {
+    - static Nothing<?> INSTANCE
+    + static <T> Nothing<T> instance()
+  }
+
+  interface "MaybeKind<A>" as MaybeKindBase << (K,LightSkyBlue) >> {
+    ' Witness type for Maybe
+  }
+
+  class "MaybeKindHelper" as MaybeKindHelper << (H,grey) >> {
+    ' Utility for MaybeKind
+    ' + static <A> Maybe<A> unwrap(Kind<MaybeKind<?>, A>)
+    ' + static <A> MaybeKind<A> wrap(Maybe<A>)
+    ' + static <A> Kind<MaybeKind<?>,A> just(A)
+    ' + static <A> Kind<MaybeKind<?>,A> nothing()
+  }
+  note right of MaybeKindHelper
+    Contains internal 'MaybeHolder<A> record'
+    which implements MaybeKind<A>.
+    `record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> {}`
+  end note
+
+
+  class "MaybeFunctor" as MaybeFunctorImpl {
+    ' + <A,B> MaybeKind<B> map(Function<A,B>, Kind<MaybeKind<?>,A>)
+  }
+
+  class "MaybeMonad" as MaybeMonadImpl {
+    ' + <A> MaybeKind<A> of(A)
+    ' + <A,B> MaybeKind<B> flatMap(Function<A, Kind<MaybeKind<?>,B>>, Kind<MaybeKind<?>,A>)
+    ' + <A,B> Kind<MaybeKind<?>,B> ap(Kind<MaybeKind<?>,Function<A,B>>, Kind<MaybeKind<?>,A>)
+    ' --- MonadError ---
+    ' + <A> Kind<MaybeKind<?>,A> raiseError(Void)
+    ' + <A> Kind<MaybeKind<?>,A> handleErrorWith(Kind<MaybeKind<?>,A>, Function<Void, Kind<MaybeKind<?>,A>>)
+  }
+
+
+MonadErrorBase --|> MonadBase
+MonadBase --|> Applicative
+Applicative --|> Functor
+Functor --|> Kind : (logically, Kind is the base for HKTs)
+
+MaybeKindBase --|> Kind : <MaybeKind<?>, A>
+
+MaybeFunctorImpl ..|> Functor : <MaybeKind<?>>
+MaybeMonadImpl --|> MaybeFunctorImpl
+MaybeMonadImpl ..|> MonadErrorBase : <MaybeKind<?>, Void>
+
+MaybeMonadImpl ..> MaybeKindHelper : uses
+MaybeFunctorImpl ..> MaybeKindHelper : uses
+MaybeKindHelper ..> MaybeInterface : uses (wrap/unwrap)
+MaybeInterface <|.. Just
+MaybeInterface <|.. Nothing
+
+@enduml

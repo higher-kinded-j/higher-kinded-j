@@ -9,7 +9,9 @@
 
 # Supported Types
 - [Overview](./supported-types.md)
-- [Details](./supported_types_in_detail.md)
+- [List](./list_monad.md)
+- [Optional](./optional_monad.md)
+- [Maybe](./maybe_monad.md)
 - [Either](./either_monad.md)
 - [Try](./try_monad.md)
 - [CompletableFuture](./cf_monad.md)
@@ -18,6 +20,7 @@
 - [Reader](./reader_monad.md)
 - [State](./state_monad.md)
 - [Writer](./writer_monad.md)
+
 
 # Transformers
 - [Overview](./transformers.md)

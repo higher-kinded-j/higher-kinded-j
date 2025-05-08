@@ -1,0 +1,51 @@
+@startuml optional_monad
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+interface "Kind<F, A>" as Kind
+interface "Functor<F>" as Functor
+interface "Applicative<F>" as Applicative
+interface "Monad<M>" as MonadBase
+interface "MonadError<M, E>" as MonadErrorBase
+
+interface "OptionalKind<A>" as OptionalKindBase << (O,lightblue) >> {
+' Witness type for Optional
+}
+
+class "OptionalKindHelper" as OptionalKindHelper << (H,grey) >> {
+' Utility for OptionalKind
+' + static <A> Optional<A> unwrap(Kind<OptionalKind<?>, A>)
+' + static <A> OptionalKind<A> wrap(Optional<A>)
+}
+note right of OptionalKindHelper
+Contains internal 'OptionalHolder<A> record'
+which implements OptionalKind<A>.
+`record OptionalHolder<A>(Optional<A> optional) implements OptionalKind<A> {}`
+end note
+
+class "OptionalFunctor" as OptionalFunctorImpl {
+' + <A,B> OptionalKind<B> map(Function<A,B>, Kind<OptionalKind<?>,A>)
+}
+class "OptionalMonad" as OptionalMonadImpl {
+  ' + <A> OptionalKind<A> of(A)
+  ' + <A,B> OptionalKind<B> flatMap(Function<A, Kind<OptionalKind<?>,B>>, Kind<OptionalKind<?>,A>)
+  ' + <A,B> Kind<OptionalKind<?>,B> ap(Kind<OptionalKind<?>,Function<A,B>>, Kind<OptionalKind<?>,A>)
+' --- MonadError ---
+' + <A> Kind<OptionalKind<?>,A> raiseError(Void)
+  ' + <A> Kind<OptionalKind<?>,A> handleErrorWith(Kind<OptionalKind<?>,A>, Function<Void, Kind<OptionalKind<?>,A>>)
+}
+
+MonadErrorBase --|> MonadBase
+MonadBase --|> Applicative
+Applicative --|> Functor
+Functor --|> Kind : (logically, Kind is the base for HKTs)
+
+OptionalKindBase --|> Kind : <OptionalKind<?>, A>
+
+OptionalFunctorImpl ..|> Functor : <OptionalKind<?>>
+OptionalMonadImpl --|> OptionalFunctorImpl
+OptionalMonadImpl ..|> MonadErrorBase : <OptionalKind<?>, Void>
+
+OptionalMonadImpl ..> OptionalKindHelper : uses for wrap/unwrap
+OptionalFunctorImpl ..> OptionalKindHelper : uses for wrap/unwrap
+
+@enduml
