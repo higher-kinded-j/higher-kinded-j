@@ -9,6 +9,8 @@ When building applications, we often encounter scenarios where we need to combin
 * An operation might need **access to a configuration** (using `Reader`) and also be **asynchronous**.
 * A computation might **accumulate logs** (using `Writer`) and also **potentially fail** (using `Maybe` or `Either`).
 
+### Monads Stack Poorly
+
 Directly nesting these monadic types, like `CompletableFuture<Either<DomainError, Result>>` or `Reader<Config, Optional<Data>>`, leads to complex, deeply nested code ("callback hell" or nested `flatMap`/`map` calls). It becomes difficult to sequence operations and handle errors or contexts uniformly.
 
 For instance, an operation might need to be both asynchronous *and* handle potential domain-specific errors. Representing this naively leads to nested types like:
@@ -17,8 +19,9 @@ For instance, an operation might need to be both asynchronous *and* handle poten
 // A future that, when completed, yields either a DomainError or a SuccessValue
 Kind<CompletableFutureKind<?>, Either<DomainError, SuccessValue>> nestedResult;
 ```
+But now, how do we `map` or `flatMap` over this stack  without lots of boilerplate?
 
-## The Solution: Monad Transformers
+## Monad Transformers: A _wrapper_ to simplify nested Monads
 
 **Monad Transformers** are a design pattern in functional programming used to combine the effects of two different monads into a single, new monad. They provide a standard way to "stack" monadic contexts, allowing you to work with the combined structure more easily using familiar monadic operations like `map` and `flatMap`.
 

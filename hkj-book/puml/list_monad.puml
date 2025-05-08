@@ -1,0 +1,52 @@
+@startuml list_monad
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+hide empty members
+
+
+interface "Kind<F, A>" as Kind
+interface "Functor<F>" as Functor
+interface "Applicative<F>" as Applicative
+interface "Monad<M>" as MonadBase
+
+interface "ListKind<A>" as ListKindBase << (L,orchid) >> {
+  ' Witness type for List
+}
+
+class "ListKindHelper" as ListKindHelper << (H,grey) >> {
+  ' Utility for ListKind
+  ' + static <A> List<A> unwrap(Kind<ListKind<?>, A>)
+  ' + static <A> ListKind<A> wrap(List<A>)
+}
+note right of ListKindHelper
+  Contains internal 'ListHolder<A> record'
+  which implements ListKind<A>.
+  `record ListHolder<A>(List<A> list) implements ListKind<A> {}`
+end note
+
+class "ListFunctor" as ListFunctorImpl {
+  ' + <A,B> ListKind<B> map(Function<A,B>, Kind<ListKind<?>,A>)
+}
+class "ListMonad" as ListMonadImpl {
+  ' + <A> ListKind<A> of(A)
+  ' + <A,B> ListKind<B> flatMap(Function<A, Kind<ListKind<?>,B>>, Kind<ListKind<?>,A>)
+  ' + <A,B> Kind<ListKind<?>,B> ap(Kind<ListKind<?>,Function<A,B>>, Kind<ListKind<?>,A>)
+}
+
+MonadBase --|> Applicative
+Applicative --|> Functor
+Functor --|> Kind : (logically, Kind is the base for HKTs)
+
+ListKindBase --|> Kind : <ListKind<?>, A>
+
+ListFunctorImpl ..|> Functor : <ListKind<?>>
+ListMonadImpl --|> ListFunctorImpl
+ListMonadImpl ..|> MonadBase : <ListKind<?>>
+
+ListMonadImpl ..> ListKindHelper : uses for wrap/unwrap
+ListFunctorImpl ..> ListKindHelper : uses for wrap/unwrap
+' ListKindHelper contains/manages ListHolder which implements ListKind
+' This can be implied or shown with a composition/inner class if needed
+' For simplicity and alignment with other diagrams, keeping it high-level.
+
+@enduml
