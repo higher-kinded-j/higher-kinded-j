@@ -17,14 +17,16 @@ The key benefits are:
 
 1. **Explicit State:** The state manipulation is explicitly encoded within the type `State<S, A>`.
 2. **Purity:** Functions using the State monad remain pure; they don't cause side effects by mutating external state. Instead, they describe how the state *should* transform.
-3. **Composability:** State computations can be easily sequenced using standard monadic operations (`map`, `flatMap`), where the state is automatically threaded through the sequence.
-4. **Testability:** Pure state transitions are easier to test and reason about than code relying on mutable side effects.
+3. **Composability:** State computations can be easily sequenced using standard monadic operations (`map`, `flatMap`), where the state is automatically threaded through the sequence without explicitly threading state everywhere.
+4. **Decoupling**: Logic is decoupled from state handling mechanics.
+5. **Testability:** Pure state transitions are easier to test and reason about than code relying on mutable side effects.
+
 
 In `Higher-Kinded-J`, the State monad pattern is implemented via the `State<S, A>` interface, its associated `StateTuple<S, A>` record, the HKT simulation types (`StateKind`, `StateKindHelper`), and the type class instances (`StateMonad`, `StateApplicative`, `StateFunctor`).
 
 ## Structure
-![state_monad.svg](./images/puml/state_monad.svg)
 
+![state_monad.svg](./images/puml/state_monad.svg)
 
 ## The `State<S, A>` Type and `StateTuple<S, A>`
 
@@ -104,7 +106,6 @@ record CounterState(int count) {}
 record StackState(java.util.List<Integer> stack) {}
 ```
 
-
 ### 2. Get the `StateMonad` Instance
 
 ```java
@@ -113,7 +114,6 @@ import org.higherkindedj.hkt.state.StateMonad;
 StateMonad<CounterState> counterStateMonad = new StateMonad<>();
 StateMonad<StackState> stackStateMonad = new StateMonad<>();
 ```
-
 
 ### 3. Create Basic State Actions
 
@@ -124,6 +124,9 @@ import static org.higherkindedj.hkt.state.StateKindHelper.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.state.StateKind;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 
 // Counter Example Actions:
 Kind<StateKind<CounterState, ?>, Void> incrementCounter = modify(s -> new CounterState(s.count() + 1));
@@ -132,9 +135,9 @@ Kind<StateKind<CounterState, ?>, Void> incrementCounter = modify(s -> new Counte
     // Stack Example Actions:
     Kind<StateKind<StackState, ?>, Void> push(int value) {
       return modify(s -> {
-        java.util.List<Integer> newList = new java.util.ArrayList<>(s.stack());
+        List<Integer> newList = new ArrayList<Integer>(s.stack());
         newList.add(value);
-        return new StackState(java.util.Collections.unmodifiableList(newList));
+        return new StackState(Collections.unmodifiableList(newList));
       });
     }
 
@@ -144,10 +147,10 @@ Kind<StateKind<CounterState, ?>, Void> incrementCounter = modify(s -> new Counte
         // For this example, return 0 and keep empty state.
         return new State.StateTuple<>(0, s);
       }
-      java.util.List<Integer> currentStack = s.stack();
+      List<Integer> currentStack = s.stack();
       int value = currentStack.get(currentStack.size() - 1);
-      java.util.List<Integer> newStack = new java.util.ArrayList<>(currentStack.subList(0, currentStack.size() - 1));
-      return new State.StateTuple<>(value, new StackState(java.util.Collections.unmodifiableList(newStack)));
+      List<Integer> newStack = new ArrayList<>(currentStack.subList(0, currentStack.size() - 1));
+      return new State.StateTuple<>(value, new StackState(Collections.unmodifiableList(newStack)));
     }));
 
     Kind<StateKind<StackState, ?>, Integer> peek = inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1));
@@ -191,7 +194,6 @@ Kind<StateKind<StackState, ?>, String> push5AndDescribe = stackStateMonad.map(
 );
 ```
 
-
 ### 5. Run the Computation
 
 Provide the initial state using `runState`, `evalState`, or `execState`.
@@ -205,36 +207,35 @@ StackState initialStack = new StackState(java.util.Collections.emptyList());
 
 // Run counter example
 StateTuple<CounterState, Integer> counterResultTuple = runState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Tuple: "+counterResultTuple);
+System.out.println("Counter Final Tuple: " + counterResultTuple);
 // Output: Counter Final Tuple: StateTuple[value=2, state=CounterState[count=2]]
 
 int finalCount = evalState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Value: "+finalCount);
+System.out.println("Counter Final Value: " + finalCount);
 // Output: Counter Final Value: 2
 
 CounterState finalCounterState = execState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final State: "+finalCounterState);
+System.out.println("Counter Final State: " + finalCounterState);
 // Output: Counter Final State: CounterState[count=2]
 
 
 // Run stack example
 StateTuple<StackState, Integer> stackResultTuple = runState(stackProgram, initialStack);
-System.out.println("Stack Final Tuple: "+stackResultTuple);
+System.out.println("Stack Final Tuple: " + stackResultTuple);
 // Output: Stack Final Tuple: StateTuple[value=30, state=StackState[stack=[]]] (Value is 20 + 10)
 
 Integer stackFinalValue = evalState(stackProgram, initialStack);
-System.out.println("Stack Final Value: "+stackFinalValue); // Output: 30
+System.out.println("Stack Final Value: " + stackFinalValue); // Output: 30
 
 StackState finalStackState = execState(stackProgram, initialStack);
-System.out.println("Stack Final State: "+finalStackState); // Output: StackState[stack=[]]
+System.out.println("Stack Final State: " + finalStackState); // Output: StackState[stack=[]]
 
 
 // Run push5AndDescribe example
 StateTuple<StackState, String> pushDescribeTuple = runState(push5AndDescribe, initialStack);
-System.out.println("Push/Describe Tuple: "+pushDescribeTuple);
+System.out.println("Push/Describe Tuple: " + pushDescribeTuple);
 // Output: Push/Describe Tuple: StateTuple[value=Pushed 5, value is null, state=StackState[stack=[5]]]
 ```
-
 
 ## Summary
 
