@@ -22,7 +22,7 @@ import org.higherkindedj.hkt.state.StateTuple;
 public final class StateT<S, F, A> implements StateTKind<S, F, A> {
 
   private final Function<S, Kind<F, StateTuple<S, A>>> runStateTFn;
-  private final Monad<F> monadF; // Keep a reference to the Monad instance for F
+  private final Monad<F> monadF;
 
   // Private constructor, use factory methods in StateTKindHelper
   private StateT(Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
@@ -76,21 +76,6 @@ public final class StateT<S, F, A> implements StateTKind<S, F, A> {
   public Kind<F, S> execStateT(S initialState) {
     return monadF.map(StateTuple::state, runStateT(initialState));
   }
-
-  /**
-   * Provides access to the underlying Monad instance for F. Useful for implementing Monad
-   * operations for StateT.
-   *
-   * @return The Monad<F> instance.
-   */
-  Monad<F> monadF() {
-    return monadF;
-  }
-
-  // Consider adding equals, hashCode, and toString if needed,
-  // though comparing functions can be tricky. For simplicity, they are omitted here.
-  // Equality might be based on running the function with a sample state if F's results are
-  // comparable.
 
   @Override
   public String toString() {

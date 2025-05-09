@@ -2,7 +2,7 @@ package org.higherkindedj.hkt.trans.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.unwrap; // For Optional results
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.unwrap;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -65,12 +65,10 @@ class StateTTest {
       StateT<Integer, OptionalKind<?>, String> stateT =
           StateT.<Integer, OptionalKind<?>, String>create(runFn, optMonad);
 
-      // FIX: Compare unwrapped results for equality, not Kind identity
       Optional<StateTuple<Integer, String>> expectedResult = unwrap(runFn.apply(initialState));
       Optional<StateTuple<Integer, String>> actualResult = unwrap(stateT.runStateT(initialState));
-      assertThat(actualResult).isEqualTo(expectedResult);
 
-      // Keep other checks
+      assertThat(actualResult).isEqualTo(expectedResult);
       assertThat(runOptEvalStateT(stateT, initialState)).isPresent().contains("Val:10");
       assertThat(runOptExecStateT(stateT, initialState)).isPresent().contains(11);
     }
@@ -96,7 +94,6 @@ class StateTTest {
   @DisplayName("Instance Methods: runStateT, evalStateT, execStateT")
   class RunEvalExecTests {
 
-    // FIX: Declare fields but initialize in @BeforeEach
     private StateT<Integer, OptionalKind<?>, String> stateT_Inc;
     private StateT<Integer, OptionalKind<?>, String> stateT_Empty;
 

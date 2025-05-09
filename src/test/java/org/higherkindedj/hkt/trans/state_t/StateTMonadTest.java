@@ -1,52 +1,150 @@
 package org.higherkindedj.hkt.trans.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy; // Added
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.unwrap;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.*;
 
-/** Tests for StateTMonad<S, F> where F = OptionalKind<?> and S = Integer. */
+// --- Helper Stub Monads ---
+
+// Witness type for a simple identity-like monad
+final class IdKind<A> implements Kind<IdKind.Witness, A> {
+  public static class Witness {}
+
+  public final @Nullable A value;
+
+  private IdKind(@Nullable A value) {
+    this.value = value;
+  }
+
+  public static <A> IdKind<A> of(@Nullable A value) {
+    return new IdKind<>(value);
+  }
+
+  public static <A> IdKind<A> narrow(Kind<Witness, A> kind) {
+    return (IdKind<A>) kind;
+  }
+}
+
+class NonErrorMonad implements Monad<IdKind.Witness> {
+  @Override
+  public <A> @NonNull Kind<IdKind.Witness, A> of(@Nullable A a) {
+    return IdKind.of(a);
+  }
+
+  @Override
+  public <A, B> @NonNull Kind<IdKind.Witness, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<IdKind.Witness, A> fa) {
+    return IdKind.of(f.apply(IdKind.narrow(fa).value));
+  }
+
+  @Override
+  public <A, B> @NonNull Kind<IdKind.Witness, B> ap(
+      @NonNull Kind<IdKind.Witness, Function<A, B>> ff, @NonNull Kind<IdKind.Witness, A> fa) {
+    assert IdKind.narrow(ff).value != null;
+    return IdKind.of(IdKind.narrow(ff).value.apply(IdKind.narrow(fa).value));
+  }
+
+  @Override
+  public <A, B> @NonNull Kind<IdKind.Witness, B> flatMap(
+      @NonNull Function<A, Kind<IdKind.Witness, B>> f, @NonNull Kind<IdKind.Witness, A> fa) {
+    return f.apply(IdKind.narrow(fa).value);
+  }
+}
+
+class StringErrorMonad implements MonadError<IdKind.Witness, String> {
+  @Override
+  public <A> @NonNull Kind<IdKind.Witness, A> of(@Nullable A a) {
+    return IdKind.of(a);
+  }
+
+  @Override
+  public <A, B> @NonNull Kind<IdKind.Witness, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<IdKind.Witness, A> fa) {
+    IdKind<A> idFa = IdKind.narrow(fa);
+    if (idFa.value == null) return IdKind.of(null);
+    return IdKind.of(f.apply(idFa.value));
+  }
+
+  @Override
+  public <A, B> @NonNull Kind<IdKind.Witness, B> ap(
+      @NonNull Kind<IdKind.Witness, Function<A, B>> ff, @NonNull Kind<IdKind.Witness, A> fa) {
+    IdKind<Function<A, B>> idFf = IdKind.narrow(ff);
+    IdKind<A> idFa = IdKind.narrow(fa);
+    if (idFf.value == null || idFa.value == null) return IdKind.of(null);
+    return IdKind.of(idFf.value.apply(idFa.value));
+  }
+
+  @Override
+  public <A, B> @NonNull Kind<IdKind.Witness, B> flatMap(
+      @NonNull Function<A, Kind<IdKind.Witness, B>> f, @NonNull Kind<IdKind.Witness, A> fa) {
+    IdKind<A> idFa = IdKind.narrow(fa);
+    if (idFa.value == null) return IdKind.of(null);
+    return f.apply(idFa.value);
+  }
+
+  @Override
+  public <A> @NonNull Kind<IdKind.Witness, A> raiseError(@Nullable String error) {
+    // If StateTMonad calls this with 'null' (treating us like a MonadError<F, Void>),
+    // but we are a MonadError<F, String> that expects a non-null string or has
+    // a specific representation for its errors, receiving 'null' could be a type error.
+    // We simulate this by throwing a ClassCastException if null is passed.
+    if (error == null) {
+      throw new ClassCastException(
+          "Simulated CCE: Null received by StringErrorMonad.raiseError, "
+              + "which expects a String representation or has specific null handling "
+              + "incompatible with being treated as MonadError<F, Void>.raiseError(null).");
+    }
+    return IdKind.of(null); // Still represent the error state with a null IdKind value
+  }
+
+  @Override
+  public <A> @NonNull Kind<IdKind.Witness, A> handleErrorWith(
+      @NonNull Kind<IdKind.Witness, A> ma,
+      @NonNull Function<String, Kind<IdKind.Witness, A>> handler) {
+    IdKind<A> idMa = IdKind.narrow(ma);
+    if (idMa.value != null) {
+      return ma;
+    }
+    return handler.apply("SIMULATED_ERROR_VALUE_FOR_HANDLER");
+  }
+}
+
+// --- End Helper Stub Monads ---
+
 @DisplayName("StateTMonad Tests (F=Optional, S=Integer)")
 class StateTMonadTest {
 
   private Monad<OptionalKind<?>> optMonad;
-  // Explicitly type the monad instance: S=Integer, F=OptionalKind<?>
   private StateTMonad<Integer, OptionalKind<?>> stateTMonad;
   private final Integer initialState = 10;
 
-  // --- Fields for Law Tests - FIX: Initialize in setUp ---
-  private Function<Integer, String> intToString;
   private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> mValue;
   private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> mEmpty;
   private Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>> f;
   private Function<String, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>> g;
 
-  // --- End Fields for Law Tests ---
-
-  // Helper to run and unwrap the Optional<StateTuple>
   private <A> Optional<StateTuple<Integer, A>> runOptStateT(
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, A> kind, Integer startState) {
-    // Add explicit type arguments to the helper call
     Kind<OptionalKind<?>, StateTuple<Integer, A>> resultKind =
         StateTKindHelper.<Integer, OptionalKind<?>, A>runStateT(kind, startState);
     return unwrap(resultKind);
   }
 
-  // Helper to create a StateT Kind with explicit types
-  private <A> Kind<StateTKind.Witness<Integer, OptionalKind<?>>, A> createStateTKind(
+  private <A> Kind<StateTKind.Witness<Integer, OptionalKind<?>>, A> createStateTKindForOptional(
       Function<Integer, Kind<OptionalKind<?>, StateTuple<Integer, A>>> runFn) {
-    // Ensure optMonad is initialized before calling this
     if (optMonad == null) {
       throw new IllegalStateException("optMonad must be initialized before creating StateTKind");
     }
@@ -60,23 +158,21 @@ class StateTMonadTest {
     optMonad = new OptionalMonad();
     stateTMonad = StateTMonad.instance(optMonad);
 
-    // --- FIX: Initialize law test fields here ---
-    intToString = Object::toString;
-    mValue = createStateTKind(s -> optMonad.of(StateTuple.of(s + 1, s * 10)));
-    mEmpty = createStateTKind(s -> OptionalKindHelper.wrap(Optional.empty()));
-    f = i -> createStateTKind(s -> optMonad.of(StateTuple.of(s + i, "v" + i)));
-    g = str -> createStateTKind(s -> optMonad.of(StateTuple.of(s + str.length(), str + "!")));
-    // --- End FIX ---
+    Function<Integer, String> intToString = Object::toString;
+    mValue = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, s * 10)));
+    mEmpty = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+    f = i -> createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + i, "v" + i)));
+    g =
+        str ->
+            createStateTKindForOptional(
+                s -> optMonad.of(StateTuple.of(s + str.length(), str + "!")));
   }
-
-  // --- Basic Operations ---
 
   @Nested
   @DisplayName("Applicative 'of' tests")
   class OfTests {
     @Test
     void of_shouldCreateStateTReturningValueAndUnchangedStateInOptional() {
-      // stateTMonad is initialized in setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> kind =
           stateTMonad.of("constantValue");
       Optional<StateTuple<Integer, String>> result = runOptStateT(kind, initialState);
@@ -86,7 +182,6 @@ class StateTMonadTest {
 
     @Test
     void of_shouldWrapNullAsPresentOptionalHoldingTupleWithNullValue() {
-      // stateTMonad is initialized in setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> kind = stateTMonad.of(null);
       Optional<StateTuple<Integer, String>> result = runOptStateT(kind, initialState);
       assertThat(result).isPresent().contains(StateTuple.of(initialState, null));
@@ -96,29 +191,27 @@ class StateTMonadTest {
   @Nested
   @DisplayName("Functor 'map' tests")
   class MapTests {
-
-    // FIX: Declare fields, initialize in @BeforeEach of this nested class
     private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> initialKind;
     private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> emptyKind;
 
     @BeforeEach
     void setUpMapTests() {
-      initialKind = createStateTKind(s -> optMonad.of(StateTuple.of(s + 1, s * 2)));
-      emptyKind = createStateTKind(s -> OptionalKindHelper.wrap(Optional.empty()));
+      initialKind = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, s * 2)));
+      emptyKind = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
     }
 
     @Test
     void map_shouldApplyFunctionToValueWhenOuterIsPresent() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> mappedKind =
           stateTMonad.map(i -> "V:" + i, initialKind);
-      Optional<StateTuple<Integer, String>> result = runOptStateT(mappedKind, initialState); // 10
-      assertThat(result).isPresent().contains(StateTuple.of(11, "V:20"));
+      Optional<StateTuple<Integer, String>> result = runOptStateT(mappedKind, initialState);
+      assertThat(result)
+          .isPresent()
+          .contains(StateTuple.of(initialState + 1, "V:" + (initialState * 2)));
     }
 
     @Test
     void map_shouldPropagateOuterEmpty() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> mappedKind =
           stateTMonad.map(i -> "V:" + i, emptyKind);
       Optional<StateTuple<Integer, String>> result = runOptStateT(mappedKind, initialState);
@@ -127,19 +220,16 @@ class StateTMonadTest {
 
     @Test
     void map_shouldHandleMappingValueToNullAsPresentOptionalHoldingTupleWithNullValue() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> mappedKind =
-          stateTMonad.map(i -> null, initialKind); // Function returns null
+          stateTMonad.map(i -> null, initialKind);
       Optional<StateTuple<Integer, String>> result = runOptStateT(mappedKind, initialState);
-      assertThat(result).isPresent().contains(StateTuple.of(11, null));
+      assertThat(result).isPresent().contains(StateTuple.of(initialState + 1, null));
     }
   }
 
   @Nested
   @DisplayName("Applicative 'ap' tests")
   class ApTests {
-
-    // FIX: Declare fields, initialize in @BeforeEach of this nested class
     private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Function<Integer, String>> funcKind;
     private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> valKind;
     private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> emptyValKind;
@@ -150,30 +240,24 @@ class StateTMonadTest {
 
     @BeforeEach
     void setUpApTests() {
-      funcKind = createStateTKind(s -> optMonad.of(StateTuple.of(s + 1, i -> "F" + i + s)));
-      valKind = createStateTKind(s -> optMonad.of(StateTuple.of(s * 2, s + 10)));
-      emptyValKind = createStateTKind(s -> OptionalKindHelper.wrap(Optional.empty()));
-      emptyFuncKind = createStateTKind(s -> OptionalKindHelper.wrap(Optional.empty()));
-      nullFuncKind = createStateTKind(s -> optMonad.of(StateTuple.of(s + 1, null)));
+      funcKind =
+          createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, i -> "F" + i + s)));
+      valKind = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s * 2, s + 10)));
+      emptyValKind = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+      emptyFuncKind = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+      nullFuncKind = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, null)));
     }
 
     @Test
     void ap_shouldApplyPresentFuncToPresentValue() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> resultKind =
           stateTMonad.ap(funcKind, valKind);
-      Optional<StateTuple<Integer, String>> result = runOptStateT(resultKind, 5); // Initial state 5
-      // Calculation:
-      // 1. Run funcKind(5): state=6, func=i->"F"+i+5
-      // 2. Run valKind(6): state=12, val=16
-      // 3. Apply func(16): "F"+16+5 = "F165"
-      // Result: state=12, value="F165"
+      Optional<StateTuple<Integer, String>> result = runOptStateT(resultKind, 5);
       assertThat(result).isPresent().contains(StateTuple.of(12, "F165"));
     }
 
     @Test
     void ap_shouldReturnEmptyIfFuncOuterIsEmpty() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> resultKind =
           stateTMonad.ap(emptyFuncKind, valKind);
       assertThat(runOptStateT(resultKind, initialState)).isEmpty();
@@ -181,7 +265,6 @@ class StateTMonadTest {
 
     @Test
     void ap_shouldReturnEmptyIfValueOuterIsEmpty() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> resultKind =
           stateTMonad.ap(funcKind, emptyValKind);
       assertThat(runOptStateT(resultKind, initialState)).isEmpty();
@@ -189,10 +272,8 @@ class StateTMonadTest {
 
     @Test
     void ap_shouldReturnEmptyIfFunctionInTupleIsNull() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> resultKind =
           stateTMonad.ap(nullFuncKind, valKind);
-      // Optional.map on the tuple containing null function will result in empty
       assertThat(runOptStateT(resultKind, 5)).isEmpty();
     }
   }
@@ -200,68 +281,63 @@ class StateTMonadTest {
   @Nested
   @DisplayName("Monad 'flatMap' tests")
   class FlatMapTests {
-
-    // FIX: Declare fields, initialize in @BeforeEach of this nested class
-    private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> initialKind;
-    private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> emptyKind;
-    private Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>> f;
-    private Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>> fEmpty;
+    /* ... existing tests ... */
+    private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> initialKindFlatMap;
+    private Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> emptyKindFlatMap;
+    private Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>> fFlatMap;
+    private Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>>
+        fEmptyFlatMap;
 
     @BeforeEach
     void setUpFlatMapTests() {
-      initialKind = createStateTKind(s -> optMonad.of(StateTuple.of(s + 1, s * 2)));
-      emptyKind = createStateTKind(s -> OptionalKindHelper.wrap(Optional.empty()));
-      // Note: 'f' and 'fEmpty' capture 'optMonad' from the outer scope, which is fine
-      // as long as they are used after setUp runs.
-      f = i -> createStateTKind(s -> optMonad.of(StateTuple.of(s + i, "Val:" + i)));
-      fEmpty = i -> createStateTKind(s -> OptionalKindHelper.wrap(Optional.empty()));
+      initialKindFlatMap =
+          createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, s * 2)));
+      emptyKindFlatMap =
+          createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+      fFlatMap =
+          i -> createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + i, "Val:" + i)));
+      fEmptyFlatMap =
+          i -> createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
     }
 
     @Test
     void flatMap_shouldSequenceComputations() {
-      // stateTMonad is initialized in outer setUp
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> resultKind =
-          stateTMonad.flatMap(f, initialKind);
-      Optional<StateTuple<Integer, String>> result =
-          runOptStateT(resultKind, 10); // Initial state 10
-      // Calculation:
-      // 1. Run initialKind(10): state=11, value=20
-      // 2. Apply f(20): returns kind representing s -> Optional(StateTuple(s+20, "Val:20"))
-      // 3. Run the result of f(20) with state=11: state=11+20=31, value="Val:20"
-      // Result: state=31, value="Val:20"
+          stateTMonad.flatMap(fFlatMap, initialKindFlatMap);
+      Optional<StateTuple<Integer, String>> result = runOptStateT(resultKind, 10);
       assertThat(result).isPresent().contains(StateTuple.of(31, "Val:20"));
     }
 
     @Test
     void flatMap_shouldPropagateOuterEmptyFromInitial() {
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> resultKind =
-          stateTMonad.flatMap(f, emptyKind);
+          stateTMonad.flatMap(fFlatMap, emptyKindFlatMap);
       assertThat(runOptStateT(resultKind, initialState)).isEmpty();
     }
 
     @Test
     void flatMap_shouldPropagateOuterEmptyFromFunction() {
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> resultKind =
-          stateTMonad.flatMap(fEmpty, initialKind);
+          stateTMonad.flatMap(fEmptyFlatMap, initialKindFlatMap);
       assertThat(runOptStateT(resultKind, initialState)).isEmpty();
     }
   }
 
-  // --- Law Tests ---
-  // Helper to assert law equality for different initial states
   private <A> void assertStateTEquals(
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, A> k1,
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, A> k2) {
-    assertThat(runOptStateT(k1, initialState)).isEqualTo(runOptStateT(k2, initialState));
-    assertThat(runOptStateT(k1, initialState + 5)).isEqualTo(runOptStateT(k2, initialState + 5));
-    assertThat(runOptStateT(k1, -1)).isEqualTo(runOptStateT(k2, -1));
+    Integer s1 = initialState;
+    Integer s2 = initialState + 5;
+    Integer s3 = -1;
+    assertThat(runOptStateT(k1, s1)).as("State %d", s1).isEqualTo(runOptStateT(k2, s1));
+    assertThat(runOptStateT(k1, s2)).as("State %d", s2).isEqualTo(runOptStateT(k2, s2));
+    assertThat(runOptStateT(k1, s3)).as("State %d", s3).isEqualTo(runOptStateT(k2, s3));
   }
-
-  // Functions and values for laws are initialized in setUp
 
   @Nested
   @DisplayName("Monad Laws")
   class MonadLaws {
+
     @Test
     @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
@@ -277,12 +353,10 @@ class StateTMonadTest {
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
       Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer>> ofFunc =
-          i -> stateTMonad.of(i);
-      // Success case
+          stateTMonad::of;
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> leftSideSuccess =
           stateTMonad.flatMap(ofFunc, mValue);
       assertStateTEquals(leftSideSuccess, mValue);
-      // Empty case
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, Integer> leftSideEmpty =
           stateTMonad.flatMap(ofFunc, mEmpty);
       assertStateTEquals(leftSideEmpty, mEmpty);
@@ -291,25 +365,106 @@ class StateTMonadTest {
     @Test
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
-      // Success case
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> innerSuccess =
           stateTMonad.flatMap(f, mValue);
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> leftSideSuccess =
           stateTMonad.flatMap(g, innerSuccess);
-      Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>> rightSideFunc =
-          a -> stateTMonad.flatMap(g, f.apply(a));
+      Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String>>
+          rightSideInnerFunc = a -> stateTMonad.flatMap(g, f.apply(a));
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> rightSideSuccess =
-          stateTMonad.flatMap(rightSideFunc, mValue);
+          stateTMonad.flatMap(rightSideInnerFunc, mValue);
       assertStateTEquals(leftSideSuccess, rightSideSuccess);
-
-      // Empty case
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> innerEmpty =
           stateTMonad.flatMap(f, mEmpty);
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> leftSideEmpty =
           stateTMonad.flatMap(g, innerEmpty);
       Kind<StateTKind.Witness<Integer, OptionalKind<?>>, String> rightSideEmpty =
-          stateTMonad.flatMap(rightSideFunc, mEmpty);
+          stateTMonad.flatMap(rightSideInnerFunc, mEmpty);
       assertStateTEquals(leftSideEmpty, rightSideEmpty);
+    }
+  }
+
+  private <S, V> Kind<StateTKind.Witness<S, IdKind.Witness>, V> createStateTIdKind(
+      Monad<IdKind.Witness> idMonad, Function<S, Kind<IdKind.Witness, StateTuple<S, V>>> runFn) {
+    StateT<S, IdKind.Witness, V> stateT =
+        StateTKindHelper.<S, IdKind.Witness, V>stateT(runFn, idMonad);
+    return StateTKindHelper.<S, IdKind.Witness, V>wrap(stateT);
+  }
+
+  @Nested
+  @DisplayName("StateTMonad Constructor and Error Handling Path Tests")
+  class ConstructorAndErrorPathTests {
+
+    private final Integer localInitialState = 10;
+
+    @Test
+    @DisplayName("constructor should set monadErrorF to null if underlying monad is not MonadError")
+    void constructorWithNonMonadError() {
+      NonErrorMonad nonErrorMonad = new NonErrorMonad();
+      StateTMonad<Integer, IdKind.Witness> stateTWithNonErrorMonad =
+          StateTMonad.instance(nonErrorMonad);
+
+      Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> kind =
+          stateTWithNonErrorMonad.of("testValue");
+      Kind<IdKind.Witness, StateTuple<Integer, String>> resultWrapped =
+          StateTKindHelper.<Integer, IdKind.Witness, String>runStateT(kind, localInitialState);
+      StateTuple<Integer, String> resultTuple = IdKind.narrow(resultWrapped).value;
+
+      Assertions.assertNotNull(resultTuple);
+      assertThat(resultTuple.state()).isEqualTo(localInitialState);
+      assertThat(resultTuple.value()).isEqualTo("testValue");
+    }
+
+    @Test
+    @DisplayName(
+        "ap should throw IllegalStateException when monadErrorF is null and function is null")
+    void ap_throwsIllegalStateWhenMonadErrorFIsNullAndFunctionIsNull() {
+      NonErrorMonad nonErrorMonad = new NonErrorMonad();
+      StateTMonad<Integer, IdKind.Witness> stateTWithNonErrorMonad =
+          StateTMonad.instance(nonErrorMonad);
+
+      Kind<StateTKind.Witness<Integer, IdKind.Witness>, Function<String, String>> nullFuncKind =
+          createStateTIdKind(nonErrorMonad, s -> nonErrorMonad.of(StateTuple.of(s, null)));
+
+      Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> valKind =
+          createStateTIdKind(nonErrorMonad, s -> nonErrorMonad.of(StateTuple.of(s, "value")));
+
+      Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> resultKind =
+          stateTWithNonErrorMonad.ap(nullFuncKind, valKind);
+
+      assertThatThrownBy(
+              () ->
+                  StateTKindHelper.<Integer, IdKind.Witness, String>runStateT(
+                      resultKind, localInitialState))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("MonadError<F> instance not available");
+    }
+
+    @Test
+    @DisplayName(
+        "ap should throw IllegalStateException via ClassCastException for non-Void MonadError")
+    void ap_throwsIllegalStateFromClassCastExceptionForNonVoidErrorType() {
+      StringErrorMonad stringErrorMonad = new StringErrorMonad();
+      StateTMonad<Integer, IdKind.Witness> stateTWithStringErrorMonad =
+          StateTMonad.instance(stringErrorMonad);
+
+      Kind<StateTKind.Witness<Integer, IdKind.Witness>, Function<String, String>> nullFuncKind =
+          createStateTIdKind(stringErrorMonad, s -> stringErrorMonad.of(StateTuple.of(s, null)));
+
+      Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> valKind =
+          createStateTIdKind(stringErrorMonad, s -> stringErrorMonad.of(StateTuple.of(s, "value")));
+
+      Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> resultKind =
+          stateTWithStringErrorMonad.ap(nullFuncKind, valKind);
+
+      assertThatThrownBy(
+              () ->
+                  StateTKindHelper.<Integer, IdKind.Witness, String>runStateT(
+                      resultKind, localInitialState))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining(
+              "Underlying MonadError<F> does not have Void error type as expected.")
+          .hasCauseInstanceOf(ClassCastException.class);
     }
   }
 }
