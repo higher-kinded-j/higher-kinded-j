@@ -106,17 +106,6 @@ class EitherKindHelperTest {
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyEitherKind.class.getName());
     }
-
-    @Test
-    void unwrap_shouldThrowForHolderWithNullEither() {
-      EitherHolder<String, Integer> holderWithNull = new EitherHolder<>(null);
-      @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<EitherKind<String, ?>, Integer> kind = holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
   }
 
   @Nested

@@ -1,6 +1,7 @@
 package org.higherkindedj.hkt.trymonad;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
+
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -8,173 +9,307 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Represents a computation that may either result in a value of type T or fail with a Throwable.
- * Similar to Scala's Try.
+ * Represents a computation that may either result in a value (a {@link Success}) or an exception (a
+ * {@link Failure}). {@code Try} is a sum type designed to encapsulate operations that can throw
+ * {@link Throwable}s, allowing for more functional error handling.
  *
- * @param <T> the type of the successful value
+ * <p>It is similar to Scala's {@code Try} or Haskell's {@code Either Exception a}. {@code Try} is
+ * right-biased, meaning operations like {@link #map(Function)} and {@link #flatMap(Function)}
+ * operate on the value of a {@link Success} and pass a {@link Failure} through unchanged.
+ *
+ * <p>This is a sealed interface, with {@link Success} and {@link Failure} as its only direct
+ * implementations (provided as nested records). This facilitates exhaustive pattern matching using
+ * `switch` expressions.
+ *
+ * <p>Primary use cases include:
+ *
+ * <ul>
+ *   <li>Converting exception-throwing APIs into pure functional computations.
+ *   <li>Sequencing operations where any step might fail, without deeply nested try-catch blocks.
+ *   <li>Providing a clear path for recovery from failures.
+ * </ul>
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * public Try<Integer> parseInt(String s) {
+ * return Try.of(() -> Integer.parseInt(s));
+ * }
+ *
+ * Try<Integer> result = parseInt("123");
+ * result.fold(
+ * error -> { System.err.println("Failed: " + error.getMessage()); return -1; },
+ * value -> { System.out.println("Succeeded: " + value); return value; }
+ * );
+ *
+ * Try<Integer> doubled = result.map(v -> v * 2); // Only maps if result was Success
+ *
+ * Try<String> recovered = parseInt("abc").recover(ex -> "Default Value"); // Will be Success("Default Value")
+ * }</pre>
+ *
+ * @param <T> The type of the value if the computation is successful.
+ * @see Success
+ * @see Failure
  */
 public sealed interface Try<T> permits Try.Success, Try.Failure {
 
   /**
-   * Executes the given Supplier and returns the result wrapped in a Success, or catches any
-   * Throwable and returns it wrapped in a Failure.
+   * Executes a {@link Supplier} that produces a value of type {@code T} and wraps the outcome in a
+   * {@code Try}. If the supplier executes successfully, its result (which can be {@code null}) is
+   * wrapped in a {@link Success}. If the supplier throws any {@link Throwable} (including {@link
+   * Error}s and checked/unchecked exceptions), it is caught and wrapped in a {@link Failure}.
    *
-   * @param supplier The computation to execute. (NonNull)
-   * @param <T> The type of the result.
-   * @return Success(result) if supplier completes normally, Failure(throwable) otherwise. (NonNull)
+   * <p>This is the most common way to create a {@code Try} instance from potentially failable code.
+   *
+   * @param supplier The non-null computation (supplier) to execute. The supplier itself may return
+   *     {@code null}.
+   * @param <T> The type of the result produced by the supplier.
+   * @return A non-null {@link Success} instance containing the supplier's result if execution is
+   *     normal, or a non-null {@link Failure} instance containing the {@link Throwable} if an
+   *     exception occurs.
+   * @throws NullPointerException if {@code supplier} is null.
    */
   static <T> @NonNull Try<T> of(@NonNull Supplier<? extends T> supplier) {
-    Objects.requireNonNull(supplier, "Supplier cannot be null");
+    requireNonNull(supplier, "Supplier cannot be null");
     try {
-      // Supplier result can be null, Success allows null
+      // The result from supplier.get() can be null, and Success can hold a null value.
       return new Success<>(supplier.get());
     } catch (Throwable t) {
-      // Catch all Throwables, including Errors
-      return new Failure<>(t); // Failure requires non-null Throwable
+      // Catch all Throwables, including Errors, as per typical Try semantics.
+      return new Failure<>(t); // Failure requires a non-null Throwable.
     }
   }
 
   /**
-   * Creates a Try representing a successful computation. Allows null values, though often non-null
-   * is preferred.
+   * Creates a {@code Try} representing a successful computation with the given value. The provided
+   * value can be {@code null}, in which case it results in {@code Success(null)}.
    *
-   * @param value The successful value. (Nullable)
+   * @param value The successful value. Can be {@code null}.
    * @param <T> The type of the value.
-   * @return A Success instance holding the value. (NonNull)
+   * @return A non-null {@link Success} instance holding the provided value.
    */
   static <T> @NonNull Try<T> success(@Nullable T value) {
     return new Success<>(value);
   }
 
   /**
-   * Creates a Try representing a failed computation.
+   * Creates a {@code Try} representing a failed computation due to the given {@link Throwable}.
    *
-   * @param throwable The Throwable that caused the failure. Must not be null. (NonNull)
-   * @param <T> The phantom type of the value (since it failed).
-   * @return A Failure instance holding the Throwable. (NonNull)
-   * @throws NullPointerException if throwable is null.
+   * @param throwable The non-null {@link Throwable} that caused the failure.
+   * @param <T> The phantom type of the value (since the computation failed to produce one).
+   * @return A non-null {@link Failure} instance holding the {@link Throwable}.
+   * @throws NullPointerException if {@code throwable} is null.
    */
   static <T> @NonNull Try<T> failure(@NonNull Throwable throwable) {
-    Objects.requireNonNull(throwable, "Throwable for Failure cannot be null");
+    requireNonNull(throwable, "Throwable for Failure cannot be null");
     return new Failure<>(throwable);
   }
 
-  // Methods returning boolean don't usually need nullness annotations
+  /**
+   * Checks if this {@code Try} instance represents a successful computation (i.e., is a {@link
+   * Success}).
+   *
+   * @return {@code true} if this is a {@link Success}, {@code false} otherwise.
+   */
   boolean isSuccess();
 
+  /**
+   * Checks if this {@code Try} instance represents a failed computation (i.e., is a {@link
+   * Failure}).
+   *
+   * @return {@code true} if this is a {@link Failure}, {@code false} otherwise.
+   */
   boolean isFailure();
 
   /**
-   * Gets the successful value. Throws the contained Throwable if this is a Failure.
+   * Retrieves the successful value if this is a {@link Success}. If this is a {@link Failure}, it
+   * re-throws the original {@link Throwable} that caused the failure.
    *
-   * @return The successful value. (Nullability depends on T)
-   * @throws Throwable if this is a Failure.
+   * <p><b>Caution:</b> This method breaks functional purity by potentially throwing an exception.
+   * It's generally preferred to use methods like {@link #fold(Function, Function)}, {@link
+   * #orElse(Object)}, {@link #recover(Function)}, or pattern matching to handle both success and
+   * failure cases without throwing exceptions.
+   *
+   * @return The successful value (can be {@code null} if it was a {@code Success(null)}).
+   * @throws Throwable if this is a {@link Failure}, the original exception is thrown.
    */
-  @Nullable T get() throws Throwable; // Can return null if Success(null)
+  @Nullable T get() throws Throwable;
 
   /**
-   * Gets the successful value, or returns the 'other' value if this is a Failure.
+   * Retrieves the successful value if this is a {@link Success}. If this is a {@link Failure}, it
+   * returns the provided {@code other} value.
    *
-   * @param other The value to return in case of Failure. (Nullability depends on T)
-   * @return The successful value or the alternative value. (Nullability depends on T and other)
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Try<Integer> success = Try.success(10);
+   * int v1 = success.orElse(0); // v1 is 10
+   *
+   * Try<Integer> failure = Try.failure(new RuntimeException("boom"));
+   * int v2 = failure.orElse(0); // v2 is 0
+   * }</pre>
+   *
+   * @param other The alternative value to return if this is a {@link Failure}. Can be {@code null}
+   *     if {@code T} is a nullable type.
+   * @return The successful value if this is a {@link Success}, otherwise {@code other}. The
+   *     nullability of the result depends on {@code T} and the nullability of {@code other}.
    */
   @Nullable T orElse(@Nullable T other);
 
   /**
-   * Gets the successful value, or returns the result of the supplier if this is a Failure.
+   * Retrieves the successful value if this is a {@link Success}. If this is a {@link Failure}, it
+   * returns the value provided by the {@code supplier}. The supplier is only evaluated if this is a
+   * {@link Failure}.
    *
-   * @param supplier Provides the alternative value in case of Failure. (NonNull)
-   * @return The successful value or the supplied alternative value. (Nullability depends on T and
-   *     supplier result)
+   * @param supplier The non-null {@link Supplier} that provides an alternative value if this is a
+   *     {@link Failure}. The supplier may return {@code null} if {@code T} is nullable.
+   * @return The successful value if this is a {@link Success}, otherwise the result of {@code
+   *     supplier.get()}. The nullability depends on {@code T} and the result of the supplier.
+   * @throws NullPointerException if {@code supplier} is null (but only if this is a {@link Failure}
+   *     and the supplier needs to be invoked by the concrete implementation).
    */
   @Nullable T orElseGet(@NonNull Supplier<? extends T> supplier);
 
   /**
-   * Applies one of the functions depending on whether this is a Success or Failure, using pattern
-   * matching for switch (Java 21+).
+   * Applies one of two functions depending on whether this is a {@link Success} or a {@link
+   * Failure}. This allows for a complete handling of both outcomes, transforming them into a single
+   * result of type {@code U}.
    *
-   * @param successMapper Function to apply if Success (NonNull).
-   * @param failureMapper Function to apply if Failure (NonNull).
-   * @param <U> The target type.
-   * @return The result of the applied function.
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Try<Integer> computation = Try.of(() -> 10 / 0); // Failure
+   * String message = computation.fold(
+   * value -> "Result: " + value,
+   * error -> "Error: " + error.getClass().getSimpleName()
+   * );
+   * // message will be "Error: ArithmeticException"
+   * }</pre>
+   *
+   * @param successMapper The non-null function to apply if this is a {@link Success}. It accepts
+   *     the value of type {@code T} and returns a {@code U}.
+   * @param failureMapper The non-null function to apply if this is a {@link Failure}. It accepts
+   *     the {@link Throwable} and returns a {@code U}.
+   * @param <U> The target type to which both outcomes are mapped.
+   * @return The result of applying the appropriate mapping function. The result's nullability
+   *     depends on the nullability of the results from the mappers.
+   * @throws NullPointerException if either {@code successMapper} or {@code failureMapper} is null.
    */
   default <U> U fold(
       @NonNull Function<? super T, ? extends U> successMapper,
       @NonNull Function<? super Throwable, ? extends U> failureMapper) {
-    Objects.requireNonNull(successMapper, "successMapper cannot be null");
-    Objects.requireNonNull(failureMapper, "failureMapper cannot be null");
+    requireNonNull(successMapper, "successMapper cannot be null");
+    requireNonNull(failureMapper, "failureMapper cannot be null");
 
     return switch (this) {
-      // Use record patterns to match and extract value/cause
       case Success<T>(var value) -> successMapper.apply(value);
       case Failure<T>(var cause) -> failureMapper.apply(cause);
     };
   }
 
   /**
-   * If Success, applies the function to the value. If the function throws, returns Failure. If
-   * Failure, returns the original Failure.
+   * If this is a {@link Success}, applies the given mapping function to its value. If the mapping
+   * function itself throws a {@link Throwable}, the result is a new {@link Failure} containing that
+   * {@link Throwable}. If this is a {@link Failure}, it returns the original {@link Failure}
+   * instance unchanged.
    *
-   * @param mapper Function to apply to the successful value. (NonNull)
-   * @param <U> The type of the result of the mapping function.
-   * @return A new Try potentially containing the mapped value or a Failure. (NonNull)
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Try.success(5).map(i -> i * 2); // Success(10)
+   * Try.success("text").map(s -> s.charAt(10)); // Will be Failure(StringIndexOutOfBoundsException)
+   * Try.failure(new Exception("err")).map(x -> x); // Failure(Exception("err"))
+   * }</pre>
+   *
+   * @param mapper The non-null function to apply to the successful value.
+   * @param <U> The type of the value in the resulting {@link Try} if mapping is successful.
+   * @return A new non-null {@code Try<U>} resulting from applying the mapper, or a {@link Failure}.
+   * @throws NullPointerException if {@code mapper} is null (checked by implementations).
    */
   @NonNull <U> Try<U> map(@NonNull Function<? super T, ? extends U> mapper);
 
   /**
-   * If Success, applies the Try-bearing function to the value. If the function throws, returns
-   * Failure. If Failure, returns the original Failure.
+   * If this is a {@link Success}, applies the given {@code Try}-bearing function to its value and
+   * returns the resulting {@code Try}. If the mapping function itself throws a {@link Throwable},
+   * the result is a new {@link Failure} containing that {@link Throwable}. If this is a {@link
+   * Failure}, it returns the original {@link Failure} instance unchanged.
    *
-   * @param mapper Function to apply to the successful value, returning a Try. (NonNull, returns
-   *     NonNull Try)
-   * @param <U> The type parameter of the Try returned by the mapper.
-   * @return The result of applying the function if Success, or the original Failure. (NonNull)
+   * <p>This is the monadic bind operation, essential for sequencing failable computations.
+   *
+   * @param mapper The non-null function to apply to the successful value. This function must return
+   *     a non-null {@code Try<? extends U>}.
+   * @param <U> The type parameter of the {@code Try} returned by the mapper.
+   * @return The non-null {@code Try<U>} result from applying {@code mapper}, or a {@link Failure}.
+   * @throws NullPointerException if {@code mapper} is null, or if {@code mapper} returns null
+   *     (checked by implementations).
    */
   @NonNull <U> Try<U> flatMap(
       @NonNull Function<? super T, ? extends @NonNull Try<? extends U>> mapper);
 
   /**
-   * If Failure, applies the function to the Throwable to potentially recover. If the recovery
-   * function throws, returns Failure containing the new Throwable. If Success, returns the original
-   * Success.
+   * If this is a {@link Failure}, applies the given recovery function to the {@link Throwable}. If
+   * the recovery function successfully produces a value of type {@code T}, a {@link Success}
+   * containing this value is returned. If the recovery function itself throws a {@link Throwable},
+   * a new {@link Failure} containing this new {@link Throwable} is returned. If this is a {@link
+   * Success}, it returns the original {@link Success} instance unchanged.
    *
-   * @param recoveryFunction Function to apply to the Throwable in case of Failure. (NonNull)
-   * @return A Try potentially recovered from Failure, or the original Success. (NonNull)
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Try.failure(new NumberFormatException()).recover(ex -> 0); // Success(0)
+   * Try.failure(new RuntimeException()).recover(ex -> { throw new IllegalStateException(ex); }); // Failure(IllegalStateException)
+   * Try.success(10).recover(ex -> 0); // Success(10)
+   * }</pre>
+   *
+   * @param recoveryFunction The non-null function to apply to the {@link Throwable} in case of a
+   *     {@link Failure}. It should produce a value of type {@code T}.
+   * @return A non-null {@code Try<T>} which is either the original {@link Success}, a new {@link
+   *     Success} from recovery, or a new {@link Failure} if recovery also failed.
+   * @throws NullPointerException if {@code recoveryFunction} is null (checked by implementations).
    */
   @NonNull Try<T> recover(@NonNull Function<? super Throwable, ? extends T> recoveryFunction);
 
   /**
-   * If Failure, applies the Try-bearing function to the Throwable to potentially recover. If the
-   * recovery function throws or returns null, returns Failure. If Success, returns the original
-   * Success.
+   * If this is a {@link Failure}, applies the given {@code Try}-bearing recovery function to the
+   * {@link Throwable}. This allows for a recovery path that itself might result in a {@link
+   * Success} or a {@link Failure}. If the recovery function throws a {@link Throwable}, or returns
+   * a {@code null} {@code Try}, the result is a new {@link Failure}. If this is a {@link Success},
+   * it returns the original {@link Success} instance unchanged.
    *
-   * @param recoveryFunction Function to apply to the Throwable, returning a Try. (NonNull, returns
-   *     NonNull Try)
-   * @return A Try potentially recovered from Failure, or the original Success. (NonNull)
+   * @param recoveryFunction The non-null function to apply to the {@link Throwable}. This function
+   *     must return a non-null {@code Try<? extends T>}.
+   * @return A non-null {@code Try<T>} which is either the original {@link Success}, the {@code Try}
+   *     returned by the {@code recoveryFunction}, or a new {@link Failure} if recovery also failed
+   *     or returned null.
+   * @throws NullPointerException if {@code recoveryFunction} is null, or if it returns null
+   *     (checked by implementations).
    */
   @NonNull Try<T> recoverWith(
       @NonNull Function<? super Throwable, ? extends @NonNull Try<? extends T>> recoveryFunction);
 
   /**
-   * If Success, performs the action on the value. Catches exceptions from the action. If Failure,
-   * performs the action on the Throwable. Catches exceptions from the action. (Using pattern
-   * matching switch)
+   * Performs one of two actions depending on whether this is a {@link Success} or a {@link
+   * Failure}, using pattern matching. This is primarily for side effects.
    *
-   * @param successAction Action for Success case (NonNull).
-   * @param failureAction Action for Failure case (NonNull).
+   * <p>Exceptions thrown by the consumer actions are caught and printed to {@code System.err} by
+   * this default implementation. Subclasses might handle this differently. Consider using {@link
+   * #fold(Function, Function)} for transformations.
+   *
+   * @param successAction The non-null action to perform if this is a {@link Success}.
+   * @param failureAction The non-null action to perform if this is a {@link Failure}.
+   * @throws NullPointerException if either {@code successAction} or {@code failureAction} is null.
    */
   default void match(
       @NonNull Consumer<? super T> successAction,
       @NonNull Consumer<? super Throwable> failureAction) {
-    Objects.requireNonNull(successAction, "successAction cannot be null");
-    Objects.requireNonNull(failureAction, "failureAction cannot be null");
+    requireNonNull(successAction, "successAction cannot be null");
+    requireNonNull(failureAction, "failureAction cannot be null");
 
     switch (this) {
       case Success<T>(var value) -> {
         try {
           successAction.accept(value);
         } catch (Throwable t) {
-          // Log or handle exception from consumer if needed
           System.err.println("Exception in Try.Success successAction: " + t.getMessage());
         }
       }
@@ -182,15 +317,21 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
         try {
           failureAction.accept(cause);
         } catch (Throwable t) {
-          // Log or handle exception from consumer if needed
           System.err.println("Exception in Try.Failure failureAction: " + t.getMessage());
         }
       }
     }
   }
 
-  /** Represents a successful computation. */
-  record Success<T>(@Nullable T value) implements Try<T> { // value is Nullable
+  /**
+   * Represents a successful computation within a {@link Try}. It holds the resulting value of type
+   * {@code T}, which can be {@code null}. This is a {@link Record} for conciseness and
+   * immutability.
+   *
+   * @param <T> The type of the successful value.
+   * @param value The successful value, which can be {@code null}.
+   */
+  record Success<T>(@Nullable T value) implements Try<T> {
     @Override
     public boolean isSuccess() {
       return true;
@@ -201,6 +342,11 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       return false;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return The successful value (can be {@code null}).
+     */
     @Override
     public @Nullable T get() {
       return value;
@@ -213,35 +359,33 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(@NonNull Supplier<? extends T> supplier) {
+      requireNonNull(supplier, "supplier cannot be null");
       return value;
     }
 
     @Override
     public @NonNull <U> Try<U> map(@NonNull Function<? super T, ? extends U> mapper) {
-      Objects.requireNonNull(mapper, "mapper cannot be null");
+      requireNonNull(mapper, "mapper cannot be null");
       try {
-        // Result of mapper can be null, Success allows null
         return new Success<>(mapper.apply(value));
       } catch (Throwable t) {
-        return new Failure<>(t); // Failure requires NonNull throwable
+        return new Failure<>(t); // Non-null Throwable required for Failure.
       }
     }
 
     @Override
     public @NonNull <U> Try<U> flatMap(
         @NonNull Function<? super T, ? extends @NonNull Try<? extends U>> mapper) {
-      Objects.requireNonNull(mapper, "mapper cannot be null");
+      requireNonNull(mapper, "mapper cannot be null");
       Try<? extends U> result;
       try {
-        // Apply the mapper function only inside the try-catch
-        result = mapper.apply(value); // mapper is NonNull
+        result = mapper.apply(value);
       } catch (Throwable t) {
-        // Catch exceptions thrown by the mapper function itself
-        return new Failure<>(t); // Failure requires NonNull throwable
+        return new Failure<>(t);
       }
-      // Check if the *result* of the mapper is null *after* the try-catch
-      Objects.requireNonNull(result, "flatMap mapper returned null Try");
-      @SuppressWarnings("unchecked") // Safe due to HKT needs
+
+      requireNonNull(result, "flatMap mapper returned a null Try instance, which is not allowed.");
+      @SuppressWarnings("unchecked") // Safe due to type constraints and HKT needs.
       Try<U> typedResult = (Try<U>) result;
       return typedResult;
     }
@@ -249,22 +393,28 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     @Override
     public @NonNull Try<T> recover(
         @NonNull Function<? super Throwable, ? extends T> recoveryFunction) {
-      Objects.requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
-      return this; // Nothing to recover from
+      requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
+      return this;
     }
 
     @Override
     public @NonNull Try<T> recoverWith(
         @NonNull Function<? super Throwable, ? extends @NonNull Try<? extends T>>
             recoveryFunction) {
-      Objects.requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
-      return this; // Nothing to recover from
+      requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
+      return this;
     }
   }
 
-  /** Represents a failed computation. */
-  record Failure<T>(@NonNull Throwable cause) implements Try<T> { // cause is NonNull
-    // Constructor ensures cause is non-null via static factory
+  /**
+   * Represents a failed computation within a {@link Try}. It holds the non-null {@link Throwable}
+   * that caused the failure. This is a {@link Record} for conciseness and immutability.
+   *
+   * @param <T> The phantom type of the value (as there is no successful value).
+   * @param cause The non-null {@link Throwable} that caused the failure.
+   */
+  record Failure<T>(@NonNull Throwable cause) implements Try<T> {
+
     @Override
     public boolean isSuccess() {
       return false;
@@ -275,10 +425,15 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       return true;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @throws Throwable The original exception that caused this {@link Failure}.
+     */
     @Override
     public @Nullable T get() throws Throwable {
       throw cause;
-    } // Return type irrelevant
+    }
 
     @Override
     public @Nullable T orElse(@Nullable T other) {
@@ -287,36 +442,38 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(@NonNull Supplier<? extends T> supplier) {
-      Objects.requireNonNull(supplier, "supplier cannot be null");
+      requireNonNull(supplier, "supplier cannot be null for orElseGet");
       return supplier.get();
     }
 
     @Override
     public @NonNull <U> Try<U> map(@NonNull Function<? super T, ? extends U> mapper) {
-      Objects.requireNonNull(mapper, "mapper cannot be null");
-      @SuppressWarnings("unchecked") // Safe cast as Failure propagates type
+      requireNonNull(mapper, "mapper cannot be null");
+      // Map does nothing on Failure, just propagates the Failure with the new type U.
+      @SuppressWarnings(
+          "unchecked") // Safe cast as Failure propagates its cause irrespective of T/U.
       Try<U> self = (Try<U>) this;
-      return self; // Map does nothing on Failure
+      return self;
     }
 
     @Override
     public @NonNull <U> Try<U> flatMap(
         @NonNull Function<? super T, ? extends @NonNull Try<? extends U>> mapper) {
-      Objects.requireNonNull(mapper, "mapper cannot be null");
-      @SuppressWarnings("unchecked") // Safe cast as Failure propagates type
+      requireNonNull(mapper, "mapper cannot be null");
+      @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
-      return self; // flatMap does nothing on Failure
+      return self;
     }
 
     @Override
     public @NonNull Try<T> recover(
         @NonNull Function<? super Throwable, ? extends T> recoveryFunction) {
-      Objects.requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
+      requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
       try {
-        // Result of recoveryFunction can be null, Success allows null
+        // The result of recoveryFunction.apply(cause) can be null; Success<T> can hold null.
         return new Success<>(recoveryFunction.apply(cause));
       } catch (Throwable t) {
-        return new Failure<>(t); // Recovery function itself failed
+        return new Failure<>(t);
       }
     }
 
@@ -324,17 +481,16 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     public @NonNull Try<T> recoverWith(
         @NonNull Function<? super Throwable, ? extends @NonNull Try<? extends T>>
             recoveryFunction) {
-      Objects.requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
+      requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
       Try<? extends T> result;
       try {
-        // Apply the recovery function only inside the try-catch
-        result = recoveryFunction.apply(cause); // recoveryFunction is NonNull
+        result = recoveryFunction.apply(cause);
       } catch (Throwable t) {
-        // Catch exceptions thrown by the recovery function itself
         return new Failure<>(t);
       }
-      // Check if the *result* of the recovery function is null *after* the try-catch
-      Objects.requireNonNull(result, "recoverWith function returned null Try");
+      // Defensive null check for the Try instance returned by the recovery function.
+      requireNonNull(
+          result, "recoverWith function returned a null Try instance, which is not allowed.");
       @SuppressWarnings("unchecked")
       Try<T> typedResult = (Try<T>) result;
       return typedResult;

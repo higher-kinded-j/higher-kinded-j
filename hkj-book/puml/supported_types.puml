@@ -1,6 +1,7 @@
 @startuml
 !theme plain
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+hide empty members
 
 left to right direction
 
@@ -13,6 +14,7 @@ package "Supported Types (Monad Implementations)" {
     class TryMonadError
     class IOMonad
     class LazyMonad
+    class IdMonad
     class "ReaderMonad<R>" as ReaderMonad
     class "StateMonad<S>" as StateMonad
     class "WriterMonad<W>" as WriterMonad
@@ -23,6 +25,7 @@ package "Supported Types (Monad Implementations)" {
     EitherMonad <|.. CoreInterfaces.MonadError
     CompletableFutureMonadError <|.. CoreInterfaces.MonadError
     TryMonadError <|.. CoreInterfaces.MonadError
+    IdMonad <|.. CoreInterfaces.Monad
     IOMonad <|.. CoreInterfaces.Monad
     LazyMonad <|.. CoreInterfaces.Monad
     ReaderMonad <|.. CoreInterfaces.Monad

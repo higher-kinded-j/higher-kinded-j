@@ -7,58 +7,104 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper class for working with {@link LazyKind} HKT simulation. Provides static methods for
- * wrapping, unwrapping, creating, and forcing {@link Lazy} instances within the Kind simulation.
+ * A utility class providing helper methods for working with {@link Lazy} in the context of
+ * higher-kinded types (HKT), using {@link LazyKind} as the HKT marker.
+ *
+ * <p>This class offers static methods for:
+ *
+ * <ul>
+ *   <li>Safely converting between a {@link Lazy} instance and its {@link Kind} representation
+ *       ({@link #wrap(Lazy)} and {@link #unwrap(Kind)}).
+ *   <li>Creating {@link Lazy} instances, wrapped as {@link Kind}, from suppliers or immediate
+ *       values ({@link #defer(ThrowableSupplier)}, {@link #now(Object)}).
+ *   <li>Forcing the evaluation of a {@code Lazy} computation represented as a {@link Kind} ({@link
+ *       #force(Kind)}).
+ * </ul>
+ *
+ * <p>It acts as a bridge between the concrete {@link Lazy} type, which encapsulates a deferred
+ * computation, and the abstract {@link Kind} interface used in generic functional programming
+ * patterns.
+ *
+ * <p>The {@link #unwrap(Kind)} method uses an internal private record ({@code LazyHolder}) that
+ * implements {@link LazyKind} to hold the actual {@code Lazy} instance.
+ *
+ * @see Lazy
+ * @see LazyKind
+ * @see ThrowableSupplier
+ * @see Kind
+ * @see KindUnwrapException
  */
 public final class LazyKindHelper {
 
-  // Error Messages
+  /** Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}. */
   public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Lazy";
+
+  /**
+   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #unwrap(Kind)}.
+   */
   public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a LazyHolder: ";
-  // This message is technically redundant now due to @NonNull, but kept for consistency/history
+
+  /**
+   * Error message for when the internal holder in {@link #unwrap(Kind)} contains a {@code null}
+   * Lazy instance. This should ideally not occur if {@link #wrap(Lazy)} enforces non-null Lazy
+   * instances.
+   */
   public static final String INVALID_HOLDER_STATE_MSG = "LazyHolder contained null Lazy instance";
 
+  /** Private constructor to prevent instantiation of this utility class. All methods are static. */
   private LazyKindHelper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
-  // Internal holder record - Note: lazyInstance component IS marked @NonNull
+  /**
+   * Internal record implementing {@link LazyKind} to hold the concrete {@link Lazy} instance. This
+   * is used by {@link #wrap(Lazy)} and {@link #unwrap(Kind)}.
+   *
+   * @param <A> The result type of the Lazy computation.
+   * @param lazyInstance The non-null, actual {@link Lazy} instance.
+   */
   record LazyHolder<A>(@NonNull Lazy<A> lazyInstance) implements LazyKind<A> {}
 
   /**
-   * Unwraps a LazyKind back to the concrete {@code Lazy<A>} type. Throws KindUnwrapException if the
-   * Kind is null or not a valid LazyHolder.
+   * Unwraps a {@code Kind<LazyKind<?>, A>} back to its concrete {@link Lazy Lazy<A>} type.
    *
-   * @param <A> The type of the value produced by the Lazy computation.
-   * @param kind The {@code Kind<LazyKind<?>, A>} instance to unwrap. Can be {@code @Nullable}.
-   * @return The unwrapped, non-null {@code Lazy<A>} instance. Returns {@code @NonNull}.
-   * @throws KindUnwrapException if the input {@code kind} is null or not an instance of {@code
-   *     LazyHolder}.
+   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * actually represents a {@link Lazy} computation.
+   *
+   * @param <A> The result type of the {@code Lazy} computation.
+   * @param kind The {@code Kind<LazyKind<?>, A>} instance to unwrap. May be {@code null}.
+   * @return The underlying, non-null {@link Lazy Lazy<A>} instance.
+   * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
+   *     {@code LazyHolder}, or if the holder's internal {@code Lazy} instance is {@code null}
+   *     (which would indicate an internal issue with {@link #wrap(Lazy)}).
    */
-  @SuppressWarnings("unchecked") // For casting lazyInstance - safe after pattern match
+  @SuppressWarnings("unchecked") // For casting lazyInstance - safe after pattern match.
   public static <A> @NonNull Lazy<A> unwrap(@Nullable Kind<LazyKind<?>, A> kind) {
     return switch (kind) {
-      // Case 1: Input Kind is null
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-
-      // Case 2: Input Kind is a LazyHolder (record pattern extracts non-null lazyInstance)
-      // The @NonNull contract on LazyHolder.lazyInstance guarantees it's not null here.
-      case LazyKindHelper.LazyHolder<?>(var lazyInstance) ->
-          // Cast is safe because pattern matched and lazyInstance is known non-null.
-          (Lazy<A>) lazyInstance;
-
-      // Case 3: Input Kind is non-null but not a LazyHolder
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+      case null ->
+          // If the input Kind itself is null.
+          throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+      case LazyKindHelper.LazyHolder<?> holder -> {
+        // The LazyHolder record's 'lazyInstance' component is @NonNull.
+        // So, holder.lazyInstance() is guaranteed non-null if the holder itself is valid.
+        // The cast is safe due to the pattern match.
+        yield (Lazy<A>) holder.lazyInstance();
+      }
+      default ->
+          // If the Kind is non-null but not the expected LazyHolder type.
+          throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
   }
 
   /**
-   * Wraps a concrete {@code Lazy<A>} value into the LazyKind Higher-Kinded-J type.
+   * Wraps a concrete {@link Lazy Lazy<A>} instance into its higher-kinded representation, {@code
+   * Kind<LazyKind<?>, A>}.
    *
-   * @param <A> The type of the value produced by the Lazy computation.
-   * @param lazy The concrete {@code Lazy<A>} instance to wrap. Must be {@code @NonNull}.
-   * @return The {@code LazyKind<A>} representation. Returns {@code @NonNull}.
-   * @throws NullPointerException if lazy is null.
+   * @param <A> The result type of the {@code Lazy} computation.
+   * @param lazy The non-null, concrete {@link Lazy Lazy<A>} instance to wrap.
+   * @return A non-null {@link LazyKind LazyKind<A>} (which is also a {@code Kind<LazyKind<?>, A>})
+   *     representing the wrapped {@code Lazy} computation.
+   * @throws NullPointerException if {@code Lazy} is {@code null}.
    */
   public static <A> @NonNull LazyKind<A> wrap(@NonNull Lazy<A> lazy) {
     Objects.requireNonNull(lazy, "Input Lazy cannot be null for wrap");
@@ -66,47 +112,63 @@ public final class LazyKindHelper {
   }
 
   /**
-   * Convenience factory to create a {@code LazyKind<A>} by deferring the execution of a {@code
-   * ThrowableSupplier}. Wraps {@link Lazy#defer(ThrowableSupplier)}.
+   * Creates a {@link LazyKind LazyKind<A>} by deferring the execution of a {@link
+   * ThrowableSupplier}. The actual computation is performed only when {@link Lazy#force()} (or
+   * {@link #force(Kind)}) is called.
    *
-   * @param <A> The type of the value produced.
-   * @param computation The {@link ThrowableSupplier} representing the deferred computation. Must be
-   *     {@code @NonNull}.
-   * @return A new {@code Kind<LazyKind<?>, A>} wrapping the deferred computation. Returns
-   *     {@code @NonNull}.
-   * @throws NullPointerException if computation is null.
+   * <p>This is a convenience factory method that delegates to {@link Lazy#defer(ThrowableSupplier)}
+   * and then wraps the result using {@link #wrap(Lazy)}.
+   *
+   * @param <A> The type of the value that will be produced by the computation.
+   * @param computation The non-null {@link ThrowableSupplier} representing the deferred
+   *     computation. The supplier itself may return {@code null} or throw a {@link Throwable}.
+   * @return A new, non-null {@code Kind<LazyKind<?>, A>} representing the deferred {@code Lazy}
+   *     computation.
+   * @throws NullPointerException if {@code computation} is {@code null}.
    */
   public static <A> @NonNull Kind<LazyKind<?>, A> defer(@NonNull ThrowableSupplier<A> computation) {
-    // Lazy.defer performs null check on computation
+    // Lazy.defer will perform its own null check on the computation.
     return wrap(Lazy.defer(computation));
   }
 
   /**
-   * Convenience factory to create an already evaluated {@code LazyKind<A>} holding a known value.
-   * Wraps {@link Lazy#now(Object)}.
+   * Creates an already evaluated {@link LazyKind LazyKind<A>} that holds a known value. The {@link
+   * Lazy#force()} (or {@link #force(Kind)}) method on the resulting {@code LazyKind} will
+   * immediately return this value without further computation.
+   *
+   * <p>This is a convenience factory method that delegates to {@link Lazy#now(Object)} and then
+   * wraps the result using {@link #wrap(Lazy)}.
    *
    * @param <A> The type of the value.
-   * @param value The pre-computed value. Can be {@code @Nullable}.
-   * @return A new {@code Kind<LazyKind<?>, A>} wrapping the evaluated value. Returns
-   *     {@code @NonNull}.
+   * @param value The pre-computed value to be wrapped. Can be {@code null}.
+   * @return A new, non-null {@code Kind<LazyKind<?>, A>} representing an already evaluated {@code
+   *     Lazy} computation.
    */
   public static <A> @NonNull Kind<LazyKind<?>, A> now(@Nullable A value) {
     return wrap(Lazy.now(value));
   }
 
   /**
-   * Convenience method for forcing the evaluation of the Lazy computation held within the Kind
-   * wrapper and getting the result. Calls {@link #unwrap(Kind)} and then {@link Lazy#force()}.
+   * Forces the evaluation of the {@link Lazy} computation held within the {@link Kind} wrapper and
+   * retrieves its result.
    *
-   * @param <A> The type of the result.
-   * @param kind The {@code Kind<LazyKind<?>, A>} holding the Lazy computation. Must be
-   *     {@code @NonNull}.
-   * @return The result of the Lazy computation. Can be {@code @Nullable} depending on A.
-   * @throws KindUnwrapException if the input {@code kind} is invalid.
-   * @throws Throwable if the underlying Lazy computation throws an exception during evaluation.
+   * <p>If the computation has already been forced, this method returns the cached result. If it's
+   * the first time, the underlying {@link ThrowableSupplier} is executed.
+   *
+   * <p>This is a convenience method that delegates to {@link #unwrap(Kind)} and then calls {@link
+   * Lazy#force()}.
+   *
+   * @param <A> The type of the result produced by the {@code Lazy} computation.
+   * @param kind The non-null {@code Kind<LazyKind<?>, A>} holding the {@code Lazy} computation.
+   * @return The result of the {@code Lazy} computation. Can be {@code null} if the computation
+   *     produces a {@code null} value.
+   * @throws KindUnwrapException if the input {@code kind} is invalid (e.g., null or wrong type).
+   * @throws Throwable if the underlying {@link ThrowableSupplier} throws an exception during its
+   *     first evaluation. Subsequent calls on the same instance will re-throw the same cached
+   *     exception.
    */
   public static <A> @Nullable A force(@NonNull Kind<LazyKind<?>, A> kind) throws Throwable {
-    // `unwrap` throws KindUnwrapException if kind is invalid
+    // unwrap will throw KindUnwrapException if kind is invalid.
     return unwrap(kind).force();
   }
 }

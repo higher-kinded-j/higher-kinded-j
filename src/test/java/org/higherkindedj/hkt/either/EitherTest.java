@@ -67,7 +67,7 @@ class EitherTest {
     void getLeft_onRight_shouldThrowException() {
       assertThatThrownBy(rightInstance::getLeft)
           .isInstanceOf(NoSuchElementException.class)
-          .hasMessageContaining("Cannot getLeft() on a Right");
+          .hasMessageContaining("Cannot invoke getLeft() on a Right instance.");
       assertThatThrownBy(rightNullInstance::getLeft).isInstanceOf(NoSuchElementException.class);
     }
 
@@ -81,7 +81,7 @@ class EitherTest {
     void getRight_onLeft_shouldThrowException() {
       assertThatThrownBy(leftInstance::getRight)
           .isInstanceOf(NoSuchElementException.class)
-          .hasMessageContaining("Cannot getRight() on a Left");
+          .hasMessageContaining("Cannot invoke getRight() on a Left instance.");
       assertThatThrownBy(leftNullInstance::getRight).isInstanceOf(NoSuchElementException.class);
     }
   }
@@ -236,7 +236,8 @@ class EitherTest {
     void flatMap_shouldThrowIfMapperReturnsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> rightInstance.flatMap(mapperNull))
-          .withMessageContaining("flatMap mapper returned null Either");
+          .withMessageContaining(
+              "flatMap mapper returned a null Either instance, which is not allowed.");
     }
   }
 
@@ -302,6 +303,30 @@ class EitherTest {
       assertThatNullPointerException()
           .isThrownBy(() -> leftInstance.ifRight(null))
           .withMessageContaining("action cannot be null");
+    }
+
+    @Test
+    void ifLeft_onLeftWithNull_shouldExecuteActionWithNull() {
+      AtomicBoolean executed = new AtomicBoolean(false);
+      Consumer<String> action =
+          s -> {
+            assertThat(s).isNull(); // Key assertion: the consumer receives null
+            executed.set(true);
+          };
+      leftNullInstance.ifLeft(action); // leftNullInstance is Either.left(null)
+      assertThat(executed).isTrue();
+    }
+
+    @Test
+    void ifRight_onRightWithNull_shouldExecuteActionWithNull() {
+      AtomicBoolean executed = new AtomicBoolean(false);
+      Consumer<Integer> action =
+          i -> {
+            assertThat(i).isNull(); // Key assertion: the consumer receives null
+            executed.set(true);
+          };
+      rightNullInstance.ifRight(action); // rightNullInstance is Either.right(null)
+      assertThat(executed).isTrue();
     }
   }
 
