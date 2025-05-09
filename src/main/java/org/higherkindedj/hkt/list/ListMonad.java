@@ -1,7 +1,5 @@
 package org.higherkindedj.hkt.list;
 
-import static org.higherkindedj.hkt.list.ListKindHelper.*;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,52 +9,104 @@ import org.higherkindedj.hkt.Monad;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-/** Monad implementation for ListKind. */
-public class ListMonad extends ListFunctor implements Monad<ListKind<?>> {
+/**
+ * {@link Monad} instance for {@link ListKind.Witness}. This class provides monadic operations for
+ * lists, treating lists as context that can hold zero, one, or multiple values.
+ */
+public class ListMonad implements Monad<ListKind.Witness> {
 
+  public static final ListMonad INSTANCE = new ListMonad();
+
+  // Constructor can be private if INSTANCE is the only way to get it.
+  private ListMonad() {}
+
+  /**
+   * Lifts a single value {@code a} into the List context. For List, this typically means creating a
+   * singleton list containing the value. If the value is null, it might create a list containing a
+   * single null element, or an empty list depending on the desired semantics for nulls in this
+   * context. Here, we'll create a singleton list with the value, even if it's null.
+   *
+   * @param value The value to lift. Can be {@code null}.
+   * @param <A> The type of the value.
+   * @return A {@code Kind<ListKind.Witness, A>} representing a list containing the single value.
+   */
   @Override
-  public <A> @NonNull ListKind<A> of(@Nullable A value) { // Value can be null
-    // Lifts a single value into a List context (singleton list).
-    // Represent null input as empty list for consistency with other Monads like Optional/Maybe
-    if (value == null) {
-      return wrap(Collections.emptyList());
-    }
-    return wrap(Collections.singletonList(value));
+  public <A> @NonNull Kind<ListKind.Witness, A> of(@Nullable A value) {
+    // ListKind.of creates a ListView, which is Kind<ListKind.Witness, A>
+    return ListKind.of(Collections.singletonList(value));
   }
 
+  /**
+   * Applies a function contained within a List context to a value contained within another List
+   * context. This involves taking all functions from the first list and applying each one to all
+   * values from the second list, collecting all results into a new list.
+   *
+   * @param ff A {@code Kind<ListKind.Witness, Function<A, B>>} (a list of functions).
+   * @param fa A {@code Kind<ListKind.Witness, A>} (a list of values).
+   * @param <A> The input type of the function.
+   * @param <B> The output type of the function.
+   * @return A {@code Kind<ListKind.Witness, B>} containing all results of applying each function in
+   *     {@code ff} to each value in {@code fa}.
+   */
   @Override
-  public <A, B> @NonNull ListKind<B> flatMap(
-      @NonNull Function<A, Kind<ListKind<?>, B>> f, @NonNull Kind<ListKind<?>, A> ma) {
-    List<A> listA = unwrap(ma); // Handles null/invalid ma
+  public <A, B> @NonNull Kind<ListKind.Witness, B> ap(
+      @NonNull Kind<ListKind.Witness, Function<A, B>> ff, @NonNull Kind<ListKind.Witness, A> fa) {
+
+    List<Function<A, B>> functions = ListKind.narrow(ff).unwrap();
+    List<A> values = ListKind.narrow(fa).unwrap();
     List<B> resultList = new ArrayList<>();
 
-    for (A a : listA) { // `a` can be null if listA contains nulls
-      // Apply the function f, which returns a Kind<ListKind<?>, B>
-      Kind<ListKind<?>, B> kindB = f.apply(a); // f is NonNull
-      // Unwrap the result of f to get the inner List<B>
-      List<B> listB = unwrap(kindB); // Returns NonNull List
-      // Add all elements from the inner list to the final result list
-      resultList.addAll(listB); // listB is NonNull
+    if (functions.isEmpty() || values.isEmpty()) {
+      return ListKind.of(Collections.emptyList());
     }
-    // Wrap the flattened list back into ListKind
-    return wrap(resultList); // wrap requires NonNull List
-  }
 
-  @Override
-  public <A, B> @NonNull Kind<ListKind<?>, B> ap(
-      @NonNull Kind<ListKind<?>, Function<A, B>> ff, @NonNull Kind<ListKind<?>, A> fa) {
-    List<Function<A, B>> listF = unwrap(ff); // Handles null/invalid ff
-    List<A> listA = unwrap(fa); // Handles null/invalid fa
-    List<B> resultList = new ArrayList<>();
-
-    // Standard List applicative behavior: apply each function to each element (Cartesian product
-    // style)
-    for (Function<A, B> f : listF) { // f is NonNull (assuming listF doesn't contain null functions)
-      for (A a : listA) { // a can be null
-        // Result of f.apply(a) can be null if B is nullable
-        resultList.add(f.apply(a));
+    for (Function<A, B> func : functions) {
+      for (A val : values) {
+        resultList.add(func.apply(val));
       }
     }
-    return wrap(resultList); // wrap requires NonNull List
+    return ListKind.of(resultList);
+  }
+
+  /**
+   * Maps a function over a list in a higher-kinded context. This delegates to the {@link
+   * ListFunctor} instance.
+   *
+   * @param f The function to apply.
+   * @param fa The {@code Kind<ListKind.Witness, A>} (a list of values).
+   * @param <A> The input type of the function.
+   * @param <B> The output type of the function.
+   * @return A {@code Kind<ListKind.Witness, B>} containing the results of applying {@code f} to
+   *     each element.
+   */
+  @Override
+  public <A, B> @NonNull Kind<ListKind.Witness, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<ListKind.Witness, A> fa) {
+    return ListFunctor.INSTANCE.map(f, fa);
+  }
+
+  /**
+   * Applies a function {@code f} to each element of a list {@code ma}, where {@code f} itself
+   * returns a list (wrapped in {@code Kind<ListKind.Witness, B>}). All resulting lists are then
+   * concatenated (flattened) into a single result list.
+   *
+   * @param f A function from {@code A} to {@code Kind<ListKind.Witness, B>} (a list of {@code B}s).
+   * @param ma The input {@code Kind<ListKind.Witness, A>} (a list of {@code A}s).
+   * @param <A> The type of elements in the input list.
+   * @param <B> The type of elements in the lists produced by the function {@code f}.
+   * @return A {@code Kind<ListKind.Witness, B>} which is the flattened list of all results.
+   */
+  @Override
+  public <A, B> @NonNull Kind<ListKind.Witness, B> flatMap(
+      @NonNull Function<A, Kind<ListKind.Witness, B>> f, @NonNull Kind<ListKind.Witness, A> ma) {
+
+    List<A> inputList = ListKind.narrow(ma).unwrap();
+    List<B> resultList = new ArrayList<>();
+
+    for (A a : inputList) {
+      Kind<ListKind.Witness, B> kindB = f.apply(a); // This is a ListKind<B> (ListView<B>)
+      resultList.addAll(ListKind.narrow(kindB).unwrap());
+    }
+    return ListKind.of(resultList);
   }
 }
