@@ -65,14 +65,14 @@ public final class EitherKindHelper {
   record EitherHolder<L, R>(@NonNull Either<L, R> either) implements EitherKind<L, R> {}
 
   /**
-   * Wraps a concrete {@code Either<L, R>} instance into its higher-kinded representation,
-   * {@code Kind<EitherKind<L, ?>, R>}.
+   * Wraps a concrete {@code Either<L, R>} instance into its higher-kinded representation, {@code
+   * Kind<EitherKind<L, ?>, R>}.
    *
    * @param <L> The type of the {@code Left} value of the {@code Either}.
    * @param <R> The type of the {@code Right} value of the {@code Either}.
    * @param either The non-null, concrete {@code Either<L, R>} instance to wrap.
-   * @return A non-null {@code Kind Kind<EitherKind<L, ?>, R>} representing the wrapped {@code Either}.
-   * The witness type {@code EitherKind<L, ?>} fixes the Left type {@code L}.
+   * @return A non-null {@code Kind Kind<EitherKind<L, ?>, R>} representing the wrapped {@code
+   *     Either}. The witness type {@code EitherKind<L, ?>} fixes the Left type {@code L}.
    * @throws NullPointerException if {@code either} is {@code null}.
    */
   public static <L, R> @NonNull Kind<EitherKind<L, ?>, R> wrap(@NonNull Either<L, R> either) {
@@ -81,8 +81,7 @@ public final class EitherKindHelper {
   }
 
   /**
-   * Unwraps a {@code Kind<EitherKind<L, ?>, R>} back to its concrete {@code Either<L, R>}
-   * type.
+   * Unwraps a {@code Kind<EitherKind<L, ?>, R>} back to its concrete {@code Either<L, R>} type.
    *
    * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents an {@link Either} with the specified {@code Left} type {@code L} (as

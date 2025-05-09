@@ -68,7 +68,7 @@ public final class LazyKindHelper {
   /**
    * Unwraps a {@code Kind<LazyKind<?>, A>} back to its concrete {@link Lazy Lazy<A>} type.
    *
-   * This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents a {@link Lazy} computation.
    *
    * @param <A> The result type of the {@code Lazy} computation.
@@ -97,7 +97,8 @@ public final class LazyKindHelper {
   }
 
   /**
-   * Wraps a concrete {@link Lazy Lazy<A>} instance into its higher-kinded representation, {@code Kind<LazyKind<?>, A>}.
+   * Wraps a concrete {@link Lazy Lazy<A>} instance into its higher-kinded representation, {@code
+   * Kind<LazyKind<?>, A>}.
    *
    * @param <A> The result type of the {@code Lazy} computation.
    * @param lazy The non-null, concrete {@link Lazy Lazy<A>} instance to wrap.
@@ -115,7 +116,7 @@ public final class LazyKindHelper {
    * ThrowableSupplier}. The actual computation is performed only when {@link Lazy#force()} (or
    * {@link #force(Kind)}) is called.
    *
-   * This is a convenience factory method that delegates to {@link Lazy#defer(ThrowableSupplier)}
+   * <p>This is a convenience factory method that delegates to {@link Lazy#defer(ThrowableSupplier)}
    * and then wraps the result using {@link #wrap(Lazy)}.
    *
    * @param <A> The type of the value that will be produced by the computation.

@@ -293,7 +293,6 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
       throw new NoSuchElementException("Cannot invoke getRight() on a Left instance.");
     }
 
-
     // flatMap is overridden from default for clarity, it does nothing on Left.
     @Override
     @SuppressWarnings("unchecked")
