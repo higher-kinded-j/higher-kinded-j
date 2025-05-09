@@ -70,7 +70,7 @@ public final class EitherKindHelper {
    *
    * @param <L> The type of the {@code Left} value of the {@code Either}.
    * @param <R> The type of the {@code Right} value of the {@code Either}.
-   * @param either The non-null, concrete {@link Either Either<L, R>} instance to wrap.
+   * @param either The non-null, concrete {@code Either<L, R>} instance to wrap.
    * @return A non-null {@code Kind Kind<EitherKind<L, ?>, R>} representing the wrapped {@code Either}.
    * The witness type {@code EitherKind<L, ?>} fixes the Left type {@code L}.
    * @throws NullPointerException if {@code either} is {@code null}.
