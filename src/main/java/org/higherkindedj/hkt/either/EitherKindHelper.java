@@ -1,76 +1,118 @@
 package org.higherkindedj.hkt.either;
 
+import java.util.Objects; // Added for Objects.requireNonNull
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException; // Assuming this was added
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * A utility class providing helper methods for working with {@link Either} in the context of
+ * higher-kinded types (HKT), using {@link EitherKind} as the HKT marker.
+ *
+ * <p>This class offers static methods for:
+ *
+ * <ul>
+ *   <li>Safely converting between an {@link Either} instance and its {@link Kind} representation
+ *       ({@link #wrap(Either)} and {@link #unwrap(Kind)}).
+ * </ul>
+ *
+ * <p>It acts as a bridge between the concrete {@link Either} type, which represents a value of one
+ * of two possible types (a {@code Left} or a {@code Right}), and the abstract {@link Kind}
+ * interface used in generic functional programming patterns.
+ *
+ * <p>The {@link #unwrap(Kind)} method uses an internal private record ({@code EitherHolder}) that
+ * implements {@link EitherKind} to hold the actual {@code Either} instance.
+ *
+ * @see Either
+ * @see Either.Left
+ * @see Either.Right
+ * @see EitherKind
+ * @see Kind
+ * @see KindUnwrapException
+ */
 public final class EitherKindHelper {
 
-  // Error Messages (Ensure these are defined and match the constants used in unwrap)
+  /** Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}. */
   public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Either";
+
+  /**
+   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #unwrap(Kind)}.
+   */
   public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an EitherHolder: ";
+
+  /**
+   * Error message for when the internal holder in {@link #unwrap(Kind)} contains a {@code null}
+   * Either instance. This should ideally not occur if {@link #wrap(Either)} enforces non-null
+   * Either instances.
+   */
   public static final String INVALID_HOLDER_STATE_MSG =
       "EitherHolder contained null Either instance";
 
+  /** Private constructor to prevent instantiation of this utility class. All methods are static. */
   private EitherKindHelper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
   /**
-   * Wraps a concrete {@code Either<L, R>} value into the EitherKind Higher-Kinded-J type. Uses the
-   * specific holder implementation (EitherHolder).
+   * Internal record implementing {@link EitherKind} to hold the concrete {@link Either} instance.
+   * This is used by {@link #wrap(Either)} and {@link #unwrap(Kind)}.
    *
-   * @param either The concrete {@code Either<L, R>} instance. (@NonNull assumed)
-   * @param <L> The Left type.
-   * @param <R> The Right type.
-   * @return The {@code EitherKind<L, R>} representation. (@NonNull)
+   * @param <L> The type of the {@code Left} value.
+   * @param <R> The type of the {@code Right} value.
+   * @param either The non-null, actual {@link Either} instance.
+   */
+  record EitherHolder<L, R>(@NonNull Either<L, R> either) implements EitherKind<L, R> {}
+
+  /**
+   * Wraps a concrete {@code Either<L, R>} instance into its higher-kinded representation, {@code
+   * Kind<EitherKind<L, ?>, R>}.
+   *
+   * @param <L> The type of the {@code Left} value of the {@code Either}.
+   * @param <R> The type of the {@code Right} value of the {@code Either}.
+   * @param either The non-null, concrete {@code Either<L, R>} instance to wrap.
+   * @return A non-null {@code Kind Kind<EitherKind<L, ?>, R>} representing the wrapped {@code
+   *     Either}. The witness type {@code EitherKind<L, ?>} fixes the Left type {@code L}.
+   * @throws NullPointerException if {@code either} is {@code null}.
    */
   public static <L, R> @NonNull Kind<EitherKind<L, ?>, R> wrap(@NonNull Either<L, R> either) {
-    // Create a new instance of the holder record, wrapping the Either
+    Objects.requireNonNull(either, "Input Either cannot be null for wrap");
     return new EitherHolder<>(either);
   }
 
   /**
-   * Unwraps an EitherKind back to the concrete {@code Either<L, R>} type. Requires knowledge of the
-   * specific holder implementation (EitherHolder). Throws KindUnwrapException if the Kind is null,
-   * not an EitherHolder, or the holder contains a null Either instance.
+   * Unwraps a {@code Kind<EitherKind<L, ?>, R>} back to its concrete {@code Either<L, R>} type.
    *
-   * @param kind The EitherKind instance. (@Nullable allows checking null input)
-   * @param <L> The Left type.
-   * @param <R> The Right type.
-   * @return The underlying, non-null {@code Either<L, R>}. (@NonNull assumes success)
-   * @throws KindUnwrapException if unwrapping fails.
+   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * actually represents an {@link Either} with the specified {@code Left} type {@code L} (as
+   * encoded in the witness {@code EitherKind<L, ?>}) and {@code Right} type {@code R}.
+   *
+   * @param <L> The type of the {@code Left} value of the target {@code Either}.
+   * @param <R> The type of the {@code Right} value of the target {@code Either}.
+   * @param kind The {@code Kind<EitherKind<L, ?>, R>} instance to unwrap. May be {@code null}.
+   * @return The underlying, non-null {@code Either<L, R>} instance.
+   * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
+   *     {@code EitherHolder}, or if the holder's internal {@code Either} instance is {@code null}
+   *     (which would indicate an internal issue with {@link #wrap(Either)}).
    */
-  @SuppressWarnings("unchecked") //  needed for the final cast due to EitherHolder<?, ?> pattern
+  @SuppressWarnings("unchecked")
   public static <L, R> @NonNull Either<L, R> unwrap(@Nullable Kind<EitherKind<L, ?>, R> kind) {
-    // Use switch expression with pattern matching
     return switch (kind) {
-      // Case 1: Input Kind is null
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-
-      // Case 2: Input Kind is an EitherHolder (using record pattern to extract 'internalEither')
-      case EitherHolder(var internalEither) -> {
-        // Check if the extracted Either inside the holder is null
-        if (internalEither == null) {
-          throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
-        }
-        // Cast is  necessary because the pattern matched EitherHolder<?,?>
-        // before confirming the internal Either's specific L/R types.
+      case null ->
+          // If the input Kind itself is null.
+          throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+      case EitherHolder<?, ?> holder -> { // Use wildcard for L, R in holder pattern
+        // The EitherHolder record's 'either' component is @NonNull.
+        Either<?, ?> internalEither = holder.either(); // Access record component
+        // The cast to Either<L, R> is necessary because the pattern match
+        // on EitherHolder<?, ?> doesn't fully resolve L and R to the specific
+        // types required by the method's signature. The caller ensures this through
+        // the Kind<EitherKind<L,?>, R> input type.
         yield (Either<L, R>) internalEither;
       }
-      // Case 3: Input Kind is non-null but not an EitherHolder
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+      default ->
+          // If the Kind is non-null but not the expected EitherHolder type.
+          throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
   }
-
-  /**
-   * Holder record for the Higher-Kinded-J of Either. Implements {@code EitherKind<L, R>} and holds
-   * the actual {@code Either<L, R>} value. This is the concrete implementation used by wrap/unwrap
-   * helpers.
-   *
-   * @param <L> The Left type.
-   * @param <R> The Right type.
-   */
-  record EitherHolder<L, R>(Either<L, R> either) implements EitherKind<L, R> {}
 }

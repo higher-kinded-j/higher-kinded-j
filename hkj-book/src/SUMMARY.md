@@ -9,6 +9,7 @@
 
 # Supported Types
 - [Overview](./supported-types.md)
+- [Identity](./identity.md)
 - [List](./list_monad.md)
 - [Optional](./optional_monad.md)
 - [Maybe](./maybe_monad.md)
@@ -27,7 +28,8 @@
 - [EitherT Transformer](./eithert_transformer.md)
 - [MaybeT Transformer](./maybet_transformer.md)
 - [OptionalT Transformer](./optionalt_transformer.md)
-- [ReaderT Transformer](./readertt_transformer.md)
+- [ReaderT Transformer](./readert_transformer.md)
+- [StateT Transformer](./statet_transformer.md)
 
 # Examples
 - [Order Workflow](./order-walkthrough.md)

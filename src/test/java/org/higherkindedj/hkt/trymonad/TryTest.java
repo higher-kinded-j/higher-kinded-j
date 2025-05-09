@@ -231,10 +231,10 @@ class TryTest {
     }
 
     @Test
-    void orElseGet_onSuccess_shouldNotThrowIfSupplierIsNull() {
-      // Supplier isn't called for Success, so null supplier is ok
-      assertThatCode(() -> successInstance.orElseGet(nullSupplier)).doesNotThrowAnyException();
-      assertThat(successInstance.orElseGet(nullSupplier)).isEqualTo(successValue);
+    void orElseGet_onSuccess_shouldThrowIfSupplierIsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> successInstance.orElseGet(nullSupplier))
+          .withMessageContaining("supplier cannot be null");
     }
   }
 
@@ -403,7 +403,8 @@ class TryTest {
     void flatMap_onSuccess_shouldThrowIfMapperReturnsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.flatMap(mapperNull))
-          .withMessageContaining("flatMap mapper returned null Try");
+          .withMessageContaining(
+              "flatMap mapper returned a null Try instance, which is not allowed.");
     }
   }
 
@@ -512,7 +513,8 @@ class TryTest {
     void recoverWith_onFailure_shouldThrowIfRecoveryFuncReturnsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.recoverWith(nullReturningRecoveryFunc))
-          .withMessageContaining("recoverWith function returned null Try");
+          .withMessageContaining(
+              "recoverWith function returned a null Try instance, which is not allowed.");
     }
 
     @Test

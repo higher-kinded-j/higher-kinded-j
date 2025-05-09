@@ -110,5 +110,65 @@ package "readert" {
   ReaderTKindHelper ..> ReaderTKind_FRA : wrap() returns
 }
 
+' StateTuple (used by StateT)
+package "state" {
+  class StateTuple<S, A> {
+    + S state
+    + A value
+    + {static} of(s: S, a: A): StateTuple<S, A>
+  }
+}
+' StateT Monad Transformer
+package "state_t" {
+  class "StateT<S, F_WITNESS, A>" as StateT_Impl {
+    ' S: State type
+    ' F_WITNESS: Witness for the underlying monad F
+    ' A: Value type
+    - run: Function<S, Kind<F_WITNESS, StateTuple<S, A>>>
+    - monadF: Monad<F_WITNESS>
+    + {static} create(run: Function, monadF: Monad): StateT<S, F_WITNESS, A>
+    + runStateT(s: S): Kind<F_WITNESS, StateTuple<S, A>>
+  }
+
+  interface "StateTKind<S, F_WITNESS, A>" extends "Kind<StateT.Witness<S, F_WITNESS>, A>" {
+    ' Represents StateT as a Kind
+  }
+
+  class "StateT.Witness<S, F_WITNESS>" as StateTWitness {
+    ' static final class Witness<S, F_WITNESS> {}
+  }
+
+  class StateTKindHelper {
+    + {static} narrow(kind: Kind<StateT.Witness<S, F_WITNESS>, A>): StateT<S, F_WITNESS, A>
+    + {static} wrap(stateT: StateT<S, F_WITNESS, A>): Kind<StateT.Witness<S, F_WITNESS>, A>
+    + {static} runStateT(kind: Kind, s: S): Kind<F_WITNESS, StateTuple<S, A>>
+    + {static} lift(fn: Function, monadF: Monad) : Kind<StateT.Witness<S, F_WITNESS>, A>
+  }
+
+  class "StateTMonad<S, F_WITNESS>" as StateTMonadInstance implements "Monad<StateT.Witness<S, F_WITNESS>>" {
+    - monadF: Monad<F_WITNESS>
+    + {static} instance(monadF: Monad<F_WITNESS>): StateTMonad<S, F_WITNESS>
+  }
+
+  StateT_Impl ..> StateTWitness : uses witness >
+  StateT_Impl ..> "Monad<F_WITNESS>" : uses (underlying monad)
+  StateT_Impl ..> StateTuple : uses (in run function's return type)
+
+  StateTKind --|> "Kind"
+  StateTKind ..> StateTWitness : uses witness >
+
+  StateTKindHelper ..> StateT_Impl : narrows to/wraps
+  StateTKindHelper ..> StateTWitness : uses witness
+  StateTKindHelper ..> "Monad<F_WITNESS>" : uses (for lift)
+
+  StateTMonadInstance ..> StateTWitness : uses witness for Monad<F>
+  StateTMonadInstance ..> "Monad<F_WITNESS>" : depends on (holds ref to underlying monadF)
+
+  ' Example of StateT using OptionalMonad as F_WITNESS
+  StateTMonadInstance o--> OptionalMonad : (example) monadF can be
+  StateT_Impl o--> OptionalMonad : (example) monadF can be
+  StateT_Impl o--> "Kind<OptionalKind.Witness, StateTuple<S,A>>" : (example) run fn returns
+}
+
 footer Generated for Higher-Kinded-J Documentation
 @enduml
