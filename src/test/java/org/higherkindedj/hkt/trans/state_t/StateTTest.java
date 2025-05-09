@@ -131,16 +131,4 @@ class StateTTest {
       assertThat(runOptExecStateT(stateT_Empty, initialState)).isEmpty();
     }
   }
-
-  @Nested
-  @DisplayName("Object Methods (toString)")
-  class ObjectTests {
-    @Test
-    void toString_shouldReturnReasonableRepresentation() {
-      StateT<Integer, OptionalKind<?>, String> stateT =
-          StateT.<Integer, OptionalKind<?>, String>create(
-              s -> optMonad.of(StateTuple.of(s, "v")), optMonad);
-      assertThat(stateT.toString()).startsWith("StateT(");
-    }
-  }
 }

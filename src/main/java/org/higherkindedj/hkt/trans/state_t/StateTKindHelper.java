@@ -33,7 +33,6 @@ public final class StateTKindHelper {
    * @throws NullPointerException if stateT is null.
    */
   public static <S, F, A> StateTKind<S, F, A> wrap(StateT<S, F, A> stateT) {
-    // *** THIS IS THE CRITICAL NULL CHECK ***
     Objects.requireNonNull(stateT, "stateT cannot be null");
     // If stateT is not null, it already implements StateTKind<S, F, A>
     return stateT;
