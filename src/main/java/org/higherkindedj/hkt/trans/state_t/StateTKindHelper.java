@@ -5,142 +5,208 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.jspecify.annotations.NonNull; // Assuming JSpecify for nullness annotations
 
 /**
- * Helper class for working with {@link StateT} and {@link StateTKind}. Provides factory methods and
- * utility functions for wrapping, unwrapping, and basic creation/lifting.
+ * A utility class providing helper methods for working with {@link StateT} and its higher-kinded
+ * type representation, {@link StateTKind}.
  *
- * <p>Note: Operations requiring 'pure' (like get, put, modify) are typically provided by the
- * StateTMonad instance itself or separate utilities requiring the specific Monad<F> instance.
+ * <p>This class offers static methods for:
+ *
+ * <ul>
+ *   <li>Safely converting between {@link StateT} and its {@link Kind} representation ({@link
+ *       #wrap(StateT)} and {@link #unwrap(Kind)}).
+ *   <li>Constructing {@link StateT} instances (e.g., {@link #stateT(Function, Monad)}, {@link
+ *       #lift(Monad, Kind)}).
+ *   <li>Running {@link StateT} computations from their {@link Kind} representation (e.g., {@link
+ *       #runStateT(Kind, Object)}, {@link #evalStateT(Kind, Object)}, {@link #execStateT(Kind,
+ *       Object)}).
+ * </ul>
+ *
+ * <p>It serves as a bridge between the concrete {@link StateT} type and the more abstract {@link
+ * Kind} interface used in generic functional programming patterns.
+ *
+ * <p>Operations that are specific to the {@link StateT} monad's behavior, such as {@code get},
+ * {@code put}, {@code modify}, are typically found within the {@link StateTMonad} instance itself,
+ * as they rely on the monadic context (specifically, the {@code Monad<F>} for the underlying
+ * monad).
+ *
+ * @see StateT
+ * @see StateTKind
+ * @see StateTMonad
+ * @see Kind
  */
 public final class StateTKindHelper {
 
-  // Private constructor to prevent instantiation
+  /** Private constructor to prevent instantiation of this utility class. All methods are static. */
   private StateTKindHelper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
   /**
-   * Wraps a {@link StateT} instance into its higher-kinded representation {@link StateTKind}. Since
-   * StateT implements StateTKind, this mainly serves as a type-safe check and cast. It ensures the
-   * input is not null.
+   * Wraps a concrete {@link StateT} instance into its higher-kinded representation, {@code
+   * Kind<StateTKind.Witness<S, F>, A>}.
    *
-   * @param stateT The StateT instance. Must not be null.
-   * @param <S> The state type.
-   * @param <F> The higher-kinded type witness for F.
-   * @param <A> The value type.
-   * @return The StateT instance cast to StateTKind.
-   * @throws NullPointerException if stateT is null.
+   * <p>Since {@link StateT} already implements {@link StateTKind}, this method primarily serves as
+   * a type-safe upcast and includes a null check for the input {@code StateT}.
+   *
+   * @param stateT The non-null {@link StateT} instance to wrap.
+   * @param <S> The state type of the {@code StateT}.
+   * @param <F> The higher-kinded type witness for the underlying monad of {@code StateT}.
+   * @param <A> The value type of the {@code StateT}.
+   * @return The provided {@code stateT} instance, cast to its {@link Kind} representation.
+   * @throws NullPointerException if {@code stateT} is {@code null}.
    */
-  public static <S, F, A> StateTKind<S, F, A> wrap(StateT<S, F, A> stateT) {
-    Objects.requireNonNull(stateT, "stateT cannot be null");
-    // If stateT is not null, it already implements StateTKind<S, F, A>
+  public static <S, F, A> @NonNull Kind<StateTKind.Witness<S, F>, A> wrap(
+      @NonNull StateT<S, F, A> stateT) {
+    Objects.requireNonNull(stateT, "StateT instance to wrap cannot be null.");
+    // StateT<S, F, A> implements StateTKind<S, F, A>, which extends Kind<StateTKind.Witness<S, F>,
+    // A>.
+    // So, a direct cast or return is type-safe after the null check.
     return stateT;
   }
 
   /**
-   * Unwraps a {@link StateTKind} back into a concrete {@link StateT} instance. Uses {@link
-   * StateTKind#narrow(Kind)}.
+   * Unwraps (narrows) a higher-kinded representation {@code Kind<StateTKind.Witness<S, F>, A>} back
+   * to a concrete {@link StateT} instance.
    *
-   * @param kind The higher-kinded StateT representation.
+   * <p>This method relies on {@link StateTKind#narrow(Kind)} for the actual cast. Callers must
+   * ensure that the provided {@code Kind} instance is genuinely a {@link StateT}.
+   *
+   * @param kind The non-null higher-kinded {@code StateT} representation.
    * @param <S> The state type.
-   * @param <F> The higher-kinded type witness for F.
+   * @param <F> The higher-kinded type witness for the underlying monad.
    * @param <A> The value type.
-   * @return The concrete StateT instance.
-   * @throws ClassCastException if the kind is not actually a StateT or if kind is null.
+   * @return The concrete {@link StateT} instance.
+   * @throws NullPointerException if {@code kind} is {@code null}.
+   * @throws ClassCastException if {@code kind} is not a valid {@link StateT} instance (as per
+   *     {@link StateTKind#narrow(Kind)}).
    */
-  public static <S, F, A> StateT<S, F, A> unwrap(Kind<StateTKind.Witness<S, F>, A> kind) {
-    // Delegates to the narrow method which performs the cast
+  public static <S, F, A> @NonNull StateT<S, F, A> unwrap(
+      @NonNull Kind<StateTKind.Witness<S, F>, A> kind) {
+    // StateTKind.narrow performs its own null check if implemented robustly,
+    // but an explicit one here is good practice if `kind` parameter is annotated @NonNull.
+    Objects.requireNonNull(kind, "Kind instance to unwrap cannot be null.");
     return StateTKind.narrow(kind);
   }
 
   /**
-   * Creates a StateT instance directly from the state-transition function. This is the most
-   * fundamental way to create a StateT.
+   * Creates a {@link StateT} instance directly from its core state-transition function.
    *
-   * @param runStateTFn The function S -> F<StateTuple<S, A>>.
-   * @param monadF The Monad instance for the underlying monad F (needed internally by StateT).
+   * <p>The provided function {@code runStateTFn} defines the behavior of the {@code StateT}: given
+   * an initial state {@code S}, it produces a computation in the underlying monad {@code F} which
+   * results in a {@link StateTuple} containing the new state and the computed value.
+   *
+   * @param runStateTFn The non-null function {@code S -> Kind<F, StateTuple<S, A>>} that defines
+   *     the stateful computation.
+   * @param monadF The non-null {@link Monad} instance for the underlying monad {@code F}. This is
+   *     required by {@link StateT} to perform its operations.
    * @param <S> The state type.
-   * @param <F> The higher-kinded type witness for F.
+   * @param <F> The higher-kinded type witness for the underlying monad.
    * @param <A> The value type.
-   * @return A new StateT instance.
+   * @return A new, non-null {@link StateT} instance.
+   * @throws NullPointerException if {@code runStateTFn} or {@code monadF} is {@code null}.
    */
-  public static <S, F, A> StateT<S, F, A> stateT(
-      Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
-    // Delegates creation to StateT's factory method
-    return StateT.<S, F, A>create(runStateTFn, monadF);
+  public static <S, F, A> @NonNull StateT<S, F, A> stateT(
+      @NonNull Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, @NonNull Monad<F> monadF) {
+    // StateT.create will perform its own null checks for its parameters.
+    return StateT.create(runStateTFn, monadF);
   }
 
   /**
-   * Lifts a computation from the underlying monad F into StateT. The state remains unchanged.
+   * Lifts a computation {@code Kind<F, A>} from the underlying monad {@code F} into a {@link
+   * StateT} context.
    *
-   * @param monadF The Monad instance for F.
-   * @param fa The computation in the underlying monad F.
-   * @param <S> The state type.
-   * @param <F> The higher-kinded type witness for F.
-   * @param <A> The value type.
-   * @return A StateT instance wrapping the lifted computation.
+   * <p>The resulting {@code StateT} computation, when run, will execute the {@code fa} computation
+   * and pair its result with the initial state, leaving the state unchanged.
+   *
+   * @param monadF The non-null {@link Monad} instance for the underlying monad {@code F}.
+   * @param fa The non-null computation {@code Kind<F, A>} in the underlying monad.
+   * @param <S> The state type (this type parameter is for the resulting {@code StateT}).
+   * @param <F> The higher-kinded type witness for the underlying monad.
+   * @param <A> The value type of the computation {@code fa}.
+   * @return A new, non-null {@link StateT} instance that wraps the lifted computation.
+   * @throws NullPointerException if {@code monadF} or {@code fa} is {@code null}.
    */
-  public static <S, F, A> StateT<S, F, A> lift(Monad<F> monadF, Kind<F, A> fa) {
-    // Pass arguments as (state, value) -> (s, a) assuming StateTuple.of is defined as of(S, A)
-    Function<S, Kind<F, StateTuple<S, A>>> runFn =
-        s -> monadF.map(a -> StateTuple.of(s, a), fa); // StateTuple.of takes (state, value)
+  public static <S, F, A> @NonNull StateT<S, F, A> lift(
+      @NonNull Monad<F> monadF, @NonNull Kind<F, A> fa) {
+    Objects.requireNonNull(monadF, "Monad<F> for lift cannot be null.");
+    Objects.requireNonNull(fa, "Kind<F, A> to lift cannot be null.");
+
+    // The state 's' is passed through. The value 'a' from 'fa' is paired with 's'.
+    // StateTuple.of(state, value)
+    Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.map(a -> StateTuple.of(s, a), fa);
     return stateT(runFn, monadF);
   }
 
   // --- Runner methods ---
 
   /**
-   * Runs the StateT computation with an initial state. Convenience method mirroring the instance
-   * method.
+   * Runs the {@link StateT} computation (provided as a {@link Kind}) with an initial state,
+   * returning the result within the context of the underlying monad {@code F}.
    *
-   * @param kind The StateT computation.
-   * @param initialState The initial state.
+   * <p>This is a convenience method that mirrors {@link StateT#runStateT(Object)} but operates on
+   * the {@link Kind} representation.
+   *
+   * @param kind The non-null {@code StateT} computation, as a {@code Kind}.
+   * @param initialState The initial state of type {@code S}. (Nullability depends on {@code S}).
    * @param <S> The state type.
-   * @param <F> The higher-kinded type witness for F.
+   * @param <F> The higher-kinded type witness for the underlying monad.
    * @param <A> The value type.
-   * @return The result within the underlying monad F.
-   * @throws ClassCastException if kind is null or not a StateT.
+   * @return A {@code Kind<F, StateTuple<S, A>>} representing the outcome (final value and state) in
+   *     the context of the underlying monad {@code F}. This will be non-null if the underlying
+   *     operations guarantee non-null results.
+   * @throws NullPointerException if {@code kind} is {@code null}.
+   * @throws ClassCastException if {@code kind} is not a valid {@link StateT} instance.
    */
-  public static <S, F, A> Kind<F, StateTuple<S, A>> runStateT(
-      Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    // unwrap will throw ClassCastException if kind is null or invalid
+  public static <S, F, A> @NonNull Kind<F, StateTuple<S, A>> runStateT(
+      @NonNull Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     return unwrap(kind).runStateT(initialState);
   }
 
   /**
-   * Runs the StateT computation and extracts the final value. Convenience method mirroring the
-   * instance method.
+   * Runs the {@link StateT} computation (provided as a {@link Kind}) with an initial state and
+   * extracts only the final computed value, discarding the final state.
    *
-   * @param kind The StateT computation.
-   * @param initialState The initial state.
+   * <p>This is a convenience method that mirrors {@link StateT#evalStateT(Object)} but operates on
+   * the {@link Kind} representation.
+   *
+   * @param kind The non-null {@code StateT} computation, as a {@code Kind}.
+   * @param initialState The initial state of type {@code S}. (Nullability depends on {@code S}).
    * @param <S> The state type.
-   * @param <F> The higher-kinded type witness for F.
+   * @param <F> The higher-kinded type witness for the underlying monad.
    * @param <A> The value type.
-   * @return The final value within the underlying monad F.
-   * @throws ClassCastException if kind is null or not a StateT.
+   * @return A {@code Kind<F, A>} representing the final value in the context of the underlying
+   *     monad {@code F}. This will be non-null if the underlying operations guarantee non-null
+   *     results.
+   * @throws NullPointerException if {@code kind} is {@code null}.
+   * @throws ClassCastException if {@code kind} is not a valid {@link StateT} instance.
    */
-  public static <S, F, A> Kind<F, A> evalStateT(
-      Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    // unwrap will throw ClassCastException if kind is null or invalid
+  public static <S, F, A> @NonNull Kind<F, A> evalStateT(
+      @NonNull Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     return unwrap(kind).evalStateT(initialState);
   }
 
   /**
-   * Runs the StateT computation and extracts the final state. Convenience method mirroring the
-   * instance method.
+   * Runs the {@link StateT} computation (provided as a {@link Kind}) with an initial state and
+   * extracts only the final state, discarding the computed value.
    *
-   * @param kind The StateT computation.
-   * @param initialState The initial state.
+   * <p>This is a convenience method that mirrors {@link StateT#execStateT(Object)} but operates on
+   * the {@link Kind} representation.
+   *
+   * @param kind The non-null {@code StateT} computation, as a {@code Kind}.
+   * @param initialState The initial state of type {@code S}. (Nullability depends on {@code S}).
    * @param <S> The state type.
-   * @param <F> The higher-kinded type witness for F.
-   * @param <A> The value type.
-   * @return The final state within the underlying monad F.
-   * @throws ClassCastException if kind is null or not a StateT.
+   * @param <F> The higher-kinded type witness for the underlying monad.
+   * @param <A> The value type (discarded in the result).
+   * @return A {@code Kind<F, S>} representing the final state in the context of the underlying
+   *     monad {@code F}. This will be non-null if the underlying operations guarantee non-null
+   *     results and the state type S is non-null.
+   * @throws NullPointerException if {@code kind} is {@code null}.
+   * @throws ClassCastException if {@code kind} is not a valid {@link StateT} instance.
    */
-  public static <S, F, A> Kind<F, S> execStateT(
-      Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    // unwrap will throw ClassCastException if kind is null or invalid
+  public static <S, F, A> @NonNull Kind<F, S> execStateT(
+      @NonNull Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     return unwrap(kind).execStateT(initialState);
   }
 }

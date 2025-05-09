@@ -65,7 +65,7 @@ class StateTKindHelperTest {
     void wrap_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> StateTKindHelper.wrap(null))
-          .withMessageContaining("stateT cannot be null"); // Message from wrap
+          .withMessageContaining("StateT instance to wrap cannot be null."); // Message from wrap
     }
   }
 
@@ -78,7 +78,6 @@ class StateTKindHelperTest {
       assertThat(StateTKindHelper.unwrap(kind)).isSameAs(baseStateT);
     }
 
-    // Dummy Kind implementation - Use correct witness structure
     record DummyKind<A>() implements Kind<StateTKind.Witness<Integer, OptionalKind<?>>, A> {}
 
     @Test
@@ -86,8 +85,9 @@ class StateTKindHelperTest {
       // Now expect ClassCastException from narrow because the explicit null check
       // in the helper delegates to narrow which performs the cast.
       assertThatThrownBy(() -> StateTKindHelper.<Integer, OptionalKind<?>, String>unwrap(null))
-          .isInstanceOf(ClassCastException.class)
-          .hasMessageContaining("Cannot cast null to StateT"); // Check specific message if added
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining(
+              "Kind instance to unwrap cannot be null."); // Check specific message if added
     }
 
     @Test

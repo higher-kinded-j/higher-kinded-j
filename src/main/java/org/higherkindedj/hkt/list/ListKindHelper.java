@@ -8,62 +8,106 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper class for working with {@link ListKind} HKT simulation. Provides static methods for
- * wrapping and unwrapping {@link List} instances.
+ * A utility class providing helper methods for working with {@link java.util.List} in the context
+ * of higher-kinded types (HKT), using {@link ListKind} as the HKT marker.
+ *
+ * <p>This class offers static methods for:
+ *
+ * <ul>
+ *   <li>Safely converting between a {@link List} instance and its {@link Kind} representation
+ *       ({@link #wrap(List)} and {@link #unwrap(Kind)}).
+ * </ul>
+ *
+ * <p>It acts as a bridge between the concrete {@link java.util.List} type and the abstract {@link
+ * Kind} interface, enabling {@code List} to be used with generic HKT abstractions like {@link
+ * org.higherkindedj.hkt.Functor}, {@link org.higherkindedj.hkt.Applicative}, and {@link
+ * org.higherkindedj.hkt.Monad}.
+ *
+ * <p>The {@link #unwrap(Kind)} method uses an internal private record ({@code ListHolder}) that
+ * implements {@link ListKind} to hold the actual {@code List} instance.
+ *
+ * @see java.util.List
+ * @see ListKind
+ * @see Kind
+ * @see KindUnwrapException
  */
 public final class ListKindHelper {
 
-  // Error Messages (ensure these constants are defined within this class)
+  /** Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}. */
   public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for List";
+
+  /**
+   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #unwrap(Kind)}.
+   */
   public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a ListHolder: ";
+
+  /**
+   * Error message for when the internal holder in {@link #unwrap(Kind)} contains a {@code null}
+   * List instance. This should ideally not occur if {@link #wrap(List)} enforces non-null List
+   * instances.
+   */
   public static final String INVALID_HOLDER_STATE_MSG = "ListHolder contained null List instance";
 
+  /** Private constructor to prevent instantiation of this utility class. All methods are static. */
   private ListKindHelper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
-  // Internal holder record - Note: 'list' component is NOT marked @NonNull
+  /**
+   * Internal record implementing {@link ListKind} to hold the concrete {@link List} instance. This
+   * is used by {@link #wrap(List)} and {@link #unwrap(Kind)}.
+   *
+   * @param <A> The element type of the List.
+   * @param list The actual {@link List} instance. Note: While the `list` field itself is not
+   *     annotated `@NonNull` here, {@link #wrap(List)} requires a non-null list, and {@link
+   *     #unwrap(Kind)} checks for nullity of this field.
+   */
   record ListHolder<A>(List<A> list) implements ListKind<A> {}
 
   /**
-   * Unwraps a ListKind back to the concrete {@code List<A>} type. Throws KindUnwrapException if the
-   * Kind is null, not a ListHolder, or the holder contains a null List instance.
+   * Unwraps a {@code Kind<ListKind<?>, A>} back to its concrete {@link List List<A>} type.
    *
-   * @param <A> The element type of the List.
-   * @param kind The {@code Kind<ListKind<?>, A>} instance to unwrap. Can be {@code @Nullable}.
-   * @return The underlying, non-null {@code List<A>}. Returns {@code @NonNull}.
-   * @throws KindUnwrapException if unwrapping fails due to null input, wrong type, or the holder
-   *     containing a null List.
+   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * actually represents a {@link List}.
+   *
+   * @param <A> The element type of the {@code List}.
+   * @param kind The {@code Kind<ListKind<?>, A>} instance to unwrap. May be {@code null}.
+   * @return The underlying, non-null {@link List List<A>} instance.
+   * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
+   *     {@code ListHolder}, or if the holder's internal {@code List} instance is {@code null}
+   *     (which would indicate an internal issue with {@link #wrap(List)}).
    */
   public static <A> @NonNull List<A> unwrap(@Nullable Kind<ListKind<?>, A> kind) {
     return switch (kind) {
-      // Case 1: Input Kind is null
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-
-      // Case 2: Input Kind is a ListHolder (extract inner 'list')
-      // We need the <A> type parameter here for the pattern matching
-      case ListKindHelper.ListHolder<A>(var list) -> {
-        // Check if the extracted List instance itself is null.
-        // Necessary as the record component is not marked @NonNull.
+      case null ->
+          // If the input Kind itself is null.
+          throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+      case ListKindHelper.ListHolder<A> holder -> { // Explicit type <A> for holder pattern
+        // If it's a ListHolder, extract the 'list' component.
+        List<A> list = holder.list(); // Access record component
         if (list == null) {
+          // This case should ideally not be reached if wrap() enforces non-null lists.
           throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
         }
-        // No cast needed as the pattern already provides List<A>
+        // No further cast needed as the pattern match provides List<A>.
         yield list;
       }
-
-      // Case 3: Input Kind is non-null but not a ListHolder
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+      default ->
+          // If the Kind is non-null but not the expected ListHolder type.
+          throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
   }
 
   /**
-   * Wraps a concrete {@code List<A>} value into the ListKind Higher-Kinded-J type.
+   * Wraps a concrete {@link List List<A>} instance into its higher-kinded representation, {@code
+   * Kind<ListKind<?>, A>}.
    *
-   * @param <A> The element type.
-   * @param list The concrete {@code List<A>} instance to wrap. Must be {@code @NonNull}.
-   * @return The {@code ListKind<A>} representation. Returns {@code @NonNull}.
-   * @throws NullPointerException if list is null.
+   * @param <A> The element type of the {@code List}.
+   * @param list The non-null, concrete {@link List List<A>} instance to wrap. The list itself must
+   *     not be null, though it can be an empty list.
+   * @return A non-null {@link ListKind ListKind<A>} (which is also a {@code Kind<ListKind<?>, A>})
+   *     representing the wrapped {@code List}.
+   * @throws NullPointerException if {@code list} is {@code null}.
    */
   public static <A> @NonNull ListKind<A> wrap(@NonNull List<A> list) {
     Objects.requireNonNull(list, "Input list cannot be null for wrap");
