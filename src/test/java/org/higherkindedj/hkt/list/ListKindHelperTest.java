@@ -1,7 +1,7 @@
 package org.higherkindedj.hkt.list;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.list.ListKindHelper.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,30 +21,29 @@ class ListKindHelperTest {
   class WrapTests {
 
     @Test
-    void wrap_shouldReturnHolderForNonEmptyList() {
-      List<Integer> list = Arrays.asList(1, 2, 3);
-      Kind<ListKind<?>, Integer> kind = wrap(list);
-
-      assertThat(kind).isInstanceOf(ListHolder.class);
-      // Unwrap to verify
-      assertThat(unwrap(kind)).isSameAs(list);
+    void wrap_shouldReturnListViewForValidList() {
+      List<String> list = Arrays.asList("a", "b");
+      Kind<ListKind.Witness, String> kind = ListKindHelper.wrap(list);
+      assertThat(kind)
+          .isInstanceOf(ListKind.ListView.class); // ListKind.ListView is the concrete type
+      // To verify content, unwrap and check
+      assertThat(ListKindHelper.unwrap(kind)).isEqualTo(list);
     }
 
     @Test
-    void wrap_shouldReturnHolderForEmptyList() {
-      List<String> list = Collections.emptyList();
-      Kind<ListKind<?>, String> kind = wrap(list);
-
-      assertThat(kind).isInstanceOf(ListHolder.class);
-      // Unwrap to verify
-      assertThat(unwrap(kind)).isSameAs(list);
+    void wrap_shouldReturnListViewForEmptyList() {
+      List<Integer> emptyList = Collections.emptyList();
+      Kind<ListKind.Witness, Integer> kind = ListKindHelper.wrap(emptyList);
+      assertThat(kind).isInstanceOf(ListKind.ListView.class);
+      assertThat(ListKindHelper.unwrap(kind)).isEqualTo(emptyList);
     }
 
     @Test
     void wrap_shouldThrowForNullInput() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
-          .withMessageContaining("Input list cannot be null"); // Check message from wrap
+      assertThatThrownBy(() -> ListKindHelper.wrap(null))
+          .isInstanceOf(
+              NullPointerException.class) // Or specific exception from Objects.requireNonNull
+          .hasMessageContaining("list cannot be null for wrap");
     }
   }
 
@@ -53,50 +51,62 @@ class ListKindHelperTest {
   @DisplayName("unwrap()")
   class UnwrapTests {
 
-    // --- Success Cases ---
     @Test
-    void unwrap_shouldReturnOriginalNonEmptyList() {
-      List<String> original = List.of("a", "b");
-      Kind<ListKind<?>, String> kind = wrap(original);
-      assertThat(unwrap(kind)).isSameAs(original);
+    void unwrap_shouldReturnOriginalList() {
+      List<Double> originalList = Arrays.asList(1.0, 2.5);
+      Kind<ListKind.Witness, Double> kind = ListKindHelper.wrap(originalList);
+      assertThat(ListKindHelper.unwrap(kind))
+          .isSameAs(originalList); // It's List.copyOf in wrap, so not same
+      // but content should be equal
+      assertThat(ListKindHelper.unwrap(kind)).isEqualTo(originalList);
     }
 
     @Test
-    void unwrap_shouldReturnOriginalEmptyList() {
-      List<Integer> original = Collections.emptyList();
-      Kind<ListKind<?>, Integer> kind = wrap(original);
-      assertThat(unwrap(kind)).isSameAs(original);
+    void unwrap_shouldReturnEmptyListForNullKind() {
+      // This is specific behavior of ListKindHelper.unwrap(null)
+      assertThat(ListKindHelper.unwrap(null)).isEqualTo(Collections.emptyList());
     }
 
-    // --- Failure Cases ---
-
-    // Dummy Kind implementation that is not ListHolder
-    record DummyListKind<A>() implements Kind<ListKind<?>, A> {}
+    // Dummy Kind for testing invalid type unwrap
+    record DummyListKind<A>() implements Kind<ListKind.Witness, A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+    void unwrap_shouldThrowClassCastExceptionForUnknownKindType() {
+      // If the Kind passed is not a ListView (or whatever ListKind.narrow expects),
+      // ClassCastException can occur in narrow.
+      // If ListKind.narrow checks type, then KindUnwrapException might be thrown by unwrap itself.
+      // The current test setup relies on ClassCastException from ListKind.narrow if not ListKind
+      Kind<ListKind.Witness, String> unknownKind = new DummyListKind<>();
+      assertThatThrownBy(() -> ListKindHelper.unwrap(unknownKind))
+          .isInstanceOf(ClassCastException.class) // This comes from ListKind.narrow
+          .hasMessageContaining("DummyListKind cannot be cast");
+    }
+  }
+
+  @Nested
+  @DisplayName("unwrapOr()")
+  class UnwrapOrTests {
+    @Test
+    void unwrapOr_shouldReturnValueWhenPresent() {
+      List<String> list = Arrays.asList("a", "b");
+      Kind<ListKind.Witness, String> kind = ListKindHelper.wrap(list);
+      List<String> defaultList = Collections.singletonList("default");
+      assertThat(ListKindHelper.unwrapOr(kind, defaultList)).isEqualTo(list);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
-      Kind<ListKind<?>, Integer> unknownKind = new DummyListKind<>();
-      assertThatThrownBy(() -> unwrap(unknownKind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyListKind.class.getName());
+    void unwrapOr_shouldReturnDefaultWhenKindIsNull() {
+      List<String> defaultList = Collections.singletonList("default");
+      assertThat(ListKindHelper.unwrapOr(null, defaultList)).isSameAs(defaultList);
     }
 
     @Test
-    void unwrap_shouldThrowForHolderWithNullList() {
-      ListHolder<Double> holderWithNull = new ListHolder<>(null);
-      @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<ListKind<?>, Double> kind = holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
+    void unwrapOr_shouldThrowNPEWhenDefaultIsNull() {
+      List<String> list = Arrays.asList("a", "b");
+      Kind<ListKind.Witness, String> kind = ListKindHelper.wrap(list);
+      assertThatThrownBy(() -> ListKindHelper.unwrapOr(kind, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("defaultValue cannot be null");
     }
   }
 

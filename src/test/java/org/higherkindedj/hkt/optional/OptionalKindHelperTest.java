@@ -22,7 +22,7 @@ class OptionalKindHelperTest {
     @Test
     void wrap_shouldReturnHolderForPresentOptional() {
       Optional<String> present = Optional.of("value");
-      Kind<OptionalKind<?>, String> kind = wrap(present);
+      Kind<OptionalKind.Witness, String> kind = wrap(present);
 
       assertThat(kind).isInstanceOf(OptionalHolder.class);
       assertThat(unwrap(kind)).isSameAs(present);
@@ -31,7 +31,7 @@ class OptionalKindHelperTest {
     @Test
     void wrap_shouldReturnHolderForEmptyOptional() {
       Optional<String> empty = Optional.empty();
-      Kind<OptionalKind<?>, String> kind = wrap(empty);
+      Kind<OptionalKind.Witness, String> kind = wrap(empty);
 
       assertThat(kind).isInstanceOf(OptionalHolder.class);
       assertThat(unwrap(kind)).isSameAs(empty);
@@ -41,7 +41,7 @@ class OptionalKindHelperTest {
     void wrap_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> wrap(null))
-          .withMessageContaining("Input Optional cannot be null"); // Check message from wrap
+          .withMessageContaining("Input Optional cannot be null");
     }
   }
 
@@ -53,20 +53,19 @@ class OptionalKindHelperTest {
     @Test
     void unwrap_shouldReturnOriginalPresentOptional() {
       Optional<Integer> original = Optional.of(123);
-      Kind<OptionalKind<?>, Integer> kind = wrap(original);
+      Kind<OptionalKind.Witness, Integer> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
     @Test
     void unwrap_shouldReturnOriginalEmptyOptional() {
       Optional<Float> original = Optional.empty();
-      Kind<OptionalKind<?>, Float> kind = wrap(original);
+      Kind<OptionalKind.Witness, Float> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
     // --- Failure Cases ---
-    // Dummy Kind implementation that is not OptionalHolder
-    record DummyOptionalKind<A>() implements Kind<OptionalKind<?>, A> {}
+    record DummyOptionalKind<A>() implements Kind<OptionalKind.Witness, A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
@@ -77,7 +76,7 @@ class OptionalKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<OptionalKind<?>, Integer> unknownKind = new DummyOptionalKind<>();
+      Kind<OptionalKind.Witness, Integer> unknownKind = new DummyOptionalKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOptionalKind.class.getName());
@@ -85,13 +84,12 @@ class OptionalKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForHolderWithNullOptional() {
-      OptionalHolder<String> holderWithNull = new OptionalHolder<>(null);
-      @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<OptionalKind<?>, String> kind = holderWithNull;
-
-      assertThatThrownBy(() -> unwrap(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
+      // OptionalHolder constructor now checks for null, so this specific path
+      // to INVALID_HOLDER_STATE_MSG from unwrap is harder to hit if wrap is used.
+      // This test now more directly tests the holder's construction.
+      assertThatNullPointerException()
+          .isThrownBy(() -> new OptionalHolder<>(null))
+          .withMessageContaining("Wrapped Optional instance cannot be null in OptionalHolder");
     }
   }
 
