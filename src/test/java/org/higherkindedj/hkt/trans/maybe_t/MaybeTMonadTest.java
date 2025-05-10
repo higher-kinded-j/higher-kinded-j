@@ -50,7 +50,6 @@ class MaybeTMonadTest {
 
   // Helper to create a Kind<MaybeTKind<OptionalKind.Witness, ?>, A> for an empty outer F
   private <A> Kind<MaybeTKind<OptionalKind.Witness, ?>, A> outerEmptyT() {
-    // MODIFIED: emptyOuter is Kind<OptionalKind.Witness, Maybe<A>>
     Kind<OptionalKind.Witness, Maybe<A>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
     MaybeT<OptionalKind.Witness, A> mt = MaybeT.fromKind(emptyOuter);
     return MaybeTKindHelper.wrap(mt);
@@ -66,7 +65,6 @@ class MaybeTMonadTest {
   class OfTests {
     @Test
     void of_shouldWrapValueAsJustInOptional() {
-      // MODIFIED: Kind uses OptionalKind.Witness for F
       Kind<MaybeTKind<OptionalKind.Witness, ?>, String> kind = maybeTMonad.of(successValue);
       assertThat(unwrapKindToOptionalMaybe(kind)).isPresent().contains(Maybe.just(successValue));
     }

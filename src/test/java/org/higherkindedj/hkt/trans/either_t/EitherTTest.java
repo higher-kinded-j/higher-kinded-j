@@ -138,7 +138,6 @@ class EitherTTest {
     @Test
     @DisplayName("getValue should return the wrapped Kind")
     void getValue_returnsWrapped() {
-      // MODIFIED: Type uses OptionalKind.Witness
       EitherT<OptionalKind.Witness, String, String> et = EitherT.fromKind(wrappedRight);
       assertThat(et.value()).isSameAs(wrappedRight);
 

@@ -32,4 +32,11 @@ public sealed interface DomainError extends Serializable {
       return "Shipping failed: " + reason;
     }
   }
+
+  record NotificationError(String reason) implements DomainError {
+    @Override
+    public String message() {
+      return "Notification failed: " + reason;
+    }
+  }
 }

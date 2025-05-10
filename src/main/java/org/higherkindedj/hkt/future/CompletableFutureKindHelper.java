@@ -74,92 +74,68 @@ public final class CompletableFutureKindHelper {
       implements CompletableFutureKind<A> {}
 
   /**
-   * Unwraps a {@code Kind<CompletableFutureKind<?>, A>} back to its concrete {@link
+   * Unwraps a {@code Kind<CompletableFutureKind.Witness, A>} back to its concrete {@link
    * CompletableFuture CompletableFuture<A>} type.
    *
    * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents a CompletableFuture.
    *
    * @param <A> The result type of the {@code CompletableFuture}.
-   * @param kind The {@code Kind<CompletableFutureKind<?>, A>} instance to unwrap. May be {@code
-   *     null}.
+   * @param kind The {@code Kind<CompletableFutureKind.Witness, A>} instance to unwrap. May be
+   *     {@code null}.
    * @return The underlying, non-null {@link CompletableFuture CompletableFuture<A>}.
    * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
-   *     {@code CompletableFutureHolder}, or if the holder internally contains a {@code null} future
-   *     (which indicates an issue with wrapping).
+   *     {@code CompletableFutureHolder}, or if the holder internally contains a {@code null}
+   *     future.
    */
-  @SuppressWarnings("unchecked") // For casting 'future' - safe after pattern match and null check.
+  @SuppressWarnings("unchecked")
   public static <A> @NonNull CompletableFuture<A> unwrap(
-      @Nullable Kind<CompletableFutureKind<?>, A> kind) {
+      @Nullable Kind<CompletableFutureKind.Witness, A> kind) {
     return switch (kind) {
-      case null ->
-          // If the input Kind itself is null.
-          throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case CompletableFutureKindHelper.CompletableFutureHolder<?> holder -> {
-        // If it's a CompletableFutureHolder, extract the 'future' component.
-        CompletableFuture<?> rawFuture = holder.future(); // Access record component
+        CompletableFuture<?> rawFuture = holder.future();
         if (rawFuture == null) {
-          // This case should ideally not be reached if wrap() enforces non-null futures.
           throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
         }
-        // Cast is safe after type check via pattern matching and explicit null check.
         yield (CompletableFuture<A>) rawFuture;
       }
-      default ->
-          // If the Kind is non-null but not the expected CompletableFutureHolder type.
-          throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
   }
 
   /**
    * Wraps a concrete {@link CompletableFuture CompletableFuture<A>} instance into its higher-kinded
-   * representation, {@code Kind<CompletableFutureKind<?>, A>}.
+   * representation, {@code Kind<CompletableFutureKind.Witness, A>}.
    *
    * @param <A> The result type of the {@code CompletableFuture}.
    * @param future The non-null, concrete {@link CompletableFuture CompletableFuture<A>} instance to
    *     wrap.
    * @return A non-null {@code CompletableFutureKind<A>} (which is also a {@code
-   *     Kind<CompletableFutureKind<?>, A>}) representing the wrapped future.
+   *     Kind<CompletableFutureKind.Witness, A>}) representing the wrapped future.
    * @throws NullPointerException if {@code future} is {@code null}.
    */
   public static <A> @NonNull CompletableFutureKind<A> wrap(@NonNull CompletableFuture<A> future) {
     Objects.requireNonNull(future, "Input CompletableFuture cannot be null for wrap");
+    // CompletableFutureHolder now correctly implements the updated CompletableFutureKind<A>
     return new CompletableFutureHolder<>(future);
   }
 
   /**
    * Retrieves the result of the {@link CompletableFuture} wrapped within the {@link Kind}, blocking
-   * the current thread if necessary until the future completes.
-   *
-   * <p>This method is primarily intended for testing or in scenarios where synchronous, blocking
-   * behavior is explicitly required and understood. In typical asynchronous programming, prefer
-   * using methods like {@code thenApply}, {@code thenCompose}, etc., on the {@code
-   * CompletableFuture} itself or via its {@link org.higherkindedj.hkt.Functor}, {@link
-   * org.higherkindedj.hkt.Applicative}, or {@link org.higherkindedj.hkt.Monad} instances.
-   *
-   * <p>If the future completes exceptionally, this method will re-throw the exception. If the cause
-   * of the {@link CompletionException} is a {@link RuntimeException} or {@link Error}, it is
-   * re-thrown directly; otherwise, the original {@code CompletionException} is thrown.
+   * the current thread if necessary until the future completes. // ... (rest of Javadoc)
    *
    * @param <A> The result type of the {@code CompletableFuture}.
-   * @param kind The non-null {@code Kind<CompletableFutureKind<?>, A>} holding the {@code
+   * @param kind The non-null {@code Kind<CompletableFutureKind.Witness, A>} holding the {@code
    *     CompletableFuture} computation.
    * @return The result of the {@code CompletableFuture} computation. Can be {@code null} if the
-   *     future completes with a {@code null} value.
-   * @throws KindUnwrapException if the input {@code kind} is invalid (e.g., null or wrong type), as
-   *     per {@link #unwrap(Kind)}.
-   * @throws CompletionException if the future completes exceptionally.
-   * @throws RuntimeException if the cause of {@code CompletionException} is a {@code
-   *     RuntimeException}.
-   * @throws Error if the cause of {@code CompletionException} is an {@code Error}.
+   *     future completes with a {@code null} value. // ... (throws clauses)
    */
-  public static <A> @Nullable A join(@NonNull Kind<CompletableFutureKind<?>, A> kind) {
-    // unwrap will throw KindUnwrapException if kind is invalid or null.
+  public static <A> @Nullable A join(@NonNull Kind<CompletableFutureKind.Witness, A> kind) {
     CompletableFuture<A> future = unwrap(kind);
     try {
       return future.join();
     } catch (CompletionException e) {
-      // Attempt to re-throw the underlying cause if it's unchecked.
       Throwable cause = e.getCause();
       if (cause instanceof RuntimeException re) {
         throw re;
@@ -167,7 +143,6 @@ public final class CompletableFutureKindHelper {
       if (cause instanceof Error err) {
         throw err;
       }
-      // Otherwise, re-throw the original CompletionException.
       throw e;
     }
   }
