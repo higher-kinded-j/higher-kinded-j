@@ -25,11 +25,11 @@
 
 # Transformers
 - [Overview](./transformers.md)
-- [EitherT Transformer](./eithert_transformer.md)
-- [MaybeT Transformer](./maybet_transformer.md)
-- [OptionalT Transformer](./optionalt_transformer.md)
-- [ReaderT Transformer](./readert_transformer.md)
-- [StateT Transformer](./statet_transformer.md)
+- [EitherT](./eithert_transformer.md)
+- [MaybeT](./maybet_transformer.md)
+- [OptionalT](./optionalt_transformer.md)
+- [ReaderT](./readert_transformer.md)
+- [StateT](./statet_transformer.md)
 
 # Examples
 - [Order Workflow](./order-walkthrough.md)

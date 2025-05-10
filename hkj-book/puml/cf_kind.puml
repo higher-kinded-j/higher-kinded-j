@@ -1,18 +1,18 @@
-@startuml CompletableFuture HKT Simulation
+@startuml cf_kind
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 
 interface Kind<F, A> <<HKT Bridge>>
 
-interface CompletableFutureKind<A> extends Kind<CompletableFutureKind<?>, A> {
+interface CompletableFutureKind<A> extends Kind<CompletableFutureKind.Witness, A> {
   ' Witness F = CompletableFutureKind<?>
 }
 
-class java.util.concurrent.CompletableFuture<A> {
+class "CompletableFuture<A>" {
   ' Standard Java Class
 }
 
-package helper <<Rectangle>> {
+
   class CompletableFutureKindHelper {
     + {static} CompletableFutureKind<A> wrap(@NonNull CompletableFuture<A>)
     + {static} @NonNull CompletableFuture<A> unwrap(@Nullable Kind<CompletableFutureKind<?>, A>)
@@ -25,8 +25,8 @@ package helper <<Rectangle>> {
   }
 
   CompletableFutureKindHelper ..> CompletableFutureHolder : creates
-  CompletableFutureKindHelper ..> CompletableFuture : unwraps to / wraps from
-  CompletableFutureHolder o--> CompletableFuture : holds
-}
+  CompletableFutureKindHelper ..> "CompletableFuture<A>" : unwraps to / wraps from
+  CompletableFutureHolder o--> "CompletableFuture<A>" : holds
+
 
 @enduml

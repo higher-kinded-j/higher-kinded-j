@@ -1,7 +1,6 @@
-@startuml IO Monad Hierarchy
+@startuml io_monad
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-interface Kind<F, A>
-interface "IOKind<A> extends Kind<IOKind<?>, A>"
+hide empty members
 
 interface Functor<F> {
   + Kind<F, B> map(Function<A, B>, Kind<F, A>)
@@ -16,23 +15,23 @@ interface Monad<F> extends Applicative<F> {
 
 
 class IOKindHelper {
- {static} Kind<IOKind<?>, A> wrap(IO<A>)
- {static} IO<A> unwrap(Kind<IOKind<?>, A>)
+ {static} Kind<IOKind.Witness, A> wrap(IO<A>)
+ {static} IO<A> unwrap(Kind<IOKind.Witness, A>)
  ' ...
 }
 
-class IOFunctor implements Functor<IOKind<?>> {
- + Kind<IOKind<?>, B> map(Function<A, B>, Kind<IOKind<?>, A>)
+class IOFunctor implements Functor<IOKind.Witness> {
+ + Kind<IOKind.Witness, B> map(Function<A, B>, Kind<IOKind.Witness, A>)
 }
 IOFunctor ..> IOKindHelper : uses
 
-class IOApplicative extends IOFunctor implements Applicative<IOKind<?>> {
-  + Kind<IOKind<?>, A> of(A)
-  + Kind<IOKind<?>, B> ap(Kind<IOKind<?>, Function<A, B>>, Kind<IOKind<?>, A>)
+class IOApplicative extends IOFunctor implements Applicative<IOKind.Witness> {
+  + Kind<IOKind.Witness, A> of(A)
+  + Kind<IOKind.Witness, B> ap(Kind<IOKind.Witness, Function<A, B>>, Kind<IOKind.Witness, A>)
 }
 
-class IOMonad extends IOApplicative implements Monad<IOKind<?>> {
- + Kind<IOKind<?>, B> flatMap(Function<A, Kind<IOKind<?>, B>>, Kind<IOKind<?>, A>)
+class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
+ + Kind<IOKind.Witness, B> flatMap(Function<A, Kind<IOKind.Witness, B>>, Kind<IOKind.Witness, A>)
 }
 
 @enduml

@@ -11,20 +11,21 @@ import org.jspecify.annotations.NonNull;
  * monadic value of type {@code Kind<F, Optional<A>>}, where {@code F} is the outer monad and {@code
  * Optional<A>} is the inner optional value.
  *
- * <p>This class is a record, making it an immutable data holder for the wrapped value. To use
- * {@code OptionalT} as a {@code Kind} in higher-kinded type simulations, it should be
- * wrapped/unwrapped using {@link OptionalTKindHelper}.
+ * <p>This class is a record, making it an immutable data holder for the wrapped value. It
+ * implements {@link OptionalTKind} to participate in higher-kinded type simulations, allowing it to
+ * be treated as {@code Kind<OptionalTKind.Witness<F>, A>}.
  *
  * <p>OptionalT is similar to MaybeT but specifically targets Java's {@link java.util.Optional}.
  *
- * @param <F> The witness type of the outer monad (e.g., {@code IO<?>}, {@code ListKind<?>}).
+ * @param <F> The witness type of the outer monad (e.g., {@code IOKind.Witness}, {@code
+ *     ListKind.Witness}).
  * @param <A> The type of the value potentially held by the inner {@link Optional}.
  * @param value The underlying monadic value {@code Kind<F, Optional<A>>}. Must not be null.
  * @see OptionalTKind
  * @see OptionalTKindHelper
  * @see OptionalTMonad
  */
-public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) {
+public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements OptionalTKind<F, A> {
 
   /**
    * Canonical constructor for {@code OptionalT}.
@@ -32,7 +33,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) {
    * @param value The underlying monadic value {@code Kind<F, Optional<A>>}.
    * @throws NullPointerException if {@code value} is null.
    */
-  public OptionalT {
+  public OptionalT { // Canonical constructor
     Objects.requireNonNull(value, "Wrapped value cannot be null for OptionalT");
   }
 
@@ -63,7 +64,6 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) {
   public static <F, A extends @NonNull Object> @NonNull OptionalT<F, A> some(
       @NonNull Monad<F> outerMonad, @NonNull A a) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for some");
-    // Optional.of enforces non-null 'a'
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.of(a));
     return new OptionalT<>(lifted);
   }
@@ -129,6 +129,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) {
    *
    * @return The {@code @NonNull Kind<F, Optional<A>>} wrapped by this {@code OptionalT}.
    */
+  @Override
   public @NonNull Kind<F, Optional<A>> value() {
     return value;
   }

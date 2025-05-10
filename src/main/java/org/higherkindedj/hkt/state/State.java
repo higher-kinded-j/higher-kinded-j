@@ -6,24 +6,32 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Represents a stateful computation S -> (A, S). It wraps a function that takes an initial state
- * and returns a pair containing the computed value and the final state.
+ * Represents a stateful computation {@code S -> (A, S)}. It wraps a function that takes an initial
+ * state and returns a pair containing the computed value and the final state.
  *
- * @param <S> The type of the state.
- * @param <A> The type of the computed value.
+ * @param <S> The type of the state. This type is expected to be non-null.
+ * @param <A> The type of the computed value. This can be nullable.
  */
 @FunctionalInterface
 public interface State<S, A> {
 
   /**
-   * Represents the result pair of a stateful computation.
+   * Represents the result pair of a stateful computation, containing the computed value and the
+   * final state.
    *
-   * @param <S> State type.
-   * @param <A> Value type.
-   * @param value The computed value (@Nullable based on A).
-   * @param state The final state (@NonNull assumed).
+   * @param <S> The type of the state. Expected to be non-null.
+   * @param <A> The type of the value. Can be nullable.
+   * @param value The computed value. Its nullability depends on the type {@code A}.
+   * @param state The final state. This is always non-null.
    */
   record StateTuple<S, A>(@Nullable A value, @NonNull S state) {
+    /**
+     * Constructs a {@code StateTuple}.
+     *
+     * @param value The computed value.
+     * @param state The final state.
+     * @throws NullPointerException if {@code state} is null.
+     */
     public StateTuple {
       Objects.requireNonNull(state, "Final state cannot be null");
     }
@@ -32,21 +40,48 @@ public interface State<S, A> {
   /**
    * Runs the state computation with the given initial state.
    *
-   * @param initialState The initial state. (@NonNull assumed)
-   * @return A tuple containing the computed value and the final state. (@NonNull)
+   * @param initialState The non-null initial state.
+   * @return A non-null {@link StateTuple} containing the computed value and the final state.
    */
   @NonNull StateTuple<S, A> run(@NonNull S initialState);
 
-  /** Creates a State instance from a function S -> (A, S). */
+  /**
+   * Creates a {@code State} instance from a function that performs the state transition. The
+   * provided function takes an initial state {@code S} and returns a {@link StateTuple} containing
+   * the computed value {@code A} and the new state {@code S}.
+   *
+   * @param <S> The type of the state.
+   * @param <A> The type of the computed value.
+   * @param runFunction The non-null function representing the stateful computation, mapping an
+   *     initial state to a {@link StateTuple}.
+   * @return A non-null {@code State<S, A>} instance.
+   * @throws NullPointerException if {@code runFunction} is null.
+   */
   static <S, A> @NonNull State<S, A> of(
       @NonNull Function<@NonNull S, @NonNull StateTuple<S, A>> runFunction) {
     Objects.requireNonNull(runFunction, "runFunction cannot be null");
-    return runFunction::apply;
+    return runFunction::apply; // Method reference `runFunction::apply` is equivalent to `s ->
+    // runFunction.apply(s)`
   }
 
   /**
-   * Maps the result value A to B while keeping the state transition. map(f) is equivalent to s -> {
-   * (a, s') = run(s); return (f(a), s'); }
+   * Maps the result value of this stateful computation from type {@code A} to type {@code B}, while
+   * preserving the state transition.
+   *
+   * <p>This operation is equivalent to:
+   *
+   * <pre>{@code
+   * s -> {
+   * StateTuple<S, A> result = this.run(s);
+   * return new StateTuple<>(f.apply(result.value()), result.state());
+   * }
+   * }</pre>
+   *
+   * @param <B> The type of the new computed value.
+   * @param f The non-null function to apply to the current computed value.
+   * @return A new non-null {@code State<S, B>} instance with the mapped value and original state
+   *     transition.
+   * @throws NullPointerException if {@code f} is null.
    */
   default <B> @NonNull State<S, B> map(@NonNull Function<? super A, ? extends B> f) {
     Objects.requireNonNull(f, "mapper function cannot be null");
@@ -59,8 +94,26 @@ public interface State<S, A> {
   }
 
   /**
-   * Composes this State computation with another function that returns a State. flatMap(f) is
-   * equivalent to s0 -> { (a, s1) = run(s0); return f(a).run(s1); }
+   * Composes this {@code State} computation with a function that takes the result of this
+   * computation (type {@code A}) and returns a new {@code State<S, B>} computation. The state is
+   * threaded through both computations.
+   *
+   * <p>This operation is equivalent to:
+   *
+   * <pre>{@code
+   * s0 -> {
+   * StateTuple<S, A> result1 = this.run(s0); // (a, s1)
+   * State<S, ? extends B> nextStateComputation = f.apply(result1.value());
+   * return nextStateComputation.run(result1.state()); // (b, s2)
+   * }
+   * }</pre>
+   *
+   * @param <B> The type of the computed value from the next state computation.
+   * @param f The non-null function that takes the result of the current computation and returns the
+   *     next {@code State} computation. This function must not return null.
+   * @return A new non-null {@code State<S, B>} instance representing the composed computation.
+   * @throws NullPointerException if {@code f} is null or if the {@code State} returned by {@code f}
+   *     is null.
    */
   default <B> @NonNull State<S, B> flatMap(
       @NonNull Function<? super A, ? extends State<S, ? extends B>> f) {
@@ -74,19 +127,18 @@ public interface State<S, A> {
 
           // Apply f to the value to get the next state computation
           State<S, ? extends B> nextState = f.apply(valueA);
-          Objects.requireNonNull(nextState, "flatMap function returned null State");
+          Objects.requireNonNull(nextState, "flatMap function returned null State instance");
 
           // Run the next state computation with the intermediate state S1
           StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
 
-          // Explicitly extract the value and state to help the compiler infer B correctly
-          // The cast is needed because the inner computation returns ? extends B,
-          // but the outer flatMap context expects B.
-          @SuppressWarnings("unchecked")
+          // The type B is inferred from the context of the flatMap operation.
+          // The StateTuple returned by nextState.run(stateS1) has value type `? extends B`.
+          // We need to ensure the final StateTuple explicitly uses B.
+          @SuppressWarnings("unchecked") // Cast from "? extends B" to "B" is safe here.
           B finalValue = (B) finalResultTuple.value();
           @NonNull S finalState = finalResultTuple.state();
 
-          // Create and return the final tuple with the specific type B
           return new StateTuple<>(finalValue, finalState);
         });
   }
@@ -94,33 +146,61 @@ public interface State<S, A> {
   // --- Static Helper Methods ---
 
   /**
-   * Creates a State that returns the given value and leaves the state unchanged. This is the 'pure'
-   * or 'of' operation for the State monad.
+   * Creates a {@code State} computation that returns the given value as its result and leaves the
+   * state unchanged. This is the 'pure' or 'unit' operation for the State monad.
+   *
+   * <p>Equivalent to: {@code s -> new StateTuple<>(value, s)}
+   *
+   * @param <S> The type of the state.
+   * @param <A> The type of the value to lift into the State context.
+   * @param value The value to be returned by the State computation. Can be {@code null}.
+   * @return A non-null {@code State<S, A>} that always returns the given value and original state.
    */
   static <S, A> @NonNull State<S, A> pure(@Nullable A value) {
     return State.of(s -> new StateTuple<>(value, s));
   }
 
   /**
-   * Creates a State that returns the current state as the value and leaves the state unchanged. get
-   * = s -> (s, s)
+   * Creates a {@code State} computation that returns the current state as its result and leaves the
+   * state unchanged.
+   *
+   * <p>Equivalent to: {@code s -> new StateTuple<>(s, s)}
+   *
+   * @param <S> The type of the state.
+   * @return A non-null {@code State<S, S>} that returns the current state as its value.
    */
   static <S> @NonNull State<S, S> get() {
     return State.of(s -> new StateTuple<>(s, s));
   }
 
   /**
-   * Creates a State that replaces the current state with the given new state and returns no value
-   * (Unit). set(newState) = s -> (null, newState)
+   * Creates a {@code State} computation that replaces the current state with the given new state
+   * and returns {@code Void} (representing no meaningful value).
+   *
+   * <p>Equivalent to: {@code s -> new StateTuple<>(null, newState)}
+   *
+   * @param <S> The type of the state.
+   * @param newState The non-null new state to set.
+   * @return A non-null {@code State<S, Void>} that sets the state and returns {@code Void}.
+   * @throws NullPointerException if {@code newState} is null.
    */
   static <S> @NonNull State<S, Void> set(@NonNull S newState) {
     Objects.requireNonNull(newState, "newState cannot be null");
+    // The old state `s` is ignored here, as `newState` replaces it.
     return State.of(s -> new StateTuple<>(null, newState));
   }
 
   /**
-   * Creates a State that modifies the current state using the given function and returns no value
-   * (Unit). modify(f) = s -> (null, f(s))
+   * Creates a {@code State} computation that modifies the current state using the given function
+   * and returns {@code Void} (representing no meaningful value).
+   *
+   * <p>Equivalent to: {@code s -> new StateTuple<>(null, f.apply(s))}
+   *
+   * @param <S> The type of the state.
+   * @param f The non-null function to apply to the current state to produce the new state. This
+   *     function must return a non-null state.
+   * @return A non-null {@code State<S, Void>} that modifies the state and returns {@code Void}.
+   * @throws NullPointerException if {@code f} is null.
    */
   static <S> @NonNull State<S, Void> modify(@NonNull Function<@NonNull S, @NonNull S> f) {
     Objects.requireNonNull(f, "state modification function cannot be null");
@@ -128,8 +208,17 @@ public interface State<S, A> {
   }
 
   /**
-   * Creates a State that inspects the current state using a function without changing it.
-   * inspect(f) = s -> (f(s), s)
+   * Creates a {@code State} computation that inspects the current state using a function, returns
+   * the result of that function as its value, and leaves the state unchanged.
+   *
+   * <p>Equivalent to: {@code s -> new StateTuple<>(f.apply(s), s)}
+   *
+   * @param <S> The type of the state.
+   * @param <A> The type of the value returned by the inspection function.
+   * @param f The non-null function to apply to the current state to produce a value. This function
+   *     can return a {@code null} value if {@code A} is nullable.
+   * @return A non-null {@code State<S, A>} that returns the result of inspecting the state.
+   * @throws NullPointerException if {@code f} is null.
    */
   static <S, A> @NonNull State<S, A> inspect(@NonNull Function<@NonNull S, @Nullable A> f) {
     Objects.requireNonNull(f, "state inspection function cannot be null");

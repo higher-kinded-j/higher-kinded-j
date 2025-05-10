@@ -8,14 +8,49 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper class for working with {@link ReaderKind} HKT simulation. Provides static methods for
- * wrapping and unwrapping {@link Reader} instances.
+ * A utility class providing static helper methods for working with {@link Reader} instances in the
+ * context of higher-kinded types (HKT). It facilitates the conversion between the concrete {@link
+ * Reader Reader&lt;R, A&gt;} type and its HKT representation, {@code Kind<ReaderKind.Witness<R>,
+ * A>}.
+ *
+ * <p>This class is essential for bridging the gap between the concrete {@code Reader} monad and
+ * generic functional programming abstractions that operate over {@link Kind} instances. It provides
+ * methods for:
+ *
+ * <ul>
+ *   <li>Wrapping a {@link Reader} into its {@link Kind} form ({@link #wrap(Reader)}).
+ *   <li>Unwrapping a {@link Kind} back to a {@link Reader} ({@link #unwrap(Kind)}).
+ *   <li>Convenience factory methods for creating {@link Reader} instances and returning them in
+ *       their {@link Kind} form (e.g., {@link #reader(Function)}, {@link #constant(Object)}, {@link
+ *       #ask()}).
+ *   <li>Running a {@code Reader} that is currently in its {@link Kind} form ({@link
+ *       #runReader(Kind, Object)}).
+ * </ul>
+ *
+ * <p>The unwrapping mechanism relies on an internal private record, {@code ReaderHolder}, which
+ * implements {@link ReaderKind} to encapsulate the actual {@code Reader} instance.
+ *
+ * @see Reader
+ * @see ReaderKind
+ * @see ReaderKind.Witness
+ * @see Kind
+ * @see KindUnwrapException
  */
 public final class ReaderKindHelper {
 
-  // Error Messages
+  /** Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}. */
   public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Reader";
+
+  /**
+   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #unwrap(Kind)}.
+   */
   public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a ReaderHolder: ";
+
+  /**
+   * Error message for when the internal holder in {@link #unwrap(Kind)} contains a {@code null}
+   * Reader instance. This should ideally not occur if {@link #wrap(Reader)} enforces non-null
+   * Reader instances.
+   */
   public static final String INVALID_HOLDER_STATE_MSG =
       "ReaderHolder contained null Reader instance";
 
@@ -24,31 +59,36 @@ public final class ReaderKindHelper {
   }
 
   /**
-   * Unwraps a ReaderKind back to the concrete {@code Reader<R, A>} type. Throws KindUnwrapException
-   * if the Kind is null or not a valid ReaderHolder.
+   * Internal record implementing {@link ReaderKind ReaderKind&lt;R, A&gt;} to hold the concrete
+   * {@link Reader Reader&lt;R, A&gt;} instance. This is used by {@link #wrap(Reader)} and {@link
+   * #unwrap(Kind)}. Since {@code ReaderKind<R, A>} extends {@code Kind<ReaderKind.Witness<R>, A>},
+   * this holder effectively bridges between the concrete type and its HKT representation.
    *
-   * @param <R> The type of the environment required by the Reader.
-   * @param <A> The type of the value produced by the Reader.
-   * @param kind The {@code Kind<ReaderKind<R, ?>, A>} instance to unwrap. Can be {@code @Nullable}.
-   * @return The unwrapped, non-null {@code Reader<R, A>} instance. Returns {@code @NonNull}.
-   * @throws KindUnwrapException if the input {@code kind} is null, not an instance of {@code
-   *     ReaderHolder}, or (theoretically) if the holder contains a null reader instance.
+   * @param <R> The environment type of the {@code Reader}.
+   * @param <A> The value type of the {@code Reader}.
+   * @param reader The non-null, actual {@link Reader Reader&lt;R, A&gt;} instance.
+   */
+  record ReaderHolder<R, A>(@NonNull Reader<R, A> reader) implements ReaderKind<R, A> {}
+
+  /**
+   * Unwraps a {@code Kind<ReaderKind.Witness<R>, A>} back to its concrete {@link Reader
+   * Reader&lt;R, A&gt;} type.
+   *
+   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * actually represents a {@link Reader} computation.
+   *
+   * @param <R> The type of the environment required by the {@code Reader}.
+   * @param <A> The type of the value produced by the {@code Reader}.
+   * @param kind The {@code Kind<ReaderKind.Witness<R>, A>} instance to unwrap. May be {@code null}.
+   * @return The underlying, non-null {@link Reader Reader&lt;R, A&gt;} instance.
+   * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
+   *     {@code ReaderHolder}, or if (theoretically) the holder contains a null reader instance.
    */
   @SuppressWarnings("unchecked")
-  public static <R, A> @NonNull Reader<R, A> unwrap(@Nullable Kind<ReaderKind<R, ?>, A> kind) {
-
-    // Use switch expression with pattern matching
+  public static <R, A> @NonNull Reader<R, A> unwrap(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
     return switch (kind) {
-      // Case 1: Input Kind is null
       case null -> throw new KindUnwrapException(ReaderKindHelper.INVALID_KIND_NULL_MSG);
-
-      // Case 2: Input Kind is a ReaderHolder (record pattern extracts non-null reader)
-      // The @NonNull contract on ReaderHolder.reader guarantees reader is not null here.
-      case ReaderKindHelper.ReaderHolder<?, ?>(var reader) ->
-          // Cast is safe because pattern matched and reader is known non-null.
-          (Reader<R, A>) reader;
-
-      // Case 3: Input Kind is non-null but not a ReaderHolder
+      case ReaderKindHelper.ReaderHolder<?, ?> holder -> (Reader<R, A>) holder.reader();
       default ->
           throw new KindUnwrapException(
               ReaderKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
@@ -56,13 +96,17 @@ public final class ReaderKindHelper {
   }
 
   /**
-   * Wraps a concrete {@code Reader<R, A>} value into the ReaderKind Higher-Kinded-J type. Requires
-   * a non-null Reader as input.
+   * Wraps a concrete {@link Reader Reader&lt;R, A&gt;} instance into its higher-kinded
+   * representation, {@code ReaderKind<R, A>} (which is also a {@code Kind<ReaderKind.Witness<R>,
+   * A>}).
    *
-   * @param <R> The type of the environment required by the Reader.
-   * @param <A> The type of the value produced by the Reader.
-   * @param reader The concrete {@code Reader<R, A>} instance to wrap. Must be {@code @NonNull}.
-   * @return The {@code ReaderKind<R, A>} representation. Returns {@code @NonNull}.
+   * @param <R> The type of the environment required by the {@code Reader}.
+   * @param <A> The type of the value produced by the {@code Reader}.
+   * @param reader The concrete {@link Reader Reader&lt;R, A&gt;} instance to wrap. Must be
+   *     {@code @NonNull}.
+   * @return A non-null {@link ReaderKind ReaderKind&lt;R, A&gt;} representing the wrapped {@code
+   *     Reader}.
+   * @throws NullPointerException if {@code reader} is {@code null}.
    */
   public static <R, A> @NonNull ReaderKind<R, A> wrap(@NonNull Reader<R, A> reader) {
     Objects.requireNonNull(reader, "Input Reader cannot be null for wrap");
@@ -70,63 +114,77 @@ public final class ReaderKindHelper {
   }
 
   /**
-   * Creates a ReaderKind directly from a function {@code R -> A}. Wraps {@link
-   * Reader#of(Function)}.
+   * Creates a {@code Kind<ReaderKind.Witness<R>, A>} that wraps a {@link Reader} computation
+   * defined by the given function {@code R -> A}.
    *
-   * @param <R> The type of the environment required by the Reader.
-   * @param <A> The type of the value produced by the Reader.
-   * @param runFunction The function defining the reader's computation. Must be {@code @NonNull}.
-   * @return A {@code ReaderKind<R, A>} wrapping the created Reader. Returns {@code @NonNull}.
-   * @throws NullPointerException if runFunction is null.
+   * <p>This is a convenience factory method that delegates to {@link Reader#of(Function)} and then
+   * wraps the result using {@link #wrap(Reader)}.
+   *
+   * @param <R> The type of the environment required by the {@code Reader}.
+   * @param <A> The type of the value produced by the {@code Reader}.
+   * @param runFunction The non-null function {@code (R -> A)} defining the reader's computation.
+   * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the {@code Reader}.
+   * @throws NullPointerException if {@code runFunction} is {@code null}.
    */
-  public static <R, A> @NonNull ReaderKind<R, A> reader(@NonNull Function<R, A> runFunction) {
+  public static <R, A> @NonNull Kind<ReaderKind.Witness<R>, A> reader(
+      @NonNull Function<R, A> runFunction) {
     return wrap(Reader.of(runFunction));
   }
 
   /**
-   * Creates a ReaderKind that ignores the environment and always returns the given constant value.
-   * Wraps {@link Reader#constant(Object)}.
+   * Creates a {@code Kind<ReaderKind.Witness<R>, A>} that wraps a {@link Reader} which ignores the
+   * environment and always returns the given constant {@code value}.
    *
-   * @param <R> The type of the environment (ignored).
+   * <p>This delegates to {@link Reader#constant(Object)} and then wraps the result.
+   *
+   * @param <R> The type of the environment (which will be ignored by the {@code Reader}).
    * @param <A> The type of the constant value.
-   * @param value The constant value to return. Can be {@code @Nullable}.
-   * @return A {@code ReaderKind<R, A>} wrapping the constant Reader. Returns {@code @NonNull}.
+   * @param value The constant value to be returned by the {@code Reader}. Can be {@code @Nullable}
+   *     if {@code A} is a nullable type.
+   * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the constant {@code
+   *     Reader}.
    */
-  public static <R, A> @NonNull ReaderKind<R, A> constant(@Nullable A value) {
+  public static <R, A> @NonNull Kind<ReaderKind.Witness<R>, A> constant(@Nullable A value) {
     return wrap(Reader.constant(value));
   }
 
   /**
-   * Creates a ReaderKind that simply returns the environment R as its result value. Wraps {@link
-   * Reader#ask()}.
+   * Creates a {@code Kind<ReaderKind.Witness<R>, R>} that wraps a {@link Reader} which, when run,
+   * simply returns the environment {@code R} itself.
    *
-   * @param <R> The type of the environment.
-   * @return A {@code ReaderKind<R, R>} wrapping the ask Reader. Returns {@code @NonNull}.
+   * <p>This delegates to {@link Reader#ask()} and then wraps the result. This is a fundamental
+   * operation for accessing the environment from within a {@code Reader} computation.
+   *
+   * @param <R> The type of the environment, which is also the type of the value produced.
+   * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, R>} representing the "ask" {@code
+   *     Reader}.
    */
-  public static <R> @NonNull ReaderKind<R, R> ask() {
+  public static <R> @NonNull Kind<ReaderKind.Witness<R>, R> ask() {
     return wrap(Reader.ask());
   }
 
   /**
-   * Runs the Reader computation held within the {@code Kind} wrapper using the provided
-   * environment. Unwraps the Kind and calls {@link Reader#run(Object)}.
+   * Executes the {@link Reader} computation held within the {@link Kind} wrapper using the provided
+   * {@code environment} and retrieves its result.
+   *
+   * <p>This method first unwraps the {@link Kind} to get the underlying {@link Reader Reader&lt;R,
+   * A&gt;} and then calls {@link Reader#run(Object)} on it with the given {@code environment}.
    *
    * @param <R> The type of the environment.
-   * @param <A> The type of the value produced.
-   * @param kind The {@code Kind<ReaderKind<R, ?>, A>} holding the Reader computation. Must be
-   *     {@code @NonNull}.
-   * @param environment The environment value to provide to the Reader. Must be {@code @NonNull}.
-   * @return The result of the Reader computation. Can be {@code @Nullable} depending on A.
-   * @throws KindUnwrapException if the input {@code kind} is invalid (null or wrong type).
-   * @throws NullPointerException if environment is null (although Reader.run requires NonNull).
+   * @param <A> The type of the value produced by the {@code Reader} computation.
+   * @param kind The non-null {@code Kind<ReaderKind.Witness<R>, A>} holding the {@code Reader}
+   *     computation.
+   * @param environment The non-null environment {@code R} to provide to the {@code Reader}.
+   * @return The result of the {@code Reader} computation. Can be {@code @Nullable} if the
+   *     computation defined within the {@code Reader} produces a {@code null} value.
+   * @throws KindUnwrapException if the input {@code kind} is invalid (e.g., null or wrong type).
+   * @throws NullPointerException if {@code environment} is {@code null} (as {@link
+   *     Reader#run(Object)} typically expects a non-null environment).
    */
   public static <R, A> @Nullable A runReader(
-      @NonNull Kind<ReaderKind<R, ?>, A> kind, @NonNull R environment) {
-    // `unwrap` throws KindUnwrapException if kind is invalid
-    // `Reader.run` expects NonNull environment
+      @NonNull Kind<ReaderKind.Witness<R>, A> kind, @NonNull R environment) {
+    // unwrap will throw KindUnwrapException if kind is invalid.
+    // Reader.run itself expects a non-null environment.
     return unwrap(kind).run(environment);
   }
-
-  // Internal holder record
-  record ReaderHolder<R, A>(@NonNull Reader<R, A> reader) implements ReaderKind<R, A> {}
 }

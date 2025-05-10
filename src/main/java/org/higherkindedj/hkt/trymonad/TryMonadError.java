@@ -5,40 +5,60 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.jspecify.annotations.NonNull;
 
-/** MonadError implementation for TryKind. The error type E is Throwable. */
-public class TryMonadError extends TryMonad implements MonadError<TryKind<?>, Throwable> {
+/**
+ * Implements {@link MonadError} for {@link Try}, using {@link TryKind.Witness} as the HKT marker
+ * and {@link Throwable} as the error type. It extends {@link TryMonad}.
+ *
+ * @see Try
+ * @see TryKind.Witness
+ * @see TryMonad
+ * @see Throwable
+ */
+public class TryMonadError extends TryMonad implements MonadError<TryKind.Witness, Throwable> {
 
+  /**
+   * Lifts a {@link Throwable} into a {@code Kind<TryKind.Witness, A>} representing a failed
+   * computation.
+   *
+   * @param <A> The phantom type of the value (since it's an error).
+   * @param error The non-null {@link Throwable} to raise.
+   * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.failure(error)}.
+   */
   @Override
-  public <A> Kind<TryKind<?>, A> raiseError(Throwable error) {
-    // Create a Failure and wrap it in the Kind.
+  public <A> @NonNull Kind<TryKind.Witness, A> raiseError(@NonNull Throwable error) {
     return wrap(Try.failure(error));
   }
 
+  /**
+   * Handles an error in a {@code Kind<TryKind.Witness, A>}. If {@code ma} is a {@link Try.Failure},
+   * the {@code handler} function is applied to the {@link Throwable} to produce a recovery {@code
+   * Kind<TryKind.Witness, A>}. If {@code ma} is a {@link Try.Success}, it is returned unchanged.
+   *
+   * @param <A> The type of the value.
+   * @param ma The {@code Kind<TryKind.Witness, A>} computation that might have failed.
+   * @param handler The function to apply to the {@link Throwable} if {@code ma} is a {@link
+   *     Try.Failure}. This function returns a new {@code Kind<TryKind.Witness, A>}.
+   * @return A {@code Kind<TryKind.Witness, A>} representing either the original success, or the
+   *     result of the error handler.
+   */
   @Override
-  public <A> Kind<TryKind<?>, A> handleErrorWith(
-      Kind<TryKind<?>, A> ma, Function<Throwable, Kind<TryKind<?>, A>> handler) {
+  public <A> @NonNull Kind<TryKind.Witness, A> handleErrorWith(
+      @NonNull Kind<TryKind.Witness, A> ma,
+      @NonNull Function<Throwable, Kind<TryKind.Witness, A>> handler) { // Added @NonNull to handler
     Try<A> tryA = unwrap(ma);
 
-    // Use Try's recoverWith, adapting the handler function
     Try<A> resultTry =
         tryA.recoverWith(
             throwable -> {
-              // Our handler returns Kind<TryKind<?>, A>
-              // The underlying Try.recoverWith expects Function<Throwable, Try<A>>
-              // We need to apply the handler and unwrap its result, handling potential exceptions
-              // from the handler itself.
               try {
-                Kind<TryKind<?>, A> recoveryKind = handler.apply(throwable);
-                // Explicitly return Failure<A> if unwrapping fails
-                // Note: unwrap already returns Try.Failure on error.
+                Kind<TryKind.Witness, A> recoveryKind = handler.apply(throwable);
                 return unwrap(recoveryKind);
               } catch (Throwable t) {
-                // Catch exceptions thrown by handler.apply(throwable) itself
                 return Try.failure(t);
               }
             });
-
     return wrap(resultTry);
   }
 }

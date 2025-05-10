@@ -16,7 +16,6 @@ It implements `Monad<ListKind<?>>`, inheriting from `Functor<ListKind<?>>` and `
 
 ![list_monad.svg](./images/puml/list_monad.svg)
 
-
 ## How to Use `ListMonad` and `ListKind`
 
 ### Creating Instances
@@ -73,7 +72,7 @@ System.out.println(unwrappedList);
 
 The `ListMonad` provides standard monadic operations:
 
-* **`map(Function<A, B> f, Kind<ListKind<?>, A> fa)`:** Applies a function `f` to each element of the list within `fa`, returning a new `ListKind` containing the transformed elements.
+* **`map(Function<A, B> f, Kind<ListKind.Witness, A> fa)`:** Applies a function `f` to each element of the list within `fa`, returning a new `ListKind` containing the transformed elements.
 
 ```java
 import org.higherkindedj.hkt.list.ListMonad;
@@ -93,7 +92,7 @@ ListKind<String> strings = listMonad.map(intToString, numbers);
 System.out.println(ListKindHelper.unwrap(strings));
 ```
 
-* **`flatMap(Function<A, Kind<ListKind<?>, B>> f, Kind<ListKind<?>, A> ma)`:** Applies a function `f` to each element of the list within `ma`. The function `f` itself returns a `ListKind<B>`. `flatMap` then concatenates (flattens) all these resulting lists into a single `ListKind<B>`.
+* **`flatMap(Function<A, Kind<ListKind.Witness, B>> f, Kind<ListKind.Witness, A> ma)`:** Applies a function `f` to each element of the list within `ma`. The function `f` itself returns a `ListKind<B>`. `flatMap` then concatenates (flattens) all these resulting lists into a single `ListKind<B>`.
 
 ```java
 import org.higherkindedj.hkt.list.ListMonad;
@@ -109,7 +108,7 @@ ListMonad listMonad = new ListMonad();
 ListKind<Integer> initialValues = ListKindHelper.wrap(Arrays.asList(1, 2, 3));
 
 // Function that takes an integer and returns a list of itself and itself + 10
-Function<Integer, Kind<ListKind<?>, Integer>> replicateAndAddTen =
+Function<Integer, Kind<ListKind.Witness, Integer>> replicateAndAddTen =
     i -> ListKindHelper.wrap(Arrays.asList(i, i + 10));
 
 ListKind<Integer> flattenedList = listMonad.flatMap(replicateAndAddTen, initialValues);
@@ -118,7 +117,7 @@ ListKind<Integer> flattenedList = listMonad.flatMap(replicateAndAddTen, initialV
 System.out.println(ListKindHelper.unwrap(flattenedList));
 
 // Example with empty list results
-Function<Integer, Kind<ListKind<?>, String>> toWordsIfEven =
+Function<Integer, Kind<ListKind.Witness, String>> toWordsIfEven =
     i -> (i % 2 == 0) ?
          ListKindHelper.wrap(Arrays.asList("even", String.valueOf(i))) :
          ListKindHelper.wrap(new ArrayList<>()); // empty list for odd numbers
@@ -128,7 +127,7 @@ ListKind<String> wordsList = listMonad.flatMap(toWordsIfEven, initialValues);
  System.out.println(ListKindHelper.unwrap(wordsList));
 ```
 
-* **`ap(Kind<ListKind<?>, Function<A, B>> ff, Kind<ListKind<?>, A> fa)`:** Applies a list of functions `ff` to a list of values `fa`. This results in a new list where each function from `ff` is applied to each value in `fa` (Cartesian product style).
+* **`ap(Kind<ListKind.Witness, Function<A, B>> ff, Kind<ListKind.Witness, A> fa)`:** Applies a list of functions `ff` to a list of values `fa`. This results in a new list where each function from `ff` is applied to each value in `fa` (Cartesian product style).
 
 ```java
 import org.higherkindedj.hkt.list.ListMonad;
@@ -190,33 +189,33 @@ public class ListMonadExample {
         ListMonad listMonad = new ListMonad();
 
         // 1. Create a ListKind
-        Kind<ListKind<?>, Integer> numbersKind = ListKindHelper.wrap(Arrays.asList(1, 2, 3, 4));
+        Kind<ListKind.Witness, Integer> numbersKind = ListKindHelper.wrap(Arrays.asList(1, 2, 3, 4));
 
         // 2. Use map
         Function<Integer, String> numberToDecoratedString = n -> "*" + n + "*";
-        Kind<ListKind<?>, String> stringsKind = listMonad.map(numberToDecoratedString, numbersKind);
+        Kind<ListKind.Witness, String> stringsKind = listMonad.map(numberToDecoratedString, numbersKind);
         System.out.println("Mapped: " + ListKindHelper.unwrap(stringsKind));
         // Expected: Mapped: [*1*, *2*, *3*, *4*]
 
         // 3. Use flatMap
         // Function: integer -> ListKind of [integer, integer*10] if even, else empty ListKind
-        Function<Integer, Kind<ListKind<?>, Integer>> duplicateIfEven = n -> {
+        Function<Integer, Kind<ListKind.Witness, Integer>> duplicateIfEven = n -> {
             if (n % 2 == 0) {
                 return ListKindHelper.wrap(Arrays.asList(n, n * 10));
             } else {
                 return ListKindHelper.wrap(List.of()); // Empty list
             }
         };
-        Kind<ListKind<?>, Integer> flatMappedKind = listMonad.flatMap(duplicateIfEven, numbersKind);
+        Kind<ListKind.Witness, Integer> flatMappedKind = listMonad.flatMap(duplicateIfEven, numbersKind);
         System.out.println("FlatMapped: " + ListKindHelper.unwrap(flatMappedKind));
         // Expected: FlatMapped: [2, 20, 4, 40]
 
         // 4. Use of
-        Kind<ListKind<?>, String> singleValueKind = listMonad.of("hello world");
+        Kind<ListKind.Witness, String> singleValueKind = listMonad.of("hello world");
         System.out.println("From 'of': " + ListKindHelper.unwrap(singleValueKind));
         // Expected: From 'of': [hello world]
 
-        Kind<ListKind<?>, String> fromNullOf = listMonad.of(null);
+        Kind<ListKind.Witness, String> fromNullOf = listMonad.of(null);
          System.out.println("From 'of' with null: " + ListKindHelper.unwrap(fromNullOf));
         // Expected: From 'of' with null: []
 
@@ -229,7 +228,7 @@ public class ListMonadExample {
             ));
         ListKind<Integer> inputNumbersForAp = ListKindHelper.wrap(Arrays.asList(5, 6));
 
-        Kind<ListKind<?>, String> apResult = listMonad.ap(listOfFunctions, inputNumbersForAp);
+        Kind<ListKind.Witness, String> apResult = listMonad.ap(listOfFunctions, inputNumbersForAp);
         System.out.println("Ap result: " + ListKindHelper.unwrap(apResult));
         // Expected: Ap result: [F1:5, F1:6, F2:25, F2:36]
 

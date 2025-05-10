@@ -20,7 +20,7 @@ class MaybeKindHelperTest {
     @Test
     void wrap_shouldReturnHolderForJust() {
       Maybe<String> just = Maybe.just("value");
-      Kind<MaybeKind<?>, String> kind = wrap(just);
+      Kind<MaybeKind.Witness, String> kind = wrap(just);
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
       assertThat(unwrap(kind)).isSameAs(just);
@@ -29,7 +29,7 @@ class MaybeKindHelperTest {
     @Test
     void wrap_shouldReturnHolderForNothing() {
       Maybe<Integer> nothingVal = Maybe.nothing(); // Use variable for clarity
-      Kind<MaybeKind<?>, Integer> kind = wrap(nothingVal);
+      Kind<MaybeKind.Witness, Integer> kind = wrap(nothingVal);
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
       assertThat(unwrap(kind)).isSameAs(nothingVal);
@@ -49,7 +49,7 @@ class MaybeKindHelperTest {
     @Test
     void just_shouldWrapJustValue() {
       String value = "test";
-      Kind<MaybeKind<?>, String> kind = just(value);
+      Kind<MaybeKind.Witness, String> kind = just(value);
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
       Maybe<String> maybe = unwrap(kind);
@@ -70,7 +70,7 @@ class MaybeKindHelperTest {
   class NothingHelperTests {
     @Test
     void nothing_shouldWrapNothingValue() {
-      Kind<MaybeKind<?>, Integer> kind = nothing();
+      Kind<MaybeKind.Witness, Integer> kind = nothing();
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
       Maybe<Integer> maybe = unwrap(kind);
@@ -87,20 +87,20 @@ class MaybeKindHelperTest {
     @Test
     void unwrap_shouldReturnOriginalJust() {
       Maybe<Integer> original = Maybe.just(123);
-      Kind<MaybeKind<?>, Integer> kind = wrap(original);
+      Kind<MaybeKind.Witness, Integer> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
     @Test
     void unwrap_shouldReturnOriginalNothing() {
       Maybe<String> original = Maybe.nothing();
-      Kind<MaybeKind<?>, String> kind = wrap(original);
+      Kind<MaybeKind.Witness, String> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
     // --- Failure Cases ---
     // Dummy Kind implementation that is not MaybeHolder
-    record DummyMaybeKind<A>() implements Kind<MaybeKind<?>, A> {}
+    record DummyMaybeKind<A>() implements Kind<MaybeKind.Witness, A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
@@ -111,7 +111,7 @@ class MaybeKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<MaybeKind<?>, Integer> unknownKind = new DummyMaybeKind<>();
+      Kind<MaybeKind.Witness, Integer> unknownKind = new DummyMaybeKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyMaybeKind.class.getName());
@@ -119,9 +119,8 @@ class MaybeKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForHolderWithNullMaybe() {
-      MaybeHolder<Double> holderWithNull = new MaybeHolder<>(null);
-      @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<MaybeKind<?>, Double> kind = holderWithNull;
+
+      Kind<MaybeKind.Witness, Double> kind = new MaybeHolder<>(null);
 
       assertThatThrownBy(() -> unwrap(kind))
           .isInstanceOf(KindUnwrapException.class)

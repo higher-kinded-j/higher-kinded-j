@@ -8,11 +8,11 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable; // For 'a' in lambda
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Monad} type class for {@link java.util.concurrent.CompletableFuture}, using
- * {@link CompletableFutureKind} as the higher-kinded type witness.
+ * {@link CompletableFutureKind.Witness} as the higher-kinded type witness.
  *
  * <p>A {@link Monad} extends {@link org.higherkindedj.hkt.Applicative} (and thus {@link
  * org.higherkindedj.hkt.Functor}) by adding the {@link #flatMap(Function, Kind)} operation (also
@@ -40,10 +40,16 @@ import org.jspecify.annotations.Nullable; // For 'a' in lambda
  * @see CompletableFutureApplicative
  * @see CompletableFuture
  * @see CompletableFutureKind
+ * @see CompletableFutureKind.Witness
  * @see CompletableFutureKindHelper
  */
 public class CompletableFutureMonad extends CompletableFutureApplicative
-    implements Monad<CompletableFutureKind<?>> {
+    implements Monad<CompletableFutureKind.Witness> {
+
+  /** Constructs a new {@code CompletableFutureMonad} instance. */
+  public CompletableFutureMonad() {
+    // Default constructor
+  }
 
   /**
    * Sequentially composes two asynchronous computations, where the second computation (produced by
@@ -51,8 +57,8 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    *
    * <p>If the first {@code CompletableFuture} ({@code ma}) completes successfully with a value
    * {@code a}, the function {@code f} is applied to {@code a}. {@code f} must return a {@code
-   * Kind<CompletableFutureKind<?>, B>}, which represents another {@code CompletableFuture<B>}. The
-   * result of this {@code flatMap} operation is this new {@code CompletableFuture<B>}.
+   * Kind<CompletableFutureKind.Witness, B>}, which represents another {@code CompletableFuture<B>}.
+   * The result of this {@code flatMap} operation is this new {@code CompletableFuture<B>}.
    *
    * <p>If {@code ma} completes exceptionally, or if the application of {@code f} throws an
    * exception, or if {@code f} returns a {@code Kind} that unwraps to a {@code CompletableFuture}
@@ -62,45 +68,32 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    * <p>This operation is analogous to {@code bind} or {@code >>=} in other monadic contexts and is
    * implemented using {@link CompletableFuture#thenCompose(Function)}.
    *
-   * @param f A non-null function that takes a value of type {@code A} (the result of {@code ma})
-   *     and returns a {@code Kind<CompletableFutureKind<?>, B>}, representing the next asynchronous
-   *     computation. The value {@code a} passed to this function can be {@code null} if the
-   *     preceding {@code CompletableFuture<A>} completed with {@code null}.
-   * @param ma A non-null {@code Kind<CompletableFutureKind<?>, A>} representing the first
-   *     asynchronous computation {@code CompletableFuture<A>}.
    * @param <A> The type of the result of the first computation {@code ma}.
    * @param <B> The type of the result of the second computation returned by function {@code f}.
-   * @return A non-null {@code Kind<CompletableFutureKind<?>, B>} representing a new {@code
+   * @param f A non-null function that takes a value of type {@code A} (the result of {@code ma})
+   *     and returns a {@code Kind<CompletableFutureKind.Witness, B>}, representing the next
+   *     asynchronous computation. The value {@code a} passed to this function can be {@code null}
+   *     if the preceding {@code CompletableFuture<A>} completed with {@code null}.
+   * @param ma A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing the first
+   *     asynchronous computation {@code CompletableFuture<A>}.
+   * @return A non-null {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@code
    *     CompletableFuture<B>} that will complete with the result of the composed asynchronous
    *     operations.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the {@code Kind}
    *     returned by {@code f} cannot be unwrapped.
-   * @throws NullPointerException if {@code f} is null (though annotated {@code @NonNull}), or if
-   *     {@code f} returns a null {@code Kind} (which would then cause an issue in {@code unwrap}).
+   * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code Kind}.
    */
   @Override
-  public <A, B> @NonNull Kind<CompletableFutureKind<?>, B> flatMap(
-      @NonNull Function<@Nullable A, @NonNull Kind<CompletableFutureKind<?>, B>>
-          f, // 'a' can be null
-      @NonNull Kind<CompletableFutureKind<?>, A> ma) {
-    // unwrap will handle null check for ma or throw KindUnwrapException
+  public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> flatMap(
+      @NonNull Function<@Nullable A, @NonNull Kind<CompletableFutureKind.Witness, B>> f,
+      @NonNull Kind<CompletableFutureKind.Witness, A> ma) {
     CompletableFuture<A> futureA = unwrap(ma);
-
-    // Use thenCompose for monadic bind.
-    // The function provided to thenCompose takes the result of futureA (which can be null if A is
-    // nullable
-    // and futureA completed with null) and must return a new CompletionStage (CompletableFuture).
     CompletableFuture<B> futureB =
         futureA.thenCompose(
-            a -> { // 'a' is the result of futureA. It can be @Nullable if type A is nullable.
-              // Apply the function f to get the next Kind.
-              // f itself is @NonNull, and its result Kind is @NonNull.
-              Kind<CompletableFutureKind<?>, B> kindB = f.apply(a);
-              // unwrap the Kind to get the CompletableFuture<B> needed by thenCompose.
-              // unwrap will throw if kindB is null or invalid.
+            a -> {
+              Kind<CompletableFutureKind.Witness, B> kindB = f.apply(a);
               return unwrap(kindB);
             });
-
     return wrap(futureB);
   }
 }

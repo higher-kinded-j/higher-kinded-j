@@ -15,12 +15,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("EitherKindHelper Tests")
 class EitherKindHelperTest {
 
-  // Error Messages from EitherKindHelper (copy or import if made public)
-  private static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Either";
-  private static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an EitherHolder: ";
-  private static final String INVALID_HOLDER_STATE_MSG =
-      "EitherHolder contained null Either instance";
-
   // Define a simple error type for testing
   record TestError(String code) {}
 
@@ -31,7 +25,7 @@ class EitherKindHelperTest {
     @Test
     void wrap_shouldReturnHolderForRight() {
       Either<TestError, Integer> right = Either.right(123);
-      Kind<EitherKind<TestError, ?>, Integer> kind = wrap(right);
+      var kind = wrap(right);
 
       assertThat(kind).isInstanceOf(EitherHolder.class);
       assertThat(unwrap(kind)).isSameAs(right);
@@ -41,7 +35,7 @@ class EitherKindHelperTest {
     void wrap_shouldReturnHolderForLeft() {
       TestError error = new TestError("E404");
       Either<TestError, Integer> left = Either.left(error);
-      Kind<EitherKind<TestError, ?>, Integer> kind = wrap(left);
+      Kind<EitherKind.Witness<TestError>, Integer> kind = wrap(left);
 
       assertThat(kind).isInstanceOf(EitherHolder.class);
       assertThat(unwrap(kind)).isSameAs(left);
@@ -49,8 +43,8 @@ class EitherKindHelperTest {
 
     @Test
     void wrap_shouldHandleNullRightValue() {
-      Either<String, Integer> rightNull = Either.right(null);
-      Kind<EitherKind<String, ?>, Integer> kind = wrap(rightNull);
+      var rightNull = Either.right(null);
+      var kind = wrap(rightNull);
 
       assertThat(kind).isInstanceOf(EitherHolder.class);
       assertThat(unwrap(kind)).isSameAs(rightNull);
@@ -59,8 +53,8 @@ class EitherKindHelperTest {
 
     @Test
     void wrap_shouldHandleNullLeftValue() {
-      Either<String, Integer> leftNull = Either.left(null);
-      Kind<EitherKind<String, ?>, Integer> kind = wrap(leftNull);
+      var leftNull = Either.left(null);
+      var kind = wrap(leftNull);
 
       assertThat(kind).isInstanceOf(EitherHolder.class);
       assertThat(unwrap(kind)).isSameAs(leftNull);
@@ -76,21 +70,21 @@ class EitherKindHelperTest {
     @Test
     void unwrap_shouldReturnOriginalRight() {
       Either<TestError, String> original = Either.right("Success");
-      Kind<EitherKind<TestError, ?>, String> kind = wrap(original);
+      Kind<EitherKind.Witness<TestError>, String> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
     @Test
     void unwrap_shouldReturnOriginalLeft() {
       Either<TestError, String> original = Either.left(new TestError("E1"));
-      Kind<EitherKind<TestError, ?>, String> kind = wrap(original);
+      Kind<EitherKind.Witness<TestError>, String> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
     // --- Failure Cases ---
 
     // Dummy Kind implementation that is not EitherHolder
-    record DummyEitherKind<L, R>() implements Kind<EitherKind<L, ?>, R> {}
+    record DummyEitherKind<L, R>() implements Kind<EitherKind.Witness<L>, R> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
@@ -101,7 +95,7 @@ class EitherKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<EitherKind<String, ?>, Boolean> unknownKind = new DummyEitherKind<>();
+      DummyEitherKind<String, Boolean> unknownKind = new DummyEitherKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyEitherKind.class.getName());

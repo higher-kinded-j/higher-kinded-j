@@ -1,6 +1,6 @@
-@startuml IO HKT Simulation
+@startuml io_kind
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
+hide empty members
 
 interface Kind<F, A> <<HKT Bridge>>
 
@@ -12,7 +12,7 @@ interface IO<A> {
   ' Actual IO Implementation
 }
 
-package helper <<Rectangle>> {
+
   class IOKindHelper {
     + {static} IOKind<A> wrap(@NonNull IO<A>)
     + {static} @NonNull IO<A> unwrap(@Nullable Kind<IOKind<?>, A>)
@@ -28,6 +28,6 @@ package helper <<Rectangle>> {
   IOKindHelper ..> IOHolder : creates
   IOKindHelper ..> IO : unwraps to / wraps from
   IOHolder o--> IO : holds
-}
+
 
 @enduml

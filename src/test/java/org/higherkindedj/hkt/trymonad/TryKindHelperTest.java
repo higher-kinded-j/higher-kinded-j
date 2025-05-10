@@ -25,15 +25,16 @@ class TryKindHelperTest {
   class WrapTests {
     @Test
     void wrap_shouldReturnHolderForSuccess() {
-      Kind<TryKind<?>, String> kind = wrap(successTry);
-      assertThat(kind).isInstanceOf(TryHolder.class);
+      Kind<TryKind.Witness, String> kind = wrap(successTry);
+      assertThat(kind).isInstanceOf(TryKindHelper.TryHolder.class);
+
       assertThat(unwrap(kind)).isSameAs(successTry);
     }
 
     @Test
     void wrap_shouldReturnHolderForFailure() {
-      Kind<TryKind<?>, String> kind = wrap(failureTry);
-      assertThat(kind).isInstanceOf(TryHolder.class);
+      Kind<TryKind.Witness, String> kind = wrap(failureTry);
+      assertThat(kind).isInstanceOf(TryKindHelper.TryHolder.class);
       assertThat(unwrap(kind)).isSameAs(failureTry);
     }
 
@@ -51,20 +52,20 @@ class TryKindHelperTest {
     // --- Success Cases ---
     @Test
     void unwrap_shouldReturnOriginalSuccess() {
-      Kind<TryKind<?>, String> kind = wrap(successTry);
+      Kind<TryKind.Witness, String> kind = wrap(successTry);
       assertThat(unwrap(kind)).isSameAs(successTry);
     }
 
     @Test
     void unwrap_shouldReturnOriginalFailure() {
-      Kind<TryKind<?>, String> kind = wrap(failureTry);
+      Kind<TryKind.Witness, String> kind = wrap(failureTry);
       assertThat(unwrap(kind)).isSameAs(failureTry);
     }
 
     // --- Failure Cases ---
 
-    // Dummy Kind implementation that is not TryHolder
-    record DummyTryKind<A>() implements Kind<TryKind<?>, A> {}
+    // Dummy Kind implementation that is not TryHolder but claims to be Kind<TryKind.Witness, A>
+    record DummyOtherKind<A>() implements Kind<TryKind.Witness, A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
@@ -75,17 +76,18 @@ class TryKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<TryKind<?>, Integer> unknownKind = new DummyTryKind<>();
+      Kind<TryKind.Witness, Integer> unknownKind = new DummyOtherKind<>(); // Use DummyOtherKind
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyTryKind.class.getName());
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOtherKind.class.getName());
     }
 
     @Test
     void unwrap_shouldThrowForHolderWithNullTry() {
-      TryHolder<Double> holderWithNull = new TryHolder<>(null);
+      TryKindHelper.TryHolder<Double> holderWithNull = new TryKindHelper.TryHolder<>(null);
       @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<TryKind<?>, Double> kind = holderWithNull;
+      Kind<TryKind.Witness, Double> kind =
+          (Kind<TryKind.Witness, Double>) (Object) holderWithNull; // Adjusted cast for clarity
 
       assertThatThrownBy(() -> unwrap(kind))
           .isInstanceOf(KindUnwrapException.class)
@@ -99,7 +101,7 @@ class TryKindHelperTest {
 
     @Test
     void success_helperShouldWrapSuccess() {
-      Kind<TryKind<?>, String> kind = TryKindHelper.success(successValue);
+      Kind<TryKind.Witness, String> kind = TryKindHelper.success(successValue);
       Try<String> tryResult = unwrap(kind);
       assertThat(tryResult.isSuccess()).isTrue();
       assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(successValue))
@@ -109,7 +111,7 @@ class TryKindHelperTest {
     @Test
     void failure_helperShouldWrapFailure() {
       IOException ioEx = new IOException("IO");
-      Kind<TryKind<?>, String> kind = TryKindHelper.failure(ioEx);
+      Kind<TryKind.Witness, String> kind = TryKindHelper.failure(ioEx);
       Try<String> tryResult = unwrap(kind);
       assertThat(tryResult.isFailure()).isTrue();
       assertThatThrownBy(tryResult::get).isSameAs(ioEx);
@@ -117,7 +119,7 @@ class TryKindHelperTest {
 
     @Test
     void tryOf_helperShouldWrapSuccess() {
-      Kind<TryKind<?>, Integer> kind = TryKindHelper.tryOf(() -> 10 / 2);
+      Kind<TryKind.Witness, Integer> kind = TryKindHelper.tryOf(() -> 10 / 2);
       Try<Integer> tryResult = unwrap(kind);
       assertThat(tryResult.isSuccess()).isTrue();
       assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(5)).doesNotThrowAnyException();
@@ -126,10 +128,10 @@ class TryKindHelperTest {
     @Test
     void tryOf_helperShouldWrapFailure() {
       ArithmeticException arithEx = new ArithmeticException("/ by zero");
-      Kind<TryKind<?>, Integer> kind =
+      Kind<TryKind.Witness, Integer> kind =
           TryKindHelper.tryOf(
               () -> {
-                if (true) throw arithEx; // Simulate throwing
+                if (true) throw arithEx;
                 return 1;
               });
       Try<Integer> tryResult = unwrap(kind);
@@ -141,7 +143,7 @@ class TryKindHelperTest {
     void tryOf_helperShouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
           .isThrownBy(() -> TryKindHelper.tryOf(null))
-          .withMessageContaining("Supplier cannot be null");
+          .withMessageContaining("Supplier cannot be null"); // Message from Try.of
     }
   }
 

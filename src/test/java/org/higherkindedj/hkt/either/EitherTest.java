@@ -1,5 +1,6 @@
 package org.higherkindedj.hkt.either;
 
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.NoSuchElementException;
@@ -17,8 +18,8 @@ class EitherTest {
   private final Integer rightValue = 123;
   private final Either<String, Integer> leftInstance = Either.left(leftValue);
   private final Either<String, Integer> rightInstance = Either.right(rightValue);
-  private final Either<String, Integer> leftNullInstance = Either.left(null); // Test null Left
-  private final Either<String, Integer> rightNullInstance = Either.right(null); // Test null Right
+  private final Either<String, Integer> leftNullInstance = Either.left(null);
+  private final Either<String, Integer> rightNullInstance = Either.right(null);
 
   @Nested
   @DisplayName("Factory Methods")
@@ -153,7 +154,7 @@ class EitherTest {
     @Test
     void map_onLeft_shouldReturnSameLeftInstance() {
       Either<String, String> result = leftInstance.map(mapper);
-      assertThat(result).isSameAs(leftInstance); // Should return the same instance
+      assertThat(result).isSameAs(leftInstance);
       assertThat(result.isLeft()).isTrue();
       assertThat(result.getLeft()).isEqualTo(leftValue);
     }
@@ -171,7 +172,6 @@ class EitherTest {
       assertThatNullPointerException()
           .isThrownBy(() -> rightInstance.map(null))
           .withMessageContaining("mapper function cannot be null");
-      // Left side doesn't execute the mapper, but *does* check for null first in the impl
       assertThatNullPointerException()
           .isThrownBy(() -> leftInstance.map(null))
           .withMessageContaining("mapper function cannot be null");
@@ -184,7 +184,8 @@ class EitherTest {
     final Function<Integer, Either<String, String>> mapperRight =
         i -> Either.right("FlatMapped: " + i);
     final Function<Integer, Either<String, String>> mapperLeft = i -> Either.left("FlatMap Error");
-    final Function<Integer, Either<String, String>> mapperNull = i -> null;
+    final Function<Integer, Either<String, String>> mapperNull =
+        i -> null; // Function that returns null Either
 
     @Test
     void flatMap_onRight_shouldApplyMapperAndReturnResult() {
@@ -199,15 +200,20 @@ class EitherTest {
 
     @Test
     void flatMap_onRightWithNull_shouldApplyMapperAndReturnResult() {
+      // If rightNullInstance is Right(null), mapperRight will be applied to null
       Either<String, String> result = rightNullInstance.flatMap(mapperRight);
       assertThat(result.isRight()).isTrue();
       assertThat(result.getRight()).isEqualTo("FlatMapped: null");
+
+      Either<String, String> resultLeft = rightNullInstance.flatMap(mapperLeft);
+      assertThat(resultLeft.isLeft()).isTrue();
+      assertThat(resultLeft.getLeft()).isEqualTo("FlatMap Error");
     }
 
     @Test
     void flatMap_onLeft_shouldReturnSameLeftInstance() {
       Either<String, String> result = leftInstance.flatMap(mapperRight);
-      assertThat(result).isSameAs(leftInstance); // Should return the same instance
+      assertThat(result).isSameAs(leftInstance);
       assertThat(result.isLeft()).isTrue();
       assertThat(result.getLeft()).isEqualTo(leftValue);
     }
@@ -222,13 +228,11 @@ class EitherTest {
 
     @Test
     void flatMap_shouldThrowIfMapperIsNull() {
-      // Both Left and Right implementations check for null mapper first
       assertThatNullPointerException()
           .isThrownBy(() -> rightInstance.flatMap(null))
           .withMessageContaining("mapper function cannot be null");
-
       assertThatNullPointerException()
-          .isThrownBy(() -> leftInstance.flatMap(null)) // <-- Changed Assertion
+          .isThrownBy(() -> leftInstance.flatMap(null))
           .withMessageContaining("mapper function cannot be null");
     }
 
@@ -236,8 +240,49 @@ class EitherTest {
     void flatMap_shouldThrowIfMapperReturnsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> rightInstance.flatMap(mapperNull))
-          .withMessageContaining(
-              "flatMap mapper returned a null Either instance, which is not allowed.");
+          .withMessageContaining("flatMap mapper returned a null Either instance");
+    }
+
+    @Test
+    @DisplayName("flatMap on Right should propagate exception thrown by mapper function")
+    void flatMap_onRight_mapperThrowsException_shouldPropagate() {
+      final RuntimeException testException = new RuntimeException("Mapper exploded!");
+      Function<Integer, Either<String, String>> throwingMapper =
+          i -> {
+            throw testException;
+          };
+
+      assertThatThrownBy(() -> rightInstance.flatMap(throwingMapper))
+          .isInstanceOf(RuntimeException.class)
+          .isSameAs(testException);
+    }
+
+    @Test
+    @DisplayName(
+        "flatMap on Right with null value should propagate exception from mapper if mapper doesn't"
+            + " handle null")
+    void flatMap_onRightWithNull_mapperThrowsException_shouldPropagate() {
+      final NullPointerException npeFromMapper = new NullPointerException("Mapper got null");
+      Function<Integer, Either<String, String>> mapperSensitiveToNull =
+          i -> {
+            // This specific mapper will throw if i is null
+            requireNonNull(i); // Simulate mapper not handling null input
+            return Either.right("Value: " + i);
+          };
+      Function<Integer, Either<String, String>> mapperOkWithNull =
+          i -> {
+            if (i == null) return Either.right("Was null");
+            return Either.right("Value: " + i);
+          };
+
+      // Test with a mapper that would throw NPE if its input is null
+      assertThatThrownBy(() -> rightNullInstance.flatMap(mapperSensitiveToNull))
+          .isInstanceOf(NullPointerException.class); // Because mapperSensitiveToNull will throw
+
+      // Test with a mapper that explicitly handles null
+      Either<String, String> resultWithNullHandled = rightNullInstance.flatMap(mapperOkWithNull);
+      assertThat(resultWithNullHandled.isRight()).isTrue();
+      assertThat(resultWithNullHandled.getRight()).isEqualTo("Was null");
     }
   }
 
@@ -310,10 +355,10 @@ class EitherTest {
       AtomicBoolean executed = new AtomicBoolean(false);
       Consumer<String> action =
           s -> {
-            assertThat(s).isNull(); // Key assertion: the consumer receives null
+            assertThat(s).isNull();
             executed.set(true);
           };
-      leftNullInstance.ifLeft(action); // leftNullInstance is Either.left(null)
+      leftNullInstance.ifLeft(action);
       assertThat(executed).isTrue();
     }
 
@@ -322,10 +367,10 @@ class EitherTest {
       AtomicBoolean executed = new AtomicBoolean(false);
       Consumer<Integer> action =
           i -> {
-            assertThat(i).isNull(); // Key assertion: the consumer receives null
+            assertThat(i).isNull();
             executed.set(true);
           };
-      rightNullInstance.ifRight(action); // rightNullInstance is Either.right(null)
+      rightNullInstance.ifRight(action);
       assertThat(executed).isTrue();
     }
   }
@@ -397,9 +442,8 @@ class EitherTest {
     }
   }
 
-  // Added test for map null check on Left
   @Test
-  void map_onLeft_shouldThrowIfMapperIsNull() {
+  void map_onLeft_shouldThrowIfMapperIsNull() { // This test was from your previous context
     assertThatNullPointerException()
         .isThrownBy(() -> leftInstance.map(null))
         .withMessageContaining("mapper function cannot be null");

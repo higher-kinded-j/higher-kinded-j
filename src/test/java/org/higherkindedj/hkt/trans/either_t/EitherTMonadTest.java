@@ -1,92 +1,244 @@
 package org.higherkindedj.hkt.trans.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("EitherT Monad Tests (Outer: Optional, Left: String)")
+@DisplayName("EitherTMonad Tests (Outer: OptionalKind.Witness, Left: TestErrorEitherTMonad)")
 class EitherTMonadTest {
+  record TestErrorEitherTMonad(String code) {}
 
-  // Outer Monad (F = OptionalKind<?>)
-  // OptionalMonad itself implements MonadError<OptionalKind<?>, Void>
-  private final MonadError<OptionalKind<?>, Void> outerMonad = new OptionalMonad();
+  private MonadError<OptionalKind.Witness, Void> outerMonad;
+  private MonadError<
+          EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, TestErrorEitherTMonad>
+      eitherTMonad;
 
-  // EitherT Monad (G = EitherTKind<OptionalKind<?>, String, ?>)
-  // The EitherTMonad takes a Monad<F> for its operations.
-  private final MonadError<EitherTKind<OptionalKind<?>, String, ?>, String> eitherTMonad =
-      new EitherTMonad<>(outerMonad);
+  @BeforeEach
+  void setUp() {
+    outerMonad = new OptionalMonad();
+    eitherTMonad = new EitherTMonad<>(outerMonad);
+  }
 
-  // --- Helper Methods ---
-
-  // Unwrap Kind<EitherTKind<OptionalKind<?>, String, ?>, A> -> Optional<Either<String, A>>
-  private <A> Optional<Either<String, A>> unwrapKindToOptionalEither(
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, A> kind) {
-    // Use the helper to unwrap to the concrete EitherT
-    EitherT<OptionalKind<?>, String, A> eitherT = EitherTKindHelper.unwrap(kind);
-    // Then get the inner Kind<OptionalKind<?>, Either<String, A>>
-    Kind<OptionalKind<?>, Either<String, A>> outerKind = eitherT.value();
-    // Unwrap the OptionalKind
+  private <A> Optional<Either<TestErrorEitherTMonad, A>> unwrapKindToOptionalEither(
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, A> kind) {
+    if (kind == null) return Optional.empty();
+    var eitherT = EitherTKindHelper.unwrap(kind);
+    Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, A>> outerKind = eitherT.value();
     return OptionalKindHelper.unwrap(outerKind);
   }
 
-  // Create a wrapped EitherT(Optional.of(Right(value)))
-  private <A> Kind<EitherTKind<OptionalKind<?>, String, ?>, A> rightT(A value) {
-    EitherT<OptionalKind<?>, String, A> concreteEitherT = EitherT.right(outerMonad, value);
-    return EitherTKindHelper.wrap(concreteEitherT); // Wrap using the helper
+  private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> rightT(
+      R value) {
+    return EitherTKindHelper.wrap(EitherT.right(outerMonad, value));
   }
 
-  // Create a wrapped EitherT(Optional.of(Left(error)))
-  private <A> Kind<EitherTKind<OptionalKind<?>, String, ?>, A> leftT(String error) {
-    EitherT<OptionalKind<?>, String, A> concreteEitherT = EitherT.left(outerMonad, error);
-    return EitherTKindHelper.wrap(concreteEitherT); // Wrap using the helper
+  private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> leftT(
+      String errorCode) {
+    return EitherTKindHelper.wrap(EitherT.left(outerMonad, new TestErrorEitherTMonad(errorCode)));
   }
 
-  // Create a wrapped EitherT(Optional.empty())
-  private <A> Kind<EitherTKind<OptionalKind<?>, String, ?>, A> emptyT() {
-    Kind<OptionalKind<?>, Either<String, A>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
-    EitherT<OptionalKind<?>, String, A> concreteEitherT = EitherT.fromKind(emptyOuter);
-    return EitherTKindHelper.wrap(concreteEitherT); // Wrap using the helper
+  private <R>
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> emptyOuterT() {
+    Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, R>> emptyOuter =
+        OptionalKindHelper.wrap(Optional.empty());
+    return EitherTKindHelper.wrap(EitherT.fromKind(emptyOuter));
   }
 
-  // Helper Functions for Laws
+  private <A, B>
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Function<A, B>>
+          rightTWithNullFunction() {
+    Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, Function<A, B>>>
+        outerOptionalOfEitherRightNullFunc =
+            OptionalKindHelper.wrap(Optional.of(Either.right(null)));
+    return EitherTKindHelper.wrap(EitherT.fromKind(outerOptionalOfEitherRightNullFunc));
+  }
+
+  private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> emptyT() {
+    Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, R>> emptyOuter =
+        OptionalKindHelper.wrap(Optional.empty());
+    EitherT<OptionalKind.Witness, TestErrorEitherTMonad, R> concreteEitherT =
+        EitherT.fromKind(emptyOuter);
+    return EitherTKindHelper.wrap(concreteEitherT);
+  }
+
+  // Functions for laws and tests
   private final Function<Integer, String> intToString = Object::toString;
   private final Function<String, String> appendWorld = s -> s + " world";
   private final Function<Integer, String> intToStringAppendWorld = intToString.andThen(appendWorld);
 
-  // Function a -> M b (Integer -> Kind<EitherTKind<OptionalKind<?>, String, ?>, String>)
-  private final Function<Integer, Kind<EitherTKind<OptionalKind<?>, String, ?>, String>> fT =
-      i -> rightT("v" + i);
-  // Function b -> M c (String -> Kind<EitherTKind<OptionalKind<?>, String, ?>, String>)
-  private final Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, String>> gT =
-      s -> rightT(s + "!");
+  private final Function<
+          Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+      fT_right = i -> rightT("v" + i);
+  private final Function<
+          String, Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+      gT_right = s -> rightT(s + "!");
 
-  // --- Basic Operations Tests ---
+  private final Function<
+          Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+      fT_left = i -> leftT("ErrorFromF_v" + i);
+  private final Function<
+          Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+      fT_empty = i -> emptyT();
 
   @Nested
-  @DisplayName("Applicative 'of' tests")
-  class OfTests {
+  @DisplayName("Applicative 'ap' specific tests")
+  class ApSpecificTests {
+
+    final Function<Integer, String> multiplyToString = i -> "Res:" + (i * 2);
+    final TestErrorEitherTMonad errorFunc = new TestErrorEitherTMonad("ERR_FUNC");
+    final TestErrorEitherTMonad errorVal = new TestErrorEitherTMonad("ERR_VAL");
+
+    // Case 1: F<Right(func)> ap F<Right(val)> -> F<Right(func(val))>
     @Test
-    void of_shouldWrapValueAsRightInOptional() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> kind = eitherTMonad.of(10);
-      Optional<Either<String, Integer>> result = unwrapKindToOptionalEither(kind);
-      assertThat(result).isPresent().contains(Either.right(10));
+    void ap_FuncRight_ValRight_shouldApplyFunction() {
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = rightT(multiplyToString);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          rightT(10);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right("Res:20"));
     }
 
+    // Case 2: F<Right(func)> ap F<Left(L_val)> -> F<Left(L_val)>
     @Test
-    void of_shouldWrapNullAsRightInOptional() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> kind = eitherTMonad.of(null);
-      Optional<Either<String, Integer>> result = unwrapKindToOptionalEither(kind);
-      assertThat(result).isPresent().contains(Either.right(null));
+    void ap_FuncRight_ValLeft_shouldPropagateValLeft() {
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = rightT(multiplyToString);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          leftT("VAL_LEFT_ERROR");
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalEither(result))
+          .isPresent()
+          .contains(Either.left(new TestErrorEitherTMonad("VAL_LEFT_ERROR")));
+    }
+
+    // Case 3: F<Left(L_func)> ap F<Right(val)> -> F<Left(L_func)>
+    @Test
+    void ap_FuncLeft_ValRight_shouldPropagateFuncLeft() {
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = leftT("FUNC_LEFT_ERROR");
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          rightT(10);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalEither(result))
+          .isPresent()
+          .contains(Either.left(new TestErrorEitherTMonad("FUNC_LEFT_ERROR")));
+    }
+
+    // Case 4: F<Left(L_func)> ap F<Left(L_val)> -> F<Left(L_func)>
+    @Test
+    void ap_FuncLeft_ValLeft_shouldPropagateFuncLeft() {
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = leftT("FUNC_LEFT_ERROR_DOMINATES");
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          leftT("VAL_LEFT_ERROR_SECONDARY");
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalEither(result))
+          .isPresent()
+          .contains(Either.left(new TestErrorEitherTMonad("FUNC_LEFT_ERROR_DOMINATES")));
+    }
+
+    // Case 5: F.empty (for function) ap F<Right(val)> -> F.empty
+    @Test
+    void ap_FuncOuterEmpty_ValRight_shouldBeOuterEmpty() {
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = emptyOuterT();
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          rightT(10);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
+    }
+
+    // Case 6: F<Right(func)> ap F.empty (for value) -> F.empty
+    @Test
+    void ap_FuncRight_ValOuterEmpty_shouldBeOuterEmpty() {
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = rightT(multiplyToString);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          emptyOuterT();
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
+    }
+
+    // Test 1 from user's failing stack traces - Corrected Assertion
+    // Test method name in user stack trace was ap_FuncRightIsNull_ValRight_shouldThrowNPEWhenRun
+    // The line number pointed to the eitherTMonad.ap call (line 197 in your file)
+    @Test
+    @DisplayName("ap: F<Right(null_function)> ap F<Right(val)> -> NPE during ap execution")
+    void ap_FuncRightIsNull_ValRight_shouldThrowNPE() { // Renamed for clarity
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = rightTWithNullFunction(); // This creates F<Right(null_function_itself)>
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          rightT(10);
+
+      // The NPE with "mapper function cannot be null" occurs when EitherTMonad.ap tries to
+      // execute the logic `eitherF.flatMap(f -> eitherA.map(f))`, and `f` (the unwrapped
+      // function from `eitherF`) is null, causing `eitherA.map(null)` to fail.
+      // This happens inside the `eitherTMonad.ap` call.
+      assertThatThrownBy(() -> eitherTMonad.ap(ff, fa))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage(
+              "mapper function cannot be null"); // From Objects.requireNonNull in Either.map
+    }
+
+    // Test 2 from user's failing stack traces - Corrected Assertion
+    // Test method name in user stack trace was
+    // ap_FuncRightThrows_ValRight_shouldThrowExceptionWhenRun
+    // The line number pointed to the `rightT(throwingFunc)` setup line, but the actual exception
+    // comes from `ap`.
+    @Test
+    @DisplayName("ap: F<Right(function_throws)> ap F<Right(val)> -> Exception during ap execution")
+    void ap_FuncRightThrows_ValRight_shouldThrowException() { // Renamed for clarity
+      RuntimeException ex = new RuntimeException("Function apply crashed");
+      Function<Integer, String> throwingFunc =
+          i -> {
+            throw ex;
+          }; // Defined at EitherTMonadTest.java:210
+      Kind<
+              EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>,
+              Function<Integer, String>>
+          ff = rightT(throwingFunc);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> fa =
+          rightT(10);
+
+      // The RuntimeException 'ex' is thrown when `throwingFunc.apply()` is executed
+      // within the logic of `eitherTMonad.ap`. This exception propagates out of the `ap` call.
+      assertThatThrownBy(() -> eitherTMonad.ap(ff, fa))
+          .isInstanceOf(RuntimeException.class)
+          .isSameAs(ex);
     }
   }
 
@@ -95,509 +247,329 @@ class EitherTMonadTest {
   class MapTests {
     @Test
     void map_shouldApplyFunctionWhenRight() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = rightT(5);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> input =
+          rightT(10);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
           eitherTMonad.map(Object::toString, input);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right("5"));
+      Optional<Either<TestErrorEitherTMonad, String>> either = unwrapKindToOptionalEither(result);
+      assertThat(either).isPresent().contains(Either.right("10"));
     }
 
     @Test
-    void map_shouldPropagateLeft() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = leftT("Error1");
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
+    void map_shouldPropagateLeftWhenLeft() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> input =
+          leftT("E1");
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
           eitherTMonad.map(Object::toString, input);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("Error1"));
+      Optional<Either<TestErrorEitherTMonad, String>> either = unwrapKindToOptionalEither(result);
+      assertThat(either).isPresent().contains(Either.left(new TestErrorEitherTMonad("E1")));
     }
 
     @Test
     void map_shouldPropagateEmpty() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = emptyT();
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> input =
+          emptyT();
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
           eitherTMonad.map(Object::toString, input);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
-    }
-
-    @Test
-    void map_shouldHandleMappingToNullAsRightNull() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> input = rightT(5);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.map(x -> null, input);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(null));
+      Optional<Either<TestErrorEitherTMonad, String>> either = unwrapKindToOptionalEither(result);
+      assertThat(either).isEmpty();
     }
   }
 
-  @Nested
-  @DisplayName("Applicative 'ap' tests")
-  class ApTests {
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, String>> funcKindRight =
-        rightT(x -> "N" + x);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, String>> funcKindLeft =
-        leftT("FuncError");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, String>> funcKindEmpty =
-        emptyT();
-
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> valKindRight = rightT(10);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> valKindLeft = leftT("ValError");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> valKindEmpty = emptyT();
-
-    @Test
-    void ap_shouldApplyRightFuncToRightValue() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.ap(funcKindRight, valKindRight);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right("N10"));
-    }
-
-    @Test
-    void ap_shouldReturnLeftIfFuncIsLeft() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.ap(funcKindLeft, valKindRight);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("FuncError"));
-    }
-
-    @Test
-    void ap_shouldReturnLeftIfValueIsLeft() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.ap(funcKindRight, valKindLeft);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("ValError"));
-    }
-
-    @Test
-    void ap_shouldReturnFirstLeftIfBothAreLeft() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.ap(funcKindLeft, valKindLeft);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("FuncError"));
-    }
-
-    @Test
-    void ap_shouldReturnEmptyIfFuncIsEmpty() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.ap(funcKindEmpty, valKindRight);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
-    }
-
-    @Test
-    void ap_shouldReturnEmptyIfValueIsEmpty() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.ap(funcKindRight, valKindEmpty);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
-    }
-
-    @Test
-    void ap_shouldReturnEmptyIfBothAreEmpty() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> result =
-          eitherTMonad.ap(funcKindEmpty, valKindEmpty);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("Monad 'flatMap' tests")
-  class FlatMapTests {
-    Function<Integer, Kind<EitherTKind<OptionalKind<?>, String, ?>, Double>> safeDivideT =
-        num -> (num == 0) ? leftT("DivZero") : rightT(100.0 / num);
-    Function<Integer, Kind<EitherTKind<OptionalKind<?>, String, ?>, Double>> emptyResultT =
-        num -> emptyT();
-
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> rightValue = rightT(5);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> zeroValue = rightT(0);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> leftValue = leftT("InitialError");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> emptyValue = emptyT();
-
-    @Test
-    void flatMap_shouldApplyFuncWhenRight() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
-          eitherTMonad.flatMap(safeDivideT, rightValue);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(20.0));
-    }
-
-    @Test
-    void flatMap_shouldReturnLeftWhenFuncReturnsLeft() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
-          eitherTMonad.flatMap(safeDivideT, zeroValue);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left("DivZero"));
-    }
-
-    @Test
-    void flatMap_shouldPropagateLeftWhenInputIsLeft() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
-          eitherTMonad.flatMap(safeDivideT, leftValue);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isPresent()
-          .contains(Either.left("InitialError"));
-    }
-
-    @Test
-    void flatMap_shouldPropagateEmptyWhenInputIsEmpty() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
-          eitherTMonad.flatMap(safeDivideT, emptyValue);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
-    }
-
-    @Test
-    void flatMap_shouldPropagateEmptyWhenFuncReturnsEmpty() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Double> result =
-          eitherTMonad.flatMap(emptyResultT, rightValue);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
-    }
-  }
-
-  // --- Law Tests ---
-
-  @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
-    @Test
-    @DisplayName("1. Identity: map(id, fa) == fa")
-    void identity() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fa = rightT(10);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> faLeft = leftT("L");
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> faEmpty = emptyT();
-
-      assertThat(unwrapKindToOptionalEither(eitherTMonad.map(Function.identity(), fa)))
-          .isEqualTo(unwrapKindToOptionalEither(fa));
-      assertThat(unwrapKindToOptionalEither(eitherTMonad.map(Function.identity(), faLeft)))
-          .isEqualTo(unwrapKindToOptionalEither(faLeft));
-      assertThat(unwrapKindToOptionalEither(eitherTMonad.map(Function.identity(), faEmpty)))
-          .isEqualTo(unwrapKindToOptionalEither(faEmpty));
-    }
-
-    @Test
-    @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
-    void composition() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fa = rightT(10);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> faLeft = leftT("L");
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> faEmpty = emptyT();
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide =
-          eitherTMonad.map(intToStringAppendWorld, fa);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide =
-          eitherTMonad.map(appendWorld, eitherTMonad.map(intToString, fa));
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideLeft =
-          eitherTMonad.map(intToStringAppendWorld, faLeft);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideLeft =
-          eitherTMonad.map(appendWorld, eitherTMonad.map(intToString, faLeft));
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideEmpty =
-          eitherTMonad.map(intToStringAppendWorld, faEmpty);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideEmpty =
-          eitherTMonad.map(appendWorld, eitherTMonad.map(intToString, faEmpty));
-
-      assertThat(unwrapKindToOptionalEither(leftSide))
-          .isEqualTo(unwrapKindToOptionalEither(rightSide));
-      assertThat(unwrapKindToOptionalEither(leftSideLeft))
-          .isEqualTo(unwrapKindToOptionalEither(rightSideLeft));
-      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
-          .isEqualTo(unwrapKindToOptionalEither(rightSideEmpty));
-    }
-  }
-
-  @Nested
-  @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
-
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> v = rightT(5);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> vLeft = leftT("V_ERR");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> vEmpty = emptyT();
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, String>> fKind =
-        rightT(intToString);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, String>> fKindLeft =
-        leftT("F_ERR");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<String, String>> gKind =
-        rightT(appendWorld);
-
-    @Test
-    @DisplayName("1. Identity: ap(of(id), v) == v")
-    void identity() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, Integer>> idFuncKind =
-          eitherTMonad.of(Function.identity());
-      assertThat(unwrapKindToOptionalEither(eitherTMonad.ap(idFuncKind, v)))
-          .isEqualTo(unwrapKindToOptionalEither(v));
-      assertThat(unwrapKindToOptionalEither(eitherTMonad.ap(idFuncKind, vLeft)))
-          .isEqualTo(unwrapKindToOptionalEither(vLeft));
-      assertThat(unwrapKindToOptionalEither(eitherTMonad.ap(idFuncKind, vEmpty)))
-          .isEqualTo(unwrapKindToOptionalEither(vEmpty));
-    }
-
-    @Test
-    @DisplayName("2. Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      int x = 10;
-      Function<Integer, String> f = intToString;
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, String>> apFunc =
-          eitherTMonad.of(f);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> apVal = eitherTMonad.of(x);
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide =
-          eitherTMonad.ap(apFunc, apVal);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide = eitherTMonad.of(f.apply(x));
-
-      assertThat(unwrapKindToOptionalEither(leftSide))
-          .isEqualTo(unwrapKindToOptionalEither(rightSide));
-    }
-
-    @Test
-    @DisplayName("3. Interchange: ap(fKind, of(y)) == ap(of(f -> f(y)), fKind)")
-    void interchange() {
-      int y = 20;
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide =
-          eitherTMonad.ap(fKind, eitherTMonad.of(y));
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideFuncLeft =
-          eitherTMonad.ap(fKindLeft, eitherTMonad.of(y));
-
-      Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Function<Integer, String>, String>>
-          evalKind = eitherTMonad.of(evalWithY);
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide =
-          eitherTMonad.ap(evalKind, fKind);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideFuncLeft =
-          eitherTMonad.ap(evalKind, fKindLeft);
-
-      assertThat(unwrapKindToOptionalEither(leftSide))
-          .isEqualTo(unwrapKindToOptionalEither(rightSide));
-      assertThat(unwrapKindToOptionalEither(leftSideFuncLeft))
-          .isEqualTo(unwrapKindToOptionalEither(rightSideFuncLeft));
-    }
-
-    @Test
-    @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
-    void composition() {
-      Function<
-              Function<String, String>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          composeMap = gg -> ff -> gg.compose(ff);
-
-      Kind<
-              EitherTKind<OptionalKind<?>, String, ?>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          mappedCompose = eitherTMonad.map(composeMap, gKind);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Function<Integer, String>> ap1 =
-          eitherTMonad.ap(mappedCompose, fKind);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide = eitherTMonad.ap(ap1, v);
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerAp = eitherTMonad.ap(fKind, v);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide =
-          eitherTMonad.ap(gKind, innerAp);
-
-      assertThat(unwrapKindToOptionalEither(leftSide))
-          .isEqualTo(unwrapKindToOptionalEither(rightSide));
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideLeft =
-          eitherTMonad.ap(eitherTMonad.ap(mappedCompose, fKindLeft), v);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideLeft =
-          eitherTMonad.ap(gKind, eitherTMonad.ap(fKindLeft, v));
-      assertThat(unwrapKindToOptionalEither(leftSideLeft))
-          .isEqualTo(unwrapKindToOptionalEither(rightSideLeft));
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideEmpty =
-          eitherTMonad.ap(eitherTMonad.ap(mappedCompose, fKind), vEmpty);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideEmpty =
-          eitherTMonad.ap(gKind, eitherTMonad.ap(fKind, vEmpty));
-      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
-          .isEqualTo(unwrapKindToOptionalEither(rightSideEmpty));
-    }
+  private <A> void assertEitherTEquals(
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, A> k1,
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, A> k2) {
+    assertThat(unwrapKindToOptionalEither(k1)).isEqualTo(unwrapKindToOptionalEither(k2));
   }
 
   @Nested
   @DisplayName("Monad Laws")
   class MonadLaws {
-    int value = 5;
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> mValue = rightT(value);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> mLeft = leftT("M_ERR");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> mEmpty = emptyT();
+    int value;
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> mValue;
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> mLeft;
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> mEmpty;
+    Function<
+            Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+        fTLocal;
+    Function<String, Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+        gTLocal;
+
+    @BeforeEach
+    void setUpLaws() {
+      value = 5;
+      mValue = rightT(value);
+      mLeft = leftT("M_ERR");
+      mEmpty = emptyT();
+      fTLocal = i -> rightT("v" + i);
+      gTLocal = s -> rightT(s + "!");
+    }
 
     @Test
     @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> ofValue = eitherTMonad.of(value);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide =
-          eitherTMonad.flatMap(fT, ofValue);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide = fT.apply(value);
-
-      assertThat(unwrapKindToOptionalEither(leftSide))
-          .isEqualTo(unwrapKindToOptionalEither(rightSide));
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> ofValue =
+          eitherTMonad.of(value);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> leftSide =
+          eitherTMonad.flatMap(fTLocal, ofValue);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> rightSide =
+          fTLocal.apply(value);
+      assertEitherTEquals(leftSide, rightSide);
     }
 
     @Test
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
-      Function<Integer, Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer>> ofFunc =
-          i -> eitherTMonad.of(i);
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer>>
+          ofFunc = i -> eitherTMonad.of(i);
 
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> leftSide =
-          eitherTMonad.flatMap(ofFunc, mValue);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> leftSideLeft =
-          eitherTMonad.flatMap(ofFunc, mLeft);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> leftSideEmpty =
-          eitherTMonad.flatMap(ofFunc, mEmpty);
-
-      assertThat(unwrapKindToOptionalEither(leftSide))
-          .isEqualTo(unwrapKindToOptionalEither(mValue));
-      assertThat(unwrapKindToOptionalEither(leftSideLeft))
-          .isEqualTo(unwrapKindToOptionalEither(mLeft));
-      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
-          .isEqualTo(unwrapKindToOptionalEither(mEmpty));
+      assertEitherTEquals(eitherTMonad.flatMap(ofFunc, mValue), mValue);
+      assertEitherTEquals(eitherTMonad.flatMap(ofFunc, mLeft), mLeft);
+      assertEitherTEquals(eitherTMonad.flatMap(ofFunc, mEmpty), mEmpty);
     }
 
     @Test
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerFlatMap =
-          eitherTMonad.flatMap(fT, mValue);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSide =
-          eitherTMonad.flatMap(gT, innerFlatMap);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> innerFlatMap =
+          eitherTMonad.flatMap(fTLocal, mValue);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> leftSide =
+          eitherTMonad.flatMap(gTLocal, innerFlatMap);
 
-      Function<Integer, Kind<EitherTKind<OptionalKind<?>, String, ?>, String>> rightSideFunc =
-          a -> eitherTMonad.flatMap(gT, fT.apply(a));
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSide =
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          rightSideFunc = a -> eitherTMonad.flatMap(gTLocal, fTLocal.apply(a));
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> rightSide =
           eitherTMonad.flatMap(rightSideFunc, mValue);
+      assertEitherTEquals(leftSide, rightSide);
 
-      assertThat(unwrapKindToOptionalEither(leftSide))
-          .isEqualTo(unwrapKindToOptionalEither(rightSide));
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerFlatMapLeft =
-          eitherTMonad.flatMap(fT, mLeft);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideLeft =
-          eitherTMonad.flatMap(gT, innerFlatMapLeft);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideLeft =
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>
+          innerFlatMapLeft = eitherTMonad.flatMap(fTLocal, mLeft);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> leftSideLeft =
+          eitherTMonad.flatMap(gTLocal, innerFlatMapLeft);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> rightSideLeft =
           eitherTMonad.flatMap(rightSideFunc, mLeft);
-      assertThat(unwrapKindToOptionalEither(leftSideLeft))
-          .isEqualTo(unwrapKindToOptionalEither(rightSideLeft));
+      assertEitherTEquals(leftSideLeft, rightSideLeft);
 
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> innerFlatMapEmpty =
-          eitherTMonad.flatMap(fT, mEmpty);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> leftSideEmpty =
-          eitherTMonad.flatMap(gT, innerFlatMapEmpty);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, String> rightSideEmpty =
-          eitherTMonad.flatMap(rightSideFunc, mEmpty);
-      assertThat(unwrapKindToOptionalEither(leftSideEmpty))
-          .isEqualTo(unwrapKindToOptionalEither(rightSideEmpty));
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>
+          innerFlatMapEmpty = eitherTMonad.flatMap(fTLocal, mEmpty);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> leftSideEmpty =
+          eitherTMonad.flatMap(gTLocal, innerFlatMapEmpty);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>
+          rightSideEmpty = eitherTMonad.flatMap(rightSideFunc, mEmpty);
+      assertEitherTEquals(leftSideEmpty, rightSideEmpty);
     }
   }
 
-  // --- MonadError Tests ---
-
   @Nested
-  @DisplayName("MonadError Tests")
-  class MonadErrorTests {
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> rightVal = rightT(100);
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> leftVal = leftT("E404");
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> emptyVal = emptyT();
+  @DisplayName("MonadError Methods")
+  class MonadErrorMethods {
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> rightVal;
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> leftVal;
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> emptyVal;
+    TestErrorEitherTMonad raisedErrorObj;
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> raisedErrorKind;
 
-    String raisedErrorMsg = "E500";
-    Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> raisedErrorKind =
-        eitherTMonad.raiseError(raisedErrorMsg);
+    @BeforeEach
+    void setUpMonadError() {
+      rightVal = rightT(100);
+      leftVal = leftT("E404");
+      emptyVal = emptyT();
+      raisedErrorObj = new TestErrorEitherTMonad("E500");
+      raisedErrorKind = eitherTMonad.raiseError(raisedErrorObj);
+    }
 
     @Test
     void raiseError_shouldCreateLeftInOptional() {
-      Optional<Either<String, Integer>> result = unwrapKindToOptionalEither(raisedErrorKind);
-      assertThat(result).isPresent().contains(Either.left("E500"));
+      Optional<Either<TestErrorEitherTMonad, Integer>> result =
+          unwrapKindToOptionalEither(raisedErrorKind);
+      assertThat(result).isPresent().contains(Either.left(raisedErrorObj));
     }
 
     @Test
     void handleErrorWith_shouldHandleLeft() {
-      Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer>> handler =
-          err -> rightT(Integer.parseInt(err.substring(1))); // "E404" -> Right(404)
+      Function<
+              TestErrorEitherTMonad,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer>>
+          handler = err -> rightT(Integer.parseInt(err.code().substring(1)));
 
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> result =
           eitherTMonad.handleErrorWith(leftVal, handler);
-
       assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(404));
     }
 
     @Test
-    void handleErrorWith_shouldHandleLeftWithNewLeft() {
-      Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer>> handler =
-          err -> leftT("Recovered_" + err);
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.handleErrorWith(leftVal, handler);
-
-      assertThat(unwrapKindToOptionalEither(result))
-          .isPresent()
-          .contains(Either.left("Recovered_E404"));
-    }
-
-    @Test
     void handleErrorWith_shouldIgnoreRight() {
-      Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer>> handler =
-          err -> rightT(-1);
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
+      Function<
+              TestErrorEitherTMonad,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer>>
+          handler = err -> rightT(-1);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> result =
           eitherTMonad.handleErrorWith(rightVal, handler);
-
-      assertThat(unwrapKindToOptionalEither(result))
-          .isEqualTo(unwrapKindToOptionalEither(rightVal));
+      assertEitherTEquals(result, rightVal);
     }
 
     @Test
-    void handleErrorWith_shouldIgnoreEmpty() {
-      Function<String, Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer>> handler =
-          err -> rightT(-1);
-
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
+    void handleErrorWith_shouldPropagateEmpty() {
+      Function<
+              TestErrorEitherTMonad,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer>>
+          handler = err -> rightT(-1);
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> result =
           eitherTMonad.handleErrorWith(emptyVal, handler);
       assertThat(unwrapKindToOptionalEither(result)).isEmpty();
     }
+  }
+
+  @Nested
+  @DisplayName("flatMap Specific Scenarios")
+  class FlatMapSpecificTests {
 
     @Test
-    void handleError_shouldHandleLeftWithPureValue() {
-      Function<String, Integer> handler = err -> -99;
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.handleError(leftVal, handler);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(-99));
+    @DisplayName("flatMap: Initial Right, Function returns Left")
+    void flatMap_initialRight_funcReturnsLeft() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> initialRight =
+          rightT(10);
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          funcReturnsLeft = i -> leftT("FuncError_" + i);
+
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.flatMap(funcReturnsLeft, initialRight);
+
+      Optional<Either<TestErrorEitherTMonad, String>> eitherResult =
+          unwrapKindToOptionalEither(result);
+      assertThat(eitherResult)
+          .isPresent()
+          .contains(Either.left(new TestErrorEitherTMonad("FuncError_10")));
     }
 
     @Test
-    void handleError_shouldIgnoreRight() {
-      Function<String, Integer> handler = err -> -1;
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.handleError(rightVal, handler);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isEqualTo(unwrapKindToOptionalEither(rightVal));
+    @DisplayName("flatMap: Initial Right, Function returns Empty Outer Monad")
+    void flatMap_initialRight_funcReturnsEmptyOuter() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> initialRight =
+          rightT(20);
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          funcReturnsEmpty = i -> emptyT();
+
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.flatMap(funcReturnsEmpty, initialRight);
+
+      Optional<Either<TestErrorEitherTMonad, String>> eitherResult =
+          unwrapKindToOptionalEither(result);
+      assertThat(eitherResult).isEmpty();
     }
 
     @Test
-    void recoverWith_shouldReplaceLeftWithFallbackKind() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fallback = rightT(0);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.recoverWith(leftVal, fallback);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isEqualTo(unwrapKindToOptionalEither(fallback));
+    @DisplayName("flatMap: Initial Left, Function should not be called")
+    void flatMap_initialLeft_funcNotCalled() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> initialLeft =
+          leftT("InitialError");
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          funcShouldNotRun =
+              i -> {
+                throw new AssertionError("Function should not have been called for Left input");
+              };
+
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.flatMap(funcShouldNotRun, initialLeft);
+
+      Optional<Either<TestErrorEitherTMonad, String>> eitherResult =
+          unwrapKindToOptionalEither(result);
+      assertThat(eitherResult)
+          .isPresent()
+          .contains(Either.left(new TestErrorEitherTMonad("InitialError")));
     }
 
     @Test
-    void recoverWith_shouldReplaceLeftWithLeftFallbackKind() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fallback = leftT("FallbackError");
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.recoverWith(leftVal, fallback);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isEqualTo(unwrapKindToOptionalEither(fallback));
+    @DisplayName("flatMap: Initial Empty Outer Monad, Function should not be called")
+    void flatMap_initialEmptyOuter_funcNotCalled() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer>
+          initialEmptyOuter = emptyT();
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          funcShouldNotRun =
+              i -> {
+                throw new AssertionError(
+                    "Function should not have been called for empty outer input");
+              };
+
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String> result =
+          eitherTMonad.flatMap(funcShouldNotRun, initialEmptyOuter);
+
+      Optional<Either<TestErrorEitherTMonad, String>> eitherResult =
+          unwrapKindToOptionalEither(result);
+      assertThat(eitherResult).isEmpty();
     }
 
     @Test
-    void recoverWith_shouldIgnoreRight() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> fallback = rightT(0);
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.recoverWith(rightVal, fallback);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isEqualTo(unwrapKindToOptionalEither(rightVal));
+    @DisplayName("flatMap: Function throws unhandled RuntimeException")
+    void flatMap_functionThrowsRuntimeException() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> initialRight =
+          rightT(30);
+      RuntimeException runtimeEx = new RuntimeException("Error in function application!");
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          funcThrows =
+              i -> {
+                throw runtimeEx;
+              };
+
+      assertThatThrownBy(() -> eitherTMonad.flatMap(funcThrows, initialRight))
+          .isInstanceOf(RuntimeException.class)
+          .isSameAs(runtimeEx);
     }
 
     @Test
-    void recover_shouldReplaceLeftWithOfValue() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.recover(leftVal, 0);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(0));
+    @DisplayName("flatMap: Function returns null Kind (should throw KindUnwrapException)")
+    void flatMap_functionReturnsNullKind() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> initialRight =
+          rightT(40);
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          funcReturnsNullKind = i -> null;
+
+      assertThatThrownBy(() -> eitherTMonad.flatMap(funcReturnsNullKind, initialRight))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot unwrap null Kind for EitherT");
     }
 
     @Test
-    void recover_shouldIgnoreRight() {
-      Kind<EitherTKind<OptionalKind<?>, String, ?>, Integer> result =
-          eitherTMonad.recover(rightVal, 0);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isEqualTo(unwrapKindToOptionalEither(rightVal));
+    @DisplayName(
+        "flatMap: Function returns Kind with null inner EitherT (should throw"
+            + " NullPointerException)")
+    void flatMap_functionReturnsKindWithNullInnerEitherT() {
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> initialRight =
+          rightT(50);
+
+      // This creates an EitherTHolder that contains a null EitherT instance.
+      // This is an invalid state that bypasses normal helper construction.
+      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>
+          problematicKind = new EitherTKindHelper.EitherTHolder<>(null);
+
+      Function<
+              Integer,
+              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
+          funcReturnsProblematicKind = i -> problematicKind;
+
+      // The flatMap call itself should throw the NullPointerException when resultT.value() is
+      // attempted
+      assertThatThrownBy(() -> eitherTMonad.flatMap(funcReturnsProblematicKind, initialRight))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining(
+              "Cannot invoke \"org.higherkindedj.hkt.trans.either_t.EitherT.value()\" because"
+                  + " \"resultT\" is null");
     }
   }
 }

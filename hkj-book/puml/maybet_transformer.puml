@@ -1,100 +1,99 @@
-@startuml EitherT_Classes
+@startuml maybet_transformer
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 skinparam classAttributeIconSize 0
 skinparam defaultFontName "Roboto, Helvetica"
 hide empty members
 
+package "trans.maybe_t" {
 
-  interface Kind<WITNESS, VAL> {
-    .. methods ..
+  interface MaybeTKind<F, A> extends hkt.Kind<MaybeTKind.Witness<F>, A> {
+    + {static} class Witness<OUTER_F> << (W,lightblue) >>
   }
-  note right of Kind: Generic Kind interface from HKJ core.
+'  note right of MaybeTKind.Witness : Phantom type for HKT simulation.
 
-  interface Monad<F> extends Applicative<F> {
-    flatMap(Function<A, Kind<F, B>>, Kind<F, A>): Kind<F, B>
+  class "MaybeT<F, A>" implements MaybeTKind<F, A> {
+    + value: Kind<F, Maybe<A>>
+    --
+    + {static} fromKind(Kind<F, Maybe<A>>): MaybeT<F, A>
+    + {static} just(Monad<F> outerMonad, A a): MaybeT<F, A>
+    + {static} nothing(Monad<F> outerMonad): MaybeT<F, A>
+    + {static} fromMaybe(Monad<F> outerMonad, Maybe<A> maybe): MaybeT<F, A>
+    + {static} liftF(Monad<F> outerMonad, Kind<F, A> fa): MaybeT<F, A>
+    --
+    + value(): Kind<F, Maybe<A>>
   }
-  note right of Monad: Generic Monad interface from HKJ core.
+  note left of "MaybeT<F, A>" : "Wraps a monadic value of Kind<F, Maybe<A>>."
 
-  interface MonadError<F, E> extends Monad<F> {
-    raiseError(E): Kind<F, A>
-    handleErrorWith(Kind<F, A>, Function<E, Kind<F, A>>): Kind<F, A>
+  class MaybeTMonad<F> implements hkt.MonadError<MaybeTKind.Witness<F>, java.lang.Void> {
+    - outerMonad: Monad<F>
+    --
+    + MaybeTMonad(Monad<F> outerMonad)
+    --
+    + of(A value): Kind<MaybeTKind.Witness<F>, A>
+    + map(Function<A, B> f, Kind<MaybeTKind.Witness<F>, A> fa): Kind<MaybeTKind.Witness<F>, B>
+    + ap(Kind<MaybeTKind.Witness<F>, Function<A, B>> ff, Kind<MaybeTKind.Witness<F>, A> fa): Kind<MaybeTKind.Witness<F>, B>
+    + flatMap(Function<A, Kind<MaybeTKind.Witness<F>, B>> f, Kind<MaybeTKind.Witness<F>, A> ma): Kind<MaybeTKind.Witness<F>, B>
+    + raiseError(Void error): Kind<MaybeTKind.Witness<F>, A>
+    + handleErrorWith(Kind<MaybeTKind.Witness<F>, A> ma, Function<Void, Kind<MaybeTKind.Witness<F>, A>> handler): Kind<MaybeTKind.Witness<F>, A>
   }
-  note right of MonadError: Generic MonadError interface from HKJ core.
+  note right of MaybeTMonad : Provides MonadError instance for MaybeT.
 
-
-  class EitherT<F, L, R> {
-    + value: Kind<F, Either<L, R>>
-    + EitherT(Kind<F, Either<L, R>>)
-    + {static} fromKind(Kind<F, Either<L, R>>): EitherT<F, L, R>
-    + {static} right(Monad<F>, R): EitherT<F, L, R>
-    + {static} left(Monad<F>, L): EitherT<F, L, R>
-    + {static} fromEither(Monad<F>, Either<L, R>): EitherT<F, L, R>
-    + {static} liftF(Monad<F>, Kind<F, R>): EitherT<F, L, R>
-    + value(): Kind<F, Either<L, R>>
-  }
-
-  interface EitherTKind<F, L, R> extends Kind<EitherTKind<F, L, ?>, R> {
-    .. witness type ..
-  }
-  note bottom of EitherTKind
-    F: Witness of outer monad
-    L: Left type of inner Either
-    R: Right type of inner Either (the value type A in Kind<G,A>)
-  end note
-
-  EitherT ..|> EitherTKind : implements
-
-  class EitherTKindHelper<F, L> {
+  class MaybeTKindHelper << (H,lightgrey) >> {
     + {static} INVALID_KIND_NULL_MSG: String
     + {static} INVALID_KIND_TYPE_MSG: String
-    + {static} INVALID_HOLDER_STATE_MSG: String
-    - EitherTKindHelper()
-    + {static} unwrap(Kind<EitherTKind<F_IN, L_IN, ?>, R>): EitherT<F_IN, L_IN, R>
-    + {static} wrap(EitherT<F_IN, L_IN, R>): EitherTKind<F_IN, L_IN, R>
+    --
+    + {static} unwrap(Kind<MaybeTKind.Witness<F>, A> kind): MaybeT<F, A>
+    + {static} wrap(MaybeT<F, A> maybeT): Kind<MaybeTKind.Witness<F>, A>
   }
-  note right of EitherTKindHelper: Utility for safe wrapping and unwrapping.
+  note left of MaybeTKindHelper : Utility for HKT wrap/unwrap.
 
+}
 
-  class EitherTMonad<F, L> implements MonadError<EitherTKind<F, L, ?>, L> {
-    - outerMonad: Monad<F>
-    + EitherTMonad(Monad<F>)
-    + of(R): Kind<EitherTKind<F, L, ?>, R>
-    + map(Function<R_IN, R_OUT>, Kind<EitherTKind<F, L, ?>, R_IN>): Kind<EitherTKind<F, L, ?>, R_OUT>
-    + ap(Kind<EitherTKind<F, L, ?>, Function<R_IN, R_OUT>>, Kind<EitherTKind<F, L, ?>, R_IN>): Kind<EitherTKind<F, L, ?>, R_OUT>
-    + flatMap(Function<R_IN, Kind<EitherTKind<F, L, ?>, R_OUT>>, Kind<EitherTKind<F, L, ?>, R_IN>): Kind<EitherTKind<F, L, ?>, R_OUT>
-    + raiseError(L): Kind<EitherTKind<F, L, ?>, R>
-    + handleErrorWith(Kind<EitherTKind<F, L, ?>, R>, Function<L, Kind<EitherTKind<F, L, ?>, R>>): Kind<EitherTKind<F, L, ?>, R>
+package "hkt" {
+  interface Kind<F, A>
+  interface "Functor<F>"
+  interface "Applicative<F> extends Functor<F>"
+  interface "Monad<M> extends Applicative<M>"
+  interface "MonadError<M, E> extends Monad<M>"
+}
+
+package "maybe" {
+  interface Maybe<A> {
+    + {static} just(A value): Maybe<A>
+    + {static} nothing(): Maybe<A>
+    + {static} fromNullable(A value): Maybe<A>
+    ..
+    + isJust(): boolean
+    + isNothing(): boolean
+    + get(): A
+    + map(Function<A,B> mapper): Maybe<B>
+    + flatMap(Function<A, Maybe<B>> mapper): Maybe<B>
   }
-  note top of EitherTMonad
-    F: Witness of outer monad
-    L: Left type (Error type E for MonadError)
-  end note
+  class "Just<A> implements Maybe<A>"
+  class "Nothing<A> implements Maybe<A>"
+}
 
-  EitherTMonad ..> EitherTKindHelper : uses for wrap/unwrap
-  EitherTMonad ..> EitherT : creates/manipulates
-  EitherTMonad ..> Monad : (depends on instance of outer Monad<F>)
-  EitherTMonad --|> MonadError
+' Relationships
+MaybeT --> "value" hkt.Kind
+MaybeT ..> hkt.maybe.Maybe : uses in value
+MaybeT ..> hkt.Monad : uses in static methods
 
+MaybeTMonad o--> "outerMonad" hkt.Monad
+MaybeTMonad ..> MaybeTKindHelper : uses
+MaybeTMonad ..> MaybeT : uses via KindHelper
+MaybeTMonad ..> MaybeTKind.Witness : uses in signature
+MaybeTMonad ..> hkt.maybe.Maybe : manipulates
 
-    interface Either<L,R> {
-       isLeft(): boolean
-       isRight(): boolean
-       getLeft(): L
-       getRight(): R
-       map(Function<R, R2>): Either<L,R2>
-       flatMap(Function<R, Either<L,R2>>): Either<L,R2>
-       {static} left(L): Either<L,R>
-       {static} right(R): Either<L,R>
-    }
-    note right of Either: Core Either type.
+MaybeTKindHelper ..> MaybeT : wraps/unwraps
+MaybeTKindHelper ..> MaybeTKind.Witness : uses in signature
 
-
-  EitherT *-- "1" Kind : (value field holds a Kind)
-  Kind <|-- EitherTKind : (EitherTKind is a specific Kind)
-
-  ' Relationships involving generics are conceptual
-  ' Kind "F" parameter in EitherT, EitherTKind, EitherTMonad is a conceptual link
-  ' to an outer Monad (e.g. CompletableFutureKind, OptionalKind)
+' Grouping related components
+'together {
+'  MaybeT
+'  MaybeTKind
+'  MaybeTMonad
+'  MaybeTKindHelper
+'}
 
 @enduml

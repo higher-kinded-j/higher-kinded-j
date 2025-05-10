@@ -20,19 +20,19 @@ class EitherMonadTest {
   private final EitherMonad<TestError> eitherMonad = new EitherMonad<>();
 
   // Helper Functions
-  private <R> Either<TestError, R> unwrap(Kind<EitherKind<TestError, ?>, R> kind) {
+  private <R> Either<TestError, R> unwrap(Kind<EitherKind.Witness<TestError>, R> kind) {
     return EitherKindHelper.unwrap(kind);
   }
 
-  private <R> Kind<EitherKind<TestError, ?>, R> wrap(Either<TestError, R> either) {
+  private <R> Kind<EitherKind.Witness<TestError>, R> wrap(Either<TestError, R> either) {
     return EitherKindHelper.wrap(either);
   }
 
-  private <R> Kind<EitherKind<TestError, ?>, R> right(R value) {
+  private <R> Kind<EitherKind.Witness<TestError>, R> right(R value) {
     return wrap(Either.right(value));
   }
 
-  private <R> Kind<EitherKind<TestError, ?>, R> left(String errorCode) {
+  private <R> Kind<EitherKind.Witness<TestError>, R> left(String errorCode) {
     return wrap(Either.left(new TestError(errorCode)));
   }
 
@@ -52,7 +52,7 @@ class EitherMonadTest {
   class OfTests {
     @Test
     void of_shouldWrapValueAsRight() {
-      Kind<EitherKind<TestError, ?>, String> kind = eitherMonad.of("success");
+      var kind = eitherMonad.of("success");
       Either<TestError, String> either = unwrap(kind);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo("success");
@@ -61,7 +61,7 @@ class EitherMonadTest {
     @Test
     void of_shouldWrapNullValueAsRight() {
       // Either.Right allows null by default in this impl
-      Kind<EitherKind<TestError, ?>, String> kind = eitherMonad.of(null);
+      Kind<EitherKind.Witness<TestError>, String> kind = eitherMonad.of(null);
       Either<TestError, String> either = unwrap(kind);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isNull();
@@ -73,8 +73,8 @@ class EitherMonadTest {
   class MapTests {
     @Test
     void map_shouldApplyFunctionWhenRight() {
-      Kind<EitherKind<TestError, ?>, Integer> input = right(10);
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.map(x -> x * 2, input);
+      Kind<EitherKind.Witness<TestError>, Integer> input = right(10);
+      Kind<EitherKind.Witness<TestError>, Integer> result = eitherMonad.map(x -> x * 2, input);
       Either<TestError, Integer> either = unwrap(result);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo(20);
@@ -82,8 +82,8 @@ class EitherMonadTest {
 
     @Test
     void map_shouldPropagateLeftWhenLeft() {
-      Kind<EitherKind<TestError, ?>, Integer> input = left("E1");
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.map(x -> x * 2, input);
+      Kind<EitherKind.Witness<TestError>, Integer> input = left("E1");
+      Kind<EitherKind.Witness<TestError>, Integer> result = eitherMonad.map(x -> x * 2, input);
       Either<TestError, Integer> either = unwrap(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("E1"));
@@ -93,15 +93,16 @@ class EitherMonadTest {
   @Nested
   @DisplayName("Applicative 'ap' tests")
   class ApTests {
-    Kind<EitherKind<TestError, ?>, Function<Integer, String>> funcKindRight =
+    Kind<EitherKind.Witness<TestError>, Function<Integer, String>> funcKindRight =
         eitherMonad.of(x -> "N" + x);
-    Kind<EitherKind<TestError, ?>, Function<Integer, String>> funcKindLeft = left("FE");
-    Kind<EitherKind<TestError, ?>, Integer> valueKindRight = right(10);
-    Kind<EitherKind<TestError, ?>, Integer> valueKindLeft = left("VE");
+    Kind<EitherKind.Witness<TestError>, Function<Integer, String>> funcKindLeft = left("FE");
+    Kind<EitherKind.Witness<TestError>, Integer> valueKindRight = right(10);
+    Kind<EitherKind.Witness<TestError>, Integer> valueKindLeft = left("VE");
 
     @Test
     void ap_shouldApplyRightFunctionToRightValue() {
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.ap(funcKindRight, valueKindRight);
+      Kind<EitherKind.Witness<TestError>, String> result =
+          eitherMonad.ap(funcKindRight, valueKindRight);
       Either<TestError, String> either = unwrap(result);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo("N10");
@@ -109,7 +110,7 @@ class EitherMonadTest {
 
     @Test
     void ap_shouldReturnLeftIfFunctionIsLeft() {
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.ap(funcKindLeft, valueKindRight);
+      var result = eitherMonad.ap(funcKindLeft, valueKindRight);
       Either<TestError, String> either = unwrap(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("FE")); // Function's error propagates
@@ -117,7 +118,7 @@ class EitherMonadTest {
 
     @Test
     void ap_shouldReturnLeftIfValueIsLeft() {
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.ap(funcKindRight, valueKindLeft);
+      var result = eitherMonad.ap(funcKindRight, valueKindLeft);
       Either<TestError, String> either = unwrap(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("VE")); // Value's error propagates
@@ -125,7 +126,7 @@ class EitherMonadTest {
 
     @Test
     void ap_shouldReturnFirstLeftIfBothAreLeft() {
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.ap(funcKindLeft, valueKindLeft);
+      var result = eitherMonad.ap(funcKindLeft, valueKindLeft);
       Either<TestError, String> either = unwrap(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft())
@@ -137,13 +138,13 @@ class EitherMonadTest {
     @DisplayName("ap should propagate exception from function application")
     void ap_shouldPropagateFunctionException() {
       RuntimeException applyException = new RuntimeException("Apply failed!");
-      Kind<EitherKind<TestError, ?>, Function<Integer, String>> funcKindThrows =
+      Kind<EitherKind.Witness<TestError>, Function<Integer, String>> funcKindThrows =
           wrap(
               Either.right(
                   i -> {
                     throw applyException;
                   }));
-      Kind<EitherKind<TestError, ?>, Integer> valueKindRight = right(10);
+      Kind<EitherKind.Witness<TestError>, Integer> valueKindRight = right(10);
 
       // Exception occurs during the f.apply(a) inside the flatMap/map of 'ap'
       assertThatThrownBy(() -> eitherMonad.ap(funcKindThrows, valueKindRight))
@@ -156,17 +157,16 @@ class EitherMonadTest {
   @DisplayName("Monad 'flatMap' tests")
   class FlatMapTests {
 
-    // Function: Integer -> Kind<EitherKind<TestError, ?>, Double>
-    Function<Integer, Kind<EitherKind<TestError, ?>, Double>> safeDivideEither =
+    Function<Integer, Kind<EitherKind.Witness<TestError>, Double>> safeDivideEither =
         num -> (num == 0) ? left("DIV0") : right(100.0 / num);
 
-    Kind<EitherKind<TestError, ?>, Integer> rightValue = right(5);
-    Kind<EitherKind<TestError, ?>, Integer> zeroValue = right(0);
-    Kind<EitherKind<TestError, ?>, Integer> leftValue = left("INIT_ERR");
+    Kind<EitherKind.Witness<TestError>, Integer> rightValue = right(5);
+    Kind<EitherKind.Witness<TestError>, Integer> zeroValue = right(0);
+    Kind<EitherKind.Witness<TestError>, Integer> leftValue = left("INIT_ERR");
 
     @Test
     void flatMap_shouldApplyFunctionWhenRight() {
-      Kind<EitherKind<TestError, ?>, Double> result =
+      Kind<EitherKind.Witness<TestError>, Double> result =
           eitherMonad.flatMap(safeDivideEither, rightValue);
       Either<TestError, Double> either = unwrap(result);
       assertThat(either.isRight()).isTrue();
@@ -175,8 +175,7 @@ class EitherMonadTest {
 
     @Test
     void flatMap_shouldReturnLeftWhenFunctionReturnsLeft() {
-      Kind<EitherKind<TestError, ?>, Double> result =
-          eitherMonad.flatMap(safeDivideEither, zeroValue);
+      var result = eitherMonad.flatMap(safeDivideEither, zeroValue);
       Either<TestError, Double> either = unwrap(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("DIV0"));
@@ -184,8 +183,7 @@ class EitherMonadTest {
 
     @Test
     void flatMap_shouldPropagateLeftWhenInputIsLeft() {
-      Kind<EitherKind<TestError, ?>, Double> result =
-          eitherMonad.flatMap(safeDivideEither, leftValue);
+      var result = eitherMonad.flatMap(safeDivideEither, leftValue);
       Either<TestError, Double> either = unwrap(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("INIT_ERR")); // Initial error propagates
@@ -193,9 +191,9 @@ class EitherMonadTest {
 
     @Test
     void flatMap_chainingExample() {
-      Kind<EitherKind<TestError, ?>, String> initial = right(" 20 "); // String needs parsing
+      var initial = right(" 20 "); // String needs parsing
 
-      Function<String, Kind<EitherKind<TestError, ?>, Integer>> parseIntEither =
+      Function<String, Kind<EitherKind.Witness<TestError>, Integer>> parseIntEither =
           s -> {
             try {
               return right(Integer.parseInt(s.trim()));
@@ -204,7 +202,7 @@ class EitherMonadTest {
             }
           };
 
-      Kind<EitherKind<TestError, ?>, Double> finalResult =
+      Kind<EitherKind.Witness<TestError>, Double> finalResult =
           eitherMonad.flatMap(
               str ->
                   eitherMonad.flatMap(
@@ -218,9 +216,9 @@ class EitherMonadTest {
 
     @Test
     void flatMap_chainingWithLeftPropagation() {
-      Kind<EitherKind<TestError, ?>, String> initial = right(" abc "); // Invalid string
+      var initial = right(" abc "); // Invalid string
 
-      Function<String, Kind<EitherKind<TestError, ?>, Integer>> parseIntEither =
+      Function<String, Kind<EitherKind.Witness<TestError>, Integer>> parseIntEither =
           s -> {
             try {
               return right(Integer.parseInt(s.trim()));
@@ -229,7 +227,7 @@ class EitherMonadTest {
             }
           };
 
-      Kind<EitherKind<TestError, ?>, Double> finalResult =
+      Kind<EitherKind.Witness<TestError>, Double> finalResult =
           eitherMonad.flatMap(
               str ->
                   eitherMonad.flatMap(
@@ -245,9 +243,9 @@ class EitherMonadTest {
     @Test
     @DisplayName("flatMap should propagate exception thrown by mapper function")
     void flatMap_shouldPropagateMapperException() {
-      Kind<EitherKind<TestError, ?>, Integer> rightInput = right(10);
+      var rightInput = right(10);
       RuntimeException mapperException = new RuntimeException("Mapper failed!");
-      Function<Integer, Kind<EitherKind<TestError, ?>, String>> throwingMapper =
+      Function<Integer, Kind<EitherKind.Witness<TestError>, Integer>> throwingMapper =
           i -> {
             throw mapperException;
           };
@@ -261,17 +259,16 @@ class EitherMonadTest {
     @Test
     @DisplayName("flatMap should throw KindUnwrapException if mapper returns null Kind")
     void flatMap_shouldThrowWhenMapperReturnsNullKind() {
-      Kind<EitherKind<TestError, ?>, Integer> rightInput =
-          right(10); // Assuming right() helper exists
+      var rightInput = right(10); // Assuming right() helper exists
       // Mapper function explicitly returns null
-      Function<Integer, Kind<EitherKind<TestError, ?>, String>> nullReturningMapper = i -> null;
+      Function<Integer, Kind<EitherKind.Witness<TestError>, String>> nullReturningMapper =
+          i -> null;
 
       // Assert that calling flatMap with this mapper throws the exception directly
       assertThatThrownBy(() -> eitherMonad.flatMap(nullReturningMapper, rightInput))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
               "Cannot unwrap null Kind for Either"); // Exception originates from unwrap(null) call
-      // inside flatMap
     }
   }
 
@@ -283,8 +280,8 @@ class EitherMonadTest {
     @Test
     @DisplayName("1. Identity: map(id, fa) == fa")
     void identity() {
-      Kind<EitherKind<TestError, ?>, Integer> fa = right(10);
-      Kind<EitherKind<TestError, ?>, Integer> faLeft = left("E1");
+      var fa = right(10);
+      var faLeft = left("E1");
 
       assertThat(unwrap(eitherMonad.map(Function.identity(), fa))).isEqualTo(unwrap(fa));
       assertThat(unwrap(eitherMonad.map(Function.identity(), faLeft))).isEqualTo(unwrap(faLeft));
@@ -293,22 +290,17 @@ class EitherMonadTest {
     @Test
     @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
     void composition() {
-      Kind<EitherKind<TestError, ?>, Integer> fa = right(10);
-      Kind<EitherKind<TestError, ?>, Integer> faLeft = left("E1");
+      Kind<EitherKind.Witness<TestError>, Integer> fa = right(10);
+      Kind<EitherKind.Witness<TestError>, Integer> faLeft = left("E1");
 
-      Kind<EitherKind<TestError, ?>, String> leftSide =
-          eitherMonad.map(appendWorld.compose(intToString), fa);
-      Kind<EitherKind<TestError, ?>, String> rightSide =
-          eitherMonad.map(appendWorld, eitherMonad.map(intToString, fa));
+      var leftSide = eitherMonad.map(appendWorld.compose(intToString), fa);
+      var rightSide = eitherMonad.map(appendWorld, eitherMonad.map(intToString, fa));
 
-      Kind<EitherKind<TestError, ?>, String> leftSideLeft =
-          eitherMonad.map(appendWorld.compose(intToString), faLeft);
-      Kind<EitherKind<TestError, ?>, String> rightSideLeft =
-          eitherMonad.map(appendWorld, eitherMonad.map(intToString, faLeft));
+      var leftSideLeft = eitherMonad.map(appendWorld.compose(intToString), faLeft);
+      var rightSideLeft = eitherMonad.map(appendWorld, eitherMonad.map(intToString, faLeft));
 
       assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideLeft))
-          .isEqualTo(unwrap(rightSideLeft)); // Check Left propagation consistency
+      assertThat(unwrap(leftSideLeft)).isEqualTo(unwrap(rightSideLeft));
     }
   }
 
@@ -316,21 +308,20 @@ class EitherMonadTest {
   @DisplayName("Applicative Laws")
   class ApplicativeLaws {
 
-    Kind<EitherKind<TestError, ?>, Integer> v = right(5);
-    Kind<EitherKind<TestError, ?>, Integer> vLeft = left("V_ERR");
-    Kind<EitherKind<TestError, ?>, Function<Integer, String>> fKind = right(intToString);
-    Kind<EitherKind<TestError, ?>, Function<Integer, String>> fKindLeft = left("F_ERR");
-    Kind<EitherKind<TestError, ?>, Function<String, String>> gKind = right(appendWorld);
-    Kind<EitherKind<TestError, ?>, Function<String, String>> gKindLeft = left("G_ERR");
+    Kind<EitherKind.Witness<TestError>, Integer> v = right(5);
+    Kind<EitherKind.Witness<TestError>, Integer> vLeft = left("V_ERR");
+    Kind<EitherKind.Witness<TestError>, Function<Integer, String>> fKind = right(intToString);
+    Kind<EitherKind.Witness<TestError>, Function<Integer, String>> fKindLeft = left("F_ERR");
+    Kind<EitherKind.Witness<TestError>, Function<String, String>> gKind = right(appendWorld);
+    Kind<EitherKind.Witness<TestError>, Function<String, String>> gKindLeft = left("G_ERR");
 
     @Test
     @DisplayName("1. Identity: ap(of(id), v) == v")
     void identity() {
-      Kind<EitherKind<TestError, ?>, Function<Integer, Integer>> idFuncKind =
+      Kind<EitherKind.Witness<TestError>, Function<Integer, Integer>> idFuncKind =
           eitherMonad.of(Function.identity());
       assertThat(unwrap(eitherMonad.ap(idFuncKind, v))).isEqualTo(unwrap(v));
-      assertThat(unwrap(eitherMonad.ap(idFuncKind, vLeft)))
-          .isEqualTo(unwrap(vLeft)); // Check Left propagation
+      assertThat(unwrap(eitherMonad.ap(idFuncKind, vLeft))).isEqualTo(unwrap(vLeft));
     }
 
     @Test
@@ -338,11 +329,11 @@ class EitherMonadTest {
     void homomorphism() {
       int x = 10;
       Function<Integer, String> f = intToString;
-      Kind<EitherKind<TestError, ?>, Function<Integer, String>> apFunc = eitherMonad.of(f);
-      Kind<EitherKind<TestError, ?>, Integer> apVal = eitherMonad.of(x);
+      Kind<EitherKind.Witness<TestError>, Function<Integer, String>> apFunc = eitherMonad.of(f);
+      Kind<EitherKind.Witness<TestError>, Integer> apVal = eitherMonad.of(x);
 
-      Kind<EitherKind<TestError, ?>, String> leftSide = eitherMonad.ap(apFunc, apVal);
-      Kind<EitherKind<TestError, ?>, String> rightSide = eitherMonad.of(f.apply(x));
+      var leftSide = eitherMonad.ap(apFunc, apVal);
+      var rightSide = eitherMonad.of(f.apply(x));
 
       assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
     }
@@ -352,22 +343,19 @@ class EitherMonadTest {
     void interchange() {
       int y = 20;
       // Left Side: ap(fKind, of(y))
-      Kind<EitherKind<TestError, ?>, String> leftSide = eitherMonad.ap(fKind, eitherMonad.of(y));
-      Kind<EitherKind<TestError, ?>, String> leftSideFuncLeft =
-          eitherMonad.ap(fKindLeft, eitherMonad.of(y));
+      var leftSide = eitherMonad.ap(fKind, eitherMonad.of(y));
+      var leftSideFuncLeft = eitherMonad.ap(fKindLeft, eitherMonad.of(y));
 
       // Right Side: ap(of(f -> f(y)), fKind)
       Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<EitherKind<TestError, ?>, Function<Function<Integer, String>, String>> evalKind =
+      Kind<EitherKind.Witness<TestError>, Function<Function<Integer, String>, String>> evalKind =
           eitherMonad.of(evalWithY);
 
-      Kind<EitherKind<TestError, ?>, String> rightSide = eitherMonad.ap(evalKind, fKind);
-      Kind<EitherKind<TestError, ?>, String> rightSideFuncLeft =
-          eitherMonad.ap(evalKind, fKindLeft);
+      var rightSide = eitherMonad.ap(evalKind, fKind);
+      var rightSideFuncLeft = eitherMonad.ap(evalKind, fKindLeft);
 
       assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideFuncLeft))
-          .isEqualTo(unwrap(rightSideFuncLeft)); // Check Left propagation
+      assertThat(unwrap(leftSideFuncLeft)).isEqualTo(unwrap(rightSideFuncLeft));
     }
 
     @Test
@@ -386,44 +374,40 @@ class EitherMonadTest {
               Function<String, String>,
               Function<Function<Integer, String>, Function<Integer, String>>>
           composeMap =
-              g ->
-                  f ->
-                      g.compose(
-                          f); // (String -> String) -> (Integer -> String) -> (Integer -> String)
+              g -> g::compose; // (String -> String) -> (Integer -> String) -> (Integer -> String)
 
-      Kind<EitherKind<TestError, ?>, Integer> value = right(10);
+      Kind<EitherKind.Witness<TestError>, Integer> value = right(10);
 
       // Left side: ap(ap(map(composeMap, gKind), fKind), value)
-      Kind<EitherKind<TestError, ?>, Function<Function<Integer, String>, Function<Integer, String>>>
+      Kind<
+              EitherKind.Witness<TestError>,
+              Function<Function<Integer, String>, Function<Integer, String>>>
           mappedCompose = eitherMonad.map(composeMap, gKind);
-      Kind<EitherKind<TestError, ?>, Function<Integer, String>> ap1 =
+      Kind<EitherKind.Witness<TestError>, Function<Integer, String>> ap1 =
           eitherMonad.ap(mappedCompose, fKind);
-      Kind<EitherKind<TestError, ?>, String> leftSide = eitherMonad.ap(ap1, value);
+      var leftSide = eitherMonad.ap(ap1, value);
 
       // Right side: ap(gKind, ap(fKind, value))
-      Kind<EitherKind<TestError, ?>, String> innerAp = eitherMonad.ap(fKind, value);
-      Kind<EitherKind<TestError, ?>, String> rightSide = eitherMonad.ap(gKind, innerAp);
+      var innerAp = eitherMonad.ap(fKind, value);
+      var rightSide = eitherMonad.ap(gKind, innerAp);
 
       assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
 
       // Test with Left propagation
-      Kind<EitherKind<TestError, ?>, String> leftSideGLeft =
+      var leftSideGLeft =
           eitherMonad.ap(eitherMonad.ap(eitherMonad.map(composeMap, gKindLeft), fKind), value);
-      Kind<EitherKind<TestError, ?>, String> rightSideGLeft =
-          eitherMonad.ap(gKindLeft, eitherMonad.ap(fKind, value));
+      var rightSideGLeft = eitherMonad.ap(gKindLeft, eitherMonad.ap(fKind, value));
       assertThat(unwrap(leftSideGLeft)).isEqualTo(unwrap(rightSideGLeft));
 
-      Kind<EitherKind<TestError, ?>, String> leftSideFLeft =
+      var leftSideFLeft =
           eitherMonad.ap(eitherMonad.ap(eitherMonad.map(composeMap, gKind), fKindLeft), value);
-      Kind<EitherKind<TestError, ?>, String> rightSideFLeft =
-          eitherMonad.ap(gKind, eitherMonad.ap(fKindLeft, value));
+      var rightSideFLeft = eitherMonad.ap(gKind, eitherMonad.ap(fKindLeft, value));
       assertThat(unwrap(leftSideFLeft)).isEqualTo(unwrap(rightSideFLeft));
 
-      Kind<EitherKind<TestError, ?>, Integer> valueLeft = left("VAL_ERR");
-      Kind<EitherKind<TestError, ?>, String> leftSideValLeft =
+      Kind<EitherKind.Witness<TestError>, Integer> valueLeft = left("VAL_ERR");
+      var leftSideValLeft =
           eitherMonad.ap(eitherMonad.ap(eitherMonad.map(composeMap, gKind), fKind), valueLeft);
-      Kind<EitherKind<TestError, ?>, String> rightSideValLeft =
-          eitherMonad.ap(gKind, eitherMonad.ap(fKind, valueLeft));
+      var rightSideValLeft = eitherMonad.ap(gKind, eitherMonad.ap(fKind, valueLeft));
       assertThat(unwrap(leftSideValLeft)).isEqualTo(unwrap(rightSideValLeft));
     }
   }
@@ -433,20 +417,20 @@ class EitherMonadTest {
   class MonadLaws {
 
     int value = 5;
-    Kind<EitherKind<TestError, ?>, Integer> mValue = right(value);
-    Kind<EitherKind<TestError, ?>, Integer> mValueLeft = left("M_ERR");
+    Kind<EitherKind.Witness<TestError>, Integer> mValue = right(value);
+    Kind<EitherKind.Witness<TestError>, Integer> mValueLeft = left("M_ERR");
 
     // Function a -> M b (Integer -> Kind<..., String>)
-    Function<Integer, Kind<EitherKind<TestError, ?>, String>> f = i -> right("v" + i);
+    Function<Integer, Kind<EitherKind.Witness<TestError>, String>> f = i -> right("v" + i);
     // Function b -> M c (String -> Kind<..., String>)
-    Function<String, Kind<EitherKind<TestError, ?>, String>> g = s -> right(s + "!");
+    Function<String, Kind<EitherKind.Witness<TestError>, String>> g = s -> right(s + "!");
 
     @Test
     @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
-      Kind<EitherKind<TestError, ?>, Integer> ofValue = eitherMonad.of(value);
-      Kind<EitherKind<TestError, ?>, String> leftSide = eitherMonad.flatMap(f, ofValue);
-      Kind<EitherKind<TestError, ?>, String> rightSide = f.apply(value);
+      var ofValue = eitherMonad.of(value);
+      var leftSide = eitherMonad.flatMap(f, ofValue);
+      var rightSide = f.apply(value);
 
       assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
     }
@@ -455,10 +439,10 @@ class EitherMonadTest {
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
       // Function a -> Kind<..., a>
-      Function<Integer, Kind<EitherKind<TestError, ?>, Integer>> ofFunc = i -> eitherMonad.of(i);
+      Function<Integer, Kind<EitherKind.Witness<TestError>, Integer>> ofFunc = eitherMonad::of;
 
-      Kind<EitherKind<TestError, ?>, Integer> leftSide = eitherMonad.flatMap(ofFunc, mValue);
-      Kind<EitherKind<TestError, ?>, Integer> leftSideLeft =
+      Kind<EitherKind.Witness<TestError>, Integer> leftSide = eitherMonad.flatMap(ofFunc, mValue);
+      Kind<EitherKind.Witness<TestError>, Integer> leftSideLeft =
           eitherMonad.flatMap(ofFunc, mValueLeft);
 
       assertThat(unwrap(leftSide)).isEqualTo(unwrap(mValue));
@@ -469,24 +453,21 @@ class EitherMonadTest {
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
       // Left Side: flatMap(flatMap(m, f), g)
-      Kind<EitherKind<TestError, ?>, String> innerFlatMap = eitherMonad.flatMap(f, mValue);
-      Kind<EitherKind<TestError, ?>, String> leftSide = eitherMonad.flatMap(g, innerFlatMap);
+      var innerFlatMap = eitherMonad.flatMap(f, mValue);
+      var leftSide = eitherMonad.flatMap(g, innerFlatMap);
 
       // Right Side: flatMap(m, a -> flatMap(f(a), g))
-      Function<Integer, Kind<EitherKind<TestError, ?>, String>> rightSideFunc =
+      Function<Integer, Kind<EitherKind.Witness<TestError>, String>> rightSideFunc =
           a -> eitherMonad.flatMap(g, f.apply(a));
-      Kind<EitherKind<TestError, ?>, String> rightSide = eitherMonad.flatMap(rightSideFunc, mValue);
+      var rightSide = eitherMonad.flatMap(rightSideFunc, mValue);
 
       assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
 
       // Check Left propagation
-      Kind<EitherKind<TestError, ?>, String> innerFlatMapLeft =
-          eitherMonad.flatMap(f, mValueLeft); // Should be Left
-      Kind<EitherKind<TestError, ?>, String> leftSideLeft =
-          eitherMonad.flatMap(g, innerFlatMapLeft); // Should be Left
+      var innerFlatMapLeft = eitherMonad.flatMap(f, mValueLeft); // Should be Left
+      var leftSideLeft = eitherMonad.flatMap(g, innerFlatMapLeft); // Should be Left
 
-      Kind<EitherKind<TestError, ?>, String> rightSideLeft =
-          eitherMonad.flatMap(rightSideFunc, mValueLeft); // Should be Left
+      var rightSideLeft = eitherMonad.flatMap(rightSideFunc, mValueLeft); // Should be Left
 
       assertThat(unwrap(leftSideLeft)).isEqualTo(unwrap(rightSideLeft));
     }
@@ -498,22 +479,22 @@ class EitherMonadTest {
   @DisplayName("mapN tests")
   class MapNTests {
 
-    Kind<EitherKind<TestError, ?>, Integer> r1 = right(10);
-    Kind<EitherKind<TestError, ?>, String> r2 = right("hello");
-    Kind<EitherKind<TestError, ?>, Double> r3 = right(1.5);
-    Kind<EitherKind<TestError, ?>, Boolean> r4 = right(true);
+    Kind<EitherKind.Witness<TestError>, Integer> r1 = right(10);
+    Kind<EitherKind.Witness<TestError>, String> r2 = right("hello");
+    Kind<EitherKind.Witness<TestError>, Double> r3 = right(1.5);
+    Kind<EitherKind.Witness<TestError>, Boolean> r4 = right(true);
 
-    Kind<EitherKind<TestError, ?>, Integer> l1 = left("L1");
-    Kind<EitherKind<TestError, ?>, String> l2 = left("L2");
-    Kind<EitherKind<TestError, ?>, Double> l3 = left("L3");
-    Kind<EitherKind<TestError, ?>, Boolean> l4 = left("L4");
+    Kind<EitherKind.Witness<TestError>, Integer> l1 = left("L1");
+    Kind<EitherKind.Witness<TestError>, String> l2 = left("L2");
+    Kind<EitherKind.Witness<TestError>, Double> l3 = left("L3");
+    Kind<EitherKind.Witness<TestError>, Boolean> l4 = left("L4");
 
     @Test
     void map3_allRight() {
       Function3<Integer, String, Double, String> f3 =
           (i, s, d) -> String.format("I:%d S:%s D:%.1f", i, s, d);
 
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map3(r1, r2, r3, f3);
+      var result = eitherMonad.map3(r1, r2, r3, f3);
 
       assertThat(unwrap(result).isRight()).isTrue();
       assertThat(unwrap(result).getRight()).isEqualTo("I:10 S:hello D:1.5");
@@ -522,7 +503,7 @@ class EitherMonadTest {
     @Test
     void map3_firstLeft() {
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map3(l1, r2, r3, f3);
+      var result = eitherMonad.map3(l1, r2, r3, f3);
       assertThat(unwrap(result).isLeft()).isTrue();
       assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L1"));
     }
@@ -530,7 +511,7 @@ class EitherMonadTest {
     @Test
     void map3_middleLeft() {
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map3(r1, l2, r3, f3);
+      var result = eitherMonad.map3(r1, l2, r3, f3);
       assertThat(unwrap(result).isLeft()).isTrue();
       assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L2"));
     }
@@ -538,7 +519,7 @@ class EitherMonadTest {
     @Test
     void map3_lastLeft() {
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map3(r1, r2, l3, f3);
+      var result = eitherMonad.map3(r1, r2, l3, f3);
       assertThat(unwrap(result).isLeft()).isTrue();
       assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L3"));
     }
@@ -548,7 +529,7 @@ class EitherMonadTest {
       Function4<Integer, String, Double, Boolean, String> f4 =
           (i, s, d, b) -> String.format("I:%d S:%s D:%.1f B:%b", i, s, d, b);
 
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map4(r1, r2, r3, r4, f4);
+      var result = eitherMonad.map4(r1, r2, r3, r4, f4);
 
       assertThat(unwrap(result).isRight()).isTrue();
       assertThat(unwrap(result).getRight()).isEqualTo("I:10 S:hello D:1.5 B:true");
@@ -557,7 +538,7 @@ class EitherMonadTest {
     @Test
     void map4_firstLeft() {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map4(l1, r2, r3, r4, f4);
+      var result = eitherMonad.map4(l1, r2, r3, r4, f4);
       assertThat(unwrap(result).isLeft()).isTrue();
       assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L1"));
     }
@@ -565,7 +546,7 @@ class EitherMonadTest {
     @Test
     void map4_middleLeft() {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map4(r1, l2, r3, r4, f4);
+      var result = eitherMonad.map4(r1, l2, r3, r4, f4);
       assertThat(unwrap(result).isLeft()).isTrue();
       assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L2"));
     }
@@ -575,7 +556,7 @@ class EitherMonadTest {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
 
       // Inputs: Right, Right, Left, Right (fd doesn't matter here)
-      Kind<EitherKind<TestError, ?>, String> result =
+      var result =
           eitherMonad.map4(
               r1, // Right(10)
               r2, // Right("hello")
@@ -591,7 +572,7 @@ class EitherMonadTest {
     @Test
     void map4_lastLeft() {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
-      Kind<EitherKind<TestError, ?>, String> result = eitherMonad.map4(r1, r2, r3, l4, f4);
+      var result = eitherMonad.map4(r1, r2, r3, l4, f4);
       assertThat(unwrap(result).isLeft()).isTrue();
       assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L4"));
     }
@@ -601,10 +582,11 @@ class EitherMonadTest {
   @DisplayName("MonadError tests")
   class MonadErrorTests {
 
-    Kind<EitherKind<TestError, ?>, Integer> rightVal = right(100);
-    Kind<EitherKind<TestError, ?>, Integer> leftVal = left("E404");
+    Kind<EitherKind.Witness<TestError>, Integer> rightVal = right(100);
+    Kind<EitherKind.Witness<TestError>, Integer> leftVal = left("E404");
     TestError raisedError = new TestError("E500");
-    Kind<EitherKind<TestError, ?>, Integer> raisedErrorKind = eitherMonad.raiseError(raisedError);
+    Kind<EitherKind.Witness<TestError>, Integer> raisedErrorKind =
+        eitherMonad.raiseError(raisedError);
 
     @Test
     void raiseError_shouldCreateLeft() {
@@ -615,10 +597,10 @@ class EitherMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleLeft() {
-      Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> handler =
+      Function<TestError, Kind<EitherKind.Witness<TestError>, Integer>> handler =
           err -> right(Integer.parseInt(err.code().substring(1))); // "E404" -> Right(404)
 
-      Kind<EitherKind<TestError, ?>, Integer> result =
+      Kind<EitherKind.Witness<TestError>, Integer> result =
           eitherMonad.handleErrorWith(leftVal, handler);
 
       assertThat(unwrap(result).isRight()).isTrue();
@@ -627,10 +609,10 @@ class EitherMonadTest {
 
     @Test
     void handleErrorWith_shouldIgnoreRight() {
-      Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> handler =
+      Function<TestError, Kind<EitherKind.Witness<TestError>, Integer>> handler =
           err -> right(-1); // Should not be called
 
-      Kind<EitherKind<TestError, ?>, Integer> result =
+      Kind<EitherKind.Witness<TestError>, Integer> result =
           eitherMonad.handleErrorWith(rightVal, handler);
 
       assertThat(result).isSameAs(rightVal); // Should return original Kind instance
@@ -642,7 +624,8 @@ class EitherMonadTest {
     void handleError_shouldHandleLeftWithPureValue() {
       Function<TestError, Integer> handler = err -> -99;
 
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.handleError(leftVal, handler);
+      Kind<EitherKind.Witness<TestError>, Integer> result =
+          eitherMonad.handleError(leftVal, handler);
 
       assertThat(unwrap(result).isRight()).isTrue();
       assertThat(unwrap(result).getRight()).isEqualTo(-99);
@@ -652,7 +635,8 @@ class EitherMonadTest {
     void handleError_shouldIgnoreRight() {
       Function<TestError, Integer> handler = err -> -1; // Should not be called
 
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.handleError(rightVal, handler);
+      Kind<EitherKind.Witness<TestError>, Integer> result =
+          eitherMonad.handleError(rightVal, handler);
 
       assertThat(result).isSameAs(rightVal); // Should return original Kind instance
       assertThat(unwrap(result).isRight()).isTrue();
@@ -661,37 +645,39 @@ class EitherMonadTest {
 
     @Test
     void recoverWith_shouldReplaceLeftWithFallbackKind() {
-      Kind<EitherKind<TestError, ?>, Integer> fallback = right(0);
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.recoverWith(leftVal, fallback);
+      Kind<EitherKind.Witness<TestError>, Integer> fallback = right(0);
+      Kind<EitherKind.Witness<TestError>, Integer> result =
+          eitherMonad.recoverWith(leftVal, fallback);
       assertThat(result).isSameAs(fallback);
     }
 
     @Test
     void recoverWith_shouldIgnoreRight() {
-      Kind<EitherKind<TestError, ?>, Integer> fallback = right(0);
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.recoverWith(rightVal, fallback);
+      Kind<EitherKind.Witness<TestError>, Integer> fallback = right(0);
+      Kind<EitherKind.Witness<TestError>, Integer> result =
+          eitherMonad.recoverWith(rightVal, fallback);
       assertThat(result).isSameAs(rightVal);
     }
 
     @Test
     void recover_shouldReplaceLeftWithOfValue() {
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.recover(leftVal, 0);
+      Kind<EitherKind.Witness<TestError>, Integer> result = eitherMonad.recover(leftVal, 0);
       assertThat(unwrap(result).isRight()).isTrue();
       assertThat(unwrap(result).getRight()).isEqualTo(0);
     }
 
     @Test
     void recover_shouldIgnoreRight() {
-      Kind<EitherKind<TestError, ?>, Integer> result = eitherMonad.recover(rightVal, 0);
+      Kind<EitherKind.Witness<TestError>, Integer> result = eitherMonad.recover(rightVal, 0);
       assertThat(result).isSameAs(rightVal);
     }
 
     @Test
     @DisplayName("handleErrorWith should propagate exception thrown by handler function")
     void handleErrorWith_shouldPropagateHandlerException() {
-      Kind<EitherKind<TestError, ?>, Integer> leftVal = left("E1");
+      Kind<EitherKind.Witness<TestError>, Integer> leftVal = left("E1");
       RuntimeException handlerException = new RuntimeException("Handler failed!");
-      Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> throwingHandler =
+      Function<TestError, Kind<EitherKind.Witness<TestError>, Integer>> throwingHandler =
           err -> {
             throw handlerException;
           };
@@ -706,13 +692,14 @@ class EitherMonadTest {
     @DisplayName(
         "handleErrorWith should result in Exception when unwrapping null Kind from handler")
     void handleErrorWith_shouldThrowWhenUnwrappingNullHandlerResult() {
-      Kind<EitherKind<TestError, ?>, Integer> leftVal = left("E1"); // Assuming left() helper exists
+      Kind<EitherKind.Witness<TestError>, Integer> leftVal =
+          left("E1"); // Assuming left() helper exists
       // Handler function explicitly returns null Kind
-      Function<TestError, Kind<EitherKind<TestError, ?>, Integer>> nullReturningHandler =
+      Function<TestError, Kind<EitherKind.Witness<TestError>, Integer>> nullReturningHandler =
           err -> null;
 
       // Call the method under test
-      Kind<EitherKind<TestError, ?>, Integer> resultKind =
+      Kind<EitherKind.Witness<TestError>, Integer> resultKind =
           eitherMonad.handleErrorWith(leftVal, nullReturningHandler);
 
       // Assert that the resultKind itself is null (because the handler returned null)

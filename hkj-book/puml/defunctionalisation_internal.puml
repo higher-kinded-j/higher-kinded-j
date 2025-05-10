@@ -1,0 +1,30 @@
+@startuml defunctionalisation_internal
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+
+package "Defunctionalisation Pattern For Library-Defined Types (Id, Maybe, IO, Transformers)" {
+
+
+    interface "IdKind<A>" as IdKindInterface extends Kind<Id.Witness, A> {
+        class Witness {} ' Nested phantom Witness type
+    }
+    ' Id<A> itself implements IdKind<A>
+    class "Id<A>(value: A)" as IdRecord implements IdKindInterface {
+    }
+    IdRecord --|> IdKindInterface
+
+    class "IdKindHelper" as IdKindHelper {
+        + {static} wrap(id: Id<A>): Kind<Id.Witness, A>
+        + {static} unwrap(kind: Kind<Id.Witness, A>): Id<A>
+    }
+    IdKindHelper ..> IdRecord : "casts to/from"
+
+    class "IdentityMonad" as IdentityMonad implements Monad<Id.Witness> {
+        ' Uses IdKindHelper
+    }
+    IdentityMonad ..> IdKindHelper : "uses"
+
+}
+@enduml
+

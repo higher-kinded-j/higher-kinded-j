@@ -2,7 +2,6 @@ package org.higherkindedj.hkt.trans.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.unwrap;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -21,10 +20,10 @@ import org.junit.jupiter.api.Test;
  * Direct tests for the StateT<S, F, A> implementation, specifically with F = OptionalKind<?> and S
  * = Integer.
  */
-@DisplayName("StateT<Integer, OptionalKind, A> Direct Tests")
+@DisplayName("StateT<Integer, OptionalKind.Witness, A> Direct Tests") // MODIFIED
 class StateTTest {
 
-  private Monad<OptionalKind<?>> optMonad;
+  private Monad<OptionalKind.Witness> optMonad;
   private final Integer initialState = 10;
 
   @BeforeEach
@@ -34,25 +33,23 @@ class StateTTest {
 
   // Helper to run and unwrap the outer Optional
   private <A> Optional<StateTuple<Integer, A>> runOptStateT(
-      StateT<Integer, OptionalKind<?>, A> stateT, Integer startState) {
-
-    Kind<OptionalKind<?>, StateTuple<Integer, A>> resultKind = stateT.runStateT(startState);
-    return unwrap(resultKind);
+      StateT<Integer, OptionalKind.Witness, A> stateT, Integer startState) {
+    Kind<OptionalKind.Witness, StateTuple<Integer, A>> resultKind = stateT.runStateT(startState);
+    return OptionalKindHelper.unwrap(resultKind);
   }
 
   // Helper to run and unwrap just the value from the outer Optional
   private <A> Optional<A> runOptEvalStateT(
-      StateT<Integer, OptionalKind<?>, A> stateT, Integer startState) {
-
-    Kind<OptionalKind<?>, A> resultKind = stateT.evalStateT(startState);
-    return unwrap(resultKind);
+      StateT<Integer, OptionalKind.Witness, A> stateT, Integer startState) {
+    Kind<OptionalKind.Witness, A> resultKind = stateT.evalStateT(startState);
+    return OptionalKindHelper.unwrap(resultKind);
   }
 
   // Helper to run and unwrap just the state from the outer Optional
   private Optional<Integer> runOptExecStateT(
-      StateT<Integer, OptionalKind<?>, ?> stateT, Integer startState) {
-    Kind<OptionalKind<?>, Integer> resultKind = stateT.execStateT(startState);
-    return unwrap(resultKind);
+      StateT<Integer, OptionalKind.Witness, ?> stateT, Integer startState) {
+    Kind<OptionalKind.Witness, Integer> resultKind = stateT.execStateT(startState);
+    return OptionalKindHelper.unwrap(resultKind);
   }
 
   @Nested
@@ -60,13 +57,15 @@ class StateTTest {
   class CreateTests {
     @Test
     void create_shouldStoreRunFunctionAndMonad() {
-      Function<Integer, Kind<OptionalKind<?>, StateTuple<Integer, String>>> runFn =
+      Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
           s -> optMonad.of(StateTuple.of(s + 1, "Val:" + s));
-      StateT<Integer, OptionalKind<?>, String> stateT =
-          StateT.<Integer, OptionalKind<?>, String>create(runFn, optMonad);
+      StateT<Integer, OptionalKind.Witness, String> stateT =
+          StateT.<Integer, OptionalKind.Witness, String>create(runFn, optMonad);
 
-      Optional<StateTuple<Integer, String>> expectedResult = unwrap(runFn.apply(initialState));
-      Optional<StateTuple<Integer, String>> actualResult = unwrap(stateT.runStateT(initialState));
+      Optional<StateTuple<Integer, String>> expectedResult =
+          OptionalKindHelper.unwrap(runFn.apply(initialState));
+      Optional<StateTuple<Integer, String>> actualResult =
+          OptionalKindHelper.unwrap(stateT.runStateT(initialState));
 
       assertThat(actualResult).isEqualTo(expectedResult);
       assertThat(runOptEvalStateT(stateT, initialState)).isPresent().contains("Val:10");
@@ -82,7 +81,7 @@ class StateTTest {
 
     @Test
     void create_shouldThrowNPEForNullMonad() {
-      Function<Integer, Kind<OptionalKind<?>, StateTuple<Integer, String>>> runFn =
+      Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
           s -> optMonad.of(StateTuple.of(s, "val"));
       assertThatNullPointerException()
           .isThrownBy(() -> StateT.create(runFn, null))
@@ -94,29 +93,30 @@ class StateTTest {
   @DisplayName("Instance Methods: runStateT, evalStateT, execStateT")
   class RunEvalExecTests {
 
-    private StateT<Integer, OptionalKind<?>, String> stateT_Inc;
-    private StateT<Integer, OptionalKind<?>, String> stateT_Empty;
+    private StateT<Integer, OptionalKind.Witness, String> stateT_Inc;
+    private StateT<Integer, OptionalKind.Witness, String> stateT_Empty;
 
     @BeforeEach
     void setUpNested() {
-      // Initialize here, after outer optMonad is set
       stateT_Inc =
-          StateT.<Integer, OptionalKind<?>, String>create(
+          StateT.<Integer, OptionalKind.Witness, String>create(
               s -> optMonad.of(StateTuple.of(s + 1, "V" + s)), optMonad);
       stateT_Empty =
-          StateT.<Integer, OptionalKind<?>, String>create(
+          StateT.<Integer, OptionalKind.Witness, String>create(
               s -> OptionalKindHelper.wrap(Optional.empty()), optMonad);
     }
 
     @Test
     void runStateT_shouldExecuteFunctionAndReturnResultKind() {
-      Kind<OptionalKind<?>, StateTuple<Integer, String>> resultKindInc =
+      Kind<OptionalKind.Witness, StateTuple<Integer, String>> resultKindInc =
           stateT_Inc.runStateT(initialState); // 10
-      assertThat(unwrap(resultKindInc)).isPresent().contains(StateTuple.of(11, "V10"));
+      assertThat(OptionalKindHelper.unwrap(resultKindInc))
+          .isPresent()
+          .contains(StateTuple.of(11, "V10"));
 
-      Kind<OptionalKind<?>, StateTuple<Integer, String>> resultKindEmpty =
+      Kind<OptionalKind.Witness, StateTuple<Integer, String>> resultKindEmpty =
           stateT_Empty.runStateT(initialState);
-      assertThat(unwrap(resultKindEmpty)).isEmpty();
+      assertThat(OptionalKindHelper.unwrap(resultKindEmpty)).isEmpty();
     }
 
     @Test

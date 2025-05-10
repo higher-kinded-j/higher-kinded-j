@@ -1,148 +1,131 @@
 package org.higherkindedj.hkt.trans.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Optional;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderTKindHelper Tests")
+@DisplayName("ReaderTKindHelper Tests (Outer: OptionalKind.Witness, Env: String)")
 class ReaderTKindHelperTest {
 
-  // Simple Environment for testing
-  record Config(String setting) {}
-
-  final Config testConfig = new Config("test-setting");
-
-  // Outer Monad (F = OptionalKind<?>)
-  private Monad<OptionalKind<?>> outerMonad;
-  private ReaderT<OptionalKind<?>, Config, String> baseReaderT;
+  private Monad<OptionalKind.Witness> outerMonad;
+  // Environment type R_ENV is String for these tests
+  private final String testEnv = "testEnvironment";
 
   @BeforeEach
   void setUp() {
     outerMonad = new OptionalMonad();
-    // Create a base ReaderT for testing wrap/unwrap
-    baseReaderT = ReaderT.of(cfg -> outerMonad.of("Value:" + cfg.setting()));
+  }
+
+  // Helper to create a ReaderT for testing
+  // F = OptionalKind.Witness, R_ENV = String
+  private <A> ReaderT<OptionalKind.Witness, String, A> createReaderT(
+      Function<String, Kind<OptionalKind.Witness, A>> runFn) {
+    return ReaderT.of(runFn);
+  }
+
+  @Test
+  @DisplayName("private constructor should prevent instantiation")
+  void privateConstructor_shouldThrowException() {
+    assertThatThrownBy(
+            () -> {
+              Constructor<ReaderTKindHelper> constructor =
+                  ReaderTKindHelper.class.getDeclaredConstructor();
+              constructor.setAccessible(true);
+              try {
+                constructor.newInstance();
+              } catch (InvocationTargetException e) {
+                throw e.getCause();
+              }
+            })
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("This is a utility class and cannot be instantiated");
   }
 
   @Nested
-  @DisplayName("wrap()")
+  @DisplayName("wrap() tests")
   class WrapTests {
     @Test
-    void wrap_shouldReturnHolderForReaderT() {
-      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> kind =
-          ReaderTKindHelper.wrap(baseReaderT);
-      assertThat(kind).isInstanceOf(ReaderTKindHelper.ReaderTHolder.class);
-      // Unwrap to verify
-      assertThat(ReaderTKindHelper.unwrap(kind)).isSameAs(baseReaderT);
+    @DisplayName("should wrap a non-null ReaderT into a Kind<ReaderTKind.Witness<F,R>,A>")
+    void wrap_nonNullReaderT_shouldReturnReaderTKind() {
+      ReaderT<OptionalKind.Witness, String, Integer> concreteReaderT =
+          createReaderT(env -> OptionalKindHelper.wrap(Optional.of(env.length())));
+
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
+          ReaderTKindHelper.wrap(concreteReaderT);
+
+      assertThat(wrapped).isNotNull().isInstanceOf(ReaderT.class);
+      assertThat(ReaderTKindHelper.<OptionalKind.Witness, String, Integer>unwrap(wrapped))
+          .isSameAs(concreteReaderT);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> ReaderTKindHelper.wrap(null))
-          .withMessageContaining("Input ReaderT cannot be null");
+    @DisplayName("should throw NullPointerException when wrapping null")
+    void wrap_nullReaderT_shouldThrowNullPointerException() {
+      assertThatThrownBy(() -> ReaderTKindHelper.wrap(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("Input ReaderT cannot be null for wrap");
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
+  @DisplayName("unwrap() tests")
   class UnwrapTests {
     @Test
-    void unwrap_shouldReturnOriginalReaderT() {
-      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> kind =
-          ReaderTKindHelper.wrap(baseReaderT);
-      assertThat(ReaderTKindHelper.unwrap(kind)).isSameAs(baseReaderT);
+    @DisplayName("should unwrap a valid Kind to the original ReaderT instance")
+    void unwrap_validKind_shouldReturnReaderT() {
+      ReaderT<OptionalKind.Witness, String, Integer> originalReaderT =
+          createReaderT(env -> OptionalKindHelper.wrap(Optional.of(env.hashCode())));
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrappedKind =
+          ReaderTKindHelper.wrap(originalReaderT);
+
+      ReaderT<OptionalKind.Witness, String, Integer> unwrappedReaderT =
+          ReaderTKindHelper.unwrap(wrappedKind);
+
+      assertThat(unwrappedReaderT).isSameAs(originalReaderT);
     }
 
-    // Dummy Kind implementation that is not ReaderTHolder
-    record DummyReaderTKind<F, R, A>() implements Kind<ReaderTKind<F, R, ?>, A> {}
-
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> ReaderTKindHelper.unwrap(null))
+    @DisplayName("should throw KindUnwrapException when unwrapping null")
+    void unwrap_nullKind_shouldThrowKindUnwrapException() {
+      assertThatThrownBy(() -> ReaderTKindHelper.<OptionalKind.Witness, String, Object>unwrap(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessage(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
     }
 
+    // Dummy Kind for testing invalid type unwrap
+    // F is outer monad witness, R_ENV is environment type
+    private static class OtherKindWitness<F_Witness, R_ENV_Witness> {}
+
+    private static class OtherKind<F, R_ENV, A> implements Kind<OtherKindWitness<F, R_ENV>, A> {}
+
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
-      // Use specific types for the dummy Kind if necessary
-      Kind<ReaderTKind<OptionalKind<?>, Config, ?>, String> unknownKind = new DummyReaderTKind<>();
-      assertThatThrownBy(() -> ReaderTKindHelper.unwrap(unknownKind))
+    @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
+    void unwrap_incorrectKindType_shouldThrowKindUnwrapException() {
+      class SimpleIncorrectKind<A> implements Kind<SimpleIncorrectKind<?>, A> {}
+      SimpleIncorrectKind<Integer> incorrectKind = new SimpleIncorrectKind<>();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> kindToTest =
+          (Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer>) (Kind) incorrectKind;
+
+      assertThatThrownBy(() -> ReaderTKindHelper.unwrap(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(ReaderTKindHelper.INVALID_KIND_TYPE_MSG);
-    }
-  }
-
-  // Optional: Explicit tests for the Holder record
-  @Nested
-  @DisplayName("ReaderTHolder Record Tests")
-  class HolderRecordTests {
-    // Create some ReaderT instances for comparison
-    ReaderT<OptionalKind<?>, Config, Integer> rt1 =
-        ReaderT.of(cfg -> outerMonad.of(cfg.setting().length()));
-    ReaderT<OptionalKind<?>, Config, Integer> rt2 =
-        ReaderT.of(cfg -> outerMonad.of(cfg.setting().length())); // Same logic, different instance
-    ReaderT<OptionalKind<?>, Config, Integer> rt3 =
-        ReaderT.of(
-            cfg -> outerMonad.of(cfg.setting().hashCode())); // Different logic using existing field
-
-    ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h1a =
-        new ReaderTKindHelper.ReaderTHolder<>(rt1);
-    ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h1b =
-        new ReaderTKindHelper.ReaderTHolder<>(rt1); // Same inner ReaderT instance
-    ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h2 =
-        new ReaderTKindHelper.ReaderTHolder<>(rt2); // Different inner ReaderT instance
-    ReaderTKindHelper.ReaderTHolder<OptionalKind<?>, Config, Integer> h3 =
-        new ReaderTKindHelper.ReaderTHolder<>(rt3); // Different function
-
-    @Test
-    void holderEqualsAndHashCode() {
-      assertThat(h1a).isEqualTo(h1b); // Record equality checks fields (same rt1 instance)
-      assertThat(h1a).hasSameHashCodeAs(h1b);
-
-      // Equality of functional interfaces (rt1 vs rt2) is reference equality
-      assertThat(h1a).isNotEqualTo(h2);
-      assertThat(h1a).isNotEqualTo(h3);
-      assertThat(h1a).isNotEqualTo(null);
-      assertThat(h1a).isNotEqualTo(rt1); // Different type
-    }
-
-    @Test
-    void holderToString() {
-      // Check that toString includes the inner ReaderT's representation
-      assertThat(h1a.toString()).startsWith("ReaderTHolder[readerT=ReaderT[run=");
-      // Note: Comparing lambda toString is unreliable, just check structure
-      // assertThat(h1a.toString()).contains(rt1.run().toString());
-      assertThat(h1a.toString()).endsWith("]]");
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<ReaderTKindHelper> constructor = ReaderTKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
+          .hasMessageStartingWith(ReaderTKindHelper.INVALID_KIND_TYPE_MSG)
+          .hasMessageContaining(SimpleIncorrectKind.class.getName());
     }
   }
 }

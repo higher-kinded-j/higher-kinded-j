@@ -10,29 +10,66 @@ import org.higherkindedj.hkt.Monad;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Implements the {@link Monad}, {@link Applicative}, and {@link Functor} interfaces for the {@link
+ * Lazy} type, using {@link LazyKind.Witness} as its higher-kinded type witness.
+ *
+ * <p>This class provides the standard monadic operations (map, flatMap, of/pure, ap) for {@link
+ * Lazy} computations, allowing them to be used in generic functional programming contexts that
+ * operate over HKTs.
+ *
+ * @see Lazy
+ * @see LazyKind
+ * @see LazyKind.Witness
+ * @see LazyKindHelper
+ */
 public class LazyMonad
-    implements Monad<LazyKind<?>>, Applicative<LazyKind<?>>, Functor<LazyKind<?>> {
+    implements Monad<LazyKind.Witness>, Applicative<LazyKind.Witness>, Functor<LazyKind.Witness> {
 
-  // Functor map
+  /**
+   * Maps a function over a {@code Kind<LazyKind.Witness, A>}.
+   *
+   * @param <A> The input type.
+   * @param <B> The output type.
+   * @param f The function to map.
+   * @param fa The {@code Kind<LazyKind.Witness, A>} to map over.
+   * @return A new {@code Kind<LazyKind.Witness, B>} containing the result of applying the function.
+   */
   @Override
-  public <A, B> @NonNull Kind<LazyKind<?>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<LazyKind<?>, A> fa) {
+  public <A, B> @NonNull Kind<LazyKind.Witness, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<LazyKind.Witness, A> fa) {
     Lazy<A> lazyA = unwrap(fa);
     Lazy<B> lazyB = lazyA.map(f); // Use Lazy's map
     return wrap(lazyB);
   }
 
-  // Applicative of/pure
+  /**
+   * Lifts a value into a {@code Kind<LazyKind.Witness, A>}. For {@link Lazy}, this creates an
+   * already evaluated {@code Lazy} instance.
+   *
+   * @param <A> The type of the value.
+   * @param value The value to lift.
+   * @return A {@code Kind<LazyKind.Witness, A>} containing the value.
+   */
   @Override
-  public <A> @NonNull Kind<LazyKind<?>, A> of(@Nullable A value) {
+  public <A> @NonNull Kind<LazyKind.Witness, A> of(@Nullable A value) {
     // 'of'/'pure' creates a Lazy that is already evaluated
     return wrap(Lazy.now(value));
   }
 
-  // Applicative ap
+  /**
+   * Applies a function wrapped in a {@code Kind<LazyKind.Witness, Function<A, B>>} to a value
+   * wrapped in a {@code Kind<LazyKind.Witness, A>}.
+   *
+   * @param <A> The input type of the function.
+   * @param <B> The output type of the function.
+   * @param ff The {@code Kind<LazyKind.Witness, Function<A, B>>} containing the function.
+   * @param fa The {@code Kind<LazyKind.Witness, A>} containing the value.
+   * @return A new {@code Kind<LazyKind.Witness, B>} containing the result.
+   */
   @Override
-  public <A, B> @NonNull Kind<LazyKind<?>, B> ap(
-      @NonNull Kind<LazyKind<?>, Function<A, B>> ff, @NonNull Kind<LazyKind<?>, A> fa) {
+  public <A, B> @NonNull Kind<LazyKind.Witness, B> ap(
+      @NonNull Kind<LazyKind.Witness, Function<A, B>> ff, @NonNull Kind<LazyKind.Witness, A> fa) {
     Lazy<Function<A, B>> lazyF = unwrap(ff);
     Lazy<A> lazyA = unwrap(fa);
 
@@ -41,10 +78,20 @@ public class LazyMonad
     return wrap(lazyB);
   }
 
-  // Monad flatMap
+  /**
+   * Sequentially composes two actions, passing the result of the first into a function that
+   * produces the second.
+   *
+   * @param <A> The input type of the first action.
+   * @param <B> The output type of the second action.
+   * @param f The function that takes the result of the first action and returns a {@code
+   *     Kind<LazyKind.Witness, B>}.
+   * @param ma The first action as a {@code Kind<LazyKind.Witness, A>}.
+   * @return A new {@code Kind<LazyKind.Witness, B>} representing the composed action.
+   */
   @Override
-  public <A, B> @NonNull Kind<LazyKind<?>, B> flatMap(
-      @NonNull Function<A, Kind<LazyKind<?>, B>> f, @NonNull Kind<LazyKind<?>, A> ma) {
+  public <A, B> @NonNull Kind<LazyKind.Witness, B> flatMap(
+      @NonNull Function<A, Kind<LazyKind.Witness, B>> f, @NonNull Kind<LazyKind.Witness, A> ma) {
     Lazy<A> lazyA = unwrap(ma);
 
     // Adapt the function for Lazy's flatMap

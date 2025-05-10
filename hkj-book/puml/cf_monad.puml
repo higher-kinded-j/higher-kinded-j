@@ -1,49 +1,26 @@
-@startuml CompletableFuture Monad Hierarchy
+@startuml cf_monad
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+hide empty members
 
-!define CFKind CompletableFutureKind<?>
+class CompletableFutureKindHelper {}
 
-interface Kind<F, A>
-interface "CFKind<A> extends Kind<CFKind, A>"
-
-interface Functor<F> {
-  + Kind<F, B> map(Function<A, B>, Kind<F, A>)
-}
-interface Applicative<F> extends Functor<F> {
-  + Kind<F, A> of(A)
-  + Kind<F, B> ap(Kind<F, Function<A, B>>, Kind<F, A>)
-}
-interface Monad<F> extends Applicative<F> {
-  + Kind<F, B> flatMap(Function<A, Kind<F, B>>, Kind<F, A>)
-}
-interface MonadError<F, E> extends Monad<F> {
-  + Kind<F, A> raiseError(E)
-  + Kind<F, A> handleErrorWith(Kind<F, A>, Function<E, Kind<F, A>>)
-}
-
-class CompletableFutureKindHelper {
- {static} CFKind<A> wrap(CompletableFuture<A>)
- {static} CompletableFuture<A> unwrap(Kind<CFKind, A>)
- ' ...
-}
-
-class CompletableFutureFunctor implements Functor<CFKind> {
- + Kind<CFKind, B> map(Function<A, B>, Kind<CFKind, A>)
+class CompletableFutureFunctor implements Functor<CompletableFutureKind<?>> {
+ + Kind<CFK, B> map(Function<A, B>, Kind<CFK, A>) ' CFK = CompletableFutureKind<?>
 }
 CompletableFutureFunctor ..> CompletableFutureKindHelper : uses
 
-class CompletableFutureApplicative extends CompletableFutureFunctor implements Applicative<CFKind> {
-  + Kind<CFKind, A> of(A)
-  + Kind<CFKind, B> ap(Kind<CFKind, Function<A, B>>, Kind<CFKind, A>)
+class CompletableFutureApplicative extends CompletableFutureFunctor implements Applicative<CompletableFutureKind.Witness> {
+  + Kind<CFK, A> of(A)
+  + Kind<CFK, B> ap(Kind<CFK, Function<A, B>>, Kind<CFK, A>)
 }
 
-class CompletableFutureMonad extends CompletableFutureApplicative implements Monad<CFKind> {
- ' Uses inherited flatMap or provides specific impl
+class CompletableFutureMonad extends CompletableFutureApplicative implements Monad<CompletableFutureKind<?>> {
+ + Kind<CFK, B> flatMap(Function<A, Kind<CFK, B>>, Kind<CFK, A>)
 }
 
-class CompletableFutureMonadError extends CompletableFutureMonad implements MonadError<CFKind, Throwable> {
-  + Kind<CFKind, A> raiseError(Throwable)
-  + Kind<CFKind, A> handleErrorWith(Kind<CFKind, A>, Function<Throwable, Kind<CFKind, A>>)
+class CompletableFutureMonadError extends CompletableFutureMonad implements MonadError<CompletableFutureKind.Witness, Throwable> {
+  + Kind<CFK, A> raiseError(Throwable)
+  + Kind<CFK, A> handleErrorWith(Kind<CFK, A>, Function<Throwable, Kind<CFK, A>>)
 }
 
 @enduml

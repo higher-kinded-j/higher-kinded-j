@@ -8,38 +8,50 @@ import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-public class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
+/**
+ * Implements the {@link Applicative} interface for {@link Try}, using {@link TryKind.Witness}. It
+ * extends {@link TryFunctor}.
+ *
+ * @see Try
+ * @see TryKind.Witness
+ * @see TryFunctor
+ */
+public class TryApplicative extends TryFunctor implements Applicative<TryKind.Witness> {
 
+  /**
+   * Lifts a value into a successful {@code Try} context, represented as {@code
+   * Kind<TryKind.Witness, A>}.
+   *
+   * @param <A> The type of the value.
+   * @param value The value to lift. Can be {@code null}.
+   * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.success(value)}.
+   */
   @Override
-  public <A> @NonNull Kind<TryKind<?>, A> of(@Nullable A value) {
-    // Lifts a pure value into a Success context.
-    return wrap(Try.success(value)); // Try.success allows null
-    // Note: Try.of(() -> value) could also be used if you wanted to
-    // potentially catch issues even during simple lifting, but standard 'of'
-    // usually just wraps a known good value.
+  public <A> @NonNull Kind<TryKind.Witness, A> of(@Nullable A value) {
+    return wrap(Try.success(value));
   }
 
+  /**
+   * Applies a function wrapped in a {@code Kind<TryKind.Witness, Function<A, B>>} to a value
+   * wrapped in a {@code Kind<TryKind.Witness, A>}.
+   *
+   * @param <A> The input type of the function.
+   * @param <B> The output type of the function.
+   * @param ff The {@code Kind<TryKind.Witness, Function<A, B>>} containing the function.
+   * @param fa The {@code Kind<TryKind.Witness, A>} containing the value.
+   * @return A new {@code Kind<TryKind.Witness, B>} resulting from the application. If {@code ff} or
+   *     {@code fa} is a {@link Try.Failure}, or if applying the function in {@code ff} to the value
+   *     in {@code fa} (if both are {@link Try.Success}) results in an exception, then a {@link
+   *     Try.Failure} is returned.
+   */
   @Override
-  public <A, B> @NonNull Kind<TryKind<?>, B> ap(
-      @NonNull Kind<TryKind<?>, Function<A, B>> ff, @NonNull Kind<TryKind<?>, A> fa) {
-    Try<Function<A, B>> tryF = unwrap(ff); // unwrap handles null/invalid ff
-    Try<A> tryA = unwrap(fa); // unwrap handles null/invalid fa
+  public <A, B> @NonNull Kind<TryKind.Witness, B> ap(
+      @NonNull Kind<TryKind.Witness, Function<A, B>> ff, @NonNull Kind<TryKind.Witness, A> fa) {
+    Try<Function<A, B>> tryF = unwrap(ff);
+    Try<A> tryA = unwrap(fa);
 
-    // Use fold for pattern matching on the function Try
     Try<B> resultTry =
-        tryF.fold(
-            // Case 1: Function is Success(f)
-            f ->
-                tryA.fold(
-                    // Case 1a: Value is Success(a) -> Apply f(a) within a Try
-                    a -> Try.of(() -> f.apply(a)), // Use Try.of to catch exceptions from f.apply(a)
-                    // Case 1b: Value is Failure(e) -> Propagate value's failure
-                    failureA -> Try.failure(failureA) // failureA is NonNull Throwable
-                    ),
-            // Case 2: Function is Failure(e) -> Propagate function's failure
-            failureF -> Try.failure(failureF) // failureF is NonNull Throwable
-            );
-
-    return wrap(resultTry); // resultTry is NonNull
+        tryF.fold(f -> tryA.fold(a -> Try.of(() -> f.apply(a)), Try::failure), Try::failure);
+    return wrap(resultTry);
   }
 }
