@@ -15,21 +15,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderT Class Tests (Outer: Optional, Env: Config)")
+@DisplayName("ReaderT Class Tests (Outer: OptionalKind.Witness, Env: Config)") // MODIFIED
 class ReaderTTest {
 
-  // Simple Environment for testing
   record Config(String setting) {}
 
   final Config testConfig1 = new Config("value1");
   final Config testConfig2 = new Config("value2");
 
-  // Outer Monad (F = OptionalKind<?>)
-  private Monad<OptionalKind<?>> outerMonad;
+  private Monad<OptionalKind.Witness> outerMonad;
 
-  // Helper to run ReaderT and unwrap the result Optional
-  private <A> Optional<A> runReaderT(ReaderT<OptionalKind<?>, Config, A> readerT, Config config) {
-    Kind<OptionalKind<?>, A> resultKind = readerT.run().apply(config);
+  private <A> Optional<A> runReaderT(
+      ReaderT<OptionalKind.Witness, Config, A> readerT, Config config) {
+    Kind<OptionalKind.Witness, A> resultKind = readerT.run().apply(config);
     return OptionalKindHelper.unwrap(resultKind);
   }
 
@@ -45,9 +43,9 @@ class ReaderTTest {
     @Test
     @DisplayName("of should wrap the run function")
     void of_wrapsRunFunction() {
-      Function<Config, Kind<OptionalKind<?>, String>> runFunc =
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc =
           cfg -> OptionalKindHelper.wrap(Optional.of("Computed:" + cfg.setting()));
-      ReaderT<OptionalKind<?>, Config, String> rt = ReaderT.of(runFunc);
+      ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.of(runFunc);
 
       assertThat(rt.run()).isSameAs(runFunc);
       assertThat(runReaderT(rt, testConfig1)).isPresent().contains("Computed:value1");
@@ -64,13 +62,12 @@ class ReaderTTest {
     @Test
     @DisplayName("lift should create ReaderT ignoring env, returning F<A>")
     void lift_ignoresEnv() {
-      Kind<OptionalKind<?>, Integer> outerValue = OptionalKindHelper.wrap(Optional.of(123));
-      Kind<OptionalKind<?>, Integer> outerEmpty = OptionalKindHelper.wrap(Optional.empty());
+      Kind<OptionalKind.Witness, Integer> outerValue = OptionalKindHelper.wrap(Optional.of(123));
+      Kind<OptionalKind.Witness, Integer> outerEmpty = OptionalKindHelper.wrap(Optional.empty());
 
-      ReaderT<OptionalKind<?>, Config, Integer> rtValue = ReaderT.lift(outerMonad, outerValue);
-      ReaderT<OptionalKind<?>, Config, Integer> rtEmpty = ReaderT.lift(outerMonad, outerEmpty);
+      ReaderT<OptionalKind.Witness, Config, Integer> rtValue = ReaderT.lift(outerMonad, outerValue);
+      ReaderT<OptionalKind.Witness, Config, Integer> rtEmpty = ReaderT.lift(outerMonad, outerEmpty);
 
-      // Run with different configs, should always return the lifted Kind<F, A>
       assertThat(rtValue.run().apply(testConfig1)).isSameAs(outerValue);
       assertThat(rtValue.run().apply(testConfig2)).isSameAs(outerValue);
       assertThat(runReaderT(rtValue, testConfig1)).isPresent().contains(123);
@@ -83,7 +80,7 @@ class ReaderTTest {
     @Test
     @DisplayName("lift should throw NullPointerException for null monad or value")
     void lift_throwsOnNulls() {
-      Kind<OptionalKind<?>, Integer> outerValue = OptionalKindHelper.wrap(Optional.of(123));
+      Kind<OptionalKind.Witness, Integer> outerValue = OptionalKindHelper.wrap(Optional.of(123));
       assertThatNullPointerException()
           .isThrownBy(() -> ReaderT.lift(null, outerValue))
           .withMessageContaining("Outer Monad cannot be null");
@@ -96,9 +93,8 @@ class ReaderTTest {
     @DisplayName("reader should lift R -> A into R -> F<A>")
     void reader_liftsFunction() {
       Function<Config, String> plainFunc = cfg -> "Setting: " + cfg.setting();
-      ReaderT<OptionalKind<?>, Config, String> rt = ReaderT.reader(outerMonad, plainFunc);
+      ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.reader(outerMonad, plainFunc);
 
-      // run(r) should yield outerMonad.of(plainFunc.apply(r))
       assertThat(runReaderT(rt, testConfig1)).isPresent().contains("Setting: value1");
       assertThat(runReaderT(rt, testConfig2)).isPresent().contains("Setting: value2");
     }
@@ -107,8 +103,8 @@ class ReaderTTest {
     @DisplayName("reader should lift function returning null into F<Nothing>")
     void reader_liftsFunctionReturningNull() {
       Function<Config, String> nullFunc = cfg -> null;
-      ReaderT<OptionalKind<?>, Config, String> rt = ReaderT.reader(outerMonad, nullFunc);
-      // outerMonad.of(null) -> Optional.empty()
+      ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.reader(outerMonad, nullFunc);
+      // outerMonad.of(null) for OptionalMonad results in Optional.empty()
       assertThat(runReaderT(rt, testConfig1)).isEmpty();
     }
 
@@ -127,7 +123,7 @@ class ReaderTTest {
     @Test
     @DisplayName("ask should create ReaderT returning environment in F")
     void ask_returnsEnvironmentInF() {
-      ReaderT<OptionalKind<?>, Config, Config> rt = ReaderT.ask(outerMonad);
+      ReaderT<OptionalKind.Witness, Config, Config> rt = ReaderT.ask(outerMonad);
       assertThat(runReaderT(rt, testConfig1)).isPresent().containsSame(testConfig1);
       assertThat(runReaderT(rt, testConfig2)).isPresent().containsSame(testConfig2);
     }
@@ -148,8 +144,9 @@ class ReaderTTest {
     @Test
     @DisplayName("run() should return the underlying function")
     void run_returnsFunction() {
-      Function<Config, Kind<OptionalKind<?>, String>> runFunc = cfg -> outerMonad.of(cfg.setting());
-      ReaderT<OptionalKind<?>, Config, String> rt = ReaderT.of(runFunc);
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc =
+          cfg -> outerMonad.of(cfg.setting());
+      ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.of(runFunc);
       assertThat(rt.run()).isSameAs(runFunc);
     }
   }
@@ -161,39 +158,34 @@ class ReaderTTest {
     @Test
     @DisplayName("equals/hashCode should compare based on run function instance")
     void equalsHashCode_comparesRunFunction() {
-      // Equality for functional interfaces is reference equality
-      Function<Config, Kind<OptionalKind<?>, String>> runFunc1 = cfg -> outerMonad.of("A");
-      Function<Config, Kind<OptionalKind<?>, String>> runFunc2 =
-          cfg -> outerMonad.of("A"); // Same logic, different instance
-      Function<Config, Kind<OptionalKind<?>, String>> runFunc3 = cfg -> outerMonad.of("B");
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc1 = cfg -> outerMonad.of("A");
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc2 = cfg -> outerMonad.of("A");
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc3 = cfg -> outerMonad.of("B");
 
-      ReaderT<OptionalKind<?>, Config, String> rt1a = ReaderT.of(runFunc1);
-      ReaderT<OptionalKind<?>, Config, String> rt1b =
-          ReaderT.of(runFunc1); // Same function instance
-      ReaderT<OptionalKind<?>, Config, String> rt2 =
-          ReaderT.of(runFunc2); // Different function instance
-      ReaderT<OptionalKind<?>, Config, String> rt3 = ReaderT.of(runFunc3);
+      ReaderT<OptionalKind.Witness, Config, String> rt1a = ReaderT.of(runFunc1);
+      ReaderT<OptionalKind.Witness, Config, String> rt1b = ReaderT.of(runFunc1);
+      ReaderT<OptionalKind.Witness, Config, String> rt2 = ReaderT.of(runFunc2);
+      ReaderT<OptionalKind.Witness, Config, String> rt3 = ReaderT.of(runFunc3);
 
-      assertThat(rt1a).isEqualTo(rt1b); // Equal because same function instance
+      assertThat(rt1a).isEqualTo(rt1b);
       assertThat(rt1a).hasSameHashCodeAs(rt1b);
 
-      assertThat(rt1a).isNotEqualTo(rt2); // Not equal because different function instance
+      assertThat(rt1a).isNotEqualTo(rt2);
       assertThat(rt1a).isNotEqualTo(rt3);
 
       assertThat(rt1a).isNotEqualTo(null);
-      assertThat(rt1a).isNotEqualTo(runFunc1); // Different type
+      assertThat(rt1a).isNotEqualTo(runFunc1);
     }
 
     @Test
     @DisplayName("toString should represent the structure")
     void toString_representsStructure() {
-      Function<Config, Kind<OptionalKind<?>, String>> runFunc = cfg -> outerMonad.of(cfg.setting());
-      ReaderT<OptionalKind<?>, Config, String> rt = ReaderT.of(runFunc);
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc =
+          cfg -> outerMonad.of(cfg.setting());
+      ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.of(runFunc);
 
-      // Default toString for records includes field names and values
-      // The function's toString might be complex/lambda representation
       assertThat(rt.toString()).startsWith("ReaderT[run=");
-      assertThat(rt.toString()).contains(runFunc.toString()); // Contains function's toString
+      assertThat(rt.toString()).contains(runFunc.toString());
       assertThat(rt.toString()).endsWith("]");
     }
   }

@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
 public final class ListKindHelper {
 
   private ListKindHelper() {
-    // Private constructor to prevent instantiation
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
   /**

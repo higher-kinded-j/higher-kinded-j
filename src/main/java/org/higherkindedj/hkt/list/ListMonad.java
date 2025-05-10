@@ -21,21 +21,21 @@ public class ListMonad implements Monad<ListKind.Witness> {
   private ListMonad() {}
 
   /**
-   * Lifts a single value {@code a} into the List context.
-   * If the value is null, it creates an empty list.
-   * Otherwise, it creates a singleton list containing the value.
+   * Lifts a single value {@code a} into the List context. If the value is null, it creates an empty
+   * list. Otherwise, it creates a singleton list containing the value.
    *
    * @param value The value to lift. Can be {@code null}.
    * @param <A> The type of the value.
-   * @return A {@code Kind<ListKind.Witness, A>} representing a list.
-   * If value is null, it's an empty list; otherwise, a list containing the single value.
+   * @return A {@code Kind<ListKind.Witness, A>} representing a list. If value is null, it's an
+   *     empty list; otherwise, a list containing the single value.
    */
   @Override
   public <A> @NonNull Kind<ListKind.Witness, A> of(@Nullable A value) {
     if (value == null) {
       return ListKind.of(Collections.emptyList()); // Create an empty list for null input
     }
-    return ListKind.of(Collections.singletonList(value)); // Create a singleton list for non-null input
+    return ListKind.of(
+        Collections.singletonList(value)); // Create a singleton list for non-null input
   }
 
   /**

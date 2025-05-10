@@ -14,8 +14,8 @@ Java's type system lacks native Higher-Kinded Types. We can easily parameterise 
 
 * **Purpose:** To simulate the application of a type constructor `F` (like `List`, `Optional`, `IO`) to a type argument `A` (like `String`, `Integer`), representing the concept of `F<A>`.
 * **`F` (Witness Type):** This is the crucial part of the simulation. Since `F<_>` isn't a real Java type parameter, we use a *marker type* (often an empty interface specific to the constructor) as a "witness" or stand-in for `F`. Examples:
-  * `ListKind<?>` represents the `List` type constructor.
-  * `OptionalKind<?>` represents the `Optional` type constructor.
+  * `ListKind<ListKind.Witness>` represents the `List` type constructor.
+  * `OptionalKind<OptionalKind.Witness>` represents the `Optional` type constructor.
   * `EitherKind<L, ?>` represents the `Either<L, _>` type constructor (where `L` is fixed).
   * `IOKind<?>` represents the `IO` type constructor.
 * **`A` (Type Argument):** The concrete type contained within or parameterised by the constructor (e.g., `Integer` in `List<Integer>`).
@@ -54,13 +54,14 @@ These are interfaces that define standard functional operations that work *gener
 
 For each Java type constructor (like `List`, `Optional`, `IO`) you want to simulate:
 
-* **The `Kind` Interface:** A specific marker interface extending `Kind<F, A>` (e.g., `OptionalKind<A> extends Kind<OptionalKind<?>, A>`). The `OptionalKind<?>` part is the witness `F`.
+* **The `Kind` Interface:** A specific marker interface extending `Kind<F, A>` (e.g., `OptionalKind<A> extends Kind<OptionalKind.Witness, A>, A>`). The `OptionalKind<OptionalKind.Witness>` part is the witness `F`.
 * **The `Holder` Record:** An internal (often package-private) record that implements the `Kind` interface and holds the actual underlying Java object (e.g., `OptionalHolder` holds a `java.util.Optional`). This is the concrete implementation of the `Kind`.
 * **The `KindHelper` Class:** A crucial utility class with static `wrap` and `unwrap` methods:
   * `wrap(JavaType<A> value)`: Takes the standard Java type (e.g., `Optional<String>`) and returns the `Kind<F, A>` simulation type (by creating and returning a `Holder`). Requires non-null input for the container itself (e.g., the `Optional` instance cannot be null, though it can be `Optional.empty()`).
   * `unwrap(Kind<F, A> kind)`: Takes the `Kind<F, A>` simulation type and returns the underlying Java type (e.g., `Optional<String>`). **Crucially, this method throws `KindUnwrapException` if the input `kind` is structurally invalid** (e.g., `null`, the wrong `Kind` type, or a `Holder` containing `null` where it shouldn't). This ensures robustness within the simulation layer.
   * May contain other convenience factories (e.g., `MaybeKindHelper.just(...)`, `IOKindHelper.delay(...)`).
-* **Type Class Instance(s):** Concrete classes implementing `Functor<F>`, `Applicative<F>`, `Monad<F>`, and/or `MonadError<F, E>` for the specific witness type `F` (e.g., `OptionalMonad implements MonadError<OptionalKind<?>, Void>`). These instances contain the logic for `map`, `flatMap`, `of`, `ap`, `raiseError`, etc., using the `wrap` and `unwrap` helpers internally to manipulate the underlying Java types.
+* **Type Class Instance(s):** Concrete classes implementing `Functor<F>`, `Applicative<F>`, `Monad<F>`, and/or `MonadError<F, E>` for the specific witness type `F` (e.g., `OptionalMonad extends OptionalFunctor
+    implements MonadError<OptionalKind.Witness, Void>`). These instances contain the logic for `map`, `flatMap`, `of`, `ap`, `raiseError`, etc., using the `wrap` and `unwrap` helpers internally to manipulate the underlying Java types.
 
 ## 5. Error Handling Philosophy
 

@@ -7,7 +7,11 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOKindHelper;
+import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
@@ -21,44 +25,48 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MaybeTKindHelper Tests")
 class MaybeTKindHelperTest {
 
-  private OptionalMonad outerMonad;
+  private Monad<OptionalKind.Witness> optionalOuterMonad;
+  private Monad<IOKind<?>> ioOuterMonad; // Assuming IOKind uses IOKind<?> as its witness
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    optionalOuterMonad = new OptionalMonad(); // Correctly provides Monad<OptionalKind.Witness>
+    ioOuterMonad = new IOMonad();
   }
 
-  // Helper to create a concrete MaybeT<OptionalKind, String>
-  private MaybeT<OptionalKind<?>, String> createConcreteMaybeT(@NonNull String value) {
-    return MaybeT.just(outerMonad, value);
+  private <A extends @NonNull Object> MaybeT<OptionalKind.Witness, A> createConcreteMaybeTSomeOpt(
+      @NonNull A value) {
+    // MaybeT.just now correctly infers F as OptionalKind.Witness from optionalOuterMonad
+    return MaybeT.just(optionalOuterMonad, value);
   }
 
-  // Helper to create a concrete MaybeT<OptionalKind, String> with Nothing
-  private MaybeT<OptionalKind<?>, String> createConcreteMaybeTNothing() {
-    return MaybeT.nothing(outerMonad);
+  private <A> MaybeT<OptionalKind.Witness, A> createConcreteMaybeTNothingOpt() {
+    return MaybeT.nothing(optionalOuterMonad);
   }
 
-  // Helper to create a concrete MaybeT<OptionalKind, String> with outer Optional.empty()
-  private MaybeT<OptionalKind<?>, String> createConcreteMaybeTOuterEmpty() {
-    Kind<OptionalKind<?>, Maybe<String>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
+  private <A> MaybeT<OptionalKind.Witness, A> createConcreteMaybeTOuterEmptyOpt() {
+    Kind<OptionalKind.Witness, Maybe<A>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
     return MaybeT.fromKind(emptyOuter);
+  }
+
+  // Helper for IO (remains as is, assuming IOKind<?> is the witness for IO)
+  private <A extends @NonNull Object> MaybeT<IOKind<?>, A> createConcreteMaybeTSomeIO(
+      @NonNull A value) {
+    return MaybeT.just(ioOuterMonad, value);
   }
 
   @Test
   @DisplayName("private constructor should prevent instantiation")
   void privateConstructor_shouldThrowException() {
-    // Test the private constructor to ensure it prevents instantiation (for coverage)
     assertThatThrownBy(
             () -> {
               Constructor<MaybeTKindHelper> constructor =
                   MaybeTKindHelper.class.getDeclaredConstructor();
-              constructor.setAccessible(true); // Allow access to private constructor
+              constructor.setAccessible(true);
               try {
-                constructor.newInstance(); // Attempt to instantiate
+                constructor.newInstance();
               } catch (InvocationTargetException e) {
-                // The actual exception thrown by the constructor is wrapped in
-                // InvocationTargetException
-                throw e.getCause();
+                throw e.getCause(); // Throw the actual cause
               }
             })
         .isInstanceOf(UnsupportedOperationException.class)
@@ -69,15 +77,23 @@ class MaybeTKindHelperTest {
   @DisplayName("wrap() tests")
   class WrapTests {
     @Test
-    @DisplayName("should wrap a non-null MaybeT into a MaybeTKind")
-    void wrap_nonNullMaybeT_shouldReturnMaybeTKind() {
-      MaybeT<OptionalKind<?>, String> concreteMaybeT = createConcreteMaybeT("test");
-      MaybeTKind<OptionalKind<?>, String> wrapped = MaybeTKindHelper.wrap(concreteMaybeT);
+    @DisplayName("should wrap a non-null MaybeT (Some) into a MaybeTKind (Outer Optional)")
+    void wrap_nonNullMaybeTSome_OptionalOuter_shouldReturnMaybeTKind() {
+      MaybeT<OptionalKind.Witness, String> concreteMaybeT = createConcreteMaybeTSomeOpt("test");
+      Kind<MaybeTKind<OptionalKind.Witness, ?>, String> wrapped =
+          MaybeTKindHelper.wrap(concreteMaybeT);
 
-      assertThat(wrapped).isNotNull();
-      assertThat(wrapped).isInstanceOf(MaybeTKind.class);
-      // Further check if it's the specific internal holder (optional, but good for confidence)
-      assertThat(wrapped.getClass().getSimpleName()).isEqualTo("MaybeTHolder");
+      assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKindHelper.MaybeTHolder.class);
+      assertThat(MaybeTKindHelper.<OptionalKind.Witness, String>unwrap(wrapped))
+          .isSameAs(concreteMaybeT);
+    }
+
+    @Test
+    @DisplayName("should wrap a non-null MaybeT (Some) into a MaybeTKind (Outer IO)")
+    void wrap_nonNullMaybeTSome_IOOuter_shouldReturnMaybeTKind() {
+      MaybeT<IOKind<?>, String> concreteMaybeT = createConcreteMaybeTSomeIO("testIO");
+      Kind<MaybeTKind<IOKind<?>, ?>, String> wrapped = MaybeTKindHelper.wrap(concreteMaybeT);
+      assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKindHelper.MaybeTHolder.class);
     }
 
     @Test
@@ -93,40 +109,40 @@ class MaybeTKindHelperTest {
   @DisplayName("unwrap() tests")
   class UnwrapTests {
     @Test
-    @DisplayName("should unwrap a valid MaybeTKind to the original MaybeT instance")
-    void unwrap_validKind_shouldReturnMaybeT() {
-      MaybeT<OptionalKind<?>, String> originalMaybeT = createConcreteMaybeT("hello");
-      MaybeTKind<OptionalKind<?>, String> wrappedKind = MaybeTKindHelper.wrap(originalMaybeT);
+    @DisplayName(
+        "should unwrap a valid MaybeTKind (Some) to the original MaybeT instance (Outer Optional)")
+    void unwrap_validKindSome_OptionalOuter_shouldReturnMaybeT() {
+      MaybeT<OptionalKind.Witness, String> originalMaybeT = createConcreteMaybeTSomeOpt("hello");
+      Kind<MaybeTKind<OptionalKind.Witness, ?>, String> wrappedKind =
+          MaybeTKindHelper.wrap(originalMaybeT);
 
-      MaybeT<OptionalKind<?>, String> unwrappedMaybeT = MaybeTKindHelper.unwrap(wrappedKind);
+      MaybeT<OptionalKind.Witness, String> unwrappedMaybeT = MaybeTKindHelper.unwrap(wrappedKind);
 
-      assertThat(unwrappedMaybeT).isNotNull();
-      assertThat(unwrappedMaybeT).isSameAs(originalMaybeT); // Check for object identity
-      assertThat(unwrappedMaybeT.value())
-          .isEqualTo(OptionalKindHelper.wrap(Optional.of(Maybe.just("hello"))));
+      assertThat(unwrappedMaybeT).isSameAs(originalMaybeT);
     }
 
     @Test
-    @DisplayName("should unwrap a valid MaybeTKind (Nothing) to the original MaybeT instance")
-    void unwrap_validKindNothing_shouldReturnMaybeT() {
-      MaybeT<OptionalKind<?>, String> originalMaybeT = createConcreteMaybeTNothing();
-      MaybeTKind<OptionalKind<?>, String> wrappedKind = MaybeTKindHelper.wrap(originalMaybeT);
-      MaybeT<OptionalKind<?>, String> unwrappedMaybeT = MaybeTKindHelper.unwrap(wrappedKind);
-
+    @DisplayName(
+        "should unwrap a valid MaybeTKind (Nothing) to the original MaybeT instance (Outer"
+            + " Optional)")
+    void unwrap_validKindNothing_OptionalOuter_shouldReturnMaybeT() {
+      MaybeT<OptionalKind.Witness, String> originalMaybeT = createConcreteMaybeTNothingOpt();
+      Kind<MaybeTKind<OptionalKind.Witness, ?>, String> wrappedKind =
+          MaybeTKindHelper.wrap(originalMaybeT);
+      MaybeT<OptionalKind.Witness, String> unwrappedMaybeT = MaybeTKindHelper.unwrap(wrappedKind);
       assertThat(unwrappedMaybeT).isSameAs(originalMaybeT);
-      assertThat(unwrappedMaybeT.value())
-          .isEqualTo(OptionalKindHelper.wrap(Optional.of(Maybe.nothing())));
     }
 
     @Test
-    @DisplayName("should unwrap a valid MaybeTKind (OuterEmpty) to the original MaybeT instance")
-    void unwrap_validKindOuterEmpty_shouldReturnMaybeT() {
-      MaybeT<OptionalKind<?>, String> originalMaybeT = createConcreteMaybeTOuterEmpty();
-      MaybeTKind<OptionalKind<?>, String> wrappedKind = MaybeTKindHelper.wrap(originalMaybeT);
-      MaybeT<OptionalKind<?>, String> unwrappedMaybeT = MaybeTKindHelper.unwrap(wrappedKind);
-
+    @DisplayName(
+        "should unwrap a valid MaybeTKind (OuterEmpty) to original MaybeT instance (Outer"
+            + " Optional)")
+    void unwrap_validKindOuterEmpty_OptionalOuter_shouldReturnMaybeT() {
+      MaybeT<OptionalKind.Witness, String> originalMaybeT = createConcreteMaybeTOuterEmptyOpt();
+      Kind<MaybeTKind<OptionalKind.Witness, ?>, String> wrappedKind =
+          MaybeTKindHelper.wrap(originalMaybeT);
+      MaybeT<OptionalKind.Witness, String> unwrappedMaybeT = MaybeTKindHelper.unwrap(wrappedKind);
       assertThat(unwrappedMaybeT).isSameAs(originalMaybeT);
-      assertThat(unwrappedMaybeT.value()).isEqualTo(OptionalKindHelper.wrap(Optional.empty()));
     }
 
     @Test
@@ -138,17 +154,16 @@ class MaybeTKindHelperTest {
     }
 
     // Dummy Kind for testing invalid type unwrap
-    private static class OtherKind<A> implements Kind<OtherKind<?>, A> {}
+    private static class OtherKind<F_Witness, A> implements Kind<OtherKind<F_Witness, ?>, A> {}
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
     void unwrap_incorrectKindType_shouldThrowKindUnwrapException() {
-      OtherKind<String> incorrectKind = new OtherKind<>();
+      OtherKind<OptionalKind.Witness, String> incorrectKind = new OtherKind<>();
 
-      // This cast is unsafe but necessary for the test setup to pass an incorrect Kind.
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Kind<MaybeTKind<OptionalKind<?>, ?>, String> kindToTest =
-          (Kind<MaybeTKind<OptionalKind<?>, ?>, String>) (Kind) incorrectKind;
+      @SuppressWarnings({"unchecked", "rawtypes"}) // Suppress warnings for the forced cast
+      Kind<MaybeTKind<OptionalKind.Witness, ?>, String> kindToTest =
+          (Kind<MaybeTKind<OptionalKind.Witness, ?>, String>) (Kind) incorrectKind;
 
       assertThatThrownBy(() -> MaybeTKindHelper.unwrap(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
@@ -157,22 +172,27 @@ class MaybeTKindHelperTest {
     }
 
     @Test
-    @DisplayName("unwrap should correctly infer types")
-    void unwrap_typeInference() {
-      MaybeT<OptionalKind<?>, Integer> concrete = MaybeT.just(new OptionalMonad(), 123);
-      MaybeTKind<OptionalKind<?>, Integer> wrapped = MaybeTKindHelper.wrap(concrete);
+    @DisplayName("unwrap should correctly infer types (Outer Optional)")
+    void unwrap_typeInference_OptionalOuter() {
+      // Use the correctly typed optionalOuterMonad field
+      MaybeT<OptionalKind.Witness, Integer> concrete = MaybeT.just(optionalOuterMonad, 123);
+      Kind<MaybeTKind<OptionalKind.Witness, ?>, Integer> wrapped = MaybeTKindHelper.wrap(concrete);
 
-      // Explicitly type the unwrap to ensure the generic types are correctly inferred
-      MaybeT<OptionalKind<?>, Integer> unwrapped = MaybeTKindHelper.unwrap(wrapped);
-      assertThat(unwrapped.value())
-          .isEqualTo(OptionalKindHelper.wrap(Optional.of(Maybe.just(123))));
+      MaybeT<OptionalKind.Witness, Integer> unwrapped = MaybeTKindHelper.unwrap(wrapped);
+      // Verify content
+      Optional<Maybe<Integer>> result = OptionalKindHelper.unwrap(unwrapped.value());
+      assertThat(result).isPresent().contains(Maybe.just(123));
+    }
 
-      // Test with a different inner type
-      MaybeT<OptionalKind<?>, Boolean> concreteBool = MaybeT.just(new OptionalMonad(), true);
-      MaybeTKind<OptionalKind<?>, Boolean> wrappedBool = MaybeTKindHelper.wrap(concreteBool);
-      MaybeT<OptionalKind<?>, Boolean> unwrappedBool = MaybeTKindHelper.unwrap(wrappedBool);
-      assertThat(unwrappedBool.value())
-          .isEqualTo(OptionalKindHelper.wrap(Optional.of(Maybe.just(true))));
+    @Test
+    @DisplayName("unwrap should correctly infer types (Outer IO)")
+    void unwrap_typeInference_IOOuter() {
+      MaybeT<IOKind<?>, Boolean> concreteBool = MaybeT.just(ioOuterMonad, true);
+      Kind<MaybeTKind<IOKind<?>, ?>, Boolean> wrappedBool = MaybeTKindHelper.wrap(concreteBool);
+      MaybeT<IOKind<?>, Boolean> unwrappedBool = MaybeTKindHelper.unwrap(wrappedBool);
+      // Verify content by running IO
+      Maybe<Boolean> resultIO = IOKindHelper.unsafeRunSync(unwrappedBool.value());
+      assertThat(resultIO).isEqualTo(Maybe.just(true));
     }
   }
 }

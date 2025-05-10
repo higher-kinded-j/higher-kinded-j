@@ -51,17 +51,17 @@ public interface ListKind<A> extends Kind<ListKind.Witness, A> {
   static <A> @NonNull ListKind<A> of(@NonNull List<A> list) {
     return new ListView<>(list);
   }
-}
 
-/**
- * Concrete implementation of {@link ListKind<A>}. This record wraps a {@code java.util.List<A>} to
- * make it a {@code ListKind<A>}.
- *
- * @param <A> The element type of the list.
- */
-record ListView<A>(@NonNull List<A> list) implements ListKind<A> {
-  @Override
-  public @NonNull List<A> unwrap() {
-    return list;
+  /**
+   * Concrete implementation of {@link ListKind<A>}. This record wraps a {@code java.util.List<A>}
+   * to make it a {@code ListKind<A>}.
+   *
+   * @param <A> The element type of the list.
+   */
+  record ListView<A>(@NonNull List<A> list) implements ListKind<A> {
+    @Override
+    public @NonNull List<A> unwrap() {
+      return list;
+    }
   }
 }
