@@ -45,10 +45,9 @@ class ListMonadTest {
     }
 
     @Test
-    void of_shouldWrapNullInSingletonList() {
-      // ListMonad.of(null) creates a list with a single null element.
+    void of_shouldWrapNullAsEmptyList() {
       Kind<ListKind.Witness, String> kind = listMonad.of(null);
-      assertThat(unwrap(kind)).containsExactly((String) null);
+      assertThat(unwrap(kind)).isEmpty();
     }
   }
 
