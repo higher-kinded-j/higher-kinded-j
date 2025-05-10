@@ -15,6 +15,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class ListMonad implements Monad<ListKind.Witness> {
 
+  /** A ListMonad singleton */
   public static final ListMonad INSTANCE = new ListMonad();
 
   // Constructor can be private if INSTANCE is the only way to get it.

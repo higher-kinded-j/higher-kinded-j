@@ -57,6 +57,7 @@ public interface ListKind<A> extends Kind<ListKind.Witness, A> {
    * to make it a {@code ListKind<A>}.
    *
    * @param <A> The element type of the list.
+   * @param list The list.
    */
   record ListView<A>(@NonNull List<A> list) implements ListKind<A> {
     @Override

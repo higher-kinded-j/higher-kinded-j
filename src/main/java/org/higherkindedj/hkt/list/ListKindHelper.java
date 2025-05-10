@@ -28,7 +28,8 @@ public final class ListKindHelper {
    * @param list The {@link List} to wrap. Must not be null.
    * @param <A> The element type of the list.
    * @return The higher-kinded representation of the list, specifically an instance of {@link
-   *     ListView}. Returns an HKT representation of an empty list if the input list is empty.
+   *     ListKind.ListView}. Returns an HKT representation of an empty list if the input list is
+   *     empty.
    */
   public static <A> @NonNull Kind<ListKind.Witness, A> wrap(@NonNull List<A> list) {
     Objects.requireNonNull(list, "list cannot be null for wrap");
