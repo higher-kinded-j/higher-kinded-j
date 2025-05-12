@@ -25,12 +25,9 @@ class LazyMonadTest {
   private AtomicInteger counterB;
   private AtomicInteger counterC;
   private AtomicInteger counterD; // Added counter for map4
-  private AtomicInteger counterF; // For function application tracking
+  private AtomicInteger counterF;
 
-  // Helper to create a Kind<LazyKind, A> that counts evaluations
-  // Now uses ThrowableSupplier implicitly via LazyKindHelper.defer
-  private <A> Kind<LazyKind<?>, A> countingDefer(String label, ThrowableSupplier<A> supplier) {
-    // Select the appropriate counter based on the label
+  private <A> Kind<LazyKind.Witness, A> countingDefer(String label, ThrowableSupplier<A> supplier) {
     AtomicInteger counter =
         switch (label) {
           case "A" -> counterA;
@@ -42,9 +39,9 @@ class LazyMonadTest {
     // Return a LazyKind that increments the selected counter upon evaluation
     return LazyKindHelper.defer(
         () -> {
-          counter.incrementAndGet(); // Increment the non-null counter
+          counter.incrementAndGet();
           // System.out.println("Evaluating " + label + " (Count: " + counter.get() + ")");
-          return supplier.get(); // Call the ThrowableSupplier
+          return supplier.get();
         });
   }
 
@@ -65,19 +62,16 @@ class LazyMonadTest {
   @DisplayName("Applicative 'of' tests")
   class OfTests {
     @Test
-    // Add 'throws Throwable' because force() is called
     void of_shouldCreateAlreadyEvaluatedLazy() throws Throwable {
-      Kind<LazyKind<?>, String> kind = lazyMonad.of("pureValue");
-      // This call requires the method to declare 'throws Throwable' or use try-catch
+      Kind<LazyKind.Witness, String> kind = lazyMonad.of("pureValue");
       assertThat(force(kind)).isEqualTo("pureValue"); // Line 69
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
     }
 
     @Test
-    // Add 'throws Throwable' because force() is called
     void of_shouldAllowNullValue() throws Throwable {
-      Kind<LazyKind<?>, String> kind = lazyMonad.of(null);
+      Kind<LazyKind.Witness, String> kind = lazyMonad.of(null);
       assertThat(force(kind)).isNull();
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
@@ -88,15 +82,14 @@ class LazyMonadTest {
   @DisplayName("Functor 'map' tests")
   class MapTests {
     @Test
-    // Add 'throws Throwable' because force() is called
     void map_shouldApplyFunctionLazilyAndMemoize() throws Throwable {
-      Kind<LazyKind<?>, Integer> initialKind = countingDefer("A", () -> 10);
+      Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 10);
       Function<Integer, String> mapper =
           i -> {
             counterF.incrementAndGet();
             return "Val:" + i;
           };
-      Kind<LazyKind<?>, String> mappedKind = lazyMonad.map(mapper, initialKind);
+      Kind<LazyKind.Witness, String> mappedKind = lazyMonad.map(mapper, initialKind);
 
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
@@ -111,34 +104,31 @@ class LazyMonadTest {
     }
 
     @Test
-    // Use catchThrowable as we expect an unchecked exception
     void map_shouldPropagateExceptionFromOriginalLazy() {
       RuntimeException ex = new RuntimeException("OriginalFail");
-      Kind<LazyKind<?>, Integer> initialKind =
+      Kind<LazyKind.Witness, Integer> initialKind =
           countingDefer(
               "A",
               () -> {
                 throw ex;
               });
-      Kind<LazyKind<?>, String> mappedKind = lazyMonad.map(i -> "Val:" + i, initialKind);
+      Kind<LazyKind.Witness, String> mappedKind = lazyMonad.map(i -> "Val:" + i, initialKind);
 
       assertThat(counterA.get()).isZero();
-      // Use catchThrowable to avoid declaring throws Throwable in the test signature
+
       Throwable thrown = catchThrowable(() -> force(mappedKind));
       assertThat(thrown).isInstanceOf(RuntimeException.class).isSameAs(ex);
       assertThat(counterA.get()).isEqualTo(1);
 
-      // Force again - should throw memoized exception
       assertThatThrownBy(() -> force(mappedKind)).isInstanceOf(RuntimeException.class).isSameAs(ex);
       assertThat(counterA.get()).isEqualTo(1);
     }
 
     @Test
-    // Use catchThrowable as we expect an unchecked exception
     void map_shouldPropagateExceptionFromMapperFunction() {
       RuntimeException mapEx = new RuntimeException("MapperFail");
-      Kind<LazyKind<?>, Integer> initialKind = countingDefer("A", () -> 10);
-      Kind<LazyKind<?>, String> mappedKind =
+      Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 10);
+      Kind<LazyKind.Witness, String> mappedKind =
           lazyMonad.map(
               i -> {
                 counterF.incrementAndGet();
@@ -153,7 +143,6 @@ class LazyMonadTest {
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterF.get()).isEqualTo(1);
 
-      // Force again - should throw memoized exception
       assertThatThrownBy(() -> force(mappedKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(mapEx);
@@ -166,13 +155,12 @@ class LazyMonadTest {
   @DisplayName("Applicative 'ap' tests")
   class ApTests {
     @Test
-    // Add 'throws Throwable' because force() is called
     void ap_shouldApplyEffectfulFunctionToEffectfulValue() throws Throwable {
-      Kind<LazyKind<?>, Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer("A", () -> i -> "F" + i);
-      Kind<LazyKind<?>, Integer> valKind = countingDefer("B", () -> 20);
+      Kind<LazyKind.Witness, Integer> valKind = countingDefer("B", () -> 20);
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.ap(funcKind, valKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.ap(funcKind, valKind);
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
 
@@ -188,15 +176,15 @@ class LazyMonadTest {
     @Test
     void ap_shouldPropagateExceptionFromFunctionLazy() {
       RuntimeException funcEx = new RuntimeException("FuncFail");
-      Kind<LazyKind<?>, Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer(
               "A",
               () -> {
                 throw funcEx;
               });
-      Kind<LazyKind<?>, Integer> valKind = countingDefer("B", () -> 20);
+      Kind<LazyKind.Witness, Integer> valKind = countingDefer("B", () -> 20);
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.ap(funcKind, valKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.ap(funcKind, valKind);
       assertThatThrownBy(() -> force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(funcEx);
@@ -207,16 +195,16 @@ class LazyMonadTest {
     @Test
     void ap_shouldPropagateExceptionFromValueLazy() {
       RuntimeException valEx = new RuntimeException("ValFail");
-      Kind<LazyKind<?>, Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer("A", () -> i -> "F" + i);
-      Kind<LazyKind<?>, Integer> valKind =
+      Kind<LazyKind.Witness, Integer> valKind =
           countingDefer(
               "B",
               () -> {
                 throw valEx;
               });
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.ap(funcKind, valKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.ap(funcKind, valKind);
       assertThatThrownBy(() -> force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(valEx);
@@ -227,7 +215,7 @@ class LazyMonadTest {
     @Test
     void ap_shouldPropagateExceptionFromFunctionApply() {
       RuntimeException applyEx = new RuntimeException("ApplyFail");
-      Kind<LazyKind<?>, Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer(
               "A",
               () ->
@@ -235,9 +223,9 @@ class LazyMonadTest {
                     counterF.incrementAndGet();
                     throw applyEx;
                   });
-      Kind<LazyKind<?>, Integer> valKind = countingDefer("B", () -> 20);
+      Kind<LazyKind.Witness, Integer> valKind = countingDefer("B", () -> 20);
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.ap(funcKind, valKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.ap(funcKind, valKind);
       assertThatThrownBy(() -> force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(applyEx);
@@ -253,14 +241,14 @@ class LazyMonadTest {
     @Test
     // Add 'throws Throwable' because force() is called
     void flatMap_shouldSequenceLazilyAndMemoize() throws Throwable {
-      Kind<LazyKind<?>, Integer> initialKind = countingDefer("A", () -> 5);
-      Function<Integer, Kind<LazyKind<?>, String>> f =
+      Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 5);
+      Function<Integer, Kind<LazyKind.Witness, String>> f =
           i -> {
             counterF.incrementAndGet();
             return countingDefer("B", () -> "Val" + (i * 2));
           };
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.flatMap(f, initialKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.flatMap(f, initialKind);
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
       assertThat(counterB.get()).isZero();
@@ -279,19 +267,19 @@ class LazyMonadTest {
     @Test
     void flatMap_shouldPropagateExceptionFromInitialLazy() {
       RuntimeException exA = new RuntimeException("FailA");
-      Kind<LazyKind<?>, Integer> initialKind =
+      Kind<LazyKind.Witness, Integer> initialKind =
           countingDefer(
               "A",
               () -> {
                 throw exA;
               });
-      Function<Integer, Kind<LazyKind<?>, String>> f =
+      Function<Integer, Kind<LazyKind.Witness, String>> f =
           i -> {
             counterF.incrementAndGet();
             return countingDefer("B", () -> "Val");
           };
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.flatMap(f, initialKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.flatMap(f, initialKind);
       assertThatThrownBy(() -> force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(exA);
@@ -303,14 +291,14 @@ class LazyMonadTest {
     @Test
     void flatMap_shouldPropagateExceptionFromFunctionApply() {
       RuntimeException fEx = new RuntimeException("FuncApplyFail");
-      Kind<LazyKind<?>, Integer> initialKind = countingDefer("A", () -> 5);
-      Function<Integer, Kind<LazyKind<?>, String>> f =
+      Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 5);
+      Function<Integer, Kind<LazyKind.Witness, String>> f =
           i -> {
             counterF.incrementAndGet();
             throw fEx;
           };
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.flatMap(f, initialKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.flatMap(f, initialKind);
       assertThatThrownBy(() -> force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(fEx);
@@ -322,8 +310,8 @@ class LazyMonadTest {
     @Test
     void flatMap_shouldPropagateExceptionFromResultingLazy() {
       RuntimeException exB = new RuntimeException("FailB");
-      Kind<LazyKind<?>, Integer> initialKind = countingDefer("A", () -> 5);
-      Function<Integer, Kind<LazyKind<?>, String>> f =
+      Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 5);
+      Function<Integer, Kind<LazyKind.Witness, String>> f =
           i -> {
             counterF.incrementAndGet();
             return countingDefer(
@@ -333,7 +321,7 @@ class LazyMonadTest {
                 });
           };
 
-      Kind<LazyKind<?>, String> resultKind = lazyMonad.flatMap(f, initialKind);
+      Kind<LazyKind.Witness, String> resultKind = lazyMonad.flatMap(f, initialKind);
       assertThatThrownBy(() -> force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(exB);
@@ -350,9 +338,9 @@ class LazyMonadTest {
   // Use AtomicReference for thread safety if needed, though tests are sequential
   final AtomicReference<String> lawEffectTracker = new AtomicReference<>("");
 
-  // Function a -> M b (Integer -> LazyKind<String>)
+  // Function a -> M b (Integer -> Kind<LazyKind.Witness, String>)
   // Make fLaw and gLaw methods instead of final fields to ensure fresh behavior
-  private Function<Integer, Kind<LazyKind<?>, String>> createFLaw() {
+  private Function<Integer, Kind<LazyKind.Witness, String>> createFLaw() {
     return i -> {
       counterF.incrementAndGet(); // Track function application
       // System.out.println("Applying fLaw to " + i + " (counterF=" + counterF.get() + ")");
@@ -360,8 +348,8 @@ class LazyMonadTest {
     };
   }
 
-  // Function b -> M c (String -> LazyKind<String>)
-  private Function<String, Kind<LazyKind<?>, String>> createGLaw() {
+  // Function b -> M c (String -> Kind<LazyKind.Witness, String>)
+  private Function<String, Kind<LazyKind.Witness, String>> createGLaw() {
     return s -> {
       counterF.incrementAndGet(); // Track function application
       // System.out.println("Applying gLaw to " + s + " (counterF=" + counterF.get() + ")");
@@ -377,15 +365,15 @@ class LazyMonadTest {
     @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() throws Throwable { // Add throws
       int value = 5;
-      Kind<LazyKind<?>, Integer> ofValue = lazyMonad.of(value); // Already evaluated
-      Function<Integer, Kind<LazyKind<?>, String>> f = createFLaw(); // Create fresh function
+      Kind<LazyKind.Witness, Integer> ofValue = lazyMonad.of(value);
+      Function<Integer, Kind<LazyKind.Witness, String>> f = createFLaw();
 
       // Run left side: flatMap(f, ofValue)
       counterA.set(0);
       counterB.set(0);
       counterC.set(0);
       counterF.set(0); // Reset counters
-      Kind<LazyKind<?>, String> leftSide = lazyMonad.flatMap(f, ofValue);
+      Kind<LazyKind.Witness, String> leftSide = lazyMonad.flatMap(f, ofValue);
       String leftResult = force(leftSide);
       int leftEvalA = counterA.get();
       int leftEvalB = counterB.get();
@@ -397,7 +385,7 @@ class LazyMonadTest {
       counterB.set(0);
       counterC.set(0);
       counterF.set(0); // Reset counters
-      Kind<LazyKind<?>, String> rightSide = f.apply(value);
+      Kind<LazyKind.Witness, String> rightSide = f.apply(value);
       String rightResult = force(rightSide);
       int rightEvalA = counterA.get();
       int rightEvalB = counterB.get();
@@ -406,7 +394,7 @@ class LazyMonadTest {
 
       assertThat(leftResult).isEqualTo(rightResult);
       // Check counts: f applied once, B evaluated once
-      assertThat(leftEvalF).isEqualTo(1); // <<<< This was the failing line (364)
+      assertThat(leftEvalF).isEqualTo(1);
       assertThat(leftEvalB).isEqualTo(1);
       assertThat(rightEvalF).isEqualTo(1);
       assertThat(rightEvalB).isEqualTo(1);
@@ -422,16 +410,16 @@ class LazyMonadTest {
     void rightIdentity() throws Throwable { // Add throws
       counterA.set(0);
       counterF.set(0);
-      Kind<LazyKind<?>, Integer> mValueLeft = countingDefer("A", () -> 10);
-      Function<Integer, Kind<LazyKind<?>, Integer>> ofFunc = i -> lazyMonad.of(i);
-      Kind<LazyKind<?>, Integer> leftSide = lazyMonad.flatMap(ofFunc, mValueLeft);
+      Kind<LazyKind.Witness, Integer> mValueLeft = countingDefer("A", () -> 10);
+      Function<Integer, Kind<LazyKind.Witness, Integer>> ofFunc = i -> lazyMonad.of(i);
+      Kind<LazyKind.Witness, Integer> leftSide = lazyMonad.flatMap(ofFunc, mValueLeft);
       Integer leftResult = force(leftSide);
       int leftEvalA = counterA.get();
       int leftEvalF = counterF.get();
 
       counterA.set(0);
       counterF.set(0);
-      Kind<LazyKind<?>, Integer> mValueRight = countingDefer("A", () -> 10);
+      Kind<LazyKind.Witness, Integer> mValueRight = countingDefer("A", () -> 10);
       Integer rightResult = force(mValueRight);
       int rightEvalA = counterA.get();
       int rightEvalF = counterF.get();
@@ -447,17 +435,17 @@ class LazyMonadTest {
     @Test
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() throws Throwable { // Add throws
-      Function<Integer, Kind<LazyKind<?>, String>> f = createFLaw(); // Create fresh functions
-      Function<String, Kind<LazyKind<?>, String>> g = createGLaw();
+      Function<Integer, Kind<LazyKind.Witness, String>> f = createFLaw();
+      Function<String, Kind<LazyKind.Witness, String>> g = createGLaw();
 
       // --- Left Side Evaluation ---
       counterA.set(0);
       counterB.set(0);
       counterC.set(0);
       counterF.set(0);
-      Kind<LazyKind<?>, Integer> mValueLeft = countingDefer("A", () -> 10);
-      Kind<LazyKind<?>, String> innerLeft = lazyMonad.flatMap(f, mValueLeft);
-      Kind<LazyKind<?>, String> leftSide = lazyMonad.flatMap(g, innerLeft);
+      Kind<LazyKind.Witness, Integer> mValueLeft = countingDefer("A", () -> 10);
+      Kind<LazyKind.Witness, String> innerLeft = lazyMonad.flatMap(f, mValueLeft);
+      Kind<LazyKind.Witness, String> leftSide = lazyMonad.flatMap(g, innerLeft);
       String leftResult = force(leftSide);
       int leftEvalA = counterA.get();
       int leftEvalB = counterB.get();
@@ -469,14 +457,14 @@ class LazyMonadTest {
       counterB.set(0);
       counterC.set(0);
       counterF.set(0); // Reset counters
-      Kind<LazyKind<?>, Integer> mValueRight = countingDefer("A", () -> 10);
+      Kind<LazyKind.Witness, Integer> mValueRight = countingDefer("A", () -> 10);
       // Recreate f and g for the right side's lambda to ensure counterF is tracked correctly within
       // the lambda
-      Function<Integer, Kind<LazyKind<?>, String>> fRight = createFLaw();
-      Function<String, Kind<LazyKind<?>, String>> gRight = createGLaw();
-      Function<Integer, Kind<LazyKind<?>, String>> rightSideFunc =
+      Function<Integer, Kind<LazyKind.Witness, String>> fRight = createFLaw();
+      Function<String, Kind<LazyKind.Witness, String>> gRight = createGLaw();
+      Function<Integer, Kind<LazyKind.Witness, String>> rightSideFunc =
           a -> lazyMonad.flatMap(gRight, fRight.apply(a)); // Use fresh f/g instances
-      Kind<LazyKind<?>, String> rightSide = lazyMonad.flatMap(rightSideFunc, mValueRight);
+      Kind<LazyKind.Witness, String> rightSide = lazyMonad.flatMap(rightSideFunc, mValueRight);
       String rightResult = force(rightSide);
       int rightEvalA = counterA.get();
       int rightEvalB = counterB.get();
@@ -491,7 +479,7 @@ class LazyMonadTest {
       assertThat(rightEvalB).isEqualTo(1);
       assertThat(rightEvalC).isEqualTo(1);
       // Function application count should be 2 (once for f, once for g) on both sides
-      assertThat(leftEvalF).isEqualTo(2); // <<<< This was the failing line (411)
+      assertThat(leftEvalF).isEqualTo(2);
       assertThat(rightEvalF).isEqualTo(2);
     }
   }
@@ -500,10 +488,10 @@ class LazyMonadTest {
   @Nested
   @DisplayName("mapN tests")
   class MapNTests {
-    Kind<LazyKind<?>, Integer> lz1;
-    Kind<LazyKind<?>, String> lz2;
-    Kind<LazyKind<?>, Double> lz3;
-    Kind<LazyKind<?>, Boolean> lz4;
+    Kind<LazyKind.Witness, Integer> lz1;
+    Kind<LazyKind.Witness, String> lz2;
+    Kind<LazyKind.Witness, Double> lz3;
+    Kind<LazyKind.Witness, Boolean> lz4;
 
     @BeforeEach
     void setUpMapN() {
@@ -519,7 +507,7 @@ class LazyMonadTest {
 
     @Test
     void map2_combinesLazily() throws Throwable { // Add throws
-      Kind<LazyKind<?>, String> result = lazyMonad.map2(lz1, lz2, (i, s) -> s + i);
+      Kind<LazyKind.Witness, String> result = lazyMonad.map2(lz1, lz2, (i, s) -> s + i);
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
 
@@ -536,7 +524,7 @@ class LazyMonadTest {
     void map3_combinesLazily() throws Throwable { // Add throws
       Function3<Integer, String, Double, String> f3 =
           (i, s, d) -> String.format("%s%d-%.1f", s, i, d);
-      Kind<LazyKind<?>, String> result = lazyMonad.map3(lz1, lz2, lz3, f3);
+      Kind<LazyKind.Witness, String> result = lazyMonad.map3(lz1, lz2, lz3, f3);
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
       assertThat(counterC.get()).isZero();
@@ -556,7 +544,7 @@ class LazyMonadTest {
     void map4_combinesLazily() throws Throwable { // Add throws
       Function4<Integer, String, Double, Boolean, String> f4 =
           (i, s, d, b) -> String.format("%s%d-%.1f-%b", s, i, d, b);
-      Kind<LazyKind<?>, String> result = lazyMonad.map4(lz1, lz2, lz3, lz4, f4);
+      Kind<LazyKind.Witness, String> result = lazyMonad.map4(lz1, lz2, lz3, lz4, f4);
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
       assertThat(counterC.get()).isZero();
@@ -578,7 +566,7 @@ class LazyMonadTest {
     @Test
     void mapN_propagatesFailure() { // No throws needed
       RuntimeException ex = new RuntimeException("FailMapN");
-      Kind<LazyKind<?>, String> lzFail =
+      Kind<LazyKind.Witness, String> lzFail =
           countingDefer(
               "B",
               () -> {
@@ -586,7 +574,7 @@ class LazyMonadTest {
               });
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Won't run";
 
-      Kind<LazyKind<?>, String> result = lazyMonad.map3(lz1, lzFail, lz3, f3);
+      Kind<LazyKind.Witness, String> result = lazyMonad.map3(lz1, lzFail, lz3, f3);
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
       assertThat(counterC.get()).isZero();

@@ -40,8 +40,8 @@ class LazyKindHelperTest {
   class WrapTests {
     @Test
     void wrap_shouldReturnHolderForLazy() {
-      Kind<LazyKind<?>, String> kind = wrap(baseLazy);
-      assertThat(kind).isInstanceOf(LazyHolder.class);
+      Kind<LazyKind.Witness, String> kind = wrap(baseLazy);
+      assertThat(kind).isInstanceOf(LazyKindHelper.LazyHolder.class);
       assertThat(unwrap(kind)).isSameAs(baseLazy);
     }
 
@@ -58,11 +58,11 @@ class LazyKindHelperTest {
   class UnwrapTests {
     @Test
     void unwrap_shouldReturnOriginalLazy() {
-      Kind<LazyKind<?>, String> kind = wrap(baseLazy);
+      Kind<LazyKind.Witness, String> kind = wrap(baseLazy);
       assertThat(unwrap(kind)).isSameAs(baseLazy);
     }
 
-    record DummyLazyKind<A>() implements Kind<LazyKind<?>, A> {}
+    record DummyOtherKind<A>() implements Kind<LazyKind.Witness, A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
@@ -73,10 +73,10 @@ class LazyKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<LazyKind<?>, String> unknownKind = new DummyLazyKind<>();
+      Kind<LazyKind.Witness, String> unknownKind = new DummyOtherKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyLazyKind.class.getName());
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOtherKind.class.getName());
     }
   }
 
@@ -87,18 +87,17 @@ class LazyKindHelperTest {
     // Add throws Throwable because force() is called indirectly via unwrap().force()
     void defer_shouldWrapSupplier() throws Throwable {
       AtomicInteger counter = new AtomicInteger(0);
-      // Use ThrowableSupplier here
       ThrowableSupplier<Integer> supplier =
           () -> {
             counter.incrementAndGet();
             return 42;
           };
-      Kind<LazyKind<?>, Integer> kind = LazyKindHelper.defer(supplier);
+      Kind<LazyKind.Witness, Integer> kind = LazyKindHelper.defer(supplier);
 
       assertThat(counter.get()).isZero();
 
       Lazy<Integer> lazy = unwrap(kind);
-      assertThat(lazy.force()).isEqualTo(42); // force() now throws Throwable
+      assertThat(lazy.force()).isEqualTo(42);
       assertThat(counter.get()).isEqualTo(1);
 
       assertThat(lazy.force()).isEqualTo(42);
@@ -113,21 +112,21 @@ class LazyKindHelperTest {
     }
 
     @Test
-    void now_shouldWrapAlreadyEvaluatedValue() throws Throwable { // Add throws
-      AtomicInteger counter = new AtomicInteger(0); // Use local counter for isolation
-      Kind<LazyKind<?>, String> kind = LazyKindHelper.now("Precomputed");
+    void now_shouldWrapAlreadyEvaluatedValue() throws Throwable {
+      AtomicInteger counter = new AtomicInteger(0);
+      Kind<LazyKind.Witness, String> kind = LazyKindHelper.now("Precomputed");
 
       assertThat(counter.get()).isZero();
       Lazy<String> lazy = unwrap(kind);
-      assertThat(lazy.force()).isEqualTo("Precomputed"); // force() throws Throwable
+      assertThat(lazy.force()).isEqualTo("Precomputed");
       assertThat(counter.get()).isZero();
     }
 
     @Test
-    void now_shouldWrapNullValue() throws Throwable { // Add throws
-      Kind<LazyKind<?>, String> kind = LazyKindHelper.now(null);
+    void now_shouldWrapNullValue() throws Throwable {
+      Kind<LazyKind.Witness, String> kind = LazyKindHelper.now(null);
       Lazy<String> lazy = unwrap(kind);
-      assertThat(lazy.force()).isNull(); // force() throws Throwable
+      assertThat(lazy.force()).isNull();
     }
   }
 
@@ -135,9 +134,9 @@ class LazyKindHelperTest {
   @DisplayName("force()")
   class ForceTests {
     @Test
-    void force_shouldExecuteWrappedLazy() throws Throwable { // Add throws
+    void force_shouldExecuteWrappedLazy() throws Throwable {
       AtomicInteger counter = new AtomicInteger(0);
-      Kind<LazyKind<?>, String> kind =
+      Kind<LazyKind.Witness, String> kind =
           LazyKindHelper.defer( // Use ThrowableSupplier implicitly
               () -> {
                 counter.incrementAndGet();
@@ -145,7 +144,7 @@ class LazyKindHelperTest {
               });
 
       assertThat(counter.get()).isZero();
-      assertThat(force(kind)).isEqualTo("Executed"); // force() helper throws Throwable
+      assertThat(force(kind)).isEqualTo("Executed");
       assertThat(counter.get()).isEqualTo(1);
 
       assertThat(force(kind)).isEqualTo("Executed");
@@ -153,28 +152,23 @@ class LazyKindHelperTest {
     }
 
     @Test
-    void force_shouldPropagateRuntimeExceptionFromLazy() { // No throws needed for unchecked
-      Kind<LazyKind<?>, String> failingKind = wrap(failingLazy);
-      // force() helper re-throws the original exception
+    void force_shouldPropagateRuntimeExceptionFromLazy() {
+      Kind<LazyKind.Witness, String> failingKind = wrap(failingLazy);
       assertThatThrownBy(() -> force(failingKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(testException);
     }
 
     @Test
-    void force_shouldPropagateCheckedExceptionFromLazy() { // No throws needed (catchThrowable)
-      Kind<LazyKind<?>, String> checkedFailingKind = wrap(checkedFailingLazy);
-      // Use catchThrowable as force() declares throws Throwable
+    void force_shouldPropagateCheckedExceptionFromLazy() {
+      Kind<LazyKind.Witness, String> checkedFailingKind = wrap(checkedFailingLazy);
       Throwable thrown = catchThrowable(() -> force(checkedFailingKind));
-      assertThat(thrown)
-          .isInstanceOf(IOException.class) // Expect the original checked exception
-          .hasMessage("Checked IO Failure");
+      assertThat(thrown).isInstanceOf(IOException.class).hasMessage("Checked IO Failure");
     }
 
     @Test
-    void force_shouldThrowKindUnwrapExceptionIfKindIsInvalid() { // No throws needed
-      assertThatThrownBy(() -> force(null))
-          .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
+    void force_shouldThrowKindUnwrapExceptionIfKindIsInvalid() {
+      assertThatThrownBy(() -> force(null)).isInstanceOf(KindUnwrapException.class);
     }
   }
 
