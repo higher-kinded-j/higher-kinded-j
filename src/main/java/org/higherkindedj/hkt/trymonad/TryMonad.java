@@ -7,32 +7,44 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.jspecify.annotations.NonNull;
 
-public class TryMonad extends TryApplicative implements Monad<TryKind<?>> {
+/**
+ * Implements the {@link Monad} interface for {@link Try}, using {@link TryKind.Witness}. It extends
+ * {@link TryApplicative}.
+ *
+ * @see Try
+ * @see TryKind.Witness
+ * @see TryApplicative
+ */
+public class TryMonad extends TryApplicative implements Monad<TryKind.Witness> {
 
+  /**
+   * Sequentially composes two {@code Try} actions, passing the result of the first into a function
+   * that produces the second, and flattening the result.
+   *
+   * @param <A> The input type of the first {@code Try}.
+   * @param <B> The output type of the {@code Try} produced by the function {@code f}.
+   * @param f The function that takes the successful result of {@code ma} and returns a new {@code
+   *     Kind<TryKind.Witness, B>}.
+   * @param ma The first {@code Kind<TryKind.Witness, A>}.
+   * @return A new {@code Kind<TryKind.Witness, B>} representing the composed and flattened
+   *     operation. If {@code ma} is a {@link Try.Failure}, or if applying {@code f} results in an
+   *     exception or a {@link Try.Failure}, then a {@link Try.Failure} is returned.
+   */
   @Override
-  public <A, B> @NonNull Kind<TryKind<?>, B> flatMap(
-      @NonNull Function<A, Kind<TryKind<?>, B>> f, @NonNull Kind<TryKind<?>, A> ma) {
-    Try<A> tryA = unwrap(ma); // Handles null/invalid ma
+  public <A, B> @NonNull Kind<TryKind.Witness, B> flatMap(
+      @NonNull Function<A, Kind<TryKind.Witness, B>> f, @NonNull Kind<TryKind.Witness, A> ma) {
+    Try<A> tryA = unwrap(ma);
 
-    // Use Try's flatMap, but need to adapt the function signature
     Try<B> resultTry =
         tryA.flatMap(
             a -> {
-              // Our function f returns Kind<TryKind<?>, B>
-              // The underlying Try.flatMap expects Function<A, Try<B>>
-              // We need to apply f, then unwrap the result Kind, handling potential exceptions from
-              // f.apply itself
               try {
-                Kind<TryKind<?>, B> kindB = f.apply(a); // f is NonNull
-                // Explicitly return Failure<B> if unwrapping fails (e.g., kindB is null/invalid)
-                // Note: unwrap already returns Try.Failure on error.
-                return unwrap(kindB); // Returns NonNull Try
+                Kind<TryKind.Witness, B> kindB = f.apply(a);
+                return unwrap(kindB);
               } catch (Throwable t) {
-                // Catch exceptions thrown by f.apply(a) itself
-                return Try.failure(t); // Returns NonNull Failure
+                return Try.failure(t);
               }
             });
-
-    return wrap(resultTry); // wrap requires NonNull resultTry
+    return wrap(resultTry);
   }
 }

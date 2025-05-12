@@ -223,7 +223,7 @@ public class OrderWorkflowRunner {
     Kind<EitherTKind<CompletableFutureKind.Witness, DomainError, ?>, WorkflowContext> validatedET =
         eitherTMonad.flatMap(
             ctx -> {
-              Kind<TryKind<?>, ValidatedOrder> tryResultKind =
+              Kind<TryKind.Witness, ValidatedOrder> tryResultKind =
                   steps.validateOrderWithTry(ctx.initialData());
               // ... (rest of Try to Either conversion is fine) ...
               Either<DomainError, ValidatedOrder> eitherResult =

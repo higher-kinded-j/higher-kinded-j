@@ -92,7 +92,7 @@ public class OrderWorkflowSteps {
    * @return A {@code Kind<TryKind<?>, ValidatedOrder>} containing either a {@link
    *     Try.Success<ValidatedOrder>} or a {@link Try.Failure} wrapping the thrown exception.
    */
-  public Kind<TryKind<?>, ValidatedOrder> validateOrderWithTry(OrderData data) {
+  public Kind<TryKind.Witness, ValidatedOrder> validateOrderWithTry(OrderData data) {
 
     return TryKindHelper.tryOf(
         () -> {

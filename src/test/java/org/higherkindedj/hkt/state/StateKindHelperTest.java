@@ -18,16 +18,19 @@ class StateKindHelperTest {
 
   // Simple Integer state for testing
   private final Integer initialState = 100;
-  private final State<Integer, String> baseState = State.of(s -> new StateTuple<>("V:" + s, s + 1));
+  // Explicitly type lambda parameter 's' to ensure it's Integer
+  private final State<Integer, String> baseState =
+      State.of((Integer s) -> new StateTuple<>("V:" + s, s + 1));
 
   @Nested
   @DisplayName("wrap()")
   class WrapTests {
     @Test
     void wrap_shouldReturnHolderForState() {
-      Kind<StateKind<Integer, ?>, String> kind = wrap(baseState);
+      // Corrected Kind declaration
+      Kind<StateKind.Witness, String> kind = wrap(baseState);
       assertThat(kind).isInstanceOf(StateHolder.class);
-      // Unwrap to verify
+      // Unwrap to verify - unwrap expects Kind<StateKind.Witness, A>
       assertThat(unwrap(kind)).isSameAs(baseState);
     }
 
@@ -44,26 +47,37 @@ class StateKindHelperTest {
   class UnwrapTests {
     @Test
     void unwrap_shouldReturnOriginalState() {
-      Kind<StateKind<Integer, ?>, String> kind = wrap(baseState);
+      // Corrected Kind declaration
+      Kind<StateKind.Witness, String> kind = wrap(baseState);
       assertThat(unwrap(kind)).isSameAs(baseState);
     }
 
-    // Dummy Kind implementation that is not StateHolder
-    record DummyStateKind<S, A>() implements Kind<StateKind<S, ?>, A> {}
+    // Dummy Kind implementation - for its use, F should be StateKind.Witness
+    // The original DummyStateKind<S, A>() implements Kind<StateKind<S, ?>, A>
+    // This should be Kind<StateKind.Witness, A> if it's to be used with State HKTs.
+    // However, the test is for unwrap's behavior with non-StateHolder Kinds.
+    // For the specific test unwrap_shouldThrowForUnknownKindType,
+    // the goal is to pass something that is *not* a StateHolder but *is* a Kind<StateKind.Witness,
+    // A>.
+    // Let's make a more direct dummy that fits what unwrap expects as a general Kind for the
+    // witness.
+    record DummyNonStateHolderKind<A>() implements Kind<StateKind.Witness, A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+      assertThatThrownBy(() -> unwrap(null)) // Pass null directly
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<StateKind<Integer, ?>, String> unknownKind = new DummyStateKind<>();
+      // This dummy kind needs to be Kind<StateKind.Witness, String> to be passed to unwrap
+      // but not be a StateHolder.
+      Kind<StateKind.Witness, String> unknownKind = new DummyNonStateHolderKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyStateKind.class.getName());
+          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyNonStateHolderKind.class.getName());
     }
   }
 
@@ -72,7 +86,9 @@ class StateKindHelperTest {
   class HelperFactoriesTests {
     @Test
     void pure_shouldWrapStatePure() {
-      Kind<StateKind<Integer, ?>, String> kind = StateKindHelper.pure("pureValue");
+      // StateKindHelper.pure returns StateKind<S,A> which is Kind<StateKind.Witness, A>
+      Kind<StateKind.Witness, String> kind = StateKindHelper.pure("pureValue");
+      // runState expects Kind<StateKind.Witness, A>
       StateTuple<Integer, String> result = runState(kind, initialState);
       assertThat(result.value()).isEqualTo("pureValue");
       assertThat(result.state()).isEqualTo(initialState);
@@ -80,7 +96,7 @@ class StateKindHelperTest {
 
     @Test
     void get_shouldWrapStateGet() {
-      Kind<StateKind<Integer, ?>, Integer> kind = StateKindHelper.get();
+      Kind<StateKind.Witness, Integer> kind = StateKindHelper.get();
       StateTuple<Integer, Integer> result = runState(kind, initialState);
       assertThat(result.value()).isEqualTo(initialState);
       assertThat(result.state()).isEqualTo(initialState);
@@ -89,7 +105,7 @@ class StateKindHelperTest {
     @Test
     void set_shouldWrapStateSet() {
       Integer newState = 555;
-      Kind<StateKind<Integer, ?>, Void> kind = StateKindHelper.set(newState);
+      Kind<StateKind.Witness, Void> kind = StateKindHelper.set(newState);
       StateTuple<Integer, Void> result = runState(kind, initialState);
       assertThat(result.value()).isNull();
       assertThat(result.state()).isEqualTo(newState);
@@ -98,7 +114,7 @@ class StateKindHelperTest {
     @Test
     void modify_shouldWrapStateModify() {
       Function<Integer, Integer> tripler = s -> s * 3;
-      Kind<StateKind<Integer, ?>, Void> kind = StateKindHelper.modify(tripler);
+      Kind<StateKind.Witness, Void> kind = StateKindHelper.modify(tripler);
       StateTuple<Integer, Void> result = runState(kind, initialState); // 100
       assertThat(result.value()).isNull();
       assertThat(result.state()).isEqualTo(300);
@@ -107,7 +123,7 @@ class StateKindHelperTest {
     @Test
     void inspect_shouldWrapStateInspect() {
       Function<Integer, String> describe = s -> "State is " + s;
-      Kind<StateKind<Integer, ?>, String> kind = StateKindHelper.inspect(describe);
+      Kind<StateKind.Witness, String> kind = StateKindHelper.inspect(describe);
       StateTuple<Integer, String> result = runState(kind, initialState);
       assertThat(result.value()).isEqualTo("State is 100");
       assertThat(result.state()).isEqualTo(initialState);
@@ -117,7 +133,8 @@ class StateKindHelperTest {
   @Nested
   @DisplayName("Run/Eval/Exec Helpers")
   class RunEvalExecTests {
-    final Kind<StateKind<Integer, ?>, String> kind = wrap(baseState); // ("V:" + s, s + 1)
+    // Corrected Kind declaration; baseState already has explicitly typed lambda
+    final Kind<StateKind.Witness, String> kind = wrap(baseState); // ("V:" + s, s + 1)
 
     @Test
     void runState_shouldExecuteAndReturnTuple() {
@@ -140,19 +157,19 @@ class StateKindHelperTest {
 
     @Test
     void runState_shouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> runState(null, initialState))
+      assertThatThrownBy(() -> runState(null, initialState)) // Pass null directly
           .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
     }
 
     @Test
     void evalState_shouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> evalState(null, initialState))
+      assertThatThrownBy(() -> evalState(null, initialState)) // Pass null directly
           .isInstanceOf(KindUnwrapException.class);
     }
 
     @Test
     void execState_shouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> execState(null, initialState))
+      assertThatThrownBy(() -> execState(null, initialState)) // Pass null directly
           .isInstanceOf(KindUnwrapException.class);
     }
   }

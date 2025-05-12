@@ -8,8 +8,13 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper class for working with {@link TryKind} HKT simulation. Provides static methods for
- * wrapping, unwrapping, and creating {@link Try} instances within the Kind simulation.
+ * Helper class for working with {@link Try} in the context of higher-kinded types (HKT), using
+ * {@link TryKind.Witness} as the HKT marker. Provides static methods for wrapping, unwrapping, and
+ * creating {@link Try} instances within the Kind simulation.
+ *
+ * @see Try
+ * @see TryKind
+ * @see TryKind.Witness
  */
 public final class TryKindHelper {
 
@@ -22,49 +27,49 @@ public final class TryKindHelper {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
-  // Internal holder record - Note: tryInstance component is NOT marked @NonNull
+  /**
+   * Internal record implementing {@link TryKind} to hold the concrete {@link Try} instance. By
+   * implementing {@code TryKind<A>}, it implicitly becomes {@code Kind<TryKind.Witness, A>}.
+   *
+   * @param <A> The result type of the Try computation.
+   * @param tryInstance The actual {@link Try} instance. Note: This can be null internally if not
+   *     careful, though {@link #wrap(Try)} enforces non-null.
+   */
   record TryHolder<A>(Try<A> tryInstance) implements TryKind<A> {}
 
   /**
-   * Unwraps a TryKind back to the concrete {@code Try<A>} type. Throws KindUnwrapException if the
-   * Kind is null, not a TryHolder, or the holder contains a null Try instance.
+   * Unwraps a {@code Kind<TryKind.Witness, A>} back to the concrete {@code Try<A>} type. Throws
+   * {@link KindUnwrapException} if the Kind is null, not a {@code TryHolder}, or the holder
+   * contains a null {@code Try} instance.
    *
    * @param <A> The element type potentially held by the Try.
-   * @param kind The TryKind instance. Can be {@code @Nullable}.
-   * @return The underlying, non-null {@code Try<A>}. Returns {@code @NonNull}.
-   * @throws KindUnwrapException if unwrapping fails due to null input, wrong type, or the holder
-   *     containing a null Try instance.
+   * @param kind The {@code Kind<TryKind.Witness, A>} instance. Can be {@code @Nullable}.
+   * @return The underlying, non-null {@code Try<A>}.
+   * @throws KindUnwrapException if unwrapping fails.
    */
   @SuppressWarnings("unchecked") // For casting tryInstance - safe after checks
-  public static <A> @NonNull Try<A> unwrap(@Nullable Kind<TryKind<?>, A> kind) {
-    // Use switch expression with pattern matching
+  public static <A> @NonNull Try<A> unwrap(@Nullable Kind<TryKind.Witness, A> kind) {
     return switch (kind) {
-      // Case 1: Input Kind is null
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-
-      // Case 2: Input Kind is a TryHolder (extract inner 'tryInstance')
-      case TryKindHelper.TryHolder<?>(var tryInstance) -> {
-        // Check if the extracted Try instance itself is null.
-        // Necessary as the record component is not marked @NonNull.
+      case TryKindHelper.TryHolder<?> holder -> {
+        // Access the tryInstance directly from the pattern-matched holder
+        Try<A> tryInstance = (Try<A>) holder.tryInstance();
         if (tryInstance == null) {
           throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
         }
-        // Cast is safe after type check and null check
-        yield (Try<A>) tryInstance;
+        yield tryInstance;
       }
-
-      // Case 3: Input Kind is non-null but not a TryHolder
       default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
   }
 
   /**
-   * Wraps a concrete {@code Try<A>} value into the TryKind simulation type. Requires a non-null Try
-   * instance as input.
+   * Wraps a concrete {@code Try<A>} value into its {@code Kind<TryKind.Witness, A>} representation.
+   * Requires a non-null {@code Try} instance as input.
    *
    * @param <A> The element type.
    * @param tryInstance The concrete {@code Try<A>} instance to wrap. Must be {@code @NonNull}.
-   * @return The {@code TryKind<A>} representation. Returns {@code @NonNull}.
+   * @return The {@code TryKind<A>} representation (which is a {@code Kind<TryKind.Witness, A>}).
    * @throws NullPointerException if tryInstance is null.
    */
   public static <A> @NonNull TryKind<A> wrap(@NonNull Try<A> tryInstance) {
@@ -73,41 +78,41 @@ public final class TryKindHelper {
   }
 
   /**
-   * Wraps a successful value directly into TryKind. Uses {@link Try#success(Object)}.
+   * Wraps a successful value directly into {@code Kind<TryKind.Witness, A>}. Uses {@link
+   * Try#success(Object)}.
    *
    * @param <A> The element type.
    * @param value The successful value. Can be {@code @Nullable}.
-   * @return A {@code Kind<TryKind<?>, A>} representing success. Returns {@code @NonNull}.
+   * @return A {@code Kind<TryKind.Witness, A>} representing success.
    */
-  public static <A> @NonNull Kind<TryKind<?>, A> success(
-      @Nullable A value) { // Allow null success value
+  public static <A> @NonNull Kind<TryKind.Witness, A> success(@Nullable A value) {
     return wrap(Try.success(value));
   }
 
   /**
-   * Wraps a failure directly into TryKind. Uses {@link Try#failure(Throwable)}.
+   * Wraps a failure directly into {@code Kind<TryKind.Witness, A>}. Uses {@link
+   * Try#failure(Throwable)}.
    *
    * @param <A> The phantom element type.
    * @param throwable The exception representing the failure. Must be {@code @NonNull}.
-   * @return A {@code Kind<TryKind<?>, A>} representing failure. Returns {@code @NonNull}.
-   * @throws NullPointerException if throwable is null.
+   * @return A {@code Kind<TryKind.Witness, A>} representing failure.
+   * @throws NullPointerException if throwable is null (delegated to Try.failure).
    */
-  public static <A> @NonNull Kind<TryKind<?>, A> failure(@NonNull Throwable throwable) {
-    // Try.failure performs null check
+  public static <A> @NonNull Kind<TryKind.Witness, A> failure(@NonNull Throwable throwable) {
     return wrap(Try.failure(throwable));
   }
 
   /**
-   * Executes a supplier and wraps the result or exception in TryKind. Uses {@link
-   * Try#of(Supplier)}.
+   * Executes a supplier and wraps the result or exception in {@code Kind<TryKind.Witness, A>}. Uses
+   * {@link Try#of(Supplier)}.
    *
    * @param <A> The element type.
    * @param supplier The {@link Supplier} to execute. Must be {@code @NonNull}.
-   * @return A {@code Kind<TryKind<?>, A>} representing the outcome. Returns {@code @NonNull}.
-   * @throws NullPointerException if supplier is null.
+   * @return A {@code Kind<TryKind.Witness, A>} representing the outcome.
+   * @throws NullPointerException if supplier is null (delegated to Try.of).
    */
-  public static <A> @NonNull Kind<TryKind<?>, A> tryOf(@NonNull Supplier<? extends A> supplier) {
-    // Try.of performs null check
+  public static <A> @NonNull Kind<TryKind.Witness, A> tryOf(
+      @NonNull Supplier<? extends A> supplier) {
     return wrap(Try.of(supplier));
   }
 }
