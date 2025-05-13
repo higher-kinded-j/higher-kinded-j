@@ -30,7 +30,7 @@ class IOKindHelperTest {
   class WrapTests {
     @Test
     void wrap_shouldReturnHolderForIO() {
-      Kind<IOKind<?>, String> kind = wrap(baseIO);
+      IOKind<String> kind = wrap(baseIO);
       assertThat(kind).isInstanceOf(IOHolder.class);
       // Unwrap to verify
       assertThat(unwrap(kind)).isSameAs(baseIO);
@@ -49,12 +49,12 @@ class IOKindHelperTest {
   class UnwrapTests {
     @Test
     void unwrap_shouldReturnOriginalIO() {
-      Kind<IOKind<?>, String> kind = wrap(baseIO);
+      IOKind<String> kind = wrap(baseIO);
       assertThat(unwrap(kind)).isSameAs(baseIO);
     }
 
     // Dummy Kind implementation that is not IOHolder
-    record DummyIOKind<A>() implements Kind<IOKind<?>, A> {}
+    record DummyIOKind<A>() implements IOKind<A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
@@ -65,7 +65,7 @@ class IOKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<IOKind<?>, String> unknownKind = new DummyIOKind<>();
+      IOKind<String> unknownKind = new DummyIOKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyIOKind.class.getName());
@@ -83,7 +83,7 @@ class IOKindHelperTest {
             counter.incrementAndGet();
             return 42;
           };
-      Kind<IOKind<?>, Integer> kind = IOKindHelper.delay(supplier);
+      Kind<IOKind.Witness, Integer> kind = IOKindHelper.delay(supplier);
 
       // Effect should not run yet
       assertThat(counter.get()).isZero();
@@ -112,7 +112,7 @@ class IOKindHelperTest {
     @Test
     void unsafeRunSync_shouldExecuteWrappedIO() {
       AtomicInteger counter = new AtomicInteger(0);
-      Kind<IOKind<?>, String> kind =
+      Kind<IOKind.Witness, String> kind =
           IOKindHelper.delay(
               () -> {
                 counter.incrementAndGet();
@@ -130,7 +130,7 @@ class IOKindHelperTest {
 
     @Test
     void unsafeRunSync_shouldPropagateExceptionFromIO() {
-      Kind<IOKind<?>, String> failingKind = wrap(failingIO);
+      IOKind<String> failingKind = wrap(failingIO);
 
       assertThatThrownBy(() -> unsafeRunSync(failingKind))
           .isInstanceOf(RuntimeException.class)

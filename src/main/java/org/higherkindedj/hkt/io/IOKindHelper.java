@@ -14,12 +14,12 @@ import org.jspecify.annotations.Nullable;
  * <p>This class offers static methods for:
  *
  * <ul>
- *   <li>Safely converting between an {@link IO} instance and its {@link Kind} representation
- *       ({@link #wrap(IO)} and {@link #unwrap(Kind)}).
- *   <li>Creating {@link IO} instances, wrapped as {@link Kind}, from suppliers ({@link
- *       #delay(Supplier)}).
- *   <li>Executing an {@code IO} computation represented as a {@link Kind} ({@link
- *       #unsafeRunSync(Kind)}).
+ * <li>Safely converting between an {@link IO} instance and its {@link Kind} representation
+ * ({@link #wrap(IO)} and {@link #unwrap(Kind)}).
+ * <li>Creating {@link IO} instances, wrapped as {@link Kind}, from suppliers ({@link
+ * #delay(Supplier)}).
+ * <li>Executing an {@code IO} computation represented as a {@link Kind} ({@link
+ * #unsafeRunSync(Kind)}).
  * </ul>
  *
  * <p>It acts as a bridge between the concrete {@link IO} type, which encapsulates a potentially
@@ -66,24 +66,25 @@ public final class IOKindHelper {
   record IOHolder<A>(@NonNull IO<A> ioInstance) implements IOKind<A> {}
 
   /**
-   * Unwraps a {@code Kind<IOKind<?>, A>} back to its concrete {@link IO IO<A>} type.
+   * Unwraps a {@code Kind<IOKind.Witness, A>} back to its concrete {@link IO IO<A>} type.
    *
-   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents an {@link IO} computation.
    *
    * @param <A> The result type of the {@code IO} computation.
-   * @param kind The {@code Kind<IOKind<?>, A>} instance to unwrap. May be {@code null}.
+   * @param kind The {@code Kind<IOKind.Witness, A>} instance to unwrap. May be {@code null}.
    * @return The underlying, non-null {@link IO IO<A>} instance.
    * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
-   *     {@code IOHolder}, or if the holder's internal {@code IO} instance is {@code null} (which
-   *     would indicate an internal issue with {@link #wrap(IO)}).
+   * {@code IOHolder}, or if the holder's internal {@code IO} instance is {@code null} (which
+   * would indicate an internal issue with {@link #wrap(IO)}).
    */
   @SuppressWarnings("unchecked") // For casting ioInstance - safe after pattern match.
-  public static <A> @NonNull IO<A> unwrap(@Nullable Kind<IOKind<?>, A> kind) {
+  public static <A> @NonNull IO<A> unwrap(@Nullable Kind<IOKind.Witness, A> kind) {
     return switch (kind) {
       case null ->
-          // If the input Kind itself is null.
+        // If the input Kind itself is null.
           throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+      // The pattern match should correctly infer IOHolder based on IOKind<A> which is Kind<IOKind.Witness, A>
       case IOKindHelper.IOHolder<?> holder -> {
         // The IOHolder record's 'ioInstance' component is @NonNull.
         // So, holder.ioInstance() is guaranteed non-null if the holder itself is valid.
@@ -91,19 +92,19 @@ public final class IOKindHelper {
         yield (IO<A>) holder.ioInstance();
       }
       default ->
-          // If the Kind is non-null but not the expected IOHolder type.
+        // If the Kind is non-null but not the expected IOHolder type.
           throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
   }
 
   /**
    * Wraps a concrete {@link IO IO<A>} instance into its higher-kinded representation, {@code
-   * Kind<IOKind<?>, A>}.
+   * Kind<IOKind.Witness, A>}.
    *
    * @param <A> The result type of the {@code IO} computation.
    * @param io The non-null, concrete {@link IO IO<A>} instance to wrap.
-   * @return A non-null {@link IOKind IOKind<A>} (which is also a {@code Kind<IOKind<?>, A>})
-   *     representing the wrapped {@code IO} computation.
+   * @return A non-null {@link IOKind IOKind<A>} (which is also a {@code Kind<IOKind.Witness, A>})
+   * representing the wrapped {@code IO} computation.
    * @throws NullPointerException if {@code io} is {@code null}.
    */
   public static <A> @NonNull IOKind<A> wrap(@NonNull IO<A> io) {
@@ -120,12 +121,12 @@ public final class IOKindHelper {
    *
    * @param <A> The type of the value produced by the {@code IO} computation.
    * @param thunk The non-null {@link Supplier} representing the deferred computation. The supplier
-   *     itself may return {@code null} if {@code A} is a nullable type.
-   * @return A new, non-null {@code Kind<IOKind<?>, A>} representing the delayed {@code IO}
-   *     computation.
+   * itself may return {@code null} if {@code A} is a nullable type.
+   * @return A new, non-null {@code Kind<IOKind.Witness, A>} representing the delayed {@code IO}
+   * computation.
    * @throws NullPointerException if {@code thunk} is {@code null}.
    */
-  public static <A> @NonNull Kind<IOKind<?>, A> delay(@NonNull Supplier<A> thunk) {
+  public static <A> @NonNull Kind<IOKind.Witness, A> delay(@NonNull Supplier<A> thunk) {
     // IO.delay will perform its own null check on the thunk.
     return wrap(IO.delay(thunk));
   }
@@ -142,14 +143,14 @@ public final class IOKindHelper {
    * IO#unsafeRunSync()}.
    *
    * @param <A> The type of the result produced by the {@code IO} computation.
-   * @param kind The non-null {@code Kind<IOKind<?>, A>} holding the {@code IO} computation.
+   * @param kind The non-null {@code Kind<IOKind.Witness, A>} holding the {@code IO} computation.
    * @return The result of the {@code IO} computation. Can be {@code null} if the computation
-   *     defined within the {@code IO} produces a {@code null} value.
+   * defined within the {@code IO} produces a {@code null} value.
    * @throws KindUnwrapException if the input {@code kind} is invalid (e.g., null or wrong type).
-   *     Any exceptions thrown by the {@code IO} computation itself during {@code unsafeRunSync}
-   *     will propagate.
+   * Any exceptions thrown by the {@code IO} computation itself during {@code unsafeRunSync}
+   * will propagate.
    */
-  public static <A> @Nullable A unsafeRunSync(@NonNull Kind<IOKind<?>, A> kind) {
+  public static <A> @Nullable A unsafeRunSync(@NonNull Kind<IOKind.Witness, A> kind) {
     // unwrap will throw KindUnwrapException if kind is invalid.
     return unwrap(kind).unsafeRunSync();
   }
