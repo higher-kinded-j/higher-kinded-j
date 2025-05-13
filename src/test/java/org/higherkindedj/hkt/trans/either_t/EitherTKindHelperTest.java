@@ -36,7 +36,6 @@ class EitherTKindHelperTest {
   void privateConstructor_shouldThrowException() {
     assertThatThrownBy(
             () -> {
-              @SuppressWarnings("rawtypes")
               Constructor<EitherTKindHelper> constructor =
                   EitherTKindHelper.class.getDeclaredConstructor();
               constructor.setAccessible(true);
@@ -58,10 +57,10 @@ class EitherTKindHelperTest {
     void wrap_nonNullEitherTRight_shouldReturnEitherTKind() {
       EitherT<OptionalKind.Witness, String, Integer> concreteEitherT =
           createEitherT(Either.right(123));
-      Kind<EitherTKind<OptionalKind.Witness, String, ?>, Integer> wrapped =
+      Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
           EitherTKindHelper.wrap(concreteEitherT);
 
-      assertThat(wrapped).isNotNull().isInstanceOf(EitherTKindHelper.EitherTHolder.class);
+      assertThat(wrapped).isNotNull().isInstanceOf(EitherTKind.class);
       assertThat(EitherTKindHelper.<OptionalKind.Witness, String, Integer>unwrap(wrapped))
           .isSameAs(concreteEitherT);
     }
@@ -83,8 +82,7 @@ class EitherTKindHelperTest {
     void unwrap_validKindRight_shouldReturnEitherT() {
       EitherT<OptionalKind.Witness, String, Integer> originalEitherT =
           createEitherT(Either.right(456));
-      Kind<EitherTKind<OptionalKind.Witness, String, ?>, Integer> wrappedKind =
-          EitherTKindHelper.wrap(originalEitherT);
+      var wrappedKind = EitherTKindHelper.wrap(originalEitherT);
 
       EitherT<OptionalKind.Witness, String, Integer> unwrappedEitherT =
           EitherTKindHelper.unwrap(wrappedKind);
@@ -110,8 +108,8 @@ class EitherTKindHelperTest {
       OtherKind<OptionalKind.Witness, String, Integer> incorrectKind = new OtherKind<>();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
-      Kind<EitherTKind<OptionalKind.Witness, String, ?>, Integer> kindToTest =
-          (Kind<EitherTKind<OptionalKind.Witness, String, ?>, Integer>) (Kind) incorrectKind;
+      Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> kindToTest =
+          (Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer>) (Kind) incorrectKind;
 
       assertThatThrownBy(() -> EitherTKindHelper.unwrap(kindToTest))
           .isInstanceOf(KindUnwrapException.class)

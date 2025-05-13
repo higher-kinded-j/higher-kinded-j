@@ -105,8 +105,8 @@ public final class CompletableFutureKindHelper {
   }
 
   /**
-   * Wraps a concrete {@link CompletableFuture<A>} instance into its higher-kinded
-   * representation, {@code Kind<CompletableFutureKind.Witness, A>}.
+   * Wraps a concrete {@link CompletableFuture<A>} instance into its higher-kinded representation,
+   * {@code Kind<CompletableFutureKind.Witness, A>}.
    *
    * @param <A> The result type of the {@code CompletableFuture}.
    * @param future The non-null, concrete {@link CompletableFuture CompletableFuture<A>} instance to

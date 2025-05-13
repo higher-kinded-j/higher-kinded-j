@@ -70,7 +70,7 @@ public final class LazyKindHelper {
   /**
    * Unwraps a {@code Kind<LazyKind.Witness, A>} back to its concrete {@link Lazy Lazy<A>} type.
    *
-   * This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents a {@link Lazy} computation.
    *
    * @param <A> The result type of the {@code Lazy} computation.
@@ -99,12 +99,13 @@ public final class LazyKindHelper {
   }
 
   /**
-   * Wraps a concrete {@link Lazy<A>} instance into its higher-kinded representation, {@code Kind<LazyKind.Witness, A>}.
+   * Wraps a concrete {@link Lazy<A>} instance into its higher-kinded representation, {@code
+   * Kind<LazyKind.Witness, A>}.
    *
    * @param <A> The result type of the {@code Lazy} computation.
    * @param lazy The non-null, concrete {@link Lazy Lazy<A>} instance to wrap.
-   * @return A non-null {@link LazyKind<A>} (which is also a {@code Kind<LazyKind.Witness,
-   *     A>}) representing the wrapped {@code Lazy} computation.
+   * @return A non-null {@link LazyKind<A>} (which is also a {@code Kind<LazyKind.Witness, A>})
+   *     representing the wrapped {@code Lazy} computation.
    * @throws NullPointerException if {@code Lazy} is {@code null}.
    */
   public static <A> @NonNull LazyKind<A> wrap(@NonNull Lazy<A> lazy) {

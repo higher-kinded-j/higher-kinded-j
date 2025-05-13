@@ -9,20 +9,24 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Represents the concrete implementation of the Either Transformer Monad (EitherT). It wraps a
- * monadic value of type {@code Kind<F, Either<L, R>>}, where {@code F} is the outer monad, {@code
- * L} is the type of the 'left' (error/alternative) value, and {@code R} is the type of the 'right'
- * (success) value.
+ * monadic value of type {@code Kind<F, Either<L, R>>}, where {@code F} is the witness type of the
+ * outer monad, {@code L} is the type of the 'left' (error/alternative) value, and {@code R} is the
+ * type of the 'right' (success) value.
  *
- * <p>This class is a record, making it an immutable data holder for the wrapped value. To use
- * {@code EitherT} as a {@code Kind} in higher-kinded type simulations, it should be
- * wrapped/unwrapped using {@link EitherTKindHelper}.
+ * <p>This class is a record, making it an immutable data holder for the wrapped value. It
+ * implements {@link EitherTKind} to participate in higher-kinded type simulations, allowing it to
+ * be treated as {@code Kind<EitherTKind.Witness<F,L>, R>}.
  *
- * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}).
+ * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind.Witness}).
  * @param <L> The type of the 'left' value in the inner {@link Either}.
  * @param <R> The type of the 'right' value in the inner {@link Either}.
  * @param value The underlying monadic value {@code Kind<F, Either<L, R>>}. Must not be null.
+ * @see EitherTKind
+ * @see EitherTMonad
+ * @see EitherTKindHelper
  */
-public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) {
+public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
+    implements EitherTKind<F, L, R> { // Implements the updated EitherTKind
 
   /**
    * Canonical constructor for {@code EitherT}.
@@ -30,10 +34,13 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) {
    * @param value The underlying monadic value {@code Kind<F, Either<L, R>>}.
    * @throws NullPointerException if {@code value} is null.
    */
-  public EitherT {
+  public EitherT { // Canonical constructor
     Objects.requireNonNull(value, "Wrapped value cannot be null for EitherT");
   }
 
+  // Static factory methods (fromKind, right, left, fromEither, liftF) remain the same.
+  // Their Javadoc is already quite good.
+  // ... (existing static factory methods as provided in the fetched file) ...
   /**
    * Creates an {@code EitherT} from an existing {@code Kind<F, Either<L, R>>}.
    *
@@ -131,6 +138,7 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) {
    *
    * @return The {@code @NonNull Kind<F, Either<L, R>>} wrapped by this {@code EitherT}.
    */
+  @Override
   public @NonNull Kind<F, Either<L, R>> value() {
     return value;
   }

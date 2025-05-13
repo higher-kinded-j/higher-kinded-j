@@ -1,7 +1,6 @@
 package org.higherkindedj.hkt.either;
 
 import java.util.Objects;
-
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.NonNull;
@@ -30,10 +29,9 @@ import org.jspecify.annotations.Nullable;
  */
 public final class EitherKindHelper {
 
-  /**
-   * Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}.
-   */
+  /** Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}. */
   public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Either";
+
   /**
    * Error message for when a {@link Kind} of an unexpected type is passed to {@link #unwrap(Kind)}.
    */
@@ -48,9 +46,7 @@ public final class EitherKindHelper {
   public static final String INVALID_HOLDER_STATE_MSG =
       "EitherHolder contained null Either instance";
 
-  /**
-   * Private constructor to prevent instantiation of this utility class. All methods are static.
-   */
+  /** Private constructor to prevent instantiation of this utility class. All methods are static. */
   private EitherKindHelper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
@@ -63,11 +59,11 @@ public final class EitherKindHelper {
    * implements {@code EitherKind<L,R>}, this method can simply perform a cast. Otherwise, it uses
    * {@link EitherHolder}.
    *
-   * @param <L>    The type of the "Left" value of the {@code Either}.
-   * @param <R>    The type of the "Right" value of the {@code Either}.
+   * @param <L> The type of the "Left" value of the {@code Either}.
+   * @param <R> The type of the "Right" value of the {@code Either}.
    * @param either The non-null, concrete {@code Either<L, R>} instance to wrap.
    * @return A non-null {@code Kind<EitherKind.Witness<L>, R>} representing the wrapped {@code
-   * Either}.
+   *     Either}.
    * @throws NullPointerException if {@code either} is {@code null}.
    */
   public static <L, R> @NonNull Kind<EitherKind.Witness<L>, R> wrap(@NonNull Either<L, R> either) {
@@ -79,12 +75,12 @@ public final class EitherKindHelper {
    * Unwraps a {@code Kind<EitherKind.Witness<L>, R>} back to its concrete {@code Either<L, R>}
    * type.
    *
-   * @param <L>  The type of the "Left" value of the target {@code Either}.
-   * @param <R>  The type of the "Right" value of the target {@code Either}.
+   * @param <L> The type of the "Left" value of the target {@code Either}.
+   * @param <R> The type of the "Right" value of the target {@code Either}.
    * @param kind The {@code Kind<EitherKind.Witness<L>, R>} instance to unwrap. May be {@code null}.
    * @return The underlying, non-null {@code Either<L, R>} instance.
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not a representation
-   *                             of an {@code Either<L,R>}.
+   *     of an {@code Either<L,R>}.
    */
   public static <L, R> @NonNull Either<L, R> unwrap(@Nullable Kind<EitherKind.Witness<L>, R> kind) {
     return switch (kind) {
@@ -99,10 +95,9 @@ public final class EitherKindHelper {
    * This can be used if {@link Either.Left} and {@link Either.Right} do not directly implement
    * {@link EitherKind}, or if a consistent holder pattern across all HKTs is desired.
    *
-   * @param <L>    The type of the {@code Left} value.
-   * @param <R>    The type of the {@code Right} value.
+   * @param <L> The type of the {@code Left} value.
+   * @param <R> The type of the {@code Right} value.
    * @param either The non-null, actual {@link Either} instance.
    */
-  record EitherHolder<L, R>(@NonNull Either<L, R> either) implements EitherKind<L, R> {
-  }
+  record EitherHolder<L, R>(@NonNull Either<L, R> either) implements EitherKind<L, R> {}
 }

@@ -114,8 +114,8 @@ public final class IOKindHelper {
   }
 
   /**
-   * Creates an {@link IOKind<A>} that wraps an {@link IO} computation produced by delaying
-   * the execution of a {@link Supplier}.
+   * Creates an {@link IOKind<A>} that wraps an {@link IO} computation produced by delaying the
+   * execution of a {@link Supplier}.
    *
    * <p>This is a convenience factory method that delegates to {@link IO#delay(Supplier)} and then
    * wraps the result using {@link #wrap(IO)}.
