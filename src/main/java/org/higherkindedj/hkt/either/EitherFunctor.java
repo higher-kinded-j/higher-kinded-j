@@ -8,28 +8,40 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.NonNull;
 
-public class EitherFunctor<L> implements Functor<EitherKind<L, ?>> {
+/**
+ * Implements the {@link Functor} interface for the {@link Either} type, biased towards the "Right"
+ * value. This allows mapping a function over the {@code R} value of an {@code Either<L, R>} if it's
+ * a {@link Either.Right}, while leaving a {@link Either.Left} unchanged.
+ *
+ * @param <L> The fixed "Left" type (typically representing an error or alternative) for which this
+ *     functor instance is defined.
+ * @see Either
+ * @see EitherKind
+ * @see EitherKind.Witness
+ * @see Functor
+ * @see EitherKindHelper
+ */
+public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
+
   /**
-   * Applies a function to the Right value if 'ma' is a Right. If 'ma' is a Left, propagates the
-   * Left value unchanged.
+   * Applies a function to the "Right" value if the provided {@link Kind} represents a {@link
+   * Either.Right}. If it represents a {@link Either.Left}, the "Left" value is propagated
+   * unchanged.
    *
-   * @param f The function to apply to the Right value. (NonNull)
-   * @param ma The input EitherKind. (NonNull)
-   * @param <A> The type of the Right value in the input EitherKind.
-   * @param <B> The type of the Right value in the resulting EitherKind.
-   * @return A new EitherKind with the function applied to the Right value, or the original Left
-   *     propagated. (NonNull)
+   * @param f The non-null function to apply to the "Right" value.
+   * @param ma The input {@code Kind<EitherKind.Witness<L>, A>}, representing an {@code Either<L,
+   *     A>}. Must not be null.
+   * @param <A> The type of the "Right" value in the input {@code Either}.
+   * @param <B> The type of the "Right" value in the resulting {@code Either} after function
+   *     application.
+   * @return A new {@code Kind<EitherKind.Witness<L>, B>} representing the transformed {@code
+   *     Either<L, B>}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<EitherKind<L, ?>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<EitherKind<L, ?>, A> ma) {
-    // 1. Unwrap the input Kind to get the concrete Either<L, A>
-    Either<L, A> eitherA = unwrap(ma); // unwrap handles null/invalid ma
-
-    // 2. Use Either's built-in map, which is right-biased.
-    Either<L, B> resultEither = eitherA.map(f); // map requires non-null f
-
-    // 3. Wrap the resulting Either<L, B> back into the Kind system.
-    return wrap(resultEither); // wrap requires non-null resultEither
+  public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<EitherKind.Witness<L>, A> ma) {
+    Either<L, A> eitherA = unwrap(ma);
+    Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map
+    return wrap(resultEither);
   }
 }

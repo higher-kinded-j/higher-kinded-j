@@ -70,7 +70,7 @@ public final class LazyKindHelper {
   /**
    * Unwraps a {@code Kind<LazyKind.Witness, A>} back to its concrete {@link Lazy Lazy<A>} type.
    *
-   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
+   * This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents a {@link Lazy} computation.
    *
    * @param <A> The result type of the {@code Lazy} computation.
@@ -99,14 +99,13 @@ public final class LazyKindHelper {
   }
 
   /**
-   * Wraps a concrete {@link Lazy Lazy<A>} instance into its higher-kinded representation, {@code
-   * Kind<LazyKind.Witness, A>}.
+   * Wraps a concrete {@link Lazy<A>} instance into its higher-kinded representation, {@code Kind<LazyKind.Witness, A>}.
    *
    * @param <A> The result type of the {@code Lazy} computation.
    * @param lazy The non-null, concrete {@link Lazy Lazy<A>} instance to wrap.
-   * @return A non-null {@link LazyKind LazyKind<A>} (which is also a {@code Kind<LazyKind.Witness,
+   * @return A non-null {@link LazyKind<A>} (which is also a {@code Kind<LazyKind.Witness,
    *     A>}) representing the wrapped {@code Lazy} computation.
-   * @throws NullPointerException if {@code lazy} is {@code null}.
+   * @throws NullPointerException if {@code Lazy} is {@code null}.
    */
   public static <A> @NonNull LazyKind<A> wrap(@NonNull Lazy<A> lazy) {
     Objects.requireNonNull(lazy, "Input Lazy cannot be null for wrap");
@@ -114,7 +113,7 @@ public final class LazyKindHelper {
   }
 
   /**
-   * Creates a {@link Kind<LazyKind.Witness, A>} by deferring the execution of a {@link
+   * Creates a {@link Kind<LazyKind.Witness,A>} by deferring the execution of a {@link
    * ThrowableSupplier}. The actual computation is performed only when {@link Lazy#force()} (or
    * {@link #force(Kind)}) is called.
    *

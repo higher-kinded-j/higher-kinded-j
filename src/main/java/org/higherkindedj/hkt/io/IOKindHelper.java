@@ -66,7 +66,7 @@ public final class IOKindHelper {
   record IOHolder<A>(@NonNull IO<A> ioInstance) implements IOKind<A> {}
 
   /**
-   * Unwraps a {@code Kind<IOKind.Witness, A>} back to its concrete {@link IO IO<A>} type.
+   * Unwraps a {@code Kind<IOKind.Witness, A>} back to its concrete {@link IO<A>} type.
    *
    * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents an {@link IO} computation.
@@ -99,12 +99,12 @@ public final class IOKindHelper {
   }
 
   /**
-   * Wraps a concrete {@link IO IO<A>} instance into its higher-kinded representation, {@code
+   * Wraps a concrete {@link IO<A>} instance into its higher-kinded representation, {@code
    * Kind<IOKind.Witness, A>}.
    *
    * @param <A> The result type of the {@code IO} computation.
    * @param io The non-null, concrete {@link IO IO<A>} instance to wrap.
-   * @return A non-null {@link IOKind IOKind<A>} (which is also a {@code Kind<IOKind.Witness, A>})
+   * @return A non-null {@link IOKind<A>} (which is also a {@code Kind<IOKind.Witness, A>})
    *     representing the wrapped {@code IO} computation.
    * @throws NullPointerException if {@code io} is {@code null}.
    */
@@ -114,7 +114,7 @@ public final class IOKindHelper {
   }
 
   /**
-   * Creates an {@link IOKind IOKind<A>} that wraps an {@link IO} computation produced by delaying
+   * Creates an {@link IOKind<A>} that wraps an {@link IO} computation produced by delaying
    * the execution of a {@link Supplier}.
    *
    * <p>This is a convenience factory method that delegates to {@link IO#delay(Supplier)} and then

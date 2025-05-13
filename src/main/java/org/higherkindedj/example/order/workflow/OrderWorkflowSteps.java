@@ -55,13 +55,16 @@ public class OrderWorkflowSteps {
    * @return A {@code Kind<EitherKind<DomainError, ?>, ValidatedOrder>} containing either a {@link
    *     ValidatedOrder} on success, or a {@link DomainError.ValidationError} on failure.
    */
-  public Kind<EitherKind<DomainError, ?>, ValidatedOrder> validateOrder(OrderData data) {
+  public Kind<EitherKind.Witness<DomainError>, ValidatedOrder> validateOrder(OrderData data) {
     dependencies.log("Step (sync - Either): Validating order " + data.orderId());
     // Simulate immediate validation logic
     if (data.quantity() <= 0) {
       String msg = "Quantity must be positive for order " + data.orderId();
       dependencies.log("Validation Failed (Either): " + msg);
-      return EitherKindHelper.wrap(Either.left(new ValidationError(msg)));
+      // Explicitly specify both L and R type arguments for Either.left
+      // Explicitly type the Either instance first
+      Either<DomainError, ValidatedOrder> errorResult = Either.left(new ValidationError(msg));
+      return EitherKindHelper.wrap(errorResult);
     }
     if (data.productId().isEmpty()) {
       String msg = "Product ID missing for order " + data.orderId();

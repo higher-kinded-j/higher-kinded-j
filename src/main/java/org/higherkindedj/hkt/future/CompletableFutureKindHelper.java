@@ -75,7 +75,7 @@ public final class CompletableFutureKindHelper {
 
   /**
    * Unwraps a {@code Kind<CompletableFutureKind.Witness, A>} back to its concrete {@link
-   * CompletableFuture CompletableFuture<A>} type.
+   * CompletableFuture<A>} type.
    *
    * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
    * actually represents a CompletableFuture.
@@ -105,7 +105,7 @@ public final class CompletableFutureKindHelper {
   }
 
   /**
-   * Wraps a concrete {@link CompletableFuture CompletableFuture<A>} instance into its higher-kinded
+   * Wraps a concrete {@link CompletableFuture<A>} instance into its higher-kinded
    * representation, {@code Kind<CompletableFutureKind.Witness, A>}.
    *
    * @param <A> The result type of the {@code CompletableFuture}.
