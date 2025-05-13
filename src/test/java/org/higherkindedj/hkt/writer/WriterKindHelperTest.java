@@ -33,7 +33,7 @@ class WriterKindHelperTest {
   class WrapTests {
     @Test
     void wrap_shouldReturnHolderForWriter() {
-      Kind<WriterKind<String, ?>, Integer> kind = wrap(baseWriter);
+      Kind<WriterKind.Witness<String>, Integer> kind = wrap(baseWriter);
       assertThat(kind).isInstanceOf(WriterHolder.class);
       // Unwrap to verify
       assertThat(unwrap(kind)).isSameAs(baseWriter);
@@ -52,12 +52,12 @@ class WriterKindHelperTest {
   class UnwrapTests {
     @Test
     void unwrap_shouldReturnOriginalWriter() {
-      Kind<WriterKind<String, ?>, Integer> kind = wrap(baseWriter);
+      WriterKind<String, Integer> kind = wrap(baseWriter);
       assertThat(unwrap(kind)).isSameAs(baseWriter);
     }
 
     // Dummy Kind implementation
-    record DummyWriterKind<W, A>() implements Kind<WriterKind<W, ?>, A> {}
+    record DummyWriterKind<W, A>() implements Kind<WriterKind.Witness<W>, A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
@@ -68,7 +68,7 @@ class WriterKindHelperTest {
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<WriterKind<String, ?>, Integer> unknownKind = new DummyWriterKind<>();
+      Kind<WriterKind.Witness<String>, Integer> unknownKind = new DummyWriterKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyWriterKind.class.getName());
@@ -80,7 +80,7 @@ class WriterKindHelperTest {
   class HelperFactoriesTests {
     @Test
     void value_shouldWrapValueWithEmptyLog() {
-      Kind<WriterKind<String, ?>, Integer> kind = WriterKindHelper.value(stringMonoid, 50);
+      Kind<WriterKind.Witness<String>, Integer> kind = WriterKindHelper.value(stringMonoid, 50);
       Writer<String, Integer> w = unwrap(kind);
       assertThat(w.log()).isEqualTo(stringMonoid.empty());
       assertThat(w.value()).isEqualTo(50);
@@ -88,7 +88,7 @@ class WriterKindHelperTest {
 
     @Test
     void tell_shouldWrapLogWithNullValue() {
-      Kind<WriterKind<String, ?>, Void> kind = WriterKindHelper.tell(stringMonoid, "LogMsg");
+      Kind<WriterKind.Witness<String>, Void> kind = WriterKindHelper.tell(stringMonoid, "LogMsg");
       Writer<String, Void> w = unwrap(kind);
       assertThat(w.log()).isEqualTo("LogMsg");
       assertThat(w.value()).isNull();
@@ -100,25 +100,25 @@ class WriterKindHelperTest {
   class RunExecTests {
     @Test
     void runWriter_shouldReturnOriginalWriter() {
-      Kind<WriterKind<String, ?>, Integer> kind = wrap(baseWriter);
+      var kind = wrap(baseWriter);
       assertThat(runWriter(kind)).isSameAs(baseWriter);
     }
 
     @Test
     void run_shouldReturnValue() {
-      Kind<WriterKind<String, ?>, Integer> kind = wrap(baseWriter);
+      var kind = wrap(baseWriter);
       assertThat(run(kind)).isEqualTo(10);
 
-      Kind<WriterKind<String, ?>, Void> tellKind = wrap(tellWriter);
+      var tellKind = wrap(tellWriter);
       assertThat(run(tellKind)).isNull();
     }
 
     @Test
     void exec_shouldReturnLog() {
-      Kind<WriterKind<String, ?>, Integer> kind = wrap(baseWriter);
+      var kind = wrap(baseWriter);
       assertThat(exec(kind)).isEqualTo("Log;");
 
-      Kind<WriterKind<String, ?>, Void> tellKind = wrap(tellWriter);
+      var tellKind = wrap(tellWriter);
       assertThat(exec(tellKind)).isEqualTo("Tell;");
     }
   }

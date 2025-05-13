@@ -6,47 +6,49 @@ import org.higherkindedj.hkt.typeclass.Monoid;
 /**
  * A higher-kinded type marker for the {@link Writer} monad.
  *
- * <p>In the higher-kinded types (HKT) emulation provided by this library, Java's lack of native
- * type constructor polymorphism is addressed using "witness" types or marker interfaces like {@code
- * WriterKind}. This interface allows {@link Writer} to be treated abstractly in contexts requiring
- * HKTs.
+ * <p>This interface, along with its nested {@link Witness} class, allows {@link Writer} to be
+ * treated abstractly in contexts requiring higher-kinded types (HKTs). A {@code Writer<W, A>}
+ * produces a value {@code A} alongside an accumulated log of type {@code W}.
  *
- * <p>This interface, {@code WriterKind<W, A>}, serves as a "kinded" version of {@code Writer<W,
- * A>}. It allows {@code Writer} to be treated as a type constructor {@code WriterKind<W, ?>}. This
- * constructor takes one type argument {@code A} (the value type of the Writer's computation) while
- * keeping {@code W} (the "log" or "output" type, which must have a {@link Monoid} instance) fixed
- * for a particular "kinded" instance.
+ * <p>For HKT purposes, {@code Writer<W, ?>} (a {@code Writer} with a fixed log type {@code W}) is
+ * treated as a type constructor {@code F} that takes one type argument {@code A} (the value type).
+ * The {@link Monoid} for {@code W} is essential for combining logs.
  *
  * <p>Specifically, when using {@code WriterKind} in generic HKT abstractions:
  *
  * <ul>
- *   <li>The "higher-kinded type witness" (often denoted as {@code F} or {@code Mu} in HKT
- *       literature) becomes {@code WriterKind<W, ?>}. This represents the {@code Writer} type
- *       constructor, partially applied with the log type {@code W}.
- *   <li>The "value type" (often denoted as {@code A}) is {@code A}, representing the primary result
- *       type of the computation encapsulated by the {@code Writer}.
+ *   <li>The "higher-kinded type witness" ({@code F} in {@code Kind<F, A>}) becomes {@code
+ *       WriterKind.Witness<W>}. This represents the {@code Writer} type constructor, partially
+ *       applied with the log type {@code W}.
+ *   <li>The "value type" ({@code A} in {@code Kind<F, A>}) is {@code A}, representing the primary
+ *       result of the {@link Writer} computation.
  * </ul>
  *
- * <p>An instance of {@code Kind<WriterKind<W, ?>, A>} can be converted back to a concrete {@code
- * Writer<W, A>} using the {@link WriterKindHelper#unwrap(Kind)} method. This helper method handles
- * the necessary type casting, often via an internal representation (like a private record
- * implementing this {@code WriterKind} interface).
+ * <p>Instances of {@code Kind<WriterKind.Witness<W>, A>} can be converted to/from concrete {@code
+ * Writer<W, A>} instances using {@link WriterKindHelper}.
  *
- * @param <W> The type of the "log" or accumulated output. This type must have an associated {@link
- *     Monoid} instance for the {@code Writer} to function correctly (e.g., for combining logs).
- *     This parameter is part of the "witness type" {@code WriterKind<W, ?>}.
+ * @param <W> The type of the log or accumulated output. This type must have an associated {@link
+ *     Monoid} instance. This parameter is captured by the {@link Witness} type.
  * @param <A> The type of the primary value produced by the {@link Writer} computation. This is the
- *     type parameter that varies for the higher-kinded type.
+ *     type parameter that varies for the higher-kinded type {@code WriterKind.Witness<W>}.
  * @see Writer
+ * @see WriterKind.Witness
  * @see WriterKindHelper
- * @see WriterKindHelper#unwrap(Kind)
- * @see org.higherkindedj.hkt.Kind
- * @see org.higherkindedj.hkt.typeclass.Monoid
+ * @see Kind
+ * @see Monoid
  */
-public interface WriterKind<W, A> extends Kind<WriterKind<W, ?>, A> {
-  // This interface is a marker and does not declare additional methods.
-  // It signifies that a type is a Kind<F, A> where F is WriterKind<W, ?>
-  // (the Writer type constructor fixed with log type W) and A is the result type.
-  // The concrete Writer<W,A> type is typically wrapped by an internal class/record
-  // within WriterKindHelper that implements this interface.
+public interface WriterKind<W, A> extends Kind<WriterKind.Witness<W>, A> {
+
+  /**
+   * The phantom type marker (witness type) for the {@code Writer<W, ?>} type constructor. This
+   * class is parameterized by {@code TYPE_W} (the log type) and is used as the first type argument
+   * to {@link Kind} (i.e., {@code F} in {@code Kind<F, A>}) for {@code Writer} instances with a
+   * fixed log type.
+   *
+   * @param <TYPE_W> The type of the log {@code W} associated with this witness.
+   */
+  final class Witness<TYPE_W> {
+    private Witness() { // Private constructor to prevent instantiation.
+    }
+  }
 }
