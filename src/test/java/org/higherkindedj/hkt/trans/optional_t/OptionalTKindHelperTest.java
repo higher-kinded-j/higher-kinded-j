@@ -29,19 +29,15 @@ class OptionalTKindHelperTest {
     outerMonad = new IOMonad();
   }
 
-  // Helper to create a concrete OptionalT<IOKind, A> with a present value
   private <A extends @NonNull Object> OptionalT<IOKind.Witness, A> createConcreteOptionalTSome(
       @NonNull A value) {
     return OptionalT.some(outerMonad, value);
   }
 
-  // Helper to create a concrete OptionalT<IOKind, A> with an empty value
   private <A> OptionalT<IOKind.Witness, A> createConcreteOptionalTNone() {
     return OptionalT.none(outerMonad);
   }
 
-  // Helper to create a concrete OptionalT<IOKind, A> with outer IO failure (for testing unwrap)
-  // Note: This represents an error in F, not handled by OptionalT's MonadError
   private <A> OptionalT<IOKind.Witness, A> createConcreteOptionalTOuterError() {
     RuntimeException ex = new RuntimeException("Outer IO failed");
     IO<Optional<A>> failingIO =
@@ -74,25 +70,28 @@ class OptionalTKindHelperTest {
   @DisplayName("wrap() tests")
   class WrapTests {
     @Test
-    @DisplayName("should wrap a non-null OptionalT (Some) into an OptionalTKind")
+    @DisplayName("should wrap a non-null OptionalT (Some) into a Kind<OptionalTKind.Witness<F>,A>")
     void wrap_nonNullOptionalTSome_shouldReturnOptionalTKind() {
       OptionalT<IOKind.Witness, String> concreteOptionalT = createConcreteOptionalTSome("test");
-      OptionalTKind<IOKind.Witness, String> wrapped = OptionalTKindHelper.wrap(concreteOptionalT);
+      Kind<OptionalTKind.Witness<IOKind.Witness>, String> wrapped =
+          OptionalTKindHelper.wrap(concreteOptionalT);
 
-      assertThat(wrapped).isNotNull();
-      assertThat(wrapped).isInstanceOf(OptionalTKind.class);
-      assertThat(wrapped.getClass().getSimpleName()).isEqualTo("OptionalTHolder");
+      assertThat(wrapped).isNotNull().isInstanceOf(OptionalT.class);
+      assertThat(OptionalTKindHelper.<IOKind.Witness, String>unwrap(wrapped))
+          .isSameAs(concreteOptionalT);
     }
 
     @Test
-    @DisplayName("should wrap a non-null OptionalT (None) into an OptionalTKind")
+    @DisplayName("should wrap a non-null OptionalT (None) into a Kind<OptionalTKind.Witness<F>,A>")
     void wrap_nonNullOptionalTNone_shouldReturnOptionalTKind() {
       OptionalT<IOKind.Witness, String> concreteOptionalT = createConcreteOptionalTNone();
-      OptionalTKind<IOKind.Witness, String> wrapped = OptionalTKindHelper.wrap(concreteOptionalT);
+      Kind<OptionalTKind.Witness<IOKind.Witness>, String> wrapped =
+          OptionalTKindHelper.wrap(concreteOptionalT);
 
-      assertThat(wrapped).isNotNull();
-      assertThat(wrapped).isInstanceOf(OptionalTKind.class);
-      assertThat(wrapped.getClass().getSimpleName()).isEqualTo("OptionalTHolder");
+      // Assert it's an instance of OptionalT
+      assertThat(wrapped).isNotNull().isInstanceOf(OptionalT.class);
+      assertThat(OptionalTKindHelper.<IOKind.Witness, String>unwrap(wrapped))
+          .isSameAs(concreteOptionalT);
     }
 
     @Test
@@ -108,26 +107,24 @@ class OptionalTKindHelperTest {
   @DisplayName("unwrap() tests")
   class UnwrapTests {
     @Test
-    @DisplayName("should unwrap a valid OptionalTKind (Some) to the original OptionalT instance")
+    @DisplayName("should unwrap a valid Kind (Some) to the original OptionalT instance")
     void unwrap_validKindSome_shouldReturnOptionalT() {
       OptionalT<IOKind.Witness, Integer> originalOptionalT = createConcreteOptionalTSome(456);
-      OptionalTKind<IOKind.Witness, Integer> wrappedKind =
+      Kind<OptionalTKind.Witness<IOKind.Witness>, Integer> wrappedKind =
           OptionalTKindHelper.wrap(originalOptionalT);
 
       OptionalT<IOKind.Witness, Integer> unwrappedOptionalT =
           OptionalTKindHelper.unwrap(wrappedKind);
 
-      assertThat(unwrappedOptionalT).isNotNull();
-      assertThat(unwrappedOptionalT).isSameAs(originalOptionalT);
-      // Verify the inner IO contains the correct Optional
+      assertThat(unwrappedOptionalT).isNotNull().isSameAs(originalOptionalT);
       assertThat(IOKindHelper.unsafeRunSync(unwrappedOptionalT.value())).contains(456);
     }
 
     @Test
-    @DisplayName("should unwrap a valid OptionalTKind (None) to the original OptionalT instance")
+    @DisplayName("should unwrap a valid Kind (None) to the original OptionalT instance")
     void unwrap_validKindNone_shouldReturnOptionalT() {
       OptionalT<IOKind.Witness, String> originalOptionalT = createConcreteOptionalTNone();
-      OptionalTKind<IOKind.Witness, String> wrappedKind =
+      Kind<OptionalTKind.Witness<IOKind.Witness>, String> wrappedKind =
           OptionalTKindHelper.wrap(originalOptionalT);
       OptionalT<IOKind.Witness, String> unwrappedOptionalT =
           OptionalTKindHelper.unwrap(wrappedKind);
@@ -137,17 +134,15 @@ class OptionalTKindHelperTest {
     }
 
     @Test
-    @DisplayName(
-        "should unwrap a valid OptionalTKind (OuterError) to the original OptionalT instance")
+    @DisplayName("should unwrap a valid Kind (OuterError) to the original OptionalT instance")
     void unwrap_validKindOuterError_shouldReturnOptionalT() {
       OptionalT<IOKind.Witness, Double> originalOptionalT = createConcreteOptionalTOuterError();
-      OptionalTKind<IOKind.Witness, Double> wrappedKind =
+      Kind<OptionalTKind.Witness<IOKind.Witness>, Double> wrappedKind =
           OptionalTKindHelper.wrap(originalOptionalT);
       OptionalT<IOKind.Witness, Double> unwrappedOptionalT =
           OptionalTKindHelper.unwrap(wrappedKind);
 
       assertThat(unwrappedOptionalT).isSameAs(originalOptionalT);
-      // Verify that running the inner IO throws the expected exception
       assertThatThrownBy(() -> IOKindHelper.unsafeRunSync(unwrappedOptionalT.value()))
           .isInstanceOf(RuntimeException.class)
           .hasMessage("Outer IO failed");
@@ -156,23 +151,24 @@ class OptionalTKindHelperTest {
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping null")
     void unwrap_nullKind_shouldThrowKindUnwrapException() {
-      assertThatThrownBy(() -> OptionalTKindHelper.unwrap(null))
+      assertThatThrownBy(() -> OptionalTKindHelper.<IOKind.Witness, String>unwrap(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessage(OptionalTKindHelper.INVALID_KIND_NULL_MSG);
     }
 
     // Dummy Kind for testing invalid type unwrap
-    private static class OtherKind<F, A> implements Kind<OtherKind<F, ?>, A> {}
+    private static class OtherKindWitness<F_Witness> {}
+
+    private static class OtherKind<F_Witness, A> implements Kind<OtherKindWitness<F_Witness>, A> {}
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
     void unwrap_incorrectKindType_shouldThrowKindUnwrapException() {
       OtherKind<IOKind.Witness, String> incorrectKind = new OtherKind<>();
 
-      // This cast is unsafe but necessary for the test setup
       @SuppressWarnings({"unchecked", "rawtypes"})
-      Kind<OptionalTKind<IOKind.Witness, ?>, String> kindToTest =
-          (Kind<OptionalTKind<IOKind.Witness, ?>, String>) (Kind) incorrectKind;
+      Kind<OptionalTKind.Witness<IOKind.Witness>, String> kindToTest =
+          (Kind<OptionalTKind.Witness<IOKind.Witness>, String>) (Kind) incorrectKind;
 
       assertThatThrownBy(() -> OptionalTKindHelper.unwrap(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
@@ -183,15 +179,15 @@ class OptionalTKindHelperTest {
     @Test
     @DisplayName("unwrap should correctly infer types for F and A")
     void unwrap_typeInference() {
-      // Test with specific F (IOKind), A (Integer)
       OptionalT<IOKind.Witness, Integer> concreteInt = createConcreteOptionalTSome(789);
-      OptionalTKind<IOKind.Witness, Integer> wrappedInt = OptionalTKindHelper.wrap(concreteInt);
+      Kind<OptionalTKind.Witness<IOKind.Witness>, Integer> wrappedInt =
+          OptionalTKindHelper.wrap(concreteInt);
       OptionalT<IOKind.Witness, Integer> unwrappedInt = OptionalTKindHelper.unwrap(wrappedInt);
       assertThat(IOKindHelper.unsafeRunSync(unwrappedInt.value())).contains(789);
 
-      // Test with different A (Boolean)
       OptionalT<IOKind.Witness, Boolean> concreteBool = createConcreteOptionalTSome(true);
-      OptionalTKind<IOKind.Witness, Boolean> wrappedBool = OptionalTKindHelper.wrap(concreteBool);
+      Kind<OptionalTKind.Witness<IOKind.Witness>, Boolean> wrappedBool =
+          OptionalTKindHelper.wrap(concreteBool);
       OptionalT<IOKind.Witness, Boolean> unwrappedBool = OptionalTKindHelper.unwrap(wrappedBool);
       assertThat(IOKindHelper.unsafeRunSync(unwrappedBool.value())).contains(true);
     }
