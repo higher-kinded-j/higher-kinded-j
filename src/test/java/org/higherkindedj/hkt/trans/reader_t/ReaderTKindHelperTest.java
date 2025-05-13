@@ -22,7 +22,8 @@ import org.junit.jupiter.api.Test;
 class ReaderTKindHelperTest {
 
   private Monad<OptionalKind.Witness> outerMonad;
-  private final String testEnv = "testEnvironment"; // Environment type R = String
+  // Environment type R_ENV is String for these tests
+  private final String testEnv = "testEnvironment";
 
   @BeforeEach
   void setUp() {
@@ -30,7 +31,7 @@ class ReaderTKindHelperTest {
   }
 
   // Helper to create a ReaderT for testing
-  // F = OptionalKind.Witness, R = String
+  // F = OptionalKind.Witness, R_ENV = String
   private <A> ReaderT<OptionalKind.Witness, String, A> createReaderT(
       Function<String, Kind<OptionalKind.Witness, A>> runFn) {
     return ReaderT.of(runFn);
@@ -58,20 +59,17 @@ class ReaderTKindHelperTest {
   @DisplayName("wrap() tests")
   class WrapTests {
     @Test
-    @DisplayName("should wrap a non-null ReaderT into a ReaderTKind")
+    @DisplayName("should wrap a non-null ReaderT into a Kind<ReaderTKind.Witness<F,R>,A>")
     void wrap_nonNullReaderT_shouldReturnReaderTKind() {
-      // concreteReaderT is ReaderT<OptionalKind.Witness, String, Integer>
       ReaderT<OptionalKind.Witness, String, Integer> concreteReaderT =
           createReaderT(env -> OptionalKindHelper.wrap(Optional.of(env.length())));
 
-      // wrapped is Kind<ReaderTKind<F, R, ?>, A>
-      // F = OptionalKind.Witness, R = String, A = Integer
-      Kind<ReaderTKind<OptionalKind.Witness, String, ?>, Integer> wrapped =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
           ReaderTKindHelper.wrap(concreteReaderT);
 
-      assertThat(wrapped).isNotNull().isInstanceOf(ReaderTKindHelper.ReaderTHolder.class);
-      // unwrap will infer F=OptionalKind.Witness, R=String, A=Integer
-      assertThat(ReaderTKindHelper.unwrap(wrapped)).isSameAs(concreteReaderT);
+      assertThat(wrapped).isNotNull().isInstanceOf(ReaderT.class);
+      assertThat(ReaderTKindHelper.<OptionalKind.Witness, String, Integer>unwrap(wrapped))
+          .isSameAs(concreteReaderT);
     }
 
     @Test
@@ -87,14 +85,13 @@ class ReaderTKindHelperTest {
   @DisplayName("unwrap() tests")
   class UnwrapTests {
     @Test
-    @DisplayName("should unwrap a valid ReaderTKind to the original ReaderT instance")
+    @DisplayName("should unwrap a valid Kind to the original ReaderT instance")
     void unwrap_validKind_shouldReturnReaderT() {
       ReaderT<OptionalKind.Witness, String, Integer> originalReaderT =
           createReaderT(env -> OptionalKindHelper.wrap(Optional.of(env.hashCode())));
-      Kind<ReaderTKind<OptionalKind.Witness, String, ?>, Integer> wrappedKind =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrappedKind =
           ReaderTKindHelper.wrap(originalReaderT);
 
-      // unwrap will infer F=OptionalKind.Witness, R=String, A=Integer from wrappedKind
       ReaderT<OptionalKind.Witness, String, Integer> unwrappedReaderT =
           ReaderTKindHelper.unwrap(wrappedKind);
 
@@ -110,24 +107,25 @@ class ReaderTKindHelperTest {
     }
 
     // Dummy Kind for testing invalid type unwrap
-    // F is outer monad witness, R is environment type
-    private static class OtherKind<F, R, A> implements Kind<OtherKind<F, R, ?>, A> {}
+    // F is outer monad witness, R_ENV is environment type
+    private static class OtherKindWitness<F_Witness, R_ENV_Witness> {}
+
+    private static class OtherKind<F, R_ENV, A> implements Kind<OtherKindWitness<F, R_ENV>, A> {}
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
     void unwrap_incorrectKindType_shouldThrowKindUnwrapException() {
-      OtherKind<OptionalKind.Witness, String, Integer> incorrectKind = new OtherKind<>();
+      class SimpleIncorrectKind<A> implements Kind<SimpleIncorrectKind<?>, A> {}
+      SimpleIncorrectKind<Integer> incorrectKind = new SimpleIncorrectKind<>();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
-      // The cast target Kind's witness must be ReaderTKind<F, R, ?>
-      // where F = OptionalKind.Witness, R = String
-      Kind<ReaderTKind<OptionalKind.Witness, String, ?>, Integer> kindToTest =
-          (Kind<ReaderTKind<OptionalKind.Witness, String, ?>, Integer>) (Kind) incorrectKind;
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> kindToTest =
+          (Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer>) (Kind) incorrectKind;
 
       assertThatThrownBy(() -> ReaderTKindHelper.unwrap(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageStartingWith(ReaderTKindHelper.INVALID_KIND_TYPE_MSG)
-          .hasMessageContaining(OtherKind.class.getName());
+          .hasMessageContaining(SimpleIncorrectKind.class.getName());
     }
   }
 }

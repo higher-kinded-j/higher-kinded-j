@@ -15,9 +15,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderT Class Tests (Outer: OptionalKind.Witness, Env: Config)") // MODIFIED
+@DisplayName("ReaderT Class Tests (Outer: OptionalKind.Witness, Env: Config)")
 class ReaderTTest {
 
+  // Using R_ENV naming convention to match the updated ReaderT
   record Config(String setting) {}
 
   final Config testConfig1 = new Config("value1");
@@ -25,6 +26,7 @@ class ReaderTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;
 
+  // R_ENV is Config
   private <A> Optional<A> runReaderT(
       ReaderT<OptionalKind.Witness, Config, A> readerT, Config config) {
     Kind<OptionalKind.Witness, A> resultKind = readerT.run().apply(config);
@@ -90,7 +92,7 @@ class ReaderTTest {
     }
 
     @Test
-    @DisplayName("reader should lift R -> A into R -> F<A>")
+    @DisplayName("reader should lift R_ENV -> A into R_ENV -> F<A>")
     void reader_liftsFunction() {
       Function<Config, String> plainFunc = cfg -> "Setting: " + cfg.setting();
       ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.reader(outerMonad, plainFunc);
@@ -100,7 +102,7 @@ class ReaderTTest {
     }
 
     @Test
-    @DisplayName("reader should lift function returning null into F<Nothing>")
+    @DisplayName("reader should lift function returning null into F<Optional.empty>")
     void reader_liftsFunctionReturningNull() {
       Function<Config, String> nullFunc = cfg -> null;
       ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.reader(outerMonad, nullFunc);

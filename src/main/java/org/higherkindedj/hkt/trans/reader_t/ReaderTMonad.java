@@ -14,22 +14,22 @@ import org.jspecify.annotations.Nullable;
  * <p>This class allows {@link ReaderT} to be used as a monad, provided that the outer type
  * constructor {@code F} (for which {@code F} is the witness type) is also a monad. Operations like
  * {@code of}, {@code map}, {@code ap}, and {@code flatMap} are defined to work with {@code
- * ReaderT<F, R, A>} by appropriately using the monadic operations of {@code F}.
+ * ReaderT<F, R_ENV, A>} by appropriately using the monadic operations of {@code F}.
  *
- * <p>The type constructor for which this is a monad instance is {@code ReaderTKind<F, R, ?>},
- * representing {@code ReaderT} with a fixed outer monad witness {@code F} and a fixed environment
- * type {@code R}.
+ * <p>The type constructor for which this is a monad instance is {@code ReaderTKind.Witness<F,
+ * R_ENV>}, representing {@code ReaderT} with a fixed outer monad witness {@code F} and a fixed
+ * environment type {@code R_ENV}.
  *
  * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind.Witness}). This outer
  *     type constructor {@code F} must itself be a {@link Monad}.
- * @param <R> The fixed environment type for this {@code ReaderTMonad} instance.
+ * @param <R_ENV> The fixed environment type for this {@code ReaderTMonad} instance.
  * @see ReaderT
  * @see ReaderTKind
  * @see Monad
  * @see Applicative
  * @see ReaderTKindHelper
  */
-public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
+public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_ENV>> {
 
   private final @NonNull Monad<F> outerMonad;
 
@@ -46,86 +46,86 @@ public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
   }
 
   /**
-   * Lifts a pure value {@code value} into the {@code ReaderT<F, R, A>} context. The resulting
-   * {@code ReaderT} will, for any environment {@code R}, produce {@code outerMonad.of(value)}.
+   * Lifts a pure value {@code value} into the {@code ReaderT<F, R_ENV, A>} context. The resulting
+   * {@code ReaderT} will, for any environment {@code R_ENV}, produce {@code outerMonad.of(value)}.
    *
    * @param value The value to lift. Can be {@code null} if the outer monad {@code F} and type
    *     {@code A} support it.
    * @param <A> The type of the lifted value.
-   * @return A {@code Kind<ReaderTKind<F, R, ?>, A>} representing the new {@code ReaderT}. Never
-   *     null.
+   * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} representing the new {@code ReaderT}.
+   *     Never null.
    */
   @Override
-  public <A> @NonNull Kind<ReaderTKind<F, R, ?>, A> of(@Nullable A value) {
-    // Creates a ReaderT where run = r -> outerMonad.of(value)
-    ReaderT<F, R, A> readerT = new ReaderT<>(r -> outerMonad.of(value));
+  public <A> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> of(@Nullable A value) {
+    ReaderT<F, R_ENV, A> readerT = new ReaderT<>(r -> outerMonad.of(value));
     return ReaderTKindHelper.wrap(readerT);
   }
 
   /**
-   * Applies a function wrapped in {@code ReaderT<F, R, Function<A, B>>} to a value wrapped in
-   * {@code ReaderT<F, R, A>}.
+   * Applies a function wrapped in {@code ReaderT<F, R_ENV, Function<A, B>>} to a value wrapped in
+   * {@code ReaderT<F, R_ENV, A>}.
    *
    * <p>For a given environment {@code r}, this method retrieves {@code Kind<F, Function<A, B>>} and
-   * {@code Kind<F, A>}, and then uses the {@code ap} method of the {@code outerMonad} to combine
-   * them into {@code Kind<F, B>}. This result is then wrapped in a new {@code ReaderT}.
+   * {@code Kind<F, A>}, and then uses the {@code ap} method of the {@code outerMonad} (which must
+   * be an {@link Applicative}) to combine them into {@code Kind<F, B>}. This result is then wrapped
+   * in a new {@code ReaderT}.
    *
-   * @param ff A {@code Kind} representing {@code ReaderT<F, R, Function<A, B>>}. Must not be null.
-   * @param fa A {@code Kind} representing {@code ReaderT<F, R, A>}. Must not be null.
+   * @param ff A {@code Kind} representing {@code ReaderT<F, R_ENV, Function<A, B>>}. Must not be
+   *     null.
+   * @param fa A {@code Kind} representing {@code ReaderT<F, R_ENV, A>}. Must not be null.
    * @param <A> The input type of the function.
    * @param <B> The output type of the function.
-   * @return A {@code Kind<ReaderTKind<F, R, ?>, B>} representing the resulting {@code ReaderT}.
-   *     Never null.
+   * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, B>} representing the resulting {@code
+   *     ReaderT}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<ReaderTKind<F, R, ?>, B> ap(
-      @NonNull Kind<ReaderTKind<F, R, ?>, Function<A, B>> ff,
-      @NonNull Kind<ReaderTKind<F, R, ?>, A> fa) {
+  public <A, B> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, B> ap(
+      @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, Function<A, B>> ff,
+      @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    ReaderT<F, R, Function<A, B>> ffT = ReaderTKindHelper.unwrap(ff);
-    ReaderT<F, R, A> faT = ReaderTKindHelper.unwrap(fa);
+    ReaderT<F, R_ENV, Function<A, B>> ffT = ReaderTKindHelper.unwrap(ff);
+    ReaderT<F, R_ENV, A> faT = ReaderTKindHelper.unwrap(fa);
 
-    // Monad<F> extends Applicative<F>, so this cast is safe.
     Applicative<F> outerApplicative = this.outerMonad;
 
-    Function<R, Kind<F, B>> newRun =
+    Function<R_ENV, Kind<F, B>> newRun =
         r -> {
-          Kind<F, Function<A, B>> funcKind = ffT.run().apply(r); // Evaluates to F<Function<A,B>>
-          Kind<F, A> valKind = faT.run().apply(r); // Evaluates to F<A>
-          return outerApplicative.ap(funcKind, valKind); // Results in F<B>
+          Kind<F, Function<A, B>> funcKind = ffT.run().apply(r);
+          Kind<F, A> valKind = faT.run().apply(r);
+          return outerApplicative.ap(funcKind, valKind);
         };
 
-    ReaderT<F, R, B> resultReaderT = new ReaderT<>(newRun);
+    ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
     return ReaderTKindHelper.wrap(resultReaderT);
   }
 
   /**
-   * Maps a function {@code f} over the value {@code A} within {@code ReaderT<F, R, A>}.
+   * Maps a function {@code f} over the value {@code A} within {@code ReaderT<F, R_ENV, A>}.
    *
    * <p>For a given environment {@code r}, this method retrieves {@code Kind<F, A>} and then uses
    * the {@code map} method of the {@code outerMonad} to transform it into {@code Kind<F, B>}. This
    * result is then wrapped in a new {@code ReaderT}.
    *
    * @param f The function to apply to the value. Must not be null.
-   * @param fa A {@code Kind} representing {@code ReaderT<F, R, A>}. Must not be null.
+   * @param fa A {@code Kind} representing {@code ReaderT<F, R_ENV, A>}. Must not be null.
    * @param <A> The original value type.
    * @param <B> The new value type after applying the function {@code f}.
-   * @return A {@code Kind<ReaderTKind<F, R, ?>, B>} representing the resulting {@code ReaderT}.
-   *     Never null.
+   * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, B>} representing the resulting {@code
+   *     ReaderT}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<ReaderTKind<F, R, ?>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<ReaderTKind<F, R, ?>, A> fa) {
+  public <A, B> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, B> map(
+      @NonNull Function<A, B> f, @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    ReaderT<F, R, A> faT = ReaderTKindHelper.unwrap(fa);
+    ReaderT<F, R_ENV, A> faT = ReaderTKindHelper.unwrap(fa);
 
-    Function<R, Kind<F, B>> newRun =
+    Function<R_ENV, Kind<F, B>> newRun =
         r -> {
-          Kind<F, A> kindA = faT.run().apply(r); // Evaluates to F<A>
-          return outerMonad.map(f, kindA); // Results in F<B>
+          Kind<F, A> kindA = faT.run().apply(r);
+          return outerMonad.map(f, kindA);
         };
 
-    ReaderT<F, R, B> resultReaderT = new ReaderT<>(newRun);
+    ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
     return ReaderTKindHelper.wrap(resultReaderT);
   }
 
@@ -136,44 +136,40 @@ public class ReaderTMonad<F, R> implements Monad<ReaderTKind<F, R, ?>> {
    * <p>For a given environment {@code r}, this method first runs the initial {@code ReaderT}
    * ({@code maT}) to get a {@code Kind<F, A>}. Then, it uses the {@code flatMap} of the {@code
    * outerMonad} to combine this {@code Kind<F, A>} with a function {@code A -> Kind<F, B>}. This
-   * function {@code A -> Kind<F, B>} is derived from {@code f: A -> Kind<ReaderTKind<F,R,?>, B>} by
-   * unwrapping the inner {@code ReaderT} and applying the environment {@code r} to its run
-   * function.
+   * function {@code A -> Kind<F, B>} is derived from {@code f: A ->
+   * Kind<ReaderTKind.Witness<F,R_ENV>, B>} by unwrapping the inner {@code ReaderT} and applying the
+   * environment {@code r} to its run function.
    *
    * @param f A function that takes a value of type {@code A} and returns a {@code
-   *     Kind<ReaderTKind<F, R, ?>, B>}. Must not be null.
-   * @param ma A {@code Kind} representing the initial {@code ReaderT<F, R, A>}. Must not be null.
+   *     Kind<ReaderTKind.Witness<F, R_ENV>, B>}. Must not be null.
+   * @param ma A {@code Kind} representing the initial {@code ReaderT<F, R_ENV, A>}. Must not be
+   *     null.
    * @param <A> The value type of the initial {@code ReaderT}.
    * @param <B> The value type of the {@code ReaderT} produced by the function {@code f}.
-   * @return A {@code Kind<ReaderTKind<F, R, ?>, B>} representing the resulting composed {@code
-   *     ReaderT}. Never null.
+   * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, B>} representing the resulting composed
+   *     {@code ReaderT}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<ReaderTKind<F, R, ?>, B> flatMap(
-      @NonNull Function<A, Kind<ReaderTKind<F, R, ?>, B>> f,
-      @NonNull Kind<ReaderTKind<F, R, ?>, A> ma) {
+  public <A, B> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, B> flatMap(
+      @NonNull Function<A, Kind<ReaderTKind.Witness<F, R_ENV>, B>> f,
+      @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> ma) {
 
-    ReaderT<F, R, A> maT = ReaderTKindHelper.unwrap(ma);
+    ReaderT<F, R_ENV, A> maT = ReaderTKindHelper.unwrap(ma);
 
-    Function<R, Kind<F, B>> newRun =
+    Function<R_ENV, Kind<F, B>> newRun =
         r -> {
-          Kind<F, A> kindA = maT.run().apply(r); // This is F<A>
+          Kind<F, A> kindA = maT.run().apply(r);
 
-          // We need a function A -> Kind<F, B> for outerMonad.flatMap
           Function<A, Kind<F, B>> functionForOuterFlatMap =
               a -> {
-                // f.apply(a) gives Kind<ReaderTKind<F, R, ?>, B>
-                Kind<ReaderTKind<F, R, ?>, B> resultReaderTKind = f.apply(a);
-                // Unwrap to get ReaderT<F, R, B>
-                ReaderT<F, R, B> nextReaderT = ReaderTKindHelper.unwrap(resultReaderTKind);
-                // Run the inner ReaderT with the same environment 'r' to get Kind<F, B>
+                Kind<ReaderTKind.Witness<F, R_ENV>, B> resultReaderTKind = f.apply(a);
+                ReaderT<F, R_ENV, B> nextReaderT = ReaderTKindHelper.unwrap(resultReaderTKind);
                 return nextReaderT.run().apply(r);
               };
-          // outerMonad.flatMap : (A -> F<B>, F<A>) -> F<B>
           return outerMonad.flatMap(functionForOuterFlatMap, kindA);
         };
 
-    ReaderT<F, R, B> resultReaderT = new ReaderT<>(newRun);
+    ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
     return ReaderTKindHelper.wrap(resultReaderT);
   }
 }
