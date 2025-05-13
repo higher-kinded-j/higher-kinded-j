@@ -26,34 +26,37 @@ Common examples for `W` include `String` (using concatenation), `Integer` (using
 
 ## Structure
 
-![writer.svg](./images/puml/writer.svg)
+The `Writer<W, A>` record directly implements `WriterKind<W, A>`, which in turn extends `Kind<WriterKind.Witness<W>, A>`.
+
+![writer.svg](./images/puml/writer.svg) 
 
 ## The `Writer<W, A>` Type
 
 The core type is the `Writer<W, A>` record:
 
 ```java
-public record Writer<W, A>(@NonNull W log, @Nullable A value) {
-    // Static factories
-    public static <W, A> @NonNull Writer<W, A> create(@NonNull W log, @Nullable A value);
-    public static <W, A> @NonNull Writer<W, A> value(@NonNull Monoid<W> monoidW, @Nullable A value);
-    public static <W> @NonNull Writer<W, Void> tell(@NonNull W log);
+// From: org.higherkindedj.hkt.writer.Writer
+public record Writer<W, A>(@NonNull W log, @Nullable A value) implements WriterKind<W, A> {
+  // Static factories
+  public static <W, A> @NonNull Writer<W, A> create(@NonNull W log, @Nullable A value);
+  public static <W, A> @NonNull Writer<W, A> value(@NonNull Monoid<W> monoidW, @Nullable A value); // Creates (monoidW.empty(), value)
+  public static <W> @NonNull Writer<W, Void> tell(@NonNull Monoid<W> monoidW, @NonNull W log); // Creates (log, null)
 
-    // Instance methods
-    public <B> @NonNull Writer<W, B> map(@NonNull Function<? super A, ? extends B> f);
-    public <B> @NonNull Writer<W, B> flatMap(
-        @NonNull Monoid<W> monoidW,
-        @NonNull Function<? super A, ? extends Writer<W, ? extends B>> f
-    );
-    public @Nullable A run(); // Get the value A
-    public @NonNull W exec(); // Get the log W
+  // Instance methods (primarily for direct use, HKT versions via Monad instance)
+  public <B> @NonNull Writer<W, B> map(@NonNull Function<? super A, ? extends B> f);
+  public <B> @NonNull Writer<W, B> flatMap(
+          @NonNull Monoid<W> monoidW, // Monoid needed for combining logs
+          @NonNull Function<? super A, ? extends Writer<W, ? extends B>> f
+  );
+  public @Nullable A run(); // Get the value A, discard log
+  public @NonNull W exec(); // Get the log W, discard value
 }
 ```
 
 * It simply holds a pair: the accumulated `log` (of type `W`) and the computed `value` (of type `A`).
 * `create(log, value)`: Basic constructor.
 * `value(monoid, value)`: Creates a Writer with the given value and an *empty* log according to the provided `Monoid`.
-* `tell(log)`: Creates a Writer with the given log but no meaningful value (typically `Void`/`null`). Useful for just adding to the log.
+* `tell(monoid, log)`: Creates a Writer with the given log but no meaningful value (typically `Void`/`null`). Useful for just adding to the log. (Note: The original `Writer.java` might have `tell(W log)` and infer monoid elsewhere, or `WriterMonad` handles `tell`).
 * `map(...)`: Transforms the computed value `A` to `B` while leaving the log `W` untouched.
 * `flatMap(...)`: Sequences computations. It runs the first Writer, uses its value `A` to create a second Writer, and combines the logs from both using the provided `Monoid`.
 * `run()`: Extracts only the computed value `A`, discarding the log.
@@ -63,40 +66,41 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
 
 To integrate `Writer` with the generic HKT framework:
 
-* **`WriterKind<W, A>`:** The marker interface extending `Kind<WriterKind<W, ?>, A>`. The witness type `F` is `WriterKind<W, ?>` (where `W` and its `Monoid` are fixed for a given monad instance), and the value type `A` is the result type of the writer.
-* **`WriterKindHelper`:** The utility class with static methods:
-  * `wrap(Writer<W, A>)`: Converts a `Writer` to `WriterKind<W, A>`.
-  * `unwrap(Kind<WriterKind<W, ?>, A>)`: Converts `WriterKind` back to `Writer`. Throws `KindUnwrapException` if the input is invalid.
-  * `value(Monoid<W>, A)`: Factory method for a `WriterKind` with an empty log.
-  * `tell(Monoid<W>, W)`: Factory method for a `WriterKind` that only logs.
-  * `runWriter(Kind<WriterKind<W, ?>, A>)`: Unwraps the `Writer` record.
-  * `run(Kind<WriterKind<W, ?>, A>)`: Executes and returns only the value `A`.
-  * `exec(Kind<WriterKind<W, ?>, A>)`: Executes and returns only the log `W`.
+* `WriterKind<W, A>`: The HKT interface. `Writer<W, A>` itself implements `WriterKind<W, A>`. `WriterKind<W, A>` extends `Kind<WriterKind.Witness<W>, A>`.
+  * It contains a nested `final class Witness<LOG_W> {}` which serves as the phantom type `F_WITNESS` for `Writer<LOG_W, ?>`.
+* **`WriterKindHelper`**: The utility class with static methods:
+  * `wrap(Writer<W, A>)`: Converts a `Writer` to `Kind<WriterKind.Witness<W>, A>`. Since `Writer` directly implements `WriterKind`, this is effectively a checked cast.
+  * `unwrap(Kind<WriterKind.Witness<W>, A>)`: Converts `Kind` back to `Writer<W,A>`. This is also effectively a checked cast after an `instanceof Writer` check.
+  * `value(Monoid<W> monoid, A value)`: Factory method for a `Kind` representing a `Writer` with an empty log.
+  * `tell(Monoid<W> monoid, W log)`: Factory method for a `Kind` representing a `Writer` that only logs.
+  * `runWriter(Kind<WriterKind.Witness<W>, A>)`: Unwraps to `Writer<W,A>` and returns the record itself.
+  * `run(Kind<WriterKind.Witness<W>, A>)`: Executes (unwraps) and returns only the value `A`.
+  * `exec(Kind<WriterKind.Witness<W>, A>)`: Executes (unwraps) and returns only the log `W`.
 
 ## Type Class Instances (`WriterFunctor`, `WriterApplicative`, `WriterMonad`)
 
-These classes provide the standard functional operations for `WriterKind<W, ?>`, allowing you to treat `Writer` computations generically. **Crucially, `WriterApplicative` and `WriterMonad` require a `Monoid<W>` instance during construction.**
+These classes provide the standard functional operations for `Kind<WriterKind.Witness<W>, A>`, allowing you to treat `Writer` computations generically. **Crucially, `WriterApplicative<W>` and `WriterMonad<W>` require a `Monoid<W>` instance during construction.**
 
-* **`WriterFunctor<W>`:** Implements `Functor<WriterKind<W, ?>>`. Provides `map` (operates only on the value `A`).
-* **`WriterApplicative<W>`:** Extends `WriterFunctor<W>`, implements `Applicative<WriterKind<W, ?>>`. Requires a `Monoid<W>`. Provides `of` (lifting a value with an empty log) and `ap` (applying a wrapped function to a wrapped value, combining logs).
-* **`WriterMonad<W>`:** Extends `WriterApplicative<W>`, implements `Monad<WriterKind<W, ?>>`. Requires a `Monoid<W>`. Provides `flatMap` for sequencing computations, automatically combining logs using the `Monoid`.
+* `WriterFunctor<W>`: Implements `Functor<WriterKind.Witness<W>>`. Provides `map` (operates only on the value `A`).
+* **`WriterApplicative<W>`**: Extends `WriterFunctor<W>`, implements `Applicative<WriterKind.Witness<W>>`. Requires a `Monoid<W>`. Provides `of` (lifting a value with an empty log) and `ap` (applying a wrapped function to a wrapped value, combining logs).
+* **`WriterMonad<W>`**: Extends `WriterApplicative<W>`, implements `Monad<WriterKind.Witness<W>>`. Requires a `Monoid<W>`. Provides `flatMap` for sequencing computations, automatically combining logs using the `Monoid`.
 
 You typically instantiate `WriterMonad<W>` for the specific log type `W` and its corresponding `Monoid`.
-
-## How to Use
 
 ### 1. Choose Your Log Type `W` and `Monoid<W>`
 
 Decide what you want to accumulate (e.g., `String` for logs, `List<String>` for messages, `Integer` for counts) and get its `Monoid`.
 
 ```java
-import org.higherkindedj.hkt.typeclass.*; // For Monoid
-import org.higherkindedj.hkt.test.typeclass.StringMonoid; // Example Monoid from tests
-// Assuming StringMonoid is accessible or you create your own Monoid impl
+import org.higherkindedj.hkt.typeclass.Monoid;
 
-Monoid<String> stringMonoid = new StringMonoid(); // Use String concatenation
+class StringMonoid implements Monoid<String> {
+  @Override public String empty() { return ""; }
+  @Override public String combine(String x, String y) { return x + y; }
+}
+
+Monoid<String> stringMonoid = new StringMonoid(); 
 ```
-
 
 ### 2. Get the `WriterMonad` Instance
 
@@ -106,37 +110,38 @@ Instantiate the monad for your chosen log type `W`, providing its `Monoid`.
 import org.higherkindedj.hkt.writer.WriterMonad;
 
 // Monad instance for computations logging Strings
+// F_WITNESS here is WriterKind.Witness<String>
 WriterMonad<String> writerMonad = new WriterMonad<>(stringMonoid);
 
 ```
 
-
 ### 3. Create Writer Computations
 
-Use `WriterKindHelper` factory methods, providing the `Monoid` where needed.
+Use `WriterKindHelper` factory methods, providing the `Monoid` where needed. The result is `Kind<WriterKind.Witness<W>, A>`.
 
 ```java
 import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
-
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.writer.WriterKind;
+import org.higherkindedj.hkt.writer.WriterKind; // For WriterKind.Witness
+import org.higherkindedj.hkt.writer.Writer;   // For direct Writer creation if needed
+import java.util.function.Function;         // Standard Java Function
 
 // Writer with an initial value and empty log
-Kind<WriterKind<String, ?>, Integer> initialValue = value(stringMonoid, 5); // ("", 5)
+Kind<WriterKind.Witness<String>, Integer> initialValue = value(stringMonoid, 5); // Log: "", Value: 5
 
-    // Writer that just logs a message (value is Void/null)
-    Kind<WriterKind<String, ?>, Void> logStart = tell(stringMonoid, "Starting calculation; "); // ("Starting calculation; ", null)
+// Writer that just logs a message (value is Void/null)
+Kind<WriterKind.Witness<String>, Void> logStart = tell(stringMonoid, "Starting calculation; "); // Log: "Starting calculation; ", Value: null
 
-    // A function that performs a calculation and logs its step
-    Function<Integer, Kind<WriterKind<String, ?>, Integer>> addAndLog =
+// A function that performs a calculation and logs its step
+Function<Integer, Kind<WriterKind.Witness<String>, Integer>> addAndLog =
         x -> {
           int result = x + 10;
           String logMsg = "Added 10 to " + x + " -> " + result + "; ";
-          // Create a Writer pairing the log message and the result
+          // Create a Writer directly then wrap with helper or use helper factory
           return wrap(Writer.create(logMsg, result));
         };
 
-    Function<Integer, Kind<WriterKind<String, ?>, String>> multiplyAndLogToString =
+Function<Integer, Kind<WriterKind.Witness<String>, String>> multiplyAndLogToString =
         x -> {
           int result = x * 2;
           String logMsg = "Multiplied " + x + " by 2 -> " + result + "; ";
@@ -145,34 +150,47 @@ Kind<WriterKind<String, ?>, Integer> initialValue = value(stringMonoid, 5); // (
 
 ```
 
-
 ### 4. Compose Computations using `map` and `flatMap`
 
 Use the methods on the `writerMonad` instance. `flatMap` automatically combines logs using the `Monoid`.
 
 ```java
-// Chain the operations: logStart >> initialValue >> addAndLog >> multiplyAndLogToString
-// Note: flatMap ignores the Void value from logStart
+// Chain the operations:
+// Start with a pure value 0 in the Writer context (empty log)
+Kind<WriterKind.Witness<String>, Integer> computationStart = writerMonad.of(0);
 
-Kind<WriterKind<String, ?>, String> finalComputation =
-    writerMonad.flatMap(v -> logStart, writerMonad.of(0)) // Start with of(0), then logStart -> ("", null)
-       .flatMap(ignored -> initialValue, logStart) // Run initialValue -> ("Starting calculation; ", 5)
-       .flatMap(addAndLog, initialValue) // Run addAndLog(5) -> ("Starting calculation; Added 10 to 5 -> 15; ", 15)
-       .flatMap(multiplyAndLogToString, addAndLog.apply(5)); // Run multiplyAndLog(15) -> ("Starting calculation; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30; ", "Final:30")
-
-
-// Simpler chaining:
-Kind<WriterKind<String, ?>, Integer> step1 = initialValue; // ("", 5)
-Kind<WriterKind<String, ?>, Void> step2 = writerMonad.flatMap(i -> tell(stringMonoid, "Processing " + i + "; "), step1); // ("Processing 5; ", null)
-Kind<WriterKind<String, ?>, Integer> step3 = writerMonad.flatMap(ignored -> addAndLog.apply(5), step2); // ("Processing 5; Added 10 to 5 -> 15; ", 15)
-Kind<WriterKind<String, ?>, String> step4 = writerMonad.flatMap(multiplyAndLogToString, step3); // ("Processing 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30; ", "Final:30")
+// 1. Log the start
+Kind<WriterKind.Witness<String>, Integer> afterLogStart = writerMonad.flatMap(
+        ignored -> logStart, // logStart's value is Void, so we map it to keep the '0' or use initialValue directly
+        computationStart  
+).flatMap(ignoredVoid -> initialValue, logStart); // Simpler: start with initialValue after logging
 
 
-// Using map: Only transforms the value, log remains unchanged
-Kind<WriterKind<String, ?>, Integer> initialVal = value(stringMonoid, 100); // ("", 100)
-Kind<WriterKind<String, ?>, String> mappedVal = writerMonad.map(i -> "Value is " + i, initialVal); // ("", "Value is 100")
+Kind<WriterKind.Witness<String>, Integer> step1Value = value(stringMonoid, 5); // ("", 5)
+Kind<WriterKind.Witness<String>, Void> step1Log = tell(stringMonoid, "Initial value set to 5; "); // ("Initial value set to 5; ", null)
+
+
+// Start -> log -> transform value -> log -> transform value ...
+Kind<WriterKind.Witness<String>, Integer> calcPart1 = writerMonad.flatMap(
+        ignored -> addAndLog.apply(5), // Apply addAndLog to 5, after logging "start"
+        tell(stringMonoid, "Starting with 5; ")
+);
+// calcPart1: Log: "Starting with 5; Added 10 to 5 -> 15; ", Value: 15
+
+Kind<WriterKind.Witness<String>, String> finalComputation = writerMonad.flatMap(
+        intermediateValue -> multiplyAndLogToString.apply(intermediateValue),
+        calcPart1
+);
+// finalComputation: Log: "Starting with 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30; ", Value: "Final:30"
+
+
+// Using map: Only transforms the value, log remains unchanged from the input Kind
+Kind<WriterKind.Witness<String>, Integer> initialValForMap = value(stringMonoid, 100); // Log: "", Value: 100
+Kind<WriterKind.Witness<String>, String> mappedVal = writerMonad.map(
+        i -> "Value is " + i,
+        initialValForMap
+); // Log: "", Value: "Value is 100"
 ```
-
 
 ### 5. Run the Computation and Extract Results
 
@@ -180,29 +198,32 @@ Use `runWriter`, `run`, or `exec` from `WriterKindHelper`.
 
 ```java
 
-import org.higherkindedj.hkt.writer.Writer; // Import the record type
+mport org.higherkindedj.hkt.writer.Writer; 
 
 // Get the final Writer record (log and value)
-Writer<String, String> finalResultWriter = runWriter(step4);
+Writer<String, String> finalResultWriter = runWriter(finalComputation);
 String finalLog = finalResultWriter.log();
 String finalValue = finalResultWriter.value();
 
-System.out.println("Final Log: "+finalLog);
-// Output: Final Log: Processing 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
-System.out.println("Final Value: "+finalValue);
+System.out.println("Final Log: " + finalLog);
+// Output: Final Log: Starting with 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
+System.out.println("Final Value: " + finalValue);
 // Output: Final Value: Final:30
-// Or get only the value or log
-// String justValue = run(step4);
-String justLog = exec(step4);
 
-System.out.println("Just Value: "+justValue); // Output: Just Value: Final:30
-System.out.println("Just Log: "+justLog);     // Output: Just Log: Processing 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
+// Or get only the value or log
+String justValue = run(finalComputation); // Extracts value from finalResultWriter
+String justLog = exec(finalComputation);  // Extracts log from finalResultWriter
+
+System.out.println("Just Value: " + justValue); // Output: Just Value: Final:30
+System.out.println("Just Log: " + justLog);     // Output: Just Log: Starting with 5; Added 10 to 5 -> 15; Multiplied 15 by 2 -> 30;
+
 Writer<String, String> mappedResult = runWriter(mappedVal);
-System.out.println("Mapped Log: "+mappedResult.log());   // Output: Mapped Log:
-System.out.println("Mapped Value: "+mappedResult.value()); // Output: Mapped Value: Value is 100
+System.out.println("Mapped Log: " + mappedResult.log());   // Output: Mapped Log
+System.out.println("Mapped Value: " + mappedResult.value()); // Output: Mapped Value: Value is 100
 ```
 
+### Summary
 
-## Summary
+The Writer monad (`Writer<W, A>`, `WriterKind.Witness<W>`, `WriterMonad<W>`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. The HKT simulation enables these operations to be performed generically using standard type class interfaces, with `Writer<W,A>` directly implementing `WriterKind<W,A>`.Summary
 
 The Writer monad (`Writer<W, A>`, `WriterKind`, `WriterMonad`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. The HKT simulation allows these operations to be performed generically using standard type class interfaces.

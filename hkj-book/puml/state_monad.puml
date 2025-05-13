@@ -33,30 +33,30 @@ package "State Type" {
 }
 
 package "State HKT Simulation" {
-    interface "StateKind<S, A> extends Kind<StateKind<S, ?>, A>"
+    interface "StateKind<S, A> extends Kind<StateKind.Witness<S>, A>"
 
     class StateKindHelper {
-      + {static} State<S, A> unwrap(Kind<StateKind<S, ?>, A> kind)
+      + {static} State<S, A> unwrap(Kind<StateKind.Witness<S>, A> kind)
       + {static} StateKind<S, A> wrap(State<S, A> state)
       + {static} StateKind<S, A> pure(A value)
       + {static} StateKind<S, S> get()
       + {static} StateKind<S, Void> set(S newState)
       + {static} StateKind<S, Void> modify(Function<S, S> f)
       + {static} StateKind<S, A> inspect(Function<S, A> f)
-      + {static} StateTuple<S, A> runState(Kind<StateKind<S, ?>, A> kind, S initialState)
-      + {static} A evalState(Kind<StateKind<S, ?>, A> kind, S initialState)
-      + {static} S execState(Kind<StateKind<S, ?>, A> kind, S initialState)
+      + {static} StateTuple<S, A> runState(Kind<StateKind.Witness<S>, A> kind, S initialState)
+      + {static} A evalState(Kind<StateKind.Witness<S>, A> kind, S initialState)
+      + {static} S execState(Kind<StateKind.Witness<S>, A> kind, S initialState)
     }
 
-    class StateFunctor<S> implements Functor<StateKind<S, ?>> {
-       + Kind<StateKind<S, ?>, B> map(Function<A, B> f, Kind<StateKind<S, ?>, A> fa)
+    class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
+       + Kind<StateKind.Witness<S>, B> map(Function<A, B> f, Kind<StateKind.Witness<S>, A> fa)
     }
-    class StateApplicative<S> extends StateFunctor<S> implements Applicative<StateKind<S, ?>> {
-       + Kind<StateKind<S, ?>, A> of(A value)
-       + Kind<StateKind<S, ?>, B> ap(Kind<StateKind<S, ?>, Function<A, B>> ff, Kind<StateKind<S, ?>, A> fa)
+    class StateApplicative<S> extends StateFunctor<S> implements Applicative<StateKind.Witness<S>> {
+       + Kind<StateKind.Witness<S>, A> of(A value)
+       + Kind<StateKind.Witness<S>, B> ap(Kind<StateKind.Witness<S>, Function<A, B>> ff, Kind<StateKind.Witness<S>, A> fa)
     }
-    class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind<S, ?>> {
-       + Kind<StateKind<S, ?>, B> flatMap(Function<A, Kind<StateKind<S, ?>, B>> f, Kind<StateKind<S, ?>, A> ma)
+    class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witness<S>> {
+       + Kind<StateKind.Witness<S>, B> flatMap(Function<A, Kind<StateKind.Witness<S>, B>> f, Kind<StateKind.Witness<S>, A> ma)
     }
 }
 

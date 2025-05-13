@@ -78,18 +78,12 @@ public final class IOKindHelper {
    *     {@code IOHolder}, or if the holder's internal {@code IO} instance is {@code null} (which
    *     would indicate an internal issue with {@link #wrap(IO)}).
    */
-  @SuppressWarnings("unchecked") // For casting ioInstance - safe after pattern match.
+  @SuppressWarnings("unchecked")
   public static <A> @NonNull IO<A> unwrap(@Nullable Kind<IOKind.Witness, A> kind) {
     return switch (kind) {
       case null ->
-          // If the input Kind itself is null.
           throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-      // The pattern match should correctly infer IOHolder based on IOKind<A> which is
-      // Kind<IOKind.Witness, A>
       case IOKindHelper.IOHolder<?> holder -> {
-        // The IOHolder record's 'ioInstance' component is @NonNull.
-        // So, holder.ioInstance() is guaranteed non-null if the holder itself is valid.
-        // The cast is safe due to the pattern match.
         yield (IO<A>) holder.ioInstance();
       }
       default ->

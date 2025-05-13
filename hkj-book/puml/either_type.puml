@@ -2,64 +2,55 @@
 !theme plain
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-interface "Either<L, R>" as Either {
-  + {abstract} isLeft() : boolean
-  + {abstract} isRight() : boolean
-  + {abstract} getLeft() : L
-  + {abstract} getRight() : R
-  + fold(Function<? super L, ? extends T>, Function<? super R, ? extends T>) : T
-  + map(Function<? super R, ? extends R2>) : Either<L, R2>
-  + flatMap(Function<? super R, ? extends Either<L, ? extends R2>>) : Either<L, R2>
-  + ifLeft(Consumer<? super L>) : void
-  + ifRight(Consumer<? super R>) : void
-  + {static} left(L) : Either<L, R>
-  + {static} right(R) : Either<L, R>
-}
+title Either<L,R> Type Structure and HKT Integration
 
-class "Left<L, R>" <<record>> implements Either {
-  + Left(L value)
-  __ Methods __
-  + isLeft() : true
-  + isRight() : false
-  + getLeft() : L
-  + getRight() : throws NoSuchElementException
-  + ifLeft(Consumer<? super L>) : void
-  + ifRight(Consumer<? super R>) : void
-  + map(...) : Left<L, R2>
-  + flatMap(...) : Left<L, R2>
-}
 
-class "Right<L, R>" <<record>> implements Either {
-  + Right(R value)
-  __ Methods __
-  + isLeft() : false
-  + isRight() : true
-  + getLeft() : throws NoSuchElementException
-  + getRight() : R
-  + ifLeft(Consumer<? super L>) : void
-  + ifRight(Consumer<? super R>) : void
-  + map(...) : Either<L, R2>
-  + flatMap(...) : Either<L, R2>
-}
+interface "Kind<F_WITNESS, A>" as Kind
 
-package HKT_Integration {
-  interface "EitherKind<L, R>" as EitherKind
-  class "EitherKindHelper" as Helper {
-   + {static} wrap(Either<L,R>) : Kind<EitherKind<L,?>, R>
-   + {static} unwrap(Kind<EitherKind<L,?>, R>) : Either<L,R>
+
+
+
+  interface "Either<L, R>" as EitherInterface extends EitherKind<L,R> {
+    + {static} Left<L,R> left(L value)
+    + {static} Right<L,R> right(R value)
+    + boolean isLeft()
+    + boolean isRight()
+    + L getLeft() throws NoSuchElementException
+    + R getRight() throws NoSuchElementException
+    + <U> U fold(Function<L,U> leftMapper, Function<R,U> rightMapper)
+    + <RR> Either<L,RR> map(Function<R,RR> mapper)
+    + <RR> Either<L,RR> flatMap(Function<R, Either<L,RR>> mapper)
   }
-  class "EitherMonad<L>" as Monad {
-    __ Implements MonadError<EitherKind<L,?>, L> __
-    + map(...) : Kind<...>
-    + flatMap(...) : Kind<...>
-    + ap(...) : Kind<...>
-    + of(R) : Kind<...>
-    + raiseError(L) : Kind<...>
-    + handleErrorWith(...) : Kind<...>
-  }
-  EitherKind <|.. "org.higherkindedj.hkt.Kind"
-  Monad ..> Helper : uses
-}
 
-Either <.. Helper : operates on
+  package "internal implementations" {
+    class "Left<L, R>" as LeftRecord <<record>> implements Either<L,R> {
+    + Left(L value)
+     }
+    class "Right<L, R>" as RightRecord <<record>>  implements Either<L,R> {
+    + Right(R value)
+         }
+  }
+  Either <|-- LeftRecord
+  Either <|-- RightRecord
+
+
+  class EitherKindHelper {
+    + {static} wrap(either: Either<L,R>): Kind<EitherKind.Witness<L>, R>
+    + {static} unwrap(kind: Kind<EitherKind.Witness<L>, R>): Either<L,R>
+    + {static} left(monad: MonadError<F,L>, error: L): Kind<F,R> ' This is more for EitherT.left
+    + {static} right(monad: Monad<F>, value: R): Kind<F,R>      ' This is more for EitherT.right
+  }
+  note right of EitherKindHelper::wrap
+    `wrap` effectively casts `Either` to `Kind`
+    as `Either` directly implements `EitherKind`.
+  end note
+  note right of EitherKindHelper::unwrap
+    `unwrap` checks `instanceof Either` and casts.
+  end note
+
+  EitherKindHelper ..> "Either<L, R>" : "casts to/from"
+
+EitherKind --|> Kind
+
+
 @enduml

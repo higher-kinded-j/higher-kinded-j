@@ -8,24 +8,24 @@ The key idea is that an `IO<A>` value doesn't *perform* the side effect immediat
 
 ![io_components.svg](./images/puml/io_components.svg)
 
-![io_detail.puml](puml/io_detail.puml)
+![io_detail.svg](puml/io_detail.svg)
 
-![io_kind.puml](puml/io_kind.puml)
+![io_kind.svg](puml/io_kind.svg)
 
-![io_monad.puml](puml/io_monad.puml)
+![io_monad.svg](puml/io_monad.svg)
 
 The `IO` functionality is built upon several related components:
 
 1. **`IO<A>`**: The core functional interface. An `IO<A>` instance essentially wraps a `Supplier<A>` (or similar function) that performs the side effect and returns a value `A`. The crucial method is `unsafeRunSync()`, which executes the encapsulated computation.
-2. **`IOKind<A>`**: The HKT marker interface (`Kind<IOKind<?>, A>`) for `IO`. This allows `IO` to be treated as a generic type constructor `F` in type classes like `Functor`, `Applicative`, and `Monad`. The witness type is `IOKind<?>`.
+2. **`IOKind<A>`**: The HKT marker interface (`Kind<IOKind.Witness, A>`) for `IO`. This allows `IO` to be treated as a generic type constructor `F` in type classes like `Functor`, `Applicative`, and `Monad`. The witness type is `IOKind.Witness`.
 3. **`IOKindHelper`**: The essential utility class for working with `IO` in the HKT simulation. It provides:
    * `wrap(IO<A>)`: Wraps a concrete `IO<A>` instance into its HKT representation `IOKind<A>`.
-   * `unwrap(Kind<IOKind<?>, A>)`: Unwraps an `IOKind<A>` back to the concrete `IO<A>`. Throws `KindUnwrapException` if the input Kind is invalid.
+   * `unwrap(Kind<IOKind.Witness, A>)`: Unwraps an `IOKind<A>` back to the concrete `IO<A>`. Throws `KindUnwrapException` if the input Kind is invalid.
    * `delay(Supplier<A>)`: The primary factory method to create an `IOKind<A>` by wrapping a side-effecting computation described by a `Supplier`.
-   * `unsafeRunSync(Kind<IOKind<?>, A>)`: The method to *execute* the computation described by an `IOKind`. This is typically called at the "end of the world" in your application (e.g., in the `main` method) to run the composed IO program.
-4. **`IOFunctor`**: Implements `Functor<IOKind<?>>`. Provides the `map` operation to transform the result value `A` of an `IO` computation *without* executing the effect.
-5. **`IOApplicative`**: Extends `IOFunctor` and implements `Applicative<IOKind<?>>`. Provides `of` (to lift a pure value into `IO` without side effects) and `ap` (to apply a function within `IO` to a value within `IO`).
-6. **`IOMonad`**: Extends `IOApplicative` and implements `Monad<IOKind<?>>`. Provides `flatMap` to sequence `IO` computations, ensuring effects happen in the intended order.
+   * `unsafeRunSync(Kind<IOKind.Witness, A>)`: The method to *execute* the computation described by an `IOKind`. This is typically called at the "end of the world" in your application (e.g., in the `main` method) to run the composed IO program.
+4. **`IOFunctor`**: Implements `Functor<IOKind.Witness>`. Provides the `map` operation to transform the result value `A` of an `IO` computation *without* executing the effect.
+5. **`IOApplicative`**: Extends `IOFunctor` and implements `Applicative<IOKind.Witness>`. Provides `of` (to lift a pure value into `IO` without side effects) and `ap` (to apply a function within `IO` to a value within `IO`).
+6. **`IOMonad`**: Extends `IOApplicative` and implements `Monad<IOKind.Witness>`. Provides `flatMap` to sequence `IO` computations, ensuring effects happen in the intended order.
 
 ## Purpose and Usage
 
@@ -52,13 +52,13 @@ import java.util.Scanner;
 IOMonad ioMonad = new IOMonad();
 
 // IO action to print a message
-Kind<IOKind<?>, Void> printHello = IOKindHelper.delay(() -> {
+Kind<IOKind.Witness, Void> printHello = IOKindHelper.delay(() -> {
     System.out.println("Hello from IO!");
     return null; // Return type is Void
 });
 
 // IO action to read a line from the console
-Kind<IOKind<?>, String> readLine = IOKindHelper.delay(() -> {
+Kind<IOKind.Witness, String> readLine = IOKindHelper.delay(() -> {
     System.out.print("Enter your name: ");
     // Scanner should ideally be managed more robustly in real apps
     try (Scanner scanner = new Scanner(System.in)) {
@@ -67,13 +67,13 @@ Kind<IOKind<?>, String> readLine = IOKindHelper.delay(() -> {
 });
 
 // IO action that returns a pure value (no side effect description here)
-Kind<IOKind<?>, Integer> pureValueIO = ioMonad.of(42);
+Kind<IOKind.Witness, Integer> pureValueIO = ioMonad.of(42);
 
 // IO action that simulates getting the current time (a side effect)
-Kind<IOKind<?>, Long> currentTime = IOKindHelper.delay(System::currentTimeMillis);
+Kind<IOKind.Witness, Long> currentTime = IOKindHelper.delay(System::currentTimeMillis);
 
 // Creating an IO action that might fail internally
-Kind<IOKind<?>, String> potentiallyFailingIO = IOKindHelper.delay(() -> {
+Kind<IOKind.Witness, String> potentiallyFailingIO = IOKindHelper.delay(() -> {
    if (Math.random() < 0.5) {
        throw new RuntimeException("Simulated failure!");
    }
@@ -163,10 +163,10 @@ import java.util.function.Function;
 IOMonad ioMonad = new IOMonad();
 
 // --- map example ---
-Kind<IOKind<?>, String> readLineAction = IOKindHelper.delay(() -> "Test Input"); // Simulate input
+Kind<IOKind.Witness, String> readLineAction = IOKindHelper.delay(() -> "Test Input"); // Simulate input
 
 // Map the result of readLineAction without executing readLine yet
-Kind<IOKind<?>, String> greetAction = ioMonad.map(
+Kind<IOKind.Witness, String> greetAction = ioMonad.map(
     name -> "Hello, " + name + "!", // Function to apply to the result
     readLineAction
 );
@@ -178,13 +178,13 @@ System.out.println("Result of map: " + greeting); // Output: Hello, Test Input!
 
 // --- flatMap example ---
 // Action 1: Get name
-Kind<IOKind<?>, String> getName = IOKindHelper.delay(() -> {
+Kind<IOKind.Witness, String> getName = IOKindHelper.delay(() -> {
     System.out.println("Effect: Getting name...");
     return "Alice";
 });
 
 // Action 2 (depends on name): Print greeting
-Function<String, Kind<IOKind<?>, Void>> printGreeting = name ->
+Function<String, Kind<IOKind.Witness, Void>> printGreeting = name ->
     IOKindHelper.delay(() -> {
         System.out.println("Effect: Printing greeting for " + name);
         System.out.println("Welcome, " + name + "!");
@@ -192,7 +192,7 @@ Function<String, Kind<IOKind<?>, Void>> printGreeting = name ->
     });
 
 // Combine using flatMap
-Kind<IOKind<?>, Void> combinedAction = ioMonad.flatMap(printGreeting, getName);
+Kind<IOKind.Witness, Void> combinedAction = ioMonad.flatMap(printGreeting, getName);
 
 System.out.println("\nCombined action created, not executed yet.");
 // Execute the combined action
@@ -203,7 +203,7 @@ IOKindHelper.unsafeRunSync(combinedAction);
 // Welcome, Alice!
 
 // --- Full Program Example ---
-Kind<IOKind<?>, Void> program = ioMonad.flatMap(
+Kind<IOKind.Witness, Void> program = ioMonad.flatMap(
     ignored -> ioMonad.flatMap( // Chain after printing hello
         name -> ioMonad.map( // Map the result of printing the greeting
             ignored2 -> { System.out.println("Program finished."); return null; },

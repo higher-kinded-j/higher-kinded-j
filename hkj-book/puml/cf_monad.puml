@@ -1,7 +1,7 @@
 @startuml CompletableFuture Monad Hierarchy
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-!define CFKind CompletableFutureKind<?>
+!define CFKind CompletableFutureKind.Witness
 
 interface Kind<F, A>
 interface "CFKind<A> extends Kind<CFKind, A>"

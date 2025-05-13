@@ -16,9 +16,9 @@ IO ..> Supplier : uses >
 interface Kind<F, A> <<HKT Bridge>> {
 }
 
-interface IOKind<A> extends Kind<IOKind<?>, A> {
+interface IOKind<A> extends Kind<IOKind.Witness, A> {
   ' HKT Marker for IO
-  ' Witness F = IOKind<?>
+  ' Witness F = IOKind.Witness
   ' Value Type A = A
 }
 
@@ -26,9 +26,9 @@ package helper <<Rectangle>> {
   class IOKindHelper {
     .. Static Helper Methods ..
     + {static} IOKind<A> wrap(IO<A>)
-    + {static} IO<A> unwrap(Kind<IOKind<?>, A>)
-    + {static} Kind<IOKind<?>, A> delay(Supplier<A>)
-    + {static} A unsafeRunSync(Kind<IOKind<?>, A>)
+    + {static} IO<A> unwrap(Kind<IOKind.Witness, A>)
+    + {static} Kind<IOKind.Witness, A> delay(Supplier<A>)
+    + {static} A unsafeRunSync(Kind<IOKind.Witness, A>)
   }
 
   ' Internal Holder Record
@@ -45,18 +45,18 @@ interface Functor<F>
 interface "Applicative<F> extends Functor<F>"
 interface "Monad<F> extends Applicative<F>"
 
-class IOFunctor implements Functor<IOKind<?>> {
- + Kind<IOKind<?>, B> map(Function<A, B>, Kind<IOKind<?>, A>)
+class IOFunctor implements Functor<IOKind.Witness> {
+ + Kind<IOKind.Witness, B> map(Function<A, B>, Kind<IOKind.Witness, A>)
 }
 IOFunctor ..> IOKindHelper : uses
 
-class IOApplicative extends IOFunctor implements Applicative<IOKind<?>> {
-  + Kind<IOKind<?>, A> of(A)
-  + Kind<IOKind<?>, B> ap(Kind<IOKind<?>, Function<A, B>>, Kind<IOKind<?>, A>)
+class IOApplicative extends IOFunctor implements Applicative<IOKind.Witness> {
+  + Kind<IOKind.Witness, A> of(A)
+  + Kind<IOKind.Witness, B> ap(Kind<IOKind.Witness, Function<A, B>>, Kind<IOKind.Witness, A>)
 }
 
-class IOMonad extends IOApplicative implements Monad<IOKind<?>> {
- + Kind<IOKind<?>, B> flatMap(Function<A, Kind<IOKind<?>, B>>, Kind<IOKind<?>, A>)
+class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
+ + Kind<IOKind.Witness, B> flatMap(Function<A, Kind<IOKind.Witness, B>>, Kind<IOKind.Witness, A>)
 }
 
 

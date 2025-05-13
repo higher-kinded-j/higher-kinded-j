@@ -25,26 +25,26 @@ package "Reader Type" {
 }
 
 package "Reader HKT Simulation" {
-    interface "ReaderKind<R, A> extends Kind<ReaderKind<R, ?>, A>"
+    interface "ReaderKind<R, A> extends Kind<ReaderKind.Witness<R>, A>"
 
     class ReaderKindHelper {
-      + {static} Reader<R, A> unwrap(Kind<ReaderKind<R, ?>, A> kind)
+      + {static} Reader<R, A> unwrap(Kind<ReaderKind.Witness<R>, A> kind)
       + {static} ReaderKind<R, A> wrap(Reader<R, A> reader)
       + {static} ReaderKind<R, A> reader(Function<R, A> runFunction)
       + {static} ReaderKind<R, A> constant(A value)
       + {static} ReaderKind<R, R> ask()
-      + {static} A runReader(Kind<ReaderKind<R, ?>, A> kind, R environment)
+      + {static} A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment)
     }
 
-    class ReaderFunctor<R> implements Functor<ReaderKind<R, ?>> {
-       + Kind<ReaderKind<R, ?>, B> map(Function<A, B> f, Kind<ReaderKind<R, ?>, A> fa)
+    class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
+       + Kind<ReaderKind.Witness<R>, B> map(Function<A, B> f, Kind<ReaderKind.Witness<R>, A> fa)
     }
-    class ReaderApplicative<R> extends ReaderFunctor<R> implements Applicative<ReaderKind<R, ?>> {
-       + Kind<ReaderKind<R, ?>, A> of(A value)
-       + Kind<ReaderKind<R, ?>, B> ap(Kind<ReaderKind<R, ?>, Function<A, B>> ff, Kind<ReaderKind<R, ?>, A> fa)
+    class ReaderApplicative<R> extends ReaderFunctor<R> implements Applicative<ReaderKind.Witness<R>> {
+       + Kind<ReaderKind.Witness<R>, A> of(A value)
+       + Kind<ReaderKind.Witness<R>, B> ap(Kind<ReaderKind.Witness<R>, Function<A, B>> ff, Kind<ReaderKind.Witness<R>, A> fa)
     }
-    class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind<R, ?>> {
-       + Kind<ReaderKind<R, ?>, B> flatMap(Function<A, Kind<ReaderKind<R, ?>, B>> f, Kind<ReaderKind<R, ?>, A> ma)
+    class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Witness<R>> {
+       + Kind<ReaderKind.Witness<R>, B> flatMap(Function<A, Kind<ReaderKind.Witness<R>, B>> f, Kind<ReaderKind.Witness<R>, A> ma)
     }
 }
 

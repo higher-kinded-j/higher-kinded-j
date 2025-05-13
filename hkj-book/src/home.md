@@ -34,17 +34,16 @@ You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 * **State Management:** Use the `State` monad for computations that need to thread state through.
 * **Logging/Accumulation:** Use the `Writer` monad to accumulate logs or other values alongside a computation.
 * **Learning Tool:** Understand HKTs, type classes (Functor, Applicative, Monad), and functional error handling concepts through concrete Java examples.
-* **Simulating Custom Types:** Follow the pattern (Kind interface, Holder, Helper, Type Class instances) to make your *own* custom data types or computational contexts work with the provided functional abstractions.
+* **Simulating Custom Types:** Follow the pattern (Kind interface, _Holder if needed_, Helper, Type Class instances) to make your *own* custom data types or computational contexts work with the provided functional abstractions.
 
 
 To understand and use Higher-Kinded-J effectively, explore these documents:
 
 1.  **[Core Concepts](core-concepts.md):** Understand the fundamental building blocks – `Kind`, Witness Types, Type Classes (`Functor`, `Monad`, etc.), and the helper classes that bridge the simulation with standard Java types. **Start here!**
 2.  **[Supported Types](supported-types.md):** See which Java types (like `List`, `Optional`, `CompletableFuture`) and custom types (`Maybe`, `Either`, `Try`, `IO`, `Lazy`) are currently simulated and have corresponding type class instances.
-3.  **[Supported Types in Detail](supported_types_in_detail.md):** More in depth detailed explanations of how to use.
-4.   **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using Higher-Kinded-J: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
-5.   **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
-6.   **[Extending Higher-Kinded-J](extending-simulation.md):** Learn the pattern for adding Higher-Kinded-J support and type class instances for your *own* custom Java types or other standard library types.
+3.  **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using Higher-Kinded-J: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
+4.  **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
+5.  **[Extending Higher-Kinded-J](extending-simulation.md):** Learn the pattern for adding Higher-Kinded-J support and type class instances for your *own* custom Java types or other standard library types.
 
 
 

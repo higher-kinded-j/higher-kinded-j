@@ -138,19 +138,19 @@ import org.higherkindedj.hkt.trymonad.*;
 
 TryMonadError tryMonad = new TryMonadError();
 
-Kind<TryKind<?>, Integer> tryKind1 = TryKindHelper.tryOf(() -> 10 / 2); // Success(5) Kind
-Kind<TryKind<?>, Integer> tryKind2 = TryKindHelper.tryOf(() -> 10 / 0); // Failure(...) Kind
+Kind<TryKind.Witness, Integer> tryKind1 = TryKindHelper.tryOf(() -> 10 / 2); // Success(5) Kind
+Kind<TryKind.Witness, Integer> tryKind2 = TryKindHelper.tryOf(() -> 10 / 0); // Failure(...) Kind
 
 // Map using Monad instance
-Kind<TryKind<?>, String> mappedKind = tryMonad.map(Object::toString, tryKind1); // Success("5") Kind
+Kind<TryKind.Witness, String> mappedKind = tryMonad.map(Object::toString, tryKind1); // Success("5") Kind
 
 // FlatMap using Monad instance
-Function<Integer, Kind<TryKind<?>, Double>> safeDivideKind =
+Function<Integer, Kind<TryKind.Witness, Double>> safeDivideKind =
         i -> TryKindHelper.tryOf(() -> 10.0 / i);
-Kind<TryKind<?>, Double> flatMappedKind = tryMonad.flatMap(safeDivideKind, tryKind1); // Success(2.0) Kind
+Kind<TryKind.Witness, Double> flatMappedKind = tryMonad.flatMap(safeDivideKind, tryKind1); // Success(2.0) Kind
 
 // Handle error using MonadError instance
-Kind<TryKind<?>, Integer> handledKind = tryMonad.handleErrorWith(
+Kind<TryKind.Witness, Integer> handledKind = tryMonad.handleErrorWith(
         tryKind2, // The Failure Kind
         error -> TryKindHelper.success(-1) // Recover to Success(-1) Kind
 );
