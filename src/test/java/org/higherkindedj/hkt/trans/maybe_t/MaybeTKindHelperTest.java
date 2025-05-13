@@ -187,7 +187,8 @@ class MaybeTKindHelperTest {
     @DisplayName("unwrap should correctly infer types (Outer IO)")
     void unwrap_typeInference_IOOuter() {
       MaybeT<IOKind.Witness, Boolean> concreteBool = MaybeT.just(ioOuterMonad, true);
-      Kind<MaybeTKind<IOKind.Witness, ?>, Boolean> wrappedBool = MaybeTKindHelper.wrap(concreteBool);
+      Kind<MaybeTKind<IOKind.Witness, ?>, Boolean> wrappedBool =
+          MaybeTKindHelper.wrap(concreteBool);
       MaybeT<IOKind.Witness, Boolean> unwrappedBool = MaybeTKindHelper.unwrap(wrappedBool);
       // Verify content by running IO
       Maybe<Boolean> resultIO = IOKindHelper.unsafeRunSync(unwrappedBool.value());

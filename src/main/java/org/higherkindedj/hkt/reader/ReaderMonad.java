@@ -7,21 +7,20 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.jspecify.annotations.NonNull;
 
-public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind<R, ?>> {
+public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Witness<R>> {
 
   @Override
-  public <A, B> @NonNull Kind<ReaderKind<R, ?>, B> flatMap(
-      @NonNull Function<A, Kind<ReaderKind<R, ?>, B>> f, @NonNull Kind<ReaderKind<R, ?>, A> ma) {
+  public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> flatMap(
+      @NonNull Function<A, Kind<ReaderKind.Witness<R>, B>> f,
+      @NonNull Kind<ReaderKind.Witness<R>, A> ma) {
 
     Reader<R, A> readerA = unwrap(ma);
 
-    // flatMap implementation: r -> f(readerA(r)).run(r)
-    // The function 'f' returns a Kind, which needs to be unwrapped inside.
     Reader<R, B> readerB =
         readerA.flatMap(
             a -> {
-              Kind<ReaderKind<R, ?>, B> kindB = f.apply(a);
-              return unwrap(kindB); // Adapt the function f to return Reader<R, B>
+              Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
+              return unwrap(kindB);
             });
 
     return wrap(readerB);
