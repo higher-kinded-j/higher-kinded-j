@@ -29,6 +29,7 @@ import org.jspecify.annotations.NonNull;
  * <p>Asynchronous steps return results wrapped in {@code Kind<CompletableFutureKind<?>,
  * Either<DomainError, T>>}. Synchronous steps return results wrapped in {@code
  * Kind<EitherKind<DomainError, ?>, T>} or {@code Kind<TryKind<?>, T>}.
+ * Local variables use `var` for conciseness where type is clear.
  */
 public class OrderWorkflowSteps {
 
@@ -52,28 +53,25 @@ public class OrderWorkflowSteps {
    * Logs progress using the injected logger.
    *
    * @param data The initial {@link OrderData}.
-   * @return A {@code Kind<EitherKind<DomainError, ?>, ValidatedOrder>} containing either a {@link
-   *     ValidatedOrder} on success, or a {@link DomainError.ValidationError} on failure.
+   * @return A {@code Kind<EitherKind.Witness<DomainError>, ValidatedOrder>} containing either a {@link
+   * ValidatedOrder} on success, or a {@link DomainError.ValidationError} on failure.
    */
   public Kind<EitherKind.Witness<DomainError>, ValidatedOrder> validateOrder(OrderData data) {
     dependencies.log("Step (sync - Either): Validating order " + data.orderId());
-    // Simulate immediate validation logic
     if (data.quantity() <= 0) {
-      String msg = "Quantity must be positive for order " + data.orderId();
+      var msg = "Quantity must be positive for order " + data.orderId(); 
       dependencies.log("Validation Failed (Either): " + msg);
-      // Explicitly specify both L and R type arguments for Either.left
-      // Explicitly type the Either instance first
+      // Need to specify types for Either.left with var if not fully inferable or for clarity
       Either<DomainError, ValidatedOrder> errorResult = Either.left(new ValidationError(msg));
       return EitherKindHelper.wrap(errorResult);
     }
     if (data.productId().isEmpty()) {
-      String msg = "Product ID missing for order " + data.orderId();
+      var msg = "Product ID missing for order " + data.orderId(); 
       dependencies.log("Validation Failed (Either): " + msg);
-      return EitherKindHelper.wrap(Either.left(new ValidationError(msg)));
+      return EitherKindHelper.wrap(Either.<DomainError, ValidatedOrder>left(new ValidationError(msg)));
     }
-    // Simulate calculation
-    double amount = data.quantity() * 19.99;
-    ValidatedOrder validated =
+    var amount = data.quantity() * 19.99; 
+    var validated = 
         new ValidatedOrder(
             data.orderId(),
             data.productId(),
@@ -92,29 +90,25 @@ public class OrderWorkflowSteps {
    * exceptions on failure. Calculates the order amount. Logs progress.
    *
    * @param data The initial {@link OrderData}.
-   * @return A {@code Kind<TryKind<?>, ValidatedOrder>} containing either a {@link
-   *     Try.Success<ValidatedOrder>} or a {@link Try.Failure} wrapping the thrown exception.
+   * @return A {@code Kind<TryKind.Witness, ValidatedOrder>} containing either a {@link
+   * Try.Success<ValidatedOrder>} or a {@link Try.Failure} wrapping the thrown exception.
    */
   public Kind<TryKind.Witness, ValidatedOrder> validateOrderWithTry(OrderData data) {
-
     return TryKindHelper.tryOf(
         () -> {
           dependencies.log("Step (sync - Try): Validating order " + data.orderId());
-          // Use standard checks that throw exceptions on failure
           if (data.quantity() <= 0) {
-            String msg = "Quantity must be positive for order " + data.orderId();
+            var msg = "Quantity must be positive for order " + data.orderId(); 
             dependencies.log("Validation Failed (Try - Exception): " + msg);
             throw new IllegalArgumentException(msg);
           }
           if (data.productId().isEmpty()) {
-            String msg = "Product ID missing for order " + data.orderId();
+            var msg = "Product ID missing for order " + data.orderId(); 
             dependencies.log("Validation Failed (Try - Exception): " + msg);
             throw new IllegalArgumentException(msg);
           }
-          // Simulate calculation (could potentially throw ArithmeticException etc. in real code)
-          double amount = data.quantity() * 19.99;
-          // If all checks pass and calculations succeed, return the validated order
-          ValidatedOrder validated =
+          var amount = data.quantity() * 19.99; 
+          var validated = 
               new ValidatedOrder(
                   data.orderId(),
                   data.productId(),
@@ -154,11 +148,9 @@ public class OrderWorkflowSteps {
             dependencies.log(String.format("... %s: interrupted during delay.", stepName));
             throw new CompletionException(e); // Wrap interruption
           } catch (Exception e) {
-            // Log the exception from the action itself
             dependencies.log(
                 String.format(
                     "... %s: action failed with %s.", stepName, e.getClass().getSimpleName()));
-            // Wrap other exceptions thrown by the action
             throw new CompletionException(e);
           }
         });
@@ -170,13 +162,13 @@ public class OrderWorkflowSteps {
    * @param productId The ID of the product.
    * @param quantity The quantity to check.
    * @return A {@code Kind} representing a {@link CompletableFuture} of an {@link Either} containing
-   *     {@link Void} on success or a {@link DomainError} on failure.
+   * {@link Void} on success or a {@link DomainError} on failure.
    */
   public Kind<CompletableFutureKind.Witness, Either<DomainError, Void>> checkInventoryAsync(
       String productId, int quantity) {
     dependencies.log(
-        String.format("Checking inventory for product %s, quantity %d", productId, quantity));
-    CompletableFuture<Either<DomainError, Void>> future =
+        String.format("Step (async): Checking inventory for product %s, quantity %d", productId, quantity));
+    var future = 
         CompletableFuture.supplyAsync(
             () -> {
               try {
@@ -187,18 +179,18 @@ public class OrderWorkflowSteps {
                 Thread.sleep(100 + random.nextInt(200));
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return Either.left(new DomainError.StockError("Inventory check interrupted"));
+                return Either.<DomainError, Void>left(new DomainError.StockError("Inventory check interrupted"));
               }
               if ("OUT_OF_STOCK".equals(productId)) {
-                return Either.left(new DomainError.StockError(productId));
+                return Either.<DomainError, Void>left(new DomainError.StockError(productId));
               }
-              if (quantity <= 0) {
-                return Either.left(
+              if (quantity <= 0) { // Though validateOrder should catch this, good for robustness
+                return Either.<DomainError, Void>left(
                     new DomainError.ValidationError("Quantity must be positive: " + quantity));
               }
-              dependencies.log( // Ensure 'dependencies' is used for logging
+              dependencies.log(
                   String.format("... Check Inventory: delay complete for %s.", productId));
-              return Either.right(null);
+              return Either.<DomainError, Void>right(null);
             });
     return CompletableFutureKindHelper.wrap(future);
   }
@@ -209,12 +201,12 @@ public class OrderWorkflowSteps {
    * @param paymentDetails Payment details string.
    * @param amount The amount to process.
    * @return A {@code Kind} representing a {@link CompletableFuture} of an {@link Either} containing
-   *     {@link PaymentConfirmation} on success or a {@link DomainError} on failure.
+   * {@link PaymentConfirmation} on success or a {@link DomainError} on failure.
    */
   public Kind<CompletableFutureKind.Witness, Either<DomainError, PaymentConfirmation>>
-      processPaymentAsync(String paymentDetails, double amount) {
-    dependencies.log(String.format("Processing payment for amount %.2f", amount));
-    CompletableFuture<Either<DomainError, PaymentConfirmation>> future =
+  processPaymentAsync(String paymentDetails, double amount) {
+    dependencies.log(String.format("Step (async): Processing payment for amount %.2f", amount));
+    CompletableFuture<Either<DomainError, PaymentConfirmation>> future = 
         CompletableFuture.supplyAsync(
             () -> {
               try {
@@ -225,13 +217,13 @@ public class OrderWorkflowSteps {
                 Thread.sleep(150 + random.nextInt(250));
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return Either.left(new DomainError.PaymentError("Payment processing interrupted"));
+                return Either.<DomainError, PaymentConfirmation>left(new DomainError.PaymentError("Payment processing interrupted"));
               }
               if ("INVALID_CARD".equals(paymentDetails)) {
-                return Either.left(new DomainError.PaymentError("Invalid card details"));
+                return Either.<DomainError, PaymentConfirmation>left(new DomainError.PaymentError("Invalid card details"));
               }
               dependencies.log(
-                  String.format("... Process Payment: delay complete for %s.", paymentDetails));
+                  String.format("... Process Payment: delay complete for card: %s.", paymentDetails.substring(0, Math.min(paymentDetails.length(), 4))+"..."));
               return Either.right(
                   new PaymentConfirmation(
                       "TXN_" + System.currentTimeMillis() + "_" + random.nextInt(1000)));
@@ -245,33 +237,34 @@ public class OrderWorkflowSteps {
    * @param orderId The ID of the order.
    * @param shippingAddress The shipping address.
    * @return A {@code Kind} representing a {@link CompletableFuture} of an {@link Either} containing
-   *     {@link ShipmentInfo} on success or a {@link DomainError} on failure.
+   * {@link ShipmentInfo} on success or a {@link DomainError} on failure.
    */
   public Kind<CompletableFutureKind.Witness, Either<DomainError, ShipmentInfo>> createShipmentAsync(
       String orderId, String shippingAddress) {
     dependencies.log(
-        String.format("Creating shipment for order %s to %s", orderId, shippingAddress));
+        String.format("Step (async): Creating shipment for order %s to %s", orderId, shippingAddress));
+    // Explicitly type the CompletableFuture
     CompletableFuture<Either<DomainError, ShipmentInfo>> future =
         CompletableFuture.supplyAsync(
             () -> {
               try {
-                dependencies.log( // Ensure 'dependencies' is used for logging
+                dependencies.log(
                     String.format(
                         "... Create Shipment: simulating %dms delay ...",
                         200 + random.nextInt(300)));
                 Thread.sleep(200 + random.nextInt(300));
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return Either.left(new DomainError.ShippingError("Shipment creation interrupted"));
+                return Either.<DomainError, ShipmentInfo>left(new DomainError.ShippingError("Shipment creation interrupted"));
               }
               if (shippingAddress == null || shippingAddress.trim().isEmpty()) {
-                return Either.left(new DomainError.ShippingError("Missing shipping address"));
+                return Either.<DomainError, ShipmentInfo>left(new DomainError.ShippingError("Missing shipping address"));
               }
-              if ("FAIL_SHIPMENT".equals(orderId)) {
+              if ("FAIL_SHIPMENT".equals(orderId)) { // Specific orderId to simulate temporary failure
                 dependencies.log("Simulating temporary shipping glitch for order: " + orderId);
-                return Either.left(new DomainError.ShippingError("Temporary Glitch"));
+                return Either.<DomainError, ShipmentInfo>left(new DomainError.ShippingError("Temporary Glitch"));
               }
-              dependencies.log( // Ensure 'dependencies' is used for logging
+              dependencies.log(
                   String.format("... Create Shipment: delay complete for order %s.", orderId));
               return Either.right(
                   new ShipmentInfo(
@@ -286,12 +279,12 @@ public class OrderWorkflowSteps {
    * @param customerId The ID of the customer.
    * @param message The message to send.
    * @return A {@code Kind} representing a {@link CompletableFuture} of an {@link Either} containing
-   *     {@link Void} on success or a {@link DomainError} on failure.
+   * {@link Void} on success or a {@link DomainError} on failure.
    */
   public Kind<CompletableFutureKind.Witness, Either<DomainError, Void>> notifyCustomerAsync(
       String customerId, String message) {
-    dependencies.log(String.format("Notifying customer %s with message: %s", customerId, message));
-    CompletableFuture<Either<DomainError, Void>> future =
+    dependencies.log(String.format("Step (async): Notifying customer %s with message: %s", customerId, message));
+    var future = 
         CompletableFuture.supplyAsync(
             () -> {
               try {
@@ -300,16 +293,17 @@ public class OrderWorkflowSteps {
                         "... Notify Customer: simulating %dms delay ...",
                         50 + random.nextInt(100)));
                 Thread.sleep(50 + random.nextInt(100));
-                if ("FAIL_NOTIFICATION".equals(customerId)) {
+                // Simulate a non-critical failure for specific customer ID
+                if ("FAIL_NOTIFICATION_CUST".equals(customerId)) {
                   dependencies.log("Simulating notification failure for customer: " + customerId);
-                  return Either.left(new DomainError.NotificationError("SMTP server down"));
+                  return Either.<DomainError, Void>left(new DomainError.NotificationError("SMTP server down (simulated)"));
                 }
                 dependencies.log(
                     "Successfully sent notification to " + customerId + ": " + message);
-                return Either.right(null);
+                return Either.<DomainError, Void>right(null);
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return Either.left(new DomainError.NotificationError("Notification interrupted"));
+                return Either.<DomainError, Void>left(new DomainError.NotificationError("Notification interrupted"));
               }
             });
     return CompletableFutureKindHelper.wrap(future);

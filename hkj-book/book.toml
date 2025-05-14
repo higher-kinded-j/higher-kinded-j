@@ -5,6 +5,6 @@ multilingual = false
 src = "src"
 title = "Higher-Kinded-J"
 [output.html]
-additional-css = ["./theme/catppuccin.css"]
+additional-css = ["./theme/catppuccin.css", "./theme/additional-hkj.css"]
 default-theme = "latte"
 preferred-dark-theme = "macchiato"
