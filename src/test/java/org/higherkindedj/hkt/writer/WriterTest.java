@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.typeclass.Monoid;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -1,4 +1,4 @@
-@startuml StateT_Transformer
+@startuml statet_transformer
 !theme materia
 
 ' Style similar to other HKJ diagrams

@@ -320,7 +320,7 @@ public class StateTStackExample {
 
 ## Relationship to State Monad
 
-The [State Monad](./state_monad.md) (`State<S, A>`) can be seen as a specialized version of `StateT`. Specifically, `State<S, A>` is equivalent to `StateT<S, Id, A>`, where `Id` is the Identity monad (a monad that doesn't add any effects, simply `Id<A> = A`). `higher-kinded-j` doesn't currently ship with an `Id` monad out of the box, but `StateT` is designed to work with any underlying monad `F`.
+The [State Monad](./state_monad.md) (`State<S, A>`) can be seen as a specialized version of `StateT`. Specifically, `State<S, A>` is equivalent to `StateT<S, Id, A>`, where `Id` is the Identity monad (a monad that doesn't add any effects, simply `Id<A> = A`). `higher-kinded-j` provides an `Id` monad. `State<S, A>` can be seen as an equivalent to `StateT<S, Id.Witness, A>`.
 
 ## Further Reading
 
@@ -331,4 +331,4 @@ The [State Monad](./state_monad.md) (`State<S, A>`) can be seen as a specialized
   * [EitherKind](./either_monad.md)
   * [IOKind](./io_monad.md)
 
-By using `StateT`, Java developers can write cleaner, more composable code when dealing with computations that involve both state and other monadic effects.
+Using `StateT`, helps write cleaner, more composable code when dealing with computations that involve both state and other monadic effects.

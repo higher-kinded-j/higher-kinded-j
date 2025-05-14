@@ -1,9 +1,6 @@
-package org.higherkindedj.hkt.typeclass;
+package org.higherkindedj.hkt;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Functor;
-import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.NonNull;
 
 /**

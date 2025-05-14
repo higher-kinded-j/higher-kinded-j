@@ -6,13 +6,17 @@ The key idea is that an `IO<A>` value doesn't *perform* the side effect immediat
 
 ## Core Components
 
-![io_components.svg](./images/puml/io_components.svg)
+**The IO Type**
 
-![io_detail.svg](puml/io_detail.svg)
+![io_detail.svg](./images/puml/io_detail.svg)
 
-![io_kind.svg](puml/io_kind.svg)
+**The HKT Bridge for IO**
 
-![io_monad.svg](puml/io_monad.svg)
+![io_kind.svg](./images/puml/io_kind.svg)
+
+**Typeclasses for IO**
+
+![io_monad.svg](./images/puml/io_monad.svg)
 
 The `IO` functionality is built upon several related components:
 

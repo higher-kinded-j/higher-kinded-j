@@ -1,6 +1,9 @@
-@startuml Lazy HKT Simulation
+@startuml lazy_kind
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+hide empty members
+
 interface Kind<LazyKind.Witness, A> <<HKT Bridge>>
 
 interface LazyKind<A> extends Kind<LazyKind.Witness, A> {
@@ -11,20 +14,19 @@ class Lazy<A> implements LazyKind<A>{
   ' Actual Lazy Implementation
 }
 
-package helper <<Rectangle>> {
-  class LazyKindHelper {
-    + {static} LazyKind<A> wrap(@NonNull Lazy<A>)
-    + {static} @NonNull Lazy<A> unwrap(@Nullable Kind<LazyKind.Witness, A>)
-    ' Other factory/helper methods...
-  }
 
-  class LazyHolder<A> implements LazyKind<A> {
-    - @NonNull Lazy<A> lazyInstance
-  }
-
-  LazyKindHelper ..> LazyHolder : creates
-  LazyKindHelper ..> Lazy : unwraps to / wraps from
-  LazyHolder o--> Lazy : holds
+class LazyKindHelper {
++ {static} LazyKind<A> wrap(@NonNull Lazy<A>)
++ {static} @NonNull Lazy<A> unwrap(@Nullable Kind<LazyKind.Witness, A>)
+' Other factory/helper methods...
 }
+
+class LazyHolder<A> implements LazyKind<A> {
+- @NonNull Lazy<A> lazyInstance
+}
+
+LazyKindHelper ..> LazyHolder : creates
+LazyKindHelper ..> Lazy : unwraps to / wraps from
+LazyHolder o--> Lazy : holds
 
 @enduml

@@ -7,7 +7,7 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.wrap;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.typeclass.Monoid;
+import org.higherkindedj.hkt.Monoid;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

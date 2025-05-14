@@ -1,4 +1,4 @@
-@startuml Reader_Monad_Diagram
+@startuml reader_monad
 !theme plain
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 

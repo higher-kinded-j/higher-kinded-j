@@ -1,13 +1,17 @@
-# Higher-Kinded-J: Lazy Evaluation with `Lazy`
+# Lazy Monad: Lazy Evaluation with `Lazy`
 
 This article introduces the `Lazy<A>` type and its associated components within the `higher-kinded-j` library. `Lazy` provides a mechanism for deferred computation, where a value is calculated only when needed and the result (or any exception thrown during calculation) is memoized (cached).
 ## Core Components
 
-![lazy_components.svg](./images/puml/lazy_components.svg)
+**The Lazy Type**
 
 ![lazy_class.svg](./images/puml/lazy_class.svg)
 
+**The HKT Bridge for Lazy**
+
 ![lazy_kind.svg](./images/puml/lazy_kind.svg)
+
+**Typeclasses for Lazy**
 
 ![lazy_monad.svg](./images/puml/lazy_monad.svg)
 

@@ -81,8 +81,7 @@ public final class IOKindHelper {
   @SuppressWarnings("unchecked")
   public static <A> @NonNull IO<A> unwrap(@Nullable Kind<IOKind.Witness, A> kind) {
     return switch (kind) {
-      case null ->
-          throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
+      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case IOKindHelper.IOHolder<?> holder -> {
         yield (IO<A>) holder.ioInstance();
       }

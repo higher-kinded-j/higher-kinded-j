@@ -2,7 +2,7 @@ package org.higherkindedj.hkt.writer;
 
 import java.util.Objects;
 import java.util.function.Function;
-import org.higherkindedj.hkt.typeclass.Monoid;
+import org.higherkindedj.hkt.Monoid;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

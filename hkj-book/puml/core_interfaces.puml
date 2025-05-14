@@ -1,39 +1,12 @@
-@startuml
+@startuml defunctional_external
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 title Core HKT Simulation Interfaces and Patterns
 
-left to right direction
 
-package "HKT Core - Type Classes" {
-    interface "Kind<F_WITNESS, A>" as Kind {
-      ' F_WITNESS is the phantom type (e.g., XKind.Witness)
-      ' A is the value type
-    }
-    interface "Functor<F_WITNESS>" as Functor {
-        + map(fn: Function<A,B>, fa: Kind<F_WITNESS,A>) : Kind<F_WITNESS,B>
-    }
-    interface "Applicative<F_WITNESS>" as Applicative {
-        + of(value: A) : Kind<F_WITNESS,A>
-        + ap(ff: Kind<F_WITNESS, Function<A,B>>, fa: Kind<F_WITNESS,A>) : Kind<F_WITNESS,B>
-        ' mapN methods can be shown if desired, but are often defaults
-        ' + map2(Kind<F_WITNESS,A>, Kind<F_WITNESS,B>, BiFunction<A,B,C>) : Kind<F_WITNESS,C>
-    }
-    interface "Monad<F_WITNESS>" as Monad {
-        + flatMap(fn: Function<A, Kind<F_WITNESS,B>>, ma: Kind<F_WITNESS,A>) : Kind<F_WITNESS,B>
-    }
-    interface "MonadError<F_WITNESS, E>" as MonadError {
-        + raiseError(error: E) : Kind<F_WITNESS,A>
-        + handleErrorWith(ma: Kind<F_WITNESS,A>, handler: Function<E, Kind<F_WITNESS,A>>) : Kind<F_WITNESS,A>
-        ' Other recovery methods can be shown if desired
-    }
 
-    Functor ..> Kind : (operates on)
-    Applicative --|> Functor
-    Monad --|> Applicative
-    MonadError --|> Monad
-}
+
 package "Defunctionalisation Pattern Details" {
     class KindUnwrapException
 

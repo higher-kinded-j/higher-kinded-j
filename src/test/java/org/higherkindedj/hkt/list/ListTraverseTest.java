@@ -13,7 +13,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 // Not directly used by tests, but Traverse extends it
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.typeclass.Traverse;
+import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

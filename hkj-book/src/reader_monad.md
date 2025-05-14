@@ -52,9 +52,9 @@ public interface Reader<R, A> {
 * `map(Function<A, B>)`: Transforms the result `A` to `B`*after* the reader is run, without affecting the required environment `R`.
 * `flatMap(Function<A, Reader<R, B>>)`: Sequences computations. It runs the first reader, uses its result `A` to create a *second* reader (`Reader<R, B>`), and then runs that second reader with the *original* environment `R`.
 
-##H igher-Kinded-J Components
+## Reader Components
 
-To integrate `Reader` with the generic HKT framework:
+To integrate `Reader` with Higher-Kinded-J:
 
 * **`ReaderKind<R, A>`:** The marker interface extending `Kind<ReaderKind.Witness<R>, A>`. The witness type `F` is `ReaderKind.Witness<R>` (where `R` is fixed for a given monad instance), and the value type `A` is the result type of the reader.
 * **`ReaderKindHelper`:** The utility class with static methods:
@@ -181,6 +181,6 @@ System.out.println("Retrieved Prod Config: " + retrievedProdConfig); // Output: 
 
 Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't need `AppConfig` as a parameter, but they can access it when needed within the `reader(...)` factory or implicitly via `flatMap` composition. The configuration is only provided once at the end when `runReader` is called.
 
-## Summary
+## Key Points:
 
 The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management. It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using the HKT simulation and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`. This leads to more modular, testable, and less cluttered code when dealing with shared context.

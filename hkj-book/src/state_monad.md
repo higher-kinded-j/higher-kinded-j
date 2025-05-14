@@ -67,9 +67,9 @@ public interface State<S, A> {
 * `map(...)`: Transforms the *result value*`A` to `B` after the computation runs, leaving the state transition logic untouched.
 * `flatMap(...)`: The core sequencing operation. It runs the first `State` computation, takes its result value `A`, uses it to create a *second*`State` computation, and runs that second computation using the state produced by the first one. The final result and state are those from the second computation.
 
-## Higher-Kinded-J Components
+## State Components
 
-To integrate `State` with the generic HKT framework:
+To integrate `State` with Higher-Kinded-J:
 
 * **`StateKind<S, A>`:** The marker interface extending `Kind<StateKind.Witness<S>, A>`. The witness type `F` is `StateKind.Witness<S>` (where `S` is fixed for a given monad instance), and the value type `A` is the result type `A` from `StateTuple`.
 * **`StateKindHelper`:** The utility class with static methods:
@@ -237,6 +237,6 @@ System.out.println("Push/Describe Tuple: " + pushDescribeTuple);
 // Output: Push/Describe Tuple: StateTuple[value=Pushed 5, value is null, state=StackState[stack=[5]]]
 ```
 
-## Summary
+## Key Points:
 
 The State monad (`State<S, A>`, `StateKind`, `StateMonad`) provides a powerful functional abstraction for managing stateful computations in `Higher-Kinded-J`. By encapsulating state transitions within the `S -> (A, S)` function, it allows developers to write pure, composable code that explicitly tracks state changes. The HKT simulation enables using standard monadic operations (`map`, `flatMap`) via `StateMonad`, simplifying the process of sequencing complex stateful workflows while maintaining referential transparency. Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.

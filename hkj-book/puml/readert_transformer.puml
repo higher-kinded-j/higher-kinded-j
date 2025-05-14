@@ -1,4 +1,4 @@
-@startuml reader_t_transformer
+@startuml readert_transformer
 !theme plain
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
@@ -20,12 +20,12 @@ interface Monad<F_HKT>
     + static <F, R> ReaderT<F, R, R> ask(Monad<F>)
   }
 
-  interface ReaderTKind<F, R, A> extends Kind<ReaderTKind<F, R, ?>, A> {
-    // Witness: ReaderTKind<F, R, ?>
+  interface ReaderTKind<F, R, A> extends Kind<ReaderTKind.Witness<F, R>, A> {
+    // Witness: ReaderTKind.Witness<F, R>
     // Value: A
   }
 
-  class ReaderTMonad<F_OUTER, R_ENV> implements Monad<ReaderTKind<F_OUTER, R_ENV, ?>> {
+  class ReaderTMonad<F_OUTER, R_ENV> implements Monad<ReaderTKind.Witness<F_OUTER, R_ENV>> {
     - final @NonNull Monad<F_OUTER> outerMonad
     + ReaderTMonad(@NonNull Monad<F_OUTER> outerMonad)
     ' Other Monad methods (of, map, flatMap, ap)
@@ -33,13 +33,10 @@ interface Monad<F_HKT>
 
   class ReaderTKindHelper {
     ' Helper methods
-    + static <F, R, A> ReaderT<F, R, A> unwrap(Kind<ReaderTKind<F, R, ?>, A>)
+    + static <F, R, A> ReaderT<F, R, A> unwrap(Kind<ReaderTKind.Witness<F, R>, A>)
     + static <F, R, A> ReaderTKind<F, R, A> wrap(ReaderT<F, R, A>)
 
-    note right of ReaderTKindHelper::wrap
-      Uses internal ReaderTHolder
-      (not shown for brevity)
-    end note
+
   }
 
   ReaderTMonad --|> Monad

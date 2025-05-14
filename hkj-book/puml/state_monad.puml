@@ -1,4 +1,4 @@
-@startuml State_Monad_Diagram
+@startuml state_monad
 !theme plain
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 

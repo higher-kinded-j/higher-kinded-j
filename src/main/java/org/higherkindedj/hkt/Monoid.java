@@ -1,4 +1,4 @@
-package org.higherkindedj.hkt.typeclass;
+package org.higherkindedj.hkt;
 
 import org.jspecify.annotations.NonNull;
 

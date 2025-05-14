@@ -1,4 +1,4 @@
-@startuml IO Class Detail
+@startuml io_detail
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 interface Supplier<T> {
   + T get()

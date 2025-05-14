@@ -62,9 +62,9 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) implements WriterK
 * `run()`: Extracts only the computed value `A`, discarding the log.
 * `exec()`: Extracts only the accumulated log `W`, discarding the value.
 
-## Higher-Kinded-J Components
+## Writer Components
 
-To integrate `Writer` with the generic HKT framework:
+To integrate `Writer` with Higher-Kinded-J:
 
 * `WriterKind<W, A>`: The HKT interface. `Writer<W, A>` itself implements `WriterKind<W, A>`. `WriterKind<W, A>` extends `Kind<WriterKind.Witness<W>, A>`.
   * It contains a nested `final class Witness<LOG_W> {}` which serves as the phantom type `F_WITNESS` for `Writer<LOG_W, ?>`.
@@ -222,7 +222,7 @@ System.out.println("Mapped Log: " + mappedResult.log());   // Output: Mapped Log
 System.out.println("Mapped Value: " + mappedResult.value()); // Output: Mapped Value: Value is 100
 ```
 
-### Summary
+### Key Points
 
 The Writer monad (`Writer<W, A>`, `WriterKind.Witness<W>`, `WriterMonad<W>`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. The HKT simulation enables these operations to be performed generically using standard type class interfaces, with `Writer<W,A>` directly implementing `WriterKind<W,A>`.Summary
 

@@ -1,10 +1,8 @@
-@startuml LazyMonad Detail
+@startuml lazy_monad
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-interface Kind<F, A>
-interface "LazyKind<A> extends Kind<LazyKind.Witness, A>"
-interface Functor<F>
-interface "Applicative<F> extends Functor<F>"
-interface "Monad<F> extends Applicative<F>"
+hide empty members
+
+
 
 class LazyKindHelper {
  {static} LazyKind<A> wrap(Lazy<A>)

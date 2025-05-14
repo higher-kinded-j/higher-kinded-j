@@ -1,7 +1,7 @@
 package org.higherkindedj.hkt.writer;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.typeclass.Monoid;
+import org.higherkindedj.hkt.Monoid;
 
 /**
  * A higher-kinded type marker for the {@link Writer} monad.

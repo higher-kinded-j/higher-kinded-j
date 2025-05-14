@@ -18,8 +18,8 @@ import org.jspecify.annotations.NonNull;
  * Witness&lt;R&gt;}. This means that when using {@code ReaderMonad} with generic HKT abstractions,
  * a {@code Reader<R, A>} is represented as {@code Kind<ReaderKind.Witness<R>, A>}.
  *
- * @param <R> The type of the read-only environment. This environment is fixed for a given
- * instance of {@code ReaderMonad}.
+ * @param <R> The type of the read-only environment. This environment is fixed for a given instance
+ *     of {@code ReaderMonad}.
  * @see Reader
  * @see ReaderKind
  * @see ReaderKind.Witness
@@ -30,8 +30,8 @@ import org.jspecify.annotations.NonNull;
 public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Witness<R>> {
 
   /**
-   * Sequentially composes two {@link Reader} actions, passing the result of the first
-   * {@code Reader} ({@code ma}) into a function {@code f} that produces the second {@code Reader}.
+   * Sequentially composes two {@link Reader} actions, passing the result of the first {@code
+   * Reader} ({@code ma}) into a function {@code f} that produces the second {@code Reader}.
    *
    * <p>The {@code flatMap} operation allows dependent computations: the computation of the second
    * {@code Reader} can depend on the result of the first. Both {@code Reader}s will be evaluated
@@ -40,15 +40,15 @@ public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<Reader
    * @param <A> The value type of the initial {@code Reader} (represented by {@code ma}).
    * @param <B> The value type of the {@code Reader} produced by the function {@code f}.
    * @param f A function that takes a value of type {@code A} (from the first {@code Reader}) and
-   * returns a {@code Kind<ReaderKind.Witness<R>, B>} (which is a wrapped {@code Reader<R, B>}).
-   * Must not be null.
+   *     returns a {@code Kind<ReaderKind.Witness<R>, B>} (which is a wrapped {@code Reader<R, B>}).
+   *     Must not be null.
    * @param ma A {@code Kind<ReaderKind.Witness<R>, A>} representing the initial {@code Reader<R,
-   * A>}. Must not be null.
+   *     A>}. Must not be null.
    * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the composed {@code Reader<R,
-   * B>}. Never null. The resulting {@code Reader} when run with an environment {@code r}, will
-   * first run {@code ma} with {@code r} to get {@code a}, then apply {@code f} to {@code a} to
-   * get a new {@code Reader}, and then run that new {@code Reader} with the same environment
-   * {@code r}.
+   *     B>}. Never null. The resulting {@code Reader} when run with an environment {@code r}, will
+   *     first run {@code ma} with {@code r} to get {@code a}, then apply {@code f} to {@code a} to
+   *     get a new {@code Reader}, and then run that new {@code Reader} with the same environment
+   *     {@code r}.
    */
   @Override
   public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> flatMap(

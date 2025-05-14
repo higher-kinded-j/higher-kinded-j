@@ -31,9 +31,8 @@ public sealed interface DomainError extends Serializable {
   String message();
 
   /**
-   * Represents an error that occurred during data validation.
-   * This could be due to invalid input parameters, incorrect format, or unmet business rules
-   * related to the data structure or content.
+   * Represents an error that occurred during data validation. This could be due to invalid input
+   * parameters, incorrect format, or unmet business rules related to the data structure or content.
    *
    * @param message A detailed message describing the validation failure.
    */
@@ -50,9 +49,8 @@ public sealed interface DomainError extends Serializable {
   }
 
   /**
-   * Represents an error related to product stock availability.
-   * This typically occurs when a requested product is out of stock or insufficient quantity is
-   * available.
+   * Represents an error related to product stock availability. This typically occurs when a
+   * requested product is out of stock or insufficient quantity is available.
    *
    * @param productId The identifier of the product for which the stock error occurred.
    */
@@ -60,7 +58,8 @@ public sealed interface DomainError extends Serializable {
     /**
      * {@inheritDoc}
      *
-     * @return A message indicating that the product with the given {@code productId} is out of stock.
+     * @return A message indicating that the product with the given {@code productId} is out of
+     *     stock.
      */
     @Override
     public String message() {
@@ -69,8 +68,8 @@ public sealed interface DomainError extends Serializable {
   }
 
   /**
-   * Represents an error that occurred during the payment processing stage.
-   * This could be due to issues like declined card, insufficient funds, or payment gateway failures.
+   * Represents an error that occurred during the payment processing stage. This could be due to
+   * issues like declined card, insufficient funds, or payment gateway failures.
    *
    * @param reason A message detailing the reason for the payment failure.
    */
@@ -87,8 +86,8 @@ public sealed interface DomainError extends Serializable {
   }
 
   /**
-   * Represents an error encountered during the order shipping process.
-   * This could involve issues with address validation, carrier selection, or logistics.
+   * Represents an error encountered during the order shipping process. This could involve issues
+   * with address validation, carrier selection, or logistics.
    *
    * @param reason A message detailing the reason for the shipping failure.
    */
@@ -105,9 +104,8 @@ public sealed interface DomainError extends Serializable {
   }
 
   /**
-   * Represents an error that occurred while attempting to send a notification.
-   * This could be related to email delivery failures, SMS gateway issues, or other
-   * notification channel problems.
+   * Represents an error that occurred while attempting to send a notification. This could be
+   * related to email delivery failures, SMS gateway issues, or other notification channel problems.
    *
    * @param reason A message detailing the reason for the notification failure.
    */

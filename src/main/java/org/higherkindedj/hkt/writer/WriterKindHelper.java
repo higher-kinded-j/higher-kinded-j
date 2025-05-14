@@ -2,8 +2,8 @@ package org.higherkindedj.hkt.writer;
 
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.typeclass.Monoid;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

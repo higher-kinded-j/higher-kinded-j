@@ -1,12 +1,12 @@
-# Higher-Kinded-J: Asynchronous Computations with `CompletableFuture`
+# CompletableFuture: Asynchronous Computations with `CompletableFuture`
 
 Java's `java.util.concurrent.CompletableFuture<T>` is a powerful tool for asynchronous programming. The `higher-kinded-j` library provides a way to treat `CompletableFuture` as a monadic context using the HKT simulation. This allows developers to compose asynchronous operations and handle their potential failures (`Throwable`) in a more functional and generic style, leveraging type classes like `Functor`, `Applicative`, `Monad`, and crucially, `MonadError`.
 
-## Core Components
-
-![cf_components.svg](./images/puml/cf_components.svg)
+**Higher-Kinded Bridge for CompletableFuture**
 
 ![cf_kind.svg](./images/puml/cf_kind.svg)
+
+**TypeClasses**
 
 ![cf_monad.svg](./images/puml/cf_monad.svg)
 
@@ -17,7 +17,7 @@ The simulation for `CompletableFuture` involves these components:
 3. **`CompletableFutureKindHelper`**: The utility class for bridging between `CompletableFuture<A>` and `CompletableFutureKind<A>`. Key methods:
    * `wrap(CompletableFuture<A>)`: Wraps a standard `CompletableFuture` into its `Kind` representation.
    * `unwrap(Kind<CompletableFutureKind.Witness, A>)`: Unwraps the `Kind` back to the concrete `CompletableFuture`. Throws `KindUnwrapException` if the input Kind is invalid.
-   * `join(Kind<CompletableFutureKind.Witness, A>)`: A convenience method to unwrap the `Kind` and then block (`join()`) on the underlying `CompletableFuture` to get its result. It re-throws runtime exceptions and errors directly but wraps checked exceptions in `CompletionException`. **Use primarily for testing or at the very end of an application where blocking is acceptable.**
+   * `join(Kind<CompletableFutureKind.Witness, A>)`: A convenience method to unwrap the `Kind` and then block (`join()`) on the underlying `CompletableFuture` to get its result. It re-throws runtime exceptions and errors directly but wraps checked exceptions in `CompletionException`. *Use primarily for testing or at the very end of an application where blocking is acceptable.*
 4. **`CompletableFutureFunctor`**: Implements `Functor<CompletableFutureKind.Witness>`. Provides `map`, which corresponds to `CompletableFuture.thenApply()`.
 5. **`CompletableFutureApplicative`**: Extends `Functor`, implements `Applicative<CompletableFutureKind.Witness>`.
    * `of(A value)`: Creates an already successfully completed `CompletableFutureKind` using `CompletableFuture.completedFuture(value)`.

@@ -6,9 +6,8 @@ Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (H
 
 Java's type system lacks native Higher-Kinded Types. We can easily parameterise a type by another type (like `List<String>`), but we cannot easily parameterise a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
 
-![core_interfaces.svg](./images/puml/core_interfaces.svg)
 
-
+![core_typeclasss.svg](images/puml/core_typeclasss.svg)
 
 ## 2. The `Kind<F, A>` Bridge
 
@@ -68,7 +67,9 @@ For each Java type constructor (like `List`, `Optional`, `IO`) you want to simul
 
 * **Type Class Instance(s):** Concrete classes implementing `Functor<F>`, `Monad<F>`, etc., for the specific witness type `F` (e.g., `OptionalMonad implements Monad<OptionalKind.Witness>`). These instances use the `KindHelper`'s `wrap` and `unwrap` methods to operate on the underlying Java types.
 
-**Mechanism Differences:**
+**External Types:**
+
+![defunctionalisation_external.svg](images/puml/defunctionalisation_external.svg)
 
 * **For External Types (e.g., `java.util.Optional`, `java.util.List`, `java.util.concurrent.CompletableFuture`):**
   * Since these JDK classes cannot be modified to directly implement an interface like `OptionalKind<A>`, an **internal `Holder` record** is necessary.
@@ -79,6 +80,10 @@ For each Java type constructor (like `List`, `Optional`, `IO`) you want to simul
       ```
   * The `OptionalKindHelper.wrap(java.util.Optional<A> opt)` method will create and return an `new OptionalHolder<>(opt)`.
   * The `OptionalKindHelper.unwrap(Kind<OptionalKind.Witness, A> kind)` method will check if `kind` is an `instanceof OptionalHolder`, then extract the `java.util.Optional<A>` from it.
+
+**Higher-Kinded-J Types:**
+
+![defunctionalisation_internal.svg](images/puml/defunctionalisation_internal.svg)
 
 * **For Types Defined Within Higher-Kinded-J (e.g., `Id`, `Maybe`, `IO`, Monad Transformers like `EitherT`):**
   * These types are designed to directly participate in the HKT simulation.

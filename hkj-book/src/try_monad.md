@@ -4,7 +4,11 @@
 
 The `Try<T>` type in the `Higher-Kinded-J` library represents a computation that might result in a value of type `T` (a `Success`) or fail with a `Throwable` (a `Failure`). It serves as a functional alternative to traditional `try-catch` blocks for handling exceptions, particularly checked exceptions, within a computation chain.  We can think of it as an `Either` where the `Left` is an `Exception`, but also using try-catch blocks behind the scene, so that we don’t have to.
 
+**Try Type**
+
 ![try_type.svg](./images/puml/try_type.svg)
+
+**Monadic Structure**
 
 ![try_monad.svg](./images/puml/try_monad.svg)
 

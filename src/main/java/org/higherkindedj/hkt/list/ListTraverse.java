@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.typeclass.Traverse; // Traverse extends Functor
+import org.higherkindedj.hkt.Traverse; // Traverse extends Functor
 import org.jspecify.annotations.NonNull;
 
 /**

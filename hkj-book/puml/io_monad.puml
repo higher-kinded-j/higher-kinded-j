@@ -1,7 +1,6 @@
-@startuml IO Monad Hierarchy
+@startuml io_monad
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-interface Kind<F, A>
-interface "IOKind<A> extends Kind<IOKind.Witness, A>"
+hide empty members
 
 interface Functor<F> {
   + Kind<F, B> map(Function<A, B>, Kind<F, A>)
