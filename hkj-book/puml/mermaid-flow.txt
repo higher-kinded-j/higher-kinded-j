@@ -1,0 +1,20 @@
+%%{init: {'theme':'dark'}}%%
+graph TD
+    A["Start: OrderData"] --> B{"Step 1: Validate Order (Sync)"};
+    B -- "Success: ValidatedOrder" --> C{"Step 2: Check Inventory (Async)"};
+    B -- "Error: ValidationError" --> Z["End with Error"];
+    C -- "Success: Inventory OK" --> D{"Step 3: Process Payment (Async)"};
+    C -- "Error: StockError" --> Z;
+    D -- "Success: PaymentConfirmation" --> E{"Step 4: Create Shipment (Async)"};
+    D -- "Error: PaymentError" --> Z;
+    E -- "Error: ShippingError" --> F{"Attempt Recovery"};
+    F -- "Non-Recoverable" --> Z;
+    E -- "Success/Recovered: ShipmentInfo" --> G["Step 5: Map to FinalResult"];
+    F -- "Recovered" --> G;
+    G -- "Success: FinalResult" --> H{"Step 6: Notify Customer (Async)"};
+    H -- "Success: Notification Sent" --> Y["End with FinalResult"];
+    H -- "Error: NotificationError" --> I["Log & Continue"];
+    I -- "With FinalResult" --> Y;
+
+    classDef errorNode fill:#ffcccc,stroke:#cc0000,stroke-width:2px;
+    class Z errorNode;
