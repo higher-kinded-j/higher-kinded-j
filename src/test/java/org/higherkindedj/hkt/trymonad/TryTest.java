@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.either.Either;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -165,6 +166,26 @@ class TryTest {
   }
 
   @Nested
+  @DisplayName("Try.of() with Checked Exceptions")
+  class OfWithCheckedException {
+    @Test
+    void of_shouldCreateFailureWhenSupplierThrowsCheckedException() {
+      Supplier<String> supplier =
+          () -> {
+            return TryTest.sneakyThrow(checkedException);
+          };
+      Try<String> tryResult = Try.of(supplier);
+      assertThat(tryResult.isFailure()).isTrue();
+      assertThatThrownBy(tryResult::get).isInstanceOf(IOException.class).isSameAs(checkedException);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T, E extends Throwable> T sneakyThrow(Throwable t) throws E {
+    throw (E) t;
+  }
+
+  @Nested
   @DisplayName("orElse / orElseGet")
   class OrElseTests {
     final String defaultValue = "Default";
@@ -236,6 +257,19 @@ class TryTest {
           .isThrownBy(() -> successInstance.orElseGet(nullSupplier))
           .withMessageContaining("supplier cannot be null");
     }
+
+    @Test
+    void orElse_onFailure_shouldReturnNullIfOtherIsNull() {
+      Try<String> f = Try.failure(failureException);
+      assertThat(f.orElse(null)).isNull();
+    }
+
+    @Test
+    void orElseGet_onFailure_shouldReturnNullIfSupplierReturnsNull() {
+      Supplier<String> nullReturningSupplier = () -> null;
+      Try<String> f = Try.failure(failureException);
+      assertThat(f.orElseGet(nullReturningSupplier)).isNull();
+    }
   }
 
   @Nested
@@ -288,6 +322,92 @@ class TryTest {
       assertThatThrownBy(() -> failureInstance.fold(successMapper, throwingFailureMapper))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("Failure mapper failed");
+    }
+
+    @Test
+    void fold_onSuccess_shouldPropagateExceptionFromSuccessMapper() {
+      Function<String, String> throwingSuccessMapper =
+          s -> {
+            throw new IllegalStateException("Success mapper failed");
+          };
+      assertThatThrownBy(() -> successInstance.fold(throwingSuccessMapper, failureMapper))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Success mapper failed");
+    }
+  }
+
+  @Nested
+  @DisplayName("toEither()")
+  class ToEitherTests {
+    final Function<Throwable, String> exToMessage = Throwable::getMessage;
+    final Function<Throwable, String> exToCustom =
+        t -> "CustomError: " + t.getClass().getSimpleName();
+    final String customLeftForSuccess = "ShouldNotBeCalled";
+
+    @Test
+    void toEither_onSuccess_shouldReturnRightWithValue() {
+      Either<String, String> result = successInstance.toEither(ex -> customLeftForSuccess);
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(successValue);
+    }
+
+    @Test
+    void toEither_onSuccessWithNullValue_shouldReturnRightWithNull() {
+      Either<String, String> result = successNullInstance.toEither(ex -> customLeftForSuccess);
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isNull();
+    }
+
+    @Test
+    void toEither_onFailure_shouldApplyMapperAndReturnLeft() {
+      Either<String, String> result = failureInstance.toEither(exToMessage);
+      assertThat(result.isLeft()).isTrue();
+      // Assuming Either.getLeft() or a fold is available on your Either to extract left value
+      result.fold(
+          leftVal -> assertThat(leftVal).isEqualTo(failureException.getMessage()),
+          rightVal -> fail("Should be Left"));
+
+      Either<String, String> resultChecked = failureCheckedInstance.toEither(exToCustom);
+      assertThat(resultChecked.isLeft()).isTrue();
+      resultChecked.fold(
+          leftVal -> assertThat(leftVal).isEqualTo("CustomError: IOException"),
+          rightVal -> fail("Should be Left"));
+    }
+
+    @Test
+    void toEither_onFailure_shouldThrowNPEIfMapperIsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> failureInstance.toEither(null))
+          .withMessageContaining("failureToLeftMapper cannot be null");
+    }
+
+    @Test
+    void toEither_onSuccess_shouldThrowNPEIfMapperIsNull() {
+      // The null check for the mapper happens before the switch in the default method
+      assertThatNullPointerException()
+          .isThrownBy(() -> successInstance.toEither(null))
+          .withMessageContaining("failureToLeftMapper cannot be null");
+    }
+
+    @Test
+    void toEither_onFailure_shouldThrowNPEIfMapperReturnsNull() {
+      Function<Throwable, String> nullReturningMapper = t -> null;
+      assertThatNullPointerException()
+          .isThrownBy(() -> failureInstance.toEither(nullReturningMapper))
+          .withMessageContaining(
+              "failureToLeftMapper returned null, which is not allowed for the left value of"
+                  + " Either.");
+    }
+
+    @Test
+    void toEither_onFailure_shouldPropagateExceptionFromMapper() {
+      Function<Throwable, String> throwingMapper =
+          t -> {
+            throw new IllegalStateException("toEither mapper failed");
+          };
+      assertThatThrownBy(() -> failureInstance.toEither(throwingMapper))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("toEither mapper failed");
     }
   }
 
@@ -460,6 +580,14 @@ class TryTest {
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.recover(nullRecoveryFunc))
           .withMessageContaining("recoveryFunction cannot be null");
+    }
+
+    @Test
+    void recover_onFailure_shouldReturnSuccessWithNullIfRecoveryFuncReturnsNull() {
+      Function<Throwable, String> nullReturningRecoveryFunc = t -> null;
+      Try<String> result = failureInstance.recover(nullReturningRecoveryFunc);
+      assertThat(result.isSuccess()).isTrue();
+      assertThatCode(() -> assertThat(result.get()).isNull()).doesNotThrowAnyException();
     }
   }
 

@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.either.Either;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -45,6 +46,13 @@ import org.jspecify.annotations.Nullable;
  * Try<Integer> doubled = result.map(v -> v * 2); // Only maps if result was Success
  *
  * Try<String> recovered = parseInt("abc").recover(ex -> "Default Value"); // Will be Success("Default Value")
+ *
+ * // Using toEither:
+ * Either<String, Integer> eitherResult = parseInt("123").toEither(Throwable::getMessage);
+ * // eitherResult will be Right(123)
+ *
+ * Either<String, Integer> eitherFailure = parseInt("xyz").toEither(t -> "Invalid input: " + t.getMessage());
+ * // eitherFailure will be Left("Invalid input: For input string: \"xyz\"")
  * }</pre>
  *
  * @param <T> The type of the value if the computation is successful.
@@ -204,6 +212,49 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     return switch (this) {
       case Success<T>(var value) -> successMapper.apply(value);
       case Failure<T>(var cause) -> failureMapper.apply(cause);
+    };
+  }
+
+  /**
+   * Converts this {@code Try} to an {@link Either}. If this is a {@link Success}, returns an {@code
+   * Either.Right} containing the success value. If this is a {@link Failure}, applies the {@code
+   * failureToLeftMapper} function to the {@link Throwable} and returns an {@code Either.Left}
+   * containing the result.
+   *
+   * <p>This method is useful for integrating {@code Try}-based computations into an {@code
+   * Either}-based error handling flow, allowing for a specific mapping of exceptions to a chosen
+   * left type.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Try<Integer> successfulParse = Try.of(() -> Integer.parseInt("123"));
+   * // successfulParse.toEither(Throwable::getMessage) will be Right(123)
+   *
+   * Try<Integer> failedParse = Try.of(() -> Integer.parseInt("abc"));
+   * // failedParse.toEither(ex -> "Parse Error: " + ex.getMessage()) will be Left("Parse Error: For input string: \"abc\"")
+   * }</pre>
+   *
+   * @param failureToLeftMapper A non-null function that maps the {@link Throwable} of a {@link
+   *     Failure} to a value of type {@code L}, which will be the left type of the resulting {@code
+   *     Either}. This function must not return {@code null}.
+   * @param <L> The type for the left side of the resulting {@code Either} (representing the error).
+   * @return An {@code Either<L, T>} representing the outcome of this {@code Try}.
+   * @throws NullPointerException if {@code failureToLeftMapper} is null.
+   */
+  default <L> @NonNull Either<L, T> toEither(
+      @NonNull Function<? super Throwable, ? extends L> failureToLeftMapper) {
+    requireNonNull(failureToLeftMapper, "failureToLeftMapper cannot be null");
+    return switch (this) {
+      case Success<T>(var value) -> Either.<L, T>right(value);
+      case Failure<T>(var cause) -> {
+        L leftValue = failureToLeftMapper.apply(cause);
+        requireNonNull(
+            leftValue,
+            "failureToLeftMapper returned null, which is not allowed for the left value of"
+                + " Either.");
+        yield Either.<L, T>left(leftValue);
+      }
     };
   }
 

@@ -239,7 +239,7 @@ class LazyTest {
     // Simplified concurrency test
     @Test
     @Timeout(10) // Keep a reasonable timeout
-    void force_shouldBeThreadSafeDuringInitialization() throws InterruptedException {
+    void force_shouldBeThreadSafeDuringInitialisation() throws InterruptedException {
       int numThreads = 15; // Reduced thread count
       ThrowableSupplier<String> verySlowSupplier =
           () -> {

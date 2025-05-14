@@ -48,11 +48,11 @@ class LazyMonadTest {
   @BeforeEach
   void setUp() {
     lazyMonad = new LazyMonad();
-    // Initialize counters before each test
+    // Initialise counters before each test
     counterA = new AtomicInteger(0);
     counterB = new AtomicInteger(0);
     counterC = new AtomicInteger(0);
-    counterD = new AtomicInteger(0); // Initialize counterD
+    counterD = new AtomicInteger(0); // Initialise counterD
     counterF = new AtomicInteger(0);
   }
 
