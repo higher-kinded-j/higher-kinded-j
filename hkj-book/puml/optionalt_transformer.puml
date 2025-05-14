@@ -21,12 +21,12 @@ interface "MonadError<F_HKT, E_ERR> extends Monad<F_HKT>"
     + static <F, A> OptionalT<F, A> liftF(Monad<F> monad, Kind<F, A> fa)
   }
 
-  interface OptionalTKind<F, A> extends Kind<OptionalTKind<F, ?>, A> {
-    // Witness: OptionalTKind<F, ?>
+  interface OptionalTKind<F, A> extends Kind<OptionalTKind.Witness<F>, A> {
+    // Witness: OptionalTKind.Witness<F>
     // Value: A
   }
 
-  class OptionalTMonad<F_OUTER> implements MonadError<OptionalTKind<F_OUTER, ?>, Void> {
+  class OptionalTMonad<F_OUTER> implements MonadError<OptionalTKind.Witness<F_OUTER>, Void> {
     - final @NonNull Monad<F_OUTER> outerMonad
     + OptionalTMonad(@NonNull Monad<F_OUTER> outerMonad)
     ' Other MonadError methods (of, map, flatMap, ap, raiseError, handleErrorWith)
@@ -34,7 +34,7 @@ interface "MonadError<F_HKT, E_ERR> extends Monad<F_HKT>"
 
   class OptionalTKindHelper {
     ' Helper methods
-    + static <F, A> OptionalT<F, A> unwrap(Kind<OptionalTKind<F, ?>, A> kind)
+    + static <F, A> OptionalT<F, A> unwrap(Kind<OptionalTKind.Witness<F>, A> kind)
     + static <F, A> OptionalTKind<F, A> wrap(OptionalT<F, A> optionalT)
 
     note right of OptionalTKindHelper::wrap

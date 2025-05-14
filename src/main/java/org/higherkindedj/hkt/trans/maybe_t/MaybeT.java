@@ -11,16 +11,18 @@ import org.jspecify.annotations.NonNull;
  * monadic value of type {@code Kind<F, Maybe<A>>}, where {@code F} is the outer monad and {@code
  * Maybe<A>} is the inner optional value.
  *
- * <p>This class is a record, making it an immutable data holder for the wrapped value. To use
- * {@code MaybeT} as a {@code Kind} in higher-kinded type simulations, it should be
- * wrapped/unwrapped using {@link MaybeTKindHelper}.
+ * <p>This class is a record, making it an immutable data holder for the wrapped value. It
+ * implements {@link MaybeTKind} to participate in higher-kinded type simulations, allowing it to be
+ * treated as {@code Kind<MaybeTKind.Witness<F>, A>}.
  *
- * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind<?>}, {@code
- *     ListKind<?>}).
+ * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind.Witness}).
  * @param <A> The type of the value potentially held by the inner {@link Maybe}.
  * @param value The underlying monadic value {@code Kind<F, Maybe<A>>}. Must not be null.
+ * @see MaybeTKind
+ * @see MaybeTMonad
+ * @see MaybeTKindHelper
  */
-public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) {
+public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> {
 
   /**
    * Canonical constructor for {@code MaybeT}.
@@ -28,7 +30,7 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) {
    * @param value The underlying monadic value {@code Kind<F, Maybe<A>>}.
    * @throws NullPointerException if {@code value} is null.
    */
-  public MaybeT {
+  public MaybeT { // Canonical constructor
     Objects.requireNonNull(value, "Wrapped value cannot be null for MaybeT");
   }
 

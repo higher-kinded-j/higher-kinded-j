@@ -88,7 +88,6 @@ class OptionalTTest {
     @Test
     @DisplayName("some should lift non-null value to OptionalT(F<Optional.of(A)>)")
     void some_liftsNonNullValue() {
-      // MODIFIED: OptionalKind.Witness
       OptionalT<OptionalKind.Witness, String> ot = OptionalT.some(outerMonad, presentValue);
       assertThat(unwrapT(ot)).isPresent().contains(Optional.of(presentValue));
     }

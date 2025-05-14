@@ -25,23 +25,23 @@ note right of ListKindHelper
 end note
 
 class "ListFunctor" as ListFunctorImpl {
-  ' + <A,B> ListKind<B> map(Function<A,B>, Kind<ListKind<?>,A>)
+  ' + <A,B> ListKind<B> map(Function<A,B>, Kind<ListKind.Witness,A>)
 }
 class "ListMonad" as ListMonadImpl {
   ' + <A> ListKind<A> of(A)
-  ' + <A,B> ListKind<B> flatMap(Function<A, Kind<ListKind<?>,B>>, Kind<ListKind<?>,A>)
-  ' + <A,B> Kind<ListKind<?>,B> ap(Kind<ListKind<?>,Function<A,B>>, Kind<ListKind<?>,A>)
+  ' + <A,B> ListKind<B> flatMap(Function<A, Kind<ListKind.Witness,B>, Kind<ListKind.Witness,A>)
+  ' + <A,B> Kind<ListKind.Witness,B> ap(Kind<ListKind.Witness,Function<A,B>>, Kind<ListKind.Witness,A>)
 }
 
 MonadBase --|> Applicative
 Applicative --|> Functor
 Functor --|> Kind : (logically, Kind is the base for HKTs)
 
-ListKindBase --|> Kind : <ListKind<?>, A>
+ListKindBase --|> Kind : <ListKind<Witness, A>
 
-ListFunctorImpl ..|> Functor : <ListKind<?>>
+ListFunctorImpl ..|> Functor : <ListKind.Witness>
 ListMonadImpl --|> ListFunctorImpl
-ListMonadImpl ..|> MonadBase : <ListKind<?>>
+ListMonadImpl ..|> MonadBase : <ListKind.Witness>
 
 ListMonadImpl ..> ListKindHelper : uses for wrap/unwrap
 ListFunctorImpl ..> ListKindHelper : uses for wrap/unwrap

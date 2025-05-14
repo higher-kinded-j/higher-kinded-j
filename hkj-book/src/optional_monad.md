@@ -8,9 +8,9 @@ Key benefits include:
 
 * **Functional Composition:** Easily chain operations on `Optional`s, where each operation might return an `Optional` itself. If any step results in an `Optional.empty()`, subsequent operations are typically short-circuited, propagating the empty state.
 * **HKT Integration:** `OptionalKind<A>` (the higher-kinded wrapper for `Optional<A>`) and `OptionalMonad` allow `Optional` to be used with generic functions and type classes expecting `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, `Monad<M>`, or even `MonadError<M, E>`.
-* **Error Handling for Absence:** `OptionalMonad` implements `MonadError<OptionalKind<?>, Void>`. In this context, `Optional.empty()` is treated as the "error" state, and `Void` is used as the phantom error type, signifying absence rather than a traditional exception.
+* **Error Handling for Absence:** `OptionalMonad` implements `MonadError<OptionalKind.Witness, Void>`. In this context, `Optional.empty()` is treated as the "error" state, and `Void` is used as the phantom error type, signifying absence rather than a traditional exception.
 
-It implements `MonadError<OptionalKind<?>, Void>`, which means it also transitively implements `Monad<OptionalKind<?>>`, `Applicative<OptionalKind<?>>`, and `Functor<OptionalKind<?>>`.
+It implements `MonadError<OptionalKind.Witness, Void>`, which means it also transitively implements `Monad<OptionalKind.Witness>`, `Applicative<OptionalKind.Witness>`, and `Functor<OptionalKind.Witness>`.
 
 ## Structure
 
@@ -63,7 +63,7 @@ It implements `MonadError<OptionalKind<?>, Void>`, which means it also transitiv
 
 
    OptionalMonad optionalMonad = new OptionalMonad();
-   Kind<OptionalKind<?>, String> emptyKindFromError = optionalMonad.raiseError(null); // Represents Optional.empty()
+   Kind<OptionalKind.Witness, String> emptyKindFromError = optionalMonad.raiseError(null); // Represents Optional.empty()
    ```
 
 ### Unwrapping `OptionalKind`
@@ -88,7 +88,7 @@ System.out.println("Unwrapped Empty: " + unwrappedEmpty);
 
 The `OptionalMonad` provides standard monadic and error-handling operations:
 
-* **`map(Function<A, B> f, Kind<OptionalKind<?>, A> fa)`:** Applies a function `f` to the value inside `fa` if it's present. If `fa` is empty, it remains empty. The function `f` can return `null`, which `Optional.map` will turn into an `Optional.empty()`.
+* **`map(Function<A, B> f, Kind<OptionalKind.Witness, A> fa)`:** Applies a function `f` to the value inside `fa` if it's present. If `fa` is empty, it remains empty. The function `f` can return `null`, which `Optional.map` will turn into an `Optional.empty()`.
 
 ```java
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -117,7 +117,7 @@ System.out.println("Map (Empty): " + OptionalKindHelper.unwrap(emptyString));
 System.out.println("Map (To Null): " + OptionalKindHelper.unwrap(mappedToNull));
 ```
 
-* **`flatMap(Function<A, Kind<OptionalKind<?>, B>> f, Kind<OptionalKind<?>, A> ma)`:** Applies a function `f` to the value inside `ma` if it's present. The function `f` itself returns an `OptionalKind<B>`. If `ma` is empty, or if `f` returns an empty `OptionalKind`, the result is an empty `OptionalKind`.
+* **`flatMap(Function<A, Kind<OptionalKind.Witness, B>> f, Kind<OptionalKind.Witness, A> ma)`:** Applies a function `f` to the value inside `ma` if it's present. The function `f` itself returns an `OptionalKind<B>`. If `ma` is empty, or if `f` returns an empty `OptionalKind`, the result is an empty `OptionalKind`.
 
 ```java
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -131,7 +131,7 @@ OptionalMonad optionalMonad = new OptionalMonad();
 OptionalKind<String> presentInput = OptionalKindHelper.wrap(Optional.of("5"));
 OptionalKind<String> emptyInput = OptionalKindHelper.wrap(Optional.empty());
 
-Function<String, Kind<OptionalKind<?>, Integer>> parseToIntKind = s -> {
+Function<String, Kind<OptionalKind.Witness, Integer>> parseToIntKind = s -> {
     try {
         return OptionalKindHelper.wrap(Optional.of(Integer.parseInt(s)));
     } catch (NumberFormatException e) {
@@ -154,7 +154,7 @@ System.out.println("FlatMap (Empty Input): " + OptionalKindHelper.unwrap(parsedE
 System.out.println("FlatMap (Non-numeric): " + OptionalKindHelper.unwrap(parsedNonNumeric));
 ```
 
-* **`ap(Kind<OptionalKind<?>, Function<A, B>> ff, Kind<OptionalKind<?>, A> fa)`:** Applies an `OptionalKind` containing a function `ff` to an `OptionalKind` containing a value `fa`. If both are present, the function is applied. Otherwise, the result is empty.
+* **`ap(Kind<OptionalKind.Witness, Function<A, B>> ff, Kind<OptionalKind.Witness, A> fa)`:** Applies an `OptionalKind` containing a function `ff` to an `OptionalKind` containing a value `fa`. If both are present, the function is applied. Otherwise, the result is empty.
 
 ```java
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -170,7 +170,7 @@ OptionalKind<Function<Integer, String>> presentFuncKind =
     OptionalKindHelper.wrap(Optional.of(i -> "Value: " + i));
 OptionalKind<Function<Integer, String>> emptyFuncKind =
     OptionalKindHelper.wrap(Optional.empty());
-handleErrorWith(Kind<OptionalKind<?>, A> ma, Function<Void, Kind<OptionalKind<?>, A>> handler): If ma is present, it's returned. If ma is empty (the "error" state), the handler function is invoked (with null as the Void argument) to provide a recovery OptionalKind.
+handleErrorWith(Kind<OptionalKind.Witness, A> ma, Function<Void, Kind<OptionalKind.Witness, A>> handler): If ma is present, it's returned. If ma is empty (the "error" state), the handler function is invoked (with null as the Void argument) to provide a recovery OptionalKind.
 OptionalKind<Integer> presentValueKind = OptionalKindHelper.wrap(Optional.of(100));
 OptionalKind<Integer> emptyValueKind = OptionalKindHelper.wrap(Optional.empty());
 
@@ -191,7 +191,7 @@ System.out.println("Ap (Function Empty): " + OptionalKindHelper.unwrap(result2))
 System.out.println("Ap (Value Empty): " + OptionalKindHelper.unwrap(result3));
 ```
 
-* **`handleErrorWith(Kind<OptionalKind<?>, A> ma, Function<Void, Kind<OptionalKind<?>, A>> handler)`:** If `ma` is present, it's returned. If `ma` is empty (the "error" state), the `handler` function is invoked (with `null` as the `Void` argument) to provide a recovery `OptionalKind`.
+* **`handleErrorWith(Kind<OptionalKind.Witness, A> ma, Function<Void, Kind<OptionalKind.Witness, A>> handler)`:** If `ma` is present, it's returned. If `ma` is empty (the "error" state), the `handler` function is invoked (with `null` as the `Void` argument) to provide a recovery `OptionalKind`.
 
 ```java
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -206,16 +206,16 @@ OptionalMonad optionalMonad = new OptionalMonad();
 OptionalKind<String> presentKind = OptionalKindHelper.wrap(Optional.of("Exists"));
 OptionalKind<String> emptyKind = OptionalKindHelper.wrap(Optional.empty());
 
-Function<Void, Kind<OptionalKind<?>, String>> recoveryFunction =
+Function<Void, Kind<OptionalKind.Witness, String>> recoveryFunction =
     ignoredVoid -> OptionalKindHelper.wrap(Optional.of("Recovered Value"));
 
 // Handling error on a present OptionalKind
-Kind<OptionalKind<?>, String> handledPresent =
+Kind<OptionalKind.Witness, String> handledPresent =
     optionalMonad.handleErrorWith(presentKind, recoveryFunction);
 // OptionalKindHelper.unwrap(handledPresent) is Optional.of("Exists")
 
 // Handling error on an empty OptionalKind
-Kind<OptionalKind<?>, String> handledEmpty =
+Kind<OptionalKind.Witness, String> handledEmpty =
     optionalMonad.handleErrorWith(emptyKind, recoveryFunction);
 // OptionalKindHelper.unwrap(handledEmpty) is Optional.of("Recovered Value")
 
@@ -237,14 +237,14 @@ OptionalMonad optionalMonad = new OptionalMonad();
 
 ```java
 Optional<Integer> myOptional = Optional.of(42);
-Kind<OptionalKind<?>, Integer> optionalKind = OptionalKindHelper.wrap(myOptional);
+Kind<OptionalKind.Witness, Integer> optionalKind = OptionalKindHelper.wrap(myOptional);
 
 // Or using 'of' for values (handles null by creating Optional.empty())
-Kind<OptionalKind<?>, String> presentStringKind = optionalMonad.of("hello");
-Kind<OptionalKind<?>, String> emptyFromNullKind = optionalMonad.of(null);
+Kind<OptionalKind.Witness, String> presentStringKind = optionalMonad.of("hello");
+Kind<OptionalKind.Witness, String> emptyFromNullKind = optionalMonad.of(null);
 
 // Or using 'raiseError' for an empty OptionalKind
-Kind<OptionalKind<?>, Double> emptyDoubleKind = optionalMonad.raiseError(null);
+Kind<OptionalKind.Witness, Double> emptyDoubleKind = optionalMonad.raiseError(null);
 ```
 
 3. Use `OptionalMonad` methods:
@@ -262,25 +262,25 @@ public class OptionalMonadExample {
         OptionalMonad optionalMonad = new OptionalMonad();
 
         // 1. Create OptionalKind instances
-        Kind<OptionalKind<?>, Integer> presentIntKind = OptionalKindHelper.wrap(Optional.of(10));
-        Kind<OptionalKind<?>, Integer> emptyIntKind = optionalMonad.raiseError(null); // Creates empty
+        Kind<OptionalKind.Witness, Integer> presentIntKind = OptionalKindHelper.wrap(Optional.of(10));
+        Kind<OptionalKind.Witness, Integer> emptyIntKind = optionalMonad.raiseError(null); // Creates empty
 
         // 2. Use map
         Function<Integer, String> intToMessage = n -> "Value is " + n;
-        Kind<OptionalKind<?>, String> mappedPresent = optionalMonad.map(intToMessage, presentIntKind);
-        Kind<OptionalKind<?>, String> mappedEmpty = optionalMonad.map(intToMessage, emptyIntKind);
+        Kind<OptionalKind.Witness, String> mappedPresent = optionalMonad.map(intToMessage, presentIntKind);
+        Kind<OptionalKind.Witness, String> mappedEmpty = optionalMonad.map(intToMessage, emptyIntKind);
 
         System.out.println("Mapped (Present): " + OptionalKindHelper.unwrap(mappedPresent)); // Optional[Value is 10]
         System.out.println("Mapped (Empty): " + OptionalKindHelper.unwrap(mappedEmpty));   // Optional.empty
 
         // 3. Use flatMap
-        Function<Integer, Kind<OptionalKind<?>, Double>> intToOptionalDouble = n ->
+        Function<Integer, Kind<OptionalKind.Witness, Double>> intToOptionalDouble = n ->
             (n > 0) ? optionalMonad.of(n / 2.0) : optionalMonad.raiseError(null);
 
-        Kind<OptionalKind<?>, Double> flatMappedPresent = optionalMonad.flatMap(intToOptionalDouble, presentIntKind);
-        Kind<OptionalKind<?>, Double> flatMappedEmpty = optionalMonad.flatMap(intToOptionalDouble, emptyIntKind);
-        Kind<OptionalKind<?>, Integer> zeroIntKind = optionalMonad.of(0);
-        Kind<OptionalKind<?>, Double> flatMappedZero = optionalMonad.flatMap(intToOptionalDouble, zeroIntKind);
+        Kind<OptionalKind.Witness, Double> flatMappedPresent = optionalMonad.flatMap(intToOptionalDouble, presentIntKind);
+        Kind<OptionalKind.Witness, Double> flatMappedEmpty = optionalMonad.flatMap(intToOptionalDouble, emptyIntKind);
+        Kind<OptionalKind.Witness, Integer> zeroIntKind = optionalMonad.of(0);
+        Kind<OptionalKind.Witness, Double> flatMappedZero = optionalMonad.flatMap(intToOptionalDouble, zeroIntKind);
 
 
         System.out.println("FlatMapped (Present): " + OptionalKindHelper.unwrap(flatMappedPresent)); // Optional[5.0]
@@ -290,12 +290,12 @@ public class OptionalMonadExample {
         // 4. Use 'of' and 'raiseError' (already shown in creation)
 
         // 5. Use handleErrorWith
-        Function<Void, Kind<OptionalKind<?>, Integer>> recoverWithDefault =
+        Function<Void, Kind<OptionalKind.Witness, Integer>> recoverWithDefault =
             v -> optionalMonad.of(-1); // Default value if empty
 
-        Kind<OptionalKind<?>, Integer> recoveredFromEmpty =
+        Kind<OptionalKind.Witness, Integer> recoveredFromEmpty =
             optionalMonad.handleErrorWith(emptyIntKind, recoverWithDefault);
-        Kind<OptionalKind<?>, Integer> notRecoveredFromPresent =
+        Kind<OptionalKind.Witness, Integer> notRecoveredFromPresent =
             optionalMonad.handleErrorWith(presentIntKind, recoverWithDefault);
 
         System.out.println("Recovered (from Empty): " + OptionalKindHelper.unwrap(recoveredFromEmpty)); // Optional[-1]

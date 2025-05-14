@@ -139,7 +139,6 @@ class MaybeTTest {
     @Test
     @DisplayName("value() should return the wrapped Kind")
     void value_returnsWrapped() {
-      // MODIFIED: Type uses OptionalKind.Witness
       MaybeT<OptionalKind.Witness, String> mt = MaybeT.fromKind(wrappedJust);
       assertThat(mt.value()).isSameAs(wrappedJust);
     }

@@ -17,7 +17,7 @@ For instance, an operation might need to be both asynchronous *and* handle poten
 
 ```java
 // A future that, when completed, yields either a DomainError or a SuccessValue
-Kind<CompletableFutureKind<?>, Either<DomainError, SuccessValue>> nestedResult;
+Kind<CompletableFutureKind.Witness, Either<DomainError, SuccessValue>> nestedResult;
 ```
 
 But now, how do we `map` or `flatMap` over this stack  without lots of boilerplate?
@@ -42,10 +42,10 @@ Key characteristics:
 
 * **Definition:** A monad transformer ([`EitherT`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/either_t/EitherT.java)) that combines an outer monad `F` with an inner `Either<L, R>`. Implemented as a record wrapping `Kind<F, Either<L, R>>`.
 * **Kind Interface:** [`EitherTKind<F, L, R>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/either_t/EitherTKind.java)
-* **Witness Type `G`:** `EitherTKind<F, L, ?>` (where `F` and `L` are fixed for a given type class instance)
+* **Witness Type `G`:** `EitherTKind.Witness<F, L>` (where `F` and `L` are fixed for a given type class instance)
 * **Helper:** `EitherTKindHelper` (`wrap`, `unwrap`). Instances are primarily created via `EitherT` static factories (`fromKind`, `right`, `left`, `fromEither`, `liftF`).
 * **Type Class Instances:**
-  * [`EitherTMonad<F, L>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/either_t/EitherTMonad.java) (`MonadError<EitherTKind<F, L, ?>, L>`)
+  * [`EitherTMonad<F, L>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/either_t/EitherTMonad.java) (`MonadError<EitherTKind.Witness<F, L>, L>`)
 * **Notes:** Simplifies working with nested structures like `F<Either<L, R>>`. Requires a `Monad<F>` instance for the outer monad `F` passed to its constructor. Implements `MonadError` for the *inner* `Either`'s `Left` type `L`. See the [Order Processing Example Walkthrough](./order-walkthrough.md) for practical usage with `CompletableFuture` as `F`.
 * **Usage:** [How to use the EitherT Monad Transformer](./eithert_transformer.md)
 
@@ -58,10 +58,10 @@ Key characteristics:
 
 * **Definition:** A monad transformer ([`MaybeT`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/maybe_t/MaybeT.java)) that combines an outer monad `F` with an inner `Maybe<A>`. Implemented as a record wrapping `Kind<F, Maybe<A>>`.
 * **Kind Interface:** [`MaybeTKind<F, A>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/maybe_t/MaybeTKind.java)
-* **Witness Type `G`:** `MaybeTKind<F, ?>` (where `F` is fixed for a given type class instance)
+* **Witness Type `G`:** `MaybeTKind.Witness<F>` (where `F` is fixed for a given type class instance)
 * **Helper:** `MaybeTKindHelper` (`wrap`, `unwrap`). Instances are primarily created via `MaybeT` static factories (`fromKind`, `just`, `nothing`, `fromMaybe`, `liftF`).
 * **Type Class Instances:**
-  * [`MaybeTMonad<F>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/maybe_t/MaybeTMonad.java) (`MonadError<MaybeTKind<F, ?>, Void>`)
+  * [`MaybeTMonad<F>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/maybe_t/MaybeTMonad.java) (`MonadError<MaybeTKind.Witness<F>, Void>`)
 * **Notes:** Simplifies working with nested structures like `F<Maybe<A>>`. Requires a `Monad<F>` instance for the outer monad `F`. Implements `MonadError` where the error type is `Void`, corresponding to the `Nothing` state from the inner `Maybe`.
 * **Usage:** [How to use the MaybeT Monad Transformer](./maybet_transformer.md)
 
@@ -71,10 +71,10 @@ Key characteristics:
 
 * **Definition:** A monad transformer ([`OptionalT`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/optional_t/OptionalT.java)) that combines an outer monad `F` with an inner `java.util.Optional<A>`. Implemented as a record wrapping `Kind<F, Optional<A>>`.
 * **Kind Interface:** [`OptionalTKind<F, A>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/optional_t/OptionalTKind.java)
-* **Witness Type `G`:** `OptionalTKind<F, ?>` (where `F` is fixed for a given type class instance)
+* **Witness Type `G`:** `OptionalTKind.Witness<F>` (where `F` is fixed for a given type class instance)
 * **Helper:** `OptionalTKindHelper` (`wrap`, `unwrap`). Instances are primarily created via `OptionalT` static factories (`fromKind`, `some`, `none`, `fromOptional`, `liftF`).
 * **Type Class Instances:**
-  * [`OptionalTMonad<F>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/optional_t/OptionalTMonad.java) (`MonadError<OptionalTKind<F, ?>, Void>`)
+  * [`OptionalTMonad<F>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/optional_t/OptionalTMonad.java) (`MonadError<OptionalTKind.Witness<F>, Void>`)
 * **Notes:** Simplifies working with nested structures like `F<Optional<A>>`. Requires a `Monad<F>` instance for the outer monad `F`. Implements `MonadError` where the error type is `Void`, corresponding to the `Optional.empty()` state from the inner `Optional`.
 * **Usage:** [How to use the OptionalT Monad Transformer](./optionalt_transformer.md)
 
@@ -84,7 +84,7 @@ Key characteristics:
 
 * **Definition:** A monad transformer ([`ReaderT`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/reader_t/ReaderT.java)) that combines an outer monad `F` with an inner `Reader<R, A>`-like behavior (dependency on environment `R`). Implemented as a record wrapping a function `R -> Kind<F, A>`.
 * **Kind Interface:** [`ReaderTKind<F, R, A>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/reader_t/ReaderTKind.java)
-* **Witness Type `G`:** `ReaderTKind<F, R, ?>` (where `F` and `R` are fixed for a given type class instance)
+* **Witness Type `G`:** `ReaderTKind.Witness<F, R>` (where `F` and `R` are fixed for a given type class instance)
 * **Helper:** `ReaderTKindHelper` (`wrap`, `unwrap`). Instances are primarily created via `ReaderT` static factories (`of`, `lift`, `reader`, `ask`).
 * **Type Class Instances:**
   * [`ReaderTMonad<F, R>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/reader_t/ReaderTMonad.java) (`Monad<ReaderTKind<F, R, ?>>`)

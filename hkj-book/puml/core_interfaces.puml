@@ -1,52 +1,61 @@
-@startuml
+@startuml defunctional_external
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-left to right direction
+title Core HKT Simulation Interfaces and Patterns
 
-package "Core Interfaces" {
-    interface "Kind<F, A>" as Kind
-    interface "Functor<F>" {
-        + map(Function<A,B>, Kind<F,A>) : Kind<F,B>
-    }
-    interface "Applicative<F>" {
-        + of(A) : Kind<F,A>
-        + ap(Kind<F, Function<A,B>>, Kind<F,A>) : Kind<F,B>
-        + map2(Kind<F,A>, Kind<F,B>, BiFunction<A,B,C>) : Kind<F,C>
-        + mapN(...) : Kind<F,R>
-    }
-    interface "Monad<F>" {
-        + flatMap(Function<A, Kind<F,B>>, Kind<F,A>) : Kind<F,B>
-    }
-    interface "MonadError<F, E>" {
-        + raiseError(E) : Kind<F,A>
-        + handleErrorWith(Kind<F,A>, Function<E, Kind<F,A>>) : Kind<F,A>
-        + handleError(Kind<F,A>, Function<E,A>) : Kind<F,A>
-        + recoverWith(Kind<F,A>, Kind<F,A>) : Kind<F,A>
-        + recover(Kind<F,A>, A) : Kind<F,A>
-    }
 
-    Functor --|> Kind : operates on
-    Applicative --|> Functor
-    Monad --|> Applicative
-    MonadError --|> Monad
-}
 
-package "Defunctionalisation (Pattern)" {
+
+package "Defunctionalisation Pattern Details" {
     class KindUnwrapException
-    class "XKindHelper" as Helper {
-        + {static} wrap(JavaType<A>) : Kind<XKind, A>
-        + {static} unwrap(Kind<XKind, A>) : JavaType<A>
-    }
-    class "XHolder<A>" as Holder {
-        - javaValue : JavaType<A>
-    }
-    interface "XKind<A>" as XKind {
-       __ Witness Type F = XKind<?> __
+
+    package "For External Types (Optional etc)" {
+        interface "OptionalKind<A>" as OptionalKindInterface extends Kind<OptionalKind.Witness, A> {
+            class Witness {} ' Nested phantom Witness type
+        }
+        class "java.util.Optional<A>" as JavaOptional {}
+
+        ' OptionalHolder is an internal implementation detail of OptionalKindHelper
+        package "internal" {
+            class "OptionalHolder<A>" as OptionalHolder implements OptionalKindInterface {
+             + OptionalHolder(opt: java.util.Optional<A>)
+            }
+        }
+        OptionalKindHelper ..> OptionalHolder : "creates / uses"
+        OptionalKindHelper ..> JavaOptional : "wraps / unwraps"
+        OptionalHolder ..> JavaOptional : "holds"
+
+        class "OptionalKindHelper" as OptionalKindHelper {
+            + {static} wrap(opt: java.util.Optional<A>): Kind<OptionalKind.Witness, A>
+            + {static} unwrap(kind: Kind<OptionalKind.Witness, A>): java.util.Optional<A>
+        }
+        class "OptionalMonad" as OptionalMonad implements MonadError<OptionalKind.Witness, java.lang.Void> {
+            ' Uses OptionalKindHelper
+        }
+        OptionalMonad ..> OptionalKindHelper : "uses"
     }
 
-    XKind <|.. Kind
-    Holder <|.. XKind : (internal)
-    Helper ..> Holder : creates/unwraps
+    package "For Library-Defined Types (Id, Maybe, IO, Transformers)" {
+        interface "IdKind<A>" as IdKindInterface extends Kind<Id.Witness, A> {
+            class Witness {} ' Nested phantom Witness type
+        }
+        ' Id<A> itself implements IdKind<A>
+        class "Id<A>(value: A)" as IdRecord implements IdKindInterface {
+        }
+        IdRecord --|> IdKindInterface
+
+        class "IdKindHelper" as IdKindHelper {
+            + {static} wrap(id: Id<A>): Kind<Id.Witness, A>
+            + {static} unwrap(kind: Kind<Id.Witness, A>): Id<A>
+        }
+        IdKindHelper ..> IdRecord : "casts to/from"
+
+        class "IdentityMonad" as IdentityMonad implements Monad<Id.Witness> {
+            ' Uses IdKindHelper
+        }
+        IdentityMonad ..> IdKindHelper : "uses"
+    }
 }
 @enduml
+

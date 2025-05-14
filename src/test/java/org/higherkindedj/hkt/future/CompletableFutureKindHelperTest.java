@@ -26,7 +26,7 @@ class CompletableFutureKindHelperTest {
     @Test
     void wrap_shouldReturnHolderForCompletedFuture() {
       CompletableFuture<String> future = CompletableFuture.completedFuture("done");
-      Kind<CompletableFutureKind<?>, String> kind = wrap(future);
+      Kind<CompletableFutureKind.Witness, String> kind = wrap(future);
 
       assertThat(kind).isInstanceOf(CompletableFutureHolder.class);
       assertThat(unwrap(kind)).isSameAs(future);
@@ -36,7 +36,7 @@ class CompletableFutureKindHelperTest {
     void wrap_shouldReturnHolderForFailedFuture() {
       RuntimeException ex = new RuntimeException("fail");
       CompletableFuture<String> future = CompletableFuture.failedFuture(ex);
-      Kind<CompletableFutureKind<?>, String> kind = wrap(future);
+      Kind<CompletableFutureKind.Witness, String> kind = wrap(future);
 
       assertThat(kind).isInstanceOf(CompletableFutureHolder.class);
       assertThat(unwrap(kind)).isSameAs(future);
@@ -58,7 +58,7 @@ class CompletableFutureKindHelperTest {
     @Test
     void unwrap_shouldReturnOriginalCompletedFuture() {
       CompletableFuture<Integer> original = CompletableFuture.completedFuture(42);
-      Kind<CompletableFutureKind<?>, Integer> kind = wrap(original);
+      Kind<CompletableFutureKind.Witness, Integer> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
@@ -66,35 +66,33 @@ class CompletableFutureKindHelperTest {
     void unwrap_shouldReturnOriginalFailedFuture() {
       IOException ex = new IOException("io fail");
       CompletableFuture<Integer> original = CompletableFuture.failedFuture(ex);
-      Kind<CompletableFutureKind<?>, Integer> kind = wrap(original);
+      Kind<CompletableFutureKind.Witness, Integer> kind = wrap(original);
       assertThat(unwrap(kind)).isSameAs(original);
     }
 
     // --- Failure Cases ---
 
-    // Dummy Kind implementation that is not CompletableFutureHolder
-    record DummyFutureKind<A>() implements Kind<CompletableFutureKind<?>, A> {}
+    record DummyFutureKind<A>() implements Kind<CompletableFutureKind.Witness, A> {}
 
     @Test
     void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+      assertThatThrownBy(() -> CompletableFutureKindHelper.<String>unwrap(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
     void unwrap_shouldThrowForUnknownKindType() {
-      Kind<CompletableFutureKind<?>, Integer> unknownKind = new DummyFutureKind<>();
+      Kind<CompletableFutureKind.Witness, Integer> unknownKind = new DummyFutureKind<>();
       assertThatThrownBy(() -> unwrap(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyFutureKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldThrowForHolderWithNullFuture() { // Updated test name
+    void unwrap_shouldThrowForHolderWithNullFuture() {
       CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
-      @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<CompletableFutureKind<?>, Boolean> kind = holderWithNull;
+      Kind<CompletableFutureKind.Witness, Boolean> kind = holderWithNull;
 
       assertThatThrownBy(() -> unwrap(kind))
           .isInstanceOf(KindUnwrapException.class)
@@ -108,7 +106,7 @@ class CompletableFutureKindHelperTest {
 
     @Test
     void join_shouldReturnResultOnSuccess() {
-      Kind<CompletableFutureKind<?>, String> kind =
+      Kind<CompletableFutureKind.Witness, String> kind =
           wrap(CompletableFuture.completedFuture("Success"));
       assertThat(join(kind)).isEqualTo("Success");
     }
@@ -126,7 +124,7 @@ class CompletableFutureKindHelperTest {
                 }
                 return "Delayed Result";
               });
-      Kind<CompletableFutureKind<?>, String> kind = wrap(delayedFuture);
+      Kind<CompletableFutureKind.Witness, String> kind = wrap(delayedFuture);
       long startTime = System.nanoTime();
       String result = join(kind);
       long duration = System.nanoTime() - startTime;
@@ -137,21 +135,21 @@ class CompletableFutureKindHelperTest {
     @Test
     void join_shouldThrowRuntimeExceptionDirectly() {
       RuntimeException ex = new IllegalStateException("Fail State");
-      Kind<CompletableFutureKind<?>, String> kind = wrap(CompletableFuture.failedFuture(ex));
+      Kind<CompletableFutureKind.Witness, String> kind = wrap(CompletableFuture.failedFuture(ex));
       assertThatThrownBy(() -> join(kind)).isInstanceOf(IllegalStateException.class).isSameAs(ex);
     }
 
     @Test
     void join_shouldThrowErrorDirectly() {
       Error err = new StackOverflowError("Fail Error");
-      Kind<CompletableFutureKind<?>, String> kind = wrap(CompletableFuture.failedFuture(err));
+      Kind<CompletableFutureKind.Witness, String> kind = wrap(CompletableFuture.failedFuture(err));
       assertThatThrownBy(() -> join(kind)).isInstanceOf(StackOverflowError.class).isSameAs(err);
     }
 
     @Test
     void join_shouldKeepCheckedExceptionWrappedInCompletionException() {
       IOException ex = new IOException("IO Fail");
-      Kind<CompletableFutureKind<?>, String> kind = wrap(CompletableFuture.failedFuture(ex));
+      Kind<CompletableFutureKind.Witness, String> kind = wrap(CompletableFuture.failedFuture(ex));
       assertThatThrownBy(() -> join(kind)).isInstanceOf(CompletionException.class).hasCause(ex);
     }
 
@@ -159,27 +157,26 @@ class CompletableFutureKindHelperTest {
     void join_shouldThrowCancellationExceptionIfCancelled() {
       CompletableFuture<String> cancelledFuture = new CompletableFuture<>();
       cancelledFuture.cancel(true);
-      Kind<CompletableFutureKind<?>, String> kind = wrap(cancelledFuture);
+      Kind<CompletableFutureKind.Witness, String> kind = wrap(cancelledFuture);
       assertThatThrownBy(() -> join(kind)).isInstanceOf(CancellationException.class);
     }
 
     @Test
     void join_shouldPropagateKindUnwrapExceptionFromFailedUnwrap() {
-      // Test join when unwrap itself fails (e.g., null input)
-      assertThatThrownBy(() -> join(null))
-          .isInstanceOf(KindUnwrapException.class) // Expect the exception from unwrap
+      assertThatThrownBy(() -> CompletableFutureKindHelper.<String>join(null))
+          .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
 
-      Kind<CompletableFutureKind<?>, Integer> unknownKind = new UnwrapTests.DummyFutureKind<>();
+      Kind<CompletableFutureKind.Witness, Integer> unknownKind =
+          new UnwrapTests.DummyFutureKind<>();
       assertThatThrownBy(() -> join(unknownKind))
-          .isInstanceOf(KindUnwrapException.class) // Expect the exception from unwrap
+          .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG);
 
       CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
-      @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<CompletableFutureKind<?>, Boolean> kindWithNullHolder = holderWithNull;
+      Kind<CompletableFutureKind.Witness, Boolean> kindWithNullHolder = holderWithNull;
       assertThatThrownBy(() -> join(kindWithNullHolder))
-          .isInstanceOf(KindUnwrapException.class) // Expect the exception from unwrap
+          .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
     }
   }

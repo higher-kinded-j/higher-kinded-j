@@ -22,21 +22,21 @@ package "Try Type" {
 }
 
 package "Try HKT Simulation" {
-    interface "TryKind<T>" extends "Kind<TryKind<?>, T>" as TryKind
+    interface "TryKind<T>" extends "Kind<TryKind.Witness, T>" as TryKind
 
     class TryFunctor implements Functor<TryKind<?>> {
-      + Kind<TryKind<?>, B> map(Function<A, B> f, Kind<TryKind<?>, A> fa)
+      + Kind<TryKind.Witness, B> map(Function<A, B> f, Kind<TryKind.Witness, A> fa)
     }
     class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
-      + Kind<TryKind<?>, A> of(A value)
-      + Kind<TryKind<?>, B> ap(Kind<TryKind<?>, Function<A, B>> ff, Kind<TryKind<?>, A> fa)
+      + Kind<TryKind.Witness, A> of(A value)
+      + Kind<TryKind.Witness, B> ap(Kind<TryKind.Witness, Function<A, B>> ff, Kind<TryKind.Witness, A> fa)
     }
     class TryMonad extends TryApplicative implements Monad<TryKind<?>> {
-      + Kind<TryKind<?>, B> flatMap(Function<A, Kind<TryKind<?>, B>> f, Kind<TryKind<?>, A> ma)
+      + Kind<TryKind.Witness, B> flatMap(Function<A, Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma)
     }
     class TryMonadError extends TryMonad implements MonadError<TryKind<?>, Throwable> {
-      + Kind<TryKind<?>, A> raiseError(Throwable error)
-      + Kind<TryKind<?>, A> handleErrorWith(Kind<TryKind<?>, A> ma, Function<Throwable, Kind<TryKind<?>, A>> handler)
+      + Kind<TryKind.Witness, A> raiseError(Throwable error)
+      + Kind<TryKind.Witness, A> handleErrorWith(Kind<TryKind.Witness, A> ma, Function<Throwable, Kind<TryKind.Witness, A>> handler)
     }
 
 }

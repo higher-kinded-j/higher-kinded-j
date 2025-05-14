@@ -107,7 +107,6 @@ class OptionalMonadTest {
   @DisplayName("Monad 'flatMap' tests")
   class FlatMapTests {
 
-    // MODIFIED: Function signature
     Function<Integer, Kind<OptionalKind.Witness, Double>> safeDivide =
         divisor -> wrap((divisor == 0) ? Optional.empty() : Optional.of(100.0 / divisor));
 

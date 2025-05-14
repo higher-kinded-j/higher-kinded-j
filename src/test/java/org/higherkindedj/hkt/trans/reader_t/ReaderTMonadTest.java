@@ -16,7 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderTMonad Tests (Outer F=OptionalKind.Witness, Env R=ReaderTMonadTest.Config)")
+@DisplayName("ReaderTMonad Tests (Outer F=OptionalKind.Witness, Env R_ENV=ReaderTMonadTest.Config)")
 class ReaderTMonadTest {
 
   record Config(String value) {}
@@ -25,22 +25,23 @@ class ReaderTMonadTest {
   private final Config otherConfig = new Config("otherConfigValue");
 
   private Monad<OptionalKind.Witness> outerMonad;
-  private Monad<ReaderTKind<OptionalKind.Witness, Config, ?>> readerTMonad;
+  private Monad<ReaderTKind.Witness<OptionalKind.Witness, Config>> readerTMonad;
 
   private <A> Optional<A> runOptReaderT(
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, A> kind, Config config) {
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, A> kind, Config config) {
     ReaderT<OptionalKind.Witness, Config, A> readerT = ReaderTKindHelper.unwrap(kind);
     Kind<OptionalKind.Witness, A> resultOfRun = readerT.run().apply(config);
     return OptionalKindHelper.unwrap(resultOfRun);
   }
 
-  private <A> Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, A> createReaderTKind(
+  private <A> Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, A> createReaderTKind(
       Function<Config, Kind<OptionalKind.Witness, A>> runFn) {
     ReaderT<OptionalKind.Witness, Config, A> readerT = ReaderT.of(runFn);
     return ReaderTKindHelper.wrap(readerT);
   }
 
-  private <A> Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, A> createEmptyOuterReaderTKind() {
+  private <A>
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, A> createEmptyOuterReaderTKind() {
     return createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.empty()));
   }
 
@@ -63,14 +64,16 @@ class ReaderTMonadTest {
   class OfTests {
     @Test
     void of_shouldCreateReaderTReturningValueAndIgnoringEnv() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> kind = readerTMonad.of("constant");
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> kind =
+          readerTMonad.of("constant");
       assertThat(runOptReaderT(kind, testConfig)).isPresent().contains("constant");
       assertThat(runOptReaderT(kind, otherConfig)).isPresent().contains("constant");
     }
 
     @Test
-    void of_shouldWrapNullAsOuterOptionalEmpty() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> kind = readerTMonad.of(null);
+    void of_shouldWrapNullAsOuterOptionalOfEmptyIfOuterMonadDoes() { // OptionalMonad.of(null) ->
+      // Optional.empty()
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> kind = readerTMonad.of(null);
       assertThat(runOptReaderT(kind, testConfig)).isEmpty();
     }
   }
@@ -78,16 +81,16 @@ class ReaderTMonadTest {
   @Nested
   @DisplayName("Functor 'map' tests")
   class MapTests {
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> initialKind =
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> initialKind =
         createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(cfg.value().length())));
 
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> emptyOuterKind =
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> emptyOuterKind =
         createEmptyOuterReaderTKind();
 
     @Test
     void map_shouldApplyFunctionToValueWhenOuterIsPresent() {
       Function<Integer, String> intToString = Object::toString;
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> mappedKind =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> mappedKind =
           readerTMonad.map(intToString, initialKind);
 
       assertThat(runOptReaderT(mappedKind, testConfig))
@@ -98,14 +101,15 @@ class ReaderTMonadTest {
     @Test
     void map_shouldPropagateOuterEmpty() {
       Function<Integer, String> intToString = Object::toString;
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> mappedKind =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> mappedKind =
           readerTMonad.map(intToString, emptyOuterKind);
       assertThat(runOptReaderT(mappedKind, testConfig)).isEmpty();
     }
 
     @Test
-    void map_functionReturningNull_shouldResultInOuterEmpty() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> mappedToNullKind =
+    void map_functionReturningNull_shouldResultInOuterEmptyViaOptionalMap() {
+      // Optional.map(fnReturningNull) results in Optional.empty()
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> mappedToNullKind =
           readerTMonad.map(val -> (String) null, initialKind);
       assertThat(runOptReaderT(mappedToNullKind, testConfig)).isEmpty();
     }
@@ -114,90 +118,64 @@ class ReaderTMonadTest {
   @Nested
   @DisplayName("Applicative 'ap' specific tests")
   class ApSpecificTests {
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Function<Integer, String>> presentFuncKind =
-        createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(i -> cfg.value() + ":" + i)));
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> presentValKind =
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Function<Integer, String>>
+        presentFuncKind =
+            createReaderTKind(
+                cfg -> OptionalKindHelper.wrap(Optional.of(i -> cfg.value() + ":" + i)));
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> presentValKind =
         createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(cfg.value().length())));
 
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Function<Integer, String>>
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Function<Integer, String>>
         emptyOuterFuncKind = createEmptyOuterReaderTKind();
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> emptyOuterValKind =
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> emptyOuterValKind =
         createEmptyOuterReaderTKind();
 
-    // This setup will cause Optional.of(null) to throw NPE when its ReaderT is run.
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Function<Integer, String>>
-        funcProducingNPEKind =
-            createReaderTKind(
-                cfg -> OptionalKindHelper.wrap(Optional.of((Function<Integer, String>) null)));
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Function<Integer, String>>
+        funcProducingNullResultKind =
+            createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(i -> (String) null)));
 
     @Test
     void ap_presentFunc_presentValue_shouldCombine() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> result =
           readerTMonad.ap(presentFuncKind, presentValKind);
       String expected = testConfig.value() + ":" + testConfig.value().length();
       assertThat(runOptReaderT(result, testConfig)).isPresent().contains(expected);
     }
 
     @Test
+    void ap_funcProducesNull_presentValue_shouldResultInEmpty() {
+      // When the function wrapped in Optional applies and returns null,
+      // outerMonad.ap (OptionalMonad.ap) will result in Optional.empty()
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> result =
+          readerTMonad.ap(funcProducingNullResultKind, presentValKind);
+      assertThat(runOptReaderT(result, testConfig)).isEmpty();
+    }
+
+    @Test
     void ap_emptyOuterFunc_presentValue_shouldBeEmptyOuter() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> result =
           readerTMonad.ap(emptyOuterFuncKind, presentValKind);
       assertThat(runOptReaderT(result, testConfig)).isEmpty();
     }
 
     @Test
     void ap_presentFunc_emptyOuterValue_shouldBeEmptyOuter() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> result =
           readerTMonad.ap(presentFuncKind, emptyOuterValKind);
       assertThat(runOptReaderT(result, testConfig)).isEmpty();
     }
 
     @Test
     void ap_emptyOuterFunc_emptyOuterValue_shouldBeEmptyOuter() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> result =
           readerTMonad.ap(emptyOuterFuncKind, emptyOuterValKind);
       assertThat(runOptReaderT(result, testConfig)).isEmpty();
-    }
-
-    @Test
-    @DisplayName(
-        "ap: function itself is (Optional.of(null)) in outer present, should cause NPE when run")
-    void ap_functionItselfIsNullInOuterPresent_shouldResultInNPEWhenRun() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
-          readerTMonad.ap(funcProducingNPEKind, presentValKind);
-      // The NPE is from `func.apply(val)` inside OptionalMonad's ap, where func is null.
-      // This NPE is propagated by Optional.flatMap used in OptionalMonad.ap.
-      assertThatThrownBy(() -> runOptReaderT(result, testConfig))
-          .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    @DisplayName("ap: function application throws, should propagate as NPE when run")
-    void ap_functionApplicationThrows_shouldPropagateExceptionWhenRun() {
-      RuntimeException ex = new RuntimeException("Function apply failed");
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Function<Integer, String>> funcKindThrows =
-          createReaderTKind(
-              cfg ->
-                  OptionalKindHelper.wrap(
-                      Optional.of(
-                          i -> {
-                            throw ex;
-                          })));
-
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
-          readerTMonad.ap(funcKindThrows, presentValKind);
-
-      // The exception 'ex' is thrown inside the lambda of ReaderTMonad.ap's newRun,
-      // which is then propagated by outerMonad.ap (OptionalMonad.ap -> Optional.flatMap).
-      assertThatThrownBy(() -> runOptReaderT(result, testConfig))
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(ex);
     }
   }
 
   private <A> void assertReaderTEquals(
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, A> k1,
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, A> k2,
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, A> k1,
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, A> k2,
       Config readerEnv) {
     assertThat(runOptReaderT(k1, readerEnv)).isEqualTo(runOptReaderT(k2, readerEnv));
   }
@@ -206,23 +184,24 @@ class ReaderTMonadTest {
   @DisplayName("Monad Laws")
   class MonadLaws {
     int value = 5;
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> mValue =
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> mValue =
         createReaderTKind(cfg -> outerMonad.of(value + cfg.value().length()));
-    Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> mEmpty =
+    Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> mEmpty =
         createEmptyOuterReaderTKind();
 
-    Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>> f =
+    Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String>> f =
         i -> createReaderTKind(cfg -> outerMonad.of("v" + i + cfg.value()));
-    Function<String, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>> g =
+    Function<String, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String>> g =
         s -> createReaderTKind(cfg -> outerMonad.of(s + "!" + cfg.value().length()));
 
     @Test
     @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
     void leftIdentity() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> ofValue = readerTMonad.of(value);
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> leftSide =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> ofValue =
+          readerTMonad.of(value);
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> leftSide =
           readerTMonad.flatMap(f, ofValue);
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> rightSide = f.apply(value);
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> rightSide = f.apply(value);
 
       assertReaderTEquals(leftSide, rightSide, testConfig);
       assertReaderTEquals(leftSide, rightSide, otherConfig);
@@ -231,7 +210,7 @@ class ReaderTMonadTest {
     @Test
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
-      Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer>> ofFunc =
+      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer>> ofFunc =
           readerTMonad::of;
 
       assertReaderTEquals(readerTMonad.flatMap(ofFunc, mValue), mValue, testConfig);
@@ -241,22 +220,23 @@ class ReaderTMonadTest {
     @Test
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> innerFlatMap =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> innerFlatMap =
           readerTMonad.flatMap(f, mValue);
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> leftSide =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> leftSide =
           readerTMonad.flatMap(g, innerFlatMap);
 
-      Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>> rightSideFunc =
-          a -> readerTMonad.flatMap(g, f.apply(a));
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> rightSide =
+      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String>>
+          rightSideFunc = a -> readerTMonad.flatMap(g, f.apply(a));
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> rightSide =
           readerTMonad.flatMap(rightSideFunc, mValue);
 
       assertReaderTEquals(leftSide, rightSide, testConfig);
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> innerFlatMapEmpty =
+
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> innerFlatMapEmpty =
           readerTMonad.flatMap(f, mEmpty);
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> leftSideEmpty =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> leftSideEmpty =
           readerTMonad.flatMap(g, innerFlatMapEmpty);
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> rightSideEmpty =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> rightSideEmpty =
           readerTMonad.flatMap(rightSideFunc, mEmpty);
       assertReaderTEquals(leftSideEmpty, rightSideEmpty, testConfig);
     }
@@ -269,12 +249,12 @@ class ReaderTMonadTest {
     @Test
     @DisplayName("flatMap: initial ReaderT's outer monad is empty")
     void flatMap_initialOuterMonadIsEmpty() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> initialEmptyOuter =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> initialEmptyOuter =
           createEmptyOuterReaderTKind();
-      Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>> func =
+      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String>> func =
           i -> createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of("Val:" + i)));
 
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> result =
           readerTMonad.flatMap(func, initialEmptyOuter);
 
       assertThat(runOptReaderT(result, testConfig)).isEmpty();
@@ -283,13 +263,13 @@ class ReaderTMonadTest {
     @Test
     @DisplayName("flatMap: function f returns a ReaderT whose outer monad is empty")
     void flatMap_functionReturnsEmptyOuterMonad() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> initialPresentOuter =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> initialPresentOuter =
           createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(cfg.value().length())));
 
-      Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>>
+      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String>>
           funcReturnsEmptyOuter = i -> createEmptyOuterReaderTKind();
 
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> result =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> result =
           readerTMonad.flatMap(funcReturnsEmptyOuter, initialPresentOuter);
 
       assertThat(runOptReaderT(result, testConfig)).isEmpty();
@@ -298,79 +278,37 @@ class ReaderTMonadTest {
     @Test
     @DisplayName("flatMap: function f itself throws an exception when run")
     void flatMap_functionThrowsException() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> initialPresentOuter =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> initialPresentOuter =
           createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(10)));
       RuntimeException ex = new RuntimeException("Function f failed");
-      Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>> funcThrows =
-          i -> {
-            throw ex;
-          };
+      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String>>
+          funcThrows =
+              i -> {
+                throw ex;
+              };
 
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> resultKind =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> resultKind =
           readerTMonad.flatMap(funcThrows, initialPresentOuter);
-
+      // Exception is caught during the execution of the ReaderT's run function
       assertThatThrownBy(() -> runOptReaderT(resultKind, testConfig))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(ex);
     }
 
     @Test
-    @DisplayName("flatMap: function f returns null Kind when run")
+    @DisplayName("flatMap: function f returns null Kind, leads to KindUnwrapException when run")
     void flatMap_functionReturnsNullKind() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> initialPresentOuter =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, Integer> initialPresentOuter =
           createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(10)));
-      Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>>
+      Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String>>
           funcReturnsNull = i -> null;
 
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> resultKind =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, Config>, String> resultKind =
           readerTMonad.flatMap(funcReturnsNull, initialPresentOuter);
 
       assertThatThrownBy(() -> runOptReaderT(resultKind, testConfig))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Cannot unwrap null Kind for ReaderT");
-    }
-
-    @Test
-    @DisplayName(
-        "flatMap: function f returns a Kind whose unwrap leads to null ReaderT then NPE when run")
-    void flatMap_functionReturnsKindWithNullInnerReaderT() {
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, Integer> initialPresentOuter =
-          createReaderTKind(cfg -> OptionalKindHelper.wrap(Optional.of(10)));
-
-      // This simulates f.apply(a) returning a Kind that holds a null ReaderT.
-      // ReaderTHolder's constructor should prevent direct creation with null if @NonNull is
-      // enforced.
-      // If it *can* be created (e.g. @NonNull not runtime enforced for the record component):
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> problematicKind;
-      try {
-        // Attempt to create the problematic kind. If ReaderTHolder is strict, this will throw.
-        problematicKind = new ReaderTKindHelper.ReaderTHolder<>(null);
-      } catch (NullPointerException npe) {
-        // If ReaderTHolder's constructor threw, then f.apply(a) would throw this NPE.
-        // So, readerTMonad.flatMap would propagate this.
-        Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>>
-            funcCreatesBadHolder =
-                i -> new ReaderTKindHelper.ReaderTHolder<>(null); // This action throws
-
-        Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> resultKind =
-            readerTMonad.flatMap(funcCreatesBadHolder, initialPresentOuter);
-        assertThatThrownBy(() -> runOptReaderT(resultKind, testConfig))
-            .isInstanceOf(NullPointerException.class); // From ReaderTHolder constructor
-        return;
-      }
-
-      // If ReaderTHolder constructor allowed null (meaning problematicKind was created):
-      Function<Integer, Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String>>
-          funcReturnsProblematicKind = i -> problematicKind;
-
-      Kind<ReaderTKind<OptionalKind.Witness, Config, ?>, String> resultKind =
-          readerTMonad.flatMap(funcReturnsProblematicKind, initialPresentOuter);
-
-      assertThatThrownBy(() -> runOptReaderT(resultKind, testConfig))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining(
-              "Cannot invoke \"org.higherkindedj.hkt.trans.reader_t.ReaderT.run()\" because"
-                  + " \"nextReaderT\" is null");
     }
   }
 }

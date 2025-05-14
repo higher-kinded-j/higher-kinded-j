@@ -1,7 +1,7 @@
-@startuml Lazy Components
+@startuml lazy_components
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
+hide empty members
 interface ThrowableSupplier<T> {
   + {abstract} T get() throws Throwable
 }
@@ -31,7 +31,7 @@ interface LazyKind<A> extends Kind<LazyKind<?>, A> {
   ' Value Type A = A
 }
 
-package helper <<Rectangle>> {
+
   class LazyKindHelper {
     .. Static Helper Methods ..
     + {static} LazyKind<A> wrap(Lazy<A>)
@@ -48,13 +48,15 @@ package helper <<Rectangle>> {
   LazyKindHelper ..> LazyHolder : creates >
   LazyKindHelper --> Lazy : uses >
   LazyHolder o--> Lazy : holds
-}
 
-class LazyMonad implements Monad<LazyKind<?>> {
-  + Kind<LazyKind<?>, B> map(Function<A, B>, Kind<LazyKind<?>, A>)
-  + Kind<LazyKind<?>, A> of(A)
-  + Kind<LazyKind<?>, B> ap(Kind<LazyKind<?>, Function<A, B>>, Kind<LazyKind<?>, A>)
-  + Kind<LazyKind<?>, B> flatMap(Function<A, Kind<LazyKind<?>, B>>, Kind<LazyKind<?>, A>)
+
+
+
+class LazyMonad implements Monad<LazyKind.Witness> {
+ + <A, B> @NonNull Kind<LazyKind.Witness, B> map(@NonNull Function<A, B>, @NonNull Kind<LazyKind.Witness, A>)
+ + <A> @NonNull Kind<LazyKind.Witness, A> of(@Nullable A)
+ + <A, B> @NonNull Kind<LazyKind.Witness, B> ap(@NonNull Kind<LazyKind.Witness, Function<A, B>>, @NonNull Kind<LazyKind.Witness, A>)
+ + <A, B> @NonNull Kind<LazyKind.Witness, B> flatMap(@NonNull Function<A, Kind<LazyKind.Witness, B>>, @NonNull Kind<LazyKind.Witness, A>)
 }
 LazyMonad ..> LazyKindHelper : uses >
 LazyMonad ..> LazyKind : operates on >

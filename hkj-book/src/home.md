@@ -3,15 +3,15 @@
 
 [==>Take me to the code](https://github.com/higher-kinded-j/higher-kinded-j)
 
-This library aims to bring Higher-Kinded Functional patterns to Java by providing implementations of common Monads supporting Higher-Kinded Types.
+Higher-Kinded-J brings popular functional patterns to Java by providing implementations of common Monads and Transformers supporting Higher-Kinded Types.
 
-**This Higher-Kinded-J simulation was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) but since then has grown into something altogether more useful**
+**Higher-Kinded-J evolved from a simulation that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then HK-J has grown into something altogether more useful supporting more functional patterns.**
 
 ## Introduction: Abstracting Over Computation in Java
 
 Java's powerful type system excels in many areas, but it lacks native support for Higher-Kinded Types (HKTs). This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>` in the same way we abstract over the type `A` itself. We can't easily define a generic function that works identically for *any* container or computational context (like List, Optional, Future, IO).
 
-This project tackles that challenge by demonstrating a **simulation of HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
+Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
 
 **Why bother?** Higher-Kinded-J unlocks several benefits:
 
@@ -34,17 +34,16 @@ You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 * **State Management:** Use the `State` monad for computations that need to thread state through.
 * **Logging/Accumulation:** Use the `Writer` monad to accumulate logs or other values alongside a computation.
 * **Learning Tool:** Understand HKTs, type classes (Functor, Applicative, Monad), and functional error handling concepts through concrete Java examples.
-* **Simulating Custom Types:** Follow the pattern (Kind interface, Holder, Helper, Type Class instances) to make your *own* custom data types or computational contexts work with the provided functional abstractions.
+* **Simulating Custom Types:** Follow the pattern (Kind interface, _Holder if needed_, Helper, Type Class instances) to make your *own* custom data types or computational contexts work with the provided functional abstractions.
 
 
 To understand and use Higher-Kinded-J effectively, explore these documents:
 
 1.  **[Core Concepts](core-concepts.md):** Understand the fundamental building blocks – `Kind`, Witness Types, Type Classes (`Functor`, `Monad`, etc.), and the helper classes that bridge the simulation with standard Java types. **Start here!**
 2.  **[Supported Types](supported-types.md):** See which Java types (like `List`, `Optional`, `CompletableFuture`) and custom types (`Maybe`, `Either`, `Try`, `IO`, `Lazy`) are currently simulated and have corresponding type class instances.
-3.  **[Supported Types in Detail](supported_types_in_detail.md):** More in depth detailed explanations of how to use.
-4.   **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using Higher-Kinded-J: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
-5.   **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
-6.   **[Extending Higher-Kinded-J](extending-simulation.md):** Learn the pattern for adding Higher-Kinded-J support and type class instances for your *own* custom Java types or other standard library types.
+3.  **[Usage Guide](usage-guide.md):** Learn the practical steps involved in using Higher-Kinded-J: obtaining type class instances, wrapping/unwrapping values using helpers, and applying type class methods (`map`, `flatMap`, etc.).
+4.  **[Order Example Walkthrough](order-walkthrough.md):** Dive into a detailed, practical example showcasing how `EitherT` (a monad transformer) combines `CompletableFuture` (for async) and `Either` (for domain errors) to build a robust workflow. This demonstrates a key use case.
+5.  **[Extending Higher-Kinded-J](extending-simulation.md):** Learn the pattern for adding Higher-Kinded-J support and type class instances for your *own* custom Java types or other standard library types.
 
 
 

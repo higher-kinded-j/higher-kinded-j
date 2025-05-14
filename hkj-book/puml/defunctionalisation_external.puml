@@ -1,0 +1,36 @@
+@startuml defunctionalisation_external
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+
+package "Defunctionalisation Pattern For External Types (Optional, CompletableFuture etc)" {
+
+
+    interface "OptionalKind<A>" as OptionalKindInterface extends Kind<OptionalKind.Witness, A> {
+        class Witness {} ' Nested phantom Witness type
+    }
+    class "java.util.Optional<A>" as JavaOptional {}
+
+    ' OptionalHolder is an internal implementation detail of OptionalKindHelper
+    package "internal" {
+        class "OptionalHolder<A>" as OptionalHolder implements OptionalKindInterface {
+         + OptionalHolder(opt: java.util.Optional<A>)
+        }
+    }
+    OptionalKindHelper ..> OptionalHolder : "creates / uses"
+    OptionalKindHelper ..> JavaOptional : "wraps / unwraps"
+    OptionalHolder ..> JavaOptional : "holds"
+
+    class "OptionalKindHelper" as OptionalKindHelper {
+        + {static} wrap(opt: java.util.Optional<A>): Kind<OptionalKind.Witness, A>
+        + {static} unwrap(kind: Kind<OptionalKind.Witness, A>): java.util.Optional<A>
+    }
+    class "OptionalMonad" as OptionalMonad implements MonadError<OptionalKind.Witness, java.lang.Void> {
+        ' Uses OptionalKindHelper
+    }
+    OptionalMonad ..> OptionalKindHelper : "uses"
+
+
+}
+@enduml
+

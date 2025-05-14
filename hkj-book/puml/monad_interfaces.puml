@@ -1,0 +1,10 @@
+@startuml monad_interfaces
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+hide empty members
+
+interface "Functor<F>"
+interface "Applicative<F>" extends "Functor<F>"
+interface "Monad<F>" extends "Applicative<F>"
+interface "MonadError<F, E>" extends "Monad<F>"
+
+@enduml

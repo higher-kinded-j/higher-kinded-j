@@ -1,5 +1,6 @@
 package org.higherkindedj.hkt.typeclass;
 
+import org.higherkindedj.hkt.Monoid;
 import org.jspecify.annotations.NonNull;
 
 /** A concrete Monoid implementation for String concatenation. */

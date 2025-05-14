@@ -67,30 +67,30 @@ public interface State<S, A> {
 * `map(...)`: Transforms the *result value*`A` to `B` after the computation runs, leaving the state transition logic untouched.
 * `flatMap(...)`: The core sequencing operation. It runs the first `State` computation, takes its result value `A`, uses it to create a *second*`State` computation, and runs that second computation using the state produced by the first one. The final result and state are those from the second computation.
 
-## Higher-Kinded-J Components
+## State Components
 
-To integrate `State` with the generic HKT framework:
+To integrate `State` with Higher-Kinded-J:
 
-* **`StateKind<S, A>`:** The marker interface extending `Kind<StateKind<S, ?>, A>`. The witness type `F` is `StateKind<S, ?>` (where `S` is fixed for a given monad instance), and the value type `A` is the result type `A` from `StateTuple`.
+* **`StateKind<S, A>`:** The marker interface extending `Kind<StateKind.Witness<S>, A>`. The witness type `F` is `StateKind.Witness<S>` (where `S` is fixed for a given monad instance), and the value type `A` is the result type `A` from `StateTuple`.
 * **`StateKindHelper`:** The utility class with static methods:
   * `wrap(State<S, A>)`: Converts a `State` to `StateKind<S, A>`.
-  * `unwrap(Kind<StateKind<S, ?>, A>)`: Converts `StateKind` back to `State`. Throws `KindUnwrapException` if the input is invalid.
+  * `unwrap(Kind<StateKind.Witness<S>, A>)`: Converts `StateKind` back to `State`. Throws `KindUnwrapException` if the input is invalid.
   * `pure(A value)`: Factory for `Kind` equivalent to `State.pure`.
   * `get()`: Factory for `Kind` equivalent to `State.get`.
   * `set(S newState)`: Factory for `Kind` equivalent to `State.set`.
   * `modify(Function<S, S> f)`: Factory for `Kind` equivalent to `State.modify`.
   * `inspect(Function<S, A> f)`: Factory for `Kind` equivalent to `State.inspect`.
-  * `runState(Kind<StateKind<S, ?>, A> kind, S initialState)`: Runs the computation and returns the `StateTuple<S, A>`.
-  * `evalState(Kind<StateKind<S, ?>, A> kind, S initialState)`: Runs the computation and returns only the final value `A`.
-  * `execState(Kind<StateKind<S, ?>, A> kind, S initialState)`: Runs the computation and returns only the final state `S`.
+  * `runState(Kind<StateKind.Witness<S>, A> kind, S initialState)`: Runs the computation and returns the `StateTuple<S, A>`.
+  * `evalState(Kind<StateKind.Witness<S>, A> kind, S initialState)`: Runs the computation and returns only the final value `A`.
+  * `execState(Kind<StateKind.Witness<S>, A> kind, S initialState)`: Runs the computation and returns only the final state `S`.
 
 ## Type Class Instances (`StateFunctor`, `StateApplicative`, `StateMonad`)
 
-These classes provide the standard functional operations for `StateKind<S, ?>`:
+These classes provide the standard functional operations for `StateKind.Witness<S>`:
 
-* **`StateFunctor<S>`:** Implements `Functor<StateKind<S, ?>>`. Provides `map`.
-* **`StateApplicative<S>`:** Extends `StateFunctor<S>`, implements `Applicative<StateKind<S, ?>>`. Provides `of` (same as `pure`) and `ap`.
-* **`StateMonad<S>`:** Extends `StateApplicative<S>`, implements `Monad<StateKind<S, ?>>`. Provides `flatMap` for sequencing stateful computations.
+* **`StateFunctor<S>`:** Implements `Functor<StateKind.Witness<S>>`. Provides `map`.
+* **`StateApplicative<S>`:** Extends `StateFunctor<S>`, implements `Applicative<StateKind.Witness<S>>`. Provides `of` (same as `pure`) and `ap`.
+* **`StateMonad<S>`:** Extends `StateApplicative<S>`, implements `Monad<StateKind.Witness<S>>`. Provides `flatMap` for sequencing stateful computations.
 
 You instantiate `StateMonad<S>` for the specific state type `S` you are working with.
 
@@ -129,11 +129,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 // Counter Example Actions:
-Kind<StateKind<CounterState, ?>, Void> incrementCounter = modify(s -> new CounterState(s.count() + 1));
-    Kind<StateKind<CounterState, ?>, Integer> getCount = get().map(CounterState::count); // Use map to extract int from CounterState
+Kind<StateKind.Witness<CounterState>, Void> incrementCounter = modify(s -> new CounterState(s.count() + 1));
+    Kind<StateKind.Witness<CounterState>, Integer> getCount = get().map(CounterState::count); // Use map to extract int from CounterState
 
     // Stack Example Actions:
-    Kind<StateKind<StackState, ?>, Void> push(int value) {
+    Kind<StateKind.Witness<StackState>, Void> push(int value) {
       return modify(s -> {
         List<Integer> newList = new ArrayList<Integer>(s.stack());
         newList.add(value);
@@ -141,7 +141,7 @@ Kind<StateKind<CounterState, ?>, Void> incrementCounter = modify(s -> new Counte
       });
     }
 
-    Kind<StateKind<StackState, ?>, Integer> pop = wrap(State.of(s -> {
+    Kind<StateKind.Witness<StackState>, Integer> pop = wrap(State.of(s -> {
       if (s.stack().isEmpty()) {
         // Handle empty stack - return 0 and keep state same? Or throw?
         // For this example, return 0 and keep empty state.
@@ -153,7 +153,7 @@ Kind<StateKind<CounterState, ?>, Void> incrementCounter = modify(s -> new Counte
       return new State.StateTuple<>(value, new StackState(Collections.unmodifiableList(newStack)));
     }));
 
-    Kind<StateKind<StackState, ?>, Integer> peek = inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1));
+    Kind<StateKind.Witness<StackState>, Integer> peek = inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1));
 
 ```
 
@@ -163,18 +163,18 @@ Use the `stateMonad` instance (`counterStateMonad` or `stackStateMonad` in these
 
 ```java
 // Counter Example: Increment twice and get the final count
-Kind<StateKind<CounterState, ?>, Integer> incrementTwiceAndGet =
-    counterStateMonad.flatMap( // flatMap returns Kind<StateKind<CounterState, ?>, Void>
+Kind<StateKind.Witness<CounterState>, Integer> incrementTwiceAndGet =
+    counterStateMonad.flatMap( // flatMap returns Kind<StateKind.Witness<CounterState>, Void>
         ignored1 -> incrementCounter, // Run second increment
         incrementCounter // Run first increment
-    ).flatMap( // flatMap returns Kind<StateKind<CounterState, ?>, Void>
+    ).flatMap( // flatMap returns Kind<StateKind.Witness<CounterState>, Void>
         ignored2 -> getCount, // Finally, get the count
         incrementCounter // Chained from the result of the second increment
     );
 
 
 // Stack Example: Push 10, Push 20, Pop, Pop
-Kind<StateKind<StackState, ?>, Integer> stackProgram =
+Kind<StateKind.Witness<StackState>, Integer> stackProgram =
     stackStateMonad.flatMap( // Push 10 -> State = [10]
         ignored1 -> push(20), // Push 20 -> State = [10, 20]
         push(10)
@@ -187,8 +187,8 @@ Kind<StateKind<StackState, ?>, Integer> stackProgram =
     );
 
 // Example using map: Push 5, then get the value and format it, state unaffected by map
-Kind<StateKind<StackState, ?>, Void> push5 = push(5);
-Kind<StateKind<StackState, ?>, String> push5AndDescribe = stackStateMonad.map(
+Kind<StateKind.Witness<StackState>, Void> push5 = push(5);
+Kind<StateKind.Witness<StackState>, String> push5AndDescribe = stackStateMonad.map(
     value -> "Pushed 5, value is " + value, // Value from push(5) is Void/null
     push5
 );
@@ -237,6 +237,6 @@ System.out.println("Push/Describe Tuple: " + pushDescribeTuple);
 // Output: Push/Describe Tuple: StateTuple[value=Pushed 5, value is null, state=StackState[stack=[5]]]
 ```
 
-## Summary
+## Key Points:
 
 The State monad (`State<S, A>`, `StateKind`, `StateMonad`) provides a powerful functional abstraction for managing stateful computations in `Higher-Kinded-J`. By encapsulating state transitions within the `S -> (A, S)` function, it allows developers to write pure, composable code that explicitly tracks state changes. The HKT simulation enables using standard monadic operations (`map`, `flatMap`) via `StateMonad`, simplifying the process of sequencing complex stateful workflows while maintaining referential transparency. Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.

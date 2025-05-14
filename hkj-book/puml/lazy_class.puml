@@ -1,4 +1,4 @@
-@startuml Lazy Class Detail
+@startuml lazy_class
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 

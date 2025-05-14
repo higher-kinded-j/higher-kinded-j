@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.typeclass.Monoid;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -65,22 +65,21 @@ class WriterTest {
       // This test should now pass after the fix in Writer.value
       assertThatNullPointerException()
           .isThrownBy(() -> Writer.value(null, 10))
-          .withMessageContaining(
-              "monoidW cannot be null"); // Check message matches the explicit check
+          .withMessageContaining("Monoid<W> for Writer.value cannot be null");
     }
 
     @Test
     void tell_shouldCreateWriterWithLogAndNullValue() {
       Writer<String, Void> w = Writer.tell("Message");
       assertThat(w.log()).isEqualTo("Message");
-      assertThat(w.value()).isNull(); // Value is Void -> null
+      assertThat(w.value()).isNull();
     }
 
     @Test
     void tell_shouldThrowNPEForNullLog() {
       assertThatNullPointerException()
           .isThrownBy(() -> Writer.tell(null))
-          .withMessageContaining("log cannot be null"); // Check message if added
+          .withMessageContaining("Log message for Writer.tell cannot be null");
     }
   }
 
@@ -107,7 +106,7 @@ class WriterTest {
     void map_shouldThrowNPEForNullMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.map(null))
-          .withMessageContaining("mapper function cannot be null");
+          .withMessageContaining("Mapper function for Writer.map cannot be null");
     }
 
     @Test
@@ -152,14 +151,14 @@ class WriterTest {
       Function<Integer, Writer<String, Double>> func = i -> Writer.create("Log", 1.0);
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.flatMap(null, func))
-          .withMessageContaining("Monoid<W> cannot be null");
+          .withMessageContaining("Monoid<W> for Writer.flatMap cannot be null");
     }
 
     @Test
     void flatMap_shouldThrowNPEForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.flatMap(stringMonoid, null))
-          .withMessageContaining("flatMap mapper function cannot be null");
+          .withMessageContaining("FlatMap mapper function for Writer.flatMap cannot be null");
     }
 
     @Test
@@ -167,7 +166,7 @@ class WriterTest {
       Function<Integer, Writer<String, Double>> nullReturningFunc = i -> null;
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.flatMap(stringMonoid, nullReturningFunc))
-          .withMessageContaining("flatMap function returned null Writer");
+          .withMessageContaining("Function f supplied to Writer.flatMap returned a null Writer");
     }
 
     @Test

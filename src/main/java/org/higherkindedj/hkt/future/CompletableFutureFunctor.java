@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Functor} type class for {@link java.util.concurrent.CompletableFuture},
- * using {@link CompletableFutureKind} as the higher-kinded type witness.
+ * using {@link CompletableFutureKind.Witness} as the higher-kinded type witness.
  *
  * <p>A {@link Functor} provides the ability to apply a function to a value inside a context (in
  * this case, a {@code CompletableFuture}) without needing to explicitly extract the value. The
@@ -26,9 +26,19 @@ import org.jspecify.annotations.Nullable;
  * @see Functor
  * @see CompletableFuture
  * @see CompletableFutureKind
+ * @see CompletableFutureKind.Witness
  * @see CompletableFutureKindHelper
  */
-public class CompletableFutureFunctor implements Functor<CompletableFutureKind<?>> {
+public class CompletableFutureFunctor implements Functor<CompletableFutureKind.Witness> {
+
+  /**
+   * Constructs a new {@code CompletableFutureFunctor} instance. This constructor is public to allow
+   * instantiation where needed, although typically functor operations are accessed via a {@link
+   * CompletableFutureMonadError} instance.
+   */
+  public CompletableFutureFunctor() {
+    // Default constructor
+  }
 
   /**
    * Applies a function {@code f} to the value contained within a {@link CompletableFuture} context.
@@ -41,32 +51,26 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind<?
    * <p>The function {@code f} can return {@code null}. If it does, the resulting {@code
    * CompletableFuture} will complete successfully with a {@code null} value.
    *
-   * @param f The non-null function to apply to the value inside the {@code CompletableFuture}. This
-   *     function takes a value of type {@code A} and can return a {@code @Nullable} value of type
-   *     {@code B}.
-   * @param fa A non-null {@code Kind<CompletableFutureKind<?>, A>} representing the {@code
-   *     CompletableFuture<A>} whose successfully completed value will be transformed.
    * @param <A> The type of the value in the input {@code CompletableFuture}.
    * @param <B> The type of the value in the output {@code CompletableFuture} after applying the
    *     function.
-   * @return A non-null {@code Kind<CompletableFutureKind<?>, B>} representing a new {@code
+   * @param f The non-null function to apply to the value inside the {@code CompletableFuture}. This
+   *     function takes a value of type {@code A} and can return a {@code @Nullable} value of type
+   *     {@code B}.
+   * @param fa A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing the {@code
+   *     CompletableFuture<A>} whose successfully completed value will be transformed.
+   * @return A non-null {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@code
    *     CompletableFuture<B>} that will complete with the transformed value, or complete
    *     exceptionally if {@code fa} or the application of {@code f} fails.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
-   * @throws NullPointerException if {@code f} is null (though annotated {@code @NonNull}).
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
-  public <A, B> @NonNull Kind<CompletableFutureKind<?>, B> map(
+  public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> map(
       @NonNull Function<A, @Nullable B> f, // Function A -> B, where B can be null
-      @NonNull Kind<CompletableFutureKind<?>, A> fa) {
-    // unwrap will handle null check for fa or throw KindUnwrapException
+      @NonNull Kind<CompletableFutureKind.Witness, A> fa) {
     CompletableFuture<A> futureA = unwrap(fa);
-
-    // CompletableFuture.thenApply(Function) takes a Function<? super T, ? extends U>.
-    // If 'f' returns null, 'futureB' will complete with null, which is acceptable for
-    // CompletableFuture<B>.
     CompletableFuture<B> futureB = futureA.thenApply(f);
-
     return wrap(futureB);
   }
 }
