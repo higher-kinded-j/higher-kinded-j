@@ -23,19 +23,19 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install mdbook-sitemap-generator
-        run: cargo install mdbook-sitemap-generator --locked
+      - name: Install mdbook-sitemap-generator ( किल्ला version )
+        run: cargo install mdbook-sitemap-generator
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
           mdbook-version: '0.4.48'
 
-      - name: Build mdBook
+      - name: Build mdBook (with sitemap preprocessor)
         working-directory: ./hkj-book
         run: mdbook build
 
-      - name: Deploy to higher-kinded-j/higher-kinded-j.github.io
+      - name: Deploy to higher-kinded-j.github.io
         uses: peaceiris/actions-gh-pages@v4
         with:
           personal_token: ${{ secrets.GH_PAGES_PAT }}

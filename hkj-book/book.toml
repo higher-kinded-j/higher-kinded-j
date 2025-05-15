@@ -5,9 +5,8 @@ authors = ["The Higher-Kinded-J Team"]
 language = "en"
 multilingual = false
 src = "src"
-[preprocessor.sitemap]
+[preprocessor.sitemap-generator]
 command = "mdbook-sitemap-generator"
-renderer = ["html"]
 [output.html]
 additional-css = ["./theme/catppuccin.css", "./theme/additional-hkj.css"]
 default-theme = "latte"
