@@ -37,7 +37,7 @@ jobs:
       - name: Setup mdBook (using a specific version might also help consistency)
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: '0.4.21' # Example: A version of mdbook also from around that time or latest
+          mdbook-version: '0.4.40' # was 21 Example: A version of mdbook also from around that time or latest
 
 #      - name: Setup mdBook
 #        uses: peaceiris/actions-mdbook@v2
