@@ -5,7 +5,11 @@ authors = ["The Higher-Kinded-J Team"]
 language = "en"
 multilingual = false
 src = "src"
+[preprocessor.sitemap]
+command = "mdbook-sitemap-generator"
 [output.html]
 additional-css = ["./theme/catppuccin.css", "./theme/additional-hkj.css"]
 default-theme = "latte"
 preferred-dark-theme = "macchiato"
+[output.sitemap]
+output-dir = "./book"
