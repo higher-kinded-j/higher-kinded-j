@@ -1,0 +1,32 @@
+@startuml core_typeclasses_high_level
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+
+package "HKT Core - Type Classes" {
+    interface "Kind<F_WITNESS, A>" as Kind {
+      ' F_WITNESS is the phantom type (e.g., XKind.Witness)
+      ' A is the value type
+    }
+    interface "Functor<F_WITNESS>" as Functor {}
+    interface "Applicative<F_WITNESS>" as Applicative {
+    }
+    interface "Monad<F_WITNESS>" as Monad {}
+    interface "MonadError<F_WITNESS, E>" as MonadError {}
+
+    interface "Monoid<A>" as Monoid {}
+
+     interface "Traverse<A>" as Traverse {}
+
+    Functor ..> Kind : (operates on)
+    Applicative --|> Functor
+    Monad --|> Applicative
+    MonadError --|> Monad
+    Traverse --|> Functor
+
+
+}
+
+}
+@enduml
+

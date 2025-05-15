@@ -6,17 +6,16 @@ Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (H
 
 Java's type system lacks native Higher-Kinded Types. We can easily parameterise a type by another type (like `List<String>`), but we cannot easily parameterise a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
 
-
-![core_typeclasss.svg](images/puml/core_typeclasss.svg)
-
 ## 2. The `Kind<F, A>` Bridge
+
+![defunctionalisation_internal.svg](images/puml/defunctionalisation_internal.svg)
 
 * **Purpose:** To simulate the application of a type constructor `F` (like `List`, `Optional`, `IO`) to a type argument `A` (like `String`, `Integer`), representing the concept of `F<A>`.
 * **`F` (Witness Type):** This is the crucial part of the simulation. Since `F<_>` isn't a real Java type parameter, we use a *marker type* (often an empty interface specific to the constructor) as a "witness" or stand-in for `F`. Examples:
   * `ListKind<ListKind.Witness>` represents the `List` type constructor.
   * `OptionalKind<OptionalKind.Witness>` represents the `Optional` type constructor.
-  * `EitherKind<L, ?>` represents the `Either<L, _>` type constructor (where `L` is fixed).
-  * `IOKind<?>` represents the `IO` type constructor.
+  * `EitherKind.Witness<L>` represents the `Either<L, _>` type constructor (where `L` is fixed).
+  * `IOKind<IOKind.Witness>` represents the `IO` type constructor.
 * **`A` (Type Argument):** The concrete type contained within or parameterised by the constructor (e.g., `Integer` in `List<Integer>`).
 * **How it Works:** An actual object, like a `java.util.List<Integer>`, is wrapped in a helper class (e.g., `ListHolder`) which implements `Kind<ListKind<?>, Integer>`. This `Kind` object can then be passed to generic functions that expect `Kind<F, A>`.
 * **Reference:** [`Kind.java`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/Kind.java)
@@ -24,6 +23,8 @@ Java's type system lacks native Higher-Kinded Types. We can easily parameterise 
 ## 3. Type Classes (`Functor`, `Applicative`, `Monad`, `MonadError`)
 
 These are interfaces that define standard functional operations that work *generically* over any simulated type constructor `F` (represented by its witness type) for which an instance of the type class exists. They operate on `Kind<F, A>` objects.
+
+![core_typeclasses_high_level.svg](images/puml/core_typeclasses_high_level.svg)
 
 * **`Functor<F>`:**
   * Defines `map(Function<A, B> f, Kind<F, A> fa)`: Applies a function `f: A -> B` to the value(s) inside the context `F` without changing the context's structure, resulting in a `Kind<F, B>`. Think `List.map`, `Optional.map`.
