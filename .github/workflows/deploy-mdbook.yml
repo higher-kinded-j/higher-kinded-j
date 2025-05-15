@@ -18,19 +18,26 @@ jobs:
       - name: Checkout 'higher-kinded-j' repository
         uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable # Installs Rust and Cargo
+      - name: Setup Rust toolchain (trying older version for sitemap generator)
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: '1.67.0' # Rust version from early 2023, when v0.2.0 was released
 
-      - name: Configure Cargo to use git CLI (Simpler)
+      - name: Configure Cargo and Git for CI
         run: |
           mkdir -p $HOME/.cargo
           echo -e "\n[net]\ngit-fetch-with-cli = true\n" >> $HOME/.cargo/config.toml
-      
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git config --global credential.helper ""
 
-      - name: Install mdbook-sitemap-generator (BadBoy/mdbook-sitemap-generator)
-        run: cargo install --git https://github.com/BadBoy/mdbook-sitemap-generator.git mdbook-sitemap-generator
+      - name: Install mdbook-sitemap-generator ( किल्ला/mdbook-sitemap-generator )
+        # This installs v0.2.0 from crates.io
+        run: cargo install mdbook-sitemap-generator --version 0.2.0 --locked
+
+      - name: Setup mdBook (using a specific version might also help consistency)
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.21' # Example: A version of mdbook also from around that time or latest
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
