@@ -28,15 +28,15 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Build mdBook
+        working-directory: ./hkj-book
+        run: mdbook build
+
       - name: Generate Sitemap
         run: python .github/scripts/generate_sitemap.py
         env:
           MDBOOK_OUTPUT_DIR: ./hkj-book/book
           MDBOOK_SITE_URL: "https://higher-kinded-j.github.io/"
-
-      - name: Build mdBook
-        working-directory: ./hkj-book
-        run: mdbook build
 
       - name: Deploy to higher-kinded-j/higher-kinded-j.github.io
         uses: peaceiris/actions-gh-pages@v4
