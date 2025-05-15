@@ -11,5 +11,4 @@ command = "mdbook-sitemap-generator"
 additional-css = ["./theme/catppuccin.css", "./theme/additional-hkj.css"]
 default-theme = "latte"
 preferred-dark-theme = "macchiato"
-[output.sitemap]
-output-dir = "./book"
+site-url = "https://higher-kinded-j.github.io/"
