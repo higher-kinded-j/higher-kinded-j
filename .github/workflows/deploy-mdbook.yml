@@ -18,37 +18,27 @@ jobs:
       - name: Checkout 'higher-kinded-j' repository
         uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain (trying older version for sitemap generator)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: '1.67.0' # Rust version from early 2023, when v0.2.0 was released
-
-      - name: Configure Cargo and Git for CI
-        run: |
-          mkdir -p $HOME/.cargo
-          echo -e "\n[net]\ngit-fetch-with-cli = true\n" >> $HOME/.cargo/config.toml
-          git config --global url."https://github.com/".insteadOf git@github.com:
-          git config --global credential.helper ""
-
-      - name: Install mdbook-sitemap-generator ( किल्ला/mdbook-sitemap-generator )
-        # This installs v0.2.0 from crates.io
-        run: cargo install mdbook-sitemap-generator --version 0.2.0 --locked
-
-      - name: Setup mdBook (using a specific version might also help consistency)
+      - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: '0.4.40' # was 21 Example: A version of mdbook also from around that time or latest
+          mdbook-version: '0.4.48'
 
-#      - name: Setup mdBook
-#        uses: peaceiris/actions-mdbook@v2
-#        with:
-#          mdbook-version: 'latest' # 0.4.49
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
-      - name: Build mdBook (with sitemap preprocessor)
+      - name: Generate Sitemap
+        run: python .github/scripts/generate_sitemap.py
+        env:
+          MDBOOK_OUTPUT_DIR: ./hkj-book/book
+          MDBOOK_SITE_URL: "https://higher-kinded-j.github.io/"
+
+      - name: Build mdBook
         working-directory: ./hkj-book
         run: mdbook build
 
-      - name: Deploy to higher-kinded-j.github.io
+      - name: Deploy to higher-kinded-j/higher-kinded-j.github.io
         uses: peaceiris/actions-gh-pages@v4
         with:
           personal_token: ${{ secrets.GH_PAGES_PAT }}
