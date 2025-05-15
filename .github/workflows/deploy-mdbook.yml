@@ -23,13 +23,13 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install mdbook-sitemap-generator ( किल्ला version )
-        run: cargo install mdbook-sitemap-generator
+      - name: Install mdbook-sitemap-generator (BadBoy/mdbook-sitemap-generator)
+        run: cargo install --git https://github.com/BadBoy/mdbook-sitemap-generator.git mdbook-sitemap-generator
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: '0.4.48'
+          mdbook-version: 'latest'
 
       - name: Build mdBook (with sitemap preprocessor)
         working-directory: ./hkj-book
