@@ -18,6 +18,14 @@ jobs:
       - name: Checkout 'higher-kinded-j' repository
         uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable # Installs Rust and Cargo
+        with:
+          toolchain: stable
+
+      - name: Install mdbook-sitemap-generator
+        run: cargo install mdbook-sitemap-generator --locked
+
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
@@ -26,41 +34,17 @@ jobs:
       - name: Build mdBook
         working-directory: ./hkj-book
         run: mdbook build
-        # This will build the book based on hkj-book/book.toml and output to hkj-book/book/
 
       - name: Deploy to higher-kinded-j/higher-kinded-j.github.io
         uses: peaceiris/actions-gh-pages@v4
         with:
-          # 1. Personal Access Token (PAT) - Recommended for this cross-repo scenario
-          #    Ensure GH_PAGES_PAT secret is configured in this (higher-kinded-j) repository settings.
-          #    The PAT needs 'repo' scope and must belong to a user with write access to the target repo.
           personal_token: ${{ secrets.GH_PAGES_PAT }}
-
-
-          # Repository to deploy to (the organization/user pages site)
           external_repository: higher-kinded-j/higher-kinded-j.github.io
-
-          # Branch in the external_repository to push the static site to.
-          # For user/organization pages, this is typically 'main' or 'master'.
           publish_branch: main
-
-          # Directory in THIS repository (higher-kinded-j) that contains the built static site.
-          # This should be the output directory of 'mdbook build' relative to the repo root.
           publish_dir: ./hkj-book/book
-
-          # Overwrite the existing content on the publish_branch.
-          # Set to true if you have other files at the root of higher-kinded-j.github.io's main branch that you want to keep.
-          # For a dedicated site repo, 'false' is usually correct to ensure a clean deployment.
           keep_files: false
-
-          # Creates a commit with an empty history. Good for clean static site deployments.
-          # If keep_files is false, this effectively replaces the branch content entirely.
           force_orphan: true
-
-          # Commit message for the deployment
           commit_message: 'docs: Deploy latest mdBook documentation from higher-kinded-j repository'
-
-          # User details for the commit
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
 
