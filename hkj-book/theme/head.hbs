@@ -1,0 +1,36 @@
+{{! This content will be injected into the <head> of every page }}
+
+{{! mdBook automatically generates a <title> tag using "Chapter Title - Book Title"
+    (or just "Book Title" for the main page).
+    So, you usually don't need to add another <title> tag here unless you
+    want to completely override mdBook's default title logic, which is complex.
+    Ensure your chapter titles in SUMMARY.md and the book title in book.toml are descriptive. }}
+
+{{! Add the site-wide meta description from book.toml }}
+{{#if description}}
+    <meta name="description" content="{{ description }}">
+{{/if}}
+
+{{! Add a meta author tag using authors from book.toml }}
+{{#if book_author}}
+    <meta name="author" content="{{ book_author }}">
+{{else if book_authors}}
+    <meta name="author" content="{{ book_authors }}">
+{{/if}}
+
+{{! You can add other global meta tags here as well }}
+<meta name="keywords" content="Higher-Kinded Types, HKT, Java, Functional Programming, Monad, Functor, Applicative, Transformer, Monoid, Traverse, higherkindedj, Higher-Kinded-J">
+
+{{! Example Open Graph tags for better social media sharing (using site-wide info) }}
+<meta property="og:title" content="{{ title }}"> {{! This uses mdbook's generated page title }}
+{{#if description}}
+    <meta property="og:description" content="{{ description }}">
+{{/if}}
+<meta property="og:type" content="website">
+{{! Add an og:image meta tag if you have a suitable image for sharing }}
+{{! <meta property="og:image" content="https://higher-kinded-j.github.io/path/to/your/image.png"> }}
+<meta property="og:url" content="https://higher-kinded-j.github.io/{{ path_in_book }}"> {{! mdbook provides path_in_book }}
+
+
+{{! mdBook will still include its default head elements like charset, viewport,
+    its own CSS links, and JS links. This file primarily ADDS to the head. }}

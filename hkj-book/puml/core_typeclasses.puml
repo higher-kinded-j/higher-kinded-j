@@ -1,4 +1,4 @@
-@startuml core_typeclasss
+@startuml core_typeclasses
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 

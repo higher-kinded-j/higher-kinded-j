@@ -1,9 +1,10 @@
 [book]
-authors = ["MagnusSmith"]
+title = "Higher-Kinded-J: Higher-Kinded Types for Java"
+description = "Explore Higher-Kinded Types (HKTs) in Java with the Higher-Kinded-J library. Learn about Functors, Applicatives, Monads, Transformers, practical functional patterns, and how to write cleaner, more composable Java code for your projects."
+authors = ["The Higher-Kinded-J Team"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Higher-Kinded-J"
 [output.html]
 additional-css = ["./theme/catppuccin.css", "./theme/additional-hkj.css"]
 default-theme = "latte"
