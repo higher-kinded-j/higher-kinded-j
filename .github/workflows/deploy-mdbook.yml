@@ -39,10 +39,10 @@ jobs:
         with:
           mdbook-version: '0.4.21' # Example: A version of mdbook also from around that time or latest
 
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v2
-        with:
-          mdbook-version: 'latest'
+#      - name: Setup mdBook
+#        uses: peaceiris/actions-mdbook@v2
+#        with:
+#          mdbook-version: 'latest' # 0.4.49
 
       - name: Build mdBook (with sitemap preprocessor)
         working-directory: ./hkj-book
