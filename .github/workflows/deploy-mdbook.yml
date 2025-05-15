@@ -1,78 +1,66 @@
-name: Deploy mdBook to GitHub Pages
+name: Deploy mdBook to higher-kinded-j.github.io
 
-# Trigger the workflow on push events to the main branch
 on:
   push:
     branches:
-      - feature/mbook_documentation
       - main
-  # Allows you to run this workflow manually from the Actions tab
+    paths:
+      - 'hkj-book/**'
+      - '.github/workflows/deploy-mdbook.yml'
   workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read    # Needed to check out the repository
-  pages: write      # Needed to deploy to GitHub Pages
-  id-token: write   # Needed for OIDC token authentication by deploy-pages action
-
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
-  build-and-deploy:
-    name: Build and Deploy mdBook
-    runs-on: ubuntu-latest # Use the latest Ubuntu runner
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }} # Output the deployed URL
+  deploy-book:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      # 1. Checkout the repository code
-      - name: Checkout repository
-        uses: actions/checkout@v4 # Checks out your repository code
+      - name: Checkout 'higher-kinded-j' repository
+        uses: actions/checkout@v4
 
-      # 2. Install Rust toolchain (needed for mdBook via cargo)
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
         with:
-          toolchain: stable # Use the stable Rust toolchain
-          # components: rustfmt, clippy # Optional: install extra components if needed
+          mdbook-version: '0.4.48'
 
-      # 3. Install mdBook using cargo
-      - name: Install mdBook
-        run: cargo install mdbook --locked --version 0.4.48 # Pin a version for stability
-
-      - name: Copy root files to book source
-        run: |
-          BOOK_SRC_DIR="hkj-book/src" # Define variable for clarity
-          mkdir -p "$BOOK_SRC_DIR"         # Ensure directory exists
-          echo "Copying root files to $BOOK_SRC_DIR"
-          cp CONTRIBUTING.md "$BOOK_SRC_DIR/"
-          cp LICENSE.md "$BOOK_SRC_DIR/"
-          cp CODE_OF_CONDUCT.md "$BOOK_SRC_DIR/"
-          # Add other files here if needed, copying them INTO the $BOOK_SRC_DIR
-          echo "Files copied:"
-          ls -l "$BOOK_SRC_DIR" # List files for verification in logs
-
-      # 4. Build the mdBook
       - name: Build mdBook
-        run: mdbook build hkj-book
+        working-directory: ./hkj-book
+        run: mdbook build
+        # This will build the book based on hkj-book/book.toml and output to hkj-book/book/
 
-      # 5. Setup GitHub Pages deployment configuration
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      # 6. Upload the built book as an artifact for deployment
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to higher-kinded-j/higher-kinded-j.github.io
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./hkj-book/book
+          # 1. Personal Access Token (PAT) - Recommended for this cross-repo scenario
+          #    Ensure GH_PAGES_PAT secret is configured in this (higher-kinded-j) repository settings.
+          #    The PAT needs 'repo' scope and must belong to a user with write access to the target repo.
+          personal_token: ${{ secrets.GH_PAGES_PAT }}
 
-      # 7. Deploy the artifact to GitHub Pages
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        # This action automatically handles authentication using the id-token permission
+
+          # Repository to deploy to (the organization/user pages site)
+          external_repository: higher-kinded-j/higher-kinded-j.github.io
+
+          # Branch in the external_repository to push the static site to.
+          # For user/organization pages, this is typically 'main' or 'master'.
+          publish_branch: main
+
+          # Directory in THIS repository (higher-kinded-j) that contains the built static site.
+          # This should be the output directory of 'mdbook build' relative to the repo root.
+          publish_dir: ./hkj-book/book
+
+          # Overwrite the existing content on the publish_branch.
+          # Set to true if you have other files at the root of higher-kinded-j.github.io's main branch that you want to keep.
+          # For a dedicated site repo, 'false' is usually correct to ensure a clean deployment.
+          keep_files: false
+
+          # Creates a commit with an empty history. Good for clean static site deployments.
+          # If keep_files is false, this effectively replaces the branch content entirely.
+          force_orphan: true
+
+          # Commit message for the deployment
+          commit_message: 'docs: Deploy latest mdBook documentation from higher-kinded-j repository'
+
+          # User details for the commit
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+

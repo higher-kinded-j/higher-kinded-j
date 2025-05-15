@@ -10,7 +10,7 @@ It uses a defunctionalisation approach, representing type constructors and type 
 
 ## Where to start
 
-**[All the details you need to get started with Higher-Kinded-J can be found here](https://higher-kinded-j.github.io/higher-kinded-j/home.html)**
+**[All the details you need to get started with Higher-Kinded-J can be found here](https://higher-kinded-j.github.io/home.html)**
 
 
 ## Introduction: Abstracting Over Computation in Java
