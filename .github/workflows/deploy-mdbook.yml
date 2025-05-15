@@ -23,6 +23,12 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Configure Cargo to use git CLI (Simpler)
+        run: |
+          mkdir -p $HOME/.cargo
+          echo -e "\n[net]\ngit-fetch-with-cli = true\n" >> $HOME/.cargo/config.toml
+      
+
       - name: Install mdbook-sitemap-generator (BadBoy/mdbook-sitemap-generator)
         run: cargo install --git https://github.com/BadBoy/mdbook-sitemap-generator.git mdbook-sitemap-generator
 
