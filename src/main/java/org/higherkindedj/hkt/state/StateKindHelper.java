@@ -88,7 +88,7 @@ public final class StateKindHelper {
   @SuppressWarnings(
       "unchecked") // Necessary for casting to State<S, A> due to S not being part of Kind's
   // signature for State.
-  public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind.Witness, A> kind) {
+  public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind.Witness<S>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(StateKindHelper.INVALID_KIND_NULL_MSG);
       case StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
@@ -221,7 +221,7 @@ public final class StateKindHelper {
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public static <S, A> State.@NonNull StateTuple<S, A> runState(
-      @Nullable Kind<StateKind.Witness, A> kind, @NonNull S initialState) {
+      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     Objects.requireNonNull(initialState, "Initial state cannot be null for runState");
     State<S, A> stateToRun = unwrap(kind); // unwrap handles null kind
     // The State<S,A>.run method returns StateTuple<S,A>, which aligns with the expected @NonNull
@@ -249,7 +249,7 @@ public final class StateKindHelper {
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public static <S, A> @Nullable A evalState(
-      @Nullable Kind<StateKind.Witness, A> kind, @NonNull S initialState) {
+      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     return runState(kind, initialState).value();
   }
 
@@ -268,7 +268,7 @@ public final class StateKindHelper {
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public static <S, A> @NonNull S execState(
-      @Nullable Kind<StateKind.Witness, A> kind, @NonNull S initialState) {
+      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     return runState(kind, initialState).state();
   }
 }

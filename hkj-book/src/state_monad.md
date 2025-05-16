@@ -120,40 +120,51 @@ StateMonad<StackState> stackStateMonad = new StateMonad<>();
 Use `StateKindHelper` factories:
 
 ```java
-import static org.higherkindedj.hkt.state.StateKindHelper.*;
-
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.state.State; // For State.modify, State.inspect, State.of
 import org.higherkindedj.hkt.state.StateKind;
+import org.higherkindedj.hkt.state.State.StateTuple; // For the return type of runState
+
+import static org.higherkindedj.hkt.state.StateKindHelper.wrap;
+import static org.higherkindedj.hkt.state.StateKindHelper.runState;
+import static org.higherkindedj.hkt.state.StateKindHelper.evalState;
+import static org.higherkindedj.hkt.state.StateKindHelper.execState;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.function.Function;
 
 // Counter Example Actions:
-Kind<StateKind.Witness<CounterState>, Void> incrementCounter = modify(s -> new CounterState(s.count() + 1));
-    Kind<StateKind.Witness<CounterState>, Integer> getCount = get().map(CounterState::count); // Use map to extract int from CounterState
+Kind<StateKind.Witness<CounterState>, Void> incrementCounter =
+  wrap(State.modify(s -> new CounterState(s.count() + 1)));
 
-    // Stack Example Actions:
-    Kind<StateKind.Witness<StackState>, Void> push(int value) {
-      return modify(s -> {
-        List<Integer> newList = new ArrayList<Integer>(s.stack());
-        newList.add(value);
-        return new StackState(Collections.unmodifiableList(newList));
-      });
+Kind<StateKind.Witness<CounterState>, Integer> getCount =
+        wrap(State.inspect(CounterState::count));
+
+// Stack Example Actions:
+
+// Define 'push' as a Function that returns a Kind (a parameterized action)
+Function<Integer, Kind<StateKind.Witness<StackState>, Void>> push = value ->
+  wrap(State.modify(s -> {
+    List<Integer> newList = new ArrayList<>(s.stack()); // Using diamond operator
+    newList.add(value);
+    return new StackState(Collections.unmodifiableList(newList));
+  }));
+
+Kind<StateKind.Witness<StackState>, Integer> pop =
+  wrap(State.of(s -> {
+    if (s.stack().isEmpty()) {
+      return new State.StateTuple<>(0, s); // Assuming 0 for empty pop
     }
+    List<Integer> currentStack = s.stack();
+    int value = currentStack.get(currentStack.size() - 1);
+    List<Integer> newStack = new ArrayList<>(currentStack.subList(0, currentStack.size() - 1));
+    return new State.StateTuple<>(value, new StackState(Collections.unmodifiableList(newStack)));
+  }));
 
-    Kind<StateKind.Witness<StackState>, Integer> pop = wrap(State.of(s -> {
-      if (s.stack().isEmpty()) {
-        // Handle empty stack - return 0 and keep state same? Or throw?
-        // For this example, return 0 and keep empty state.
-        return new State.StateTuple<>(0, s);
-      }
-      List<Integer> currentStack = s.stack();
-      int value = currentStack.get(currentStack.size() - 1);
-      List<Integer> newStack = new ArrayList<>(currentStack.subList(0, currentStack.size() - 1));
-      return new State.StateTuple<>(value, new StackState(Collections.unmodifiableList(newStack)));
-    }));
-
-    Kind<StateKind.Witness<StackState>, Integer> peek = inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1));
+Kind<StateKind.Witness<StackState>, Integer> peek =
+  wrap(State.inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1))); // Assuming 0 for empty peek
 
 ```
 
@@ -173,68 +184,58 @@ Kind<StateKind.Witness<CounterState>, Integer> incrementTwiceAndGet =
     );
 
 
-// Stack Example: Push 10, Push 20, Pop, Pop
+// Stack Example: Push 10, Push 20, Pop, then Pop again and sum their results
 Kind<StateKind.Witness<StackState>, Integer> stackProgram =
-    stackStateMonad.flatMap( // Push 10 -> State = [10]
-        ignored1 -> push(20), // Push 20 -> State = [10, 20]
-        push(10)
-    ).flatMap(
-        ignored2 -> pop, // Pop 20 -> State = [10], Result = 20
-        push(20) // Chain from previous result
-    ).flatMap(
-        poppedValue1 -> pop.map(poppedValue2 -> poppedValue1 + poppedValue2), // Pop 10 -> State = [], Result = 10. Map to return sum (20+10).
-        pop // Chain from previous result
-    );
+  stackStateMonad.flatMap( // flatMap 1: applies to push.apply(10) (ma_for_flatMap1)
+    _ignoredFromPush1 -> stackStateMonad.flatMap( // flatMap 2: applies to push.apply(20) (ma_for_flatMap2)
+      _ignoredFromPush2 -> stackStateMonad.flatMap( // flatMap 3: applies to the first pop (ma_for_flatMap3)
+          poppedValue1 -> stackStateMonad.map( // map: applies to the second pop
+                  poppedValue2 -> poppedValue1 + poppedValue2, // f_for_map (Function<Integer, Integer>)
+                  pop // ma_for_map (Kind<StackState, Integer> for the second pop)
+          ),
+          pop // ma_for_flatMap3 (Kind<StackState, Integer> for the first pop)
+      ),
+      push.apply(20) // ma_for_flatMap2
+    ),
+    push.apply(10) // ma_for_flatMap1
+  );
 
-// Example using map: Push 5, then get the value and format it, state unaffected by map
-Kind<StateKind.Witness<StackState>, Void> push5 = push(5);
+// Example using map: Push 5, then get the value and format it.
+Kind<StateKind.Witness<StackState>, Void> push5 = push.apply(5);
 Kind<StateKind.Witness<StackState>, String> push5AndDescribe = stackStateMonad.map(
-    value -> "Pushed 5, value is " + value, // Value from push(5) is Void/null
-    push5
+        push5, // kindA
+        value -> "Pushed 5, the action's resulting value is " + value // `value` will be null as push returns Void
 );
 ```
 
 ### 5. Run the Computation
 
-Provide the initial state using `runState`, `evalState`, or `execState`.
+
 
 ```java
 
-import org.higherkindedj.hkt.state.State.StateTuple; // Import the tuple record
-
+// To use these actions, you would typically run them with an initial state.
+// For example:
 CounterState initialCounter = new CounterState(0);
-StackState initialStack = new StackState(java.util.Collections.emptyList());
+State.StateTuple<CounterState, Void> afterIncrement = unwrap(incrementCounter).run(initialCounter);
+System.out.println("Counter after increment: " + afterIncrement.state().count()); // Output: 1
 
-// Run counter example
-StateTuple<CounterState, Integer> counterResultTuple = runState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Tuple: " + counterResultTuple);
-// Output: Counter Final Tuple: StateTuple[value=2, state=CounterState[count=2]]
+State.StateTuple<CounterState, Integer> currentCountResult = unwrap(getCount).run(afterIncrement.state());
+System.out.println("Current count: " + currentCountResult.value()); // Output: 1
 
-int finalCount = evalState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Value: " + finalCount);
-// Output: Counter Final Value: 2
+StackState initialStack = new StackState(Collections.emptyList());
+Kind<StateKind.Witness<StackState>, Void> pushTen = push.apply(10);
+Kind<StateKind.Witness<StackState>, Void> pushTwenty = push.apply(20);
 
-CounterState finalCounterState = execState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final State: " + finalCounterState);
-// Output: Counter Final State: CounterState[count=2]
+// Chaining actions (simplified example, real chaining uses flatMap from StateMonad)
+State.StateTuple<StackState, Void> afterPush10 = unwrap(pushTen).run(initialStack);
+State.StateTuple<StackState, Void> afterPush20 = unwrap(pushTwenty).run(afterPush10.state());
+System.out.println("Stack after pushes: " + afterPush20.state().stack()); // Output: [10, 20]
 
+State.StateTuple<StackState, Integer> poppedValueResult = unwrap(pop).run(afterPush20.state());
+System.out.println("Popped value: " + poppedValueResult.value()); // Output: 20
+System.out.println("Stack after pop: " + poppedValueResult.state().stack()); // Output: [10]
 
-// Run stack example
-StateTuple<StackState, Integer> stackResultTuple = runState(stackProgram, initialStack);
-System.out.println("Stack Final Tuple: " + stackResultTuple);
-// Output: Stack Final Tuple: StateTuple[value=30, state=StackState[stack=[]]] (Value is 20 + 10)
-
-Integer stackFinalValue = evalState(stackProgram, initialStack);
-System.out.println("Stack Final Value: " + stackFinalValue); // Output: 30
-
-StackState finalStackState = execState(stackProgram, initialStack);
-System.out.println("Stack Final State: " + finalStackState); // Output: StackState[stack=[]]
-
-
-// Run push5AndDescribe example
-StateTuple<StackState, String> pushDescribeTuple = runState(push5AndDescribe, initialStack);
-System.out.println("Push/Describe Tuple: " + pushDescribeTuple);
-// Output: Push/Describe Tuple: StateTuple[value=Pushed 5, value is null, state=StackState[stack=[5]]]
 ```
 
 ## Key Points:

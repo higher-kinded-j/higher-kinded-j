@@ -160,11 +160,7 @@ Use the methods on the `writerMonad` instance. `flatMap` automatically combines 
 Kind<WriterKind.Witness<String>, Integer> computationStart = writerMonad.of(0);
 
 // 1. Log the start
-Kind<WriterKind.Witness<String>, Integer> afterLogStart = writerMonad.flatMap(
-        ignored -> logStart, // logStart's value is Void, so we map it to keep the '0' or use initialValue directly
-        computationStart  
-).flatMap(ignoredVoid -> initialValue, logStart); // Simpler: start with initialValue after logging
-
+Kind<WriterKind.Witness<String>, Integer> afterLogStart  = writerMonad.flatMap(ignoredVoid -> initialValue, logStart);
 
 Kind<WriterKind.Witness<String>, Integer> step1Value = value(stringMonoid, 5); // ("", 5)
 Kind<WriterKind.Witness<String>, Void> step1Log = tell(stringMonoid, "Initial value set to 5; "); // ("Initial value set to 5; ", null)

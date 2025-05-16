@@ -58,6 +58,7 @@ spotless {
 tasks.test {
   useJUnitPlatform()
   finalizedBy(tasks.jacocoTestReport)
+  jvmArgs = listOf("--add-opens", "org.higherkindedj.core/org.higherkindedj.internal=ALL-UNNAMED")
 }
 
 tasks.jacocoTestReport {

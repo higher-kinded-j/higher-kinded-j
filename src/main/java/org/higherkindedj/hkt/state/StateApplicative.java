@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  * @see StateKind.Witness
  * @see StateFunctor
  */
-public class StateApplicative<S> extends StateFunctor<S> implements Applicative<StateKind.Witness> {
+public class StateApplicative<S> extends StateFunctor<S> implements Applicative<StateKind.Witness<S>> {
 
   /**
    * Lifts a value into a {@code State} context, represented as {@code Kind<StateKind.Witness, A>}.
@@ -30,7 +30,7 @@ public class StateApplicative<S> extends StateFunctor<S> implements Applicative<
    * @return A {@code Kind<StateKind.Witness, A>} representing {@code State.pure(value)}.
    */
   @Override
-  public <A> @NonNull Kind<StateKind.Witness, A> of(@Nullable A value) {
+  public <A> @NonNull Kind<StateKind.Witness<S>, A> of(@Nullable A value) {
     return StateKindHelper.pure(value);
   }
 
@@ -46,8 +46,8 @@ public class StateApplicative<S> extends StateFunctor<S> implements Applicative<
    * @return A new {@code Kind<StateKind.Witness, B>} resulting from the application.
    */
   @Override
-  public <A, B> @NonNull Kind<StateKind.Witness, B> ap(
-      @NonNull Kind<StateKind.Witness, Function<A, B>> ff, @NonNull Kind<StateKind.Witness, A> fa) {
+  public <A, B> @NonNull Kind<StateKind.Witness<S>, B> ap(
+      @NonNull Kind<StateKind.Witness<S>, Function<A, B>> ff, @NonNull Kind<StateKind.Witness<S>, A> fa) {
 
     State<S, Function<A, B>> stateF = unwrap(ff);
     State<S, A> stateA = unwrap(fa);
