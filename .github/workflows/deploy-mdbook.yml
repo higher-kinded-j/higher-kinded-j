@@ -28,6 +28,19 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Copy root files to book source
+        run: |
+          BOOK_SRC_DIR="hkj-book/src" # Define variable for clarity
+          mkdir -p "$BOOK_SRC_DIR"         # Ensure directory exists
+          echo "Copying root files to $BOOK_SRC_DIR"
+          cp CONTRIBUTING.md "$BOOK_SRC_DIR/"
+          cp LICENSE.md "$BOOK_SRC_DIR/"
+          cp CODE_OF_CONDUCT.md "$BOOK_SRC_DIR/"
+          # Add other files here if needed, copying them INTO the $BOOK_SRC_DIR
+          echo "Files copied:"
+          ls -l "$BOOK_SRC_DIR" # List files for verification in logs
+
+
       - name: Build mdBook
         working-directory: ./hkj-book
         run: mdbook build
