@@ -1,6 +1,9 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
+
 import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -14,28 +17,6 @@ import org.jspecify.annotations.Nullable;
  */
 @FunctionalInterface
 public interface State<S, A> {
-
-  /**
-   * Represents the result pair of a stateful computation, containing the computed value and the
-   * final state.
-   *
-   * @param <S> The type of the state. Expected to be non-null.
-   * @param <A> The type of the value. Can be nullable.
-   * @param value The computed value. Its nullability depends on the type {@code A}.
-   * @param state The final state. This is always non-null.
-   */
-  record StateTuple<S, A>(@Nullable A value, @NonNull S state) {
-    /**
-     * Constructs a {@code StateTuple}.
-     *
-     * @param value The computed value.
-     * @param state The final state.
-     * @throws NullPointerException if {@code state} is null.
-     */
-    public StateTuple {
-      Objects.requireNonNull(state, "Final state cannot be null");
-    }
-  }
 
   /**
    * Runs the state computation with the given initial state.
@@ -59,9 +40,8 @@ public interface State<S, A> {
    */
   static <S, A> @NonNull State<S, A> of(
       @NonNull Function<@NonNull S, @NonNull StateTuple<S, A>> runFunction) {
-    Objects.requireNonNull(runFunction, "runFunction cannot be null");
-    return runFunction::apply; // Method reference `runFunction::apply` is equivalent to `s ->
-    // runFunction.apply(s)`
+    requireNonNull(runFunction, "runFunction cannot be null");
+    return runFunction::apply;
   }
 
   /**
@@ -84,7 +64,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> @NonNull State<S, B> map(@NonNull Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "mapper function cannot be null");
+    requireNonNull(f, "mapper function cannot be null");
     return State.of(
         initialState -> {
           StateTuple<S, A> result = this.run(initialState);
@@ -117,27 +97,23 @@ public interface State<S, A> {
    */
   default <B> @NonNull State<S, B> flatMap(
       @NonNull Function<? super A, ? extends State<S, ? extends B>> f) {
-    Objects.requireNonNull(f, "flatMap mapper function cannot be null");
+    requireNonNull(f, "flatMap mapper function cannot be null");
     return State.of(
         initialState -> {
           // Run the first state computation
           StateTuple<S, A> result1 = this.run(initialState);
-          @Nullable A valueA = result1.value();
-          @NonNull S stateS1 = result1.state();
+          A valueA = result1.value();
+          S stateS1 = result1.state();
 
           // Apply f to the value to get the next state computation
           State<S, ? extends B> nextState = f.apply(valueA);
-          Objects.requireNonNull(nextState, "flatMap function returned null State instance");
+          requireNonNull(nextState, "flatMap function returned null State instance");
 
           // Run the next state computation with the intermediate state S1
           StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
 
-          // The type B is inferred from the context of the flatMap operation.
-          // The StateTuple returned by nextState.run(stateS1) has value type `? extends B`.
-          // We need to ensure the final StateTuple explicitly uses B.
-          @SuppressWarnings("unchecked") // Cast from "? extends B" to "B" is safe here.
           B finalValue = (B) finalResultTuple.value();
-          @NonNull S finalState = finalResultTuple.state();
+          S finalState = finalResultTuple.state();
 
           return new StateTuple<>(finalValue, finalState);
         });
@@ -185,7 +161,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code newState} is null.
    */
   static <S> @NonNull State<S, Void> set(@NonNull S newState) {
-    Objects.requireNonNull(newState, "newState cannot be null");
+    requireNonNull(newState, "newState cannot be null");
     // The old state `s` is ignored here, as `newState` replaces it.
     return State.of(s -> new StateTuple<>(null, newState));
   }
@@ -203,7 +179,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   static <S> @NonNull State<S, Void> modify(@NonNull Function<@NonNull S, @NonNull S> f) {
-    Objects.requireNonNull(f, "state modification function cannot be null");
+    requireNonNull(f, "state modification function cannot be null");
     return State.of(s -> new StateTuple<>(null, f.apply(s)));
   }
 
@@ -221,7 +197,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   static <S, A> @NonNull State<S, A> inspect(@NonNull Function<@NonNull S, @Nullable A> f) {
-    Objects.requireNonNull(f, "state inspection function cannot be null");
+    requireNonNull(f, "state inspection function cannot be null");
     return State.of(s -> new StateTuple<>(f.apply(s), s));
   }
 }

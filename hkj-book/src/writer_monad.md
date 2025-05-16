@@ -85,6 +85,12 @@ These classes provide the standard functional operations for `Kind<WriterKind.Wi
 * **`WriterApplicative<W>`**: Extends `WriterFunctor<W>`, implements `Applicative<WriterKind.Witness<W>>`. Requires a `Monoid<W>`. Provides `of` (lifting a value with an empty log) and `ap` (applying a wrapped function to a wrapped value, combining logs).
 * **`WriterMonad<W>`**: Extends `WriterApplicative<W>`, implements `Monad<WriterKind.Witness<W>>`. Requires a `Monoid<W>`. Provides `flatMap` for sequencing computations, automatically combining logs using the `Monoid`.
 
+
+## How to Use
+## Problem: Logging a complex calculation
+
+[WriterExample.java](../../src/main/java/org/higherkindedj/example/basic/writer/WriterExample.java)
+
 You typically instantiate `WriterMonad<W>` for the specific log type `W` and its corresponding `Monoid`.
 
 ### 1. Choose Your Log Type `W` and `Monoid<W>`
@@ -160,11 +166,7 @@ Use the methods on the `writerMonad` instance. `flatMap` automatically combines 
 Kind<WriterKind.Witness<String>, Integer> computationStart = writerMonad.of(0);
 
 // 1. Log the start
-Kind<WriterKind.Witness<String>, Integer> afterLogStart = writerMonad.flatMap(
-        ignored -> logStart, // logStart's value is Void, so we map it to keep the '0' or use initialValue directly
-        computationStart  
-).flatMap(ignoredVoid -> initialValue, logStart); // Simpler: start with initialValue after logging
-
+Kind<WriterKind.Witness<String>, Integer> afterLogStart  = writerMonad.flatMap(ignoredVoid -> initialValue, logStart);
 
 Kind<WriterKind.Witness<String>, Integer> step1Value = value(stringMonoid, 5); // ("", 5)
 Kind<WriterKind.Witness<String>, Void> step1Log = tell(stringMonoid, "Initial value set to 5; "); // ("Initial value set to 5; ", null)
@@ -198,7 +200,7 @@ Use `runWriter`, `run`, or `exec` from `WriterKindHelper`.
 
 ```java
 
-mport org.higherkindedj.hkt.writer.Writer; 
+import org.higherkindedj.hkt.writer.Writer; 
 
 // Get the final Writer record (log and value)
 Writer<String, String> finalResultWriter = runWriter(finalComputation);

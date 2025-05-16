@@ -1,8 +1,9 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
-import static org.higherkindedj.hkt.state.State.StateTuple;
 
 import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
@@ -201,7 +202,7 @@ class StateTest {
     void stateTuple_constructorRequiresNonNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> new StateTuple<>("value", null))
-          .withMessageContaining("Final state cannot be null");
+          .withMessageContaining("Final state (S) in StateTuple cannot be null.");
     }
 
     @Test

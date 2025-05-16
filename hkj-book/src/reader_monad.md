@@ -76,6 +76,9 @@ These classes provide the standard functional operations for `ReaderKind.Witness
 You typically instantiate `ReaderMonad<R>` for the specific environment type `R` you are working with.
 
 ## How to Use
+## Problem: ManagingConfiguration
+
+- [ReaderExample.java](../../src/main/java/org/higherkindedj/example/basic/reader/ReaderExample.java)
 
 ### 1. Define Your Environment
 
@@ -97,14 +100,14 @@ import org.higherkindedj.hkt.reader.ReaderKind;
 // Reader that retrieves the database URL from the config
 Kind<ReaderKind.Witness<AppConfig>, String> getDbUrl = reader(AppConfig::databaseUrl);
 
-        // Reader that retrieves the timeout
-        Kind<ReaderKind.Witness<AppConfig>, Integer> getTimeout = reader(AppConfig::timeoutMillis);
+// Reader that retrieves the timeout
+Kind<ReaderKind.Witness<AppConfig>, Integer> getTimeout = reader(AppConfig::timeoutMillis);
 
-        // Reader that returns a constant value, ignoring the environment
-        Kind<ReaderKind.Witness<AppConfig>, String> getDefaultUser = constant("guest");
+// Reader that returns a constant value, ignoring the environment
+Kind<ReaderKind.Witness<AppConfig>, String> getDefaultUser = constant("guest");
 
-        // Reader that returns the entire configuration environment
-        Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = ask();
+// Reader that returns the entire configuration environment
+Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = ask();
 ```
 
 ### 3. Get the `ReaderMonad` Instance

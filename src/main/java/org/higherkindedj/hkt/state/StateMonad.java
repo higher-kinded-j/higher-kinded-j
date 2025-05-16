@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.unwrap;
@@ -18,7 +20,7 @@ import org.jspecify.annotations.NonNull;
  * @see StateKind.Witness
  * @see StateApplicative
  */
-public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witness> {
+public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witness<S>> {
 
   /**
    * Sequentially composes two {@code State} actions, passing the result of the first into a
@@ -29,23 +31,24 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
    * @param <B> The output value type of the {@code State} computation produced by function {@code
    *     f}.
    * @param f The non-null function that takes the successful result of {@code ma} and returns a new
-   *     {@code Kind<StateKind.Witness, B>}.
-   * @param ma The first {@code Kind<StateKind.Witness, A>} representing a {@code State<S,A>}
+   *     {@code Kind<StateKind.Witness<S>, B>}.
+   * @param ma The first {@code Kind<StateKind.Witness<S>, A>} representing a {@code State<S,A>}
    *     computation.
-   * @return A new {@code Kind<StateKind.Witness, B>} representing the composed and flattened
+   * @return A new {@code Kind<StateKind.Witness<S>, B>} representing the composed and flattened
    *     operation.
    */
   @Override
-  public <A, B> @NonNull Kind<StateKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<StateKind.Witness, B>> f, @NonNull Kind<StateKind.Witness, A> ma) {
+  public <A, B> @NonNull Kind<StateKind.Witness<S>, B> flatMap(
+      @NonNull Function<A, Kind<StateKind.Witness<S>, B>> f,
+      @NonNull Kind<StateKind.Witness<S>, A> ma) {
 
     State<S, A> stateA = unwrap(ma);
 
     State<S, B> stateB =
         stateA.flatMap(
             a -> {
-              Kind<StateKind.Witness, B> kindB = f.apply(a);
-              return unwrap(kindB); // unwrap here expects Kind<StateKind.Witness, B>
+              Kind<StateKind.Witness<S>, B> kindB = f.apply(a);
+              return unwrap(kindB); // unwrap here expects Kind<StateKind.Witness<S>, B>
             });
 
     return wrap(stateB);

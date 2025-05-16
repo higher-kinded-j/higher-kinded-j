@@ -5,7 +5,7 @@
 
 Higher-Kinded-J brings popular functional patterns to Java by providing implementations of common Monads and Transformers supporting Higher-Kinded Types.
 
-**Higher-Kinded-J evolved from a simulation that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then Higher-Kinded-J has grown into something altogether more useful supporting more functional patterns.**
+**Higher-Kinded-J evolved from a simulation** that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then Higher-Kinded-J has grown into something altogether more useful supporting more functional patterns.
 
 ## Introduction: Abstracting Over Computation in Java
 
@@ -23,6 +23,10 @@ Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunct
 While Higher-Kinded-J introduces some boilerplate compared to languages with native HKT support, it offers a valuable way to explore these powerful functional programming concepts in Java.
 
 ## Getting Started
+
+Before diving in, ensure you have the following:
+
+* **Java Development Kit (JDK): Version 24** or later. The library makes use of features available in this version.
 
 You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 
