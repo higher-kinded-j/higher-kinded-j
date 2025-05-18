@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
 import java.util.Objects;
@@ -88,7 +90,7 @@ public final class StateKindHelper {
   @SuppressWarnings(
       "unchecked") // Necessary for casting to State<S, A> due to S not being part of Kind's
   // signature for State.
-  public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind.Witness, A> kind) {
+  public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind.Witness<S>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(StateKindHelper.INVALID_KIND_NULL_MSG);
       case StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
@@ -214,20 +216,20 @@ public final class StateKindHelper {
    * @param kind The {@code Kind<StateKind.Witness, A>} (effectively a {@link StateKind}{@code <S,
    *     A>}) holding the {@code State} computation. May be {@code null}.
    * @param initialState The non-null initial state to run the computation with.
-   * @return A non-null {@link State.StateTuple}{@code <S, A>} containing both the final computed
-   *     value and the final state.
+   * @return A non-null {@link StateTuple}{@code <S, A>} containing both the final computed value
+   *     and the final state.
    * @throws KindUnwrapException if {@code kind} is invalid (e.g., {@code null}, or not a valid
    *     representation of a {@code State}).
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
-  public static <S, A> State.@NonNull StateTuple<S, A> runState(
-      @Nullable Kind<StateKind.Witness, A> kind, @NonNull S initialState) {
+  public static <S, A> @NonNull StateTuple<S, A> runState(
+      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     Objects.requireNonNull(initialState, "Initial state cannot be null for runState");
     State<S, A> stateToRun = unwrap(kind); // unwrap handles null kind
     // The State<S,A>.run method returns StateTuple<S,A>, which aligns with the expected @NonNull
     // contract.
     // No cast needed for the result of stateToRun.run() if State.run() is correctly typed.
-    // The original cast `(State.StateTuple<S, A>)` might have been due to State.run() returning raw
+    // The original cast `(StateTuple<S, A>)` might have been due to State.run() returning raw
     // Function<S, StateTuple>.
     // Assuming State.run() returns StateTuple<S,A>.
     return stateToRun.run(initialState);
@@ -249,7 +251,7 @@ public final class StateKindHelper {
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public static <S, A> @Nullable A evalState(
-      @Nullable Kind<StateKind.Witness, A> kind, @NonNull S initialState) {
+      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     return runState(kind, initialState).value();
   }
 
@@ -268,7 +270,7 @@ public final class StateKindHelper {
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public static <S, A> @NonNull S execState(
-      @Nullable Kind<StateKind.Witness, A> kind, @NonNull S initialState) {
+      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     return runState(kind, initialState).state();
   }
 }

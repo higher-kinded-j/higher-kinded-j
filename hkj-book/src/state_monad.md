@@ -96,147 +96,262 @@ You instantiate `StateMonad<S>` for the specific state type `S` you are working 
 
 ## How to Use
 
+## Problem: Managing Bank Account Transactions
+
+We want to model a bank account where we can:
+
+* Deposit funds.
+* Withdraw funds (if sufficient balance).
+* Get the current balance.
+* Get the transaction history.
+
+All these operations will affect or depend on the account's state (balance and history).
+
+## 1. Define the State
+
+First, we define a record to represent the state of our bank account.
+
+
 ### 1. Define Your State Type
 
-```java
-// Example: A simple counter state
-record CounterState(int count) {}
+- [AccountState.java](../../src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
 
-// Example: State for a simple stack simulation
-record StackState(java.util.List<Integer> stack) {}
-```
-
-### 2. Get the `StateMonad` Instance
 
 ```java
-import org.higherkindedj.hkt.state.StateMonad;
+public record AccountState(BigDecimal balance, List<Transaction> history) {
+  public AccountState {
+    requireNonNull(balance, "Balance cannot be null.");
+    requireNonNull(history, "History cannot be null.");
+    // Ensure history is unmodifiable and a defensive copy is made.
+    history = Collections.unmodifiableList(new ArrayList<>(history));
+  }
 
-StateMonad<CounterState> counterStateMonad = new StateMonad<>();
-StateMonad<StackState> stackStateMonad = new StateMonad<>();
-```
-
-### 3. Create Basic State Actions
-
-Use `StateKindHelper` factories:
-
-```java
-import static org.higherkindedj.hkt.state.StateKindHelper.*;
-
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.state.StateKind;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-
-// Counter Example Actions:
-Kind<StateKind.Witness<CounterState>, Void> incrementCounter = modify(s -> new CounterState(s.count() + 1));
-    Kind<StateKind.Witness<CounterState>, Integer> getCount = get().map(CounterState::count); // Use map to extract int from CounterState
-
-    // Stack Example Actions:
-    Kind<StateKind.Witness<StackState>, Void> push(int value) {
-      return modify(s -> {
-        List<Integer> newList = new ArrayList<Integer>(s.stack());
-        newList.add(value);
-        return new StackState(Collections.unmodifiableList(newList));
-      });
+  // Convenience constructor for initial state
+  public static AccountState initial(BigDecimal initialBalance) {
+    requireNonNull(initialBalance, "Initial balance cannot be null");
+    if (initialBalance.compareTo(BigDecimal.ZERO) < 0) {
+      throw new IllegalArgumentException("Initial balance cannot be negative.");
     }
+    Transaction initialTx = new Transaction(
+            TransactionType.INITIAL_BALANCE,
+            initialBalance,
+            LocalDateTime.now(),
+            "Initial account balance"
+    );
+    // The history now starts with this initial transaction
+    return new AccountState(initialBalance, Collections.singletonList(initialTx));
+  }
 
-    Kind<StateKind.Witness<StackState>, Integer> pop = wrap(State.of(s -> {
-      if (s.stack().isEmpty()) {
-        // Handle empty stack - return 0 and keep state same? Or throw?
-        // For this example, return 0 and keep empty state.
-        return new State.StateTuple<>(0, s);
+  public AccountState addTransaction(Transaction transaction) {
+    requireNonNull(transaction, "Transaction cannot be null");
+    List<Transaction> newHistory = new ArrayList<>(history); // Takes current history
+    newHistory.add(transaction);                             // Adds new one
+    return new AccountState(this.balance, Collections.unmodifiableList(newHistory));
+  }
+
+  public AccountState withBalance(BigDecimal newBalance) {
+    requireNonNull(newBalance, "New balance cannot be null");
+    return new AccountState(newBalance, this.history);
+  }
+}
+```
+
+### 2. Define Transaction Types
+
+We'll also need a way to represent transactions.
+- [TransactionType.java](../../src/main/java/org/higherkindedj/example/basic/state/TransactionType.java)
+- [Transaction.java](../../src/main/java/org/higherkindedj/example/basic/state/Transaction.java)
+
+
+```java
+public enum TransactionType {
+  INITIAL_BALANCE,
+  DEPOSIT,
+  WITHDRAWAL,
+  REJECTED_WITHDRAWAL,
+  REJECTED_DEPOSIT
+}
+
+public record Transaction(
+        TransactionType type, BigDecimal amount, LocalDateTime timestamp, String description) {
+  public Transaction {
+    requireNonNull(type, "Transaction type cannot be null");
+    requireNonNull(amount, "Transaction amount cannot be null");
+    requireNonNull(timestamp, "Transaction timestamp cannot be null");
+    requireNonNull(description, "Transaction description cannot be null");
+    if (type != INITIAL_BALANCE && amount.compareTo(BigDecimal.ZERO) <= 0) {
+      if (!(type == REJECTED_DEPOSIT && amount.compareTo(BigDecimal.ZERO) <= 0)
+              && !(type == REJECTED_WITHDRAWAL && amount.compareTo(BigDecimal.ZERO) <= 0)) {
+        throw new IllegalArgumentException(
+                "Transaction amount must be positive for actual operations.");
       }
-      List<Integer> currentStack = s.stack();
-      int value = currentStack.get(currentStack.size() - 1);
-      List<Integer> newStack = new ArrayList<>(currentStack.subList(0, currentStack.size() - 1));
-      return new State.StateTuple<>(value, new StackState(Collections.unmodifiableList(newStack)));
-    }));
+    }
+  }
+}
+```
 
-    Kind<StateKind.Witness<StackState>, Integer> peek = inspect(s -> s.stack().isEmpty() ? 0 : s.stack().get(s.stack().size() - 1));
+### 3. Define State Actions
 
+Now, we define our bank operations as functions that return `Kind<StateKind.Witness<AccountState>, YourResultType>`.
+These actions describe how the state should change and what value they produce.
+
+We'll put these in a `BankAccountWorkflow.java class`.
+
+- [BankAccountWorkflow.java](../../src/main/java/org/higherkindedj/example/basic/state/BankAccountWorkflow.java)
+
+```java
+public class BankAccountWorkflow {
+
+  private static final StateMonad<AccountState> accountStateMonad = new StateMonad<>();
+
+  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Void>> deposit(
+          String description) {
+    return amount ->
+            StateKindHelper.wrap(
+                    State.modify(
+                            currentState -> {
+                              if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                                // For rejected deposit, log the problematic amount
+                                Transaction rejected =
+                                        new Transaction(
+                                                TransactionType.REJECTED_DEPOSIT,
+                                                amount,
+                                                LocalDateTime.now(),
+                                                "Rejected Deposit: " + description + " - Invalid Amount " + amount);
+                                return currentState.addTransaction(rejected);
+                              }
+                              BigDecimal newBalance = currentState.balance().add(amount);
+                              Transaction tx =
+                                      new Transaction(
+                                              TransactionType.DEPOSIT, amount, LocalDateTime.now(), description);
+                              return currentState.withBalance(newBalance).addTransaction(tx);
+                            }));
+  }
+
+  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Boolean>> withdraw(
+          String description) {
+    return amount ->
+            StateKindHelper.wrap(
+                    State.of(
+                            currentState -> {
+                              if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                                // For rejected withdrawal due to invalid amount, log the problematic amount
+                                Transaction rejected =
+                                        new Transaction(
+                                                TransactionType.REJECTED_WITHDRAWAL,
+                                                amount,
+                                                LocalDateTime.now(),
+                                                "Rejected Withdrawal: " + description + " - Invalid Amount " + amount);
+                                return new StateTuple<>(false, currentState.addTransaction(rejected));
+                              }
+                              if (currentState.balance().compareTo(amount) >= 0) {
+                                BigDecimal newBalance = currentState.balance().subtract(amount);
+                                Transaction tx =
+                                        new Transaction(
+                                                TransactionType.WITHDRAWAL, amount, LocalDateTime.now(), description);
+                                AccountState updatedState =
+                                        currentState.withBalance(newBalance).addTransaction(tx);
+                                return new StateTuple<>(true, updatedState);
+                              } else {
+                                // For rejected withdrawal due to insufficient funds, log the amount that was
+                                // attempted
+                                Transaction tx =
+                                        new Transaction(
+                                                TransactionType.REJECTED_WITHDRAWAL,
+                                                amount,
+                                                LocalDateTime.now(),
+                                                "Rejected Withdrawal: "
+                                                        + description
+                                                        + " - Insufficient Funds. Balance: "
+                                                        + currentState.balance());
+                                AccountState updatedState = currentState.addTransaction(tx);
+                                return new StateTuple<>(false, updatedState);
+                              }
+                            }));
+  }
+
+  public static Kind<StateKind.Witness<AccountState>, BigDecimal> getBalance() {
+    return StateKindHelper.wrap(State.inspect(AccountState::balance));
+  }
+
+  public static Kind<StateKind.Witness<AccountState>, List<Transaction>> getHistory() {
+    return StateKindHelper.wrap(State.inspect(AccountState::history));
+  }
+
+  // ... main method will be added
+
+}
 ```
 
 ### 4. Compose Computations using `map` and `flatMap`
 
-Use the `stateMonad` instance (`counterStateMonad` or `stackStateMonad` in these examples). `flatMap` sequences actions, threading the state automatically.
+We use `flatMap` and `map` from  `accountStateMonad` to sequence these actions. The state is threaded automatically.
 
 ```java
-// Counter Example: Increment twice and get the final count
-Kind<StateKind.Witness<CounterState>, Integer> incrementTwiceAndGet =
-    counterStateMonad.flatMap( // flatMap returns Kind<StateKind.Witness<CounterState>, Void>
-        ignored1 -> incrementCounter, // Run second increment
-        incrementCounter // Run first increment
-    ).flatMap( // flatMap returns Kind<StateKind.Witness<CounterState>, Void>
-        ignored2 -> getCount, // Finally, get the count
-        incrementCounter // Chained from the result of the second increment
-    );
+public class BankAccountWorkflow {
+  // ... (monad instance and previous actions)
+  public static void main(String[] args) {
+    // Initial state: Account with £100 balance.
+    AccountState initialState = AccountState.initial(new BigDecimal("100.00"));
+    StringBuilder report = new StringBuilder();
+    // Define a sequence of operations
+    Kind<StateKind.Witness<AccountState>, String> workflow =
+        accountStateMonad.flatMap(
+            depositTxResult -> // result of deposit("Salary")
+            accountStateMonad.flatMap(
+                    withdrawTx1Success -> // result of withdraw("Bill Payment")
+                    accountStateMonad.flatMap(
+                            withdrawTx2Result -> // result of withdraw("Groceries")
+                            accountStateMonad.flatMap(
+                                    currentBalance -> // result of getBalance()
+                                    accountStateMonad.map(
+                                            history -> { // 'history' is the result of getHistory()
+                                              history.forEach(
+                                                  tx -> report.append("  - %s\n".formatted(tx)));
+                                              return report.toString();
+                                            },
+                                            getHistory()),
+                                    getBalance()),
+                            withdraw("Groceries").apply(new BigDecimal("70.00"))),
+                    withdraw("Bill Payment").apply(new BigDecimal("50.00"))),
+            deposit("Salary")
+                .apply(
+                    new BigDecimal(
+                        "20.00")) // This is the first stateful ACTION in the flatMap chain
+            );
 
+    StateTuple<AccountState, String> finalResultTuple =
+        StateKindHelper.runState(workflow, initialState);
 
-// Stack Example: Push 10, Push 20, Pop, Pop
-Kind<StateKind.Witness<StackState>, Integer> stackProgram =
-    stackStateMonad.flatMap( // Push 10 -> State = [10]
-        ignored1 -> push(20), // Push 20 -> State = [10, 20]
-        push(10)
-    ).flatMap(
-        ignored2 -> pop, // Pop 20 -> State = [10], Result = 20
-        push(20) // Chain from previous result
-    ).flatMap(
-        poppedValue1 -> pop.map(poppedValue2 -> poppedValue1 + poppedValue2), // Pop 10 -> State = [], Result = 10. Map to return sum (20+10).
-        pop // Chain from previous result
-    );
+    System.out.println(finalResultTuple.value());
 
-// Example using map: Push 5, then get the value and format it, state unaffected by map
-Kind<StateKind.Witness<StackState>, Void> push5 = push(5);
-Kind<StateKind.Witness<StackState>, String> push5AndDescribe = stackStateMonad.map(
-    value -> "Pushed 5, value is " + value, // Value from push(5) is Void/null
-    push5
-);
+    System.out.println("\nDirect Final Account State:");
+    System.out.println("Balance: £" + finalResultTuple.state().balance());
+    System.out.println(
+        "History contains " + finalResultTuple.state().history().size() + " transaction(s):");
+    finalResultTuple.state().history().forEach(tx -> System.out.println("  - " + tx));
+  }
+}
 ```
 
 ### 5. Run the Computation
 
-Provide the initial state using `runState`, `evalState`, or `execState`.
+The `StateKindHelper.runState(workflow, initialState)` call executes the entire sequence of operations, starting with `initialState`.
+It returns a StateTuple containing the final result of the _entire workflow_ (in this case, the `String` report) and the final state of the `AccountState`.
 
-```java
+```
 
-import org.higherkindedj.hkt.state.State.StateTuple; // Import the tuple record
+Direct Final Account State:
+Balance: £0.00
+History contains 4 transaction(s):
+  - Transaction[type=INITIAL_BALANCE, amount=100.00, timestamp=2025-05-18T17:35:53.564874439, description=Initial account balance]
+  - Transaction[type=DEPOSIT, amount=20.00, timestamp=2025-05-18T17:35:53.578424630, description=Salary]
+  - Transaction[type=WITHDRAWAL, amount=50.00, timestamp=2025-05-18T17:35:53.579196349, description=Bill Payment]
+  - Transaction[type=WITHDRAWAL, amount=70.00, timestamp=2025-05-18T17:35:53.579453984, description=Groceries]
 
-CounterState initialCounter = new CounterState(0);
-StackState initialStack = new StackState(java.util.Collections.emptyList());
-
-// Run counter example
-StateTuple<CounterState, Integer> counterResultTuple = runState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Tuple: " + counterResultTuple);
-// Output: Counter Final Tuple: StateTuple[value=2, state=CounterState[count=2]]
-
-int finalCount = evalState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final Value: " + finalCount);
-// Output: Counter Final Value: 2
-
-CounterState finalCounterState = execState(incrementTwiceAndGet, initialCounter);
-System.out.println("Counter Final State: " + finalCounterState);
-// Output: Counter Final State: CounterState[count=2]
-
-
-// Run stack example
-StateTuple<StackState, Integer> stackResultTuple = runState(stackProgram, initialStack);
-System.out.println("Stack Final Tuple: " + stackResultTuple);
-// Output: Stack Final Tuple: StateTuple[value=30, state=StackState[stack=[]]] (Value is 20 + 10)
-
-Integer stackFinalValue = evalState(stackProgram, initialStack);
-System.out.println("Stack Final Value: " + stackFinalValue); // Output: 30
-
-StackState finalStackState = execState(stackProgram, initialStack);
-System.out.println("Stack Final State: " + finalStackState); // Output: StackState[stack=[]]
-
-
-// Run push5AndDescribe example
-StateTuple<StackState, String> pushDescribeTuple = runState(push5AndDescribe, initialStack);
-System.out.println("Push/Describe Tuple: " + pushDescribeTuple);
-// Output: Push/Describe Tuple: StateTuple[value=Pushed 5, value is null, state=StackState[stack=[5]]]
 ```
 
 ## Key Points:
-
-The State monad (`State<S, A>`, `StateKind`, `StateMonad`) provides a powerful functional abstraction for managing stateful computations in `Higher-Kinded-J`. By encapsulating state transitions within the `S -> (A, S)` function, it allows developers to write pure, composable code that explicitly tracks state changes. The HKT simulation enables using standard monadic operations (`map`, `flatMap`) via `StateMonad`, simplifying the process of sequencing complex stateful workflows while maintaining referential transparency. Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.
+The State monad (`State<S, A>`, `StateKind`, `StateMonad`) , as provided by higher-kinded-j, offers an elegant and functional way to manage state transformations. 
+By defining atomic state operations and composing them with map and flatMap, you can build complex stateful workflows that are easier to reason about, test, and maintain, as the state is explicitly managed by the monad's structure rather than through mutable side effects.
+Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.

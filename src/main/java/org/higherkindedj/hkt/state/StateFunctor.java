@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
 import static java.util.Objects.requireNonNull;
@@ -31,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  * @see StateKind.Witness
  * @see StateKindHelper
  */
-public class StateFunctor<S> implements Functor<StateKind.Witness> {
+public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
 
   /**
    * Applies a function {@code f} to the computed value of a {@link State}{@code <S, A>}
@@ -61,7 +63,7 @@ public class StateFunctor<S> implements Functor<StateKind.Witness> {
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   @Override
-  public <A, B> @NonNull Kind<StateKind.Witness, B> map(
+  public <A, B> @NonNull Kind<StateKind.Witness<S>, B> map(
       // Assuming State.map's function can produce a @Nullable B if A can be mapped to null.
       // If State's value cannot be null, then B should be @NonNull or just B.
       // For now, let's assume f can produce @Nullable B to be general,
@@ -70,7 +72,7 @@ public class StateFunctor<S> implements Functor<StateKind.Witness> {
       // Function<A,B>
       @NonNull Function<A, @Nullable B>
           f, // Changed B to @Nullable B for generality, assuming State.map handles it
-      @NonNull Kind<StateKind.Witness, A> fa) {
+      @NonNull Kind<StateKind.Witness<S>, A> fa) {
     requireNonNull(f, "Mapping function cannot be null"); // Added explicit null check for f
 
     // 1. Unwrap the Kind to get the concrete State<S, A>.

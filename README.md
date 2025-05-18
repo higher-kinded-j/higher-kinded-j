@@ -38,7 +38,7 @@ You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 
 ## Practical Example: Order Processing Workflow
 
-To see these concepts applied in a more realistic scenario, check out the **Order Processing Example** located in `org.simulation.hkt.example.order`.
+To see these concepts applied in a more realistic scenario, check out the **Order Processing Example** located in `org.higherkindedj.hkt.example.order`.
 
 This example demonstrates:
 
@@ -55,7 +55,7 @@ Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWit
 
 If you want to leverage this simulation in your own code:
 
-1.  **Include the Code:** Copy the relevant packages (`org.simulation.hkt` and the packages for the types you need, e.g., `org.simulation.hkt.optional`) into your project's source code.
+1.  **Include the Code:** Copy the relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) into your project's source code.
 2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `*Kind` interfaces (e.g., `OptionalKind`), the `*KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
 3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
 4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/extending-simulation.md).
@@ -77,27 +77,34 @@ While useful the approach to simulating Higher-Kinded Types has inherent limitat
 
 The code is organized into packages:
 
-* `org.simulation.hkt`: Core interfaces (`Kind`, `Functor`, `Applicative`, `Monad`, `MonadError`).
-* `org.simulation.hkt.list`: Components for `List` simulation.
-* `org.simulation.hkt.optional`: Components for `Optional` simulation.
-* `org.simulation.hkt.maybe`: Components for `Maybe` simulation and the `Maybe` type itself.
-* `org.simulation.hkt.either`: Components for `Either` simulation and the `Either` type itself.
-* `org.simulation.hkt.future`: Components for `CompletableFuture` simulation.
-* `org.simulation.hkt.trymonad`: Components for `Try` simulation and the `Try` type itself.
-* `org.simulation.hkt.io`: Components for `IO` simulation and the `IO` type itself.
-* `org.simulation.hkt.lazy`: Components for `Lazy` simulation and the `Lazy` type itself.
-* `org.simulation.hkt.reader`: Components for `Reader` simulation and the `Reader` type itself.
-* `org.simulation.hkt.state`: Components for `State` simulation and the `State` type itself.
-* `org.simulation.hkt.writer`: Components for `Writer` simulation and the `Writer` type itself.
-* `org.simulation.hkt.trans.either_t`: Monad Transformer (`EitherT`) components.
-* `org.simulation.hkt.trans.maybe_t`: Monad Transformer (`MaybeT`) components.
-* `org.simulation.hkt.trans.optional_t`: Monad Transformer (`OptionalT`) components.
-* `org.simulation.hkt.trans.reader_t`: Monad Transformer (`ReaderT`) components.
-* `org.simulation.hkt.function`: Helper functional interfaces (`Function3`, `Function4`).
-* `org.simulation.hkt.exception`: Custom exceptions like `KindUnwrapException`.
-* `org.simulation.hkt.typeclass`: Supporting type classes like `Monoid`.
-* `org.simulation.example.order`: A practical example demonstrating an order processing workflow.
-* `org.simulation.hkt.MonadSimulation`: Contains executable examples demonstrating basic usage.
+* `org.higherkindedj.hkt`: Core interfaces (`Kind`, `Functor`, `Applicative`, `Monad`, `MonadError`, `Monoid`).
+* `org.higherkindedj.hkt.list`: Components for `List` simulation.
+* `org.higherkindedj.hkt.optional`: Components for `Optional` simulation.
+* `org.higherkindedj.hkt.maybe`: Components for `Maybe` simulation and the `Maybe` type itself.
+* `org.higherkindedj.hkt.either`: Components for `Either` simulation and the `Either` type itself.
+* `org.higherkindedj.hkt.future`: Components for `CompletableFuture` simulation.
+* `org.higherkindedj.hkt.trymonad`: Components for `Try` simulation and the `Try` type itself.
+* `org.higherkindedj.hkt.io`: Components for `Id` simulation and the `Id` type itself.
+* `org.higherkindedj.hkt.io`: Components for `IO` simulation and the `IO` type itself.
+* `org.higherkindedj.hkt.lazy`: Components for `Lazy` simulation and the `Lazy` type itself.
+* `org.higherkindedj.hkt.reader`: Components for `Reader` simulation and the `Reader` type itself.
+* `org.higherkindedj.hkt.state`: Components for `State` simulation and the `State` type itself.
+* `org.higherkindedj.hkt.writer`: Components for `Writer` simulation and the `Writer` type itself.
+* `org.higherkindedj.hkt.trans.either_t`: Monad Transformer (`EitherT`) components.
+* `org.higherkindedj.hkt.trans.maybe_t`: Monad Transformer (`MaybeT`) components.
+* `org.higherkindedj.hkt.trans.optional_t`: Monad Transformer (`OptionalT`) components.
+* `org.higherkindedj.hkt.trans.reader_t`: Monad Transformer (`ReaderT`) components.
+* * `org.higherkindedj.hkt.trans.state_t`: Monad Transformer (`StateT`) components.
+* `org.higherkindedj.hkt.function`: Helper functional interfaces (`Function3`, `Function4`).
+* `org.higherkindedj.hkt.exception`: Custom exceptions like `KindUnwrapException`.
+* `org.higherkindedj.example.order`: A practical example demonstrating an order processing workflow.
+* `org.higherkindedj.hkt.example`: Contains executable examples demonstrating basic usage.
+
+## Requirements
+
+* **Java Development Kit (JDK): Version 24** or later.
+* Gradle (the project includes a Gradle wrapper).
+
 
 ## Contributing
 

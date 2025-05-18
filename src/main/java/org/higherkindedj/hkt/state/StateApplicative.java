@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.unwrap;
@@ -19,7 +21,8 @@ import org.jspecify.annotations.Nullable;
  * @see StateKind.Witness
  * @see StateFunctor
  */
-public class StateApplicative<S> extends StateFunctor<S> implements Applicative<StateKind.Witness> {
+public class StateApplicative<S> extends StateFunctor<S>
+    implements Applicative<StateKind.Witness<S>> {
 
   /**
    * Lifts a value into a {@code State} context, represented as {@code Kind<StateKind.Witness, A>}.
@@ -30,7 +33,7 @@ public class StateApplicative<S> extends StateFunctor<S> implements Applicative<
    * @return A {@code Kind<StateKind.Witness, A>} representing {@code State.pure(value)}.
    */
   @Override
-  public <A> @NonNull Kind<StateKind.Witness, A> of(@Nullable A value) {
+  public <A> @NonNull Kind<StateKind.Witness<S>, A> of(@Nullable A value) {
     return StateKindHelper.pure(value);
   }
 
@@ -46,8 +49,9 @@ public class StateApplicative<S> extends StateFunctor<S> implements Applicative<
    * @return A new {@code Kind<StateKind.Witness, B>} resulting from the application.
    */
   @Override
-  public <A, B> @NonNull Kind<StateKind.Witness, B> ap(
-      @NonNull Kind<StateKind.Witness, Function<A, B>> ff, @NonNull Kind<StateKind.Witness, A> fa) {
+  public <A, B> @NonNull Kind<StateKind.Witness<S>, B> ap(
+      @NonNull Kind<StateKind.Witness<S>, Function<A, B>> ff,
+      @NonNull Kind<StateKind.Witness<S>, A> fa) {
 
     State<S, Function<A, B>> stateF = unwrap(ff);
     State<S, A> stateA = unwrap(fa);
@@ -55,18 +59,18 @@ public class StateApplicative<S> extends StateFunctor<S> implements Applicative<
     State<S, B> stateB =
         State.of(
             initialState -> {
-              State.StateTuple<S, Function<A, B>> resultF = stateF.run(initialState);
+              StateTuple<S, Function<A, B>> resultF = stateF.run(initialState);
               Function<A, B> func = resultF.value();
               S stateS1 = resultF.state();
 
-              State.StateTuple<S, A> resultA = stateA.run(stateS1);
+              StateTuple<S, A> resultA = stateA.run(stateS1);
               A val = resultA.value();
               S stateS2 = resultA.state();
 
               if (func == null) {
                 throw new NullPointerException("Function wrapped in State for 'ap' was null");
               }
-              return new State.StateTuple<>(func.apply(val), stateS2);
+              return new StateTuple<>(func.apply(val), stateS2);
             });
 
     return StateKindHelper.wrap(stateB); // Use StateKindHelper.wrap for consistency
