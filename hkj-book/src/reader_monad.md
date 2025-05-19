@@ -75,8 +75,7 @@ These classes provide the standard functional operations for `ReaderKind.Witness
 
 You typically instantiate `ReaderMonad<R>` for the specific environment type `R` you are working with.
 
-## How to Use
-## Problem: ManagingConfiguration
+~~~admonish example title="Example: Managing Configuration"
 
 - [ReaderExample.java](../../src/main/java/org/higherkindedj/example/basic/reader/ReaderExample.java)
 
@@ -183,7 +182,13 @@ System.out.println("Retrieved Prod Config: " + retrievedProdConfig); // Output: 
 ```
 
 Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't need `AppConfig` as a parameter, but they can access it when needed within the `reader(...)` factory or implicitly via `flatMap` composition. The configuration is only provided once at the end when `runReader` is called.
+~~~
 
-## Key Points:
 
-The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management. It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using the HKT simulation and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`. This leads to more modular, testable, and less cluttered code when dealing with shared context.
+~~~admonish important  title="Key Points:"
+The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management. 
+
+It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using Higher-Kinded-J and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`. 
+
+This leads to more modular, testable, and less cluttered code when dealing with shared context.
+~~~

@@ -36,9 +36,9 @@ The lazy evaluation feature revolves around these key types:
 * **Functional Composition**: `LazyMonad` allows chaining lazy computations using `map` and `flatMap` while preserving laziness. The composition itself doesn't trigger evaluation; only forcing the final `LazyKind` does.
 * **HKT Integration**: `LazyKind` and `LazyMonad` enable using lazy computations within generic functional code expecting `Kind<F, A>` and `Monad<F>`.
 
-## Examples
+~~~admonish example title="Example: Creating Lazy Instances"
 
-### Creating Lazy Instances
+- [LazyExample.java](../../src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 ```java
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
@@ -66,10 +66,11 @@ Kind<LazyKind.Witness, String> nowLazy = now("Precomputed Value");
 // 3. Using the underlying Lazy type directly (less common when using HKT)
 Lazy<String> directLazy = Lazy.defer(() -> { counter.incrementAndGet(); return "Direct Lazy"; });
 ```
+~~~
 
+~~~admonish example title="Example: Forcing Evaluation"
 
-
-### Forcing Evaluation
+- [LazyExample.java](../../src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 Evaluation only happens when `force()` is called (directly or via the helper).
 
@@ -104,10 +105,11 @@ try {
     }
 }
 ```
+~~~
 
+~~~admonish example title="Example: Using _LazyMonad_ (_map_ and _flatMap_)"
 
-### Using `LazyMonad` (`map` and `flatMap`)
-
+- [LazyExample.java](../../src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 ```java
 import org.higherkindedj.hkt.lazy.LazyMonad;
@@ -162,3 +164,4 @@ try{
 System.out.println("Chained Result: "+force(chainedLazy)); // Output: Combined: 5 & 10
 }catch(Throwable t){/* ... */}
 ```
+~~~
