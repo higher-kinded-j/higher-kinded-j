@@ -11,6 +11,11 @@ on:
 jobs:
   deploy-book:
     runs-on: ubuntu-latest
+    env:
+      MDBOOK_ADMONISH_VERSION: "3.0.3"
+      MDBOOK_ALERTS_VERSION:  "0.7.0"
+      BOOK_ROOT_DIR: "hkj-book"
+
     permissions:
       contents: read
 
@@ -18,10 +23,23 @@ jobs:
       - name: Checkout 'higher-kinded-j' repository
         uses: actions/checkout@v4
 
-      - name: Setup mdBook
+      - name: Setup mdBook and Rust Environment
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: '0.4.48'
+          mdbook-version: '0.4.49'
+
+      - name: Install 'mdbook-admonish'
+        run: |
+          cargo install mdbook-admonish --version ${{ env.MDBOOK_ADMONISH_VERSION }} --locked
+
+      - name: Install 'mdbook-alerts'
+        run: |
+          cargo install mdbook-alerts --version ${{ env.MDBOOK_ALERTS_VERSION }} --locked
+
+      - name: Setup mdbook-admonish assets
+        working-directory: ./${{ env.BOOK_ROOT_DIR }}
+        run: |
+          mdbook-admonish install . 
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,7 +48,7 @@ jobs:
 
       - name: Copy root files to book source
         run: |
-          BOOK_SRC_DIR="hkj-book/src" # Define variable for clarity
+          BOOK_SRC_DIR="${{ env.BOOK_ROOT_DIR }}/src" # Define variable for clarity
           mkdir -p "$BOOK_SRC_DIR"         # Ensure directory exists
           echo "Copying root files to $BOOK_SRC_DIR"
           cp CONTRIBUTING.md "$BOOK_SRC_DIR/"
@@ -42,13 +60,13 @@ jobs:
 
 
       - name: Build mdBook
-        working-directory: ./hkj-book
+        working-directory: ./${{ env.BOOK_ROOT_DIR }}
         run: mdbook build
 
       - name: Generate Sitemap
         run: python .github/scripts/generate_sitemap.py
         env:
-          MDBOOK_OUTPUT_DIR: ./hkj-book/book
+          MDBOOK_OUTPUT_DIR: ./${{ env.BOOK_ROOT_DIR }}/book
           MDBOOK_SITE_URL: "https://higher-kinded-j.github.io/"
 
       - name: Deploy to higher-kinded-j/higher-kinded-j.github.io
@@ -57,7 +75,7 @@ jobs:
           personal_token: ${{ secrets.GH_PAGES_PAT }}
           external_repository: higher-kinded-j/higher-kinded-j.github.io
           publish_branch: main
-          publish_dir: ./hkj-book/book
+          publish_dir: ./${{ env.BOOK_ROOT_DIR }}/book
           keep_files: false
           force_orphan: true
           commit_message: 'docs: Deploy latest mdBook documentation from higher-kinded-j repository'

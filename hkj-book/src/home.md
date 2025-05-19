@@ -1,11 +1,15 @@
 # Higher-Kinded-J
 **_Bringing Higher-Kinded Types to Java functional patterns_**
 
-[==>Take me to the code](https://github.com/higher-kinded-j/higher-kinded-j)
+```admonish info
+ You can find all the code and latest releases here.
+ [==>Take me to the code](https://github.com/higher-kinded-j/higher-kinded-j)
+```
 
 Higher-Kinded-J brings popular functional patterns to Java by providing implementations of common Monads and Transformers supporting Higher-Kinded Types.
 
 **Higher-Kinded-J evolved from a simulation** that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then Higher-Kinded-J has grown into something altogether more useful supporting more functional patterns.
+
 
 ## Introduction: Abstracting Over Computation in Java
 
@@ -24,9 +28,9 @@ While Higher-Kinded-J introduces some boilerplate compared to languages with nat
 
 ## Getting Started
 
-Before diving in, ensure you have the following:
-
-* **Java Development Kit (JDK): Version 24** or later. The library makes use of features available in this version.
+> [!NOTE]  
+> Before diving in, ensure you have the following:
+> **Java Development Kit (JDK): Version 24** or later. The library makes use of features available in this version.
 
 You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 
@@ -51,9 +55,6 @@ To understand and use Higher-Kinded-J effectively, explore these documents:
 
 
 
-
-
-
 ## How to Use Higher-Kinded-J (In Your Project)
 
 You could adapt Higher-Kinded-J for use in your own projects:
@@ -63,6 +64,9 @@ You could adapt Higher-Kinded-J for use in your own projects:
 3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
 4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending the Simulation](extending-simulation.md).
 
-**Note:** This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
+```admonish Note
+This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
+```
+
 
 

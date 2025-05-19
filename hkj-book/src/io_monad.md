@@ -1,6 +1,8 @@
 # Higher-Kinded-J: Managing Side Effects with `IO`
 
-In functional programming, managing side effects (like printing to the console, reading files, making network calls, generating random numbers, or getting the current time) while maintaining purity is a common challenge. The `IO<A>` monad in `higher-kinded-j` provides a way to encapsulate these side-effecting computations, making them first-class values that can be composed and manipulated functionally.
+In functional programming, managing side effects (like printing to the console, reading files, making network calls, generating random numbers, or getting the current time) while maintaining purity is a common challenge.
+
+The `IO<A>` monad in `higher-kinded-j` provides a way to encapsulate these side-effecting computations, making them first-class values that can be composed and manipulated functionally.
 
 The key idea is that an `IO<A>` value doesn't *perform* the side effect immediately upon creation. Instead, it represents a *description* or *recipe* for a computation that, when executed, will perform the effect and potentially produce a value of type `A`. The actual execution is deferred until explicitly requested.
 
@@ -40,9 +42,9 @@ The `IO` functionality is built upon several related components:
 
 **Important Note:**`IO` in this library primarily deals with *deferring* execution. It does *not* automatically provide sophisticated error handling like `Either` or `Try`, nor does it manage asynchronicity like `CompletableFuture`. Exceptions thrown during `unsafeRunSync` will typically propagate unless explicitly handled *within* the `Supplier` provided to `IOKindHelper.delay`.
 
-## Examples
+~~~admonish example title="Example 1: Creating Basic IO Actions"
 
-### 1. Creating Basic IO Actions
+- [IOExample.java](../../src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
 Use `IOKindHelper.delay` to capture side effects. Use `IOMonad.of` for pure values within IO.
 
@@ -85,43 +87,15 @@ Kind<IOKind.Witness, String> potentiallyFailingIO = IOKindHelper.delay(() -> {
 });
 
 
-// --- Execution (typically at the end) ---
-// Note: Running these examples sequentially here for clarity.
-
-System.out.println("Executing printHello...");
-IOKindHelper.unsafeRunSync(printHello); // Output: Hello from IO!
-System.out.println("---");
-
-// System.out.println("Executing readLine...");
-// String name = IOKindHelper.unsafeRunSync(readLine); // Prompts user
-// System.out.println("Read name: " + name);
-// System.out.println("---");
-
-System.out.println("Executing pureValueIO...");
-int pureVal = IOKindHelper.unsafeRunSync(pureValueIO);
-System.out.println("Pure value: " + pureVal); // Output: 42
-System.out.println("---");
-
-System.out.println("Executing currentTime...");
-long time = IOKindHelper.unsafeRunSync(currentTime);
-System.out.println("Current time: " + time);
-System.out.println("---");
-
-
-System.out.println("Executing potentiallyFailingIO...");
-try {
-    String successOrFail = IOKindHelper.unsafeRunSync(potentiallyFailingIO);
-    System.out.println("Result: " + successOrFail);
-} catch (RuntimeException e) {
-    System.err.println("Caught expected exception: " + e.getMessage());
-}
-System.out.println("---");
-
 ```
+~~~
 
 *Nothing happens when you create these `IOKind` values. The `Supplier` inside `delay` is not executed.*
 
-### 2. Executing IO Actions
+
+~~~admonish example title="Example 2. Executing IO Actions"
+
+- [IOExample.java](../../src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
 Use `IOKindHelper.unsafeRunSync` to run the computation.
 
@@ -155,8 +129,11 @@ String result = IOKindHelper.unsafeRunSync(potentiallyFailingIO);
    System.out.println("\nRunning printHello again:");
 IOKindHelper.unsafeRunSync(printHello); // Prints "Hello from IO!" again
 ```
+~~~~
 
-### 3. Composing IO Actions with `map` and `flatMap`
+~~~admonish title="Example 3: Composing IO Actions with `map` and `flatMap`"
+
+- [IOExample.java](../../src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
 Use `IOMonad` instance methods.
 
@@ -222,5 +199,6 @@ System.out.println("\nComplete IO Program defined. Executing...");
 // IOKindHelper.unsafeRunSync(program); // Uncomment to run the full program
 ```
 
+_Notes:_
 * `map` transforms the *result* of an `IO` action without changing the effect itself (though the transformation happens *after* the effect runs).
 * `flatMap` sequences `IO` actions, ensuring the effect of the first action completes before the second action (which might depend on the first action's result) begins.

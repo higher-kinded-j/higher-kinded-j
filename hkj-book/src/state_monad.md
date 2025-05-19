@@ -2,7 +2,9 @@
 
 ## Purpose
 
-In many applications, we need to manage computations that involve **state** that changes over time. Examples include:
+In many applications, we need to manage computations that involve **state** that changes over time. 
+
+Examples could include:
 
 * A counter being incremented.
 * A configuration object being updated.
@@ -13,7 +15,7 @@ While imperative programming uses mutable variables, functional programming pref
 
 A `State<S, A>` represents a computation that takes an initial state `S` and produces a result value `A` along with a **new, updated state** `S`. It essentially wraps a function of the type `S -> (A, S)`.
 
-The key benefits are:
+### Key Benefits
 
 1. **Explicit State:** The state manipulation is explicitly encoded within the type `State<S, A>`.
 2. **Purity:** Functions using the State monad remain pure; they don't cause side effects by mutating external state. Instead, they describe how the state *should* transform.
@@ -94,9 +96,8 @@ These classes provide the standard functional operations for `StateKind.Witness<
 
 You instantiate `StateMonad<S>` for the specific state type `S` you are working with.
 
-## How to Use
 
-## Problem: Managing Bank Account Transactions
+~~~admonish example title="Example: Managing Bank Account Transactions"
 
 We want to model a bank account where we can:
 
@@ -207,67 +208,67 @@ public class BankAccountWorkflow {
   public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Void>> deposit(
           String description) {
     return amount ->
-            StateKindHelper.wrap(
-                    State.modify(
-                            currentState -> {
-                              if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                                // For rejected deposit, log the problematic amount
-                                Transaction rejected =
-                                        new Transaction(
-                                                TransactionType.REJECTED_DEPOSIT,
-                                                amount,
-                                                LocalDateTime.now(),
-                                                "Rejected Deposit: " + description + " - Invalid Amount " + amount);
-                                return currentState.addTransaction(rejected);
-                              }
-                              BigDecimal newBalance = currentState.balance().add(amount);
-                              Transaction tx =
-                                      new Transaction(
-                                              TransactionType.DEPOSIT, amount, LocalDateTime.now(), description);
-                              return currentState.withBalance(newBalance).addTransaction(tx);
-                            }));
+        StateKindHelper.wrap(
+          State.modify(
+            currentState -> {
+              if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                // For rejected deposit, log the problematic amount
+                Transaction rejected =
+                        new Transaction(
+                                TransactionType.REJECTED_DEPOSIT,
+                                amount,
+                                LocalDateTime.now(),
+                                "Rejected Deposit: " + description + " - Invalid Amount " + amount);
+                return currentState.addTransaction(rejected);
+              }
+              BigDecimal newBalance = currentState.balance().add(amount);
+              Transaction tx =
+                      new Transaction(
+                              TransactionType.DEPOSIT, amount, LocalDateTime.now(), description);
+              return currentState.withBalance(newBalance).addTransaction(tx);
+        }));
   }
 
   public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Boolean>> withdraw(
           String description) {
     return amount ->
-            StateKindHelper.wrap(
-                    State.of(
-                            currentState -> {
-                              if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                                // For rejected withdrawal due to invalid amount, log the problematic amount
-                                Transaction rejected =
-                                        new Transaction(
-                                                TransactionType.REJECTED_WITHDRAWAL,
-                                                amount,
-                                                LocalDateTime.now(),
-                                                "Rejected Withdrawal: " + description + " - Invalid Amount " + amount);
-                                return new StateTuple<>(false, currentState.addTransaction(rejected));
-                              }
-                              if (currentState.balance().compareTo(amount) >= 0) {
-                                BigDecimal newBalance = currentState.balance().subtract(amount);
-                                Transaction tx =
-                                        new Transaction(
-                                                TransactionType.WITHDRAWAL, amount, LocalDateTime.now(), description);
-                                AccountState updatedState =
-                                        currentState.withBalance(newBalance).addTransaction(tx);
-                                return new StateTuple<>(true, updatedState);
-                              } else {
-                                // For rejected withdrawal due to insufficient funds, log the amount that was
-                                // attempted
-                                Transaction tx =
-                                        new Transaction(
-                                                TransactionType.REJECTED_WITHDRAWAL,
-                                                amount,
-                                                LocalDateTime.now(),
-                                                "Rejected Withdrawal: "
-                                                        + description
-                                                        + " - Insufficient Funds. Balance: "
-                                                        + currentState.balance());
-                                AccountState updatedState = currentState.addTransaction(tx);
-                                return new StateTuple<>(false, updatedState);
-                              }
-                            }));
+        StateKindHelper.wrap(
+                State.of(
+                    currentState -> {
+                      if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                        // For rejected withdrawal due to invalid amount, log the problematic amount
+                        Transaction rejected =
+                            new Transaction(
+                                    TransactionType.REJECTED_WITHDRAWAL,
+                                    amount,
+                                    LocalDateTime.now(),
+                                    "Rejected Withdrawal: " + description + " - Invalid Amount " + amount);
+                        return new StateTuple<>(false, currentState.addTransaction(rejected));
+                      }
+                      if (currentState.balance().compareTo(amount) >= 0) {
+                        BigDecimal newBalance = currentState.balance().subtract(amount);
+                        Transaction tx =
+                                new Transaction(
+                                        TransactionType.WITHDRAWAL, amount, LocalDateTime.now(), description);
+                        AccountState updatedState =
+                                currentState.withBalance(newBalance).addTransaction(tx);
+                        return new StateTuple<>(true, updatedState);
+                      } else {
+                        // For rejected withdrawal due to insufficient funds, log the amount that was
+                        // attempted
+                        Transaction tx =
+                            new Transaction(
+                                    TransactionType.REJECTED_WITHDRAWAL,
+                                    amount,
+                                    LocalDateTime.now(),
+                                    "Rejected Withdrawal: "
+                                            + description
+                                            + " - Insufficient Funds. Balance: "
+                                            + currentState.balance());
+                        AccountState updatedState = currentState.addTransaction(tx);
+                        return new StateTuple<>(false, updatedState);
+                      }
+                  }));
   }
 
   public static Kind<StateKind.Witness<AccountState>, BigDecimal> getBalance() {
@@ -348,10 +349,14 @@ History contains 4 transaction(s):
   - Transaction[type=DEPOSIT, amount=20.00, timestamp=2025-05-18T17:35:53.578424630, description=Salary]
   - Transaction[type=WITHDRAWAL, amount=50.00, timestamp=2025-05-18T17:35:53.579196349, description=Bill Payment]
   - Transaction[type=WITHDRAWAL, amount=70.00, timestamp=2025-05-18T17:35:53.579453984, description=Groceries]
-
 ```
+~~~
 
-## Key Points:
+~~~admonish important  title="Key Points:"
 The State monad (`State<S, A>`, `StateKind`, `StateMonad`) , as provided by higher-kinded-j, offers an elegant and functional way to manage state transformations. 
+
 By defining atomic state operations and composing them with map and flatMap, you can build complex stateful workflows that are easier to reason about, test, and maintain, as the state is explicitly managed by the monad's structure rather than through mutable side effects.
+
 Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.
+
+~~~

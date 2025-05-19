@@ -86,8 +86,7 @@ These classes provide the standard functional operations for `Kind<WriterKind.Wi
 * **`WriterMonad<W>`**: Extends `WriterApplicative<W>`, implements `Monad<WriterKind.Witness<W>>`. Requires a `Monoid<W>`. Provides `flatMap` for sequencing computations, automatically combining logs using the `Monoid`.
 
 
-## How to Use
-## Problem: Logging a complex calculation
+~~~admonish example title="Example: Logging a complex calculation"
 
 [WriterExample.java](../../src/main/java/org/higherkindedj/example/basic/writer/WriterExample.java)
 
@@ -223,9 +222,15 @@ Writer<String, String> mappedResult = runWriter(mappedVal);
 System.out.println("Mapped Log: " + mappedResult.log());   // Output: Mapped Log
 System.out.println("Mapped Value: " + mappedResult.value()); // Output: Mapped Value: Value is 100
 ```
+~~~
 
-### Key Points
 
-The Writer monad (`Writer<W, A>`, `WriterKind.Witness<W>`, `WriterMonad<W>`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. The HKT simulation enables these operations to be performed generically using standard type class interfaces, with `Writer<W,A>` directly implementing `WriterKind<W,A>`.Summary
+~~~admonish important  title="Key Points:"
 
-The Writer monad (`Writer<W, A>`, `WriterKind`, `WriterMonad`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. The HKT simulation allows these operations to be performed generically using standard type class interfaces.
+The Writer monad (`Writer<W, A>`, `WriterKind.Witness<W>`, `WriterMonad<W>`) in `Higher-Kinded-J` provides a structured way to perform computations that produce a main value (`A`) while simultaneously accumulating some output (`W`, like logs or metrics). 
+
+It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequencing steps with `flatMap`. This pattern helps separate the core computation logic from the logging/accumulation aspect, leading to cleaner, more composable code. 
+
+The Higher-Kinded-J enables these operations to be performed generically using standard type class interfaces, with `Writer<W,A>` directly implementing `WriterKind<W,A>`.
+
+~~~
