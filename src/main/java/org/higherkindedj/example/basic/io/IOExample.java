@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.hkt.io.IOMonad;
 
+/** see {<a href="https://higher-kinded-j.github.io/io_monad.html">IO Monad</a>} */
 public class IOExample {
   // Get the IOMonad instance
   IOMonad ioMonad = new IOMonad();

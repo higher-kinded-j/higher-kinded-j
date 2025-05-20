@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListMonad;
 
+/** see {<a href="https://higher-kinded-j.github.io/list_monad.html">List Monad</a>} */
 public class ListMonadExample {
   public static void main(String[] args) {
     ListMonad listMonad = ListMonad.INSTANCE;

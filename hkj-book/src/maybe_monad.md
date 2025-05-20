@@ -209,7 +209,7 @@ void handleErrorWithExample() {
 A complete example demonstrating generic usage:
 
 ```java
-ivoid monadExample() {
+public void monadExample() {
   MaybeMonad maybeMonad = new MaybeMonad();
 
   // 1. Create MaybeKind instances

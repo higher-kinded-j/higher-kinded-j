@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 
+/** see {<a href="https://higher-kinded-j.github.io/maybe_monad.html">Maybe Monad</a>} */
 public class MaybeExample {
 
   public static <A, B> Kind<MaybeKind.Witness, B> processData(

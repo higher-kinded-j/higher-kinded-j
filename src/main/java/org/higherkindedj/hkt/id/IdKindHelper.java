@@ -56,6 +56,6 @@ public final class IdKindHelper {
    * @return The underlying value. Can be null if the {@link Id} wrapped a null.
    */
   public static <A> @Nullable A unwrap(@NonNull Kind<Id.Witness, A> kind) {
-    return narrow(kind).value(); // Uses the record's accessor
+    return narrow(kind).value();
   }
 }

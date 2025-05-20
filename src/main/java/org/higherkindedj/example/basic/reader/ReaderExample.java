@@ -9,10 +9,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.reader.ReaderKind;
 import org.higherkindedj.hkt.reader.ReaderMonad;
 
-/**
- * see {<a href="https://higher-kinded-j.github.io/reader_monad.html">Reader Monad - Managed
- * Dependencies and Configuration</a>}
- */
+/** see {<a href="https://higher-kinded-j.github.io/reader_monad.html">Reader Monad</a>} */
 public class ReaderExample {
 
   // Reader that retrieves the database URL from the config

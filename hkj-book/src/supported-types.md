@@ -1,8 +1,10 @@
-# Supported Types in Higher-Kinded-J
+# Supported Types
 
 ![monads_everywhere.webp](./images/monads_everywhere.webp)
 
-Higher-Kinded-J provides Higher-Kinded Type (HKT) simulation capabilities, allowing various Java types and custom types to be used with generic functional type classes like `Functor`, `Applicative`, `Monad`, and `MonadError`. This is achieved by representing the application of a type constructor `F` to a type `A` as `Kind<F_WITNESS, A>`, where `F_WITNESS` is a special "witness" or phantom type unique to the type constructor `F`.
+Higher-Kinded-J provides Higher-Kinded Type (HKT) simulation capabilities, allowing various Java types and custom types to be used with generic functional type classes like `Functor`, `Applicative`, `Monad`, and `MonadError`. 
+
+This is achieved by representing the application of a type constructor `F` to a type `A` as `Kind<F_WITNESS, A>`, where `F_WITNESS` is a special "witness" or phantom type unique to the type constructor `F`.
 
 ![supported_types.svg](./images/puml/supported_types.svg)
 

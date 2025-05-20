@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 
+/** see {<a href="https://higher-kinded-j.github.io/optional_monad.html">Optional Monad</a>} */
 public class OptionalExample {
 
   public static void main(String[] args) {
