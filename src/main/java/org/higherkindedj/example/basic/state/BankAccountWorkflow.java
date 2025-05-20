@@ -14,7 +14,7 @@ import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 
 /**
- * see {<a href="https://higher-kinded-j.github.io/state_monad.html">State Monad - - Managing State
+ * see {<a href="https://higher-kinded-j.github.io/state_monad.html">Managing State
  * Functionally</a>}
  */
 public class BankAccountWorkflow {

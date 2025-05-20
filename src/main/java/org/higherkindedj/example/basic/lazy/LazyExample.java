@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.lazy.LazyKind;
 import org.higherkindedj.hkt.lazy.LazyMonad;
 
+/** see {<a href="https://higher-kinded-j.github.io/lazy_monad.html">Lazy Monad</a>} */
 public class LazyExample {
 
   public static void main(String[] args) {

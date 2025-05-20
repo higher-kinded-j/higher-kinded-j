@@ -4,13 +4,14 @@ package org.higherkindedj.example.basic.writer;
 
 import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
 
-import java.util.function.Function; // Standard Java Function
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.writer.Writer; // For direct Writer creation if needed
-import org.higherkindedj.hkt.writer.WriterKind; // For WriterKind.Witness
+import org.higherkindedj.hkt.writer.Writer;
+import org.higherkindedj.hkt.writer.WriterKind;
 import org.higherkindedj.hkt.writer.WriterMonad;
 
+/** see {<a href="https://higher-kinded-j.github.io/writer_monad.html">Writer Monad</a>} */
 public class WriterExample {
 
   Monoid<String> stringMonoid = new StringMonoid();

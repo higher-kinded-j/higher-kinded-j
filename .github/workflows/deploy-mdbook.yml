@@ -12,7 +12,7 @@ jobs:
   deploy-book:
     runs-on: ubuntu-latest
     env:
-      MDBOOK_ADMONISH_VERSION: "3.0.3"
+      MDBOOK_ADMONISH_VERSION: "1.19.0"
       MDBOOK_ALERTS_VERSION:  "0.7.0"
       BOOK_ROOT_DIR: "hkj-book"
 

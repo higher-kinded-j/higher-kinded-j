@@ -1,6 +1,6 @@
 @startuml optional_monad
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
+hide empty members
 interface "Kind<F, A>" as Kind
 interface "Functor<F>" as Functor
 interface "Applicative<F>" as Applicative

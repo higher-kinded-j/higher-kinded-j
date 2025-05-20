@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 
+/** see {<a href="https://higher-kinded-j.github.io/state_monad.html">State Monad</a>} */
 public class StateExample {
 
   public static void main(String[] args) {
