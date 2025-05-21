@@ -1,10 +1,8 @@
 @startuml readert_transformer
-!theme plain
+
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 hide empty members
-
-title ReaderT Class Diagram
 
 interface Kind<F_HKT, A_VAL>
 interface Monad<F_HKT>

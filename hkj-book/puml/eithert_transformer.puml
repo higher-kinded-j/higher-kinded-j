@@ -1,8 +1,6 @@
 @startuml eithert_transformer
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-skinparam classAttributeIconSize 0
-skinparam defaultFontName "Roboto, Helvetica"
 hide empty members
 
 

@@ -7,13 +7,16 @@ The `Maybe<T>` type in `Higher-Kinded-J` represents a value that might be presen
 The `MaybeMonad` provides a monadic interface for `Maybe`, allowing for functional composition and integration with the Higher-Kinded Type (HKT) system. This facilitates chaining operations that may or may not yield a value, propagating the `Nothing` state automatically.
 
 Key benefits include:
+~~~admonish info title="Key benefits include:"
 
 * **Explicit Optionality with Non-Null Safety:** `Just<T>` guarantees its contained value is not null. `Nothing<T>` clearly indicates absence.
 * **Functional Composition:** Enables elegant chaining of operations using `map`, `flatMap`, and `ap`, where `Nothing` short-circuits computations.
 * **HKT Integration:** `MaybeKind<A>` (the HKT wrapper for `Maybe<A>`) and `MaybeMonad` allow `Maybe` to be used with generic functions and type classes that expect `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, `Monad<M>`, or `MonadError<M, E>`.
 * **Error Handling for Absence:** `MaybeMonad` implements `MonadError<MaybeKind.Witness, Void>`. `Nothing` is treated as the "error" state, with `Void` as the phantom error type, signifying absence.
+~~~
 
 It implements `MonadError<MaybeKind.Witness, Void>`, which transitively includes `Monad<MaybeKind.Witness>`, `Applicative<MaybeKind.Witness>`, and `Functor<MaybeKind.Witness>`.
+
 
 ## Structure
 

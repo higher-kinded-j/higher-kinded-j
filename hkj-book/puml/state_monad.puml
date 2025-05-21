@@ -1,19 +1,17 @@
 @startuml state_monad
-!theme plain
+
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-skinparam classAttributeIconSize 0
-skinparam defaultFontName "Roboto, Helvetica"
 hide empty members
 
-package "Core HKT Interfaces" {
+'package "Core HKT Interfaces" {
     interface Kind<F, A>
-    interface Functor<F>
-    interface Applicative<F>
-    interface Monad<F>
-}
+'    interface Functor<F>
+'    interface Applicative<F>
+'    interface Monad<F>
+'}
 
-package "State Type" {
+
     interface State<S, A> <<Functional Interface>> {
        + StateTuple<S, A> run(S initialState)
        + {static} State<S, A> of(Function<S, StateTuple<S, A>> func)
@@ -30,10 +28,11 @@ package "State Type" {
     class StateTuple<S, A> <<record>>  {
       + StateTuple(A value, S state)
     }
-}
 
-package "State HKT Simulation" {
-    interface "StateKind<S, A> extends Kind<StateKind.Witness<S>, A>"
+
+
+'    interface "StateKind<S, A>"
+
 
     class StateKindHelper {
       + {static} State<S, A> unwrap(Kind<StateKind.Witness<S>, A> kind)
@@ -58,10 +57,10 @@ package "State HKT Simulation" {
     class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witness<S>> {
        + Kind<StateKind.Witness<S>, B> flatMap(Function<A, Kind<StateKind.Witness<S>, B>> f, Kind<StateKind.Witness<S>, A> ma)
     }
-}
+
 
 ' Relationships
-StateKind -- Kind : extends
+"StateKind<S, A>" --|> Kind : <StateKind.Witness<S>, A>
 StateFunctor -- Functor : implements
 StateApplicative -- Applicative : implements
 StateMonad -- Monad : implements
@@ -70,9 +69,9 @@ StateApplicative .u.> StateFunctor : extends
 StateMonad .u.> StateApplicative : extends
 
 StateKindHelper ..> State : creates/unwraps
-StateKindHelper ..> StateKind : creates/unwraps
+StateKindHelper ..> "StateKind<S, A>" : creates/unwraps
 
-StateMonad ..> StateKind : operates on <StateKind<S,?>>
+StateMonad ..> "StateKind<S, A>" : operates on <StateKind<S,?>>
 StateMonad ..> State : uses methods of
 
 @enduml

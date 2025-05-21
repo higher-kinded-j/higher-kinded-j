@@ -58,8 +58,8 @@ MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, Doma
 // Now 'eitherTMonad' can be used to operate on Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, A> values.
 ```
 
-### Key Operations with `EitherTMonad`:
 
+~~~admonish info title="Key Operations with _EitherTMonad_:"
 * **`eitherTMonad.of(value)`:** Lifts a pure value `A` into the `EitherT` context. Result: `F<Right(A)>`.
 * **`eitherTMonad.map(f, eitherTKind)`:** Applies function `A -> B` to the `Right` value inside the nested structure, preserving both `F` and `Either` contexts (if Right). Result: `F<Either<L, B>>`.
 * **`eitherTMonad.flatMap(f, eitherTKind)`:** The core sequencing operation. Takes a function `A -> Kind<EitherTKind.Witness<F, L>, B>` (i.e., `A -> EitherT<F, L, B>`). It unwraps the input `EitherT`, handles the `F` context, checks the inner `Either`:
@@ -69,9 +69,11 @@ MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, Doma
 * **`eitherTMonad.handleErrorWith(eitherTKind, handler)`:** Handles a failure `L` from the *inner* `Either`. Takes a handler `L -> Kind<EitherTKind.Witness<F, L>, A>`. It unwraps the input `EitherT`, checks the inner `Either`:
   * If `Right(a)`, propagates `F<Right(a)>`.
   * If `Left(l)`, applies `handler(l)` to get a recovery `EitherT<F, L, A>`, and extracts its inner `Kind<F, Either<L, A>>`.
+~~~
 
-## Creating `EitherT` Instances
 
+
+~~~admonish title="Creating _EitherT_ Instances"
 You typically create `EitherT` instances using its static factory methods, providing the necessary outer `Monad<F>` instance:
 
 ```java
@@ -110,33 +112,33 @@ Kind<OptionalKind.Witness, Either<String, String>> wrappedValue = etRight.value(
 Optional<Either<String, String>> unwrappedOptional = OptionalKindHelper.unwrap(wrappedValue);
 // unwrappedOptional is Optional.of(Either.right("OK"))
 ```
+~~~
 
-## Example: Async Workflow with Error Handling
+----
+
+~~~admonish Example title="Async Workflow with Error Handling"
+
+- [EitherTExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/eithert/EitherTExample.java)
 
 The most common use case for `EitherT` is combining asynchronous operations (`CompletableFuture`) with domain error handling (`Either`).  The `OrderWorkflowRunner` class provides a detailed example.
 
 Here's a simplified conceptual structure based on that example:
 
 ```java
-import org.higherkindedj.hkt.*;
-import org.higherkindedj.hkt.either.*;
-import org.higherkindedj.hkt.future.*;
-import org.higherkindedj.hkt.trans.*;
-import java.util.concurrent.CompletableFuture;
+public class EitherTExample {
 
-
-
-public static void main(String[] args){
   // --- Setup ---
 
   // Assume DomainError is a sealed interface for specific errors
+  // Re-defining a local DomainError to avoid dependency on the full DomainError hierarchy for this isolated example.
+  // In a real scenario, you would use the shared DomainError.
   record DomainError(String message) {}
   record ValidatedData(String data) {}
-
   record ProcessedData(String data) {}
+
   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = new CompletableFutureMonadError();
   MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError> eitherTMonad =
-      new EitherTMonad<>(futureMonad);
+          new EitherTMonad<>(futureMonad);
 
   // --- Workflow Steps (returning Kinds) ---
 
@@ -153,79 +155,89 @@ public static void main(String[] args){
   Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> processAsync(ValidatedData vd) {
     System.out.println("Processing asynchronously for: " + vd.data());
     CompletableFuture<Either<DomainError, ProcessedData>> future =
-        CompletableFuture.supplyAsync(() -> {
-          try {
-            Thread.sleep(50);
-          } catch (InterruptedException e) { /* ignore */ }
-          if (vd.data().contains("fail")) {
-            return Either.left(new DomainError("Processing failed"));
-          }
-          return Either.right(new ProcessedData("Processed:" + vd.data()));
-        });
+            CompletableFuture.supplyAsync(() -> {
+              try {
+                Thread.sleep(50);
+              } catch (InterruptedException e) { /* ignore */ }
+              if (vd.data().contains("fail")) {
+                return Either.left(new DomainError("Processing failed"));
+              }
+              return Either.right(new ProcessedData("Processed:" + vd.data()));
+            });
     return CompletableFutureKindHelper.wrap(future);
   }
-
-  // --- Workflow Definition using EitherT ---
-
-  // Input data
-  String inputData = "Data";
-  String badInputData = "";
-  String processingFailData = "Data-fail";
 
   // Function to run the workflow for given input
   Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> runWorkflow(String initialInput) {
 
-  // Start with initial data lifted into EitherT
-  Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, String> initialET = eitherTMonad.of(initialInput);
+    // Start with initial data lifted into EitherT
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, String> initialET = eitherTMonad.of(initialInput);
 
     // Step 1: Validate (Sync Either lifted into EitherT)
     Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ValidatedData> validatedET =
-        eitherTMonad.flatMap(
-            input -> {
-              // Call sync step returning Kind<EitherKind,...>
-              Kind<EitherKind<DomainError, ?>, ValidatedData> validationResult = validateSync(input);
-              // Lift the Either result into EitherT using fromEither
-              return EitherT.fromEither(futureMonad, EitherKindHelper.unwrap(validationResult));
-            },
-            initialET
-        );
+            eitherTMonad.flatMap(
+                    input -> {
+                      // Call sync step returning Kind<EitherKind.Witness,...>
+                      // Correction 1: Use EitherKind.Witness here
+                      Kind<EitherKind.Witness<DomainError>, ValidatedData> validationResult = validateSync(input);
+                      // Lift the Either result into EitherT using fromEither
+                      return EitherT.fromEither(futureMonad, EitherKindHelper.unwrap(validationResult));
+                    },
+                    initialET
+            );
 
     // Step 2: Process (Async Future<Either> lifted into EitherT)
     Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ProcessedData> processedET =
-        eitherTMonad.flatMap(
-            validatedData -> {
-              // Call async step returning Kind<CompletableFutureKind,...>
-              Kind<CompletableFutureKind<?>, Either<DomainError, ProcessedData>> processingResultKind =
-                  processAsync(validatedData);
-              // Lift the F<Either> result directly using fromKind
-              return EitherT.fromKind(processingResultKind);
-            },
-            validatedET
-        );
+            eitherTMonad.flatMap(
+                    validatedData -> {
+                      // Call async step returning Kind<CompletableFutureKind.Witness,...>
+                      // Correction 2: Use CompletableFutureKind.Witness here for the variable type
+                      Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> processingResultKind =
+                              processAsync(validatedData);
+                      // Lift the F<Either> result directly using fromKind
+                      return EitherT.fromKind(processingResultKind);
+                    },
+                    validatedET
+            );
 
     // Unwrap the final EitherT to get the underlying Future<Either>
     return ((EitherT<CompletableFutureKind.Witness, DomainError, ProcessedData>) processedET).value();
   }
 
+  public void asyncWorkflowErrorHandlingExample(){
+    // --- Workflow Definition using EitherT ---
+
+    // Input data
+    String inputData = "Data";
+    String badInputData = "";
+    String processingFailData = "Data-fail";
 
     // --- Execution ---
     System.out.println("--- Running Good Workflow ---");
-    
+
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultGoodKind = runWorkflow(inputData);
     System.out.println("Good Result: "+CompletableFutureKindHelper.join(resultGoodKind));
     // Expected: Right(ProcessedData[data=Processed:Validated:Data])
-    
+
     System.out.println("\n--- Running Bad Input Workflow ---");
-    
+
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultBadInputKind = runWorkflow(badInputData);
-    System.out.println("Bad Input Result: "+CompletableFutureKindHelper.join(resultBadInputKind));
+    System.out.println("Bad Input Result: "+ CompletableFutureKindHelper.join(resultBadInputKind));
     // Expected: Left(DomainError[message=Input empty])
-    
+
     System.out.println("\n--- Running Processing Failure Workflow ---");
-    
+
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultProcFailKind = runWorkflow(processingFailData);
     System.out.println("Processing Fail Result: "+CompletableFutureKindHelper.join(resultProcFailKind));
     // Expected: Left(DomainError[message=Processing failed])
+
+  }
+  public static void main(String[] args){
+    EitherTExample example = new EitherTExample();
+    example.asyncWorkflowErrorHandlingExample();
+
+  }
+
 }
 
 ```
@@ -239,8 +251,12 @@ This example demonstrates:
 5. Lifting an asynchronous `Kind<F, Either<L,R>>` result using `EitherT.fromKind`.
 6. Automatic short-circuiting: If validation returns `Left`, the processing step is skipped.
 7. Unwrapping the final `EitherT` using `.value()` to get the `Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>>` result.
+~~~
 
-## Using `EitherTMonad` for Sequencing and Error Handling
+
+~~~admonish Example title="Using _EitherTMonad_ for Sequencing and Error Handling"
+
+- [OrderWorkflowRunner.java](../../src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java)
 
 The primary use is chaining operations using `flatMap` and handling errors using `handleErrorWith` or related methods. The `OrderWorkflowRunner` is the best example. Let's break down a key part:
 
@@ -335,8 +351,9 @@ Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, WorkflowCo
 ````
 
 This demonstrates how `EitherTMonad.flatMap` sequences the steps, while `EitherT.fromEither`, `EitherT.fromKind`, and `eitherTMonad.of/raiseError/handleErrorWith` manage the lifting and error handling within the combined `Future<Either<...>>` context.
+~~~
 
-## Key benefit of using the Higher-Kinded-J
+~~~admonish important  title="Key Points:"
 
 The `Higher-Kinded-J` library simplifies the implementation and usage of concepts like monad transformers (e.g., `EitherT`) in Java precisely *because* it simulates Higher-Kinded Types (HKTs). Here's how:
 
@@ -346,7 +363,7 @@ The `Higher-Kinded-J` library simplifies the implementation and usage of concept
    * Create separate, specific transformers for each outer monad (e.g., `EitherTOptional`, `EitherTFuture`, `EitherTIO`). This leads to significant code duplication.
    * Resort to complex, often unsafe casting or reflection.
    * Write extremely verbose code manually handling the nested structure for every combination.
-2. **How `Higher-Kinded-J` Helps with simulating HKTs):** The library introduces the `Kind<F, A>` interface. This interface, along with specific "witness types" (like `OptionalKind.Witness`, `CompletableFutureKind.Witness`, `EitherKind.Witness<L>`), simulates the concept of `F<A>`. It allows you to pass `F` (the type constructor, represented by its witness type) as a type parameter, even though Java doesn't support it natively.
+2. **How this helps with simulating HKTs):** `Higher-Kinded-J` introduces the `Kind<F, A>` interface. This interface, along with specific "witness types" (like `OptionalKind.Witness`, `CompletableFutureKind.Witness`, `EitherKind.Witness<L>`), simulates the concept of `F<A>`. It allows you to pass `F` (the type constructor, represented by its witness type) as a type parameter, even though Java doesn't support it natively.
 3. **Simplifying Transformer Definition (`EitherT<F, L, R>`):** Because we can now simulate `F<A>` using `Kind<F, A>`, we can define the `EitherT` data structure generically:
 
    ```java
@@ -381,3 +398,4 @@ The `Higher-Kinded-J` library simplifies the implementation and usage of concept
 * As a user, you just instantiate `EitherTMonad` with the appropriate outer monad instance and then use its standard methods (`map`, `flatMap`, etc.) on your `EitherT` values, as seen in the `OrderWorkflowRunner` example. You don't need to manually handle the nesting.
 
 In essence, the HKT simulation provided by `Higher-Kinded-J` allows defining the structure (`EitherT`) and the operations (`EitherTMonad`) generically over the outer monad `F`, overcoming Java's native limitations and making monad transformers feasible and much less boilerplate-heavy than they would otherwise be.
+~~~

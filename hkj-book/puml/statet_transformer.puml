@@ -1,15 +1,7 @@
 @startuml statet_transformer
-!theme materia
-
-' Style similar to other HKJ diagrams
-skinparam classAttributeIconSize 0
-skinparam defaultFontName "Roboto, Helvetica"
-skinparam defaultFontSize 12
-skinparam roundcorner 20
-skinparam stereotypeCBackgroundColor #A9DCDF
-skinparam stereotypePBackgroundColor #A9DCDF
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+hide empty members
 
 
 
@@ -19,14 +11,14 @@ interface Kind<F, A> {
   ' A is the value type
 }
 interface Monad<F> extends Applicative<F> {
-  + flatMap(fn: Function<A, Kind<F, B>>, fa: Kind<F, A>): Kind<F, B>
+'  + flatMap(fn: Function<A, Kind<F, B>>, fa: Kind<F, A>): Kind<F, B>
 }
 interface Applicative<F> extends Functor<F> {
-  + of(a: A): Kind<F, A>
-  + ap(ff: Kind<F, Function<A,B>>, fa: Kind<F, A>): Kind<F, B>
+'  + of(a: A): Kind<F, A>
+'  + ap(ff: Kind<F, Function<A,B>>, fa: Kind<F, A>): Kind<F, B>
 }
 interface Functor<F> {
-  + map(fn: Function<A, B>, fa: Kind<F, A>): Kind<F, B>
+'  + map(fn: Function<A, B>, fa: Kind<F, A>): Kind<F, B>
 }
 
 ' StateTuple
@@ -83,24 +75,15 @@ StateT ..|> StateTKind : implements
 StateTKind ..> StateTWitness : uses witness (phantom)
 StateTMonadInstance ..|> Monad : implements
 StateTMonadInstance ..> StateTWitness : uses witness (for Monad<F>)
-StateTMonadInstance ..> "Monad<F_WITNESS>" : depends on (holds ref to underlying monadF)
-StateT ..> "Monad<F_WITNESS>" : depends on (holds ref to underlying monadF)
+StateTMonadInstance ..> Monad : depends on (holds ref to underlying monadF)
+StateT ..> Monad : depends on (holds ref to underlying monadF)
 StateT ..> StateTuple : uses (in its run function's return type)
 StateTKindHelper ..> StateT : narrows to/wraps
 StateTKindHelper ..> StateTKind : operates on
 StateTKindHelper ..> StateTWitness : uses witness
 StateTKindHelper ..> StateTuple : uses (in runStateT return type)
-StateTKindHelper ..> "Monad<F_WITNESS>" : uses (for lift)
+StateTKindHelper ..> Monad : uses (for lift)
 
 
-' Example Underlying Monad (e.g., OptionalKind)
-
-  interface "OptionalKind.Witness" as OptionalWitness
-  interface "OptionalKind<A>" as OptionalKindHKT extends "Kind<OptionalKind.Witness, A>"
-  class OptionalMonad implements "Monad<OptionalKind.Witness>"
-
-StateTMonadInstance o--> OptionalMonad : (example) monadF can be
-StateT o--> OptionalMonad : (example) monadF can be
-StateT o--> "Kind<OptionalKind.Witness, StateTuple<S,A>>" : (example) run fn returns
 
 @enduml

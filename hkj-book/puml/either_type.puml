@@ -1,8 +1,5 @@
 @startuml eithert_type
-!theme plain
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
-title Either<L,R> Type Structure and HKT Integration
 
 
 interface "Kind<F_WITNESS, A>" as Kind
