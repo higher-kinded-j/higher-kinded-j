@@ -1,13 +1,11 @@
 @startuml maybet_transformer
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-skinparam classAttributeIconSize 0
-skinparam defaultFontName "Roboto, Helvetica"
 hide empty members
 
-package "trans.maybe_t" {
 
-  interface MaybeTKind<F, A> extends hkt.Kind<MaybeTKind.Witness<F>, A> {
+
+  interface MaybeTKind<F, A> extends Kind<MaybeTKind.Witness<F>, A> {
     + {static} class Witness<OUTER_F> << (W,lightblue) >>
   }
 '  note right of MaybeTKind.Witness : Phantom type for HKT simulation.
@@ -25,7 +23,7 @@ package "trans.maybe_t" {
   }
   note left of "MaybeT<F, A>" : "Wraps a monadic value of Kind<F, Maybe<A>>."
 
-  class MaybeTMonad<F> implements hkt.MonadError<MaybeTKind.Witness<F>, java.lang.Void> {
+  class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, java.lang.Void> {
     - outerMonad: Monad<F>
     --
     + MaybeTMonad(Monad<F> outerMonad)
@@ -48,42 +46,42 @@ package "trans.maybe_t" {
   }
   note left of MaybeTKindHelper : Utility for HKT wrap/unwrap.
 
-}
 
-package "hkt" {
-  interface Kind<F, A>
-  interface "Functor<F>"
-  interface "Applicative<F> extends Functor<F>"
-  interface "Monad<M> extends Applicative<M>"
-  interface "MonadError<M, E> extends Monad<M>"
-}
 
-package "maybe" {
-  interface Maybe<A> {
-    + {static} just(A value): Maybe<A>
-    + {static} nothing(): Maybe<A>
-    + {static} fromNullable(A value): Maybe<A>
-    ..
-    + isJust(): boolean
-    + isNothing(): boolean
-    + get(): A
-    + map(Function<A,B> mapper): Maybe<B>
-    + flatMap(Function<A, Maybe<B>> mapper): Maybe<B>
-  }
-  class "Just<A> implements Maybe<A>"
-  class "Nothing<A> implements Maybe<A>"
-}
+'package "hkt" {
+'  interface Kind<F, A>
+'  interface "Functor<F>"
+'  interface "Applicative<F> extends Functor<F>"
+'  interface "Monad<M> extends Applicative<M>"
+'  interface "MonadError<M, E> extends Monad<M>"
+'}
+
+'package "maybe" {
+'  interface Maybe<A> {
+'    + {static} just(A value): Maybe<A>
+'    + {static} nothing(): Maybe<A>
+'    + {static} fromNullable(A value): Maybe<A>
+'    ..
+'    + isJust(): boolean
+'    + isNothing(): boolean
+'    + get(): A
+'    + map(Function<A,B> mapper): Maybe<B>
+'    + flatMap(Function<A, Maybe<B>> mapper): Maybe<B>
+'  }
+'  class "Just<A> implements Maybe<A>"
+'  class "Nothing<A> implements Maybe<A>"
+'}
 
 ' Relationships
-MaybeT --> "value" hkt.Kind
-MaybeT ..> hkt.maybe.Maybe : uses in value
-MaybeT ..> hkt.Monad : uses in static methods
+MaybeT --> "value" Kind
+MaybeT ..> Maybe : uses in value
+MaybeT ..> Monad : uses in static methods
 
-MaybeTMonad o--> "outerMonad" hkt.Monad
+MaybeTMonad o--> "outerMonad" Monad
 MaybeTMonad ..> MaybeTKindHelper : uses
 MaybeTMonad ..> MaybeT : uses via KindHelper
 MaybeTMonad ..> MaybeTKind.Witness : uses in signature
-MaybeTMonad ..> hkt.maybe.Maybe : manipulates
+MaybeTMonad ..> Maybe : manipulates
 
 MaybeTKindHelper ..> MaybeT : wraps/unwraps
 MaybeTKindHelper ..> MaybeTKind.Witness : uses in signature

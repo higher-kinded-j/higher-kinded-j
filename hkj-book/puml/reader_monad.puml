@@ -1,19 +1,19 @@
 @startuml reader_monad
-!theme plain
+
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 skinparam classAttributeIconSize 0
 skinparam defaultFontName "Roboto, Helvetica"
 hide empty members
 
-package "Core HKT Interfaces" {
+
     interface Kind<F, A>
     interface Functor<F>
     interface Applicative<F>
     interface Monad<F>
-}
 
-package "Reader Type" {
+
+
     interface Reader<R, A> <<Functional Interface>> {
        + A run(R r)
        + {static} Reader<R, A> of(Function<R, A> func)
@@ -22,10 +22,8 @@ package "Reader Type" {
        + Reader<R, B> map(Function<A, B> f)
        + Reader<R, B> flatMap(Function<A, Reader<R, B>> f)
     }
-}
 
-package "Reader HKT Simulation" {
-    interface "ReaderKind<R, A> extends Kind<ReaderKind.Witness<R>, A>"
+
 
     class ReaderKindHelper {
       + {static} Reader<R, A> unwrap(Kind<ReaderKind.Witness<R>, A> kind)
@@ -46,10 +44,10 @@ package "Reader HKT Simulation" {
     class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Witness<R>> {
        + Kind<ReaderKind.Witness<R>, B> flatMap(Function<A, Kind<ReaderKind.Witness<R>, B>> f, Kind<ReaderKind.Witness<R>, A> ma)
     }
-}
+
 
 ' Relationships
-ReaderKind -- Kind : extends
+"ReaderKind<R,A>" --> Kind : extends <ReaderKind.Witness<R>, A>
 ReaderFunctor -- Functor : implements
 ReaderApplicative -- Applicative : implements
 ReaderMonad -- Monad : implements
@@ -58,9 +56,9 @@ ReaderApplicative .u.> ReaderFunctor : extends
 ReaderMonad .u.> ReaderApplicative : extends
 
 ReaderKindHelper ..> Reader : creates/unwraps
-ReaderKindHelper ..> ReaderKind : creates/unwraps
+ReaderKindHelper ..> "ReaderKind<R,A>" : creates/unwraps
 
-ReaderMonad ..> ReaderKind : operates on <ReaderKind<R,?>>
+ReaderMonad ..> "ReaderKind<R,A>" : operates on <ReaderKind<R,?>>
 ReaderMonad ..> Reader : uses methods of
 
 @enduml

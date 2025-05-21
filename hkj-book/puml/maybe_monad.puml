@@ -1,6 +1,6 @@
 @startuml maybe_monad
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
+hide empty members
 
 interface "Kind<F, A>" as Kind
 interface "Functor<F>" as Functor
@@ -67,7 +67,7 @@ interface "MonadError<M, E>" as MonadErrorBase
 MonadErrorBase --|> MonadBase
 MonadBase --|> Applicative
 Applicative --|> Functor
-Functor --|> Kind : (logically, Kind is the base for HKTs)
+Functor --|> Kind
 
 MaybeKindBase --|> Kind : <MaybeKind.Witness, A>
 
