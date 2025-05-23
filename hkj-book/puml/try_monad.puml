@@ -1,55 +1,29 @@
-@startuml Try_Monad_Hierarchy
-!theme plain
+@startuml try_monad
+
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-skinparam classAttributeIconSize 0
-skinparam defaultFontName "Roboto, Helvetica"
 hide empty members
 
-package "Core HKT Interfaces" {
-    interface Kind<F, A>
-    interface Functor<F>
-    interface Applicative<F>
-    interface Monad<F>
-    interface MonadError<F, E>
+
+interface "Try<T>" as Try
+
+
+interface "TryKind<T>" extends "Kind<TryKind.Witness, T>" as TryKind
+
+class TryFunctor implements Functor<TryKind<?>> {
+  + Kind<TryKind.Witness, B> map(Function<A, B> f, Kind<TryKind.Witness, A> fa)
 }
-
-package "Try Type" {
-    interface "Try<T>" as Try
-    /' Use notes or hidden classes for Success/Failure if diagram gets too busy
-    record Success<T> implements Try
-    record Failure<T> implements Try '/
+class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
+  + Kind<TryKind.Witness, A> of(A value)
+  + Kind<TryKind.Witness, B> ap(Kind<TryKind.Witness, Function<A, B>> ff, Kind<TryKind.Witness, A> fa)
 }
-
-package "Try HKT Simulation" {
-    interface "TryKind<T>" extends "Kind<TryKind.Witness, T>" as TryKind
-
-    class TryFunctor implements Functor<TryKind<?>> {
-      + Kind<TryKind.Witness, B> map(Function<A, B> f, Kind<TryKind.Witness, A> fa)
-    }
-    class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
-      + Kind<TryKind.Witness, A> of(A value)
-      + Kind<TryKind.Witness, B> ap(Kind<TryKind.Witness, Function<A, B>> ff, Kind<TryKind.Witness, A> fa)
-    }
-    class TryMonad extends TryApplicative implements Monad<TryKind<?>> {
-      + Kind<TryKind.Witness, B> flatMap(Function<A, Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma)
-    }
-    class TryMonadError extends TryMonad implements MonadError<TryKind<?>, Throwable> {
-      + Kind<TryKind.Witness, A> raiseError(Throwable error)
-      + Kind<TryKind.Witness, A> handleErrorWith(Kind<TryKind.Witness, A> ma, Function<Throwable, Kind<TryKind.Witness, A>> handler)
-    }
-
+class TryMonad extends TryApplicative implements Monad<TryKind<?>> {
+  + Kind<TryKind.Witness, B> flatMap(Function<A, Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma)
 }
-
-' Relationships between packages/main classes
-TryFunctor --> Functor : implements
-TryApplicative --> Applicative : implements
-TryMonad --> Monad : implements
-TryMonadError --> MonadError : implements
-
-TryMonadError --> TryMonad : extends
-TryMonad --> TryApplicative : extends
-TryApplicative --> TryFunctor : extends
+class TryMonadError extends TryMonad implements MonadError<TryKind<?>, Throwable> {
+  + Kind<TryKind.Witness, A> raiseError(Throwable error)
+  + Kind<TryKind.Witness, A> handleErrorWith(Kind<TryKind.Witness, A> ma, Function<Throwable, Kind<TryKind.Witness, A>> handler)
+}
 
 TryKind -- Kind : extends
 

@@ -1,8 +1,8 @@
-@startuml Try_Type_Diagram
-!theme plain
+@startuml try_type
+
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-skinparam classAttributeIconSize 0
-skinparam defaultFontName "Roboto, Helvetica"
+hide empty members
+
 
 interface "Try<T>" as Try {
   + {abstract} boolean isSuccess()

@@ -1,174 +1,29 @@
-@startuml
+@startuml supported_transformers
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 hide empty members
 left to right direction
 
-title Higher-Kinded-J Monad Transformers
 
-interface "Kind<G, A>" as Kind_GAD
-interface "Monad<G>" as Monad_G
-interface "MonadError<G, E>" as MonadError_GE
-MonadError_GE --|> Monad_G
 
-package "Outer Monad Context (F)" <<Rectangle>> {
-  interface "Kind<F, T>" as Kind_F_T
-  interface "Monad<F>" as Monad_F_Instance
-  note right of Monad_F_Instance : This is the Monad instance\nfor the outer monad F\n(e.g., OptionalMonad,\nCompletableFutureMonad)
+
+package "Transformer Types (Monad Implementations)" {
+    class "EitherTMonad<F,L>" as EitherTMonad
+    class "MaybeTMonad<F>" as MaybeTMonad
+    class "OptionalTMonad<F>" as OptionalTMonad
+    class "ReaderTMonad<F, R_ENV>" as ReaderTMonad
+    class "StateTMonad<S,F>" as StateTMonad
+
+
+    EitherTMonad <|.. CoreInterfaces.MonadError
+    MaybeTMonad <|.. CoreInterfaces.MonadError
+    OptionalTMonad <|.. CoreInterfaces.MonadError
+    ReaderTMonad <|.. CoreInterfaces.Monad
+    StateTMonad <|.. CoreInterfaces.Monad
+
+
+    ' Example relation for OptionalT
+    OptionalTMonad ..> "Simulation Plumbing.OptionalTKind" : operates on witness
 }
 
-
-package "eithert"  {
-  class "EitherT<F, L, R> <<record>> as EitherT_FLR" {
-    + @NonNull Kind<F, Either<L, R>> value
-  }
-  interface "EitherTKind<F, L, R>" as EitherTKind_FLR
-  class "EitherTMonad<F, L>" as EitherTMonad_FL {
-    - final @NonNull Monad<F> outerMonad
-  }
-  class "EitherTKindHelper" as EitherTKindHelper
-
-  EitherT_FLR --|> EitherTKind_FLR
-  EitherTKind_FLR --|> Kind_GAD
-  EitherTMonad_FL --|> MonadError_GE
-  EitherTMonad_FL *-- "outerMonad" Monad_F_Instance
-  EitherT_FLR ..> Kind_F_T : value uses
-  note right of EitherT_FLR : Wraps Kind<F, Either<L,R>>
-
-  EitherTMonad_FL ..> EitherTKindHelper : uses
-  EitherTMonad_FL ..> EitherT_FLR : creates/operates on
-  EitherTKindHelper ..> EitherT_FLR : unwrap() returns
-  EitherTKindHelper ..> EitherTKind_FLR : wrap() returns
-}
-
-package "maybet" {
-  class "MaybeT<F, A> <<record>> as MaybeT_FA" {
-    + @NonNull Kind<F, Maybe<A>> value
-  }
-  interface "MaybeTKind<F, A>" as MaybeTKind_FA
-  class "MaybeTMonad<F>" as MaybeTMonad_F {
-    - final @NonNull Monad<F> outerMonad
-  }
-  class "MaybeTKindHelper" as MaybeTKindHelper
-
-  MaybeT_FA --|> MaybeTKind_FA
-  MaybeTKind_FA --|> Kind_GAD
-  MaybeTMonad_F --|> MonadError_GE
-  MaybeTMonad_F *-- "outerMonad" Monad_F_Instance
-  MaybeT_FA ..> Kind_F_T : value uses
-  note right of MaybeT_FA : Wraps Kind<F, Maybe<A>>
-
-  MaybeTMonad_F ..> MaybeTKindHelper : uses
-  MaybeTMonad_F ..> MaybeT_FA : creates/operates on
-  MaybeTKindHelper ..> MaybeT_FA : unwrap() returns
-  MaybeTKindHelper ..> MaybeTKind_FA : wrap() returns
-}
-
-package "optionalt" {
-  class "OptionalT<F, A>" as OptionalT_FA {
-    + @NonNull Kind<F, Optional<A>> value
-  }
-  interface "OptionalTKind<F, A>" as OptionalTKind_FA
-  class "OptionalTMonad<F>" as OptionalTMonad_F {
-    - final @NonNull Monad<F> outerMonad
-  }
-  class "OptionalTKindHelper" as OptionalTKindHelper
-
-  OptionalT_FA --|> OptionalTKind_FA
-  OptionalTKind_FA --|> Kind_GAD
-  OptionalTMonad_F --|> MonadError_GE
-  OptionalTMonad_F *-- "outerMonad" Monad_F_Instance
-  OptionalT_FA ..> Kind_F_T : value uses
-  note right of OptionalT_FA : Wraps Kind<F, Optional<A>>
-
-  OptionalTMonad_F ..> OptionalTKindHelper : uses
-  OptionalTMonad_F ..> OptionalT_FA : creates/operates on
-  OptionalTKindHelper ..> OptionalT_FA : unwrap() returns
-  OptionalTKindHelper ..> OptionalTKind_FA : wrap() returns
-}
-
-package "readert" {
-  class "ReaderT<F, R, A> <<record>> as ReaderT_FRA" {
-    + @NonNull Function<R, Kind<F, A>> run
-  }
-  interface "ReaderTKind<F, R, A>" as ReaderTKind_FRA
-  class "ReaderTMonad<F, R>" as ReaderTMonad_FR {
-    - final @NonNull Monad<F> outerMonad
-  }
-  class "ReaderTKindHelper" as ReaderTKindHelper
-
-  ReaderT_FRA --|> ReaderTKind_FRA
-  ReaderTKind_FRA --|> Kind_GAD
-  ReaderTMonad_FR --|> Monad_G
-  ReaderTMonad_FR *-- "outerMonad" Monad_F_Instance
-  ReaderT_FRA ..> Kind_F_T : run() returns
-  note right of ReaderT_FRA : Wraps Function<R, Kind<F, A>>
-
-  ReaderTMonad_FR ..> ReaderTKindHelper : uses
-  ReaderTMonad_FR ..> ReaderT_FRA : creates/operates on
-  ReaderTKindHelper ..> ReaderT_FRA : unwrap() returns
-  ReaderTKindHelper ..> ReaderTKind_FRA : wrap() returns
-}
-
-' StateTuple (used by StateT)
-package "state" {
-  class StateTuple<S, A> {
-    + S state
-    + A value
-    + {static} of(s: S, a: A): StateTuple<S, A>
-  }
-}
-' StateT Monad Transformer
-package "state_t" {
-  class "StateT<S, F_WITNESS, A>" as StateT_Impl {
-    ' S: State type
-    ' F_WITNESS: Witness for the underlying monad F
-    ' A: Value type
-    - run: Function<S, Kind<F_WITNESS, StateTuple<S, A>>>
-    - monadF: Monad<F_WITNESS>
-    + {static} create(run: Function, monadF: Monad): StateT<S, F_WITNESS, A>
-    + runStateT(s: S): Kind<F_WITNESS, StateTuple<S, A>>
-  }
-
-  interface "StateTKind<S, F_WITNESS, A>" extends "Kind<StateT.Witness<S, F_WITNESS>, A>" {
-    ' Represents StateT as a Kind
-  }
-
-  class "StateT.Witness<S, F_WITNESS>" as StateTWitness {
-    ' static final class Witness<S, F_WITNESS> {}
-  }
-
-  class StateTKindHelper {
-    + {static} narrow(kind: Kind<StateT.Witness<S, F_WITNESS>, A>): StateT<S, F_WITNESS, A>
-    + {static} wrap(stateT: StateT<S, F_WITNESS, A>): Kind<StateT.Witness<S, F_WITNESS>, A>
-    + {static} runStateT(kind: Kind, s: S): Kind<F_WITNESS, StateTuple<S, A>>
-    + {static} lift(fn: Function, monadF: Monad) : Kind<StateT.Witness<S, F_WITNESS>, A>
-  }
-
-  class "StateTMonad<S, F_WITNESS>" as StateTMonadInstance implements "Monad<StateT.Witness<S, F_WITNESS>>" {
-    - monadF: Monad<F_WITNESS>
-    + {static} instance(monadF: Monad<F_WITNESS>): StateTMonad<S, F_WITNESS>
-  }
-
-  StateT_Impl ..> StateTWitness : uses witness >
-  StateT_Impl ..> "Monad<F_WITNESS>" : uses (underlying monad)
-  StateT_Impl ..> StateTuple : uses (in run function's return type)
-
-  StateTKind --|> "Kind"
-  StateTKind ..> StateTWitness : uses witness >
-
-  StateTKindHelper ..> StateT_Impl : narrows to/wraps
-  StateTKindHelper ..> StateTWitness : uses witness
-  StateTKindHelper ..> "Monad<F_WITNESS>" : uses (for lift)
-
-  StateTMonadInstance ..> StateTWitness : uses witness for Monad<F>
-  StateTMonadInstance ..> "Monad<F_WITNESS>" : depends on (holds ref to underlying monadF)
-
-  ' Example of StateT using OptionalMonad as F_WITNESS
-  StateTMonadInstance o--> OptionalMonad : (example) monadF can be
-  StateT_Impl o--> OptionalMonad : (example) monadF can be
-  StateT_Impl o--> "Kind<OptionalKind.Witness, StateTuple<S,A>>" : (example) run fn returns
-}
-
-footer Generated for Higher-Kinded-J Documentation
 @enduml

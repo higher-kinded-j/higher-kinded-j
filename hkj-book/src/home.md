@@ -59,7 +59,18 @@ To understand and use Higher-Kinded-J effectively, explore these documents:
 
 You could adapt Higher-Kinded-J for use in your own projects:
 
-1.  **Include the Code:** Copy the relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) into your project's source code.
+1.  **Include the dependency:** The relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) are available in the following dependency from [the project packages on Github.](https://github.com/higher-kinded-j/higher-kinded-j/packages/)  
+
+~~~ admonish info
+```
+<dependency>
+  <groupId>org.higher-kinded-j</groupId>
+  <artifactId>higher-kinded-j</artifactId>
+  <version>v0.1.3-SNAPSHOT</version>
+</dependency>
+```
+~~~
+
 2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `Kind` interfaces (e.g., `OptionalKind`), the `KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
 3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
 4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending the Simulation](extending-simulation.md).

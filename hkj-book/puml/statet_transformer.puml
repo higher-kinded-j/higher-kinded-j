@@ -10,16 +10,11 @@ interface Kind<F, A> {
   ' F is the HKT witness (phantom type)
   ' A is the value type
 }
-interface Monad<F> extends Applicative<F> {
+interface Monad<F>  {
 '  + flatMap(fn: Function<A, Kind<F, B>>, fa: Kind<F, A>): Kind<F, B>
 }
-interface Applicative<F> extends Functor<F> {
-'  + of(a: A): Kind<F, A>
-'  + ap(ff: Kind<F, Function<A,B>>, fa: Kind<F, A>): Kind<F, B>
-}
-interface Functor<F> {
-'  + map(fn: Function<A, B>, fa: Kind<F, A>): Kind<F, B>
-}
+
+
 
 ' StateTuple
 class StateTuple<S, A> {

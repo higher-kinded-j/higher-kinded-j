@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.function.Consumer;
 import org.jspecify.annotations.NonNull;
 
@@ -16,7 +18,7 @@ public record Dependencies(@NonNull Consumer<String> logger /* , Add other depen
 
   /** Default constructor ensures logger is non-null. */
   public Dependencies {
-    java.util.Objects.requireNonNull(logger, "Logger dependency cannot be null");
+    requireNonNull(logger, "Logger dependency cannot be null");
   }
 
   /** Convenience method to log a message using the configured logger. */

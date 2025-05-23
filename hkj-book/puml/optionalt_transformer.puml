@@ -3,10 +3,9 @@
 
 hide empty members
 
-
 interface Kind<F_HKT, A_VAL>
 interface Monad<F_HKT>
-interface "MonadError<F_HKT, E_ERR> extends Monad<F_HKT>"
+interface "MonadError<F_HKT, E_ERR>" as MonadError
 
   class OptionalT<F, A> <<record>> implements OptionalTKind<F, A> {
     + @NonNull Kind<F, Optional<A>> value
@@ -40,7 +39,7 @@ interface "MonadError<F_HKT, E_ERR> extends Monad<F_HKT>"
     end note
   }
 
-  OptionalTMonad --|> MonadError
+
   OptionalTMonad *-- "outerMonad (Monad<F_OUTER>)" Monad
   OptionalTMonad ..> OptionalTKindHelper : uses
   OptionalTMonad ..> OptionalT : creates / operates on
@@ -48,11 +47,11 @@ interface "MonadError<F_HKT, E_ERR> extends Monad<F_HKT>"
   OptionalTKindHelper ..> OptionalT : unwrap() returns
   OptionalTKindHelper ..> OptionalTKind : wrap() returns
 
-  OptionalT --|> OptionalTKind
+
   OptionalT ..> "value is Kind<F, Optional<A>>" Kind
   OptionalT ..> "factories require Monad<F>" Monad
 
-  OptionalTKind --|> Kind
+
 
 
 @enduml

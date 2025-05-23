@@ -17,7 +17,7 @@ class LazyMonad implements Monad<LazyKind.Witness> {
  + <A, B> @NonNull Kind<LazyKind.Witness, B> flatMap(@NonNull Function<A, Kind<LazyKind.Witness, B>>, @NonNull Kind<LazyKind.Witness, A>)
 }
 
-LazyMonad .u.|> Monad : implements
+
 LazyMonad ..> LazyKindHelper : uses
 LazyMonad ..> LazyKind : operates on
 

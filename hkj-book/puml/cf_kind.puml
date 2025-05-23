@@ -1,6 +1,6 @@
 @startuml cf_kind
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
+hide empty members
 
 interface Kind<F, A> <<HKT Bridge>>
 
