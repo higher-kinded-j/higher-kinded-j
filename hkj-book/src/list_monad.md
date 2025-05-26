@@ -143,7 +143,7 @@ System.out.println(ListKindHelper.unwrap(appliedResults));
 
 ~~~admonish example title="Example: Using ListMonad"
 
-- [ListMonadExample.java](../../src/main/java/org/higherkindedj/example/basic/list/ListMonadExample.java)
+- [ListMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/list/ListMonadExample.java)
 
 To use `ListMonad` in generic contexts that operate over `Kind<F, A>`:
 

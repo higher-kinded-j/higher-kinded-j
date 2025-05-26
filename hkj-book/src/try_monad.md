@@ -26,7 +26,7 @@ It implements `MonadError<TryKind<?>, Throwable>`, signifying its monadic nature
 
 ~~~admonish title="Creating Instance"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 You can create `Try` instances in several ways:
 
@@ -59,7 +59,7 @@ You can create `Try` instances in several ways:
 ~~~
 ~~~admonish title="Checking the State"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 
 * `isSuccess()`: Returns `true` if it's a `Success`.
@@ -73,7 +73,7 @@ You can create `Try` instances in several ways:
 
 ~~~admonish title="Transforming Values (_map_)"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 Applies a function to the value inside a `Success`. If the function throws an exception, the result becomes a `Failure`. If the original `Try` was a `Failure`, `map` does nothing and returns the original `Failure`.
 
@@ -90,7 +90,7 @@ Try<Integer> mapThrows = initialSuccess.map(value -> { throw new NullPointerExce
 
 ~~~admonish title="Chaining Operations (_flatMap_)"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 Applies a function that returns another `Try` to the value inside a `Success`. This is used to sequence operations where each step might fail. Failures are propagated.
 
@@ -114,7 +114,7 @@ Try<Double> result3 = inputFailure.flatMap(safeDivide); // Failure(RuntimeExcept
 
 ~~~admonish title="_fold(successFunc, failureFunc)_"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 Safely handles both cases by applying one of two functions.
 
@@ -129,7 +129,7 @@ String message = result2.fold(
 
 ~~~admonish title="_recover(recoveryFunc)_"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 If `Failure`, applies a function `Throwable -> T` to produce a new `Success` value. If the recovery function throws, the result is a `Failure` containing that new exception.
 
@@ -142,7 +142,7 @@ Try<Double> recovered2 = result1.recover(recoverHandler); // Stays Success(5.0)
 
 ~~~admonish title="_recoverWith(recoveryFunc)_"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 Similar to `recover`, but the recovery function `Throwable -> Try<T>` must return a `Try`. This allows recovery to potentially result in another `Failure`.
 
@@ -159,7 +159,7 @@ Try<Double> recoveredWith2 = result3.recoverWith(recoverWithHandler); // Failure
 
 ~~~admonish example title="Example: Using _TryMonad_"
 
-- [TryExample.java](../../src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 To use `Try` with generic code expecting `Kind<F, A>`:
 

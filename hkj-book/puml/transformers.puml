@@ -1,9 +1,8 @@
 @startuml
-!theme plain
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 left to right direction
-
+hide empty members
 package Transformers {
      class "EitherTMonad<F, L>" as EitherTMonad
      class "EitherT<F, L, R>" as EitherT

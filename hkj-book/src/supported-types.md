@@ -91,7 +91,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 6. `Try<A>` (Assuming `A` instead of `T` for consistency)
+### 6. `Try<A>` 
 
 * **Type Definition**: Custom sealed interface ([`Try`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trymonad/Try.java)) with `Success<A>` and `Failure<A>` (wrapping `Throwable`).
 * **`TryKind<A>` Interface**: `Try<A>` itself implements `TryKind<A>`, and `TryKind<A> extends Kind<TryKind.Witness, A>`.

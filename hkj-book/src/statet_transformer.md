@@ -26,9 +26,10 @@ Where:
 * `A`: The type of the computed value.
 * `StateTuple<S, A>`: A simple container holding a pair of `(state, value)`.
 
-## Key Classes and Concepts
 
 ![statet_transformer.svg](images/puml/statet_transformer.svg)
+
+## Key Classes and `Concepts`
 
 * **`StateT<S, F, A>`**: The primary data type representing the stateful computation stacked on monad `F`. It holds the function `S -> Kind<F, StateTuple<S, A>>`.
 * **`StateTKind<S, F, A>`**: The `Kind` representation for `StateT`, allowing it to be used with `higher-kinded-j`'s typeclasses like `Monad`. This is what you'll mostly interact with when using `StateT` in a generic monadic context.
@@ -49,7 +50,7 @@ Without `StateT`, you might end up with deeply nested `Optional<StateTuple<S, A>
 ## Usage
 ~~~admonish example title="Example StateT"
 
-- [StateTExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/statet/StateTExample.java)
+- [StateTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/statet/StateTExample.java)
 ### Creating StateT Instances
 
 
@@ -249,7 +250,7 @@ return StateT.create(runFn, monadF);
 
 ~~~admonish example title="Example: Example: Simple Stack Operations with _StateT<List<Integer>, OptionalKind.Witness, ...>"
 
-- [StateTStackExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/statet/StateTStackExample.java)
+- [StateTStackExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/statet/StateTStackExample.java)
 
 Let's simulate stack operations where the stack is a `List<Integer>` and operations might be absent if, for example, popping an empty stack.
 

@@ -9,7 +9,8 @@ src = "src"
 additional-css = ["./mdbook-admonish.css", "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", "./theme/catppuccin-alerts.css", "./theme/additional-hkj.css"]
 default-theme = "latte"
 preferred-dark-theme = "macchiato"
-site-url = "https://higher-kinded-j.github.io/"
+site-url = "https://higher-kinded-j.github.io"
+canonical-site-url = "https://higher-kinded-j.github.io"
 [preprocessor.alerts]
 [preprocessor.admonish]
 command = "mdbook-admonish"

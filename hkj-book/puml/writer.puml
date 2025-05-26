@@ -1,26 +1,17 @@
-@startuml Writer_Monad_Diagram
-!theme plain
+@startuml writer
+
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-skinparam classAttributeIconSize 0
-skinparam defaultFontName "Roboto, Helvetica"
+
 hide empty members
 
-package "Core HKT Interfaces" {
-    interface Kind<F, A>
-    interface Functor<F>
-    interface Applicative<F>
-    interface Monad<F>
-}
-
-package "Type Classes" {
    interface Monoid<W> {
      + W empty()
      + W combine(W x, W y)
    }
-}
 
-package "Writer Type" {
+
+
     class Writer<W, A> <<record>> {
         + Writer(W log, A value)
         __ Methods __
@@ -32,10 +23,7 @@ package "Writer Type" {
        + A run()
        + W exec()
     }
-}
 
-package "Writer HKT Simulation" {
-    interface "WriterKind<W, A> extends Kind<WriterKind<W, ?>, A>"
 
     class WriterKindHelper {
       + {static} Writer<W, A> unwrap(Kind<WriterKind<W, ?>, A> kind)
@@ -60,20 +48,9 @@ package "Writer HKT Simulation" {
        + WriterMonad(Monoid<W> monoidW)
        + Kind<WriterKind<W, ?>, B> flatMap(Function<A, Kind<WriterKind<W, ?>, B>> f, Kind<WriterKind<W, ?>, A> ma)
     }
-}
-
-' Relationships
-WriterKind -- Kind : extends
-WriterFunctor -- Functor : implements
-WriterApplicative -- Applicative : implements
-WriterMonad -- Monad : implements
-
-WriterApplicative .u.> WriterFunctor : extends
-WriterMonad .u.> WriterApplicative : extends
 
 ' Dependencies
 WriterApplicative *--> Monoid : uses >
-' WriterMonad inherits dependency via WriterApplicative
 
 WriterKindHelper ..> Writer : creates/unwraps
 WriterKindHelper ..> WriterKind : creates/unwraps

@@ -1,7 +1,7 @@
 @startuml eithert_type
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
-
+hide empty members
 interface "Kind<F_WITNESS, A>" as Kind
 
 

@@ -37,7 +37,7 @@ interface Monad<F_HKT>
 
   }
 
-  ReaderTMonad --|> Monad
+
   ReaderTMonad *-- "outerMonad (Monad<F_OUTER>)" Monad
   ReaderTMonad ..> ReaderTKindHelper : uses
   ReaderTMonad ..> ReaderT : creates / operates on
@@ -45,11 +45,11 @@ interface Monad<F_HKT>
   ReaderTKindHelper ..> ReaderT : unwrap() returns
   ReaderTKindHelper ..> ReaderTKind : wrap() returns
 
-  ReaderT --|> ReaderTKind
+
   ReaderT ..> "run() returns Kind<F,A>" Kind
   ReaderT ..> "factories require Monad<F>" Monad
 
-  ReaderTKind --|> Kind
+
 
 
 @enduml

@@ -1,4 +1,4 @@
-# Extending the Simulation
+# Extending Higher Kinded Type Simulation
 
 You can add support for new Java types (type constructors) to the Higher-Kinded-J simulation framework, allowing them to be used with type classes like `Functor`, `Monad`, etc.
 
@@ -15,7 +15,8 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
 
 **Goal:** Simulate `java.util.Set<A>` as `Kind<SetKind.Witness, A>` and provide `Functor`, `Applicative`, and `Monad` instances for it.
 
-### Steps
+~~~admonish example title="Adapting an External Type"
+
 
 1.  **Create the `Kind` Interface with Witness (`SetKind.java`)**:
     * Define a marker interface that extends `Kind<SetKind.Witness, A>`.
@@ -167,10 +168,17 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
         }
     }
     ```
+~~~
+
+----
+
+
 
 ## Scenario 2: Integrating a Custom Library Type
 
 If you are defining a new type *within your library* (e.g., a custom `MyType<A>`), you can design it to directly participate in the HKT simulation.
+
+~~~admonish example title="Integrating a Custom Library Type"
 
 1.  **Define Your Type and its `Kind` Interface**:
     * Your custom type (e.g., `MyType<A>`) directly implements its corresponding `MyTypeKind<A>` interface.
@@ -241,11 +249,13 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 
 3.  **Implement Type Class Instances**:
     * These will be similar to the external type scenario (e.g., `MyTypeMonad implements Monad<MyType.Witness>`), using your `MyTypeKindHelper.wrap` and `MyTypeKindHelper.unwrap` (which now involve casts).
+~~~
 
-## General Considerations
+~~~admonish important title="General Considerations"
 
 * **Immutability**: Favor immutable data structures for your `Holder` or custom type if possible, as this aligns well with functional programming principles.
 * **Null Handling**: Be very clear about null handling. Can the wrapped Java type be null? Can the value `A` inside be null? `KindHelper.wrap` should typically reject a null container itself. `Monad.of(null)` behavior depends on the specific monad (e.g., `OptionalMonad.of(null)` is empty, `ListMonad.of(null)` might be an empty list or a list with a null element based on its definition).
 * **Testing**: Thoroughly test your `KindHelper` (especially `unwrap` with invalid inputs) and your type class instances (Functor, Applicative, Monad laws).
 
 By following these patterns, you can integrate new or existing types into the Higher-Kinded-J framework, enabling them to be used with generic functional abstractions. The primary difference lies in whether a `Holder` record is needed (for external types) or if your type can directly implement its `Kind` interface.
+~~~

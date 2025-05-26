@@ -1,7 +1,7 @@
 @startuml defunctionalisation_internal
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
+hide empty members
 
 package "Defunctionalisation Pattern For Library-Defined Types (Id, Maybe, IO, Transformers)" {
 

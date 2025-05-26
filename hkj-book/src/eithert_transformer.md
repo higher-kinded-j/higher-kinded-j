@@ -118,7 +118,7 @@ Optional<Either<String, String>> unwrappedOptional = OptionalKindHelper.unwrap(w
 
 ~~~admonish Example title="Async Workflow with Error Handling"
 
-- [EitherTExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/eithert/EitherTExample.java)
+- [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/eithert/EitherTExample.java)
 
 The most common use case for `EitherT` is combining asynchronous operations (`CompletableFuture`) with domain error handling (`Either`).  The `OrderWorkflowRunner` class provides a detailed example.
 
@@ -256,7 +256,7 @@ This example demonstrates:
 
 ~~~admonish Example title="Using _EitherTMonad_ for Sequencing and Error Handling"
 
-- [OrderWorkflowRunner.java](../../src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java)
+- [OrderWorkflowRunner.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java)
 
 The primary use is chaining operations using `flatMap` and handling errors using `handleErrorWith` or related methods. The `OrderWorkflowRunner` is the best example. Let's break down a key part:
 

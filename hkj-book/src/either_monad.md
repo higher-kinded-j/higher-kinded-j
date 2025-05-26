@@ -23,7 +23,7 @@ You create `Either` instances using the static factory methods:
 
 ~~~admonish  title="Creating Instances"
 
-- [EitherExample.java](../../src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
+- [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 
 ```java
 
@@ -45,7 +45,7 @@ Several methods are available to interact with `Either` values:
 
 ~~~admonish  title="Checking State"
 
-- [EitherExample.java](../../src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
+- [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 
 
   - `isLeft()`: Returns `true` if it's a `Left`, `false` otherwise.
@@ -63,7 +63,7 @@ Several methods are available to interact with `Either` values:
 
 ~~~admonish  title="Extracting Values (_Use with Caution_)"
 
-- [EitherExample.java](../../src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
+- [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 
 
   - `getLeft()`: Returns the `value` if it's a `Left`, otherwise throws `NoSuchElementException`.
@@ -84,7 +84,7 @@ _Note: Prefer `fold` or pattern matching over direct `getLeft`/`getRight` calls.
 
 ~~~admonish  title="Pattern Matching / Folding"
 
-- [EitherExample.java](../../src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
+- [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 
 - The `fold` method is the safest way to handle both cases by providing two functions: one for the `Left` case and one for the `Right` case. It returns the result of whichever function is applied.
 
@@ -105,7 +105,7 @@ _Note: Prefer `fold` or pattern matching over direct `getLeft`/`getRight` calls.
 
 ~~~admonish  title="_Map_"
 
-- [EitherExample.java](../../src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
+- [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 
 
 Applies a function only to the `Right` value, leaving a `Left` unchanged. This is known as being "right-biased".
@@ -125,7 +125,7 @@ Applies a function only to the `Right` value, leaving a `Left` unchanged. This i
 
 ~~~admonish  title="_flatMap_"
 
-- [EitherExample.java](../../src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
+- [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 
 Applies a function that *itself returns an `Either`* to a `Right` value. If the initial `Either` is `Left`, it's returned unchanged. If the function applied to the `Right` value returns a `Left`, that `Left` becomes the result. This allows sequencing operations where each step can fail. The `Left` type acts as a functor that dismisses the mapped function `f` and returns itself (`map(f) -> Left(Value)`). It preserves the value it holds. After a `Left` is encountered, subsequent transformations via `map` or `flatMap` are typically short-circuited.
 
@@ -161,7 +161,7 @@ Applies a function that *itself returns an `Either`* to a `Right` value. If the 
 
 ~~~admonish  example title="Using _EitherMonad_"
 
-- [EitherExample.java](../../src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
+- [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 
 To use `Either` within Higher-Kinded-J framework:
 

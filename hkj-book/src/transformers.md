@@ -1,5 +1,7 @@
 # Transformers: Combining Monadic Effects
 
+![stand_back_monad_transformers.jpg](images/stand_back_monad_transformers.jpg)
+
 ## The Problem
 
 When building applications, we often encounter scenarios where we need to combine different computational contexts or effects. For example:
@@ -27,6 +29,14 @@ But now, how do we `map` or `flatMap` over this stack  without lots of boilerpla
 **Monad Transformers** are a design pattern in functional programming used to combine the effects of two different monads into a single, new monad. They provide a standard way to "stack" monadic contexts, allowing you to work with the combined structure more easily using familiar monadic operations like `map` and `flatMap`.
 
 A monad transformer `T` takes a monad `M` and produces a new monad `T<M>` that combines the effects of both `T` (conceptually) and `M`.
+
+#### For example:
+
+* `MaybeT m a` wraps a monad `m` and adds `Maybe`-like failure
+* `StateT s m a` wraps a monad `m` and adds state-handling capability
+* `ReaderT r m a` adds dependency injection (read-only environment)
+
+They allow you to **stack** monadic behaviors.
 
 Key characteristics:
 
@@ -90,8 +100,6 @@ Key characteristics:
   * [`ReaderTMonad<F, R>`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trans/reader_t/ReaderTMonad.java) (`Monad<ReaderTKind<F, R, ?>>`)
 * **Notes:** Simplifies managing computations that depend on a read-only environment `R` while also involving other monadic effects from `F`. Requires a `Monad<F>` instance for the outer monad. The `run()` method of `ReaderT` takes `R` and returns `Kind<F, A>`.
 * **Usage:** [How to use the ReaderT Monad Transformer](./readert_transformer.md)
-
-
 
 ### . `StateT<S, F, A>` (Monad Transformer)
 

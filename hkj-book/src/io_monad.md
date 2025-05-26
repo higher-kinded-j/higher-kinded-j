@@ -44,7 +44,7 @@ The `IO` functionality is built upon several related components:
 
 ~~~admonish example title="Example 1: Creating Basic IO Actions"
 
-- [IOExample.java](../../src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
+- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
 Use `IOKindHelper.delay` to capture side effects. Use `IOMonad.of` for pure values within IO.
 
@@ -95,7 +95,7 @@ Kind<IOKind.Witness, String> potentiallyFailingIO = IOKindHelper.delay(() -> {
 
 ~~~admonish example title="Example 2. Executing IO Actions"
 
-- [IOExample.java](../../src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
+- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
 Use `IOKindHelper.unsafeRunSync` to run the computation.
 
@@ -133,7 +133,7 @@ IOKindHelper.unsafeRunSync(printHello); // Prints "Hello from IO!" again
 
 ~~~admonish title="Example 3: Composing IO Actions with `map` and `flatMap`"
 
-- [IOExample.java](../../src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
+- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
 Use `IOMonad` instance methods.
 
