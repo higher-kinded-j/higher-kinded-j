@@ -8,7 +8,7 @@ The general process involves these steps:
 
 ~~~admonish title="1: Identify the Context (_F_WITNESS_)"
 
-- [GenericExample.java](../../src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Determine which type constructor (computational context) you want to work with abstractly. This context is represented by its *witness type*. Examples:
 
@@ -28,7 +28,7 @@ Determine which type constructor (computational context) you want to work with a
 
 ~~~admonish title="2: Find the Type Class Instance"
 
-- [GenericExample.java](../../src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicative<F_WITNESS>`, `Monad<F_WITNESS>`, `MonadError<F_WITNESS, E>`) for your chosen context's witness type `F_WITNESS`. These are concrete classes provided in the corresponding package.
 
@@ -42,7 +42,7 @@ Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicativ
 
 ~~~admonish title="3: Wrap Your Value (_JavaType<A>_ -> _Kind<F_WITNESS, A>_)"
 
-- [GenericExample.java](../../src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into Higher-Kinded-J's `Kind` representation using the static `wrap` method from the corresponding `XxxKindHelper` class.
 
@@ -61,7 +61,7 @@ Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>
 
 ~~~admonish title="4: Apply Type Class Methods"
 
-- [GenericExample.java](../../src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the **type class instance** obtained in *Step 2*, passing your `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object itself if it's just the `Kind` interface.** (Some concrete `Kind` implementations like `Id` or `Maybe` might offer direct methods, but for generic programming, use the type class instance).
 
@@ -92,7 +92,7 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
 ~~~
 ~~~admonish title="5: Unwrap the Result (_Kind<F_WITNESS, A> -> JavaType<A>_)"
 
-- [GenericExample.java](../../src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running `IO`), use the static `unwrap` method from the corresponding `XxxKindHelper` class.
 
@@ -116,7 +116,7 @@ When you need the underlying Java value back (e.g., to return from a method boun
 
 ~~~admonish title="Handling _KindUnwrapException_"
 
-- [GenericExample.java](../../src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 The `unwrap` methods in all `KindHelper` classes are designed to be robust against *structural* errors within the HKT simulation layer.
 
@@ -144,7 +144,7 @@ The `unwrap` methods in all `KindHelper` classes are designed to be robust again
 
 ~~~admonish example title="Example: Generic Function"
 
-- [GenericExample.java](../../src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Higher-Kinded-J allows writing functions generic over the simulated type constructor (represented by its witness `F_WITNESS`).
 

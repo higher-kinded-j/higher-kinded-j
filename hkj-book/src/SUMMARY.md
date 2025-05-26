@@ -1,6 +1,6 @@
 # Summary
 
-[Introduction](home.md) // Or README.md/introduction.md
+[Introduction](home.md) 
 
 # Core Concepts
 - [Concepts](./core-concepts.md)

@@ -115,7 +115,7 @@ First, we define a record to represent the state of our bank account.
 
 ### 1. Define Your State Type
 
-- [AccountState.java](../../src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
+- [AccountState.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
 
 
 ```java
@@ -160,8 +160,8 @@ public record AccountState(BigDecimal balance, List<Transaction> history) {
 ### 2. Define Transaction Types
 
 We'll also need a way to represent transactions.
-- [TransactionType.java](../../src/main/java/org/higherkindedj/example/basic/state/TransactionType.java)
-- [Transaction.java](../../src/main/java/org/higherkindedj/example/basic/state/Transaction.java)
+- [TransactionType.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/state/TransactionType.java)
+- [Transaction.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/state/Transaction.java)
 
 
 ```java
@@ -198,7 +198,7 @@ These actions describe how the state should change and what value they produce.
 
 We'll put these in a `BankAccountWorkflow.java class`.
 
-- [BankAccountWorkflow.java](../../src/main/java/org/higherkindedj/example/basic/state/BankAccountWorkflow.java)
+- [BankAccountWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/state/BankAccountWorkflow.java)
 
 ```java
 public class BankAccountWorkflow {

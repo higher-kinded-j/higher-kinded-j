@@ -38,7 +38,7 @@ The lazy evaluation feature revolves around these key types:
 
 ~~~admonish example title="Example: Creating Lazy Instances"
 
-- [LazyExample.java](../../src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
+- [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 ```java
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
@@ -70,7 +70,7 @@ Lazy<String> directLazy = Lazy.defer(() -> { counter.incrementAndGet(); return "
 
 ~~~admonish example title="Example: Forcing Evaluation"
 
-- [LazyExample.java](../../src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
+- [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 Evaluation only happens when `force()` is called (directly or via the helper).
 
@@ -109,7 +109,7 @@ try {
 
 ~~~admonish example title="Example: Using _LazyMonad_ (_map_ and _flatMap_)"
 
-- [LazyExample.java](../../src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
+- [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 ```java
 import org.higherkindedj.hkt.lazy.LazyMonad;

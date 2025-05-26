@@ -50,7 +50,7 @@ Without `StateT`, you might end up with deeply nested `Optional<StateTuple<S, A>
 ## Usage
 ~~~admonish example title="Example StateT"
 
-- [StateTExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/statet/StateTExample.java)
+- [StateTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/statet/StateTExample.java)
 ### Creating StateT Instances
 
 
@@ -250,7 +250,7 @@ return StateT.create(runFn, monadF);
 
 ~~~admonish example title="Example: Example: Simple Stack Operations with _StateT<List<Integer>, OptionalKind.Witness, ...>"
 
-- [StateTStackExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/statet/StateTStackExample.java)
+- [StateTStackExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/statet/StateTStackExample.java)
 
 Let's simulate stack operations where the stack is a `List<Integer>` and operations might be absent if, for example, popping an empty stack.
 

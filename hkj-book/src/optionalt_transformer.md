@@ -91,7 +91,7 @@ OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
 
 ~~~admonish title="Creating _OptionalT_ Instances"
 
-- [OptionalTExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/optionalt/OptionalTExample.java)
+- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/optionalt/OptionalTExample.java)
 
 `OptionalT` instances are typically created using its static factory methods. These often require a `Monad<F>` instance for the outer monad.
 
@@ -156,7 +156,7 @@ public void createExample() {
 
 ~~~admonish Example title="Asynchronous Multi-Step Data Retrieval"
 
-- [OptionalTExample.java](../../src/main/java/org/higherkindedj/example/basic/trans/optionalt/OptionalTExample.java)
+- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/optionalt/OptionalTExample.java)
 
 Consider a scenario where you need to fetch a user, then their profile, and finally their preferences. Each step is asynchronous (`CompletableFuture`) and might return an empty `Optional` if the data is not found. `OptionalT` helps manage this composition cleanly.
 
