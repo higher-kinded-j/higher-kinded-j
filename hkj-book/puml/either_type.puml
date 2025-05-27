@@ -1,4 +1,4 @@
-@startuml eithert_type
+@startuml either_type
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 
 hide empty members
