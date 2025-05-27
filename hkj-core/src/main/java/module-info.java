@@ -1,4 +1,9 @@
 module org.higherkindedj.core {
+  requires org.higherkindedj.processor;
+
+  // access annotation processing APIs
+  requires java.compiler;
+
   // Export the core API packages
   exports org.higherkindedj.hkt;
   exports org.higherkindedj.hkt.function;

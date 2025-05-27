@@ -3,9 +3,9 @@ name: Java CI with Gradle, JaCoCo, and Codecov
 # Trigger workflow on pushes to the main branch and any pull request
 on:
   push:
-    branches: [ "main" ] # Adjust if your main branch is named differently
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ] # Adjust if your main branch is named differently
+    branches: [ "main" ]
 
 # Set default permissions for the GITHUB_TOKEN
 permissions:
