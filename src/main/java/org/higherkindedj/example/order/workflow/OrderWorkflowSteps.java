@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import static java.lang.String.format;
 import static org.higherkindedj.example.order.error.DomainError.*;
 import static org.higherkindedj.example.order.model.WorkflowModels.*;
 
@@ -20,6 +21,7 @@ import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.trymonad.TryKindHelper;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -140,20 +142,18 @@ public class OrderWorkflowSteps {
     return CompletableFuture.supplyAsync(
         () -> {
           try {
-            dependencies.log(
-                String.format("... %s: simulating %dms delay ...", stepName, delayMillis));
+            dependencies.log(format("... %s: simulating %dms delay ...", stepName, delayMillis));
             TimeUnit.MILLISECONDS.sleep(delayMillis);
             T result = action.get(); // Execute the core logic
-            dependencies.log(String.format("... %s: delay complete.", stepName));
+            dependencies.log(format("... %s: delay complete.", stepName));
             return result;
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            dependencies.log(String.format("... %s: interrupted during delay.", stepName));
+            dependencies.log(format("... %s: interrupted during delay.", stepName));
             throw new CompletionException(e); // Wrap interruption
           } catch (Exception e) {
             dependencies.log(
-                String.format(
-                    "... %s: action failed with %s.", stepName, e.getClass().getSimpleName()));
+                format("... %s: action failed with %s.", stepName, e.getClass().getSimpleName()));
             throw new CompletionException(e);
           }
         });
@@ -165,37 +165,36 @@ public class OrderWorkflowSteps {
    * @param productId The ID of the product.
    * @param quantity The quantity to check.
    * @return A {@code Kind} representing a {@link CompletableFuture} of an {@link Either} containing
-   *     {@link Void} on success or a {@link DomainError} on failure.
+   *     {@link Unit} on success or a {@link DomainError} on failure.
    */
-  public Kind<CompletableFutureKind.Witness, Either<DomainError, Void>> checkInventoryAsync(
+  public Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>> checkInventoryAsync(
       String productId, int quantity) {
     dependencies.log(
-        String.format(
+        format(
             "Step (async): Checking inventory for product %s, quantity %d", productId, quantity));
     var future =
         CompletableFuture.supplyAsync(
             () -> {
               try {
                 dependencies.log(
-                    String.format(
+                    format(
                         "... Check Inventory: simulating %dms delay ...",
                         100 + random.nextInt(200)));
                 Thread.sleep(100 + random.nextInt(200));
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return Either.<DomainError, Void>left(
+                return Either.<DomainError, Unit>left(
                     new DomainError.StockError("Inventory check interrupted"));
               }
               if ("OUT_OF_STOCK".equals(productId)) {
-                return Either.<DomainError, Void>left(new DomainError.StockError(productId));
+                return Either.<DomainError, Unit>left(new DomainError.StockError(productId));
               }
               if (quantity <= 0) { // Though validateOrder should catch this, good for robustness
-                return Either.<DomainError, Void>left(
+                return Either.<DomainError, Unit>left(
                     new DomainError.ValidationError("Quantity must be positive: " + quantity));
               }
-              dependencies.log(
-                  String.format("... Check Inventory: delay complete for %s.", productId));
-              return Either.<DomainError, Void>right(null);
+              dependencies.log(format("... Check Inventory: delay complete for %s.", productId));
+              return Either.<DomainError, Unit>right(Unit.INSTANCE);
             });
     return CompletableFutureKindHelper.wrap(future);
   }
@@ -210,13 +209,13 @@ public class OrderWorkflowSteps {
    */
   public Kind<CompletableFutureKind.Witness, Either<DomainError, PaymentConfirmation>>
       processPaymentAsync(String paymentDetails, double amount) {
-    dependencies.log(String.format("Step (async): Processing payment for amount %.2f", amount));
+    dependencies.log(format("Step (async): Processing payment for amount %.2f", amount));
     CompletableFuture<Either<DomainError, PaymentConfirmation>> future =
         CompletableFuture.supplyAsync(
             () -> {
               try {
                 dependencies.log(
-                    String.format(
+                    format(
                         "... Process Payment: simulating %dms delay ...",
                         150 + random.nextInt(250)));
                 Thread.sleep(150 + random.nextInt(250));
@@ -230,7 +229,7 @@ public class OrderWorkflowSteps {
                     new DomainError.PaymentError("Invalid card details"));
               }
               dependencies.log(
-                  String.format(
+                  format(
                       "... Process Payment: delay complete for card: %s.",
                       paymentDetails.substring(0, Math.min(paymentDetails.length(), 4)) + "..."));
               return Either.right(
@@ -251,15 +250,14 @@ public class OrderWorkflowSteps {
   public Kind<CompletableFutureKind.Witness, Either<DomainError, ShipmentInfo>> createShipmentAsync(
       String orderId, String shippingAddress) {
     dependencies.log(
-        String.format(
-            "Step (async): Creating shipment for order %s to %s", orderId, shippingAddress));
+        format("Step (async): Creating shipment for order %s to %s", orderId, shippingAddress));
     // Explicitly type the CompletableFuture
     CompletableFuture<Either<DomainError, ShipmentInfo>> future =
         CompletableFuture.supplyAsync(
             () -> {
               try {
                 dependencies.log(
-                    String.format(
+                    format(
                         "... Create Shipment: simulating %dms delay ...",
                         200 + random.nextInt(300)));
                 Thread.sleep(200 + random.nextInt(300));
@@ -279,7 +277,7 @@ public class OrderWorkflowSteps {
                     new DomainError.ShippingError("Temporary Glitch"));
               }
               dependencies.log(
-                  String.format("... Create Shipment: delay complete for order %s.", orderId));
+                  format("... Create Shipment: delay complete for order %s.", orderId));
               return Either.right(
                   new ShipmentInfo(
                       "TRACK_" + System.currentTimeMillis() + "_" + random.nextInt(1000)));
@@ -293,33 +291,33 @@ public class OrderWorkflowSteps {
    * @param customerId The ID of the customer.
    * @param message The message to send.
    * @return A {@code Kind} representing a {@link CompletableFuture} of an {@link Either} containing
-   *     {@link Void} on success or a {@link DomainError} on failure.
+   *     {@link Unit} on success or a {@link DomainError} on failure.
    */
-  public Kind<CompletableFutureKind.Witness, Either<DomainError, Void>> notifyCustomerAsync(
+  public Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>> notifyCustomerAsync(
       String customerId, String message) {
     dependencies.log(
-        String.format("Step (async): Notifying customer %s with message: %s", customerId, message));
+        format("Step (async): Notifying customer %s with message: %s", customerId, message));
     var future =
         CompletableFuture.supplyAsync(
             () -> {
               try {
                 dependencies.log(
-                    String.format(
+                    format(
                         "... Notify Customer: simulating %dms delay ...",
                         50 + random.nextInt(100)));
                 Thread.sleep(50 + random.nextInt(100));
                 // Simulate a non-critical failure for specific customer ID
                 if ("FAIL_NOTIFICATION_CUST".equals(customerId)) {
                   dependencies.log("Simulating notification failure for customer: " + customerId);
-                  return Either.<DomainError, Void>left(
+                  return Either.<DomainError, Unit>left(
                       new DomainError.NotificationError("SMTP server down (simulated)"));
                 }
                 dependencies.log(
                     "Successfully sent notification to " + customerId + ": " + message);
-                return Either.<DomainError, Void>right(null);
+                return Either.<DomainError, Unit>right(Unit.INSTANCE);
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return Either.<DomainError, Void>left(
+                return Either.<DomainError, Unit>left(
                     new DomainError.NotificationError("Notification interrupted"));
               }
             });

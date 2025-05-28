@@ -59,8 +59,8 @@ interface "MonadError<M, E>" as MonadErrorBase
     ' + <A,B> MaybeKind<B> flatMap(Function<A, Kind<MaybeKind.Witness,B>>, Kind<MaybeKind.Witness,A>)
     ' + <A,B> Kind<MaybeKind.Witness,B> ap(Kind<MaybeKind.Witness,Function<A,B>>, Kind<MaybeKind.Witness,A>)
     ' --- MonadError ---
-    ' + <A> Kind<MaybeKind.Witness,A> raiseError(Void)
-    ' + <A> Kind<MaybeKind.Witness,A> handleErrorWith(Kind<MaybeKind.Witness,A>, Function<Void, Kind<MaybeKind.Witness,A>>)
+    ' + <A> Kind<MaybeKind.Witness,A> raiseError(Unit)
+    ' + <A> Kind<MaybeKind.Witness,A> handleErrorWith(Kind<MaybeKind.Witness,A>, Function<Unit, Kind<MaybeKind.Witness,A>>)
   }
 
 
@@ -73,7 +73,7 @@ MaybeKindBase --|> Kind : <MaybeKind.Witness, A>
 
 MaybeFunctorImpl ..|> Functor : <MaybeKind.Witness>
 MaybeMonadImpl --|> MaybeFunctorImpl
-MaybeMonadImpl ..|> MonadErrorBase : <MaybeKind.Witness, Void>
+MaybeMonadImpl ..|> MonadErrorBase : <MaybeKind.Witness, Unit>
 
 MaybeMonadImpl ..> MaybeKindHelper : uses
 MaybeFunctorImpl ..> MaybeKindHelper : uses

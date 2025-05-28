@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +24,7 @@ import org.junit.jupiter.api.Test;
 class OptionalTMonadTest {
 
   private final Monad<OptionalKind.Witness> outerMonad = new OptionalMonad();
-  private MonadError<OptionalTKind.Witness<OptionalKind.Witness>, Void> optionalTMonad;
+  private MonadError<OptionalTKind.Witness<OptionalKind.Witness>, Unit> optionalTMonad;
 
   private final String successValue = "SUCCESS";
   private final Integer initialValue = 123;
@@ -267,7 +268,7 @@ class OptionalTMonadTest {
     @Test
     @DisplayName("handleErrorWith should recover from inner None")
     void handleErrorWith_recoversNone() {
-      Function<Void, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+      Function<Unit, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
           err -> someT(0);
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> recovered =
           optionalTMonad.handleErrorWith(mNone, handler);
@@ -277,7 +278,7 @@ class OptionalTMonadTest {
     @Test
     @DisplayName("handleErrorWith should NOT change outer empty; it should propagate outer empty")
     void handleErrorWith_propagatesOuterEmpty() {
-      Function<Void, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+      Function<Unit, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
           err -> someT(0);
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> recovered =
           optionalTMonad.handleErrorWith(mOuterEmpty, handler);
@@ -287,7 +288,7 @@ class OptionalTMonadTest {
     @Test
     @DisplayName("handleErrorWith should not affect present value (Some)")
     void handleErrorWith_ignoresSome() {
-      Function<Void, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+      Function<Unit, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
           err -> someT(-1); // Should not be called
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> notRecovered =
           optionalTMonad.handleErrorWith(mValue, handler);

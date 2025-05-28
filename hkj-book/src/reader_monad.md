@@ -185,6 +185,63 @@ Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't n
 ~~~
 
 
+~~~admonish example title="Example: Reader for Side-Effects (Returning Unit)"
+
+Sometimes, a computation depending on an environment `R` might perform an action (like logging or initialising a component based on `R`) but doesn't produce a specific value other than signaling its completion. In such cases, the result type `A` of the `Reader<R, A>` can be `org.higherkindedj.hkt.unit.Unit`.
+
+
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.reader.ReaderKind;
+import org.higherkindedj.hkt.reader.ReaderMonad;
+import org.higherkindedj.hkt.unit.Unit; // Import Unit
+
+// Assume AppConfig is defined as before
+// record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}
+
+// ReaderMonad instance (can be the same as before)
+// ReaderMonad<AppConfig> readerMonad = new ReaderMonad<>();
+
+// A Reader computation that performs a side-effect (printing to console)
+// using the config and returns Unit.
+Kind<ReaderKind.Witness<AppConfig>, Unit> logApiKey = reader(
+    config -> {
+        System.out.println("Accessed API Key: " + config.apiKey().substring(0, Math.min(config.apiKey().length(), 4)) + "...");
+        return Unit.INSTANCE; // Explicitly return Unit.INSTANCE
+    }
+);
+
+// You can compose this with other Reader computations.
+// For example, get the DB URL and then log the API key.
+Kind<ReaderKind.Witness<AppConfig>, Unit> getUrlAndLogKey = readerMonad.flatMap(
+    dbUrl -> {
+        System.out.println("Database URL for logging context: " + dbUrl);
+        // After processing dbUrl (here, just printing), return the next action
+        return logApiKey;
+    },
+    getDbUrl // Assuming getDbUrl: Kind<ReaderKind.Witness<AppConfig>, String>
+);
+
+
+// To run it:
+// AppConfig currentConfig = new AppConfig("prod-db.example.com", 5000, "prod-key-123");
+// Unit result = runReader(logApiKey, currentConfig);
+// System.out.println("Log API Key result: " + result); // Output: Log API Key result: ()
+
+// Unit resultChained = runReader(getUrlAndLogKey, currentConfig);
+// System.out.println("Get URL and Log Key result: " + resultChained);
+// Output:
+// Database URL for logging context: prod-db.example.com
+// Accessed API Key: prod...
+// Get URL and Log Key result: ()
+
+In this example:
+
+- `logApiKey` is a `Reader<AppConfig, Unit>`. Its purpose is to perform an action (logging) using the `AppConfig`.
+- It returns `Unit.INSTANCE` to signify that the action completed successfully but yields no other specific data.
+- When composing, flatMap can be used to sequence such an action. If logApiKey were the last step in a sequence, the overall `flatMap` chain would also result in `Kind<ReaderKind.Witness<AppConfig>, Unit>`.
+~~~
+
 ~~~admonish important  title="Key Points:"
 The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management. 
 

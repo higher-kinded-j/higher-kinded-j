@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
@@ -384,10 +385,10 @@ class MaybeTMonadTest {
 
       @Test
       void handleErrorWith_onNothingValue_shouldApplyHandler_returningJust() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void>) maybeTMonad;
+        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
+            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
         Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Void, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
             err -> justT(789);
 
         Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
@@ -398,10 +399,10 @@ class MaybeTMonadTest {
 
       @Test
       void handleErrorWith_onNothingValue_shouldApplyHandler_returningNothing() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void>) maybeTMonad;
+        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
+            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
         Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Void, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
             err -> nothingT();
 
         Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
@@ -412,10 +413,10 @@ class MaybeTMonadTest {
 
       @Test
       void handleErrorWith_onNothingValue_shouldApplyHandler_returningOuterEmpty() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void>) maybeTMonad;
+        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
+            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
         Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Void, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
             err -> outerEmptyT();
 
         Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
@@ -440,10 +441,10 @@ class MaybeTMonadTest {
 
       @Test
       void handleErrorWith_onNothingValue_handlerThrowsException() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void>) maybeTMonad;
+        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
+            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
         Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Void, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handlerThrows =
+        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handlerThrows =
             err -> {
               throw new RuntimeException("handler error");
             };

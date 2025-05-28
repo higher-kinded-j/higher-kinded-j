@@ -10,12 +10,13 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.*;
 
 @DisplayName("OptionalMonad Tests")
 class OptionalMonadTest {
 
-  private final MonadError<OptionalKind.Witness, Void> optionalMonad = new OptionalMonad();
+  private final MonadError<OptionalKind.Witness, Unit> optionalMonad = new OptionalMonad();
 
   // Helper Functions for Laws
   private final Function<Integer, String> intToString = Object::toString;
@@ -310,14 +311,14 @@ class OptionalMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleEmpty() {
-      Function<Void, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(0);
+      Function<Unit, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(0);
       Kind<OptionalKind.Witness, Integer> result = optionalMonad.handleErrorWith(emptyVal, handler);
       assertThat(unwrap(result)).isPresent().contains(0);
     }
 
     @Test
     void handleErrorWith_shouldIgnorePresent() {
-      Function<Void, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(-1);
+      Function<Unit, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(-1);
       Kind<OptionalKind.Witness, Integer> result =
           optionalMonad.handleErrorWith(presentVal, handler);
       assertThat(result).isSameAs(presentVal);

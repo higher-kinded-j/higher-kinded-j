@@ -7,11 +7,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.state.State;
-import org.higherkindedj.hkt.state.StateKind;
-import org.higherkindedj.hkt.state.StateKindHelper;
-import org.higherkindedj.hkt.state.StateMonad;
-import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.state.*;
+import org.higherkindedj.hkt.unit.Unit;
 
 /**
  * see {<a href="https://higher-kinded-j.github.io/state_monad.html">Managing State
@@ -21,14 +18,13 @@ public class BankAccountWorkflow {
 
   private static final StateMonad<AccountState> accountStateMonad = new StateMonad<>();
 
-  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Void>> deposit(
+  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Unit>> deposit(
       String description) {
     return amount ->
         StateKindHelper.wrap(
             State.modify(
                 currentState -> {
                   if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                    // For rejected deposit, log the problematic amount
                     Transaction rejected =
                         new Transaction(
                             TransactionType.REJECTED_DEPOSIT,
@@ -52,7 +48,6 @@ public class BankAccountWorkflow {
             State.of(
                 currentState -> {
                   if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                    // For rejected withdrawal due to invalid amount, log the problematic amount
                     Transaction rejected =
                         new Transaction(
                             TransactionType.REJECTED_WITHDRAWAL,
@@ -70,8 +65,6 @@ public class BankAccountWorkflow {
                         currentState.withBalance(newBalance).addTransaction(tx);
                     return new StateTuple<>(true, updatedState);
                   } else {
-                    // For rejected withdrawal due to insufficient funds, log the amount that was
-                    // attempted
                     Transaction tx =
                         new Transaction(
                             TransactionType.REJECTED_WITHDRAWAL,
@@ -96,21 +89,20 @@ public class BankAccountWorkflow {
   }
 
   public static void main(String[] args) {
-    // Initial state: Account with £100 balance.
     AccountState initialState = AccountState.initial(new BigDecimal("100.00"));
     StringBuilder report = new StringBuilder();
-    // Define a sequence of operations
+
     Kind<StateKind.Witness<AccountState>, String> workflow =
         accountStateMonad.flatMap(
-            depositTxResult -> // result of deposit("Salary")
-            accountStateMonad.flatMap(
-                    withdrawTx1Success -> // result of withdraw("Bill Payment")
-                    accountStateMonad.flatMap(
-                            withdrawTx2Result -> // result of withdraw("Groceries")
-                            accountStateMonad.flatMap(
-                                    currentBalance -> // result of getBalance()
-                                    accountStateMonad.map(
-                                            history -> { // 'history' is the result of getHistory()
+            depositTxResult ->
+                accountStateMonad.flatMap(
+                    withdrawTx1Success ->
+                        accountStateMonad.flatMap(
+                            withdrawTx2Result ->
+                                accountStateMonad.flatMap(
+                                    currentBalance ->
+                                        accountStateMonad.map(
+                                            history -> {
                                               history.forEach(
                                                   tx -> report.append("  - %s\n".formatted(tx)));
                                               return report.toString();
@@ -119,11 +111,7 @@ public class BankAccountWorkflow {
                                     getBalance()),
                             withdraw("Groceries").apply(new BigDecimal("70.00"))),
                     withdraw("Bill Payment").apply(new BigDecimal("50.00"))),
-            deposit("Salary")
-                .apply(
-                    new BigDecimal(
-                        "20.00")) // This is the first stateful ACTION in the flatMap chain
-            );
+            deposit("Salary").apply(new BigDecimal("20.00")));
 
     StateTuple<AccountState, String> finalResultTuple =
         StateKindHelper.runState(workflow, initialState);

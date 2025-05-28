@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.trans.either_t.EitherT;
 import org.higherkindedj.hkt.trans.either_t.EitherTKind;
 import org.higherkindedj.hkt.trans.either_t.EitherTKindHelper;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -24,11 +25,13 @@ import org.jspecify.annotations.NonNull;
  *
  * <ol>
  *   <li>Validation: Validates the initial order data.
- *   <li>Inventory Check: Checks if the product is in stock.
+ *   <li>Inventory Check: Checks if the product is in stock. This step now results in {@link Unit}
+ *       on success.
  *   <li>Payment Processing: Processes the payment for the order.
  *   <li>Shipment Creation: Creates a shipment for the order.
  *   <li>Result Mapping: Maps the processed context to a final result.
- *   <li>Customer Notification: Notifies the customer about the order status.
+ *   <li>Customer Notification: Notifies the customer about the order status. This step now results
+ *       in {@link Unit} on success.
  * </ol>
  *
  * Each step is a function that takes the current workflow context wrapped in an {@code EitherT} and
@@ -157,20 +160,11 @@ public class Workflow1 {
                   EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
                   WorkflowModels.WorkflowContext>
               initialET) {
-    // Step 1: Validate Order
-    // Synchronous step returning Kind<EitherKind.Witness<DomainError>, ValidatedOrder>
-    // Lift sync Either into EitherT<CompletableFuture, DomainError, ValidatedOrder>
-    // If validatedOrderET is Right(vo), map to update context
     return eitherTMonad.flatMap(
         ctx -> {
-          // Synchronous step returning Kind<EitherKind.Witness<DomainError>, ValidatedOrder>
           var syncResultEitherKind = steps.validateOrder(ctx.initialData());
           var syncResultEither = EitherKindHelper.unwrap(syncResultEitherKind);
-
-          // Lift sync Either into EitherT<CompletableFuture, DomainError, ValidatedOrder>
           var validatedOrderET = EitherT.fromEither(futureMonad, syncResultEither);
-
-          // If validatedOrderET is Right(vo), map to update context
           return eitherTMonad.map(ctx::withValidatedOrder, validatedOrderET);
         },
         initialET);
@@ -178,7 +172,7 @@ public class Workflow1 {
 
   /**
    * Step 2: Checks product inventory. This is an asynchronous step. The result {@code
-   * Kind<CompletableFutureKind.Witness, Either<DomainError, Void>>} is lifted directly into {@code
+   * Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>>} is lifted directly into {@code
    * EitherT}.
    *
    * @param validatedET The workflow context after order validation, wrapped in {@code EitherT}.
@@ -193,21 +187,14 @@ public class Workflow1 {
                   EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
                   WorkflowModels.WorkflowContext>
               validatedET) {
-    // Step 2: Check Inventory
-    // Asynchronous step returning Kind<CompletableFutureKind.Witness, Either<DomainError, Void>>
-    // Lift async result directly into EitherT
-    // If inventoryCheckET is Right(null), map to update context
     return eitherTMonad.flatMap(
         ctx -> {
-          // Asynchronous step returning Kind<CompletableFutureKind.Witness,
-          // Either<DomainError,Void>>
           var inventoryCheckFutureKind =
               steps.checkInventoryAsync(
                   ctx.validatedOrder().productId(), ctx.validatedOrder().quantity());
-          // Lift async result directly into EitherT
-          var inventoryCheckET = EitherT.fromKind(inventoryCheckFutureKind);
-
-          // If inventoryCheckET is Right(null), map to update context
+          var inventoryCheckET =
+              EitherT.<CompletableFutureKind.Witness, DomainError, Unit>fromKind(
+                  inventoryCheckFutureKind); // Type hint for Unit
           return eitherTMonad.map(ignored -> ctx.withInventoryChecked(), inventoryCheckET);
         },
         validatedET);
@@ -229,11 +216,8 @@ public class Workflow1 {
                   EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
                   WorkflowModels.WorkflowContext>
               inventoryET) {
-    // Step 3: Process Payment
-    // Asynchronous step
     return eitherTMonad.flatMap(
         ctx -> {
-          // Asynchronous step
           var paymentFutureKind =
               steps.processPaymentAsync(
                   ctx.validatedOrder().paymentDetails(), ctx.validatedOrder().amount());
@@ -259,18 +243,13 @@ public class Workflow1 {
                   EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
                   WorkflowModels.WorkflowContext>
               paymentET) {
-    // Step 4: Create Shipment
-    // Asynchronous step
-    // Error Handling & Recovery
     return eitherTMonad.flatMap(
         ctx -> {
-          // Asynchronous step
           var shipmentAttemptFutureKind =
               steps.createShipmentAsync(
                   ctx.validatedOrder().orderId(), ctx.validatedOrder().shippingAddress());
           var shipmentAttemptET = EitherT.fromKind(shipmentAttemptFutureKind);
 
-          // Error Handling & Recovery
           var recoveredShipmentET =
               eitherTMonad.handleErrorWith(
                   shipmentAttemptET,
@@ -305,7 +284,6 @@ public class Workflow1 {
                   EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
                   WorkflowModels.WorkflowContext>
               shipmentET) {
-    // Step 5: Map to Final Result
     return eitherTMonad.map(
         ctx -> {
           dependencies.log(
@@ -321,8 +299,9 @@ public class Workflow1 {
 
   /**
    * Step 6: Attempts to notify the customer about the order processing outcome. This step handles
-   * notification errors by logging them but always recovers, returning the original {@code
-   * FinalResult}. Notification failure is considered non-critical.
+   * notification errors by logging them but always recovers by returning {@link Unit#INSTANCE},
+   * effectively making the notification's success value {@link Unit}. The original {@code
+   * FinalResult} from previous steps is preserved.
    *
    * @param orderData The initial order data, used for customer identification.
    * @param finalResultET The {@code EitherT} containing the {@code FinalResult} from previous
@@ -337,20 +316,14 @@ public class Workflow1 {
                   EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
                   WorkflowModels.FinalResult>
               finalResultET) {
-    // Step 6: Attempt Notification
-    // Handle notification error, but always recover (non-critical failure)
-    // Return original FinalResult
-    // Recover with Void (represented by null)
     return eitherTMonad.flatMap(
         finalResult -> {
           var notifyFutureKind =
               steps.notifyCustomerAsync(
                   orderData.customerId(), "Order processed: " + finalResult.orderId());
-          var notifyET = EitherT.fromKind(notifyFutureKind);
-
-          // Handle notification error, but always recover (non-critical failure)
-          return eitherTMonad.map(
-              ignored -> finalResult, // Return original FinalResult
+          var notifyET =
+              EitherT.<CompletableFutureKind.Witness, DomainError, Unit>fromKind(notifyFutureKind);
+          var recoveredNotifyET =
               eitherTMonad.handleError(
                   notifyET,
                   notifyError -> {
@@ -359,8 +332,9 @@ public class Workflow1 {
                             + finalResult.orderId()
                             + ": "
                             + notifyError.message());
-                    return null; // Recover with Void (represented by null)
-                  }));
+                    return Unit.INSTANCE;
+                  });
+          return eitherTMonad.map(ignored -> finalResult, recoveredNotifyET);
         },
         finalResultET);
   }
@@ -385,10 +359,8 @@ public class Workflow1 {
     dependencies.log(
         "Starting Order Workflow [runOrderWorkflowEitherT] for Order: " + orderData.orderId());
 
-    // --- Initialisation (Corresponds to "Initial State" in order-walkthrough.md) ---
     var initialContext = WorkflowModels.WorkflowContext.start(orderData);
 
-    // Compose the workflow as a single function
     Function<
             Kind<
                 EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
@@ -397,24 +369,22 @@ public class Workflow1 {
                 EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
                 WorkflowModels.FinalResult>>
         completeWorkflow =
-            processValidation // Step 1: Validate Order
-                .andThen(processInventory) // Step 2: Check Inventory
-                .andThen(processPayment) // Step 3: Process Payment
-                .andThen(processShipment) // Step 4: Create Shipment
-                .andThen(mapToFinalResult) // Step 5: Map to Final Result
-                .andThen(createNotifyCustomerFunction(orderData)); // Step 6: Attempt Notification
+            processValidation
+                .andThen(processInventory)
+                .andThen(processPayment)
+                .andThen(processShipment)
+                .andThen(mapToFinalResult)
+                .andThen(createNotifyCustomerFunction(orderData));
 
     Kind<
             EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
             WorkflowModels.WorkflowContext>
         initialET = eitherTMonad.of(initialContext);
-    // Execute the composed workflow
     Kind<
             EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
             WorkflowModels.FinalResult>
         finalResultWithNotificationET = completeWorkflow.apply(initialET);
 
-    // --- Final Unwrapping (Corresponds to "Final Unwrapping" in order-walkthrough.md) ---
     var finalConcreteET = EitherTKindHelper.unwrap(finalResultWithNotificationET);
     return finalConcreteET.value();
   }

@@ -57,8 +57,8 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **`OptionalKindHelper`**: Uses an internal `OptionalHolder<A>` record that implements `OptionalKind<A>` to wrap `java.util.Optional<A>`.
 * **Type Class Instances**:
   * `OptionalFunctor` (`Functor<OptionalKind.Witness>`)
-  * [`OptionalMonad`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/optional/OptionalMonad.java) (`MonadError<OptionalKind.Witness, Void>`)
-* **Notes**: `Optional.empty()` is the error state. `raiseError(null)` creates `Optional.empty()`. `of(value)` uses `Optional.ofNullable(value)`.
+  * [`OptionalMonad`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/optional/OptionalMonad.java) (`MonadError<OptionalKind.Witness, Unit>`)
+* **Notes**: `Optional.empty()` is the error state. `raiseError(Unit.INSTANCE)` creates `Optional.empty()`. `of(value)` uses `Optional.ofNullable(value)`.
 * **Usage**: [How to use the Optional Monad](./optional_monad.md)
 
 ---
@@ -71,8 +71,8 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **`MaybeKindHelper`**: `wrap` casts `Maybe` to `Kind`; `unwrap` casts `Kind` to `Maybe`. Provides `just(value)`, `nothing()`, `fromNullable(value)`.
 * **Type Class Instances**:
   * `MaybeFunctor` (`Functor<MaybeKind.Witness>`)
-  * [`MaybeMonad`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/maybe/MaybeMonad.java) (`MonadError<MaybeKind.Witness, Void>`)
-* **Notes**: `Nothing` is the error state. `Maybe.just(value)` requires non-null. `MaybeMonad.of(value)` uses `Maybe.fromNullable()`.
+  * [`MaybeMonad`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/maybe/MaybeMonad.java) (`MonadError<MaybeKind.Witness, Unit>`)
+* **Notes**: `Nothing` is the error state; `raiseError(Unit.INSTANCE`) creates `Nothing`. `Maybe.just(value)` requires non-null. `MaybeMonad.of(value)` uses `Maybe.fromNullable()`.
 * **Usage**: [How to use the Maybe Monad](./maybe_monad.md)
 
 ---

@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -17,7 +18,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>This class provides monadic operations for {@code Optional}, allowing it to be used in a
  * generic, functional, and composable manner within the Higher-Kinded-J framework. It treats {@link
- * Optional#empty()} as the error state, with {@link Void} as the phantom error type, signifying
+ * Optional#empty()} as the error state, with {@link Unit} as the phantom error type, signifying
  * absence rather than a specific error value.
  *
  * <p>Key operations include:
@@ -31,7 +32,7 @@ import org.jspecify.annotations.Nullable;
  *       to the value within an {@code OptionalKind} if present, and flattens the result.
  *   <li>{@link #ap(Kind, Kind)}: Applies an {@code OptionalKind} of a function to an {@code
  *       OptionalKind} of a value.
- *   <li>{@link #raiseError(Void)}: Returns an empty {@code OptionalKind}.
+ *   <li>{@link #raiseError(Unit)}: Returns an empty {@code OptionalKind}.
  *   <li>{@link #handleErrorWith(Kind, Function)}: Allows recovery from an empty {@code
  *       OptionalKind}.
  * </ul>
@@ -46,9 +47,10 @@ import org.jspecify.annotations.Nullable;
  * @see OptionalFunctor
  * @see MonadError
  * @see Kind
+ * @see Unit
  */
 public class OptionalMonad extends OptionalFunctor
-    implements MonadError<OptionalKind.Witness, Void> {
+    implements MonadError<OptionalKind.Witness, Unit> {
 
   /**
    * Constructs a new {@code OptionalMonad} instance. This constructor is public to allow
@@ -123,44 +125,43 @@ public class OptionalMonad extends OptionalFunctor
       @NonNull Kind<OptionalKind.Witness, A> fa) {
     Optional<Function<A, B>> optF = unwrap(ff);
     Optional<A> optA = unwrap(fa);
-    Optional<B> resultOpt = optF.flatMap(optA::map); // Or optF.flatMap(f -> optA.map(f))
+    Optional<B> resultOpt = optF.flatMap(optA::map);
     return wrap(resultOpt);
   }
 
   /**
    * Raises an error in the {@code OptionalKind} context, which corresponds to an empty {@code
-   * Optional}. The error parameter (of type {@link Void}) is ignored.
+   * Optional}. The error parameter (of type {@link Unit}) is typically {@link Unit#INSTANCE}.
    *
    * @param <A> The phantom type of the value for the resulting empty {@code OptionalKind}.
-   * @param error The error value ({@code null} for {@link Void}).
+   * @param error The error value (typically {@link Unit#INSTANCE}). Must be non-null.
    * @return A non-null {@code Kind<OptionalKind.Witness, A>} representing {@code Optional.empty()}.
    */
   @Override
-  public <A> @NonNull Kind<OptionalKind.Witness, A> raiseError(@Nullable Void error) {
+  public <A> @NonNull Kind<OptionalKind.Witness, A> raiseError(@NonNull Unit error) {
     return wrap(Optional.empty());
   }
 
   /**
    * Handles an error (an empty {@code OptionalKind}) by applying a recovery function. If the input
    * {@code OptionalKind} ({@code ma}) is empty, the {@code handler} function is invoked (with
-   * {@code null} as the {@link Void} argument) to produce a new {@code OptionalKind}. If {@code ma}
-   * is present, it is returned unchanged.
+   * {@link Unit#INSTANCE} as the argument) to produce a new {@code OptionalKind}. If {@code ma} is
+   * present, it is returned unchanged.
    *
    * @param <A> The type of the value.
    * @param ma The non-null {@code Kind<OptionalKind.Witness, A>} to handle.
-   * @param handler The non-null function to apply if {@code ma} is empty. It takes {@code null}
-   *     (representing the {@link Void} error) and returns a new {@code Kind<OptionalKind.Witness,
-   *     A>}.
+   * @param handler The non-null function to apply if {@code ma} is empty. It takes {@link
+   *     Unit#INSTANCE} and returns a new {@code Kind<OptionalKind.Witness, A>}.
    * @return A non-null {@code Kind<OptionalKind.Witness, A>}, either the original if present, or
    *     the result of the handler if empty.
    */
   @Override
   public <A> @NonNull Kind<OptionalKind.Witness, A> handleErrorWith(
       @NonNull Kind<OptionalKind.Witness, A> ma,
-      @NonNull Function<Void, Kind<OptionalKind.Witness, A>> handler) {
+      @NonNull Function<Unit, Kind<OptionalKind.Witness, A>> handler) {
     Optional<A> optional = unwrap(ma);
     if (optional.isEmpty()) {
-      return handler.apply(null);
+      return handler.apply(Unit.INSTANCE);
     } else {
       return ma;
     }

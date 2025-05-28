@@ -218,8 +218,8 @@ Retrieves the current state as the value.
 Replaces the current state with `newState`. The value is often `Void` or `Unit`.
 
   ```java
-  public static <S, F> Kind<StateTKind.Witness<S, F>, Void> set(S newState, Monad<F> monadF) {
-    Function<S, Kind<F, StateTuple<S, Void>>> runFn = s -> monadF.of(StateTuple.of(newState, (Void) null));
+  public static <S, F> Kind<StateTKind.Witness<S, F>, Unit> set(S newState, Monad<F> monadF) {
+    Function<S, Kind<F, StateTuple<S, Void>>> runFn = s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE));
     return StateT.create(runFn, monadF);
   }
   ```
@@ -230,8 +230,8 @@ Replaces the current state with `newState`. The value is often `Void` or `Unit`.
 Modifies the state using a function.
 
   ```java
-  public static <S, F> Kind<StateTKind.Witness<S, F>, Void> modify(Function<S, S> f, Monad<F> monadF) {
-    Function<S, Kind<F, StateTuple<S, Void>>> runFn = s -> monadF.of(StateTuple.of(f.apply(s), (Void) null));
+  public static <S, F> Kind<StateTKind.Witness<S, F>, Unit> modify(Function<S, S> f, Monad<F> monadF) {
+    Function<S, Kind<F, StateTuple<S, Unit>>> runFn = s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE));
     return StateT.create(runFn, monadF);
   }
   ```
@@ -268,11 +268,11 @@ public class StateTStackExample {
   }
 
   // push operation
-  public static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Void> push(Integer value) {
+  public static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(Integer value) {
     return liftOpt(stack -> {
       List<Integer> newStack = new LinkedList<>(stack);
       newStack.add(0, value); // Add to front
-      return OptionalKindHelper.wrap(Optional.of(StateTuple.of(newStack, null)));
+      return OptionalKindHelper.wrap(Optional.of(StateTuple.of(newStack, Unit.INSTANCE)));
     });
   }
 
@@ -290,8 +290,8 @@ public class StateTStackExample {
 
   public static void main(String[] args) {
     Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> computation =
-        ST_OPT_MONAD.flatMap(v1 -> // v1 is Void from push(10)
-                ST_OPT_MONAD.flatMap(v2 -> // v2 is Void from push(20)
+        ST_OPT_MONAD.flatMap(v1 -> // v1 is Unit.INSTANCE from push(10)
+                ST_OPT_MONAD.flatMap(v2 -> // v2 is Unit.INSTANCE from push(20)
                         ST_OPT_MONAD.flatMap(popped1 -> // popped1 should be 20
                                 ST_OPT_MONAD.flatMap(popped2 -> { // popped2 should be 10
                                   // Do something with popped1 and popped2

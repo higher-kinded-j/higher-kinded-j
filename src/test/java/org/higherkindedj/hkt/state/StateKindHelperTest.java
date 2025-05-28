@@ -10,6 +10,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -106,18 +107,18 @@ class StateKindHelperTest {
     @Test
     void set_shouldWrapStateSet() {
       Integer newState = 555;
-      Kind<StateKind.Witness<Integer>, Void> kind = StateKindHelper.set(newState);
-      StateTuple<Integer, Void> result = runState(kind, initialState);
-      assertThat(result.value()).isNull();
+      Kind<StateKind.Witness<Integer>, Unit> kind = StateKindHelper.set(newState);
+      StateTuple<Integer, Unit> result = runState(kind, initialState);
+      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
       assertThat(result.state()).isEqualTo(newState);
     }
 
     @Test
     void modify_shouldWrapStateModify() {
       Function<Integer, Integer> tripler = s -> s * 3;
-      Kind<StateKind.Witness<Integer>, Void> kind = StateKindHelper.modify(tripler);
-      StateTuple<Integer, Void> result = runState(kind, initialState); // 100
-      assertThat(result.value()).isNull();
+      Kind<StateKind.Witness<Integer>, Unit> kind = StateKindHelper.modify(tripler);
+      StateTuple<Integer, Unit> result = runState(kind, initialState); // 100
+      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
       assertThat(result.state()).isEqualTo(300);
     }
 

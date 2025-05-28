@@ -8,9 +8,9 @@ Key benefits include:
 
 * **Functional Composition:** Easily chain operations on `Optional`s, where each operation might return an `Optional` itself. If any step results in an `Optional.empty()`, subsequent operations are typically short-circuited, propagating the empty state.
 * **HKT Integration:** `OptionalKind<A>` (the higher-kinded wrapper for `Optional<A>`) and `OptionalMonad` allow `Optional` to be used with generic functions and type classes expecting `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, `Monad<M>`, or even `MonadError<M, E>`.
-* **Error Handling for Absence:** `OptionalMonad` implements `MonadError<OptionalKind.Witness, Void>`. In this context, `Optional.empty()` is treated as the "error" state, and `Void` is used as the phantom error type, signifying absence rather than a traditional exception.
+* **Error Handling for Absence:** `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`. In this context, `Optional.empty()` is treated as the "error" state, and `Unit` is used as the phantom error type, signifying absence rather than a traditional exception.
 
-It implements `MonadError<OptionalKind.Witness, Void>`, which means it also transitively implements `Monad<OptionalKind.Witness>`, `Applicative<OptionalKind.Witness>`, and `Functor<OptionalKind.Witness>`.
+It implements `MonadError<OptionalKind.Witness, Unit>`, which means it also transitively implements `Monad<OptionalKind.Witness>`, `Applicative<OptionalKind.Witness>`, and `Functor<OptionalKind.Witness>`.
 
 ## Structure
 
@@ -56,15 +56,15 @@ Kind<OptionalKind.Witness, Integer> kindFromNullValue = optionalMonad.of(null); 
 ```   
 ~~~
 
-~~~admonish title="_optionalMonad.raiseError(Void error)_"
+~~~admonish title="_optionalMonad.raiseError(Unit error)_"
 
 
-Creates an empty `OptionalKind`. Since `Void` is the error type, this method effectively represents the "error" state of an `Optional`, which is `Optional.empty()`. The `error` argument (which would be `null` for `Void`) is ignored.
+Creates an empty `OptionalKind`. Since `Unit` is the error type, this method effectively represents the "error" state of an `Optional`, which is `Optional.empty()`. The `error` argument (which would be `Unit.INSTANCE` for `Unit`) is ignored.
 
 ```java
 
 OptionalMonad optionalMonad = new OptionalMonad();
-Kind<OptionalKind.Witness, String> emptyKindFromError = optionalMonad.raiseError(null); // Represents Optional.empty()
+Kind<OptionalKind.Witness, String> emptyKindFromError = optionalMonad.raiseError(Unit.INSTANCE); // Represents Optional.empty()
 ```
 ~~~
 
@@ -196,11 +196,11 @@ Applies an `OptionalKind` containing a function `ff` to an `OptionalKind` contai
 ```
 ~~~
 
-~~~admonish example title="Example: handleErrorWith(Kind<OptionalKind.Witness, A> ma, Function<Void, Kind<OptionalKind.Witness, A>> handler)"
+~~~admonish example title="Example: handleErrorWith(Kind<OptionalKind.Witness, A> ma, Function<Unit, Kind<OptionalKind.Witness, A>> handler)"
 
 - [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
 
-If `ma` is present, it's returned. If `ma` is empty (the "error" state), the `handler` function is invoked (with `null` as the `Void` argument) to provide a recovery `OptionalKind`.
+If `ma` is present, it's returned. If `ma` is empty (the "error" state), the `handler` function is invoked (with `Unit.INSTANCE` as the `Unit` argument) to provide a recovery `OptionalKind`.
 
 ```java
 public void handleErrorWithExample() {
@@ -209,8 +209,8 @@ public void handleErrorWithExample() {
    Kind<OptionalKind.Witness, String> presentKind = OptionalKindHelper.wrap(Optional.of("Exists"));
    OptionalKind<String> emptyKind = OptionalKindHelper.wrap(Optional.empty());
 
-   Function<Void, Kind<OptionalKind.Witness, String>> recoveryFunction =
-           ignoredVoid -> OptionalKindHelper.wrap(Optional.of("Recovered Value"));
+   Function<Unit, Kind<OptionalKind.Witness, String>> recoveryFunction =
+           (Unit unitInstance) -> OptionalKindHelper.wrap(Optional.of("Recovered Value"));
 
    // Handling error on a present OptionalKind
    Kind<OptionalKind.Witness, String> handledPresent =
@@ -265,7 +265,7 @@ OptionalMonad optionalMonad = new OptionalMonad();
     // 4. Use 'of' and 'raiseError' (already shown in creation)
 
     // 5. Use handleErrorWith
-    Function<Void, Kind<OptionalKind.Witness, Integer>> recoverWithDefault =
+    Function<Unit, Kind<OptionalKind.Witness, Integer>> recoverWithDefault =
         v -> optionalMonad.of(-1); // Default value if empty
 
     Kind<OptionalKind.Witness, Integer> recoveredFromEmpty =

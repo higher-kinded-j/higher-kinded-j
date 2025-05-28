@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 // Ensure import
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -160,7 +161,7 @@ class StateMonadTest {
     @Test
     void flatMap_shouldSequenceComputationsAndPassState() {
       Kind<StateKind.Witness<Integer>, Integer> getState = StateKindHelper.get();
-      Kind<StateKind.Witness<Integer>, Void> incState =
+      Kind<StateKind.Witness<Integer>, Unit> incState =
           StateKindHelper.modify((Integer i) -> i + 1);
 
       Kind<StateKind.Witness<Integer>, Integer> getStateAndInc =

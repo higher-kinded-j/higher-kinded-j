@@ -30,8 +30,8 @@ class "OptionalMonad" as OptionalMonadImpl {
   ' + <A,B> OptionalKind<B> flatMap(Function<A, Kind<OptionalKind.Witness,B>>, Kind<OptionalKind.Witness,A>)
   ' + <A,B> Kind<OptionalKind.Witness,B> ap(Kind<OptionalKind.Witness,Function<A,B>>, Kind<OptionalKind.Witness,A>)
 ' --- MonadError ---
-' + <A> Kind<OptionalKind.Witness,A> raiseError(Void)
-  ' + <A> Kind<OptionalKind.Witness,A> handleErrorWith(Kind<OptionalKind.Witness,A>, Function<Void, Kind<OptionalKind.Witness,A>>)
+' + <A> Kind<OptionalKind.Witness,A> raiseError(Unit)
+  ' + <A> Kind<OptionalKind.Witness,A> handleErrorWith(Kind<OptionalKind.Witness,A>, Function<Unit, Kind<OptionalKind.Witness,A>>)
 }
 
 MonadErrorBase --|> MonadBase
@@ -43,7 +43,7 @@ OptionalKindBase --|> Kind : <OptionalKind.Witness, A>
 
 OptionalFunctorImpl ..|> Functor : <OptionalKind.Witness>
 OptionalMonadImpl --|> OptionalFunctorImpl
-OptionalMonadImpl ..|> MonadErrorBase : <OptionalKind.Witness, Void>
+OptionalMonadImpl ..|> MonadErrorBase : <OptionalKind.Witness, Unit>
 
 OptionalMonadImpl ..> OptionalKindHelper : uses for wrap/unwrap
 OptionalFunctorImpl ..> OptionalKindHelper : uses for wrap/unwrap

@@ -7,15 +7,16 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Monad and MonadError implementation for MaybeKind. The error type E is Void, representing the
- * Nothing state. Provides Functor and Monad operations for the Maybe type within the HKT
+ * Monad and MonadError implementation for MaybeKind. The error type E is {@link Unit}, representing
+ * the Nothing state. Provides Functor and Monad operations for the Maybe type within the HKT
  * Higher-Kinded-J.
  */
-public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Witness, Void> {
+public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Witness, Unit> {
 
   @Override
   public <A> @NonNull MaybeKind<A> of(@Nullable A value) {
@@ -51,24 +52,25 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Wit
   // --- MonadError Methods ---
 
   /**
-   * Lifts the error state (Nothing) into the Maybe context. The input 'error' (Void) is ignored.
+   * Lifts the error state (Nothing) into the Maybe context. The input 'error' (Unit) is ignored,
+   * but {@link Unit#INSTANCE} should be passed.
    *
-   * @param error The error value (Void, Nullable).
+   * @param error The error value (Unit, NonNull, typically {@link Unit#INSTANCE}).
    * @param <A> The phantom type parameter of the value.
    * @return A MaybeKind representing Nothing. (NonNull)
    */
   @Override
-  public <A> @NonNull MaybeKind<A> raiseError(@Nullable Void error) {
+  public <A> @NonNull MaybeKind<A> raiseError(@NonNull Unit error) {
     return MaybeKindHelper.nothing();
   }
 
   /**
    * Handles the error state (Nothing) within the Maybe context. If 'ma' is Just, it's returned
-   * unchanged. If 'ma' is Nothing, the 'handler' function is applied (with null input as error is
-   * Void).
+   * unchanged. If 'ma' is Nothing, the 'handler' function is applied (with {@link Unit#INSTANCE} as
+   * input).
    *
    * @param ma The MaybeKind value. (NonNull)
-   * @param handler Function Void -> {@code Kind<MaybeKind.Witness, A>} to handle the Nothing state.
+   * @param handler Function {@code Unit -> Kind<MaybeKind.Witness, A>} to handle the Nothing state.
    *     (NonNull)
    * @param <A> The type of the value within the Maybe.
    * @return Original Kind if Just, or result of handler if Nothing. (NonNull)
@@ -76,22 +78,7 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Wit
   @Override
   public <A> @NonNull MaybeKind<A> handleErrorWith(
       @NonNull Kind<MaybeKind.Witness, A> ma,
-      @NonNull Function<Void, Kind<MaybeKind.Witness, A>> handler) {
-    // Using a distinct variable name for clarity and to avoid potential conflicts
-    final Maybe<A> unwrappedValue = unwrap(ma);
-
-    if (unwrappedValue.isNothing()) {
-      // Apply the handler (passing null because the error type is Void)
-      // The handler returns Kind<MaybeKind.Witness, A>.
-      // Since this method returns MaybeKind<A>, a cast might be needed if the handler
-      // could return a different Kind implementation for the same Witness.
-      // Assuming handler produces a MaybeKind from this system.
-      return (MaybeKind<A>) handler.apply(null);
-    } else {
-      // It's Just, return the original Kind.
-      // ma is Kind<MaybeKind.Witness, A>. Cast to MaybeKind<A> if it's known to be from this
-      // system.
-      return (MaybeKind<A>) ma;
-    }
+      @NonNull Function<Unit, Kind<MaybeKind.Witness, A>> handler) {
+    return unwrap(ma).isNothing() ? (MaybeKind<A>) handler.apply(Unit.INSTANCE) : (MaybeKind<A>) ma;
   }
 }

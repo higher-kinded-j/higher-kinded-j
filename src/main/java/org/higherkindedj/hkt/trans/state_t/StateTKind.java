@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.trans.state_t;
 
 import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable; // Added for @Nullable
+import org.jspecify.annotations.Nullable;
 
 /**
  * A higher-kinded type marker for the {@link StateT} monad transformer.
@@ -119,7 +119,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *     {@link StateT} (or a compatible subtype).
    */
   static <S, F, A> @NonNull StateT<S, F, A> narrow(
-      @Nullable Kind<StateTKind.Witness<S, F>, A> kind) { // Changed @NonNull to @Nullable
+      @Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
     // The null check here is important.
     // A ClassCastException is appropriate if kind is null, as null cannot be cast to StateT.
     if (kind == null) {
@@ -164,8 +164,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *     {@link StateT}.
    */
   @SuppressWarnings("unchecked") // This method is explicitly for unsafe, unchecked casting.
-  static <S, F, A> @NonNull StateT<S, F, A> narrowK(
-      @Nullable Kind<?, A> kind) { // Changed @NonNull to @Nullable
+  static <S, F, A> @NonNull StateT<S, F, A> narrowK(@Nullable Kind<?, A> kind) {
     if (kind == null) {
       throw new ClassCastException("Cannot narrowK a null Kind to StateT");
     }

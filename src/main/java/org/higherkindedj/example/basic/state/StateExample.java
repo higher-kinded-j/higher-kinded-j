@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.unit.Unit;
 
 /** see {<a href="https://higher-kinded-j.github.io/state_monad.html">State Monad</a>} */
 public class StateExample {
@@ -28,7 +29,8 @@ public class StateExample {
     StateMonad<StackState> stackStateMonad = new StateMonad<>();
 
     // Counter Example Actions:
-    Kind<StateKind.Witness<CounterState>, Void> incrementCounter =
+    // State.modify now returns State<S, Unit>, so incrementCounter is Kind<..., Unit>
+    Kind<StateKind.Witness<CounterState>, Unit> incrementCounter =
         wrap(State.modify(s -> new CounterState(s.count() + 1)));
 
     Kind<StateKind.Witness<CounterState>, Integer> getCount =
@@ -36,12 +38,13 @@ public class StateExample {
 
     // Stack Example Actions:
     // Define 'push' as a Function that returns a Kind (a parameterised action)
-    Function<Integer, Kind<StateKind.Witness<StackState>, Void>> push =
+    // State.modify now returns State<S, Unit>
+    Function<Integer, Kind<StateKind.Witness<StackState>, Unit>> push =
         value ->
             wrap(
                 State.modify(
                     s -> {
-                      List<Integer> newList = new ArrayList<>(s.stack()); // Using diamond operator
+                      List<Integer> newList = new ArrayList<>(s.stack());
                       newList.add(value);
                       return new StackState(Collections.unmodifiableList(newList));
                     }));
@@ -71,50 +74,39 @@ public class StateExample {
 
     // Stack Example: Push 10, Push 20, Pop, then Pop again and sum their results
     Kind<StateKind.Witness<StackState>, Integer> stackProgram =
-        stackStateMonad.flatMap( // flatMap 1: applies to push.apply(10) (ma_for_flatMap1)
+        stackStateMonad.flatMap(
             _ignoredFromPush1 ->
-                stackStateMonad.flatMap( // flatMap 2: applies to push.apply(20) (ma_for_flatMap2)
+                stackStateMonad.flatMap(
                     _ignoredFromPush2 ->
-                        stackStateMonad
-                            .flatMap( // flatMap 3: applies to the first pop (ma_for_flatMap3)
-                                poppedValue1 ->
-                                    stackStateMonad.map( // map: applies to the second pop
-                                        poppedValue2 ->
-                                            poppedValue1
-                                                + poppedValue2, // f_for_map (Function<Integer,
-                                        // Integer>)
-                                        pop // ma_for_map (Kind<StackState, Integer> for the second
-                                        // pop)
-                                        ),
-                                pop // ma_for_flatMap3 (Kind<StackState, Integer> for the first pop)
-                                ),
-                    push.apply(20) // ma_for_flatMap2
-                    ),
-            push.apply(10) // ma_for_flatMap1
-            );
+                        stackStateMonad.flatMap(
+                            poppedValue1 ->
+                                stackStateMonad.map(
+                                    poppedValue2 -> poppedValue1 + poppedValue2, pop),
+                            pop),
+                    push.apply(20)),
+            push.apply(10));
 
     // To use these actions, you would typically run them with an initial state.
-    // For example:
     CounterState initialCounter = new CounterState(0);
-    StateTuple<CounterState, Void> afterIncrement = unwrap(incrementCounter).run(initialCounter);
-    System.out.println("Counter after increment: " + afterIncrement.state().count()); // Output: 1
+    // afterIncrement's value part is Unit
+    StateTuple<CounterState, Unit> afterIncrement = unwrap(incrementCounter).run(initialCounter);
+    System.out.println("Counter after increment: " + afterIncrement.state().count());
 
     StateTuple<CounterState, Integer> currentCountResult =
         unwrap(getCount).run(afterIncrement.state());
-    System.out.println("Current count: " + currentCountResult.value()); // Output: 1
+    System.out.println("Current count: " + currentCountResult.value());
 
     StackState initialStack = new StackState(Collections.emptyList());
-    Kind<StateKind.Witness<StackState>, Void> pushTen = push.apply(10);
-    Kind<StateKind.Witness<StackState>, Void> pushTwenty = push.apply(20);
+    Kind<StateKind.Witness<StackState>, Unit> pushTen = push.apply(10);
+    Kind<StateKind.Witness<StackState>, Unit> pushTwenty = push.apply(20);
 
-    // Chaining actions (simplified example, real chaining uses flatMap from StateMonad)
-    StateTuple<StackState, Void> afterPush10 = unwrap(pushTen).run(initialStack);
-    StateTuple<StackState, Void> afterPush20 = unwrap(pushTwenty).run(afterPush10.state());
-    System.out.println("Stack after pushes: " + afterPush20.state().stack()); // Output: [10, 20]
+    StateTuple<StackState, Unit> afterPush10 = unwrap(pushTen).run(initialStack);
+    StateTuple<StackState, Unit> afterPush20 = unwrap(pushTwenty).run(afterPush10.state());
+    System.out.println("Stack after pushes: " + afterPush20.state().stack());
 
     StateTuple<StackState, Integer> poppedValueResult = unwrap(pop).run(afterPush20.state());
-    System.out.println("Popped value: " + poppedValueResult.value()); // Output: 20
-    System.out.println("Stack after pop: " + poppedValueResult.state().stack()); // Output: [10]
+    System.out.println("Popped value: " + poppedValueResult.value());
+    System.out.println("Stack after pop: " + poppedValueResult.state().stack());
   }
 
   record CounterState(int count) {}

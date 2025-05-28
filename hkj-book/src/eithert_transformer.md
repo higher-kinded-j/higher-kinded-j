@@ -186,19 +186,24 @@ public class EitherTExample {
                     initialET
             );
 
-    // Step 2: Process (Async Future<Either> lifted into EitherT)
-    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ProcessedData> processedET =
-            eitherTMonad.flatMap(
-                    validatedData -> {
-                      // Call async step returning Kind<CompletableFutureKind.Witness,...>
-                      // Correction 2: Use CompletableFutureKind.Witness here for the variable type
-                      Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> processingResultKind =
-                              processAsync(validatedData);
-                      // Lift the F<Either> result directly using fromKind
-                      return EitherT.fromKind(processingResultKind);
-                    },
-                    validatedET
-            );
+    // Step 2: Check Inventory (Asynchronous - returns Future<Either<DomainError, Unit>>) 
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, WorkflowContext> inventoryET =
+        eitherTMonad.flatMap( // Chain from validation result
+            ctx -> { // Executed only if validatedET was F<Right(...)>
+                // Call async step -> Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>> 
+                Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>> inventoryCheckFutureKind =
+                    steps.checkInventoryAsync(ctx.validatedOrder().productId(), ctx.validatedOrder().quantity());
+    
+                // Lift the F<Either> directly into EitherT using fromKind
+                Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, Unit> inventoryCheckET = 
+                    EitherT.fromKind(inventoryCheckFutureKind);
+    
+                // If inventory check resolves to Right (now Right(Unit.INSTANCE)), update context.
+ 
+                return eitherTMonad.map(unitInstance -> ctx.withInventoryChecked(), inventoryCheckET);
+            },
+            validatedET // Input is result of validation step
+        );
 
     // Unwrap the final EitherT to get the underlying Future<Either>
     return ((EitherT<CompletableFutureKind.Witness, DomainError, ProcessedData>) processedET).value();

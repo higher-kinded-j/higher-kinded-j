@@ -72,30 +72,41 @@ For each Java type constructor (like `List`, `Optional`, `IO`) you want to simul
 
 ![defunctionalisation_external.svg](images/puml/defunctionalisation_external.svg)
 
-* **For External Types (e.g., `java.util.Optional`, `java.util.List`, `java.util.concurrent.CompletableFuture`):**
-  * Since these JDK classes cannot be modified to directly implement an interface like `OptionalKind<A>`, an **internal `Holder` record** is necessary.
-  * **Example (`OptionalHolder`):**
-      ```java
-      // Typically package-private within OptionalKindHelper.java
-      record OptionalHolder<A>(@NonNull java.util.Optional<A> optional) implements OptionalKind<A> {}
-      ```
-  * The `OptionalKindHelper.wrap(java.util.Optional<A> opt)` method will create and return an `new OptionalHolder<>(opt)`.
-  * The `OptionalKindHelper.unwrap(Kind<OptionalKind.Witness, A> kind)` method will check if `kind` is an `instanceof OptionalHolder`, then extract the `java.util.Optional<A>` from it.
-
-**Higher-Kinded-J Types:**
-
-![defunctionalisation_internal.svg](images/puml/defunctionalisation_internal.svg)
-
 * **For Types Defined Within Higher-Kinded-J (e.g., `Id`, `Maybe`, `IO`, Monad Transformers like `EitherT`):**
-  * These types are designed to directly participate in the HKT simulation.
-  * The type itself (e.g., `Id<A>`, `MaybeT<F, A>`) will directly implement its corresponding `XxxKind` interface (e.g., `Id<A> implements IdKind<A>`, where `IdKind<A> extends Kind<Id.Witness, A>`).
-  * In this case, a separate `Holder` record is **not needed** for the primary `wrap`/`unwrap` mechanism in the `KindHelper`.
-  * `XxxKindHelper.wrap(Id<A> id)` would effectively be a type cast (after null checks) to `Kind<Id.Witness, A>` because `Id<A>` *is already* an `IdKind<A>`.
-  * `XxxKindHelper.unwrap(Kind<Id.Witness, A> kind)` would check `instanceof Id` (or `instanceof MaybeT`, etc.) and perform a cast.
+    * These types are designed to directly participate in the HKT simulation.
+    * The type itself (e.g., `Id<A>`, `MaybeT<F, A>`) will directly implement its corresponding `XxxKind` interface (e.g., `Id<A> implements IdKind<A>`, where `IdKind<A> extends Kind<Id.Witness, A>`).
+    * In this case, a separate `Holder` record is **not needed** for the primary `wrap`/`unwrap` mechanism in the `KindHelper`.
+    * `XxxKindHelper.wrap(Id<A> id)` would effectively be a type cast (after null checks) to `Kind<Id.Witness, A>` because `Id<A>` *is already* an `IdKind<A>`.
+    * `XxxKindHelper.unwrap(Kind<Id.Witness, A> kind)` would check `instanceof Id` (or `instanceof MaybeT`, etc.) and perform a cast.
 
 This distinction is important for understanding how `wrap` and `unwrap` function for different types. However, from the perspective of a user of a type class instance (like `OptionalMonad`), the interaction remains consistent: you provide a `Kind` object, and the type class instance handles the necessary operations.
 
-## 5. Error Handling Philosophy
+## 5. The `Unit` Type
+
+In functional programming, it's common to have computations or functions that perform an action (often a side effect) but do not produce a specific, meaningful result value. In Java, methods that don't return a value use the `void` keyword. However, `void` is not a first-class type and cannot be used as a generic type parameter `A` in `Kind<F, A>`.
+
+Higher-Kinded-J provides the `org.higherkindedj.hkt.unit.Unit` type to address this.
+
+* **Purpose:** `Unit` is a type that has exactly one value, `Unit.INSTANCE`. It is used to represent the successful completion of an operation that doesn't yield any other specific information. Think of it as a functional equivalent of `void`, but usable as a generic type.
+* **Usage in HKT:**
+    * When a monadic action `Kind<F, A>` completes successfully but has no specific value to return (e.g., an `IO` action that prints to the console), `A` can be `Unit`. The action would then be `Kind<F, Unit>`, and its successful result would conceptually be `Unit.INSTANCE`. For example, `IO<Unit>` for a print operation.
+    * In `MonadError<F, E>`, if the error state `E` simply represents an absence or a failure without specific details (like `Optional.empty()` or `Maybe.Nothing()`), `Unit` can be used as the type for `E`. The `raiseError` method would then be called with `Unit.INSTANCE`. For instance, `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`, and `MaybeMonad` implements `MonadError<MaybeKind.Witness, Unit>`.
+* **Example:**
+    ```java
+    // An IO action that just performs a side effect (printing)
+    Kind<IOKind.Witness, Unit> printAction = IOKindHelper.delay(() -> {
+        System.out.println("Effect executed!");
+        return Unit.INSTANCE; // Explicitly return Unit.INSTANCE
+    });
+    IOKindHelper.unsafeRunSync(printAction); // Executes the print
+
+    // Optional treated as MonadError<..., Unit>
+    OptionalMonad optionalMonad = new OptionalMonad();
+    Kind<OptionalKind.Witness, String> emptyOptional = optionalMonad.raiseError(Unit.INSTANCE); // Creates Optional.empty()
+    ```
+* **Reference:** [`Unit.java`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/unit/Unit.java)
+
+## 6. Error Handling Philosophy
 
 * **Domain Errors:** These are expected business-level errors or alternative outcomes. They are represented *within* the structure of the simulated type (e.g., `Either.Left`, `Maybe.Nothing`, `Try.Failure`, a failed `CompletableFuture`, potentially a specific result type within `IO`). These are handled using the type's specific methods or `MonadError` capabilities (`handleErrorWith`, `recover`, `fold`, `orElse`, etc.) *after* successfully unwrapping the `Kind`.
 * **Simulation Errors (`KindUnwrapException`):** These indicate a problem with the HKT simulation *itself* – usually a programming error. Examples include passing `null` to `unwrap`, passing a `ListKind` to `OptionalKindHelper.unwrap`, or (if it were possible) having a `Holder` record contain a `null` reference to the underlying Java object it's supposed to hold. These are signalled by throwing the unchecked `KindUnwrapException` from `unwrap` methods to clearly distinguish infrastructure issues from domain errors. You typically shouldn't need to catch `KindUnwrapException` unless debugging the simulation usage itself.

@@ -1,5 +1,5 @@
 [book]
-title = "Higher-Kinded-J: Higher-Kinded Types for Java"
+title = "HKJ  Higher-Kinded Types for Java"
 description = "Explore Higher-Kinded Types (HKTs) in Java with the Higher-Kinded-J library. Learn about Functors, Applicatives, Monads, Transformers, practical functional patterns, and how to write cleaner, more composable Java code for your projects."
 authors = ["The Higher-Kinded-J Team"]
 language = "en"
@@ -11,6 +11,13 @@ default-theme = "latte"
 preferred-dark-theme = "macchiato"
 site-url = "https://higher-kinded-j.github.io"
 canonical-site-url = "https://higher-kinded-j.github.io"
+git-repository-url = "https://github.com/higher-kinded-j/higher-kinded-j"
+git-repository-icon = "fa-github"
+edit-url-template = "https://github.com/higher-kinded-j/higher-kinded-j/edit/main/hkj-book/{path}"
+[output.html.fold]
+enable = true
+level = 0
+
 [preprocessor.alerts]
 [preprocessor.admonish]
 command = "mdbook-admonish"

@@ -22,7 +22,7 @@ interface "MonadError<F_HKT, E_ERR>" as MonadError
     // Value: A
   }
 
-  class OptionalTMonad<F_OUTER> implements MonadError<OptionalTKind.Witness<F_OUTER>, Void> {
+  class OptionalTMonad<F_OUTER> implements MonadError<OptionalTKind.Witness<F_OUTER>, Unit> {
     - final @NonNull Monad<F_OUTER> outerMonad
     + OptionalTMonad(@NonNull Monad<F_OUTER> outerMonad)
     ' Other MonadError methods (of, map, flatMap, ap, raiseError, handleErrorWith)

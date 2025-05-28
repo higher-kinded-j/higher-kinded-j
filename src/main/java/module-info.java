@@ -17,6 +17,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.state;
   exports org.higherkindedj.hkt.writer;
   exports org.higherkindedj.hkt.id;
+  exports org.higherkindedj.hkt.unit;
 
   // Export packages for monad transformers
   exports org.higherkindedj.hkt.trans.either_t;

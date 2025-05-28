@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.hkt.io.IOMonad;
+import org.higherkindedj.hkt.unit.Unit;
 
 /** see {<a href="https://higher-kinded-j.github.io/io_monad.html">IO Monad</a>} */
 public class IOExample {
@@ -15,11 +16,11 @@ public class IOExample {
   IOMonad ioMonad = new IOMonad();
 
   // IO action to print a message
-  Kind<IOKind.Witness, Void> printHello =
+  Kind<IOKind.Witness, Unit> printHello =
       IOKindHelper.delay(
           () -> {
             System.out.println("Hello from IO!");
-            return null; // Return type is Void
+            return Unit.INSTANCE;
           });
 
   // IO action to read a line from the console
@@ -114,17 +115,17 @@ public class IOExample {
             });
 
     // Action 2 (depends on name): Print greeting
-    Function<String, Kind<IOKind.Witness, Void>> printGreeting =
+    Function<String, Kind<IOKind.Witness, Unit>> printGreeting =
         name ->
             IOKindHelper.delay(
                 () -> {
                   System.out.println("Effect: Printing greeting for " + name);
                   System.out.println("Welcome, " + name + "!");
-                  return null;
+                  return Unit.INSTANCE;
                 });
 
     // Combine using flatMap
-    Kind<IOKind.Witness, Void> combinedAction = ioMonad.flatMap(printGreeting, getName);
+    Kind<IOKind.Witness, Unit> combinedAction = ioMonad.flatMap(printGreeting, getName);
 
     System.out.println("\nCombined action created, not executed yet.");
     // Execute the combined action
@@ -135,24 +136,21 @@ public class IOExample {
     // Welcome, Alice!
 
     // --- Full Program Example ---
-    Kind<IOKind.Witness, Void> program =
+    Kind<IOKind.Witness, Unit> program =
         ioMonad.flatMap(
             ignored ->
-                ioMonad.flatMap( // Chain after printing hello
+                ioMonad.flatMap(
                     name ->
-                        ioMonad.map( // Map the result of printing the greeting
+                        ioMonad.map(
                             ignored2 -> {
                               System.out.println("Program finished.");
-                              return null;
+                              return Unit.INSTANCE;
                             },
-                            printGreeting.apply(name) // Action 3: Print greeting based on name
-                            ),
-                    readLine // Action 2: Read line
-                    ),
-            printHello // Action 1: Print Hello
-            );
+                            printGreeting.apply(name)),
+                    readLine),
+            printHello);
 
     System.out.println("\nComplete IO Program defined. Executing...");
-    IOKindHelper.unsafeRunSync(program); // Uncomment to run the full program
+    IOKindHelper.unsafeRunSync(program);
   }
 }

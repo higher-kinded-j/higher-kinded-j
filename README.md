@@ -1,5 +1,14 @@
-# Higher-Kinded-J:
-**_Bringing Higher-Kinded Types to Java functional patterns_**
+```
+ _   _ _       _                      _   ___           _          _        ___ 
+| | | (_)     | |                    | | / (_)         | |        | |      |_  |
+| |_| |_  __ _| |__   ___ _ __ ______| |/ / _ _ __   __| | ___  __| |______  | |
+|  _  | |/ _` | '_ \ / _ \ '__|______|    \| | '_ \ / _` |/ _ \/ _` |______| | |
+| | | | | (_| | | | |  __/ |         | |\  \ | | | | (_| |  __/ (_| |    /\__/ /
+\_| |_/_|\__, |_| |_|\___|_|         \_| \_/_|_| |_|\__,_|\___|\__,_|    \____/ 
+          __/ |                                                                 
+         |___/                                                                  
+```
+## _Bringing Higher-Kinded Types to Java functional patterns_
 [![codecov](https://codecov.io/gh/higher-kinded-j/higher-kinded-j/graph/badge.svg?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j)
 
 
@@ -94,7 +103,7 @@ The code is organized into packages:
 * `org.higherkindedj.hkt.trans.maybe_t`: Monad Transformer (`MaybeT`) components.
 * `org.higherkindedj.hkt.trans.optional_t`: Monad Transformer (`OptionalT`) components.
 * `org.higherkindedj.hkt.trans.reader_t`: Monad Transformer (`ReaderT`) components.
-* * `org.higherkindedj.hkt.trans.state_t`: Monad Transformer (`StateT`) components.
+* `org.higherkindedj.hkt.trans.state_t`: Monad Transformer (`StateT`) components.
 * `org.higherkindedj.hkt.function`: Helper functional interfaces (`Function3`, `Function4`).
 * `org.higherkindedj.hkt.exception`: Custom exceptions like `KindUnwrapException`.
 * `org.higherkindedj.example.order`: A practical example demonstrating an order processing workflow.

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.state;
 import static java.util.Objects.requireNonNull;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -151,36 +152,38 @@ public interface State<S, A> {
 
   /**
    * Creates a {@code State} computation that replaces the current state with the given new state
-   * and returns {@code Void} (representing no meaningful value).
+   * and returns {@link Unit#INSTANCE}.
    *
-   * <p>Equivalent to: {@code s -> new StateTuple<>(null, newState)}
+   * <p>Equivalent to: {@code s -> new StateTuple<>(Unit.INSTANCE, newState)}
    *
    * @param <S> The type of the state.
    * @param newState The non-null new state to set.
-   * @return A non-null {@code State<S, Void>} that sets the state and returns {@code Void}.
+   * @return A non-null {@code State<S, Unit>} that sets the state and returns {@link
+   *     Unit#INSTANCE}.
    * @throws NullPointerException if {@code newState} is null.
    */
-  static <S> @NonNull State<S, Void> set(@NonNull S newState) {
+  static <S> @NonNull State<S, Unit> set(@NonNull S newState) {
     requireNonNull(newState, "newState cannot be null");
     // The old state `s` is ignored here, as `newState` replaces it.
-    return State.of(s -> new StateTuple<>(null, newState));
+    return State.of(s -> new StateTuple<>(Unit.INSTANCE, newState));
   }
 
   /**
    * Creates a {@code State} computation that modifies the current state using the given function
-   * and returns {@code Void} (representing no meaningful value).
+   * and returns {@link Unit#INSTANCE}.
    *
-   * <p>Equivalent to: {@code s -> new StateTuple<>(null, f.apply(s))}
+   * <p>Equivalent to: {@code s -> new StateTuple<>(Unit.INSTANCE, f.apply(s))}
    *
    * @param <S> The type of the state.
    * @param f The non-null function to apply to the current state to produce the new state. This
    *     function must return a non-null state.
-   * @return A non-null {@code State<S, Void>} that modifies the state and returns {@code Void}.
+   * @return A non-null {@code State<S, Unit>} that modifies the state and returns {@link
+   *     Unit#INSTANCE}.
    * @throws NullPointerException if {@code f} is null.
    */
-  static <S> @NonNull State<S, Void> modify(@NonNull Function<@NonNull S, @NonNull S> f) {
+  static <S> @NonNull State<S, Unit> modify(@NonNull Function<@NonNull S, @NonNull S> f) {
     requireNonNull(f, "state modification function cannot be null");
-    return State.of(s -> new StateTuple<>(null, f.apply(s)));
+    return State.of(s -> new StateTuple<>(Unit.INSTANCE, f.apply(s)));
   }
 
   /**

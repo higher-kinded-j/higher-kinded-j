@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -44,7 +45,6 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
     // Check if it's also a MonadError
     if (monadF instanceof MonadError) {
       // Store it with a wildcard for the error type, as we don't know it here.
-      // We only know the error type is Void when F is OptionalMonad.
       this.monadErrorF = (MonadError<F, ?>) monadF;
     } else {
       this.monadErrorF = null;
@@ -141,9 +141,12 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    *
    * <p>If the function {@code func} extracted from {@code stateTf} is {@code null}, and the
    * underlying monad {@code F} implements {@link MonadError}, this method attempts to produce an
-   * "empty" or "error" result for {@code StateTuple<S, B>} using {@code monadErrorF.raiseError}. If
-   * {@code F} is not a {@code MonadError} or an appropriate error value cannot be produced, an
-   * {@link IllegalStateException} is thrown.
+   * "empty" or "error" result for {@code StateTuple<S, B>}. This is done by attempting to cast the
+   * stored {@code MonadError<F, ?>} to {@code MonadError<F, Unit>} and calling {@code
+   * raiseError(Unit.INSTANCE)}. This specific handling assumes that the relevant error types (like
+   * those from OptionalMonad or MaybeMonad) are being transitioned to use {@link Unit}. If {@code
+   * F} is not a {@code MonadError} or if the cast/call fails, an {@link IllegalStateException} is
+   * thrown.
    *
    * @param ff The {@code StateT<S, F, Function<A, B>>} containing the function to apply. Must not
    *     be {@code null}.
@@ -155,7 +158,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    *     and sequencing the state transformations.
    * @throws IllegalStateException if the function extracted from {@code ff} is null and the
    *     underlying monad {@code F} is not a {@link MonadError} or cannot produce an appropriate
-   *     empty/error value.
+   *     empty/error value compatible with {@link Unit}.
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
@@ -181,18 +184,15 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
                           "MonadError<F> instance not available, cannot produce empty value for"
                               + " null function in ap.");
                     }
-                    // Explicitly provide the type <StateTuple<S, B>> to raiseError
-                    // Pass null for the error type (assuming Void for OptionalMonad)
-                    // We need to cast the monadErrorF back to the specific error type (Void)
-                    // to pass null correctly. This is still a bit unsafe if F isn't OptionalMonad.
                     try {
-                      @SuppressWarnings("unchecked") // Cast MonadError<F, ?> to MonadError<F, Void>
-                      MonadError<F, Void> specificMonadError =
-                          (MonadError<F, Void>) this.monadErrorF;
-                      return specificMonadError.<StateTuple<S, B>>raiseError(null);
+                      @SuppressWarnings("unchecked")
+                      MonadError<F, Unit> specificMonadError =
+                          (MonadError<F, Unit>) this.monadErrorF;
+                      return specificMonadError.<StateTuple<S, B>>raiseError(Unit.INSTANCE);
                     } catch (ClassCastException cce) {
                       throw new IllegalStateException(
-                          "Underlying MonadError<F> does not have Void error type as expected.",
+                          "Underlying MonadError<F> does not have Unit error type as expected for"
+                              + " null function handling.",
                           cce);
                     }
                   }
@@ -206,8 +206,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
                         // We know 'function' is not null here
                         B appliedValue = function.apply(tupleA.value());
                         S s2 = tupleA.state();
-                        // Rely on underlying map (OptionalFunctor.map) to handle if appliedValue is
-                        // null
+                        // Rely on underlying map to handle if appliedValue is
+                        // null for types like Optional
                         return StateTuple.of(s2, appliedValue);
                       },
                       resultA);

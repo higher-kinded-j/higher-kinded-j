@@ -6,6 +6,7 @@ import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -113,19 +114,22 @@ public final class WriterKindHelper {
   }
 
   /**
-   * Creates a {@code Kind<WriterKind.Witness<W>, Void>} that logs a message but has a {@link Void}
-   * (null) value.
+   * Creates a {@code Kind<WriterKind.Witness<W>, Unit>} that logs a message and has a {@link
+   * Unit#INSTANCE} value. Assumes {@link Writer#tell(Object)} is updated to produce {@code
+   * Writer<W, Unit>}.
    *
    * @param <W> The type of the accumulated log/output.
-   * @param monoidW The {@link Monoid} instance for the log type {@code W}. While not directly used
-   *     by {@code Writer.tell(log)} itself, it's good practice to ensure its availability if other
-   *     helper operations might assume it for consistency. Must be {@code @NonNull}.
+   * @param monoidW The {@link Monoid} instance for the log type {@code W}. (Note: {@code
+   *     Writer.tell} typically doesn't use the monoid directly for the tell operation itself, but
+   *     it's passed for consistency if other operations in {@code Writer} might need it, or if
+   *     {@code Writer.tell} internally uses it to construct a Writer that might be combined later).
+   *     Must be {@code @NonNull}.
    * @param log The log message to accumulate. Must be {@code @NonNull}.
-   * @return A {@code Kind<WriterKind.Witness<W>, Void>} representing only the log action. Never
+   * @return A {@code Kind<WriterKind.Witness<W>, Unit>} representing only the log action. Never
    *     null.
    * @throws NullPointerException if {@code monoidW} or {@code log} is null.
    */
-  public static <W> @NonNull Kind<WriterKind.Witness<W>, Void> tell(
+  public static <W> @NonNull Kind<WriterKind.Witness<W>, Unit> tell(
       @NonNull Monoid<W> monoidW, @NonNull W log) {
     Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for tell helper");
     Objects.requireNonNull(log, "Log message for tell cannot be null");

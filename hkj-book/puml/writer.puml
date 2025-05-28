@@ -17,7 +17,7 @@ hide empty members
         __ Methods __
        + {static} Writer<W, A> create(W log, A value)
        + {static} Writer<W, A> value(Monoid<W> monoidW, A value)
-       + {static} Writer<W, Void> tell(W log)
+       + {static} Writer<W, Unit> tell(W log)
        + Writer<W, B> map(Function<A, B> f)
        + Writer<W, B> flatMap(Monoid<W> monoidW, Function<A, Writer<W, B>> f)
        + A run()
@@ -29,7 +29,7 @@ hide empty members
       + {static} Writer<W, A> unwrap(Kind<WriterKind<W, ?>, A> kind)
       + {static} WriterKind<W, A> wrap(Writer<W, A> writer)
       + {static} WriterKind<W, A> value(Monoid<W> monoidW, A value)
-      + {static} WriterKind<W, Void> tell(Monoid<W> monoidW, W log)
+      + {static} WriterKind<W, Unit> tell(Monoid<W> monoidW, W log)
       + {static} Writer<W, A> runWriter(Kind<WriterKind<W, ?>, A> kind)
       + {static} A run(Kind<WriterKind<W, ?>, A> kind)
       + {static} W exec(Kind<WriterKind<W, ?>, A> kind)

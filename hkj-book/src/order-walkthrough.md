@@ -163,7 +163,7 @@ return eitherTMonad.flatMap(
 ```
 
 * **Purpose:** Check if the product is in stock via an external service.
-* **Sync/Async:** Asynchronous. `steps.checkInventoryAsync` returns `Kind<CompletableFutureKind.Witness, Either<DomainError, Void>>`.
+* **Sync/Async:** Asynchronous. `steps.checkInventoryAsync` returns `Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>>`.
 * **HKT Integration:** The `Kind` returned by the async step (which represents `CompletableFuture<Either<...>>`) is directly wrapped into `EitherT` using `EitherT.fromKind(inventoryCheckFutureKind)`.
 * **Error Handling:** If the `CompletableFuture` from `checkInventoryAsync` completes with `Left(StockError)`, this `Left` is propagated by `flatMap`. If the `CompletableFuture` itself fails (e.g., network error), the outer monad (`futureMonad`) handles it, resulting in a failed `CompletableFuture` wrapped within `inventoryET`.
 ~~~
@@ -278,7 +278,7 @@ return eitherTMonad.flatMap(
                         + finalResult.orderId()
                         + ": "
                         + notifyError.message());
-                return null; // Recover with Void (represented by null)
+                return Unit.INSTANCE; 
               })
       );
     },
@@ -288,7 +288,7 @@ return eitherTMonad.flatMap(
 * **Purpose:** Send a notification (e.g., email) to the customer. Failure here shouldn't fail the whole order.
 * **Sync/Async:** Asynchronous.
 * **HKT Integration:** Uses `flatMap` to sequence the notification, `EitherT.fromKind` to lift the async result, and `handleError` for simple recovery.
-* **Error Handling:** If `notifyCustomerAsync` results in a `Left(NotificationError)`, `handleError` catches it, logs a warning, and recovers by effectively making the notification step result in a `Right(null)` (as `Void` is represented by `null`). The outer `map` ensures that the `FinalResult` from the previous step (`finalResultET`) is preserved and becomes the `Right` value of `finalResultWithNotificationET`, regardless of the notification's success or failure.
+* **Error Handling:** If `notifyCustomerAsync` results in a `Left(NotificationError)`, `handleError` catches it, logs a warning, and recovers by effectively making the notification step result in a `Right(Unit.INSTANCE)` . The outer `map` ensures that the `FinalResult` from the previous step (`finalResultET`) is preserved and becomes the `Right` value of `finalResultWithNotificationET`, regardless of the notification's success or failure.
 ~~~
 
 ~~~admonish example title="Final Unwrapping"

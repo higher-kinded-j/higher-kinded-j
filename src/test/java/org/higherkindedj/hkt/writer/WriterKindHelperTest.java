@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -21,12 +22,12 @@ class WriterKindHelperTest {
 
   private Monoid<String> stringMonoid;
   private Writer<String, Integer> baseWriter;
-  private Writer<String, Void> tellWriter;
+  private Writer<String, Unit> tellWriter;
 
   @BeforeEach
   void setUp() {
     stringMonoid = new StringMonoid();
-    baseWriter = Writer.create("Log;", 10);
+    baseWriter = new Writer<>("Log;", 10);
     tellWriter = Writer.tell("Tell;");
   }
 
@@ -90,10 +91,10 @@ class WriterKindHelperTest {
 
     @Test
     void tell_shouldWrapLogWithNullValue() {
-      Kind<WriterKind.Witness<String>, Void> kind = WriterKindHelper.tell(stringMonoid, "LogMsg");
-      Writer<String, Void> w = unwrap(kind);
+      Kind<WriterKind.Witness<String>, Unit> kind = WriterKindHelper.tell(stringMonoid, "LogMsg");
+      Writer<String, Unit> w = unwrap(kind);
       assertThat(w.log()).isEqualTo("LogMsg");
-      assertThat(w.value()).isNull();
+      assertThat(w.value()).isEqualTo(Unit.INSTANCE);
     }
   }
 
@@ -112,7 +113,7 @@ class WriterKindHelperTest {
       assertThat(run(kind)).isEqualTo(10);
 
       var tellKind = wrap(tellWriter);
-      assertThat(run(tellKind)).isNull();
+      assertThat(run(tellKind)).isEqualTo(Unit.INSTANCE);
     }
 
     @Test

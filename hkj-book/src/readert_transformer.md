@@ -149,6 +149,77 @@ You typically create `ReaderT` instances using its static factory methods. These
 ```
 ~~~
 
+~~~admonish example title="Example: `ReaderT` for Actions Returning `Unit`"
+
+Sometimes, a computation dependent on an environment `R` and involving an outer monad `F` might perform an action (e.g., logging, initializing a resource, sending a fire-and-forget message) without producing a specific data value. In such cases, the result type `A` of `ReaderT<F, R, A>` can be `org.higherkindedj.hkt.unit.Unit`.
+
+Let's extend the asynchronous example to include an action that logs a message using the `AppConfig` and completes asynchronously, returning `Unit`.
+
+- [ReaderTAsyncUnitExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/readert/ReaderTAsyncUnitExample.java)
+
+```java
+    // Action: Log a message using AppConfig, complete asynchronously returning F<Unit>
+    public static Kind<CompletableFutureKind.Witness, Unit> logInitializationAsync(AppConfig config) {
+        CompletableFuture<Unit> future = CompletableFuture.runAsync(() -> {
+            System.out.println("Thread: " + Thread.currentThread().getName() +
+                " - Initializing component with API Key: " + config.apiKey() +
+                " for Service URL: " + config.serviceUrl());
+            // Simulate some work
+            try {
+                TimeUnit.MILLISECONDS.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+            System.out.println("Thread: " + Thread.currentThread().getName() +
+                " - Initialization complete for: " + config.serviceUrl());
+        }, config.executor()).thenApply(v -> Unit.INSTANCE); // Ensure CompletableFuture<Unit>
+        return CompletableFutureKindHelper.wrap(future);
+    }
+
+    // Wrap the action in ReaderT: R -> F<Unit>
+    public static ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initializeComponentRT() {
+        return ReaderT.of(ReaderTAsyncUnitExample::logInitializationAsync);
+    }
+
+    public static void main(String[] args) {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        AppConfig prodConfig = new AppConfig("prod_secret_for_init", "[https://init.prod.service](https://init.prod.service)", executor);
+
+        // Get the ReaderT for the initialization action
+        ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initAction = initializeComponentRT();
+
+        System.out.println("--- Running Initialization Action with Prod Config ---");
+        // Run the action by providing the prodConfig environment
+        // This returns Kind<CompletableFutureKind.Witness, Unit>
+        Kind<CompletableFutureKind.Witness, Unit> futureUnit = initAction.run().apply(prodConfig);
+
+        // Wait for completion and get the Unit result (which is just Unit.INSTANCE)
+        Unit result = CompletableFutureKindHelper.join(futureUnit);
+        System.out.println("Initialization Result: " + result); // Expected: Initialization Result: ()
+
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+```
+This example illustrates:
+
+- An asynchronous action (`logInitializationAsync`) that depends on `AppConfig` but logically returns no specific data, so its result is `CompletableFuture<Unit>`.
+- This action is wrapped into a `ReaderT<CompletableFutureKind.Witness, AppConfig, Unit>`.
+- When this `ReaderT` is run with an `AppConfig`, it yields a `Kind<CompletableFutureKind.Witness, Unit>`.
+- The final result of joining such a future is `Unit.INSTANCE`, signifying successful completion of the effectful, environment-dependent action.
+
+
+~~~
+
+
 ~~~admonish example title="Example: Configuration-Dependent Asynchronous Service Calls"
 
 Let's illustrate `ReaderT` by combining an environment dependency (`AppConfig`) with an asynchronous operation (`CompletableFuture`).

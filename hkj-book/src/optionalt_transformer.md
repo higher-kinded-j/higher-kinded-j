@@ -60,7 +60,7 @@ public final class OptionalTKindHelper {
 
 ## `OptionalTMonad<F>`: Operating on `OptionalT`
 
-**The** `OptionalTMonad<F>` class implements `MonadError<OptionalTKind.Witness<F>, Void>`. This provides the standard monadic operations (`of`, `map`, `flatMap`, `ap`) and error handling capabilities for the `OptionalT` structure. The error type is `Void` because `Optional.empty()` signifies absence without carrying a specific error value.
+**The** `OptionalTMonad<F>` class implements `MonadError<OptionalTKind.Witness<F>, Unit>`. This provides the standard monadic operations (`of`, `map`, `flatMap`, `ap`) and error handling capabilities for the `OptionalT` structure. The error type `E` for `MonadError` is fixed to `Unit` signifying that an "error" in this context is the `Optional.empty()` state within `F<Optional<A>>`.
 
 * **It requires a** `Monad<F>` instance for the outer monad `F`, which must be supplied during construction. This `outerMonad` is used to manage and sequence the effects of `F`.
 
@@ -83,8 +83,8 @@ OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
 * **`optionalTMonad.of(value)`**: Lifts a (nullable) value `A` into the `OptionalT` context. The underlying operation is `r -> outerMonad.of(Optional.ofNullable(value))`. Result: `OptionalT(F<Optional<A>>)`.
 * **`optionalTMonad.map(func, optionalTKind)`**: Applies a function `A -> B` to the value `A` if it's present within the `Optional` and the `F` context is successful. The transformation occurs within `outerMonad.map`. If `func` returns `null`, the result becomes `F<Optional.empty()>`. Result: `OptionalT(F<Optional<B>>)`.
 * **`optionalTMonad.flatMap(func, optionalTKind)`**: The primary sequencing operation. It takes a function `A -> Kind<OptionalTKind.Witness<F>, B>` (which effectively means `A -> OptionalT<F, B>`). It runs the initial `OptionalT` to get `Kind<F, Optional<A>>`. Using `outerMonad.flatMap`, if this yields an `Optional.of(a)`, `func` is applied to `a` to get the next `OptionalT<F, B>`. The `value` of this new `OptionalT` (`Kind<F, Optional<B>>`) becomes the result. If at any point an `Optional.empty()` is encountered within `F`, it short-circuits and propagates `F<Optional.empty()>`. Result: `OptionalT(F<Optional<B>>)`.
-* **`optionalTMonad.raiseError(null)`** (since error type is `Void`): Creates an `OptionalT` representing absence. Result: `OptionalT(F<Optional.empty()>)`.
-* **`optionalTMonad.handleErrorWith(optionalTKind, handler)`**: Allows recovery from an `Optional.empty()` state within `F`. The `handler` function `Void -> Kind<OptionalTKind.Witness<F>, A>` is invoked with `null` if an empty state is encountered.
+* **`optionalTMonad.raiseError(error)`** (where error is `Unit`): Creates an `OptionalT` representing absence. Result: `OptionalT(F<Optional.empty()>)`.
+* **`optionalTMonad.handleErrorWith(optionalTKind, handler)`**: Handles an empty state from the _inner_ `Optional`. Takes a handler `Function<Unit, Kind<OptionalTKind.Witness<F>, A>>`.
 ~~~
 
 ----
@@ -235,7 +235,7 @@ public static class OptionalTAsyncExample {
       Kind<OptionalTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> recoveredPrefsOTKind =
           optionalTFutureMonad.handleErrorWith(
               OptionalTKindHelper.wrap(prefsAttemptOT),
-              (Void v) -> { // This lambda is called if prefsAttemptOT results in F<Optional.empty()>
+              (Unit v) -> { // This lambda is called if prefsAttemptOT results in F<Optional.empty()>
                 System.out.println("Preferences not found for " + userId + ", providing default.");
                 // Lift a default preference into OptionalT
                 UserPreferences defaultPrefs = new UserPreferences(userId, "default-light");

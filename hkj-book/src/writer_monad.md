@@ -40,7 +40,7 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) implements WriterK
   // Static factories
   public static <W, A> @NonNull Writer<W, A> create(@NonNull W log, @Nullable A value);
   public static <W, A> @NonNull Writer<W, A> value(@NonNull Monoid<W> monoidW, @Nullable A value); // Creates (monoidW.empty(), value)
-  public static <W> @NonNull Writer<W, Void> tell(@NonNull Monoid<W> monoidW, @NonNull W log); // Creates (log, null)
+  public static <W> @NonNull Writer<W, Unit> tell(@NonNull Monoid<W> monoidW, @NonNull W log); // Creates (log, Unit.INSTANCE) 
 
   // Instance methods (primarily for direct use, HKT versions via Monad instance)
   public <B> @NonNull Writer<W, B> map(@NonNull Function<? super A, ? extends B> f);
@@ -56,7 +56,7 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) implements WriterK
 * It simply holds a pair: the accumulated `log` (of type `W`) and the computed `value` (of type `A`).
 * `create(log, value)`: Basic constructor.
 * `value(monoid, value)`: Creates a Writer with the given value and an *empty* log according to the provided `Monoid`.
-* `tell(monoid, log)`: Creates a Writer with the given log but no meaningful value (typically `Void`/`null`). Useful for just adding to the log. (Note: The original `Writer.java` might have `tell(W log)` and infer monoid elsewhere, or `WriterMonad` handles `tell`).
+* `tell(monoid, log)`: Creates a Writer with the given log, and `Unit.INSTANCE` as it's  value, signifying that the operation's primary purpose is the accumulation of the log. Useful for just adding to the log. (Note: The original `Writer.java` might have `tell(W log)` and infer monoid elsewhere, or `WriterMonad` handles `tell`).
 * `map(...)`: Transforms the computed value `A` to `B` while leaving the log `W` untouched.
 * `flatMap(...)`: Sequences computations. It runs the first Writer, uses its value `A` to create a second Writer, and combines the logs from both using the provided `Monoid`.
 * `run()`: Extracts only the computed value `A`, discarding the log.
@@ -134,8 +134,8 @@ import java.util.function.Function;         // Standard Java Function
 // Writer with an initial value and empty log
 Kind<WriterKind.Witness<String>, Integer> initialValue = value(stringMonoid, 5); // Log: "", Value: 5
 
-// Writer that just logs a message (value is Void/null)
-Kind<WriterKind.Witness<String>, Void> logStart = tell(stringMonoid, "Starting calculation; "); // Log: "Starting calculation; ", Value: null
+// Writer that just logs a message (value is Unit.INSTANCE)
+Kind<WriterKind.Witness<String>, Unit> logStart = tell(stringMonoid, "Starting calculation; "); // Log: "Starting calculation; ", Value: ()
 
 // A function that performs a calculation and logs its step
 Function<Integer, Kind<WriterKind.Witness<String>, Integer>> addAndLog =
@@ -165,10 +165,10 @@ Use the methods on the `writerMonad` instance. `flatMap` automatically combines 
 Kind<WriterKind.Witness<String>, Integer> computationStart = writerMonad.of(0);
 
 // 1. Log the start
-Kind<WriterKind.Witness<String>, Integer> afterLogStart  = writerMonad.flatMap(ignoredVoid -> initialValue, logStart);
+Kind<WriterKind.Witness<String>, Integer> afterLogStart  = writerMonad.flatMap(ignoredUnit -> initialValue, logStart);
 
 Kind<WriterKind.Witness<String>, Integer> step1Value = value(stringMonoid, 5); // ("", 5)
-Kind<WriterKind.Witness<String>, Void> step1Log = tell(stringMonoid, "Initial value set to 5; "); // ("Initial value set to 5; ", null)
+Kind<WriterKind.Witness<String>, Unit> step1Log = tell(stringMonoid, "Initial value set to 5; "); // ("Initial value set to 5; ", ())
 
 
 // Start -> log -> transform value -> log -> transform value ...

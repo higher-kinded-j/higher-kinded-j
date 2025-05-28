@@ -1,10 +1,18 @@
-# Higher-Kinded-J
-**_Bringing Higher-Kinded Types to Java functional patterns_**
-
-```admonish info
- You can find all the code and latest releases here.
- [==>Take me to the code](https://github.com/higher-kinded-j/higher-kinded-j)
 ```
+ _   _ _       _                      _   ___           _          _        ___ 
+| | | (_)     | |                    | | / (_)         | |        | |      |_  |
+| |_| |_  __ _| |__   ___ _ __ ______| |/ / _ _ __   __| | ___  __| |______  | |
+|  _  | |/ _` | '_ \ / _ \ '__|______|    \| | '_ \ / _` |/ _ \/ _` |______| | |
+| | | | | (_| | | | |  __/ |         | |\  \ | | | | (_| |  __/ (_| |    /\__/ /
+\_| |_/_|\__, |_| |_|\___|_|         \_| \_/_|_| |_|\__,_|\___|\__,_|    \____/ 
+          __/ |                                                                 
+         |___/                                                                  
+```
+## [_Bringing Higher-Kinded Types to Java functional patterns_](https://github.com/higher-kinded-j/higher-kinded-j)
+
+```admonish title="[==>Github code](https://github.com/higher-kinded-j/higher-kinded-j)"
+```
+<a href="https://github.com/higher-kinded-j/higher-kinded-j"><img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/refs/heads/6.x/svgs/brands/github.svg" width="50" height="50"></a>
 
 Higher-Kinded-J brings popular functional patterns to Java by providing implementations of common Monads and Transformers supporting Higher-Kinded Types.
 
@@ -78,6 +86,3 @@ You could adapt Higher-Kinded-J for use in your own projects:
 ```admonish Note
 This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
 ```
-
-
-
