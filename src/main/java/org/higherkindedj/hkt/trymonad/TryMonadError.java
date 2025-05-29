@@ -48,7 +48,7 @@ public class TryMonadError extends TryMonad implements MonadError<TryKind.Witnes
   @Override
   public <A> @NonNull Kind<TryKind.Witness, A> handleErrorWith(
       @NonNull Kind<TryKind.Witness, A> ma,
-      @NonNull Function<Throwable, Kind<TryKind.Witness, A>> handler) { // Added @NonNull to handler
+      @NonNull Function<Throwable, Kind<TryKind.Witness, A>> handler) {
     Try<A> tryA = unwrap(ma);
 
     Try<A> resultTry =

@@ -10,21 +10,29 @@ import org.jspecify.annotations.Nullable;
  * Represents a Monad that can explicitly handle errors of type E. Extends {@code Monad<F>}.
  *
  * @param <F> The witness type for the Monad (e.g., {@code EitherKind<E, ?>}).
- * @param <E> The type of the error value. Nullability depends on context (e.g., Throwable is
- *     NonNull, Void is Nullable).
+ * @param <E> The type of the error value. Nullability depends on context. For example, {@link
+ *     Throwable} is typically non-null. If representing simple absence (like in Optional or Maybe),
+ *     {@link org.higherkindedj.hkt.unit.Unit} can be used as a non-nullable error type, with its
+ *     single instance {@code Unit.INSTANCE} passed to {@link #raiseError(Object)}.
  */
 public interface MonadError<F, E> extends Monad<F> {
 
   /**
    * Lifts an error value 'e' into the monadic context F. For {@code Either<E, A>}, this would be
-   * Kind(Left(e)). For {@code Maybe<A>}, this would be Kind(Nothing) (E might be Void).
+   * Kind(Left(e)). For {@code Maybe<A>} or {@code Optional<A>} (where E is {@link
+   * org.higherkindedj.hkt.unit.Unit}), this would be Kind(Nothing) or Kind(Optional.empty()),
+   * typically invoked with {@code Unit.INSTANCE}.
    *
-   * @param error The error value to lift.
+   * @param error The error value to lift. If E is {@link org.higherkindedj.hkt.unit.Unit}, this
+   *     must be {@code Unit.INSTANCE}. Otherwise, nullability depends on the specific E type.
    * @param <A> The phantom type parameter of the value (since this represents an error state).
    * @return The error wrapped in the context F. Guaranteed non-null.
    */
   <A> @NonNull Kind<F, A> raiseError(
-      @Nullable E error); // Error type E might be nullable (e.g., Void)
+      @Nullable E
+          error); // Retains @Nullable for generality, but implementations with Unit will expect
+
+  // @NonNull Unit.INSTANCE
 
   /**
    * Handles an error within the monadic context. If 'ma' represents a success value, it's returned
@@ -33,7 +41,8 @@ public interface MonadError<F, E> extends Monad<F> {
    *
    * @param ma The monadic value potentially containing an error. Assumed non-null.
    * @param handler A function that takes an error 'e' and returns a new monadic value, potentially
-   *     recovering from the error. Assumed non-null.
+   *     recovering from the error. Assumed non-null. If E is {@link
+   *     org.higherkindedj.hkt.unit.Unit}, the handler will receive {@code Unit.INSTANCE}.
    * @param <A> The type of the value within the monad.
    * @return The original monadic value if it was successful, or the result of the handler if it
    *     contained an error. Guaranteed non-null.
@@ -47,7 +56,8 @@ public interface MonadError<F, E> extends Monad<F> {
    *
    * @param ma The monadic value potentially containing an error. Assumed non-null.
    * @param handler A function that takes an error 'e' and returns a pure value 'a'. Assumed
-   *     non-null.
+   *     non-null. If E is {@link org.higherkindedj.hkt.unit.Unit}, the handler will receive {@code
+   *     Unit.INSTANCE}.
    * @param <A> The type of the value within the monad.
    * @return The original monadic value if successful, or the result of the handler lifted into the
    *     monad if it contained an error. Guaranteed non-null.
@@ -81,8 +91,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @param <A> The type of the value within the monad.
    * @return 'ma' if successful, 'of(value)' otherwise. Guaranteed non-null.
    */
-  default <A> @NonNull Kind<F, A> recover(
-      @NonNull Kind<F, A> ma, @Nullable A value) { // Value nullability matches `of`
+  default <A> @NonNull Kind<F, A> recover(@NonNull Kind<F, A> ma, @Nullable A value) {
     return handleError(ma, error -> value);
   }
 }

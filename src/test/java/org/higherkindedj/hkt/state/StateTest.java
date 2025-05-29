@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -64,9 +65,9 @@ class StateTest {
     @Test
     void set_shouldReplaceStateAndReturnVoid() {
       Integer newState = 99;
-      State<Integer, Void> state = State.set(newState);
-      StateTuple<Integer, Void> result = state.run(initialState);
-      assertThat(result.value()).isNull();
+      State<Integer, Unit> state = State.set(newState);
+      StateTuple<Integer, Unit> result = state.run(initialState);
+      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
       assertThat(result.state()).isEqualTo(newState); // State is updated
     }
 
@@ -80,9 +81,9 @@ class StateTest {
     @Test
     void modify_shouldApplyFunctionToStateAndReturnVoid() {
       Function<Integer, Integer> doubler = s -> s * 2;
-      State<Integer, Void> state = State.modify(doubler);
-      StateTuple<Integer, Void> result = state.run(initialState); // initialState = 10
-      assertThat(result.value()).isNull();
+      State<Integer, Unit> state = State.modify(doubler);
+      StateTuple<Integer, Unit> result = state.run(initialState); // initialState = 10
+      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
       assertThat(result.state()).isEqualTo(20); // State is doubled
     }
 

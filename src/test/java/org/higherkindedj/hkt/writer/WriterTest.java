@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,14 +30,14 @@ class WriterTest {
   class FactoryMethods {
     @Test
     void create_shouldStoreLogAndValue() {
-      Writer<String, Integer> w = Writer.create("Log1", 10);
+      Writer<String, Integer> w = new Writer<>("Log1", 10);
       assertThat(w.log()).isEqualTo("Log1");
       assertThat(w.value()).isEqualTo(10);
     }
 
     @Test
     void create_shouldAllowNullValue() {
-      Writer<String, Integer> w = Writer.create("Log2", null);
+      Writer<String, Integer> w = new Writer<>("Log2", null);
       assertThat(w.log()).isEqualTo("Log2");
       assertThat(w.value()).isNull();
     }
@@ -44,8 +45,8 @@ class WriterTest {
     @Test
     void create_shouldThrowNPEForNullLog() {
       assertThatNullPointerException()
-          .isThrownBy(() -> Writer.create(null, 10))
-          .withMessageContaining("Writer log cannot be null");
+          .isThrownBy(() -> new Writer<>(null, 10))
+          .withMessageContaining("Log (W) in Writer cannot be null.");
     }
 
     @Test
@@ -67,14 +68,14 @@ class WriterTest {
       // This test should now pass after the fix in Writer.value
       assertThatNullPointerException()
           .isThrownBy(() -> Writer.value(null, 10))
-          .withMessageContaining("Monoid<W> for Writer.value cannot be null");
+          .withMessageContaining("Monoid<W> cannot be null for Writer.value");
     }
 
     @Test
     void tell_shouldCreateWriterWithLogAndNullValue() {
-      Writer<String, Void> w = Writer.tell("Message");
+      Writer<String, Unit> w = Writer.tell("Message");
       assertThat(w.log()).isEqualTo("Message");
-      assertThat(w.value()).isNull();
+      assertThat(w.value()).isEqualTo(Unit.INSTANCE);
     }
 
     @Test
@@ -88,7 +89,7 @@ class WriterTest {
   @Nested
   @DisplayName("Instance Methods")
   class InstanceMethods {
-    final Writer<String, Integer> writer1 = Writer.create("Init;", 5);
+    final Writer<String, Integer> writer1 = new Writer<>("Init;", 5);
 
     @Test
     void map_shouldTransformValueAndKeepLog() {
@@ -108,13 +109,13 @@ class WriterTest {
     void map_shouldThrowNPEForNullMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.map(null))
-          .withMessageContaining("Mapper function for Writer.map cannot be null");
+          .withMessageContaining("Mapper function cannot be null for Writer.map");
     }
 
     @Test
     void flatMap_shouldCombineLogsAndTransformValue() {
       Function<Integer, Writer<String, Double>> multiplyAndLog =
-          i -> Writer.create("Mult(" + i + ");", i * 2.0);
+          i -> new Writer<>("Mult(" + i + ");", i * 2.0);
 
       Writer<String, Double> resultWriter = writer1.flatMap(stringMonoid, multiplyAndLog);
 
@@ -128,10 +129,10 @@ class WriterTest {
     void flatMap_shouldWorkWithTellInSequence() {
       // Start -> Tell -> Final Value
       Writer<String, Integer> start = Writer.value(stringMonoid, 10); // ("", 10)
-      Function<Integer, Writer<String, Void>> logStep =
+      Function<Integer, Writer<String, Unit>> logStep =
           i -> Writer.tell("Logged " + i + ";"); // ("Logged 10;", null)
-      Function<Void, Writer<String, String>> finalStep =
-          v -> Writer.create("Final;", "Done"); // ("Final;", "Done")
+      Function<Unit, Writer<String, String>> finalStep =
+          v -> new Writer<>("Final;", "Done"); // ("Final;", "Done")
 
       Writer<String, String> result =
           start
@@ -150,17 +151,17 @@ class WriterTest {
 
     @Test
     void flatMap_shouldThrowNPEForNullMonoid() {
-      Function<Integer, Writer<String, Double>> func = i -> Writer.create("Log", 1.0);
+      Function<Integer, Writer<String, Double>> func = i -> new Writer<>("Log", 1.0);
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.flatMap(null, func))
-          .withMessageContaining("Monoid<W> for Writer.flatMap cannot be null");
+          .withMessageContaining("Monoid<W> cannot be null for Writer.flatMap");
     }
 
     @Test
     void flatMap_shouldThrowNPEForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.flatMap(stringMonoid, null))
-          .withMessageContaining("FlatMap mapper function for Writer.flatMap cannot be null");
+          .withMessageContaining("flatMap mapper function cannot be null");
     }
 
     @Test
@@ -168,13 +169,13 @@ class WriterTest {
       Function<Integer, Writer<String, Double>> nullReturningFunc = i -> null;
       assertThatNullPointerException()
           .isThrownBy(() -> writer1.flatMap(stringMonoid, nullReturningFunc))
-          .withMessageContaining("Function f supplied to Writer.flatMap returned a null Writer");
+          .withMessageContaining("flatMap function returned a null Writer instance");
     }
 
     @Test
     void run_shouldReturnValue() {
       assertThat(writer1.run()).isEqualTo(5);
-      assertThat(Writer.create("Log", (String) null).run()).isNull();
+      assertThat(new Writer<>("Log", (String) null).run()).isNull();
     }
 
     @Test
@@ -189,11 +190,11 @@ class WriterTest {
   class EqualsHashCodeTests {
     @Test
     void writerEquality() {
-      Writer<String, Integer> w1a = Writer.create("Log", 1);
-      Writer<String, Integer> w1b = Writer.create("Log", 1); // Same content
-      Writer<String, Integer> w2 = Writer.create("Log", 2); // Different value
-      Writer<String, Integer> w3 = Writer.create("Other", 1); // Different log
-      Writer<String, String> w4 = Writer.create("Log", "1"); // Different value type
+      Writer<String, Integer> w1a = new Writer<>("Log", 1);
+      Writer<String, Integer> w1b = new Writer<>("Log", 1); // Same content
+      Writer<String, Integer> w2 = new Writer<>("Log", 2); // Different value
+      Writer<String, Integer> w3 = new Writer<>("Other", 1); // Different log
+      Writer<String, String> w4 = new Writer<>("Log", "1"); // Different value type
 
       assertThat(w1a).isEqualTo(w1b);
       assertThat(w1a).hasSameHashCodeAs(w1b);
@@ -207,9 +208,9 @@ class WriterTest {
 
     @Test
     void writerEqualityWithNullValue() {
-      Writer<String, Integer> w1a = Writer.create("Log", null);
-      Writer<String, Integer> w1b = Writer.create("Log", null);
-      Writer<String, Integer> w2 = Writer.create("Log", 1);
+      Writer<String, Integer> w1a = new Writer<>("Log", null);
+      Writer<String, Integer> w1b = new Writer<>("Log", null);
+      Writer<String, Integer> w2 = new Writer<>("Log", 1);
 
       assertThat(w1a).isEqualTo(w1b);
       assertThat(w1a).hasSameHashCodeAs(w1b);

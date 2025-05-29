@@ -161,7 +161,7 @@ Kind<LazyKind.Witness, String> chainedLazy = lazyMonad.flatMap(
 );
 
 try{
-System.out.println("Chained Result: "+force(chainedLazy)); // Output: Combined: 5 & 10
+    System.out.println("Chained Result: "+force(chainedLazy)); // Output: Combined: 5 & 10
 }catch(Throwable t){/* ... */}
 ```
 ~~~

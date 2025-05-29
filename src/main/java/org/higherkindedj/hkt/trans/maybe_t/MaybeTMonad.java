@@ -8,13 +8,14 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link MonadError} interface for {@link MaybeT}. The witness for {@code MaybeT<F,
  * ?>} is {@link MaybeTKind.Witness Witness&lt;F&gt;}. The error type {@code E} is fixed to {@link
- * Void}, as {@code MaybeT} inherently represents failure as an absence of a value (similar to
+ * Unit}, as {@code MaybeT} inherently represents failure as an absence of a value (similar to
  * {@code Maybe.nothing()}).
  *
  * <p>This class requires a {@link Monad} instance for the outer monad {@code F} to operate. It uses
@@ -23,8 +24,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind.Witness}).
  */
-public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Void> {
-
+public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
   private final @NonNull Monad<F> outerMonad;
 
   /**
@@ -146,46 +146,49 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Void> {
                           MaybeT<F, B> resultT = MaybeTKindHelper.unwrap(resultKind);
                           return resultT.value();
                         })
-                    .orElse(outerMonad.of(Maybe.nothing())),
+                    .orElse(
+                        outerMonad.of(
+                            Maybe.nothing())), // If Maybe<A> is Nothing, result is F<Nothing>
             maybeT.value());
     return MaybeTKindHelper.wrap(MaybeT.fromKind(newValue));
   }
 
-  // --- MonadError Methods (Error Type E = Void) ---
+  // --- MonadError Methods (Error Type E = Unit) ---
 
   /**
    * Raises an error in the {@code Kind<MaybeTKind.Witness<F>, A>} context. For {@code MaybeT}, an
    * error is represented by the {@code Nothing} state, so this method returns a {@code Kind}
-   * wrapping {@code F<Nothing>}. The provided {@code error} of type {@link Void} is ignored.
+   * wrapping {@code F<Nothing>}. The provided {@code error} of type {@link Unit} (typically {@link
+   * Unit#INSTANCE}) is ignored.
    *
    * @param <A> The type parameter for the resulting {@code Kind}, though it will be empty.
-   * @param error The error value ({@code null} for {@link Void}).
+   * @param error The error value ({@link Unit#INSTANCE}).
    * @return A {@code Kind<MaybeTKind.Witness<F>, A>} representing {@code F<Nothing>}.
    */
   @Override
-  public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> raiseError(@Nullable Void error) {
+  public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> raiseError(@NonNull Unit error) {
     return MaybeTKindHelper.wrap(MaybeT.nothing(outerMonad));
   }
 
   /**
    * Handles an error (represented by {@code Nothing}) in the {@code Kind<MaybeTKind.Witness<F>,
    * A>}. If the input {@code ma} represents {@code F<Nothing>}, the {@code handler} function is
-   * applied. The {@code Void} parameter to the handler will be {@code null}. If {@code ma}
+   * applied. The {@link Unit} parameter to the handler will be {@link Unit#INSTANCE}. If {@code ma}
    * represents {@code F<Just(a)>}, it is returned unchanged. This operation is performed within the
    * context of the outer monad {@code F}.
    *
    * @param <A> The type of the value.
    * @param ma The {@code Kind<MaybeTKind.Witness<F>, A>} to handle. Must not be null.
    * @param handler The function to apply if {@code ma} represents {@code F<Nothing>}. It takes a
-   *     {@link Void} (which will be null) and returns a new {@code Kind<MaybeTKind.Witness<F>, A>}.
-   *     Must not be null.
+   *     {@link Unit} (which will be {@link Unit#INSTANCE}) and returns a new {@code
+   *     Kind<MaybeTKind.Witness<F>, A>}. Must not be null.
    * @return A {@code Kind<MaybeTKind.Witness<F>, A>}, either the original or the result of the
    *     handler.
    */
   @Override
   public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> handleErrorWith(
       @NonNull Kind<MaybeTKind.Witness<F>, A> ma,
-      @NonNull Function<Void, Kind<MaybeTKind.Witness<F>, A>> handler) {
+      @NonNull Function<Unit, Kind<MaybeTKind.Witness<F>, A>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
     MaybeT<F, A> maybeT = MaybeTKindHelper.unwrap(ma);
@@ -194,11 +197,11 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Void> {
         outerMonad.flatMap(
             maybeA -> {
               if (maybeA.isJust()) {
-                return outerMonad.of(maybeA);
-              } else {
-                Kind<MaybeTKind.Witness<F>, A> resultKind = handler.apply(null);
+                return outerMonad.of(maybeA); // If Just(a), return F<Just(a)>
+              } else { // If Nothing
+                Kind<MaybeTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
                 MaybeT<F, A> resultT = MaybeTKindHelper.unwrap(resultKind);
-                return resultT.value();
+                return resultT.value(); // This is Kind<F, Maybe<A>>
               }
             },
             maybeT.value());

@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -61,7 +62,7 @@ class WriterMonadTest {
   class MapTests {
     @Test
     void map_shouldApplyFunctionToValueAndKeepLog() {
-      var initialKind = wrap(Writer.create("Log1;", 5));
+      var initialKind = wrap(new Writer<>("Log1;", 5));
       var mappedKind = writerMonad.map(i -> "v" + i, initialKind);
       Writer<String, String> w = runW(mappedKind);
       assertThat(w.log()).isEqualTo("Log1;");
@@ -84,10 +85,10 @@ class WriterMonadTest {
     @Test
     void ap_shouldApplyWriterFunctionToWriterValue() {
       Kind<WriterKind.Witness<String>, Function<Integer, String>> funcKind =
-          wrap(Writer.create("FuncLog;", i -> "Res:" + i));
+          wrap(new Writer<>("FuncLog;", i -> "Res:" + i));
 
       // Writer<String, Integer>
-      var valKind = wrap(Writer.create("ValLog;", 10));
+      var valKind = wrap(new Writer<>("ValLog;", 10));
 
       var resultKind = writerMonad.ap(funcKind, valKind);
       Writer<String, String> w = runW(resultKind);
@@ -99,9 +100,9 @@ class WriterMonadTest {
     @Test
     void ap_shouldCombineLogsEvenIfValueIsNull() {
       Kind<WriterKind.Witness<String>, Function<Integer, String>> funcKind =
-          wrap(Writer.create("FuncLog;", i -> "Res:" + i));
+          wrap(new Writer<>("FuncLog;", i -> "Res:" + i));
       Kind<WriterKind.Witness<String>, Integer> valKind =
-          wrap(Writer.create("ValLog;", null)); // Null value
+          wrap(new Writer<>("ValLog;", null)); // Null value
 
       var resultKind = writerMonad.ap(funcKind, valKind);
       Writer<String, String> w = runW(resultKind);
@@ -117,11 +118,11 @@ class WriterMonadTest {
   class FlatMapTests {
     @Test
     void flatMap_shouldSequenceComputationsAndCombineLogs() {
-      Kind<WriterKind.Witness<String>, Integer> initialKind = wrap(Writer.create("Start;", 3));
+      Kind<WriterKind.Witness<String>, Integer> initialKind = wrap(new Writer<>("Start;", 3));
 
       // Function: Integer -> WriterKind<String, String>
       Function<Integer, Kind<WriterKind.Witness<String>, String>> process =
-          i -> wrap(Writer.create("Proc(" + i + ");", "Value=" + (i * 2)));
+          i -> wrap(new Writer<>("Proc(" + i + ");", "Value=" + (i * 2)));
 
       var resultKind = writerMonad.flatMap(process, initialKind);
       Writer<String, String> w = runW(resultKind);
@@ -134,13 +135,12 @@ class WriterMonadTest {
     void flatMap_withTell() {
       Kind<WriterKind.Witness<String>, Integer> initialKind = writerMonad.of(5); // ("", 5)
 
-      // Function: Integer -> WriterKind<String, Void> (using tell)
-      Function<Integer, Kind<WriterKind.Witness<String>, Void>> logValue =
+      Function<Integer, Kind<WriterKind.Witness<String>, Unit>> logValue =
           i -> WriterKindHelper.tell(stringMonoid, "Logged:" + i + ";"); // ("Logged:5;", null)
 
-      // Function: Void -> WriterKind<String, String>
-      Function<Void, Kind<WriterKind.Witness<String>, String>> finalStep =
-          ignored -> wrap(Writer.create("End;", "Complete")); // ("End;", "Complete")
+      // Function: Unit -> WriterKind<String, String>
+      Function<Unit, Kind<WriterKind.Witness<String>, String>> finalStep =
+          ignored -> wrap(new Writer<>("End;", "Complete")); // ("End;", "Complete")
 
       // Chain: of(5) >>= logValue >>= finalStep
       var resultKind =
@@ -161,11 +161,11 @@ class WriterMonadTest {
   final Function<String, String> appendWorld = s -> s + " world";
 
   //  Kind<WriterKind.Witness<String>, Integer>
-  final Kind<WriterKind.Witness<String>, Integer> mValue = wrap(Writer.create("mVal;", 5));
+  final Kind<WriterKind.Witness<String>, Integer> mValue = wrap(new Writer<>("mVal;", 5));
   final Function<Integer, Kind<WriterKind.Witness<String>, String>> f =
-      i -> wrap(Writer.create("f(" + i + ");", "v" + i));
+      i -> wrap(new Writer<>("f(" + i + ");", "v" + i));
   final Function<String, Kind<WriterKind.Witness<String>, String>> g =
-      s -> wrap(Writer.create("g(" + s + ");", s + "!"));
+      s -> wrap(new Writer<>("g(" + s + ");", s + "!"));
 
   @Nested
   @DisplayName("Functor Laws")
@@ -173,7 +173,7 @@ class WriterMonadTest {
     @Test
     @DisplayName("1. Identity: map(id, fa) == fa")
     void identity() {
-      Kind<WriterKind.Witness<String>, Integer> fa = wrap(Writer.create("Log;", 10));
+      Kind<WriterKind.Witness<String>, Integer> fa = wrap(new Writer<>("Log;", 10));
       Kind<WriterKind.Witness<String>, Integer> result = writerMonad.map(Function.identity(), fa);
       assertThat(runW(result)).isEqualTo(runW(fa));
     }
@@ -181,7 +181,7 @@ class WriterMonadTest {
     @Test
     @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
     void composition() {
-      Kind<WriterKind.Witness<String>, Integer> fa = wrap(Writer.create("Log;", 10));
+      Kind<WriterKind.Witness<String>, Integer> fa = wrap(new Writer<>("Log;", 10));
       Function<Integer, String> fMap = i -> "v" + i;
       Function<String, String> gMap = s -> s + "!";
       Function<Integer, String> gComposeF = gMap.compose(fMap);
@@ -197,11 +197,11 @@ class WriterMonadTest {
   @Nested
   @DisplayName("Applicative Laws")
   class ApplicativeLaws {
-    Kind<WriterKind.Witness<String>, Integer> v = wrap(Writer.create("ValLog;", 5));
+    Kind<WriterKind.Witness<String>, Integer> v = wrap(new Writer<>("ValLog;", 5));
     Kind<WriterKind.Witness<String>, Function<Integer, String>> fKind =
-        wrap(Writer.create("FuncLog;", intToString));
+        wrap(new Writer<>("FuncLog;", intToString));
     Kind<WriterKind.Witness<String>, Function<String, String>> gKind =
-        wrap(Writer.create("GFuncLog;", appendWorld));
+        wrap(new Writer<>("GFuncLog;", appendWorld));
 
     @Test
     @DisplayName("1. Identity: ap(of(id), v) == v")
@@ -330,10 +330,10 @@ class WriterMonadTest {
   @Nested
   @DisplayName("mapN tests")
   class MapNTests {
-    Kind<WriterKind.Witness<String>, Integer> w1 = wrap(Writer.create("L1;", 1));
-    Kind<WriterKind.Witness<String>, String> w2 = wrap(Writer.create("L2;", "A"));
-    Kind<WriterKind.Witness<String>, Double> w3 = wrap(Writer.create("L3;", 1.5));
-    Kind<WriterKind.Witness<String>, Boolean> w4 = wrap(Writer.create("L4;", true));
+    Kind<WriterKind.Witness<String>, Integer> w1 = wrap(new Writer<>("L1;", 1));
+    Kind<WriterKind.Witness<String>, String> w2 = wrap(new Writer<>("L2;", "A"));
+    Kind<WriterKind.Witness<String>, Double> w3 = wrap(new Writer<>("L3;", 1.5));
+    Kind<WriterKind.Witness<String>, Boolean> w4 = wrap(new Writer<>("L4;", true));
 
     @Test
     void map2_combinesLogsAndValues() {

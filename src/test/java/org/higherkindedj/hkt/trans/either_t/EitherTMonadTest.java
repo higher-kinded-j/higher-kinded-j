@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,7 +24,7 @@ import org.junit.jupiter.api.Test;
 class EitherTMonadTest {
   record TestErrorEitherTMonad(String code) {}
 
-  private MonadError<OptionalKind.Witness, Void> outerMonad;
+  private MonadError<OptionalKind.Witness, Unit> outerMonad;
   private MonadError<
           EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, TestErrorEitherTMonad>
       eitherTMonad;

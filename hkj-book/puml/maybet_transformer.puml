@@ -23,7 +23,7 @@ hide empty members
   }
   note left of "MaybeT<F, A>" : "Wraps a monadic value of Kind<F, Maybe<A>>."
 
-  class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, java.lang.Void> {
+  class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
     - outerMonad: Monad<F>
     --
     + MaybeTMonad(Monad<F> outerMonad)
@@ -32,8 +32,8 @@ hide empty members
     + map(Function<A, B> f, Kind<MaybeTKind.Witness<F>, A> fa): Kind<MaybeTKind.Witness<F>, B>
     + ap(Kind<MaybeTKind.Witness<F>, Function<A, B>> ff, Kind<MaybeTKind.Witness<F>, A> fa): Kind<MaybeTKind.Witness<F>, B>
     + flatMap(Function<A, Kind<MaybeTKind.Witness<F>, B>> f, Kind<MaybeTKind.Witness<F>, A> ma): Kind<MaybeTKind.Witness<F>, B>
-    + raiseError(Void error): Kind<MaybeTKind.Witness<F>, A>
-    + handleErrorWith(Kind<MaybeTKind.Witness<F>, A> ma, Function<Void, Kind<MaybeTKind.Witness<F>, A>> handler): Kind<MaybeTKind.Witness<F>, A>
+    + raiseError(Unit error): Kind<MaybeTKind.Witness<F>, A>
+    + handleErrorWith(Kind<MaybeTKind.Witness<F>, A> ma, Function<Unit, Kind<MaybeTKind.Witness<F>, A>> handler): Kind<MaybeTKind.Witness<F>, A>
   }
   note right of MaybeTMonad : Provides MonadError instance for MaybeT.
 

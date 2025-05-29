@@ -5,191 +5,166 @@ package org.higherkindedj.hkt.writer;
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Represents a computation that produces a primary value of type {@code A} along with an
- * accumulated output (log) of type {@code W}. The {@code Writer} monad is useful for computations
- * that need to produce some auxiliary information (like logs, metrics, or other accumulated data)
- * in addition to their main result.
+ * Represents a computation that, in addition to producing a value of type {@code A}, also
+ * accumulates a log or output of type {@code W}. The log type {@code W} must have a {@link Monoid}
+ * instance, which defines how logs are combined (typically through an append operation) and what
+ * constitutes an empty log.
  *
- * <p>A {@link Monoid} for the log type {@code W} is required to combine logs when sequencing {@code
- * Writer} computations (e.g., in {@code flatMap}). This class is implemented as an immutable
- * record, effectively a pair {@code (W, A)}.
- *
- * <p><b>Key Characteristics:</b>
+ * <p>A {@code Writer<W, A>} instance holds a pair: {@code (log: W, value: A)}.
  *
  * <ul>
- *   <li><b>Logging:</b> Allows functions to "write" to a log without using side effects.
- *   <li><b>Purity:</b> Constructing and combining {@code Writer} instances are pure operations.
- *   <li><b>Composability:</b> {@code Writer} operations can be easily chained using methods like
- *       {@link #map(Function)} and {@link #flatMap(Monoid, Function)}.
+ *   <li>The {@code log} component is guaranteed to be non-null.
+ *   <li>The {@code value} component can be {@code null} if {@code A} is a nullable type. If {@code
+ *       A} is {@link Unit}, the value will be {@link Unit#INSTANCE}.
  * </ul>
  *
- * <p><b>Example:</b>
+ * <p>Common operations include:
  *
- * <pre>{@code
- * // Assuming a StringMonoid that implements Monoid<String>
- * Monoid<String> stringMonoid = new StringMonoid(); // (Implementation not shown here)
+ * <ul>
+ *   <li>{@link #value(Monoid, Object)}: Creates a {@code Writer} with a pure value and an empty
+ *       log.
+ *   <li>{@link #tell(Object)}: Creates a {@code Writer} that only produces a log entry, with {@link
+ *       Unit#INSTANCE} as its value.
+ *   <li>{@link #map(Function)}: Transforms the computed value without affecting the log.
+ *   <li>{@link #flatMap(Monoid, Function)}: Sequences computations, combining their logs and
+ *       threading the value of the first into the second.
+ * </ul>
  *
- * // Create a Writer that logs a message and produces a value
- * Writer<String, Integer> writer1 = Writer.create("Initial step done. ", 10);
- *
- * // Map over the value
- * Writer<String, String> writer2 = writer1.map(value -> "Value is: " + value);
- * // writer2 contains log: "Initial step done. ", value: "Value is: 10"
- *
- * // FlatMap to sequence another operation
- * Writer<String, Integer> writer3 = writer2.flatMap(stringMonoid, valueStr ->
- * Writer.create("Processed string '" + valueStr + "'. ", valueStr.length())
- * );
- * // writer3 contains log: "Initial step done. Processed string 'Value is: 10'. ", value: 12
- *
- * System.out.println("Final Log: " + writer3.exec());
- * System.out.println("Final Value: " + writer3.run());
- * }</pre>
- *
- * @param <W> The type of the accumulated output (log). This type must have an associated {@link
- *     Monoid} instance for combining logs.
- * @param <A> The type of the primary computed value.
- * @param log The accumulated log or output value of type {@code W}. This component is guaranteed to
- *     be non-null.
- * @param value The primary computed result value of type {@code A}. This component can be {@code
- *     null} if {@code A} is a nullable type.
- * @see WriterKind
- * @see WriterMonad
+ * @param <W> The type of the log, which must form a {@link Monoid}. This log is guaranteed to be
+ *     non-null.
+ * @param <A> The type of the computed value. This can be {@code null} if the type {@code A} permits
+ *     it (e.g., {@code String}). If {@code A} is {@link Unit}, this will be {@link Unit#INSTANCE}.
+ * @param log The accumulated log of type {@code W}. Must not be {@code null}.
+ * @param value The computed value of type {@code A}. May be {@code null} (if {@code A} is a
+ *     nullable type like {@code String}); if {@code A} is {@link Unit}, this will be {@link
+ *     Unit#INSTANCE}.
  * @see Monoid
+ * @see Unit
+ * @see WriterMonad
+ * @see WriterKindHelper
  */
 public record Writer<W, A>(@NonNull W log, @Nullable A value) {
 
   /**
-   * Canonical constructor for the {@link Writer} record. Ensures that the provided log is non-null.
+   * Compact constructor for {@link Writer}. Ensures that the log component {@code W} is never
+   * {@code null}.
    *
-   * @param log The accumulated log/output value. Must not be null.
-   * @param value The computed result value. Can be null.
-   * @throws NullPointerException if {@code log} is null.
+   * @param log The log value. Must not be {@code null}.
+   * @param value The computed value. Can be {@code null} if {@code A} is a nullable type. If {@code
+   *     A} is {@link Unit}, this should be {@link Unit#INSTANCE}.
+   * @throws NullPointerException if {@code log} is {@code null}.
    */
   public Writer {
-    Objects.requireNonNull(log, "Writer log cannot be null");
+    Objects.requireNonNull(log, "Log (W) in Writer cannot be null.");
   }
 
   /**
-   * Static factory method to create a {@link Writer} with the given log and value.
+   * Creates a {@code Writer} with a pure value and an empty log.
    *
    * @param <W> The type of the log.
    * @param <A> The type of the value.
-   * @param log The log to associate with this {@code Writer}. Must not be null.
-   * @param value The value to associate with this {@code Writer}. Can be null.
-   * @return A new {@link Writer} instance. Never null.
-   * @throws NullPointerException if {@code log} is null.
-   */
-  public static <W, A> @NonNull Writer<W, A> create(@NonNull W log, @Nullable A value) {
-    return new Writer<>(log, value);
-  }
-
-  /**
-   * Creates a {@link Writer} with an empty log (obtained from the provided {@link Monoid}) and the
-   * given value. This method is often used as the {@code of} or {@code pure} operation in the
-   * context of the Writer monad, lifting a pure value into the {@code Writer} context with no
-   * initial log accumulation.
-   *
-   * @param <W> The type of the log.
-   * @param <A> The type of the value.
-   * @param monoidW The {@link Monoid} for the log type {@code W}, used to get the empty log value.
-   *     Must not be null.
-   * @param value The value to wrap in the {@code Writer}. Can be null.
-   * @return A new {@link Writer} instance with an empty log and the provided value. Never null.
-   * @throws NullPointerException if {@code monoidW} is null.
+   * @param monoidW The {@link Monoid} for the log type {@code W}, used to get the empty log. Must
+   *     not be {@code null}.
+   * @param value The pure value to wrap. Can be {@code null} if {@code A} is a nullable type. If
+   *     {@code A} is {@link Unit}, pass {@link Unit#INSTANCE}.
+   * @return A new {@code Writer<W, A>} with the given value and an empty log.
+   * @throws NullPointerException if {@code monoidW} is {@code null}.
    */
   public static <W, A> @NonNull Writer<W, A> value(@NonNull Monoid<W> monoidW, @Nullable A value) {
-    Objects.requireNonNull(monoidW, "Monoid<W> for Writer.value cannot be null");
+    Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.value");
     return new Writer<>(monoidW.empty(), value);
   }
 
   /**
-   * Creates a {@link Writer} that produces no primary value (typically represented by {@link Void},
-   * resulting in a {@code null} value component) but records the given log message. This is useful
-   * for computations that only contribute to the log.
+   * Creates a {@code Writer} that records the given {@code log} message and has {@link
+   * Unit#INSTANCE} as its value. This is useful for computations that only produce output/log
+   * entries without a significant return value.
    *
    * @param <W> The type of the log.
-   * @param log The log message to record. Must not be null.
-   * @return A new {@link Writer} instance with the given log and a {@code null} value. Never null.
-   * @throws NullPointerException if {@code log} is null.
+   * @param log The log message to record. Must not be {@code null}.
+   * @return A new {@code Writer<W, Unit>} with the specified log and {@link Unit#INSTANCE} as the
+   *     value.
+   * @throws NullPointerException if {@code log} is {@code null}.
    */
-  public static <W> @NonNull Writer<W, Void> tell(@NonNull W log) {
+  public static <W> @NonNull Writer<W, Unit> tell(@NonNull W log) {
     Objects.requireNonNull(log, "Log message for Writer.tell cannot be null");
-    return new Writer<>(log, null); // Void actions typically result in a null value.
+    return new Writer<>(log, Unit.INSTANCE);
   }
 
   /**
-   * Transforms the primary value of this {@link Writer} from type {@code A} to type {@code B} using
-   * the provided mapping function, while keeping the log {@code W} unchanged. This is the Functor
-   * {@code map} operation for {@code Writer}.
+   * Transforms the computed value of this {@code Writer} from type {@code A} to type {@code B}
+   * using the provided mapping function {@code f}, while leaving the log unchanged.
    *
-   * @param <B> The type of the value produced by the mapping function and thus by the new {@code
-   *     Writer}.
-   * @param f The non-null function to apply to the primary value of this {@code Writer}. It takes a
-   *     value of type {@code A} and returns a value of type {@code B}.
-   * @return A new {@link Writer} instance with the original log and the transformed value. Never
-   *     null.
-   * @throws NullPointerException if {@code f} is null.
+   * @param <B> The type of the new computed value.
+   * @param f The non-null function to apply to the current computed value. This function takes the
+   *     current value of type {@code A} (which could be {@link Unit#INSTANCE} if {@code A} is
+   *     {@link Unit}) and returns a value of type {@code B}.
+   * @return A new {@code Writer<W, B>} with the original log and the transformed value.
+   * @throws NullPointerException if {@code f} is {@code null}.
    */
   public <B> @NonNull Writer<W, B> map(@NonNull Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "Mapper function for Writer.map cannot be null");
+    Objects.requireNonNull(f, "Mapper function cannot be null for Writer.map");
     return new Writer<>(this.log, f.apply(this.value));
   }
 
   /**
-   * Applies a function that takes the primary value {@code A} of this {@link Writer} and returns
-   * another {@code Writer<W, B>}. The log of the original {@code Writer} is combined with the log
-   * of the {@code Writer} produced by the function, using the provided {@link Monoid} for {@code
-   * W}. This is the Monad {@code flatMap} (or {@code bind}) operation for {@code Writer}.
+   * Composes this {@code Writer} computation with a function {@code f} that takes the current value
+   * {@code A} and returns a new {@code Writer<W, B>} computation. The logs from both computations
+   * are combined using the {@link Monoid} for {@code W}.
    *
-   * @param <B> The type of the value in the {@code Writer} produced by the function {@code f}.
+   * <p>This is the monadic bind operation for {@code Writer}. It allows sequencing of operations
+   * where the next operation depends on the result of the current one, and logs are accumulated
+   * throughout.
+   *
+   * @param <B> The type of the value produced by the {@code Writer} returned by function {@code f}.
    * @param monoidW The {@link Monoid} for the log type {@code W}, used to combine logs. Must not be
-   *     null.
-   * @param f The non-null function to apply to the primary value of this {@code Writer}. It takes a
-   *     value of type {@code A} and returns a new {@code Writer<W, ? extends B>}. The {@code
-   *     Writer} returned by this function must not be null.
-   * @return A new {@link Writer} instance with the combined log and the value from the {@code
-   *     Writer} produced by {@code f}. Never null.
-   * @throws NullPointerException if {@code monoidW}, {@code f}, or the {@code Writer} returned by
-   *     {@code f} is null.
+   *     {@code null}.
+   * @param f The non-null function that takes the current value of type {@code A} (which could be
+   *     {@link Unit#INSTANCE} if {@code A} is {@link Unit}) and returns a new {@code Writer<W, ?
+   *     extends B>}. The {@code Writer} returned by this function must not be {@code null}.
+   * @return A new {@code Writer<W, B>} where the value is the result of the composed computation,
+   *     and the log is the combination of the original log and the log from the {@code Writer}
+   *     produced by {@code f}.
+   * @throws NullPointerException if {@code monoidW} or {@code f} is {@code null}, or if {@code f}
+   *     returns a {@code null} {@code Writer}.
    */
   public <B> @NonNull Writer<W, B> flatMap(
       @NonNull Monoid<W> monoidW,
       @NonNull Function<? super A, ? extends Writer<W, ? extends B>> f) {
-    Objects.requireNonNull(monoidW, "Monoid<W> for Writer.flatMap cannot be null");
-    Objects.requireNonNull(f, "FlatMap mapper function for Writer.flatMap cannot be null");
+    Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.flatMap");
+    Objects.requireNonNull(f, "flatMap mapper function cannot be null");
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);
-    Objects.requireNonNull(
-        nextWriter, "Function f supplied to Writer.flatMap returned a null Writer");
+    Objects.requireNonNull(nextWriter, "flatMap function returned a null Writer instance");
 
     W combinedLog = monoidW.combine(this.log, nextWriter.log());
-    B nextValue = nextWriter.value();
-
-    return new Writer<>(combinedLog, nextValue);
+    // The cast to B is safe due to the ? extends B in the function's return type.
+    return new Writer<>(combinedLog, (B) nextWriter.value());
   }
 
   /**
-   * Retrieves the primary computed value of this {@link Writer}, discarding the log.
+   * Runs the {@code Writer} computation, returning the computed value {@code A} and discarding the
+   * log {@code W}.
    *
-   * @return The primary value of type {@code A}. Can be {@code null} if {@code A} is nullable or if
-   *     the {@code Writer} was constructed to represent a {@link Void} value (e.g., via {@link
-   *     #tell(Object)}).
+   * @return The computed value {@code A}. This can be {@code null} if {@code A} is a nullable type
+   *     (e.g. {@code String}); if {@code A} is {@link Unit}, this will be {@link Unit#INSTANCE}.
    */
   public @Nullable A run() {
-    return this.value;
+    return value;
   }
 
   /**
-   * Retrieves the accumulated log of this {@link Writer}, discarding the primary value.
+   * Runs the {@code Writer} computation, returning the accumulated log {@code W} and discarding the
+   * value {@code A}.
    *
-   * @return The accumulated log of type {@code W}. Never null.
+   * @return The non-null accumulated log {@code W}.
    */
   public @NonNull W exec() {
-    return this.log;
+    return log;
   }
 }

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.state;
 
 import java.util.Objects;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -15,26 +16,34 @@ import org.jspecify.annotations.Nullable;
  * resulting value and the final state.
  *
  * <p>The state component {@code S} is guaranteed to be non-null, as verified by the constructor.
- * The value component {@code A} can be {@code null} depending on the nature of the computation.
+ * The value component {@code A} can be {@code null} if the type {@code A} itself permits null
+ * values (e.g., {@code String}). If {@code A} is {@link Unit}, the value will be {@link
+ * Unit#INSTANCE}.
  *
  * <p>For example, if a {@code State<S, A>} computation is run with an initial state {@code s0}, it
  * might produce a {@code StateTuple<S, A>(resultValue, s1)}, where {@code resultValue} is the
  * outcome of type {@code A}, and {@code s1} is the new state of type {@code S}.
  *
  * @param <S> The type of the state. This state is guaranteed to be non-null.
- * @param <A> The type of the computed value. This value can be {@code null}.
- * @param value The computed value resulting from the stateful operation. May be {@code null}.
+ * @param <A> The type of the computed value. This value can be {@code null} if the type {@code A}
+ *     supports it (e.g. {@code String}); if {@code A} is {@link Unit}, this will be {@link
+ *     Unit#INSTANCE}.
+ * @param value The computed value resulting from the stateful operation. May be {@code null} (e.g.,
+ *     if {@code A} is {@code String}); if {@code A} is {@link Unit}, this will be {@link
+ *     Unit#INSTANCE}.
  * @param state The final state after the stateful operation has been run. Must not be {@code null}.
  * @see State
  * @see org.higherkindedj.hkt.trans.state_t.StateT
+ * @see Unit
  */
 public record StateTuple<S, A>(@Nullable A value, @NonNull S state) {
 
   /**
    * Compact constructor for {@link StateTuple}. Ensures that the {@code state} component is never
-   * {@code null}. The {@code value} component can be {@code null}.
+   * {@code null}. The {@code value} component can be {@code null} if type {@code A} allows it.
    *
-   * @param value The computed value, may be {@code null}.
+   * @param value The computed value, may be {@code null} (if {@code A} is a nullable type like
+   *     {@code String}). If {@code A} is {@link Unit}, this must be {@link Unit#INSTANCE}.
    * @param state The final state, must not be {@code null}.
    * @throws NullPointerException if {@code state} is {@code null}.
    */
@@ -50,7 +59,8 @@ public record StateTuple<S, A>(@Nullable A value, @NonNull S state) {
    * (state, value) which might differ from the record's canonical constructor (value, state).
    *
    * @param state The final state. Must not be {@code null}.
-   * @param value The final computed value. May be {@code null}.
+   * @param value The final computed value. May be {@code null} (if {@code A} is a nullable type
+   *     like {@code String}). If {@code A} is {@link Unit}, this should be {@link Unit#INSTANCE}.
    * @param <S> The type of the state.
    * @param <A> The type of the value.
    * @return A new, non-null {@link StateTuple} instance.

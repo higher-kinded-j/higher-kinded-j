@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
  * representation ({@link OptionalKind}) and to unwrap it back.
  *
  * <p>This helper is essential for using {@code Optional} with generic HKT abstractions like {@code
- * Functor<OptionalKind.Witness, A>} or {@code MonadError<OptionalKind.Witness, Void, A>}. It
+ * Functor<OptionalKind.Witness, A>} or {@code MonadError<OptionalKind.Witness, Unit, A>}. It
  * encapsulates the necessary type casting and provides runtime safety checks.
  *
  * <p>This class is final and cannot be instantiated.

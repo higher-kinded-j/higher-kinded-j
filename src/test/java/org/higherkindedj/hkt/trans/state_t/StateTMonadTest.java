@@ -506,7 +506,8 @@ class StateTMonadTest {
                       resultKind, localInitialState))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining(
-              "Underlying MonadError<F> does not have Void error type as expected.")
+              "Underlying MonadError<F> does not have Unit error type as expected for null function"
+                  + " handling.")
           .hasCauseInstanceOf(
               ClassCastException.class); // This CCE is from MonadError cast inside 'ap'
     }

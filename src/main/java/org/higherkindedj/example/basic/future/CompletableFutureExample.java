@@ -50,7 +50,7 @@ public class CompletableFutureExample {
                       System.out.println("Async recovery..."); // Recovery can be async too!
                       return "Recovered from State Error (async)";
                     }));
-          } else if (error instanceof ArithmeticException) { // Added case for ArithmeticException
+          } else if (error instanceof ArithmeticException) {
             // Recover from ArithmeticException
             return futureMonad.of("Recovered from Arithmetic Error: " + error.getMessage());
           } else {

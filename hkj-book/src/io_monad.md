@@ -50,7 +50,8 @@ Use `IOKindHelper.delay` to capture side effects. Use `IOMonad.of` for pure valu
 
 ```java
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.io.*; // Import IO components
+import org.higherkindedj.hkt.io.*; 
+import org.higherkindedj.hkt.unit.Unit;
 import java.util.function.Supplier;
 import java.util.Scanner;
 
@@ -58,9 +59,9 @@ import java.util.Scanner;
 IOMonad ioMonad = new IOMonad();
 
 // IO action to print a message
-Kind<IOKind.Witness, Void> printHello = IOKindHelper.delay(() -> {
+Kind<IOKind.Witness, Unit> printHello = IOKindHelper.delay(() -> {
     System.out.println("Hello from IO!");
-    return null; // Return type is Void
+    return Unit.INSTANCE;
 });
 
 // IO action to read a line from the console
@@ -139,6 +140,7 @@ Use `IOMonad` instance methods.
 
 ```java
 import org.higherkindedj.hkt.io.IOMonad;
+import org.higherkindedj.hkt.unit.Unit;
 import java.util.function.Function;
 
 IOMonad ioMonad = new IOMonad();
@@ -165,11 +167,11 @@ Kind<IOKind.Witness, String> getName = IOKindHelper.delay(() -> {
 });
 
 // Action 2 (depends on name): Print greeting
-Function<String, Kind<IOKind.Witness, Void>> printGreeting = name ->
+Function<String, Kind<IOKind.Witness, Unit>> printGreeting = name ->
     IOKindHelper.delay(() -> {
         System.out.println("Effect: Printing greeting for " + name);
         System.out.println("Welcome, " + name + "!");
-        return null;
+        return Unit.INSTANCE;
     });
 
 // Combine using flatMap
@@ -184,11 +186,12 @@ IOKindHelper.unsafeRunSync(combinedAction);
 // Welcome, Alice!
 
 // --- Full Program Example ---
-Kind<IOKind.Witness, Void> program = ioMonad.flatMap(
+Kind<IOKind.Witness, Unit> program = ioMonad.flatMap(
     ignored -> ioMonad.flatMap( // Chain after printing hello
         name -> ioMonad.map( // Map the result of printing the greeting
-            ignored2 -> { System.out.println("Program finished."); return null; },
-            printGreeting.apply(name) // Action 3: Print greeting based on name
+            ignored2 -> { System.out.println("Program finished");
+              return Unit.INSTANCE; },
+              printGreeting.apply(name) // Action 3: Print greeting based on name
         ),
         readLine // Action 2: Read line
     ),

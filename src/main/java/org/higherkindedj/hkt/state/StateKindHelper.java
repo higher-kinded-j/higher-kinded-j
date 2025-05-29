@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -151,37 +152,41 @@ public final class StateKindHelper {
   }
 
   /**
-   * Creates a {@link StateKind}{@code <S, Void>} that, when run, replaces the current state with
-   * {@code newState} and returns {@link Void} (represented as {@code null}) as its computed value.
+   * Creates a {@link StateKind}{@code <S, Unit>} that, when run, replaces the current state with
+   * {@code newState} and returns {@link Unit#INSTANCE} as its computed value.
    *
-   * <p>This is equivalent to {@code State.set(newState)} followed by {@link #wrap(State)}.
+   * <p>This is equivalent to {@code State.set(newState)} followed by {@link #wrap(State)}. ({@code
+   * State.set} is assumed to be updated to return {@code State<S, Unit>}).
    *
    * @param <S> The type of the state.
    * @param newState The non-null new state to be set.
-   * @return A non-null {@link StateKind}{@code <S, Void>} that performs the state update.
+   * @return A non-null {@link StateKind}{@code <S, Unit>} that performs the state update.
    * @throws NullPointerException if {@code newState} is {@code null}.
    */
-  public static <S> @NonNull StateKind<S, Void> set(@NonNull S newState) {
-    // State.set itself will handle the NullPointerException for newState.
+  public static <S> @NonNull StateKind<S, Unit> set(@NonNull S newState) {
+    // State.set itself will handle the NullPointerException for newState and now returns State<S,
+    // Unit>.
     return wrap(State.set(newState));
   }
 
   /**
-   * Creates a {@link StateKind}{@code <S, Void>} that, when run, modifies the current state {@code
-   * S} using the provided function {@code f}, and returns {@link Void} (represented as {@code
-   * null}) as its computed value.
+   * Creates a {@link StateKind}{@code <S, Unit>} that, when run, modifies the current state {@code
+   * S} using the provided function {@code f}, and returns {@link Unit#INSTANCE} as its computed
+   * value.
    *
-   * <p>This is equivalent to {@code State.modify(f)} followed by {@link #wrap(State)}.
+   * <p>This is equivalent to {@code State.modify(f)} followed by {@link #wrap(State)}. ({@code
+   * State.modify} is assumed to be updated to return {@code State<S, Unit>}).
    *
    * @param <S> The type of the state.
    * @param f The non-null function to transform the current state. It must take a non-null state
    *     and return a non-null new state.
-   * @return A non-null {@link StateKind}{@code <S, Void>} that performs the state modification.
+   * @return A non-null {@link StateKind}{@code <S, Unit>} that performs the state modification.
    * @throws NullPointerException if {@code f} is {@code null}.
    */
-  public static <S> @NonNull StateKind<S, Void> modify(
+  public static <S> @NonNull StateKind<S, Unit> modify(
       @NonNull Function<@NonNull S, @NonNull S> f) {
-    // State.modify itself will handle the NullPointerException for f.
+    // State.modify itself will handle the NullPointerException for f and now returns State<S,
+    // Unit>.
     return wrap(State.modify(f));
   }
 
@@ -226,12 +231,6 @@ public final class StateKindHelper {
       @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     Objects.requireNonNull(initialState, "Initial state cannot be null for runState");
     State<S, A> stateToRun = unwrap(kind); // unwrap handles null kind
-    // The State<S,A>.run method returns StateTuple<S,A>, which aligns with the expected @NonNull
-    // contract.
-    // No cast needed for the result of stateToRun.run() if State.run() is correctly typed.
-    // The original cast `(StateTuple<S, A>)` might have been due to State.run() returning raw
-    // Function<S, StateTuple>.
-    // Assuming State.run() returns StateTuple<S,A>.
     return stateToRun.run(initialState);
   }
 

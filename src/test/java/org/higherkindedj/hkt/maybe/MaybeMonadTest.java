@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.*; // unwrap, just, no
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -385,7 +386,7 @@ class MaybeMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleNothing() {
-      Function<Void, Kind<MaybeKind.Witness, Integer>> handler = err -> just(0);
+      Function<Unit, Kind<MaybeKind.Witness, Integer>> handler = err -> just(0);
       MaybeKind<Integer> result = maybeMonad.handleErrorWith(nothingVal, handler);
       assertThat(unwrap(result).isJust()).isTrue();
       assertThat(unwrap(result).get()).isEqualTo(0);
@@ -393,7 +394,7 @@ class MaybeMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleRaisedError() {
-      Function<Void, Kind<MaybeKind.Witness, Integer>> handler = err -> just(0);
+      Function<Unit, Kind<MaybeKind.Witness, Integer>> handler = err -> just(0);
       MaybeKind<Integer> result = maybeMonad.handleErrorWith(raisedErrorKind, handler);
       assertThat(unwrap(result).isJust()).isTrue();
       assertThat(unwrap(result).get()).isEqualTo(0);
@@ -401,7 +402,7 @@ class MaybeMonadTest {
 
     @Test
     void handleErrorWith_shouldIgnoreJust() {
-      Function<Void, Kind<MaybeKind.Witness, Integer>> handler = err -> just(-1);
+      Function<Unit, Kind<MaybeKind.Witness, Integer>> handler = err -> just(-1);
       MaybeKind<Integer> result = maybeMonad.handleErrorWith(justVal, handler);
       assertThat(result).isSameAs(justVal);
       assertThat(unwrap(result).isJust()).isTrue();
@@ -410,7 +411,7 @@ class MaybeMonadTest {
 
     @Test
     void handleError_shouldHandleNothingWithPureValue() {
-      Function<Void, Integer> handler = err -> -99;
+      Function<Unit, Integer> handler = err -> -99;
       // MonadError.handleError default impl might use .of and .map, or .flatMap
       // Assuming MaybeMonad's handleError is as defined in MonadError interface default
       Kind<MaybeKind.Witness, Integer> result = maybeMonad.handleError(nothingVal, handler);
@@ -420,7 +421,7 @@ class MaybeMonadTest {
 
     @Test
     void handleError_shouldIgnoreJust() {
-      Function<Void, Integer> handler = err -> -1;
+      Function<Unit, Integer> handler = err -> -1;
       Kind<MaybeKind.Witness, Integer> result = maybeMonad.handleError(justVal, handler);
       assertThat(result).isSameAs(justVal);
       assertThat(unwrap(result).isJust()).isTrue();

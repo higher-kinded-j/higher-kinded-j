@@ -8,13 +8,14 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link MonadError} interface for {@link OptionalT}. The witness for {@code
  * OptionalT<F, ?>} is {@link OptionalTKind.Witness Witness&lt;F&gt;}. The error type {@code E} is
- * fixed to {@link Void}, as {@code OptionalT} inherently represents failure as an absence of a
+ * fixed to {@link Unit}, as {@code OptionalT} inherently represents failure as an absence of a
  * value (similar to {@code Optional.empty()}).
  *
  * <p>This class requires a {@link Monad} instance for the outer monad {@code F} to operate. It uses
@@ -23,7 +24,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <F> The witness type of the outer monad (e.g., {@code IOKind.Witness}).
  */
-public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, Void> {
+public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, Unit> {
 
   private final @NonNull Monad<F> outerMonad;
 
@@ -108,11 +109,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, V
 
     Kind<F, Optional<B>> resultValue =
         outerMonad.flatMap(
-            optF ->
-                outerMonad.map(
-                    optA -> optF.flatMap(f -> optA.map(f)), // f itself can return null
-                    valT.value()),
-            funcT.value());
+            optF -> outerMonad.map(optA -> optF.flatMap(optA::map), valT.value()), funcT.value());
     return OptionalTKindHelper.wrap(OptionalT.fromKind(resultValue));
   }
 
@@ -153,34 +150,34 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, V
     return OptionalTKindHelper.wrap(OptionalT.fromKind(newValue));
   }
 
-  // --- MonadError Methods (Error Type E = Void) ---
+  // --- MonadError Methods (Error Type E = Unit) ---
 
   /**
    * Raises an error in the {@code Kind<OptionalTKind.Witness<F>, A>} context. For {@code
    * OptionalT}, an error is represented by the {@code empty} state, so this method returns a {@code
-   * Kind} wrapping {@code F<Optional.empty()>}. The provided {@code error} of type {@link Void} is
-   * ignored.
+   * Kind} wrapping {@code F<Optional.empty()>}. The provided {@code error} of type {@link Unit}
+   * (typically {@link Unit#INSTANCE}) is ignored.
    *
    * @param <A> The type parameter for the resulting {@code Kind}, though it will be empty.
-   * @param error The error value ({@code null} for {@link Void}).
+   * @param error The error value ({@link Unit#INSTANCE}). Must be non-null.
    * @return A {@code Kind<OptionalTKind.Witness<F>, A>} representing {@code F<Optional.empty()>}.
    */
   @Override
-  public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> raiseError(@Nullable Void error) {
+  public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> raiseError(@NonNull Unit error) {
     return OptionalTKindHelper.wrap(OptionalT.none(outerMonad));
   }
 
   /**
    * Handles an error (represented by {@code empty}) in the {@code Kind<OptionalTKind.Witness<F>,
    * A>}. If the input {@code ma} represents {@code F<Optional.empty()>}, the {@code handler}
-   * function is applied. The {@link Void} parameter to the handler will be {@code null}. If {@code
-   * ma} represents {@code F<Optional.of(a)>}, it is returned unchanged. This operation is performed
-   * within the context of the outer monad {@code F}.
+   * function is applied. The {@link Unit} parameter to the handler will be {@link Unit#INSTANCE}.
+   * If {@code ma} represents {@code F<Optional.of(a)>}, it is returned unchanged. This operation is
+   * performed within the context of the outer monad {@code F}.
    *
    * @param <A> The type of the value.
    * @param ma The {@code Kind<OptionalTKind.Witness<F>, A>} to handle. Must not be null.
    * @param handler The function to apply if {@code ma} represents {@code F<Optional.empty()>}. It
-   *     takes a {@link Void} (which will be null) and returns a new {@code
+   *     takes a {@link Unit} (which will be {@link Unit#INSTANCE}) and returns a new {@code
    *     Kind<OptionalTKind.Witness<F>, A>}. Must not be null.
    * @return A {@code Kind<OptionalTKind.Witness<F>, A>}, either the original or the result of the
    *     handler.
@@ -188,7 +185,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, V
   @Override
   public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> handleErrorWith(
       @NonNull Kind<OptionalTKind.Witness<F>, A> ma,
-      @NonNull Function<Void, Kind<OptionalTKind.Witness<F>, A>> handler) {
+      @NonNull Function<Unit, Kind<OptionalTKind.Witness<F>, A>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
     OptionalT<F, A> optionalT = OptionalTKindHelper.unwrap(ma);
@@ -199,7 +196,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, V
               if (optA.isPresent()) {
                 return outerMonad.of(optA);
               } else {
-                Kind<OptionalTKind.Witness<F>, A> resultKind = handler.apply(null);
+                Kind<OptionalTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
                 OptionalT<F, A> resultT = OptionalTKindHelper.unwrap(resultKind);
                 return resultT.value();
               }

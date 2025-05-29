@@ -70,10 +70,8 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
       // and State.map handles this appropriately (e.g. if State's value can be null).
       // If State<S,A> implies A is always non-null, then this should be Function<A, @NonNull B> or
       // Function<A,B>
-      @NonNull Function<A, @Nullable B>
-          f, // Changed B to @Nullable B for generality, assuming State.map handles it
-      @NonNull Kind<StateKind.Witness<S>, A> fa) {
-    requireNonNull(f, "Mapping function cannot be null"); // Added explicit null check for f
+      @NonNull Function<A, @Nullable B> f, @NonNull Kind<StateKind.Witness<S>, A> fa) {
+    requireNonNull(f, "Mapping function cannot be null");
 
     // 1. Unwrap the Kind to get the concrete State<S, A>.
     //    The type S is bound to this StateFunctor instance.

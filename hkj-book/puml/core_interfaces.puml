@@ -1,10 +1,6 @@
-@startuml defunctional_external
+@startuml core_interfaces
 
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
-
-title Core HKT Simulation Interfaces and Patterns
-
-
 
 
 package "Defunctionalisation Pattern Details" {
@@ -30,7 +26,7 @@ package "Defunctionalisation Pattern Details" {
             + {static} wrap(opt: java.util.Optional<A>): Kind<OptionalKind.Witness, A>
             + {static} unwrap(kind: Kind<OptionalKind.Witness, A>): java.util.Optional<A>
         }
-        class "OptionalMonad" as OptionalMonad implements MonadError<OptionalKind.Witness, java.lang.Void> {
+        class "OptionalMonad" as OptionalMonad implements MonadError<OptionalKind.Witness, Unit> {
             ' Uses OptionalKindHelper
         }
         OptionalMonad ..> OptionalKindHelper : "uses"

@@ -91,14 +91,12 @@ public class WriterApplicative<W> extends WriterFunctor<W>
     Function<A, B> func = writerF.value();
     A val = writerA.value();
 
-    // Consider the case where writerF.value() might be null if A is, for instance, Void.
-    // However, for 'ap', a null function is problematic.
     requireNonNull(
         func,
         "Function wrapped in Writer for 'ap' was null. "
             + "This may indicate an issue with how the Writer<W, Function<A,B>> was constructed.");
     B resultValue = func.apply(val);
 
-    return wrap(Writer.create(combinedLog, resultValue));
+    return wrap(new Writer<>(combinedLog, resultValue));
   }
 }

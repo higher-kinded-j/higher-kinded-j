@@ -5,7 +5,8 @@ package org.higherkindedj.hkt.io;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.jspecify.annotations.NonNull; // Assuming usage of JSpecify for annotations
+import org.higherkindedj.hkt.unit.Unit;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Represents a computation that, when executed, can perform side effects and produce a value of
@@ -41,15 +42,15 @@ import org.jspecify.annotations.NonNull; // Assuming usage of JSpecify for annot
  * });
  *
  * // Describes printing a string to the console
- * IO<Void> printLine(String message) {
+ * IO<Unit> printLine(String message) {
  * return IO.delay(() -> {
  * System.out.println(message);
- * return null; // Void actions typically return null
+ * return Unit.INSTANCE;
  * });
  * }
  *
  * // Combine descriptions
- * IO<Void> greetUser = readLine.flatMap(name ->
+ * IO<Unit> greetUser = readLine.flatMap(name ->
  * printLine("Hello, " + name + "!")
  * );
  *
@@ -63,7 +64,7 @@ import org.jspecify.annotations.NonNull; // Assuming usage of JSpecify for annot
  * types often provide asynchronous execution methods (e.g., {@code unsafeRunAsync}).
  *
  * @param <A> The type of the value produced by the computation when it is executed. For {@code IO}
- *     actions that don't produce a meaningful value (e.g., printing to console), {@link Void} is
+ *     actions that don't produce a meaningful value (e.g., printing to console), {@link Unit} is
  *     often used as the type parameter {@code A}.
  */
 @FunctionalInterface
@@ -82,8 +83,8 @@ public interface IO<A> {
    * blocking operations, this method will block the calling thread. Any exceptions thrown by the
    * underlying computation will propagate out of this method.
    *
-   * @return The result of the computation of type {@code A}. If {@code A} is {@link Void}, this
-   *     typically returns {@code null}.
+   * @return The result of the computation of type {@code A}. If {@code A} is {@link Unit}, this
+   *     typically returns {@link Unit#INSTANCE}.
    */
   A unsafeRunSync();
 

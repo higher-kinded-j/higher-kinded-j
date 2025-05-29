@@ -12,10 +12,10 @@ Key benefits include:
 * **Explicit Optionality with Non-Null Safety:** `Just<T>` guarantees its contained value is not null. `Nothing<T>` clearly indicates absence.
 * **Functional Composition:** Enables elegant chaining of operations using `map`, `flatMap`, and `ap`, where `Nothing` short-circuits computations.
 * **HKT Integration:** `MaybeKind<A>` (the HKT wrapper for `Maybe<A>`) and `MaybeMonad` allow `Maybe` to be used with generic functions and type classes that expect `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, `Monad<M>`, or `MonadError<M, E>`.
-* **Error Handling for Absence:** `MaybeMonad` implements `MonadError<MaybeKind.Witness, Void>`. `Nothing` is treated as the "error" state, with `Void` as the phantom error type, signifying absence.
+* **Error Handling for Absence:** `MaybeMonad` implements `MonadError<MaybeKind.Witness, Unit>`. `Nothing` is treated as the "error" state, with `Unit` as the phantom error type, signifying absence.
 ~~~
 
-It implements `MonadError<MaybeKind.Witness, Void>`, which transitively includes `Monad<MaybeKind.Witness>`, `Applicative<MaybeKind.Witness>`, and `Functor<MaybeKind.Witness>`.
+It implements `MonadError<MaybeKind.Witness, Unit>`, which transitively includes `Monad<MaybeKind.Witness>`, `Applicative<MaybeKind.Witness>`, and `Functor<MaybeKind.Witness>`.
 
 
 ## Structure
@@ -79,11 +79,11 @@ Lifts a value into `MaybeKind`. Uses `Maybe.fromNullable()` internally.
   Kind<MaybeKind.Witness, String> kindNullFromMonad = maybeMonad.of(null);   // Nothing
   ```
 ~~~
-~~~admonish  title="_maybeMonad.raiseError(@Nullable Void error)_"
+~~~admonish  title="_maybeMonad.raiseError(@Nullable Unit error)_"
 
-Creates a `MaybeKind` representing `Nothing`. The `error` (Void) argument is ignored.
+Creates a `MaybeKind` representing `Nothing`. The `error` (Unit) argument is ignored.
   ```java
-  Kind<MaybeKind.Witness, Double> errorKind = maybeMonad.raiseError(null); // Nothing
+  Kind<MaybeKind.Witness, Double> errorKind = maybeMonad.raiseError(Unit.INSTANCE); // Nothing
   ``` 
  ~~~
    
@@ -190,12 +190,12 @@ void apExample() {
 
 ~~~admonish example title="Example: _handleErrorWith(Kind<MaybeKind.Witness, A> ma, Function<Void, Kind<MaybeKind.Witness, A>> handler)_"
 
-If `ma` is `Just`, it's returned. If `ma` is `Nothing` (the "error" state), `handler` is invoked (with `null` for `Void`) to provide a recovery `MaybeKind`.
+If `ma` is `Just`, it's returned. If `ma` is `Nothing` (the "error" state), `handler` is invoked (with `Unit.INSTANCE` for `Unit`) to provide a recovery `MaybeKind`.
 
 ```java
 void handleErrorWithExample() {
   MaybeMonad maybeMonad = new MaybeMonad();
-  Function<Void, Kind<MaybeKind.Witness, String>> recover = v -> MaybeKindHelper.just("Recovered");
+  Function<Unit, Kind<MaybeKind.Witness, String>> recover = v -> MaybeKindHelper.just("Recovered");
 
   Kind<MaybeKind.Witness, String> handledJust = maybeMonad.handleErrorWith(MaybeKindHelper.just("Original"), recover); // Just("Original")
   Kind<MaybeKind.Witness, String> handledNothing = maybeMonad.handleErrorWith(MaybeKindHelper.nothing(), recover);    // Just("Recovered")
@@ -240,7 +240,7 @@ public void monadExample() {
 
   // 4. Use 'of' and 'raiseError'
   Kind<MaybeKind.Witness, String> fromOf = maybeMonad.of("Direct Value");
-  Kind<MaybeKind.Witness, String> fromRaiseError = maybeMonad.raiseError(null); // Creates Nothing
+  Kind<MaybeKind.Witness, String> fromRaiseError = maybeMonad.raiseError(Unit.INSTANCE); // Creates Nothing
   System.out.println("From 'of': " + MaybeKindHelper.unwrap(fromOf)); // Just(Direct Value)
   System.out.println("From 'raiseError': " + MaybeKindHelper.unwrap(fromRaiseError)); // Nothing
   System.out.println("From 'of(null)': " + MaybeKindHelper.unwrap(nullInputStringKind)); // Nothing
@@ -280,8 +280,8 @@ public static <A, B> Kind<MaybeKind.Witness, B> processData(
   Kind<MaybeKind.Witness, B> mappedKind = monad.map(mapper, inputKind);
 
   // The result of monad.map is Kind<MaybeKind.Witness, B>.
-  // The handler (Void v) -> monad.of(defaultValueOnAbsence) also produces Kind<MaybeKind.Witness, B>.
-  return monad.handleErrorWith(mappedKind, (Void v) -> monad.of(defaultValueOnAbsence));
+  // The handler (Unit v) -> monad.of(defaultValueOnAbsence) also produces Kind<MaybeKind.Witness, B>.
+  return monad.handleErrorWith(mappedKind, (Unit v) -> monad.of(defaultValueOnAbsence));
 }
 ```
 

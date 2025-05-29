@@ -56,22 +56,23 @@ MaybeT<F, A> unwrappedMaybeT = MaybeTKindHelper.unwrap(kind);
 
 ## `MaybeTMonad<F>`: Operating on `MaybeT`
 
-The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Void>`. The error type is `Void` because
+The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Unit>`. The error type `E` for `MonadError` is fixed to `Unit`, signifying that an "error" in this context is the `Maybe.nothing()` state within the `F<Maybe<A>>` structure.
 `MaybeT` represents failure (or absence) as `Nothing`, which doesn't carry an error value itself.
 
 * It requires a `Monad<F>` instance for the outer monad `F`, provided during construction. This instance is used to
   manage the effects of `F`.
 * It uses `MaybeTKindHelper.wrap` and `MaybeTKindHelper.unwrap` for conversions.
-* Operations like `raiseError(null)` (since error type is Void) will create a `MaybeT` representing `F<Nothing>`.
-  `handleErrorWith` allows "recovering" from a `Nothing` state by providing an alternative `MaybeT`.
+* Operations like `raiseError(Unit.INSTANCE)` will create a `MaybeT` representing `F<Nothing>`.
+  The `Unit.INSTANCE` signifies the `Nothing` state without carrying a separate error value.
+* `handleErrorWith` allows "recovering" from a `Nothing` state by providing an alternative `MaybeT`. The handler function passed to `handleErrorWith` will receive `Unit.INSTANCE` if a `Nothing` state is encountered.
 
 ```java
-// Example: F = CompletableFutureKind.Witness, Error type for MonadError is Void
+// Example: F = CompletableFutureKind.Witness, Error type for MonadError is Unit
 // 1. Get the Monad instance for the outer monad F
 Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad(); // Or CompletableFutureMonadError if error handling for F is needed
 
 // 2. Create the MaybeTMonad, providing the outer monad instance
-MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Void> maybeTMonad =
+MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
     new MaybeTMonad<>(futureMonad);
 
 // Now 'maybeTMonad' can be used to operate on Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, A> values.
@@ -86,9 +87,9 @@ MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Void> maybeTMonad 
 * **`maybeTMonad.flatMap(f, maybeTKind)`:** Sequences operations. Takes `A -> Kind<MaybeTKind.Witness<F>, B>`. If the
   input is `F<Just(a)>`, it applies `f(a)` to get the next `MaybeT<F, B>` and extracts its `Kind<F, Maybe<B>>`. If
   `F<Nothing>`, it propagates `F<Nothing>`.
-* **`maybeTMonad.raiseError(null)`:** Creates `MaybeT` representing `F<Nothing>`.
+* **`maybeTMonad.raiseError(Unit.INSTANCE)`:** Creates `MaybeT` representing `F<Nothing>`.
 * **`maybeTMonad.handleErrorWith(maybeTKind, handler)`:** Handles a `Nothing` state. The handler
-  `Void -> Kind<MaybeTKind.Witness<F>, A>` is invoked with `null`.
+  `Unit -> Kind<MaybeTKind.Witness<F>, A>` is invoked with `null`.
 ~~~
 
 ----
@@ -151,7 +152,7 @@ Let's consider fetching a user and then their preferences, where each step is as
 public static class MaybeTAsyncExample {
   // --- Setup ---
   Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
-  MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Void> maybeTMonad =
+  MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
       new MaybeTMonad<>(futureMonad);
 
   // Simulates fetching a user asynchronously
@@ -208,12 +209,12 @@ public static class MaybeTAsyncExample {
 
     // Try to recover if preferences are Nothing, but user was found (conceptual)
     Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> preferencesWithDefaultMT =
-        maybeTMonad.handleErrorWith(preferencesMT, (Void v) -> { // Handler for Nothing
+        maybeTMonad.handleErrorWith(preferencesMT, (Unit v) -> { // Handler for Nothing
           System.out.println("Preferences not found, attempting to use default.");
           // We need userId here. For simplicity, let's assume we could get it or just return nothing.
           // This example shows returning nothing again if we can't provide a default.
           // A real scenario might try to fetch default preferences or construct one.
-          return maybeTMonad.raiseError(null); // Still Nothing, or could be MaybeT.just(defaultPrefs)
+          return maybeTMonad.raiseError(Unit.INSTANCE); // Still Nothing, or could be MaybeT.just(defaultPrefs)
         });
 
 
@@ -252,12 +253,11 @@ public static class MaybeTAsyncExample {
 
 This example illustrates:
 
-1. Setting up `MaybeTMonad` with `CompletableFutureMonad`.
+1. Setting up `MaybeTMonad` with `CompletableFutureMonad`and `Unit` as the error type.
 2. Using `MaybeT.fromKind` to lift an existing `Kind<F, Maybe<A>>` into the `MaybeT` context.
 3. Sequencing operations with `maybeTMonad.flatMap`. If `WorkspaceUserAsync` results in `F<Nothing>`, the lambda for
    fetching preferences is skipped.
-4. The `handleErrorWith` shows a way to potentially recover from a `Nothing` state, though in this simple case it
-   doesn't change the outcome if preferences are truly absent.
+4. The `handleErrorWith` shows a way to potentially recover from a `Nothing` state using `Unit` in the handler and `raiseError(Unit.INSTANCE)`.
 5. Finally, `.value()` is used to extract the underlying `Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>>`.
 
 ~~~
@@ -266,4 +266,5 @@ This example illustrates:
 
 - The `MaybeT` transformer simplifies working with nested optional values within other monadic contexts by providing a
 unified monadic interface, abstracting away the manual checks and propagation of `Nothing` states.
+- When `MaybeTMonad` is used as a `MonadError`, the error type is `Unit`, indicating that the "error" (a `Nothing` state) doesn't carry a specific value beyond its occurrence.
 ~~~

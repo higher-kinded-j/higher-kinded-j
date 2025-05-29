@@ -48,8 +48,8 @@ public interface State<S, A> {
   static <S, A> @NonNull State<S, A> of(@NonNull Function<@NonNull S, @NonNull StateTuple<S, A>> runFunction);
   static <S, A> @NonNull State<S, A> pure(@Nullable A value); // Creates State(s -> (value, s))
   static <S> @NonNull State<S, S> get();                      // Creates State(s -> (s, s))
-  static <S> @NonNull State<S, Void> set(@NonNull S newState); // Creates State(s -> (null, newState))
-  static <S> @NonNull State<S, Void> modify(@NonNull Function<@NonNull S, @NonNull S> f); // Creates State(s -> (null, f(s)))
+  static <S> @NonNull State<S, Unit> set(@NonNull S newState); // Creates State(s -> (Unit.INSTANCE, newState))
+  static <S> @NonNull State<S, Unit> modify(@NonNull Function<@NonNull S, @NonNull S> f); // Creates State(s -> (Unit.INSTANCE, f(s)))
   static <S, A> @NonNull State<S, A> inspect(@NonNull Function<@NonNull S, @Nullable A> f); // Creates State(s -> (f(s), s))
 
   // Instance methods for composition
@@ -63,8 +63,8 @@ public interface State<S, A> {
 * `of(...)`: The basic factory method taking the underlying function `S -> StateTuple<S, A>`.
 * `pure(A value)`: Creates a computation that returns the given value `A`*without changing* the state.
 * `get()`: Creates a computation that returns the *current* state `S` as its value, leaving the state unchanged.
-* `set(S newState)`: Creates a computation that *replaces* the current state with `newState` and returns no meaningful value (`Void`).
-* `modify(Function<S, S> f)`: Creates a computation that applies a function `f` to the current state to get the *new* state, returning no meaningful value (`Void`).
+* `set(S newState)`: Creates a computation that *replaces* the current state with `newState` and returns `Unit.INSTANCE` as its result value.
+* `modify(Function<S, S> f)`: Creates a computation that applies a function `f` to the current state to get the *new* state, returning Unit.INSTANCE as its result value.
 * `inspect(Function<S, A> f)`: Creates a computation that applies a function `f` to the current state to calculate a *result value*`A`, leaving the state unchanged.
 * `map(...)`: Transforms the *result value*`A` to `B` after the computation runs, leaving the state transition logic untouched.
 * `flatMap(...)`: The core sequencing operation. It runs the first `State` computation, takes its result value `A`, uses it to create a *second*`State` computation, and runs that second computation using the state produced by the first one. The final result and state are those from the second computation.
@@ -112,8 +112,6 @@ All these operations will affect or depend on the account's state (balance and h
 
 First, we define a record to represent the state of our bank account.
 
-
-### 1. Define Your State Type
 
 - [AccountState.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
 
@@ -205,7 +203,7 @@ public class BankAccountWorkflow {
 
   private static final StateMonad<AccountState> accountStateMonad = new StateMonad<>();
 
-  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Void>> deposit(
+  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Unit>> deposit(
           String description) {
     return amount ->
         StateKindHelper.wrap(
