@@ -3,6 +3,7 @@ plugins {
   id("maven-publish")
   id("jacoco")
   id("com.diffplug.spotless") version "7.0.3"
+  id("signing")
 }
 
 group = "org.higher-kinded-j"
@@ -115,6 +116,22 @@ publishing {
   }
   repositories {
     maven {
+      name = "OSSRHSnapshots"
+      url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+      credentials {
+        username = System.getenv("OSSRH_USERNAME")
+        password = System.getenv("OSSRH_TOKEN")
+      }
+    }
+    maven {
+      name = "OSSRHReleases"
+      url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+      credentials {
+        username = System.getenv("OSSRH_USERNAME")
+        password = System.getenv("OSSRH_TOKEN")
+      }
+    }
+    maven {
       name = "GitHubPackages"
       url = uri("https://maven.pkg.github.com/higher-kinded-j/higher-kinded-j")
 
@@ -122,6 +139,23 @@ publishing {
         username = System.getenv("GITHUB_ACTOR")
         password = System.getenv("GITHUB_TOKEN")
       }
+    }
+  }
+  signing {
+    val signingKeyId = System.getenv("SIGNING_KEY_ID")
+    val signingKey = System.getenv("SIGNING_KEY")
+    val signingPassword = System.getenv("SIGNING_PASSWORD")
+
+    val shouldSign =
+        version.toString().endsWith("-SNAPSHOT").not() &&
+            project.hasProperty("release") // Only sign if it's a release build
+
+    if (shouldSign && signingKeyId != null && signingKey != null && signingPassword != null) {
+      useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+      sign(publishing.publications["mavenJava"])
+    } else if (shouldSign) {
+      project.logger.warn(
+          "Release build detected, but GPG signing key details (SIGNING_KEY_ID, SIGNING_KEY, SIGNING_PASSWORD) are not fully provided. Publication will not be signed.")
     }
   }
 }

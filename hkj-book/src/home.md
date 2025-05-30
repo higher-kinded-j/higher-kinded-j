@@ -10,9 +10,8 @@
 ```
 ## [_Bringing Higher-Kinded Types to Java functional patterns_](https://github.com/higher-kinded-j/higher-kinded-j)
 
-```admonish title="[==>Github code](https://github.com/higher-kinded-j/higher-kinded-j)"
-```
-<a href="https://github.com/higher-kinded-j/higher-kinded-j"><img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/refs/heads/6.x/svgs/brands/github.svg" width="50" height="50"></a>
+<a href="https://github.com/higher-kinded-j/higher-kinded-j" style="color: #e70073"> Take me to the code ==> <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/refs/heads/6.x/svgs/brands/github.svg" width="20" height="20" style="vertical-align:middle" alt="github link to code"></a>
+
 
 Higher-Kinded-J brings popular functional patterns to Java by providing implementations of common Monads and Transformers supporting Higher-Kinded Types.
 
