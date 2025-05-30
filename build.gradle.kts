@@ -6,7 +6,7 @@ plugins {
   id("signing")
 }
 
-group = "org.higher-kinded-j"
+group = "io.github.higher-kinded-j"
 
 version = project.findProperty("projectVersion")?.toString() ?: "v0.1.3-SNAPSHOT"
 
