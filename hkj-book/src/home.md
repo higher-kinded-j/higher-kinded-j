@@ -71,7 +71,7 @@ You could adapt Higher-Kinded-J for use in your own projects:
 ~~~ admonish info
 ```
 <dependency>
-  <groupId>org.higher-kinded-j</groupId>
+  <groupId>io.github.higher-kinded-j</groupId>
   <artifactId>higher-kinded-j</artifactId>
   <version>v0.1.3-SNAPSHOT</version>
 </dependency>
