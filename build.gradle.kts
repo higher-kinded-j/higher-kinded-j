@@ -4,13 +4,17 @@ plugins {
   id("jacoco")
   id("com.diffplug.spotless") version "7.0.3"
   id("signing")
+  id("net.thebugmc.gradle.sonatype-central-portal-publisher") version "1.2.4"
 }
 
 group = "io.github.higher-kinded-j"
 
-version = project.findProperty("projectVersion")?.toString() ?: "v0.1.3-SNAPSHOT"
+version = project.findProperty("projectVersion")?.toString() ?: "v0.1.4-SNAPSHOT"
 
-repositories { mavenCentral() }
+repositories {
+  gradlePluginPortal()
+  mavenCentral()
+}
 
 dependencies {
   implementation("org.jspecify:jspecify:1.0.0")
@@ -82,6 +86,9 @@ tasks.jacocoTestReport {
   sourceDirectories.setFrom(files(mainSourceSet.allSource.srcDirs))
 }
 
+val isSnapshotVersion = project.version.toString().endsWith("-SNAPSHOT")
+val isReleaseBuild = project.hasProperty("release") || !isSnapshotVersion
+
 publishing {
   publications {
     create<MavenPublication>("mavenJava") {
@@ -115,47 +122,69 @@ publishing {
     }
   }
   repositories {
-    maven {
-      name = "OSSRHSnapshots"
-      url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-      credentials {
-        username = System.getenv("OSSRH_USERNAME")
-        password = System.getenv("OSSRH_TOKEN")
-      }
-    }
-    maven {
-      name = "OSSRHReleases"
-      url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-      credentials {
-        username = System.getenv("OSSRH_USERNAME")
-        password = System.getenv("OSSRH_TOKEN")
-      }
-    }
-    maven {
-      name = "GitHubPackages"
-      url = uri("https://maven.pkg.github.com/higher-kinded-j/higher-kinded-j")
-
-      credentials {
-        username = System.getenv("GITHUB_ACTOR")
-        password = System.getenv("GITHUB_TOKEN")
+    if (isSnapshotVersion) {
+      maven {
+        name = "CentralPortalSnapshots"
+        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+        credentials {
+          // These would be your Central Portal User Code and Passcode
+          username = System.getenv("CENTRAL_PORTAL_USERNAME")
+          password = System.getenv("CENTRAL_PORTAL_PASSWORD")
+        }
       }
     }
   }
-  signing {
-    val signingKeyId = System.getenv("SIGNING_KEY_ID")
-    val signingKey = System.getenv("SIGNING_KEY")
-    val signingPassword = System.getenv("SIGNING_PASSWORD")
+}
 
-    val shouldSign =
-        version.toString().endsWith("-SNAPSHOT").not() &&
-            project.hasProperty("release") // Only sign if it's a release build
+signing {
+  val signingKey = System.getenv("SIGNING_KEY")
+  val signingPassword = System.getenv("SIGNING_PASSWORD")
+  val hasSigningKey = signingKey != null && signingKey.isNotEmpty()
+  val hasSigningPassword = signingPassword != null && signingPassword.isNotEmpty()
 
-    if (shouldSign && signingKeyId != null && signingKey != null && signingPassword != null) {
-      useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
-      sign(publishing.publications["mavenJava"])
-    } else if (shouldSign) {
-      project.logger.warn(
-          "Release build detected, but GPG signing key details (SIGNING_KEY_ID, SIGNING_KEY, SIGNING_PASSWORD) are not fully provided. Publication will not be signed.")
+  val isReleaseBuild = project.hasProperty("release") || !version.toString().endsWith("-SNAPSHOT")
+
+  if (hasSigningKey && hasSigningPassword) {
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign(publishing.publications["mavenJava"])
+  } else if (isReleaseBuild) {
+    project.logger.error(
+        "RELEASE BUILD ERROR: Signing keys (SIGNING_KEY, SIGNING_PASSWORD) are not set or are empty in the environment. Publication cannot be signed.")
+  }
+  isRequired = isReleaseBuild
+}
+
+if (!isSnapshotVersion) {
+  centralPortal {
+    username.set(System.getenv("CENTRAL_PORTAL_USERNAME"))
+    password.set(System.getenv("CENTRAL_PORTAL_PASSWORD"))
+
+    publishingType = net.thebugmc.gradle.sonatypepublisher.PublishingType.AUTOMATIC
+
+    pom {
+      name.set("Higher-Kinded-J")
+      description.set("Bringing Higher-Kinded Types to Java Functional Patterns")
+      url.set("https://github.com/higher-kinded-j/higher-kinded-j")
+
+      licenses {
+        license {
+          name.set("The MIT License")
+          url.set("https://opensource.org/licenses/MIT")
+          distribution.set("repo")
+        }
+      }
+      developers {
+        developer {
+          id.set("higher-kinded-j")
+          name.set("Magnus Smith")
+          email.set("simulation-hkt@gmail.com")
+        }
+      }
+      scm {
+        connection.set("scm:git:git://github.com/higher-kinded-j/higher-kinded-j.git")
+        developerConnection.set("scm:git:ssh://github.com/higher-kinded-j/higher-kinded-j.git")
+        url.set("https://github.com/higher-kinded-j/higher-kinded-j")
+      }
     }
   }
 }

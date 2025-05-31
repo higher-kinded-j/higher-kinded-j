@@ -69,12 +69,28 @@ You could adapt Higher-Kinded-J for use in your own projects:
 1.  **Include the dependency:** The relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) are available in the following dependency from [the project packages on Github.](https://github.com/higher-kinded-j/higher-kinded-j/packages/)  
 
 ~~~ admonish info
+
+
 ```
-<dependency>
-  <groupId>io.github.higher-kinded-j</groupId>
-  <artifactId>higher-kinded-j</artifactId>
-  <version>v0.1.3-SNAPSHOT</version>
-</dependency>
+// latest gradle release 
+
+dependencies {
+  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.3")
+}
+
+// alternatively if you want to try a SNAPSHOT
+
+repositories {
+  mavenCentral()
+  maven {
+    url= uri("https://central.sonatype.com/repository/maven-snapshots/")
+  }
+}
+
+dependencies {
+  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.4-SNAPSHOT")
+}
+
 ```
 ~~~
 
