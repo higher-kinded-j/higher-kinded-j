@@ -26,7 +26,7 @@ class LazyMonadTest {
   private AtomicInteger counterA;
   private AtomicInteger counterB;
   private AtomicInteger counterC;
-  private AtomicInteger counterD; // Added counter for map4
+  private AtomicInteger counterD;
   private AtomicInteger counterF;
 
   private <A> Kind<LazyKind.Witness, A> countingDefer(String label, ThrowableSupplier<A> supplier) {

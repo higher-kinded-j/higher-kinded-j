@@ -20,7 +20,7 @@ Higher-Kinded-J brings popular functional patterns to Java by providing implemen
 
 ## Introduction: Abstracting Over Computation in Java
 
-Java's powerful type system excels in many areas, but it lacks native support for Higher-Kinded Types (HKTs). This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>` in the same way we abstract over the type `A` itself. We can't easily define a generic function that works identically for *any* container or computational context (like List, Optional, Future, IO).
+Java's type system excels in many areas, but it lacks native support for Higher-Kinded Types (HKTs). This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>` in the same way we abstract over the type `A` itself. We can't easily define a generic function that works identically for *any* container or computational context (like List, Optional, Future, IO).
 
 Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
 
@@ -66,10 +66,9 @@ To understand and use Higher-Kinded-J effectively, explore these documents:
 
 You could adapt Higher-Kinded-J for use in your own projects:
 
-1.  **Include the dependency:** The relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) are available in the following dependency from [the project packages on Github.](https://github.com/higher-kinded-j/higher-kinded-j/packages/)  
+1.  **Include the dependency:** The relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) are available in the following dependency from maven central
 
 ~~~ admonish info
-
 
 ```
 // latest gradle release 

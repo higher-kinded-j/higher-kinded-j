@@ -15,6 +15,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.lazy;
   exports org.higherkindedj.hkt.reader;
   exports org.higherkindedj.hkt.state;
+  exports org.higherkindedj.hkt.validated;
   exports org.higherkindedj.hkt.writer;
   exports org.higherkindedj.hkt.id;
   exports org.higherkindedj.hkt.unit;

@@ -1,0 +1,62 @@
+@startuml validated_type
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+hide empty members
+
+interface "Validated<E, A>" as Validated {
+  + {abstract} boolean isValid()
+  + {abstract} boolean isInvalid()
+  + {abstract} A get() throws NoSuchElementException
+  + {abstract} E getError() throws NoSuchElementException
+  + {abstract} A orElse(A other)
+  + {abstract} A orElseGet(Supplier<? extends A> otherSupplier)
+  + {abstract} <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X
+  + {abstract} void ifValid(Consumer<? super A> consumer)
+  + {abstract} void ifInvalid(Consumer<? super E> consumer)
+  + {abstract} <B> Validated<E, B> map(Function<? super A, ? extends B> fn)
+  + {abstract} <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn)
+  + {abstract} <B> Validated<E, B> ap(Validated<E, Function<? super A, ? extends B>> fnValidated)
+  + {abstract} <T> T fold(Function<? super E, ? extends T> invalidMapper, Function<? super A, ? extends T> validMapper)
+  + {static} <E, A> Validated<E, A> valid(A value)
+  + {static} <E, A> Validated<E, A> invalid(E error)
+}
+
+class "Valid<E, A>(A value)" <<record>> implements Validated {
+  + Valid(A value)
+  __ Methods __
+  + boolean isValid()
+  + boolean isInvalid()
+  + A get()
+  + E getError() throws NoSuchElementException
+  + A orElse(A other)
+  + A orElseGet(Supplier<? extends A> otherSupplier)
+  + <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X
+  + void ifValid(Consumer<? super A> consumer)
+  + void ifInvalid(Consumer<? super E> consumer)
+  + <B> Validated<E, B> map(Function<? super A, ? extends B> fn)
+  + <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn)
+  + <B> Validated<E, B> ap(Validated<E, Function<? super A, ? extends B>> fnValidated)
+  + <T> T fold(Function<? super E, ? extends T> invalidMapper, Function<? super A, ? extends T> validMapper)
+}
+
+class "Invalid<E, A>(E error)" <<record>> implements Validated {
+  + Invalid(E error)
+  __ Methods __
+  + boolean isValid()
+  + boolean isInvalid()
+  + A get() throws NoSuchElementException
+  + E getError()
+  + A orElse(A other)
+  + A orElseGet(Supplier<? extends A> otherSupplier)
+  + <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X
+  + void ifValid(Consumer<? super A> consumer)
+  + void ifInvalid(Consumer<? super E> consumer)
+  + <B> Validated<E, B> map(Function<? super A, ? extends B> fn)
+  + <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn)
+  + <B> Validated<E, B> ap(Validated<E, Function<? super A, ? extends B>> fnValidated)
+  + <T> T fold(Function<? super E, ? extends T> invalidMapper, Function<? super A, ? extends T> validMapper)
+}
+
+
+
+@enduml
