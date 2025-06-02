@@ -30,6 +30,12 @@ java {
   withJavadocJar()
 }
 
+tasks.javadoc {
+  source = sourceSets.main.get().allJava
+  exclude("org/higherkindedj/example/**")
+  (options as? CoreJavadocOptions)?.addStringOption("Xdoclint:none", "-quiet")
+}
+
 spotless {
   lineEndings = com.diffplug.spotless.LineEnding.UNIX
 

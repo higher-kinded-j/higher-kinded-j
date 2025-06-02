@@ -1,4 +1,4 @@
-@startuml
+@startuml supported_types
 !include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
 hide empty members
 
@@ -17,6 +17,7 @@ package "Supported Types (Monad Implementations)" {
     class "ReaderMonad<R>" as ReaderMonad
     class "StateMonad<S>" as StateMonad
     class "WriterMonad<W>" as WriterMonad
+    class "ValidatedMonad<E>" as ValidatedMonad
 
     ListMonad <|.. CoreInterfaces.Monad
     OptionalMonad <|.. CoreInterfaces.MonadError
@@ -24,6 +25,7 @@ package "Supported Types (Monad Implementations)" {
     EitherMonad <|.. CoreInterfaces.MonadError
     CompletableFutureMonadError <|.. CoreInterfaces.MonadError
     TryMonadError <|.. CoreInterfaces.MonadError
+    ValidatedMonad <|.. CoreInterfaces.MonadError
     IdMonad <|.. CoreInterfaces.Monad
     IOMonad <|.. CoreInterfaces.Monad
     LazyMonad <|.. CoreInterfaces.Monad

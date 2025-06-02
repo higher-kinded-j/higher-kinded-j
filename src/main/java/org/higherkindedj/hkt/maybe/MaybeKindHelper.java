@@ -118,7 +118,6 @@ public final class MaybeKindHelper {
    *     Maybe#just(Object)}.
    */
   public static <A> @NonNull MaybeKind<A> just(@NonNull A value) {
-    // Relies on Maybe.just(value) to throw NullPointerException if value is null.
     return wrap(Maybe.just(value));
   }
 

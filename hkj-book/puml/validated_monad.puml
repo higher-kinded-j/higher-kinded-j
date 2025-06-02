@@ -1,0 +1,45 @@
+@startuml validated_monad
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+hide empty members
+
+interface Kind<F, A>
+
+
+interface "ErrorMonad<ValidatedKind.Witness<E>, E>" as ErrorMonad
+
+
+  interface "Validated<E, A>" {
+  }
+
+  class "ValidatedKindHelper" << (U,Peru) Utility >> {
+    + {static} <E, A> Kind<ValidatedKind.Witness<E>, A> widen(Validated<E, A> validated)
+    + {static} <E, A> Validated<E, A> narrow(Kind<ValidatedKind.Witness<E>, A> kind)
+    + {static} <E, A> Kind<ValidatedKind.Witness<E>, A> valid(A value)
+    + {static} <E, A> Kind<ValidatedKind.Witness<E>, A> invalid(E error)
+  }
+
+  class "ValidatedMonad<E>" implements ErrorMonad {
+    - {static} ValidatedMonad<?> INSTANCE
+    + {static} <E> ValidatedMonad<E> instance()
+    --
+    + <A, B> Kind<ValidatedKind.Witness<E>, B> map(Function<A, B> fn, Kind<ValidatedKind.Witness<E>, A> valueKind)
+    + <A> Kind<ValidatedKind.Witness<E>, A> of(A value)
+    + <A, B> Kind<ValidatedKind.Witness<E>, B> ap(Kind<ValidatedKind.Witness<E>, Function<A, B>> fnKind, Kind<ValidatedKind.Witness<E>, A> valueKind)
+    + <A, B> Kind<ValidatedKind.Witness<E>, B> flatMap(Function<A, Kind<ValidatedKind.Witness<E>, B>> fn, Kind<ValidatedKind.Witness<E>, A> valueKind)
+  }
+
+
+"ValidatedMonad<E>" ..> ValidatedKindHelper : uses >
+
+ValidatedKindHelper ..> "Validated<E, A>" : narrows to / widens from >
+
+
+"ValidatedKind<E,A>" --> Kind : extends <ValidatedKind.Witness<E>, A>
+"ValidatedMonad<E>" ..> "ValidatedKind<E,A>" : operates on
+' Styling note: <E>, <A> etc. are used for clarity on generic types
+' E indicates the error type E is fixed for a given Monad instance.
+
+@enduml
+
+
