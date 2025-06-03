@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.trans.optional_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -10,7 +12,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
@@ -31,16 +32,15 @@ class OptionalTMonadTest {
 
   private <A> Optional<Optional<A>> unwrapKindToOptionalOptional(
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> kind) {
-    OptionalT<OptionalKind.Witness, A> optionalT =
-        OptionalTKindHelper.<OptionalKind.Witness, A>unwrap(kind);
+    OptionalT<OptionalKind.Witness, A> optionalT = OPTIONAL_T.narrow(kind);
     Kind<OptionalKind.Witness, Optional<A>> outerKind = optionalT.value();
-    return OptionalKindHelper.unwrap(outerKind);
+    return OPTIONAL.narrow(outerKind);
   }
 
   private <A extends @NonNull Object> Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> someT(
       @NonNull A value) {
     OptionalT<OptionalKind.Witness, A> ot = OptionalT.some(outerMonad, value);
-    return OptionalTKindHelper.wrap(ot);
+    return OPTIONAL_T.widen(ot);
   }
 
   private <A> Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> ofT(@Nullable A value) {
@@ -49,13 +49,13 @@ class OptionalTMonadTest {
 
   private <A> Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> noneT() {
     OptionalT<OptionalKind.Witness, A> ot = OptionalT.none(outerMonad);
-    return OptionalTKindHelper.wrap(ot);
+    return OPTIONAL_T.widen(ot);
   }
 
   private <A> Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> outerEmptyT() {
-    Kind<OptionalKind.Witness, Optional<A>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, Optional<A>> emptyOuter = OPTIONAL.widen(Optional.empty());
     OptionalT<OptionalKind.Witness, A> ot = OptionalT.fromKind(emptyOuter);
-    return OptionalTKindHelper.wrap(ot);
+    return OPTIONAL_T.widen(ot);
   }
 
   @BeforeEach

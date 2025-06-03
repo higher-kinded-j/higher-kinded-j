@@ -21,7 +21,7 @@ import org.higherkindedj.hkt.Kind;
  * </ul>
  *
  * An instance of {@code Kind<TryKind.Witness, T>} can be converted back to a concrete {@code
- * Try<T>} using {@link TryKindHelper#unwrap(Kind)}.
+ * Try<T>} using {@link TryKindHelper#narrow(Kind)}.
  *
  * @param <T> The type of the value potentially held by the Try (in case of Success).
  * @see Try

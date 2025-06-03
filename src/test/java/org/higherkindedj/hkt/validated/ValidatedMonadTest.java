@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -22,15 +23,15 @@ class ValidatedMonadTest {
   private final TestError error2 = new TestError("E002", "Second Error");
 
   private <A> Validated<TestError, A> unwrap(Kind<ValidatedKind.Witness<TestError>, A> kind) {
-    return ValidatedKindHelper.narrow(kind);
+    return VALIDATED.narrow(kind);
   }
 
   private <A> Kind<ValidatedKind.Witness<TestError>, A> validKind(A value) {
-    return ValidatedKindHelper.widen(Validated.valid(value));
+    return VALIDATED.widen(Validated.valid(value));
   }
 
   private <A> Kind<ValidatedKind.Witness<TestError>, A> invalidKind(TestError error) {
-    return ValidatedKindHelper.widen(Validated.invalid(error));
+    return VALIDATED.widen(Validated.invalid(error));
   }
 
   @Test

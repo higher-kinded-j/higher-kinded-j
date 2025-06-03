@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.io;
 
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+
 import java.util.Scanner;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.unit.Unit;
 
@@ -17,7 +18,7 @@ public class IOExample {
 
   // IO action to print a message
   Kind<IOKind.Witness, Unit> printHello =
-      IOKindHelper.delay(
+      IO_OP.delay(
           () -> {
             System.out.println("Hello from IO!");
             return Unit.INSTANCE;
@@ -25,7 +26,7 @@ public class IOExample {
 
   // IO action to read a line from the console
   Kind<IOKind.Witness, String> readLine =
-      IOKindHelper.delay(
+      IO_OP.delay(
           () -> {
             System.out.print("Enter your name: ");
             // Scanner should ideally be managed more robustly in real apps
@@ -38,11 +39,11 @@ public class IOExample {
   Kind<IOKind.Witness, Integer> pureValueIO = ioMonad.of(42);
 
   // IO action that simulates getting the current time (a side effect)
-  Kind<IOKind.Witness, Long> currentTime = IOKindHelper.delay(System::currentTimeMillis);
+  Kind<IOKind.Witness, Long> currentTime = IO_OP.delay(System::currentTimeMillis);
 
   // Creating an IO action that might fail internally
   Kind<IOKind.Witness, String> potentiallyFailingIO =
-      IOKindHelper.delay(
+      IO_OP.delay(
           () -> {
             if (Math.random() < 0.5) {
               throw new RuntimeException("Simulated failure!");
@@ -63,21 +64,21 @@ public class IOExample {
   public void executingIO() {
     // Execute printHello
     System.out.println("Running printHello:");
-    IOKindHelper.unsafeRunSync(printHello); // Actually prints "Hello from IO!"
+    IO_OP.unsafeRunSync(printHello); // Actually prints "Hello from IO!"
 
     System.out.println("\nRunning readLine:");
-    String name = IOKindHelper.unsafeRunSync(readLine);
+    String name = IO_OP.unsafeRunSync(readLine);
     System.out.println("User entered: " + name);
 
     // Execute pureValueIO
     System.out.println("\nRunning pureValueIO:");
-    Integer fetchedValue = IOKindHelper.unsafeRunSync(pureValueIO);
+    Integer fetchedValue = IO_OP.unsafeRunSync(pureValueIO);
     System.out.println("Fetched pure value: " + fetchedValue); // Output: 42
 
     // Execute potentiallyFailingIO
     System.out.println("\nRunning potentiallyFailingIO:");
     try {
-      String result = IOKindHelper.unsafeRunSync(potentiallyFailingIO);
+      String result = IO_OP.unsafeRunSync(potentiallyFailingIO);
       System.out.println("Succeeded: " + result);
     } catch (RuntimeException e) {
       System.err.println("Caught expected failure: " + e.getMessage());
@@ -85,14 +86,13 @@ public class IOExample {
 
     // Notice that running the same IO action again executes the effect again
     System.out.println("\nRunning printHello again:");
-    IOKindHelper.unsafeRunSync(printHello); // Prints "Hello from IO!" again
+    IO_OP.unsafeRunSync(printHello); // Prints "Hello from IO!" again
   }
 
   public void composingWithMapAndFlatMap() {
 
     // --- map example ---
-    Kind<IOKind.Witness, String> readLineAction =
-        IOKindHelper.delay(() -> "Test Input"); // Simulate input
+    Kind<IOKind.Witness, String> readLineAction = IO_OP.delay(() -> "Test Input"); // Simulate input
 
     // Map the result of readLineAction without executing readLine yet
     Kind<IOKind.Witness, String> greetAction =
@@ -102,13 +102,13 @@ public class IOExample {
 
     System.out.println("Greet action created, not executed yet.");
     // Now execute the mapped action
-    String greeting = IOKindHelper.unsafeRunSync(greetAction);
+    String greeting = IO_OP.unsafeRunSync(greetAction);
     System.out.println("Result of map: " + greeting); // Output: Hello, Test Input!
 
     // --- flatMap example ---
     // Action 1: Get name
     Kind<IOKind.Witness, String> getName =
-        IOKindHelper.delay(
+        IO_OP.delay(
             () -> {
               System.out.println("Effect: Getting name...");
               return "Alice";
@@ -117,7 +117,7 @@ public class IOExample {
     // Action 2 (depends on name): Print greeting
     Function<String, Kind<IOKind.Witness, Unit>> printGreeting =
         name ->
-            IOKindHelper.delay(
+            IO_OP.delay(
                 () -> {
                   System.out.println("Effect: Printing greeting for " + name);
                   System.out.println("Welcome, " + name + "!");
@@ -129,7 +129,7 @@ public class IOExample {
 
     System.out.println("\nCombined action created, not executed yet.");
     // Execute the combined action
-    IOKindHelper.unsafeRunSync(combinedAction);
+    IO_OP.unsafeRunSync(combinedAction);
     // Output:
     // Effect: Getting name...
     // Effect: Printing greeting for Alice
@@ -151,6 +151,6 @@ public class IOExample {
             printHello);
 
     System.out.println("\nComplete IO Program defined. Executing...");
-    IOKindHelper.unsafeRunSync(program);
+    IO_OP.unsafeRunSync(program);
   }
 }

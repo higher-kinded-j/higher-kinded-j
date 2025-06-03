@@ -57,7 +57,7 @@ public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<Reader
       @NonNull Function<A, Kind<ReaderKind.Witness<R>, B>> f,
       @NonNull Kind<ReaderKind.Witness<R>, A> ma) {
 
-    Reader<R, A> readerA = unwrap(ma); // Convert Kind back to concrete Reader
+    Reader<R, A> readerA = READER.narrow(ma); // Convert Kind back to concrete Reader
 
     // flatMap on the concrete Reader<R,A> takes a function A -> Reader<R,B>
     // The input function f is A -> Kind<ReaderKind.Witness<R>, B>
@@ -66,9 +66,9 @@ public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<Reader
         readerA.flatMap(
             a -> {
               Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
-              return unwrap(kindB); // unwrap Kind<ReaderKind.Witness<R>, B> to Reader<R,B>
+              return READER.narrow(kindB); // unwrap Kind<ReaderKind.Witness<R>, B> to Reader<R,B>
             });
 
-    return wrap(readerB); // Wrap the resulting concrete Reader back into a Kind
+    return READER.widen(readerB); // Wrap the resulting concrete Reader back into a Kind
   }
 }

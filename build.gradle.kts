@@ -2,7 +2,7 @@ plugins {
   id("java-library")
   id("maven-publish")
   id("jacoco")
-  id("com.diffplug.spotless") version "7.0.3"
+  id("com.diffplug.spotless") version "7.0.4"
   id("signing")
   id("net.thebugmc.gradle.sonatype-central-portal-publisher") version "1.2.4"
 }
@@ -18,9 +18,10 @@ repositories {
 
 dependencies {
   implementation("org.jspecify:jspecify:1.0.0")
-  testImplementation(platform("org.junit:junit-bom:5.10.2"))
+  testImplementation(platform("org.junit:junit-bom:5.13.0"))
   testImplementation("org.junit.jupiter:junit-jupiter")
-  testImplementation("org.assertj:assertj-core:3.25.3")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testImplementation("org.assertj:assertj-core:3.27.3")
 }
 
 java {

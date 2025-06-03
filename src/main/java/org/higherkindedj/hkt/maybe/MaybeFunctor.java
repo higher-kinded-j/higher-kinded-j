@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.unwrap;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.wrap;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -31,9 +30,10 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
    * {@link Nothing}, or if the function {@code f} applied to the value results in {@code null},
    * then {@code Nothing} (wrapped as a {@code MaybeKind}) is returned.
    *
-   * <p>This method leverages {@link Maybe#map(Function)} for its core logic, using {@link
-   * MaybeKindHelper#unwrap(Kind)} to access the underlying {@link Maybe} instance and {@link
-   * MaybeKindHelper#wrap(Maybe)} to package the result.
+   * <p>This method leverages {@link MaybeKindHelper#narrow(org.higherkindedj.hkt.Kind)
+   * MaybeKindHelper.MAYBE.narrow(Kind)} to access the underlying {@link Maybe} instance and {@link
+   * MaybeKindHelper#widen(org.higherkindedj.hkt.maybe.Maybe) MaybeKindHelper.MAYBE.widen(Maybe)} to
+   * package the result.
    *
    * @param <A> The type of the value in the input {@code MaybeKind}.
    * @param <B> The type of the value in the resulting {@code MaybeKind} after applying the
@@ -49,14 +49,14 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped.
    */
   @Override
-  public <A, B> @NonNull MaybeKind<B> map(
+  public <A, B> @NonNull Kind<MaybeKind.Witness, B> map(
       @NonNull Function<A, @Nullable B> f, @NonNull Kind<MaybeKind.Witness, A> ma) {
     // 1. Unwrap the Kind<MaybeKind.Witness, A> to get the concrete Maybe<A>.
-    Maybe<A> maybeA = unwrap(ma);
+    Maybe<A> maybeA = MAYBE.narrow(ma);
     // 2. Apply the function using Maybe's own map method.
     //    Maybe.map handles the case where 'f' might return null by producing a Nothing.
     Maybe<B> resultMaybe = maybeA.map(f);
     // 3. Wrap the resulting Maybe<B> back into MaybeKind<B>.
-    return wrap(resultMaybe);
+    return MAYBE.widen(resultMaybe);
   }
 }

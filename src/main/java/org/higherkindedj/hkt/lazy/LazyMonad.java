@@ -40,9 +40,9 @@ public class LazyMonad
   @Override
   public <A, B> @NonNull Kind<LazyKind.Witness, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<LazyKind.Witness, A> fa) {
-    Lazy<A> lazyA = unwrap(fa);
+    Lazy<A> lazyA = LAZY.narrow(fa);
     Lazy<B> lazyB = lazyA.map(f); // Use Lazy's map
-    return wrap(lazyB);
+    return LAZY.widen(lazyB);
   }
 
   /**
@@ -56,7 +56,7 @@ public class LazyMonad
   @Override
   public <A> @NonNull Kind<LazyKind.Witness, A> of(@Nullable A value) {
     // 'of'/'pure' creates a Lazy that is already evaluated
-    return wrap(Lazy.now(value));
+    return LAZY.widen(Lazy.now(value));
   }
 
   /**
@@ -72,12 +72,12 @@ public class LazyMonad
   @Override
   public <A, B> @NonNull Kind<LazyKind.Witness, B> ap(
       @NonNull Kind<LazyKind.Witness, Function<A, B>> ff, @NonNull Kind<LazyKind.Witness, A> fa) {
-    Lazy<Function<A, B>> lazyF = unwrap(ff);
-    Lazy<A> lazyA = unwrap(fa);
+    Lazy<Function<A, B>> lazyF = LAZY.narrow(ff);
+    Lazy<A> lazyA = LAZY.narrow(fa);
 
     // Defer the application: force F, force A, then apply
     Lazy<B> lazyB = Lazy.defer(() -> lazyF.force().apply(lazyA.force()));
-    return wrap(lazyB);
+    return LAZY.widen(lazyB);
   }
 
   /**
@@ -94,10 +94,10 @@ public class LazyMonad
   @Override
   public <A, B> @NonNull Kind<LazyKind.Witness, B> flatMap(
       @NonNull Function<A, Kind<LazyKind.Witness, B>> f, @NonNull Kind<LazyKind.Witness, A> ma) {
-    Lazy<A> lazyA = unwrap(ma);
+    Lazy<A> lazyA = LAZY.narrow(ma);
 
     // Adapt the function for Lazy's flatMap
-    Lazy<B> lazyB = lazyA.flatMap(a -> unwrap(f.apply(a)));
-    return wrap(lazyB);
+    Lazy<B> lazyB = lazyA.flatMap(a -> LAZY.narrow(f.apply(a)));
+    return LAZY.widen(lazyB);
   }
 }

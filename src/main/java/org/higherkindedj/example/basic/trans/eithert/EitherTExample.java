@@ -2,14 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trans.eithert;
 
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+
 import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureMonadError;
 import org.higherkindedj.hkt.trans.either_t.EitherT;
 import org.higherkindedj.hkt.trans.either_t.EitherTKind;
@@ -40,9 +41,9 @@ public class EitherTExample {
   Kind<EitherKind.Witness<DomainError>, ValidatedData> validateSync(String input) {
     System.out.println("Validating synchronously...");
     if (input.isEmpty()) {
-      return EitherKindHelper.wrap(Either.left(new DomainError("Input empty")));
+      return EITHER.widen(Either.left(new DomainError("Input empty")));
     }
-    return EitherKindHelper.wrap(Either.right(new ValidatedData("Validated:" + input)));
+    return EITHER.widen(Either.right(new ValidatedData("Validated:" + input)));
   }
 
   // Simulates an async processing step returning Future<Either>
@@ -62,7 +63,7 @@ public class EitherTExample {
               }
               return Either.right(new ProcessedData("Processed:" + vd.data()));
             });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   // Function to run the workflow for given input
@@ -83,7 +84,7 @@ public class EitherTExample {
                   Kind<EitherKind.Witness<DomainError>, ValidatedData> validationResult =
                       validateSync(input);
                   // Lift the Either result into EitherT using fromEither
-                  return EitherT.fromEither(futureMonad, EitherKindHelper.unwrap(validationResult));
+                  return EitherT.fromEither(futureMonad, EITHER.narrow(validationResult));
                 },
                 initialET);
 
@@ -119,22 +120,21 @@ public class EitherTExample {
 
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultGoodKind =
         runWorkflow(inputData);
-    System.out.println("Good Result: " + CompletableFutureKindHelper.join(resultGoodKind));
+    System.out.println("Good Result: " + FUTURE.join(resultGoodKind));
     // Expected: Right(ProcessedData[data=Processed:Validated:Data])
 
     System.out.println("\n--- Running Bad Input Workflow ---");
 
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultBadInputKind =
         runWorkflow(badInputData);
-    System.out.println("Bad Input Result: " + CompletableFutureKindHelper.join(resultBadInputKind));
+    System.out.println("Bad Input Result: " + FUTURE.join(resultBadInputKind));
     // Expected: Left(DomainError[message=Input empty])
 
     System.out.println("\n--- Running Processing Failure Workflow ---");
 
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultProcFailKind =
         runWorkflow(processingFailData);
-    System.out.println(
-        "Processing Fail Result: " + CompletableFutureKindHelper.join(resultProcFailKind));
+    System.out.println("Processing Fail Result: " + FUTURE.join(resultProcFailKind));
     // Expected: Left(DomainError[message=Processing failed])
 
   }

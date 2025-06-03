@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.trans.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.maybe_t.MaybeTKindHelper.MAYBE_T;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -11,7 +13,6 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
@@ -32,26 +33,26 @@ class MaybeTMonadTest {
 
   private <A> Optional<Maybe<A>> unwrapKindToOptionalMaybe(
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> kind) {
-    MaybeT<OptionalKind.Witness, A> maybeT = MaybeTKindHelper.<OptionalKind.Witness, A>unwrap(kind);
+    MaybeT<OptionalKind.Witness, A> maybeT = MAYBE_T.<OptionalKind.Witness, A>narrow(kind);
     Kind<OptionalKind.Witness, Maybe<A>> outerKind = maybeT.value();
-    return OptionalKindHelper.unwrap(outerKind);
+    return OPTIONAL.narrow(outerKind);
   }
 
   private <A extends @NonNull Object> Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> justT(
       @NonNull A value) {
     MaybeT<OptionalKind.Witness, A> mt = MaybeT.just(outerMonad, value);
-    return MaybeTKindHelper.wrap(mt);
+    return MAYBE_T.widen(mt);
   }
 
   private <A> Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> nothingT() {
     MaybeT<OptionalKind.Witness, A> mt = MaybeT.nothing(outerMonad);
-    return MaybeTKindHelper.wrap(mt);
+    return MAYBE_T.widen(mt);
   }
 
   private <A> Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> outerEmptyT() {
-    Kind<OptionalKind.Witness, Maybe<A>> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, Maybe<A>> emptyOuter = OPTIONAL.widen(Optional.empty());
     MaybeT<OptionalKind.Witness, A> mt = MaybeT.fromKind(emptyOuter);
-    return MaybeTKindHelper.wrap(mt);
+    return MAYBE_T.widen(mt);
   }
 
   @BeforeEach

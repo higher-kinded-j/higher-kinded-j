@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.reader;
 
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -13,13 +13,13 @@ import org.higherkindedj.hkt.reader.ReaderMonad;
 public class ReaderExample {
 
   // Reader that retrieves the database URL from the config
-  Kind<ReaderKind.Witness<AppConfig>, String> getDbUrl = reader(AppConfig::databaseUrl);
+  Kind<ReaderKind.Witness<AppConfig>, String> getDbUrl = READER.reader(AppConfig::databaseUrl);
   // Reader that retrieves the timeout
-  Kind<ReaderKind.Witness<AppConfig>, Integer> getTimeout = reader(AppConfig::timeoutMillis);
+  Kind<ReaderKind.Witness<AppConfig>, Integer> getTimeout = READER.reader(AppConfig::timeoutMillis);
   // Reader that returns a constant value, ignoring the environment
-  Kind<ReaderKind.Witness<AppConfig>, String> getDefaultUser = constant("guest");
+  Kind<ReaderKind.Witness<AppConfig>, String> getDefaultUser = READER.constant("guest");
   // Reader that returns the entire configuration environment
-  Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = ask();
+  Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = READER.ask();
   // Monad instance for computations depending on AppConfig
   ReaderMonad<AppConfig> readerMonad = new ReaderMonad<>();
   // Example 1: Map the timeout value
@@ -31,7 +31,7 @@ public class ReaderExample {
   // Example 2: Use flatMap to get DB URL and then construct a connection string (depends on URL)
   Function<String, Kind<ReaderKind.Witness<AppConfig>, String>> buildConnectionString =
       dbUrl ->
-          reader( // <- We return a new Reader computation
+          READER.reader( // <- We return a new Reader computation
               config -> dbUrl + "?apiKey=" + config.apiKey() // Access apiKey via the 'config' env
               );
   Kind<ReaderKind.Witness<AppConfig>, String> connectionStringReader =
@@ -54,17 +54,17 @@ public class ReaderExample {
     AppConfig stagingConfig = new AppConfig("stage-db.example.com", 10000, "stage-key-456");
 
     // Run the composed computations with different environments
-    String prodTimeoutMsg = runReader(timeoutMessage, productionConfig);
-    String stageTimeoutMsg = runReader(timeoutMessage, stagingConfig);
+    String prodTimeoutMsg = READER.runReader(timeoutMessage, productionConfig);
+    String stageTimeoutMsg = READER.runReader(timeoutMessage, stagingConfig);
 
-    String prodConnectionString = runReader(connectionStringReader, productionConfig);
-    String stageConnectionString = runReader(connectionStringReader, stagingConfig);
+    String prodConnectionString = READER.runReader(connectionStringReader, productionConfig);
+    String stageConnectionString = READER.runReader(connectionStringReader, stagingConfig);
 
-    String prodDbInfo = runReader(dbInfo, productionConfig);
-    String stageDbInfo = runReader(dbInfo, stagingConfig);
+    String prodDbInfo = READER.runReader(dbInfo, productionConfig);
+    String stageDbInfo = READER.runReader(dbInfo, stagingConfig);
 
     // Get the raw config using ask()
-    AppConfig retrievedProdConfig = runReader(getConfig, productionConfig);
+    AppConfig retrievedProdConfig = READER.runReader(getConfig, productionConfig);
 
     System.out.println("Prod Timeout: " + prodTimeoutMsg); // Output: Timeout is: 5000ms
     System.out.println("Stage Timeout: " + stageTimeoutMsg); // Output: Timeout is: 10000ms

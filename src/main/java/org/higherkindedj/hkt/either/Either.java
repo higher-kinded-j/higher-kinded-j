@@ -72,7 +72,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @return The value of type {@code L} if this is a {@link Left}.
    * @throws NoSuchElementException if this is a {@link Right}.
    */
-  L getLeft() throws NoSuchElementException;
+  @Nullable L getLeft() throws NoSuchElementException;
 
   /**
    * Retrieves the value if this is a {@link Right}.

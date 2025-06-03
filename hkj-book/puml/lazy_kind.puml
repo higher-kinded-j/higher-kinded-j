@@ -16,8 +16,8 @@ class Lazy<A> implements LazyKind<A>{
 
 
 class LazyKindHelper {
-+ {static} LazyKind<A> wrap(@NonNull Lazy<A>)
-+ {static} @NonNull Lazy<A> unwrap(@Nullable Kind<LazyKind.Witness, A>)
++ {static} Kind<LazyKind.Witness, A> widen(@NonNull Lazy<A>)
++ {static} @NonNull Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A>)
 ' Other factory/helper methods...
 }
 
@@ -26,7 +26,7 @@ class LazyHolder<A> implements LazyKind<A> {
 }
 
 LazyKindHelper ..> LazyHolder : creates
-LazyKindHelper ..> Lazy : unwraps to / wraps from
+LazyKindHelper ..> Lazy : widens to / narrows from
 LazyHolder o--> Lazy : holds
 
 @enduml

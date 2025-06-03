@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.maybe;
 
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.unit.Unit;
 
@@ -40,35 +41,34 @@ public class MaybeExample {
   void monadExample() {
     MaybeMonad maybeMonad = new MaybeMonad();
 
-    Kind<MaybeKind.Witness, Integer> presentIntKind = MaybeKindHelper.just(100);
-    Kind<MaybeKind.Witness, Integer> absentIntKind = MaybeKindHelper.nothing();
+    Kind<MaybeKind.Witness, Integer> presentIntKind = MAYBE.just(100);
+    Kind<MaybeKind.Witness, Integer> absentIntKind = MAYBE.nothing();
     Kind<MaybeKind.Witness, String> nullInputStringKind = maybeMonad.of(null);
 
     Function<Integer, String> intToStatus = n -> "Status: " + n;
     Kind<MaybeKind.Witness, String> mappedPresent = maybeMonad.map(intToStatus, presentIntKind);
     Kind<MaybeKind.Witness, String> mappedAbsent = maybeMonad.map(intToStatus, absentIntKind);
 
-    System.out.println("Mapped (Present): " + MaybeKindHelper.unwrap(mappedPresent));
-    System.out.println("Mapped (Absent): " + MaybeKindHelper.unwrap(mappedAbsent));
+    System.out.println("Mapped (Present): " + MAYBE.narrow(mappedPresent));
+    System.out.println("Mapped (Absent): " + MAYBE.narrow(mappedAbsent));
 
     Function<Integer, Kind<MaybeKind.Witness, String>> intToPositiveStatusKind =
-        n -> (n > 0) ? maybeMonad.of("Positive: " + n) : MaybeKindHelper.nothing();
+        n -> (n > 0) ? maybeMonad.of("Positive: " + n) : MAYBE.nothing();
 
     Kind<MaybeKind.Witness, String> flatMappedPresent =
         maybeMonad.flatMap(intToPositiveStatusKind, presentIntKind);
     Kind<MaybeKind.Witness, String> flatMappedZero =
         maybeMonad.flatMap(intToPositiveStatusKind, maybeMonad.of(0));
 
-    System.out.println(
-        "FlatMapped (Present Positive): " + MaybeKindHelper.unwrap(flatMappedPresent));
-    System.out.println("FlatMapped (Zero): " + MaybeKindHelper.unwrap(flatMappedZero));
+    System.out.println("FlatMapped (Present Positive): " + MAYBE.narrow(flatMappedPresent));
+    System.out.println("FlatMapped (Zero): " + MAYBE.narrow(flatMappedZero));
 
     Kind<MaybeKind.Witness, String> fromOf = maybeMonad.of("Direct Value");
 
     Kind<MaybeKind.Witness, String> fromRaiseError = maybeMonad.raiseError(Unit.INSTANCE);
-    System.out.println("From 'of': " + MaybeKindHelper.unwrap(fromOf));
-    System.out.println("From 'raiseError': " + MaybeKindHelper.unwrap(fromRaiseError));
-    System.out.println("From 'of(null)': " + MaybeKindHelper.unwrap(nullInputStringKind));
+    System.out.println("From 'of': " + MAYBE.narrow(fromOf));
+    System.out.println("From 'raiseError': " + MAYBE.narrow(fromRaiseError));
+    System.out.println("From 'of(null)': " + MAYBE.narrow(nullInputStringKind));
 
     Function<Unit, Kind<MaybeKind.Witness, Integer>> recoverWithDefault =
         unitVal -> maybeMonad.of(-1);
@@ -78,51 +78,48 @@ public class MaybeExample {
     Kind<MaybeKind.Witness, Integer> notRecoveredFromPresent =
         maybeMonad.handleErrorWith(presentIntKind, recoverWithDefault);
 
-    System.out.println("Recovered (from Absent): " + MaybeKindHelper.unwrap(recoveredFromAbsent));
-    System.out.println(
-        "Recovered (from Present): " + MaybeKindHelper.unwrap(notRecoveredFromPresent));
+    System.out.println("Recovered (from Absent): " + MAYBE.narrow(recoveredFromAbsent));
+    System.out.println("Recovered (from Present): " + MAYBE.narrow(notRecoveredFromPresent));
 
     Kind<MaybeKind.Witness, String> processedPresent =
         processData(presentIntKind, x -> "Processed: " + x, "N/A", maybeMonad);
     Kind<MaybeKind.Witness, String> processedAbsent =
         processData(absentIntKind, x -> "Processed: " + x, "N/A", maybeMonad);
 
-    System.out.println("Generic Process (Present): " + MaybeKindHelper.unwrap(processedPresent));
-    System.out.println("Generic Process (Absent): " + MaybeKindHelper.unwrap(processedAbsent));
+    System.out.println("Generic Process (Present): " + MAYBE.narrow(processedPresent));
+    System.out.println("Generic Process (Absent): " + MAYBE.narrow(processedAbsent));
 
-    Maybe<String> finalMappedMaybe = MaybeKindHelper.unwrap(mappedPresent);
+    Maybe<String> finalMappedMaybe = MAYBE.narrow(mappedPresent);
     System.out.println("Final unwrapped mapped maybe: " + finalMappedMaybe);
   }
 
   void handleErrorWithExample() {
     MaybeMonad maybeMonad = new MaybeMonad();
-    Function<Unit, Kind<MaybeKind.Witness, String>> recover =
-        unitVal -> MaybeKindHelper.just("Recovered");
+    Function<Unit, Kind<MaybeKind.Witness, String>> recover = unitVal -> MAYBE.just("Recovered");
 
     Kind<MaybeKind.Witness, String> handledJust =
-        maybeMonad.handleErrorWith(MaybeKindHelper.just("Original"), recover);
+        maybeMonad.handleErrorWith(MAYBE.just("Original"), recover);
     Kind<MaybeKind.Witness, String> handledNothing =
-        maybeMonad.handleErrorWith(MaybeKindHelper.nothing(), recover);
+        maybeMonad.handleErrorWith(MAYBE.nothing(), recover);
 
-    System.out.println("HandleError (Just): " + MaybeKindHelper.unwrap(handledJust));
-    System.out.println("HandleError (Nothing): " + MaybeKindHelper.unwrap(handledNothing));
+    System.out.println("HandleError (Just): " + MAYBE.narrow(handledJust));
+    System.out.println("HandleError (Nothing): " + MAYBE.narrow(handledNothing));
   }
 
   void apExample() {
     MaybeMonad maybeMonad = new MaybeMonad();
-    Kind<MaybeKind.Witness, Integer> justNum = MaybeKindHelper.just(10);
-    Kind<MaybeKind.Witness, Integer> nothingNum = MaybeKindHelper.nothing();
-    Kind<MaybeKind.Witness, Function<Integer, String>> justFunc =
-        MaybeKindHelper.just(i -> "Result: " + i);
-    Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = MaybeKindHelper.nothing();
+    Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
+    Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
+    Kind<MaybeKind.Witness, Function<Integer, String>> justFunc = MAYBE.just(i -> "Result: " + i);
+    Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = MAYBE.nothing();
 
     Kind<MaybeKind.Witness, String> apApplied = maybeMonad.ap(justFunc, justNum);
     Kind<MaybeKind.Witness, String> apNothingFunc = maybeMonad.ap(nothingFunc, justNum);
     Kind<MaybeKind.Witness, String> apNothingVal = maybeMonad.ap(justFunc, nothingNum);
 
-    System.out.println("Ap (Applied): " + MaybeKindHelper.unwrap(apApplied));
-    System.out.println("Ap (Nothing Func): " + MaybeKindHelper.unwrap(apNothingFunc));
-    System.out.println("Ap (Nothing Val): " + MaybeKindHelper.unwrap(apNothingVal));
+    System.out.println("Ap (Applied): " + MAYBE.narrow(apApplied));
+    System.out.println("Ap (Nothing Func): " + MAYBE.narrow(apNothingFunc));
+    System.out.println("Ap (Nothing Val): " + MAYBE.narrow(apNothingVal));
   }
 
   void flatMapExample() {
@@ -130,26 +127,26 @@ public class MaybeExample {
     Function<String, Kind<MaybeKind.Witness, Integer>> parseString =
         s -> {
           try {
-            return MaybeKindHelper.just(Integer.parseInt(s));
+            return MAYBE.just(Integer.parseInt(s));
           } catch (NumberFormatException e) {
-            return MaybeKindHelper.nothing();
+            return MAYBE.nothing();
           }
         };
 
-    Kind<MaybeKind.Witness, String> justFiveStr = MaybeKindHelper.just("5");
+    Kind<MaybeKind.Witness, String> justFiveStr = MAYBE.just("5");
     Kind<MaybeKind.Witness, Integer> parsedJust = maybeMonad.flatMap(parseString, justFiveStr);
 
-    Kind<MaybeKind.Witness, String> justNonNumStr = MaybeKindHelper.just("abc");
+    Kind<MaybeKind.Witness, String> justNonNumStr = MAYBE.just("abc");
     Kind<MaybeKind.Witness, Integer> parsedNonNum = maybeMonad.flatMap(parseString, justNonNumStr);
 
-    System.out.println("FlatMap (Just): " + MaybeKindHelper.unwrap(parsedJust));
-    System.out.println("FlatMap (NonNum): " + MaybeKindHelper.unwrap(parsedNonNum));
+    System.out.println("FlatMap (Just): " + MAYBE.narrow(parsedJust));
+    System.out.println("FlatMap (NonNum): " + MAYBE.narrow(parsedNonNum));
   }
 
   void mapExample() {
     MaybeMonad maybeMonad = new MaybeMonad();
-    Kind<MaybeKind.Witness, Integer> justNum = MaybeKindHelper.just(10);
-    Kind<MaybeKind.Witness, Integer> nothingNum = MaybeKindHelper.nothing();
+    Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
+    Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
 
     Function<Integer, String> numToString = n -> "Val: " + n;
     Kind<MaybeKind.Witness, String> justStr = maybeMonad.map(numToString, justNum);
@@ -158,8 +155,8 @@ public class MaybeExample {
     Function<Integer, String> numToNull = n -> null;
     Kind<MaybeKind.Witness, String> mappedToNull = maybeMonad.map(numToNull, justNum);
 
-    System.out.println("Map (Just): " + MaybeKindHelper.unwrap(justStr));
-    System.out.println("Map (Nothing): " + MaybeKindHelper.unwrap(nothingStr));
-    System.out.println("Map (To Null): " + MaybeKindHelper.unwrap(mappedToNull));
+    System.out.println("Map (Just): " + MAYBE.narrow(justStr));
+    System.out.println("Map (Nothing): " + MAYBE.narrow(nothingStr));
+    System.out.println("Map (To Null): " + MAYBE.narrow(mappedToNull));
   }
 }

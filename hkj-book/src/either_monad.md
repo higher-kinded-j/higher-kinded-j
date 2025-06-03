@@ -173,25 +173,25 @@ To use `Either` within Higher-Kinded-J framework:
    EitherMonad<TestError> eitherMonad = new EitherMonad<>();
    // Now 'eitherMonad' can be used for operations on Kind<EitherKind.Witness<String>, A>
    ```
-3. **Wrap**: Convert your `Either<L, R>` instances to `Kind<EitherKind.Witness<L>, R>` using `EitherKindHelper.wrap()`. Since `Either<L,R>` directly implements `EitherKind<L,R>`, `wrap` is effectively a checked cast.
+3. **Wrap**: Convert your `Either<L, R>` instances to `Kind<EitherKind.Witness<L>, R>` using `EITHER.widen()`. Since `Either<L,R>` directly implements `EitherKind<L,R>`.
 
    ```java
     EitherMonad<String> eitherMonad = new EitherMonad<>();
 
     Either<String, Integer> myEither = Either.right(10);
     // F_WITNESS is EitherKind.Witness<String>, A is Integer
-    Kind<EitherKind.Witness<String>, Integer> eitherKind = EitherKindHelper.wrap(myEither);
+    Kind<EitherKind.Witness<String>, Integer> eitherKind = EITHER.widen(myEither);
    ```
 4. **Apply Operations:**  Use the methods on the `eitherMonad` instance (`map`, `flatMap`, `ap`, `raiseError`, `handleErrorWith`, etc.).
 
    ```java
    // Using map via the Monad instance
     Kind<EitherKind.Witness<String>, String> mappedKind = eitherMonad.map(Object::toString, eitherKind);
-    System.out.println("mappedKind: " + EitherKindHelper.unwrap(mappedKind)); // Output: Right[value = 10]
+    System.out.println("mappedKind: " + EITHER.narrow(mappedKind)); // Output: Right[value = 10]
 
     // Using flatMap via the Monad instance
     Function<Integer, Kind<EitherKind.Witness<String>, Double>> nextStep =
-        i -> EitherKindHelper.wrap( (i > 5) ? Either.right(i/2.0) : Either.left("TooSmall"));
+        i -> EITHER.widen( (i > 5) ? Either.right(i/2.0) : Either.left("TooSmall"));
     Kind<EitherKind.Witness<String>, Double> flatMappedKind = eitherMonad.flatMap(nextStep, eitherKind);
 
     // Creating a Left Kind using raiseError
@@ -204,10 +204,10 @@ To use `Either` within Higher-Kinded-J framework:
           return eitherMonad.of(0); // Recover with Right(0)
         });
    ```
-5. **Unwrap:** Get the final `Either<L, R>` back using `EitherKindHelper.unwrap()` when needed. This is also effectively a checked cast.
+5. **Unwrap:** Get the final `Either<L, R>` back using `EITHER.narrow()` when needed. 
 
    ```java
-    Either<String, Integer> finalEither = EitherKindHelper.unwrap(handledKind);
+    Either<String, Integer> finalEither = EITHER.narrow(handledKind);
     System.out.println("Final unwrapped Either: " + finalEither); // Output: Right(0)
    ```
 ~~~

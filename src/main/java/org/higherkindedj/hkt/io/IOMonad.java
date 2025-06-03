@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.io;
 
-import static org.higherkindedj.hkt.io.IOKindHelper.unwrap;
-import static org.higherkindedj.hkt.io.IOKindHelper.wrap;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -14,9 +13,9 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
   @Override
   public <A, B> @NonNull Kind<IOKind.Witness, B> flatMap(
       @NonNull Function<A, Kind<IOKind.Witness, B>> f, @NonNull Kind<IOKind.Witness, A> ma) {
-    IO<A> ioA = unwrap(ma);
+    IO<A> ioA = IO_OP.narrow(ma);
     // Need to adapt f: A -> Kind<IO.Witness, B> to A -> IO<B> for IO's flatMap
-    IO<B> ioB = ioA.flatMap(a -> unwrap(f.apply(a)));
-    return wrap(ioB);
+    IO<B> ioB = ioA.flatMap(a -> IO_OP.narrow(f.apply(a)));
+    return IO_OP.widen(ioB);
   }
 }

@@ -4,6 +4,7 @@ package org.higherkindedj.example.order.workflow;
 
 import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.example.order.model.WorkflowModels.*;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -14,7 +15,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureMonadError;
 import org.higherkindedj.hkt.trans.either_t.EitherT;
 import org.higherkindedj.hkt.trans.either_t.EitherTKind;
@@ -144,7 +144,7 @@ public class OrderWorkflowRunner {
       System.out.println(
           "=== Executing Workflow: " + label + " for Order: " + data.orderId() + " ===");
       var resultKind = runnerMethod.apply(data);
-      var future = CompletableFutureKindHelper.unwrap(resultKind);
+      var future = FUTURE.narrow(resultKind);
 
       var resultEither = future.join();
       System.out.println("Final Result (" + label + "): " + resultEither);

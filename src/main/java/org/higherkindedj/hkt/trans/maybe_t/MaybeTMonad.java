@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trans.maybe_t;
 
+import static org.higherkindedj.hkt.trans.maybe_t.MaybeTKindHelper.MAYBE_T;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -50,7 +52,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
   @Override
   public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> of(@Nullable A value) {
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.fromNullable(value));
-    return MaybeTKindHelper.wrap(MaybeT.fromKind(lifted));
+    return MAYBE_T.widen(MaybeT.fromKind(lifted));
   }
 
   /**
@@ -71,9 +73,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
       @NonNull Function<A, B> f, @NonNull Kind<MaybeTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(f, "Function f cannot be null for map");
     Objects.requireNonNull(fa, "Kind fa cannot be null for map");
-    MaybeT<F, A> maybeT = MaybeTKindHelper.unwrap(fa);
+    MaybeT<F, A> maybeT = MAYBE_T.narrow(fa);
     Kind<F, Maybe<B>> newValue = outerMonad.map(maybe -> maybe.map(f), maybeT.value());
-    return MaybeTKindHelper.wrap(MaybeT.fromKind(newValue));
+    return MAYBE_T.widen(MaybeT.fromKind(newValue));
   }
 
   /**
@@ -103,14 +105,14 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
       @NonNull Kind<MaybeTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
     Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
-    MaybeT<F, Function<A, B>> funcT = MaybeTKindHelper.unwrap(ff);
-    MaybeT<F, A> valT = MaybeTKindHelper.unwrap(fa);
+    MaybeT<F, Function<A, B>> funcT = MAYBE_T.narrow(ff);
+    MaybeT<F, A> valT = MAYBE_T.narrow(fa);
 
     Kind<F, Maybe<B>> resultValue =
         outerMonad.flatMap(
             maybeF -> outerMonad.map(maybeA -> maybeF.flatMap(maybeA::map), valT.value()),
             funcT.value());
-    return MaybeTKindHelper.wrap(MaybeT.fromKind(resultValue));
+    return MAYBE_T.widen(MaybeT.fromKind(resultValue));
   }
 
   /**
@@ -134,7 +136,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
       @NonNull Kind<MaybeTKind.Witness<F>, A> ma) {
     Objects.requireNonNull(f, "Function f cannot be null for flatMap");
     Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
-    MaybeT<F, A> maybeT = MaybeTKindHelper.unwrap(ma);
+    MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
 
     Kind<F, Maybe<B>> newValue =
         outerMonad.flatMap(
@@ -143,14 +145,14 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
                     .map(
                         a -> {
                           Kind<MaybeTKind.Witness<F>, B> resultKind = f.apply(a);
-                          MaybeT<F, B> resultT = MaybeTKindHelper.unwrap(resultKind);
+                          MaybeT<F, B> resultT = MAYBE_T.narrow(resultKind);
                           return resultT.value();
                         })
                     .orElse(
                         outerMonad.of(
                             Maybe.nothing())), // If Maybe<A> is Nothing, result is F<Nothing>
             maybeT.value());
-    return MaybeTKindHelper.wrap(MaybeT.fromKind(newValue));
+    return MAYBE_T.widen(MaybeT.fromKind(newValue));
   }
 
   // --- MonadError Methods (Error Type E = Unit) ---
@@ -167,7 +169,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    */
   @Override
   public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> raiseError(@NonNull Unit error) {
-    return MaybeTKindHelper.wrap(MaybeT.nothing(outerMonad));
+    return MAYBE_T.widen(MaybeT.nothing(outerMonad));
   }
 
   /**
@@ -191,7 +193,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
       @NonNull Function<Unit, Kind<MaybeTKind.Witness<F>, A>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
-    MaybeT<F, A> maybeT = MaybeTKindHelper.unwrap(ma);
+    MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
 
     Kind<F, Maybe<A>> handledValue =
         outerMonad.flatMap(
@@ -200,11 +202,11 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
                 return outerMonad.of(maybeA); // If Just(a), return F<Just(a)>
               } else { // If Nothing
                 Kind<MaybeTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
-                MaybeT<F, A> resultT = MaybeTKindHelper.unwrap(resultKind);
+                MaybeT<F, A> resultT = MAYBE_T.narrow(resultKind);
                 return resultT.value(); // This is Kind<F, Maybe<A>>
               }
             },
             maybeT.value());
-    return MaybeTKindHelper.wrap(MaybeT.fromKind(handledValue));
+    return MAYBE_T.widen(MaybeT.fromKind(handledValue));
   }
 }

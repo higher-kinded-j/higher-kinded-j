@@ -27,11 +27,11 @@ class CompletableFutureMonadErrorTest {
 
   // --- Helper Functions ---
   private <A> CompletableFuture<A> unwrapFuture(Kind<CompletableFutureKind.Witness, A> kind) {
-    return CompletableFutureKindHelper.unwrap(kind);
+    return FUTURE.narrow(kind);
   }
 
   private <A> A joinFuture(Kind<CompletableFutureKind.Witness, A> kind) {
-    return CompletableFutureKindHelper.join(kind);
+    return FUTURE.join(kind);
   }
 
   private <A> Kind<CompletableFutureKind.Witness, A> delayedSuccess(A value, long delayMillis) {
@@ -46,7 +46,7 @@ class CompletableFutureMonadErrorTest {
               }
               return value;
             });
-    return wrap(future);
+    return FUTURE.widen(future);
   }
 
   private <A> Kind<CompletableFutureKind.Witness, A> delayedFailure(
@@ -64,7 +64,7 @@ class CompletableFutureMonadErrorTest {
               if (error instanceof Error e) throw e;
               throw new CompletionException(error);
             });
-    return wrap(future);
+    return FUTURE.widen(future);
   }
 
   @Nested
@@ -396,7 +396,7 @@ class CompletableFutureMonadErrorTest {
     void handleErrorWith_shouldHandleCompletionExceptionWithCause() {
       IOException ioCause = new IOException("Underlying IO failure");
       Kind<CompletableFutureKind.Witness, Integer> failedKindWithCause =
-          wrap(CompletableFuture.failedFuture(new CompletionException(ioCause)));
+          FUTURE.widen(CompletableFuture.failedFuture(new CompletionException(ioCause)));
       AtomicReference<Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
@@ -416,7 +416,8 @@ class CompletableFutureMonadErrorTest {
       CompletableFuture<Integer> internalFailure = new CompletableFuture<>();
       internalFailure.completeExceptionally(testError);
 
-      Kind<CompletableFutureKind.Witness, Integer> failedKindWithCause = wrap(internalFailure);
+      Kind<CompletableFutureKind.Witness, Integer> failedKindWithCause =
+          FUTURE.widen(internalFailure);
       AtomicReference<Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
@@ -457,7 +458,8 @@ class CompletableFutureMonadErrorTest {
       CompletableFuture<Integer> internalFailure = new CompletableFuture<>();
       internalFailure.completeExceptionally(completionEx);
 
-      Kind<CompletableFutureKind.Witness, Integer> failedKindNoCause = wrap(internalFailure);
+      Kind<CompletableFutureKind.Witness, Integer> failedKindNoCause =
+          FUTURE.widen(internalFailure);
       AtomicReference<Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
@@ -494,7 +496,7 @@ class CompletableFutureMonadErrorTest {
     @Test
     void handleErrorWith_shouldIgnoreAlreadyCompletedSuccessFuture() {
       CompletableFuture<Integer> alreadyDone = CompletableFuture.completedFuture(200);
-      Kind<CompletableFutureKind.Witness, Integer> alreadyDoneKind = wrap(alreadyDone);
+      Kind<CompletableFutureKind.Witness, Integer> alreadyDoneKind = FUTURE.widen(alreadyDone);
 
       AtomicBoolean handlerCalled = new AtomicBoolean(false);
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
@@ -513,7 +515,7 @@ class CompletableFutureMonadErrorTest {
     @Test
     void handleErrorWith_shouldReturnOriginalKindIfAlreadyCompletedSuccessfully() {
       CompletableFuture<Integer> alreadyDone = CompletableFuture.completedFuture(200);
-      Kind<CompletableFutureKind.Witness, Integer> alreadyDoneKind = wrap(alreadyDone);
+      Kind<CompletableFutureKind.Witness, Integer> alreadyDoneKind = FUTURE.widen(alreadyDone);
 
       AtomicBoolean handlerCalled = new AtomicBoolean(false);
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
@@ -536,7 +538,7 @@ class CompletableFutureMonadErrorTest {
     void handleErrorWith_shouldReturnOriginalKindForAlreadyCompletedSuccess() {
       String successValue = "Already Done";
       CompletableFuture<String> alreadyDoneFuture = CompletableFuture.completedFuture(successValue);
-      Kind<CompletableFutureKind.Witness, String> alreadyDoneKind = wrap(alreadyDoneFuture);
+      Kind<CompletableFutureKind.Witness, String> alreadyDoneKind = FUTURE.widen(alreadyDoneFuture);
 
       AtomicBoolean handlerCalled = new AtomicBoolean(false);
       Function<Throwable, Kind<CompletableFutureKind.Witness, String>> handler =

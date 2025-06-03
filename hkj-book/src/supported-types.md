@@ -15,9 +15,9 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Type:** The Java type or custom type being simulated.
 * **`XxxKind<A>` Interface:** The specific `Kind` interface for this type (e.g., `OptionalKind<A>`). It extends `Kind<XxxKind.Witness, A>` and usually contains the nested `final class Witness {}`.
 * **Witness Type `F_WITNESS`:** The phantom type used as the first parameter to `Kind` (e.g., `OptionalKind.Witness`). This is what parameterizes the type classes (e.g., `Monad<OptionalKind.Witness>`).
-* **`XxxKindHelper` Class:** Provides static `wrap` and `unwrap` methods.
-  * For **external types** (like `java.util.List`, `java.util.Optional`), `wrap` typically creates an internal `XxxHolder` record which implements `XxxKind<A>`, and `unwrap` extracts the Java type from this holder.
-  * For **library-defined types** (`Id`, `Maybe`, `IO`, `Try`, monad transformers), if the type itself directly implements `XxxKind<A>`, then `wrap` often performs a (checked) cast, and `unwrap` checks `instanceof` the actual type and casts.
+* **`XxxKindHelper` Class:** Provides `widen` and `narrow` methods.
+  * For **external types** (like `java.util.List`, `java.util.Optional`), `widen` typically creates an internal `XxxHolder` record which implements `XxxKind<A>`, and `narrow` extracts the Java type from this holder.
+  * For **library-defined types** (`Id`, `Maybe`, `IO`, `Try`, monad transformers), if the type itself directly implements `XxxKind<A>`, then `widen` often performs a (checked) cast, and `narrow` checks `instanceof` the actual type and casts.
 * **Type Class Instances:** Concrete implementations of `Functor<F_WITNESS>`, `Monad<F_WITNESS>`, etc.
 
 ---
@@ -68,7 +68,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Type Definition**: Custom sealed interface ([`Maybe`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)) with `Just<A>` (non-null) and `Nothing<A>` implementations.
 * **`MaybeKind<A>` Interface**: `Maybe<A>` itself implements `MaybeKind<A>`, and `MaybeKind<A> extends Kind<MaybeKind.Witness, A>`.
 * **Witness Type `F_WITNESS`**: `MaybeKind.Witness`
-* **`MaybeKindHelper`**: `wrap` casts `Maybe` to `Kind`; `unwrap` casts `Kind` to `Maybe`. Provides `just(value)`, `nothing()`, `fromNullable(value)`.
+* **`MaybeKindHelper`**: `widen` casts `Maybe` to `Kind`; `unwrap` casts `Kind` to `Maybe`. Provides `just(value)`, `nothing()`, `fromNullable(value)`.
 * **Type Class Instances**:
   * `MaybeFunctor` (`Functor<MaybeKind.Witness>`)
   * [`MaybeMonad`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/maybe/MaybeMonad.java) (`MonadError<MaybeKind.Witness, Unit>`)

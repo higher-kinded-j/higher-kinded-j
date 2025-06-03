@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.trans.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.state_t.StateTKindHelper.STATE_T;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -11,7 +13,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.jspecify.annotations.NonNull;
@@ -148,8 +149,8 @@ class StateTMonadTest {
   private <A> Optional<StateTuple<Integer, A>> runOptStateT(
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, A> kind, Integer startState) {
     Kind<OptionalKind.Witness, StateTuple<Integer, A>> resultKind =
-        StateTKindHelper.<Integer, OptionalKind.Witness, A>runStateT(kind, startState);
-    return OptionalKindHelper.unwrap(resultKind);
+        STATE_T.runStateT(kind, startState);
+    return OPTIONAL.narrow(resultKind);
   }
 
   private <A>
@@ -158,9 +159,8 @@ class StateTMonadTest {
     if (optMonad == null) {
       throw new IllegalStateException("optMonad must be initialized before creating StateTKind");
     }
-    StateT<Integer, OptionalKind.Witness, A> stateT =
-        StateTKindHelper.<Integer, OptionalKind.Witness, A>stateT(runFn, optMonad);
-    return StateTKindHelper.<Integer, OptionalKind.Witness, A>wrap(stateT);
+    StateT<Integer, OptionalKind.Witness, A> stateT = STATE_T.stateT(runFn, optMonad);
+    return STATE_T.widen(stateT);
   }
 
   @BeforeEach
@@ -169,7 +169,7 @@ class StateTMonadTest {
     stateTMonad = StateTMonad.instance(optMonad);
 
     mValue = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, s * 10)));
-    mEmpty = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+    mEmpty = createStateTKindForOptional(s -> OPTIONAL.widen(Optional.empty()));
     f = i -> createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + i, "v" + i)));
     g =
         str ->
@@ -215,7 +215,7 @@ class StateTMonadTest {
     @BeforeEach
     void setUpMapTests() {
       initialKind = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, s * 2)));
-      emptyKind = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+      emptyKind = createStateTKindForOptional(s -> OPTIONAL.widen(Optional.empty()));
     }
 
     @Test
@@ -264,8 +264,8 @@ class StateTMonadTest {
       funcKind =
           createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, i -> "F" + i + s)));
       valKind = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s * 2, s + 10)));
-      emptyValKind = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
-      emptyFuncKind = createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+      emptyValKind = createStateTKindForOptional(s -> OPTIONAL.widen(Optional.empty()));
+      emptyFuncKind = createStateTKindForOptional(s -> OPTIONAL.widen(Optional.empty()));
       nullFuncKind = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, null)));
     }
 
@@ -326,12 +326,10 @@ class StateTMonadTest {
     void setUpFlatMapTests() {
       initialKindFlatMap =
           createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, s * 2)));
-      emptyKindFlatMap =
-          createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+      emptyKindFlatMap = createStateTKindForOptional(s -> OPTIONAL.widen(Optional.empty()));
       fFlatMap =
           i -> createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + i, "Val:" + i)));
-      fEmptyFlatMap =
-          i -> createStateTKindForOptional(s -> OptionalKindHelper.wrap(Optional.empty()));
+      fEmptyFlatMap = i -> createStateTKindForOptional(s -> OPTIONAL.widen(Optional.empty()));
     }
 
     @Test
@@ -442,7 +440,7 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> kind =
           stateTWithNonErrorMonad.of("testValue");
       Kind<IdKind.Witness, StateTuple<Integer, String>> resultWrapped =
-          StateTKindHelper.<Integer, IdKind.Witness, String>runStateT(kind, localInitialState);
+          STATE_T.runStateT(kind, localInitialState);
       StateTuple<Integer, String> resultTuple =
           IdKind.narrow(resultWrapped).value; // Assuming IdKind stores value directly
 
@@ -453,9 +451,8 @@ class StateTMonadTest {
 
     private <S, V> Kind<StateTKind.Witness<S, IdKind.Witness>, V> createStateTIdKind(
         Monad<IdKind.Witness> idMonad, Function<S, Kind<IdKind.Witness, StateTuple<S, V>>> runFn) {
-      StateT<S, IdKind.Witness, V> stateT =
-          StateTKindHelper.<S, IdKind.Witness, V>stateT(runFn, idMonad);
-      return StateTKindHelper.<S, IdKind.Witness, V>wrap(stateT);
+      StateT<S, IdKind.Witness, V> stateT = STATE_T.stateT(runFn, idMonad);
+      return STATE_T.widen(stateT);
     }
 
     @Test
@@ -475,10 +472,7 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> resultKind =
           stateTWithNonErrorMonad.ap(nullFuncKind, valKind);
 
-      assertThatThrownBy(
-              () ->
-                  StateTKindHelper.<Integer, IdKind.Witness, String>runStateT(
-                      resultKind, localInitialState))
+      assertThatThrownBy(() -> STATE_T.runStateT(resultKind, localInitialState))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("MonadError<F> instance not available");
     }
@@ -500,10 +494,7 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, IdKind.Witness>, String> resultKind =
           stateTWithStringErrorMonad.ap(nullFuncKind, valKind);
 
-      assertThatThrownBy(
-              () ->
-                  StateTKindHelper.<Integer, IdKind.Witness, String>runStateT(
-                      resultKind, localInitialState))
+      assertThatThrownBy(() -> STATE_T.runStateT(resultKind, localInitialState))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining(
               "Underlying MonadError<F> does not have Unit error type as expected for null function"

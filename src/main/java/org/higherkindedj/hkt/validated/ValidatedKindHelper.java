@@ -6,69 +6,65 @@ import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Helper class for {@link ValidatedKind}. Provides methods to widen {@link Validated} instances to
- * {@code Kind<ValidatedKind.Witness<E>, A>}, narrow them back, and Kind-returning factory methods.
+ * Enum implementing {@link ValidatedConverterOps} for widen/narrow operations, and providing
+ * additional factory instance methods (valid, invalid) for {@link Validated} types.
+ *
+ * <p>Access these operations via the singleton {@code VALIDATED}. For example: {@code
+ * ValidatedKindHelper.VALIDATED.widen(myValidatedValue);} Or, with static import: {@code import
+ * static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED; VALIDATED.widen(...);}
  */
-public final class ValidatedKindHelper {
-
-  private ValidatedKindHelper() {
-    // Private constructor to prevent instantiation
-  }
+public enum ValidatedKindHelper implements ValidatedConverterOps {
+  VALIDATED;
 
   /**
-   * Widens a {@link Validated} to its {@link Kind} representation.
-   *
-   * @param validated The {@link Validated} instance. Must not be null.
-   * @param <E> The error type.
-   * @param <A> The value type.
-   * @return The {@link Kind} representation.
+   * Widens a {@link Validated} to its {@link Kind} representation. Implements {@link
+   * ValidatedConverterOps#widen}. The {@code @SuppressWarnings("unchecked")} is necessary because
+   * Java's type system doesn't fully capture that {@code Validated<E, A>} is inherently a {@code
+   * Kind<ValidatedKind.Witness<E>, A>} in this HKT emulation. This cast is fundamental to the HKT
+   * pattern for {@code Validated} in this library.
    */
-  @SuppressWarnings("unchecked") // This cast is safe due to the sealed nature of Validated
-  // and its subtypes (Valid, Invalid) implementing ValidatedKind.
-  public static <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> widen(
+  @Override
+  @SuppressWarnings("unchecked")
+  public <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> widen(
       @NonNull Validated<E, A> validated) {
     return (Kind<ValidatedKind.Witness<E>, A>) validated;
   }
 
   /**
-   * Narrows a {@link Kind} representation to a {@link Validated}.
-   *
-   * @param kind The {@link Kind} instance. Must not be null. It is expected that this Kind instance
-   *     is, in fact, an instance of Valid or Invalid.
-   * @param <E> The error type.
-   * @param <A> The value type.
-   * @return The {@link Validated} instance.
-   * @throws ClassCastException if the kind is not a Validated instance (Valid or Invalid).
+   * Narrows a {@link Kind} representation to a {@link Validated}. Implements {@link
+   * ValidatedConverterOps#narrow}. The {@code @SuppressWarnings("unchecked")} is for the explicit
+   * cast from a Kind back to a more specific {@code Validated<E, A>}. Callers must ensure the Kind
+   * instance is indeed of the correct underlying Validated type.
    */
+  @Override
   @SuppressWarnings("unchecked")
-  public static <E, A> @NonNull Validated<E, A> narrow(
-      @NonNull Kind<ValidatedKind.Witness<E>, A> kind) {
+  public <E, A> @NonNull Validated<E, A> narrow(@NonNull Kind<ValidatedKind.Witness<E>, A> kind) {
     return (Validated<E, A>) kind;
   }
 
   /**
    * Creates a {@code Kind<ValidatedKind.Witness<E>, A>} representing a {@code Valid(value)}. This
-   * is a convenience factory method.
+   * is a convenience factory method specific to this helper enum.
    *
    * @param value The valid value. Must not be null.
    * @param <E> The error type (associated with the Witness).
    * @param <A> The value type.
    * @return A {@code Kind} representing a valid instance.
    */
-  public static <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> valid(@NonNull A value) {
-    return widen(Validated.valid(value));
+  public <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> valid(@NonNull A value) {
+    return this.widen(Validated.valid(value));
   }
 
   /**
    * Creates a {@code Kind<ValidatedKind.Witness<E>, A>} representing an {@code Invalid(error)}.
-   * This is a convenience factory method.
+   * This is a convenience factory method specific to this helper enum.
    *
    * @param error The error value. Must not be null.
    * @param <E> The error type.
    * @param <A> The value type (associated with the Witness).
    * @return A {@code Kind} representing an invalid instance.
    */
-  public static <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> invalid(@NonNull E error) {
-    return widen(Validated.invalid(error));
+  public <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> invalid(@NonNull E error) {
+    return this.widen(Validated.invalid(error));
   }
 }

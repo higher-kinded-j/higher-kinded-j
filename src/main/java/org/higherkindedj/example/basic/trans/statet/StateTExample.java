@@ -2,17 +2,18 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trans.statet;
 
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.state_t.StateTKindHelper.STATE_T;
+
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.trans.state_t.StateT;
 import org.higherkindedj.hkt.trans.state_t.StateTKind; // For StateTKind.Witness
-import org.higherkindedj.hkt.trans.state_t.StateTKindHelper;
 import org.higherkindedj.hkt.trans.state_t.StateTMonad;
 
 public class StateTExample {
@@ -23,9 +24,9 @@ public class StateTExample {
     Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
         currentState -> {
           if (currentState < 0) {
-            return OptionalKindHelper.wrap(Optional.empty());
+            return OPTIONAL.widen(Optional.empty());
           }
-          return OptionalKindHelper.wrap(
+          return OPTIONAL.widen(
               Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState)));
         };
 
@@ -40,16 +41,15 @@ public class StateTExample {
         stateTMonad.of("pure value");
 
     Optional<StateTuple<Integer, String>> pureResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(pureStateT, 10));
+        OPTIONAL.narrow(STATE_T.runStateT(pureStateT, 10));
     System.out.println("Pure StateT result: " + pureResult);
 
     // running computations
 
     Kind<OptionalKind.Witness, StateTuple<Integer, String>> resultOptionalTuple =
-        StateTKindHelper.runStateT(stateTKind, 10);
+        STATE_T.runStateT(stateTKind, 10);
 
-    Optional<StateTuple<Integer, String>> actualOptional =
-        OptionalKindHelper.unwrap(resultOptionalTuple);
+    Optional<StateTuple<Integer, String>> actualOptional = OPTIONAL.narrow(resultOptionalTuple);
 
     if (actualOptional.isPresent()) {
       StateTuple<Integer, String> tuple = actualOptional.get();
@@ -61,17 +61,15 @@ public class StateTExample {
 
     // Example with negative initial state (expecting empty Optional)
     Kind<OptionalKind.Witness, StateTuple<Integer, String>> resultEmptyOptional =
-        StateTKindHelper.runStateT(stateTKind, -5);
-    Optional<StateTuple<Integer, String>> actualEmpty =
-        OptionalKindHelper.unwrap(resultEmptyOptional);
+        STATE_T.runStateT(stateTKind, -5);
+    Optional<StateTuple<Integer, String>> actualEmpty = OPTIONAL.narrow(resultEmptyOptional);
     // Output: Is empty: true
     System.out.println("Is empty (for initial state -5): " + actualEmpty.isEmpty());
 
     // Composing StateT Actions
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> initialComputation =
-        StateT.create(
-            s -> OptionalKindHelper.wrap(Optional.of(StateTuple.of(s + 1, s * 2))), optionalMonad);
+        StateT.create(s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 2))), optionalMonad);
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> mappedComputation =
         stateTMonad.map(val -> "Computed: " + val, initialComputation);
@@ -81,7 +79,7 @@ public class StateTExample {
     // 2. map's function ("Computed: " + 10) is applied to 10.
     // Result: Optional.of(StateTuple(6, "Computed: 10"))
     Optional<StateTuple<Integer, String>> mappedResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(mappedComputation, 5));
+        OPTIONAL.narrow(STATE_T.runStateT(mappedComputation, 5));
     System.out.print("Mapped result (initial state 5): ");
     mappedResult.ifPresentOrElse(System.out::println, () -> System.out.println("Empty"));
     // Output: StateTuple[state=6, value=Computed: 10]
@@ -89,7 +87,7 @@ public class StateTExample {
     // stateTMonad and optionalMonad are defined
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> firstStep =
         StateT.create(
-            s -> OptionalKindHelper.wrap(Optional.of(StateTuple.of(s + 1, s * 10))), optionalMonad);
+            s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))), optionalMonad);
 
     Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>>
         secondStepFn =
@@ -97,10 +95,10 @@ public class StateTExample {
                 StateT.create(
                     s -> {
                       if (prevValue > 100) {
-                        return OptionalKindHelper.wrap(
+                        return OPTIONAL.widen(
                             Optional.of(StateTuple.of(s + prevValue, "Large: " + prevValue)));
                       } else {
-                        return OptionalKindHelper.wrap(Optional.empty());
+                        return OPTIONAL.widen(Optional.empty());
                       }
                     },
                     optionalMonad);
@@ -115,7 +113,7 @@ public class StateTExample {
     //    Its function: s' (which is 16) -> Optional.of(StateTuple(16 + 150, "Large: 150"))
     //    Result: Optional.of(StateTuple(166, "Large: 150"))
     Optional<StateTuple<Integer, String>> combinedResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(combined, 15));
+        OPTIONAL.narrow(STATE_T.runStateT(combined, 15));
     System.out.print("Combined result (initial state 15): ");
     combinedResult.ifPresentOrElse(System.out::println, () -> System.out.println("Empty"));
 
@@ -128,7 +126,7 @@ public class StateTExample {
     //    Its function: s' (which is 6) -> Optional.empty()
     //    Result: Optional.empty()
     Optional<StateTuple<Integer, String>> combinedEmptyResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(combined, 5));
+        OPTIONAL.narrow(STATE_T.runStateT(combined, 5));
     // Output: true
     System.out.println(
         "Is empty from small initial (state 5 for combined): " + combinedEmptyResult.isEmpty());

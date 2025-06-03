@@ -3,8 +3,7 @@
 package org.higherkindedj.hkt.list;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.list.ListKindHelper.unwrap;
-import static org.higherkindedj.hkt.list.ListKindHelper.wrap;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,10 +30,10 @@ class ListMonadTest {
 
   // Function a -> M b (Integer -> Kind<ListKind.Witness, String>)
   private final Function<Integer, Kind<ListKind.Witness, String>> f_int_to_kindListString =
-      i -> wrap(Arrays.asList("v" + i, "x" + i));
+      i -> LIST.widen(Arrays.asList("v" + i, "x" + i));
   // Function b -> M c (String -> Kind<ListKind.Witness, String>)
   private final Function<String, Kind<ListKind.Witness, String>> g_string_to_kindListString =
-      s -> wrap(Arrays.asList(s + "!", s + "?"));
+      s -> LIST.widen(Arrays.asList(s + "!", s + "?"));
 
   @Nested
   @DisplayName("Applicative 'of' tests")
@@ -43,13 +42,13 @@ class ListMonadTest {
     void of_shouldWrapValueInSingletonList() {
       // listMonad.of should return Kind<ListKind.Witness, Integer>
       Kind<ListKind.Witness, Integer> kind = listMonad.of(42);
-      assertThat(unwrap(kind)).containsExactly(42);
+      assertThat(LIST.narrow(kind)).containsExactly(42);
     }
 
     @Test
     void of_shouldWrapNullAsEmptyList() {
       Kind<ListKind.Witness, String> kind = listMonad.of(null);
-      assertThat(unwrap(kind)).isEmpty();
+      assertThat(LIST.narrow(kind)).isEmpty();
     }
   }
 
@@ -58,23 +57,23 @@ class ListMonadTest {
   class MapTests {
     @Test
     void map_shouldApplyFunctionToEachElement() {
-      Kind<ListKind.Witness, Integer> input = wrap(Arrays.asList(1, 2, 3));
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2, 3));
       Kind<ListKind.Witness, Integer> result = listMonad.map(x -> x * 2, input);
-      assertThat(unwrap(result)).containsExactly(2, 4, 6);
+      assertThat(LIST.narrow(result)).containsExactly(2, 4, 6);
     }
 
     @Test
     void map_shouldReturnEmptyListForEmptyInput() {
-      Kind<ListKind.Witness, Integer> input = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Collections.emptyList());
       Kind<ListKind.Witness, String> result = listMonad.map(Object::toString, input);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
     void map_shouldHandleMappingToDifferentType() {
-      Kind<ListKind.Witness, Integer> input = wrap(Arrays.asList(1, 2));
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2));
       Kind<ListKind.Witness, String> result = listMonad.map(x -> "v" + x, input);
-      assertThat(unwrap(result)).containsExactly("v1", "v2");
+      assertThat(LIST.narrow(result)).containsExactly("v1", "v2");
     }
   }
 
@@ -86,39 +85,41 @@ class ListMonadTest {
     void ap_nonEmptyFunctionsAndValues_shouldApplyAllFunctionsToAllValues() { // Or
       // ap_shouldApplyEachFunctionToEachValue
       Kind<ListKind.Witness, Function<Integer, String>> funcsKind =
-          wrap(Arrays.asList(x -> "N" + x, x -> "X" + (x * 2)));
-      Kind<ListKind.Witness, Integer> valuesKind = wrap(Arrays.asList(1, 2));
+          LIST.widen(Arrays.asList(x -> "N" + x, x -> "X" + (x * 2)));
+      Kind<ListKind.Witness, Integer> valuesKind = LIST.widen(Arrays.asList(1, 2));
 
       Kind<ListKind.Witness, String> result = listMonad.ap(funcsKind, valuesKind);
 
       // Corrected assertion order to match ListMonad.ap implementation
       // Actual output: ["N1", "N2", "X2", "X4"]
-      assertThat(unwrap(result)).containsExactly("N1", "N2", "X2", "X4");
+      assertThat(LIST.narrow(result)).containsExactly("N1", "N2", "X2", "X4");
     }
 
     @Test
     void ap_shouldReturnEmptyWhenFunctionsListIsEmpty() {
-      Kind<ListKind.Witness, Function<Integer, String>> funcsKind = wrap(Collections.emptyList());
-      Kind<ListKind.Witness, Integer> valuesKind = wrap(Arrays.asList(1, 2));
+      Kind<ListKind.Witness, Function<Integer, String>> funcsKind =
+          LIST.widen(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> valuesKind = LIST.widen(Arrays.asList(1, 2));
       Kind<ListKind.Witness, String> result = listMonad.ap(funcsKind, valuesKind);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnEmptyWhenValuesListIsEmpty() {
       Kind<ListKind.Witness, Function<Integer, String>> funcsKind =
-          wrap(Collections.singletonList(x -> "N" + x));
-      Kind<ListKind.Witness, Integer> valuesKind = wrap(Collections.emptyList());
+          LIST.widen(Collections.singletonList(x -> "N" + x));
+      Kind<ListKind.Witness, Integer> valuesKind = LIST.widen(Collections.emptyList());
       Kind<ListKind.Witness, String> result = listMonad.ap(funcsKind, valuesKind);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnEmptyWhenBothListsAreEmpty() {
-      Kind<ListKind.Witness, Function<Integer, String>> funcsKind = wrap(Collections.emptyList());
-      Kind<ListKind.Witness, Integer> valuesKind = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Function<Integer, String>> funcsKind =
+          LIST.widen(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> valuesKind = LIST.widen(Collections.emptyList());
       Kind<ListKind.Witness, String> result = listMonad.ap(funcsKind, valuesKind);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
   }
 
@@ -127,44 +128,44 @@ class ListMonadTest {
   class FlatMapTests {
 
     Function<Integer, Kind<ListKind.Witness, String>> duplicateAndStringify =
-        x -> wrap(Arrays.asList("v" + x, "v" + x));
+        x -> LIST.widen(Arrays.asList("v" + x, "v" + x));
 
     @Test
     void flatMap_shouldApplyFunctionAndFlattenResults() {
-      Kind<ListKind.Witness, Integer> input = wrap(Arrays.asList(1, 2));
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2));
       Kind<ListKind.Witness, String> result = listMonad.flatMap(duplicateAndStringify, input);
-      assertThat(unwrap(result)).containsExactly("v1", "v1", "v2", "v2");
+      assertThat(LIST.narrow(result)).containsExactly("v1", "v1", "v2", "v2");
     }
 
     @Test
     void flatMap_shouldReturnEmptyListForEmptyInput() {
-      Kind<ListKind.Witness, Integer> input = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Collections.emptyList());
       Kind<ListKind.Witness, String> result = listMonad.flatMap(duplicateAndStringify, input);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
     void flatMap_shouldHandleFunctionReturningEmptyList() {
       Function<Integer, Kind<ListKind.Witness, String>> funcReturningEmpty =
-          x -> wrap(Collections.emptyList());
-      Kind<ListKind.Witness, Integer> input = wrap(Arrays.asList(1, 2));
+          x -> LIST.widen(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2));
       Kind<ListKind.Witness, String> result = listMonad.flatMap(funcReturningEmpty, input);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
     void flatMap_chainingExample() {
-      Kind<ListKind.Witness, Integer> initial = wrap(Arrays.asList(1, 2));
+      Kind<ListKind.Witness, Integer> initial = LIST.widen(Arrays.asList(1, 2));
 
       Function<Integer, Kind<ListKind.Witness, Integer>> step1Func =
-          x -> wrap(Arrays.asList(x, x + 10));
+          x -> LIST.widen(Arrays.asList(x, x + 10));
       Kind<ListKind.Witness, Integer> step1Result = listMonad.flatMap(step1Func, initial);
 
       Function<Integer, Kind<ListKind.Witness, String>> step2Func =
-          y -> wrap(Collections.singletonList("N" + y));
+          y -> LIST.widen(Collections.singletonList("N" + y));
       Kind<ListKind.Witness, String> finalResult = listMonad.flatMap(step2Func, step1Result);
 
-      assertThat(unwrap(finalResult)).containsExactly("N1", "N11", "N2", "N12");
+      assertThat(LIST.narrow(finalResult)).containsExactly("N1", "N11", "N2", "N12");
     }
   }
 
@@ -173,8 +174,8 @@ class ListMonadTest {
   class MonadLaws {
     // Using the correctly typed helper functions defined at the class level
     int value = 5;
-    Kind<ListKind.Witness, Integer> mValue = wrap(Arrays.asList(value, value + 1));
-    Kind<ListKind.Witness, Integer> mValueEmpty = wrap(Collections.emptyList());
+    Kind<ListKind.Witness, Integer> mValue = LIST.widen(Arrays.asList(value, value + 1));
+    Kind<ListKind.Witness, Integer> mValueEmpty = LIST.widen(Collections.emptyList());
 
     @Test
     @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
@@ -183,7 +184,7 @@ class ListMonadTest {
       Kind<ListKind.Witness, String> leftSide = listMonad.flatMap(f_int_to_kindListString, ofValue);
       Kind<ListKind.Witness, String> rightSide = f_int_to_kindListString.apply(value);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(LIST.narrow(leftSide)).isEqualTo(LIST.narrow(rightSide));
     }
 
     @Test
@@ -194,8 +195,8 @@ class ListMonadTest {
       Kind<ListKind.Witness, Integer> leftSide = listMonad.flatMap(ofFunc, mValue);
       Kind<ListKind.Witness, Integer> leftSideEmpty = listMonad.flatMap(ofFunc, mValueEmpty);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(mValue));
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(mValueEmpty));
+      assertThat(LIST.narrow(leftSide)).isEqualTo(LIST.narrow(mValue));
+      assertThat(LIST.narrow(leftSideEmpty)).isEqualTo(LIST.narrow(mValueEmpty));
     }
 
     @Test
@@ -210,14 +211,14 @@ class ListMonadTest {
           a -> listMonad.flatMap(g_string_to_kindListString, f_int_to_kindListString.apply(a));
       Kind<ListKind.Witness, String> rightSide = listMonad.flatMap(rightSideFunc, mValue);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(LIST.narrow(leftSide)).isEqualTo(LIST.narrow(rightSide));
 
       Kind<ListKind.Witness, String> innerFlatMapEmpty =
           listMonad.flatMap(f_int_to_kindListString, mValueEmpty);
       Kind<ListKind.Witness, String> leftSideEmpty =
           listMonad.flatMap(g_string_to_kindListString, innerFlatMapEmpty);
       Kind<ListKind.Witness, String> rightSideEmpty = listMonad.flatMap(rightSideFunc, mValueEmpty);
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
+      assertThat(LIST.narrow(leftSideEmpty)).isEqualTo(LIST.narrow(rightSideEmpty));
     }
   }
 
@@ -227,18 +228,19 @@ class ListMonadTest {
     @Test
     @DisplayName("1. Identity: map(id, fa) == fa")
     void identity() {
-      Kind<ListKind.Witness, Integer> fa = wrap(Arrays.asList(1, 2, 3));
-      Kind<ListKind.Witness, Integer> faEmpty = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> fa = LIST.widen(Arrays.asList(1, 2, 3));
+      Kind<ListKind.Witness, Integer> faEmpty = LIST.widen(Collections.emptyList());
 
-      assertThat(unwrap(listMonad.map(Function.identity(), fa))).isEqualTo(unwrap(fa));
-      assertThat(unwrap(listMonad.map(Function.identity(), faEmpty))).isEqualTo(unwrap(faEmpty));
+      assertThat(LIST.narrow(listMonad.map(Function.identity(), fa))).isEqualTo(LIST.narrow(fa));
+      assertThat(LIST.narrow(listMonad.map(Function.identity(), faEmpty)))
+          .isEqualTo(LIST.narrow(faEmpty));
     }
 
     @Test
     @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
     void composition() {
-      Kind<ListKind.Witness, Integer> fa = wrap(Arrays.asList(1, 2));
-      Kind<ListKind.Witness, Integer> faEmpty = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> fa = LIST.widen(Arrays.asList(1, 2));
+      Kind<ListKind.Witness, Integer> faEmpty = LIST.widen(Collections.emptyList());
 
       Kind<ListKind.Witness, String> leftSide = listMonad.map(intToStringAppendWorld, fa);
       Kind<ListKind.Witness, String> rightSide =
@@ -248,27 +250,28 @@ class ListMonadTest {
       Kind<ListKind.Witness, String> rightSideEmpty =
           listMonad.map(appendWorld, listMonad.map(intToString, faEmpty));
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
+      assertThat(LIST.narrow(leftSide)).isEqualTo(LIST.narrow(rightSide));
+      assertThat(LIST.narrow(leftSideEmpty)).isEqualTo(LIST.narrow(rightSideEmpty));
     }
   }
 
   @Nested
   @DisplayName("Applicative Laws (via Monad)")
   class ApplicativeLaws {
-    Kind<ListKind.Witness, Integer> v = wrap(Arrays.asList(1, 2));
-    Kind<ListKind.Witness, Integer> vEmpty = wrap(Collections.emptyList());
+    Kind<ListKind.Witness, Integer> v = LIST.widen(Arrays.asList(1, 2));
+    Kind<ListKind.Witness, Integer> vEmpty = LIST.widen(Collections.emptyList());
     Kind<ListKind.Witness, Function<Integer, String>> fKind =
-        wrap(Arrays.asList(intToString, i -> "X" + i));
-    Kind<ListKind.Witness, Function<Integer, String>> fKindEmpty = wrap(Collections.emptyList());
+        LIST.widen(Arrays.asList(intToString, i -> "X" + i));
+    Kind<ListKind.Witness, Function<Integer, String>> fKindEmpty =
+        LIST.widen(Collections.emptyList());
 
     @Test
     @DisplayName("1. Identity: ap(of(id), v) == v")
     void identity() {
       Kind<ListKind.Witness, Function<Integer, Integer>> idFuncKind =
           listMonad.of(Function.identity());
-      assertThat(unwrap(listMonad.ap(idFuncKind, v))).isEqualTo(unwrap(v));
-      assertThat(unwrap(listMonad.ap(idFuncKind, vEmpty))).isEqualTo(unwrap(vEmpty));
+      assertThat(LIST.narrow(listMonad.ap(idFuncKind, v))).isEqualTo(LIST.narrow(v));
+      assertThat(LIST.narrow(listMonad.ap(idFuncKind, vEmpty))).isEqualTo(LIST.narrow(vEmpty));
     }
 
     @Test
@@ -282,7 +285,7 @@ class ListMonadTest {
       Kind<ListKind.Witness, String> leftSide = listMonad.ap(apFunc, apVal);
       Kind<ListKind.Witness, String> rightSide = listMonad.of(func.apply(x));
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(LIST.narrow(leftSide)).isEqualTo(LIST.narrow(rightSide));
     }
 
     @Test
@@ -299,8 +302,8 @@ class ListMonadTest {
       Kind<ListKind.Witness, String> rightSide = listMonad.ap(evalKind, fKind);
       Kind<ListKind.Witness, String> rightSideEmpty = listMonad.ap(evalKind, fKindEmpty);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
+      assertThat(LIST.narrow(leftSide)).isEqualTo(LIST.narrow(rightSide));
+      assertThat(LIST.narrow(leftSideEmpty)).isEqualTo(LIST.narrow(rightSideEmpty));
     }
 
     // Applicative Composition law is complex to set up for lists of functions and often omitted
@@ -312,35 +315,35 @@ class ListMonadTest {
   @DisplayName("mapN tests")
   class MapNTests {
 
-    Kind<ListKind.Witness, Integer> list1 = wrap(Arrays.asList(1, 2));
-    Kind<ListKind.Witness, String> list2 = wrap(Arrays.asList("a", "b"));
-    Kind<ListKind.Witness, Double> list3 = wrap(Arrays.asList(1.0, 2.0));
-    Kind<ListKind.Witness, Boolean> list4 = wrap(Arrays.asList(true, false));
+    Kind<ListKind.Witness, Integer> list1 = LIST.widen(Arrays.asList(1, 2));
+    Kind<ListKind.Witness, String> list2 = LIST.widen(Arrays.asList("a", "b"));
+    Kind<ListKind.Witness, Double> list3 = LIST.widen(Arrays.asList(1.0, 2.0));
+    Kind<ListKind.Witness, Boolean> list4 = LIST.widen(Arrays.asList(true, false));
 
     Kind<ListKind.Witness, Integer> emptyListInt =
-        wrap(Collections.emptyList()); // Explicit type for empty list
+        LIST.widen(Collections.emptyList()); // Explicit type for empty list
 
     @Test
     void map2_bothNonEmpty() {
       // Using BiFunction as it's more direct for map2
       BiFunction<Integer, String, String> f2_bi = (i, s) -> i + s;
       Kind<ListKind.Witness, String> result = listMonad.map2(list1, list2, f2_bi);
-      assertThat(unwrap(result)).containsExactly("1a", "1b", "2a", "2b");
+      assertThat(LIST.narrow(result)).containsExactly("1a", "1b", "2a", "2b");
     }
 
     @Test
     void map2_firstEmpty() {
       BiFunction<Integer, String, String> f2_bi = (i, s) -> i + s;
       Kind<ListKind.Witness, String> result = listMonad.map2(emptyListInt, list2, f2_bi);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
     void map2_secondEmpty() {
-      Kind<ListKind.Witness, String> emptyListString = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, String> emptyListString = LIST.widen(Collections.emptyList());
       BiFunction<Integer, String, String> f2_bi = (i, s) -> i + s;
       Kind<ListKind.Witness, String> result = listMonad.map2(list1, emptyListString, f2_bi);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
@@ -348,7 +351,7 @@ class ListMonadTest {
       Function3<Integer, String, Double, String> f3 =
           (i, s, d) -> String.format("%d-%s-%.1f", i, s, d);
       Kind<ListKind.Witness, String> result = listMonad.map3(list1, list2, list3, f3);
-      assertThat(unwrap(result))
+      assertThat(LIST.narrow(result))
           .containsExactly(
               "1-a-1.0", "1-a-2.0", "1-b-1.0", "1-b-2.0", "2-a-1.0", "2-a-2.0", "2-b-1.0",
               "2-b-2.0");
@@ -356,10 +359,10 @@ class ListMonadTest {
 
     @Test
     void map3_middleEmpty() {
-      Kind<ListKind.Witness, String> emptyListString = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, String> emptyListString = LIST.widen(Collections.emptyList());
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
       Kind<ListKind.Witness, String> result = listMonad.map3(list1, emptyListString, list3, f3);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
@@ -367,17 +370,17 @@ class ListMonadTest {
       Function4<Integer, String, Double, Boolean, String> f4 =
           (i, s, d, b) -> String.format("%d-%s-%.1f-%b", i, s, d, b);
       Kind<ListKind.Witness, String> result = listMonad.map4(list1, list2, list3, list4, f4);
-      assertThat(unwrap(result)).hasSize(16);
-      assertThat(unwrap(result)).contains("1-a-1.0-true", "2-b-2.0-false");
+      assertThat(LIST.narrow(result)).hasSize(16);
+      assertThat(LIST.narrow(result)).contains("1-a-1.0-true", "2-b-2.0-false");
     }
 
     @Test
     void map4_lastEmpty() {
-      Kind<ListKind.Witness, Boolean> emptyListBool = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Boolean> emptyListBool = LIST.widen(Collections.emptyList());
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
       Kind<ListKind.Witness, String> result =
           listMonad.map4(list1, list2, list3, emptyListBool, f4);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
   }
 }

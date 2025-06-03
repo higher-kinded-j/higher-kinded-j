@@ -2,9 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import static org.higherkindedj.hkt.state.StateKindHelper.unwrap;
-// import static org.higherkindedj.hkt.state.StateKindHelper.wrap; // wrap is inherited or called
-// via pure
+import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -34,7 +32,7 @@ public class StateApplicative<S> extends StateFunctor<S>
    */
   @Override
   public <A> @NonNull Kind<StateKind.Witness<S>, A> of(@Nullable A value) {
-    return StateKindHelper.pure(value);
+    return STATE.pure(value);
   }
 
   /**
@@ -53,8 +51,8 @@ public class StateApplicative<S> extends StateFunctor<S>
       @NonNull Kind<StateKind.Witness<S>, Function<A, B>> ff,
       @NonNull Kind<StateKind.Witness<S>, A> fa) {
 
-    State<S, Function<A, B>> stateF = unwrap(ff);
-    State<S, A> stateA = unwrap(fa);
+    State<S, Function<A, B>> stateF = STATE.narrow(ff);
+    State<S, A> stateA = STATE.narrow(fa);
 
     State<S, B> stateB =
         State.of(
@@ -73,6 +71,6 @@ public class StateApplicative<S> extends StateFunctor<S>
               return new StateTuple<>(func.apply(val), stateS2);
             });
 
-    return StateKindHelper.wrap(stateB); // Use StateKindHelper.wrap for consistency
+    return STATE.widen(stateB);
   }
 }

@@ -15,8 +15,8 @@ interface Monad<F> extends Applicative<F> {
 
 
 class IOKindHelper {
- {static} Kind<IOKind.Witness, A> wrap(IO<A>)
- {static} IO<A> unwrap(Kind<IOKind.Witness, A>)
+ {static} Kind<IOKind.Witness, A> widen(IO<A>)
+ {static} IO<A> narrow(Kind<IOKind.Witness, A>)
  ' ...
 }
 

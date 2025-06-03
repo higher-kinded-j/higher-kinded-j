@@ -17,11 +17,9 @@ public final class Lazy<A> {
 
   private transient volatile boolean evaluated = false;
   private @Nullable A value;
-  private @Nullable Throwable exception; // Field to store exception if computation fails
-  // Use the new interface that allows throwing Throwable
+  private @Nullable Throwable exception;
   private final @NonNull ThrowableSupplier<? extends A> computation;
 
-  // Constructor accepts ThrowableSupplier
   private Lazy(@NonNull ThrowableSupplier<? extends A> computation) {
     this.computation = Objects.requireNonNull(computation, "Lazy computation cannot be null");
   }
@@ -45,8 +43,6 @@ public final class Lazy<A> {
    * @return A new Lazy instance holding the pre-computed value. (NonNull)
    */
   public static <A> @NonNull Lazy<A> now(@Nullable A value) {
-    // Create a Lazy that's already evaluated.
-    // The supplier here won't throw, so using a lambda is fine.
     Lazy<A> lazy = new Lazy<>(() -> value);
     lazy.value = value;
     lazy.exception = null;
@@ -62,16 +58,15 @@ public final class Lazy<A> {
    * @return The computed value. (Nullable depends on A)
    * @throws Throwable if the lazy computation fails.
    */
-  public @Nullable A force() throws Throwable { // Declare throws Throwable
+  public @Nullable A force() throws Throwable {
     if (!evaluated) {
       synchronized (this) {
         if (!evaluated) {
           try {
-            // computation.get() can now throw any Throwable directly
             this.value = computation.get();
             this.exception = null;
           } catch (Throwable t) {
-            this.exception = t; // Store the caught throwable
+            this.exception = t;
             this.value = null;
           } finally {
             this.evaluated = true;
@@ -79,11 +74,8 @@ public final class Lazy<A> {
         }
       }
     }
-
-    // After evaluation attempt (or if already evaluated)
     if (this.exception != null) {
-      // Re-throw the cached exception. No need to wrap anymore.
-      throw this.exception; // Directly throw the cached Throwable (Line 87)
+      throw this.exception;
     }
     return this.value;
   }
@@ -99,21 +91,7 @@ public final class Lazy<A> {
    */
   public <B> @NonNull Lazy<B> map(@NonNull Function<? super A, ? extends B> f) {
     Objects.requireNonNull(f, "mapper function cannot be null");
-    // Defer the mapping: force this Lazy (may throw), then apply f
-    // Use the new ThrowableSupplier for defer
-    return Lazy.defer(
-        () -> {
-          // force() now throws Throwable. It needs to be caught if map should
-          // return a failed Lazy instead of throwing immediately when the
-          // *mapped* Lazy is forced. However, standard Functor map typically
-          // propagates the structure's failure. Here, forcing the mapped
-          // Lazy will execute this lambda, which calls this.force(), propagating
-          // the original exception if `this` fails. Exceptions from `f.apply`
-          // are caught by the outer Lazy.defer mechanism.
-          @Nullable A forcedValue = this.force(); // Call force directly
-          // If force() succeeded (didn't throw), apply the function
-          return f.apply(forcedValue);
-        });
+    return Lazy.defer(() -> f.apply(this.force()));
   }
 
   /**
@@ -128,23 +106,16 @@ public final class Lazy<A> {
   public <B> @NonNull Lazy<B> flatMap(
       @NonNull Function<? super A, ? extends @NonNull Lazy<? extends B>> f) {
     Objects.requireNonNull(f, "flatMap mapper function cannot be null");
-    // Defer the flatMap: force this Lazy, apply f, then force the next Lazy.
-    // Use the new ThrowableSupplier for defer
     return Lazy.defer(
         () -> {
-          // force() throws Throwable. Exceptions will propagate naturally
-          // when this deferred computation is forced.
-          @Nullable A forcedValue = this.force(); // Force the outer Lazy
-          Lazy<? extends B> nextLazy = f.apply(forcedValue); // Apply the function
+          Lazy<? extends B> nextLazy = f.apply(this.force());
           Objects.requireNonNull(nextLazy, "flatMap function returned null Lazy");
-          // Force the inner lazy, which also throws Throwable
-          return nextLazy.force(); // Force the inner Lazy
+          return nextLazy.force();
         });
   }
 
   @Override
   public String toString() {
-    // Avoid forcing evaluation in toString, show status instead
     if (evaluated) {
       if (exception != null) {
         return "Lazy[failed: " + exception.getClass().getSimpleName() + "]";

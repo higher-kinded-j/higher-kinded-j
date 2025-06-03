@@ -32,7 +32,7 @@ Determine which type constructor (computational context) you want to work with a
 
 Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicative<F_WITNESS>`, `Monad<F_WITNESS>`, `MonadError<F_WITNESS, E>`) for your chosen context's witness type `F_WITNESS`. These are concrete classes provided in the corresponding package.
 
-* Example (`Optional`): `OptionalMonad optionalMonad = new OptionalMonad();` (This implements `MonadError<OptionalKind.Witness, Void>`)
+* Example (`Optional`): `OptionalMonad optionalMonad = new OptionalMonad();` (This implements `MonadError<OptionalKind.Witness, Unit>`)
 * Example (`List`): `ListMonad listMonad = new ListMonad();` (This implements `Monad<ListKind.Witness>`)
 * Example (`CompletableFuture`): `CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();` (This implements `MonadError<CompletableFutureKind.Witness, Throwable>`)
 * Example (`Either<String, ?>`): `EitherMonad<String> eitherMonad = new EitherMonad<>();` (This implements `MonadError<EitherKind.Witness<String>, String>`)
@@ -44,19 +44,21 @@ Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicativ
 
 - [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
-Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into Higher-Kinded-J's `Kind` representation using the static `wrap` method from the corresponding `XxxKindHelper` class.
+Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into Higher-Kinded-J's `Kind` representation using the `widen` instance method from the corresponding `XxxKindHelper` enum's singleton instance. You'll typically use a static import for the singleton instance for brevity.
 
    ```java
+    import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL; // Static import
+    // ...
     Optional<String> myOptional = Optional.of("test");
-    // Wrap it into the Higher-Kinded-J Kind type
+    // Widen it into the Higher-Kinded-J Kind type
     // F_WITNESS here is OptionalKind.Witness
-    Kind<OptionalKind.Witness, String> optionalKind = OptionalKindHelper.wrap(myOptional);
+    Kind<OptionalKind.Witness, String> optionalKind = OPTIONAL.widen(myOptional);
    ```
 
-* Some helpers provide convenience factories like `MaybeKindHelper.just("value")`, `TryKindHelper.failure(ex)`, `IOKindHelper.delay(() -> ...)`, `LazyKindHelper.defer(() -> ...)`. Use these when appropriate.
-* **Note on Wrapping**:
-  * For JDK types (like `List`, `Optional`), `wrap` creates an internal `Holder` object.
-  * For library-defined types (`Id`, `Maybe`, `IO`, Transformers like `EitherT`) that directly implement their `XxxKind` interface, `wrap` is often an efficient (checked) cast.
+* Helper enums provide convenience factory methods that also return `Kind` instances, e.g., `MaybeKindHelper.MAYBE.just("value")`, `TryKindHelper.TRY.failure(ex)`, `IOKindHelper.IO_OP.delay(() -> ...)`, `LazyKindHelper.LAZY.defer(() -> ...)`. Use these when appropriate (assuming `MAYBE`, `TRY`, `IO_OP`, `LAZY` are the respective singleton constant names).
+* **Note on Widening**:
+  * For JDK types (like `List`, `Optional`), `widen` typically creates an internal `Holder` object that wraps the JDK type and implements the necessary `XxxKind` interface.
+  * For library-defined types (`Id`, `Maybe`, `IO`, Transformers like `EitherT`) that directly implement their `XxxKind` interface (which in turn extends `Kind`), the `widen` method on the helper enum often performs a null check and then a direct (and safe) cast to the `Kind` type.
 ~~~
 
 ~~~admonish title="4: Apply Type Class Methods"
@@ -66,7 +68,11 @@ Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>
 Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the **type class instance** obtained in *Step 2*, passing your `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object itself if it's just the `Kind` interface.** (Some concrete `Kind` implementations like `Id` or `Maybe` might offer direct methods, but for generic programming, use the type class instance).
 
    ```java
+    import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+    // ...
     OptionalMonad optionalMonad = new OptionalMonad();
+    Kind<OptionalKind.Witness, String> optionalKind = OPTIONAL.widen(Optional.of("test")); // from previous step
+
     // --- Using map ---
     Function<String, Integer> lengthFunc = String::length;
     // Apply map using the monad instance
@@ -76,40 +82,49 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
     // --- Using flatMap ---
     // Function A -> Kind<F_WITNESS, B>
     Function<Integer, Kind<OptionalKind.Witness, String>> checkLength =
-        len -> OptionalKindHelper.wrap(len > 3 ? Optional.of("Long enough") : Optional.empty());
+        len -> OPTIONAL.widen(len > 3 ? Optional.of("Long enough") : Optional.empty());
     // Apply flatMap using the monad instance
     Kind<OptionalKind.Witness, String> checkedKind = optionalMonad.flatMap(checkLength, lengthKind);
     // checkedKind now represents Kind<OptionalKind.Witness, String> containing Optional.of("Long enough")
 
-    // --- Using MonadError (for Optional, error type is Void) ---
-    Kind<OptionalKind.Witness, String> emptyKind = optionalMonad.raiseError(null); // Represents Optional.empty()
-    // Handle the empty case (error state) using handleError
-    Kind<OptionalKind.Witness, String> handledKind = optionalMonad.handleError(
+    // --- Using MonadError (for Optional, error type is Unit) ---
+    Kind<OptionalKind.Witness, String> emptyKind = optionalMonad.raiseError(Unit.INSTANCE); // Represents Optional.empty()
+    // Handle the empty case (error state) using handleErrorWith (handleError was changed to handleErrorWith generally)
+    Kind<OptionalKind.Witness, String> handledKind = optionalMonad.handleErrorWith(
         emptyKind,
-        ignoredError -> "Default Value" // Provide a default value
+        ignoredError -> OPTIONAL.widen(Optional.of("Default Value")) // Ensure recovery function also returns a Kind
     );
    ```
+   ```
 ~~~
-~~~admonish title="5: Unwrap the Result (_Kind<F_WITNESS, A> -> JavaType<A>_)"
+~~~admonish title="5: Unwrap/Narrow the Result (_Kind<F_WITNESS, A> -> JavaType<A>_)"
 
 - [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
-When you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running `IO`), use the static `unwrap` method from the corresponding `XxxKindHelper` class.
-
-   ```java
-   // Continuing the Optional example:
-    Optional<String> finalOptional = OptionalKindHelper.unwrap(checkedKind);
-    System.out.println("Final Optional: " + finalOptional); // Output: Optional[Long enough]
-
-    Optional<String> handledOptional = OptionalKindHelper.unwrap(handledKind);
-    System.out.println("Handled Optional: " + handledOptional); // Output: Optional[Default Value]
-
-    // Example for IO:
-     IOMonad ioMonad = new IOMonad();
-     Kind<IOKind.Witness, String> ioKind = IOKindHelper.delay(() -> "Hello from IO!");
-     String ioResult = IOKindHelper.unsafeRunSync(ioKind); // unsafeRunSync is specific to IOKindHelper
-     System.out.println(ioResult);
-   ```
+WWhen you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running `IO`), use the `narrow` instance method from the corresponding `XxxKindHelper` enum's singleton instance.
+ 
+    ```java
+    import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL; 
+    import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP; 
+ 
+    // ...
+    // Continuing the Optional example:
+     Kind<OptionalKind.Witness, String> checkedKind = /* from previous step */;
+     Kind<OptionalKind.Witness, String> handledKind = /* from previous step */;
+ 
+     Optional<String> finalOptional = OPTIONAL.narrow(checkedKind);
+     System.out.println("Final Optional: " + finalOptional); // Output: Optional[Long enough]
+ 
+     Optional<String> handledOptional = OPTIONAL.narrow(handledKind);
+     System.out.println("Handled Optional: " + handledOptional); // Output: Optional[Default Value]
+ 
+     // Example for IO:
+      IOMonad ioMonad = new IOMonad();
+      Kind<IOKind.Witness, String> ioKind = IO_OP.delay(() -> "Hello from IO!"); // Use IO_OP.delay
+      // unsafeRunSync is an instance method on IOKindHelper.IO_OP
+      String ioResult = IO_OP.unsafeRunSync(ioKind);
+      System.out.println(ioResult);
+    ```   
 ~~~
 
 -----
@@ -118,28 +133,30 @@ When you need the underlying Java value back (e.g., to return from a method boun
 
 - [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
-The `unwrap` methods in all `KindHelper` classes are designed to be robust against *structural* errors within the HKT simulation layer.
+The `narrow` instance methods in all `KindHelper` enums are designed to be robust against *structural* errors within the HKT simulation layer.
 
-* **When it's thrown**: If you pass `null` to `unwrap`. For types using a `Holder` (like `Optional`), if the `Holder` somehow contained `null` where it shouldn't (which `wrap` should prevent), that would also lead to an error.
-* **What it means**: This exception signals a problem with how you are using the Higher-Kinded-J itself – usually a programming error in creating or passing `Kind` objects.
+* **When it's thrown**: If you pass `null` to `narrow`. For external types using a `Holder` (like `Optional` with `OptionalHolder`), if the `Kind` instance is not the expected `Holder` type, an exception is also thrown. For types that directly implement their `XxxKind` interface, `narrow` will throw if the `Kind` is not an instance of that specific concrete type.
+* **What it means**: This exception signals a problem with how you are using Higher-Kinded-J itself – usually a programming error in creating or passing `Kind` objects.
 * **How to handle**: You generally **should not** need to catch `KindUnwrapException` in typical application logic. Its occurrence points to a bug that needs fixing in the code using Higher-Kinded-J.
 
 ```java
+  // import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
   public void handlingUnwrapExceptions() {
-  try {
-    // ERROR: Attempting to unwrap null
-    Optional<String> result = OptionalKindHelper.unwrap(null);
-  } catch(KindUnwrapException e) {
-    System.err.println("Higher-Kinded-J Usage Error: " + e.getMessage());
-    // Usage Error: Cannot unwrap null Kind for Optional
+    try {
+      // ERROR: Attempting to narrow null
+      Optional<String> result = OPTIONAL.narrow(null);
+    } catch(KindUnwrapException e) {
+      System.err.println("Higher-Kinded-J Usage Error: " + e.getMessage());
+      // Example Output (message from OptionalKindHelper.INVALID_KIND_NULL_MSG):
+      // Usage Error: Cannot narrow null Kind for Optional
+    }
   }
-}
 ```
 
 **Important Distinction:**
 
-* **`KindUnwrapException`**: Signals a problem with the Higher-Kinded-J structure itself (e.g., invalid `Kind` object passed to `unwrap`). Fix the code using Higher-Kinded-J.
-* **Domain Errors / Absence**: Represented *within* a valid `Kind` structure (e.g., `Optional.empty()` wrapped in `Kind<OptionalKind.Witness, A>`, `Either.Left` wrapped in `Kind<EitherKind.Witness<L>, R>`). These should be handled using the monad's specific methods (`orElse`, `fold`, `handleErrorWith`, etc.) or by using the `MonadError` methods *before* unwrapping the final Java type.
+* **`KindUnwrapException`**: Signals a problem with the Higher-Kinded-J structure itself (e.g., invalid `Kind` object passed to `narrow`). Fix the code using Higher-Kinded-J.
+* **Domain Errors / Absence**: Represented *within* a valid `Kind` structure (e.g., `Optional.empty()` widened to `Kind<OptionalKind.Witness, A>`, `Either.Left` widened to `Kind<EitherKind.Witness<L>, R>`). These should be handled using the monad's specific methods (`orElse`, `fold`, `handleErrorWith`, etc.) or by using the `MonadError` methods *before* narrowing back to the final Java type.
 ~~~
 
 ~~~admonish example title="Example: Generic Function"
@@ -149,47 +166,50 @@ The `unwrap` methods in all `KindHelper` classes are designed to be robust again
 Higher-Kinded-J allows writing functions generic over the simulated type constructor (represented by its witness `F_WITNESS`).
 
 ```java
+// import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+// import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+// ...
 
-// Generic function: Doubles the number inside any Functor context F_WITNESS.
+// Generic function: Applies a function within any Functor context F_WITNESS.
 // Requires the specific Functor<F_WITNESS> instance to be passed in.
 public static <F_WITNESS, A, B> Kind<F_WITNESS, B> mapWithFunctor(
     Functor<F_WITNESS> functorInstance, // Pass the type class instance for F_WITNESS
     Function<A, B> fn,
-    Kind<F_WITNESS, A> kindABox) { // The value wrapped in Kind
+    Kind<F_WITNESS, A> kindABox) { 
 
   // Use the map method from the provided Functor instance
   return functorInstance.map(fn, kindABox);
 }
 
-public void genricExample() {
+public void genericExample() { // Corrected typo from genricExample
   // Get instances of the type classes for the specific types (F_WITNESS) we want to use
-  ListMonad listMonad = ListMonad.INSTANCE; // Implements Functor<ListKind.Witness>
+  ListMonad listMonad = new ListMonad(); // Implements Functor<ListKind.Witness>
   OptionalMonad optionalMonad = new OptionalMonad(); // Implements Functor<OptionalKind.Witness>
 
   Function<Integer, Integer> doubleFn = x -> x * 2;
 
   // --- Use with List ---
   List<Integer> nums = List.of(1, 2, 3);
-  // Wrap the List. F_WITNESS is ListKind.Witness
-  Kind<ListKind.Witness, Integer> listKind = ListKindHelper.wrap(nums);
-  // Call the generic function, passing the ListMonad instance and the wrapped List
+  // Widen the List. F_WITNESS is ListKind.Witness
+  Kind<ListKind.Witness, Integer> listKind = LIST.widen(nums); 
+  // Call the generic function, passing the ListMonad instance and the widened List
   Kind<ListKind.Witness, Integer> doubledListKind = mapWithFunctor(listMonad, doubleFn, listKind);
-  System.out.println("Doubled List: " + ListKindHelper.unwrap(doubledListKind)); // Output: [2, 4, 6]
+  System.out.println("Doubled List: " + LIST.narrow(doubledListKind)); // Output: [2, 4, 6]
 
   // --- Use with Optional (Present) ---
   Optional<Integer> optNum = Optional.of(10);
-  // Wrap the Optional. F_WITNESS is OptionalKind.Witness
-  Kind<OptionalKind.Witness, Integer> optKind = OptionalKindHelper.wrap(optNum);
-  // Call the generic function, passing the OptionalMonad instance and the wrapped Optional
+  // Widen the Optional. F_WITNESS is OptionalKind.Witness
+  Kind<OptionalKind.Witness, Integer> optKind = OPTIONAL.widen(optNum); 
+  // Call the generic function, passing the OptionalMonad instance and the widened Optional
   Kind<OptionalKind.Witness, Integer> doubledOptKind = mapWithFunctor(optionalMonad, doubleFn, optKind);
-  System.out.println("Doubled Optional: " + OptionalKindHelper.unwrap(doubledOptKind)); // Output: Optional[20]
+  System.out.println("Doubled Optional: " + OPTIONAL.narrow(doubledOptKind)); // Output: Optional[20]
 
   // --- Use with Optional (Empty) ---
   Optional<Integer> emptyOpt = Optional.empty();
-  Kind<OptionalKind.Witness, Integer> emptyOptKind = OptionalKindHelper.wrap(emptyOpt);
+  Kind<OptionalKind.Witness, Integer> emptyOptKind = OPTIONAL.widen(emptyOpt); 
   // Call the generic function, map does nothing on empty
   Kind<OptionalKind.Witness, Integer> doubledEmptyOptKind = mapWithFunctor(optionalMonad, doubleFn, emptyOptKind);
-  System.out.println("Doubled Empty Optional: " + OptionalKindHelper.unwrap(doubledEmptyOptKind)); // Output: Optional.empty
+  System.out.println("Doubled Empty Optional: " + OPTIONAL.narrow(doubledEmptyOptKind)); // Output: Optional.empty
 }
 
 ```

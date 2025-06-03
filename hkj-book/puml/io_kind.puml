@@ -14,9 +14,9 @@ interface IO<A> {
 
 
   class IOKindHelper {
-    + {static} IOKind<A> wrap(@NonNull IO<A>)
-    + {static} @NonNull IO<A> unwrap(@Nullable Kind<IOKind<?>, A>)
-    + {static} Kind<IOKind<?>, A> delay(Supplier<A>)
+    + {static} Kind<IOKind.Witness, A> widen(@NonNull IO<A>)
+    + {static} @NonNull IO<A> narrow(@Nullable Kind<IOKind.Witness, A>)
+    + {static} Kind<IOKind.Witness, A> delay(Supplier<A>)
     + {static} A unsafeRunSync(Kind<IOKind<?>, A>)
     ' ...
   }
@@ -26,7 +26,7 @@ interface IO<A> {
   }
 
   IOKindHelper ..> IOHolder : creates
-  IOKindHelper ..> IO : unwraps to / wraps from
+  IOKindHelper ..> IO : narrows to / widens from
   IOHolder o--> IO : holds
 
 

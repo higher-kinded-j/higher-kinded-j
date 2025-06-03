@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.higherkindedj.hkt.either.EitherKindHelper.unwrap;
-import static org.higherkindedj.hkt.either.EitherKindHelper.wrap;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -42,8 +41,8 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
   @Override
   public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<EitherKind.Witness<L>, A> ma) {
-    Either<L, A> eitherA = unwrap(ma);
+    Either<L, A> eitherA = EITHER.narrow(ma);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map
-    return wrap(resultEither);
+    return EITHER.widen(resultEither);
   }
 }

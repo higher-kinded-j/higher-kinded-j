@@ -4,13 +4,13 @@ package org.higherkindedj.hkt.trans.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.jspecify.annotations.NonNull; // Ensure this is imported
 import org.junit.jupiter.api.BeforeEach;
@@ -38,10 +38,10 @@ class MaybeTTest {
   void setUp() {
     outerMonad = new OptionalMonad();
 
-    wrappedJust = OptionalKindHelper.wrap(Optional.of(Maybe.just(presentValue)));
-    wrappedNothing = OptionalKindHelper.wrap(Optional.of(Maybe.nothing()));
-    wrappedOuterEmpty = OptionalKindHelper.wrap(Optional.empty());
-    wrappedOuterValue = OptionalKindHelper.wrap(Optional.of(otherPresentValue));
+    wrappedJust = OPTIONAL.widen(Optional.of(Maybe.just(presentValue)));
+    wrappedNothing = OPTIONAL.widen(Optional.of(Maybe.nothing()));
+    wrappedOuterEmpty = OPTIONAL.widen(Optional.empty());
+    wrappedOuterValue = OPTIONAL.widen(Optional.of(otherPresentValue));
 
     plainJust = Maybe.just(presentValue);
     plainNothing = Maybe.nothing();
@@ -49,7 +49,7 @@ class MaybeTTest {
 
   private <A> Optional<Maybe<A>> unwrapT(MaybeT<OptionalKind.Witness, A> maybeT) {
     Kind<OptionalKind.Witness, Maybe<A>> outerKind = maybeT.value();
-    return OptionalKindHelper.unwrap(outerKind);
+    return OPTIONAL.narrow(outerKind);
   }
 
   @Nested
@@ -126,7 +126,7 @@ class MaybeTTest {
     @DisplayName(
         "liftF should handle empty outer Kind as F<Maybe.Nothing()> if F map(empty) -> F<empty>")
     void liftF_handlesEmptyOuterKind() {
-      Kind<OptionalKind.Witness, Integer> outerEmpty = OptionalKindHelper.wrap(Optional.empty());
+      Kind<OptionalKind.Witness, Integer> outerEmpty = OPTIONAL.widen(Optional.empty());
       MaybeT<OptionalKind.Witness, Integer> mt = MaybeT.liftF(outerMonad, outerEmpty);
       // liftF does outerMonad.map(Maybe::just, fa)
       // if fa is Optional.empty(), map does nothing, so result is Optional.empty()
@@ -151,15 +151,14 @@ class MaybeTTest {
   class ObjectTests {
 
     Kind<OptionalKind.Witness, Maybe<String>> wrappedJust1 =
-        OptionalKindHelper.wrap(Optional.of(Maybe.just("A")));
+        OPTIONAL.widen(Optional.of(Maybe.just("A")));
     Kind<OptionalKind.Witness, Maybe<String>> wrappedJust2 =
-        OptionalKindHelper.wrap(Optional.of(Maybe.just("A")));
+        OPTIONAL.widen(Optional.of(Maybe.just("A")));
     Kind<OptionalKind.Witness, Maybe<String>> wrappedJust3 =
-        OptionalKindHelper.wrap(Optional.of(Maybe.just("B")));
+        OPTIONAL.widen(Optional.of(Maybe.just("B")));
     Kind<OptionalKind.Witness, Maybe<String>> wrappedNothing1 =
-        OptionalKindHelper.wrap(Optional.of(Maybe.nothing()));
-    Kind<OptionalKind.Witness, Maybe<String>> wrappedOuterEmpty1 =
-        OptionalKindHelper.wrap(Optional.empty());
+        OPTIONAL.widen(Optional.of(Maybe.nothing()));
+    Kind<OptionalKind.Witness, Maybe<String>> wrappedOuterEmpty1 = OPTIONAL.widen(Optional.empty());
 
     MaybeT<OptionalKind.Witness, String> mt1 = MaybeT.fromKind(wrappedJust1);
     MaybeT<OptionalKind.Witness, String> mt2 = MaybeT.fromKind(wrappedJust2);

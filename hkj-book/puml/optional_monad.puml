@@ -8,13 +8,9 @@ interface "Monad<M>" as MonadBase
 interface "MonadError<M, E>" as MonadErrorBase
 
 interface "OptionalKind<A>" as OptionalKindBase << (O,lightblue) >> {
-' Witness type for Optional
 }
 
 class "OptionalKindHelper" as OptionalKindHelper << (H,grey) >> {
-' Utility for OptionalKind
-' + static <A> Optional<A> unwrap(Kind<OptionalKind.Witness, A>)
-' + static <A> OptionalKind<A> wrap(Optional<A>)
 }
 note right of OptionalKindHelper
 Contains internal 'OptionalHolder<A> record'
@@ -23,15 +19,9 @@ which implements OptionalKind<A>.
 end note
 
 class "OptionalFunctor" as OptionalFunctorImpl {
-' + <A,B> OptionalKind<B> map(Function<A,B>, Kind<OptionalKind.Witness,A>)
 }
 class "OptionalMonad" as OptionalMonadImpl {
-  ' + <A> OptionalKind<A> of(A)
-  ' + <A,B> OptionalKind<B> flatMap(Function<A, Kind<OptionalKind.Witness,B>>, Kind<OptionalKind.Witness,A>)
-  ' + <A,B> Kind<OptionalKind.Witness,B> ap(Kind<OptionalKind.Witness,Function<A,B>>, Kind<OptionalKind.Witness,A>)
-' --- MonadError ---
-' + <A> Kind<OptionalKind.Witness,A> raiseError(Unit)
-  ' + <A> Kind<OptionalKind.Witness,A> handleErrorWith(Kind<OptionalKind.Witness,A>, Function<Unit, Kind<OptionalKind.Witness,A>>)
+
 }
 
 MonadErrorBase --|> MonadBase
@@ -45,7 +35,7 @@ OptionalFunctorImpl ..|> Functor : <OptionalKind.Witness>
 OptionalMonadImpl --|> OptionalFunctorImpl
 OptionalMonadImpl ..|> MonadErrorBase : <OptionalKind.Witness, Unit>
 
-OptionalMonadImpl ..> OptionalKindHelper : uses for wrap/unwrap
-OptionalFunctorImpl ..> OptionalKindHelper : uses for wrap/unwrap
+OptionalMonadImpl ..> OptionalKindHelper : uses for widen / narrow
+OptionalFunctorImpl ..> OptionalKindHelper : uses for widen / narrow
 
 @enduml

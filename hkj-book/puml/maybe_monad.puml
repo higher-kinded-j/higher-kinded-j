@@ -37,11 +37,10 @@ interface "MonadError<M, E>" as MonadErrorBase
   }
 
   class "MaybeKindHelper" as MaybeKindHelper << (H,grey) >> {
-    ' Utility for MaybeKind
-    ' + static <A> Maybe<A> unwrap(Kind<MaybeKind.Witness, A>)
-    ' + static <A> MaybeKind<A> wrap(Maybe<A>)
-    ' + static <A> Kind<MaybeKind.Witness,A> just(A)
-    ' + static <A> Kind<MaybeKind.Witness,A> nothing()
+     + static <A> Maybe<A> narrow(Kind<MaybeKind.Witness, A>)
+     + static <A> Kind<MaybeKind.Witness,A> widen(Maybe<A>)
+     + static <A> Kind<MaybeKind.Witness,A> just(A)
+     + static <A> Kind<MaybeKind.Witness,A> nothing()
   }
   note right of MaybeKindHelper
     Contains internal 'MaybeHolder<A> record'
@@ -55,12 +54,12 @@ interface "MonadError<M, E>" as MonadErrorBase
   }
 
   class "MaybeMonad" as MaybeMonadImpl {
-    ' + <A> MaybeKind<A> of(A)
-    ' + <A,B> MaybeKind<B> flatMap(Function<A, Kind<MaybeKind.Witness,B>>, Kind<MaybeKind.Witness,A>)
-    ' + <A,B> Kind<MaybeKind.Witness,B> ap(Kind<MaybeKind.Witness,Function<A,B>>, Kind<MaybeKind.Witness,A>)
-    ' --- MonadError ---
-    ' + <A> Kind<MaybeKind.Witness,A> raiseError(Unit)
-    ' + <A> Kind<MaybeKind.Witness,A> handleErrorWith(Kind<MaybeKind.Witness,A>, Function<Unit, Kind<MaybeKind.Witness,A>>)
+'     + <A> Kind<MaybeKind.Witness,A> of(A)
+'     + <A,B> Kind<MaybeKind.Witness,B> flatMap(Function<A, Kind<MaybeKind.Witness,B>>, Kind<MaybeKind.Witness,A>)
+'     + <A,B> Kind<MaybeKind.Witness,B> ap(Kind<MaybeKind.Witness,Function<A,B>>, Kind<MaybeKind.Witness,A>)
+'     --- MonadError ---
+'     + <A> Kind<MaybeKind.Witness,A> raiseError(Unit)
+'     + <A> Kind<MaybeKind.Witness,A> handleErrorWith(Kind<MaybeKind.Witness,A>, Function<Unit, Kind<MaybeKind.Witness,A>>)
   }
 
 
@@ -77,7 +76,7 @@ MaybeMonadImpl ..|> MonadErrorBase : <MaybeKind.Witness, Unit>
 
 MaybeMonadImpl ..> MaybeKindHelper : uses
 MaybeFunctorImpl ..> MaybeKindHelper : uses
-MaybeKindHelper ..> MaybeInterface : uses (wrap/unwrap)
+MaybeKindHelper ..> MaybeInterface : uses (widen/narrow)
 MaybeInterface <|.. Just
 MaybeInterface <|.. Nothing
 

@@ -42,8 +42,8 @@ hide empty members
     + {static} INVALID_KIND_TYPE_MSG: String
     + {static} INVALID_HOLDER_STATE_MSG: String
     - EitherTKindHelper()
-    + {static} unwrap(Kind<EitherTKind.Witness<F_IN, L_IN>, R>): EitherT<F_IN, L_IN, R>
-    + {static} wrap(EitherT<F_IN, L_IN, R>): EitherTKind<F_IN, L_IN, R>
+    + {static} narrow(Kind<EitherTKind.Witness<F_IN, L_IN>, R>): EitherT<F_IN, L_IN, R>
+    + {static} widen(EitherT<F_IN, L_IN, R>): EitherTKind<F_IN, L_IN, R>
   }
 
   class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>, L> {
@@ -61,7 +61,7 @@ hide empty members
     L: Left type (Error type E for MonadError)
   end note
 
-  EitherTMonad ..> EitherTKindHelper : uses for wrap/unwrap
+  EitherTMonad ..> EitherTKindHelper : uses for widen/narrow
   EitherTMonad ..> EitherT : creates/manipulates
   EitherTMonad ..> Monad : (depends on instance of outer Monad<F>)
 

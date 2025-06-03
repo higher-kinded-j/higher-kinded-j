@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -27,12 +28,11 @@ class ValidatedKindHelperTest {
   @Test
   void widen_withValidInstance_shouldReturnKind() {
     Validated<List<String>, String> originalValid = Validated.valid(testValue);
-    Kind<ValidatedKind.Witness<List<String>>, String> kind =
-        ValidatedKindHelper.widen(originalValid);
+    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(originalValid);
 
     assertNotNull(kind);
     // To fully verify, narrow it back
-    Validated<List<String>, String> narrowed = ValidatedKindHelper.narrow(kind);
+    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
     assertEquals(originalValid, narrowed);
     assertTrue(narrowed.isValid());
     assertEquals(testValue, narrowed.get());
@@ -41,12 +41,11 @@ class ValidatedKindHelperTest {
   @Test
   void widen_withInvalidInstance_shouldReturnKind() {
     Validated<List<String>, String> originalInvalid = Validated.invalid(testError);
-    Kind<ValidatedKind.Witness<List<String>>, String> kind =
-        ValidatedKindHelper.widen(originalInvalid);
+    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(originalInvalid);
 
     assertNotNull(kind);
     // To fully verify, narrow it back
-    Validated<List<String>, String> narrowed = ValidatedKindHelper.narrow(kind);
+    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
     assertEquals(originalInvalid, narrowed);
     assertTrue(narrowed.isInvalid());
     assertEquals(testError, narrowed.getError());
@@ -57,9 +56,8 @@ class ValidatedKindHelperTest {
   @Test
   void narrow_withKindFromValid_shouldReturnValidatedInstance() {
     Validated<List<String>, Integer> originalValid = Validated.valid(testIntValue);
-    Kind<ValidatedKind.Witness<List<String>>, Integer> kind =
-        ValidatedKindHelper.widen(originalValid);
-    Validated<List<String>, Integer> narrowed = ValidatedKindHelper.narrow(kind);
+    Kind<ValidatedKind.Witness<List<String>>, Integer> kind = VALIDATED.widen(originalValid);
+    Validated<List<String>, Integer> narrowed = VALIDATED.narrow(kind);
 
     assertNotNull(narrowed);
     assertInstanceOf(Valid.class, narrowed);
@@ -71,9 +69,8 @@ class ValidatedKindHelperTest {
   @Test
   void narrow_withKindFromInvalid_shouldReturnValidatedInstance() {
     Validated<List<String>, Integer> originalInvalid = Validated.invalid(testError);
-    Kind<ValidatedKind.Witness<List<String>>, Integer> kind =
-        ValidatedKindHelper.widen(originalInvalid);
-    Validated<List<String>, Integer> narrowed = ValidatedKindHelper.narrow(kind);
+    Kind<ValidatedKind.Witness<List<String>>, Integer> kind = VALIDATED.widen(originalInvalid);
+    Validated<List<String>, Integer> narrowed = VALIDATED.narrow(kind);
 
     assertNotNull(narrowed);
     assertInstanceOf(Invalid.class, narrowed);
@@ -92,10 +89,10 @@ class ValidatedKindHelperTest {
 
   @Test
   void factoryValid_shouldCreateAKindRepresentingValid() {
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = ValidatedKindHelper.valid(testValue);
+    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.valid(testValue);
     assertNotNull(kind);
 
-    Validated<List<String>, String> validated = ValidatedKindHelper.narrow(kind);
+    Validated<List<String>, String> validated = VALIDATED.narrow(kind);
     assertTrue(validated.isValid());
     assertFalse(validated.isInvalid());
     assertEquals(testValue, validated.get());
@@ -109,7 +106,7 @@ class ValidatedKindHelperTest {
     assertThrows(
         NullPointerException.class,
         () -> {
-          ValidatedKindHelper.valid(null);
+          VALIDATED.valid(null);
         });
   }
 
@@ -117,10 +114,10 @@ class ValidatedKindHelperTest {
 
   @Test
   void factoryInvalid_shouldCreateAKindRepresentingInvalid() {
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = ValidatedKindHelper.invalid(testError);
+    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.invalid(testError);
     assertNotNull(kind);
 
-    Validated<List<String>, String> validated = ValidatedKindHelper.narrow(kind);
+    Validated<List<String>, String> validated = VALIDATED.narrow(kind);
     assertTrue(validated.isInvalid());
     assertFalse(validated.isValid());
     assertEquals(testError, validated.getError());
@@ -135,7 +132,7 @@ class ValidatedKindHelperTest {
     assertThrows(
         NullPointerException.class,
         () -> {
-          ValidatedKindHelper.invalid(nullErrorList);
+          VALIDATED.invalid(nullErrorList);
         });
   }
 
@@ -143,8 +140,8 @@ class ValidatedKindHelperTest {
   @Test
   void roundTrip_validInstance_preservesIdentityAndData() {
     Validated<List<String>, String> original = Validated.valid("Round trip");
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = ValidatedKindHelper.widen(original);
-    Validated<List<String>, String> narrowed = ValidatedKindHelper.narrow(kind);
+    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(original);
+    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
 
     assertEquals(original, narrowed);
     assertTrue(narrowed.isValid());
@@ -155,8 +152,8 @@ class ValidatedKindHelperTest {
   void roundTrip_invalidInstance_preservesIdentityAndData() {
     List<String> error = Collections.singletonList("Error round trip");
     Validated<List<String>, String> original = Validated.invalid(error);
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = ValidatedKindHelper.widen(original);
-    Validated<List<String>, String> narrowed = ValidatedKindHelper.narrow(kind);
+    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(original);
+    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
 
     assertEquals(original, narrowed);
     assertTrue(narrowed.isInvalid());

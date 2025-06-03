@@ -26,7 +26,7 @@ class IOMonadTest {
 
   // Helper to create an IO Kind that logs an effect and returns a value
   private <A> Kind<IOKind.Witness, A> effectfulKind(String effect, A value) {
-    return IOKindHelper.delay(
+    return IO_OP.delay(
         () -> {
           effectsLog.add(effect);
           return value;
@@ -35,7 +35,7 @@ class IOMonadTest {
 
   // Helper to create an IO Kind that logs an effect and throws
   private <A> Kind<IOKind.Witness, A> failingKind(String effect, RuntimeException exception) {
-    return IOKindHelper.delay(
+    return IO_OP.delay(
         () -> {
           effectsLog.add(effect);
           throw exception;
@@ -57,7 +57,7 @@ class IOMonadTest {
     void of_shouldCreateIOThatReturnsValueWithoutImmediateEffect() {
       Kind<IOKind.Witness, String> kind = ioMonad.of("pureValue");
       assertThat(effectsLog).isEmpty(); // No effect on creation
-      assertThat(unsafeRunSync(kind)).isEqualTo("pureValue");
+      assertThat(IO_OP.unsafeRunSync(kind)).isEqualTo("pureValue");
       assertThat(effectsLog).isEmpty(); // 'of'/'pure' shouldn't have side effects itself
     }
 
@@ -65,7 +65,7 @@ class IOMonadTest {
     void of_shouldAllowNullValue() {
       Kind<IOKind.Witness, String> kind = ioMonad.of(null);
       assertThat(effectsLog).isEmpty();
-      assertThat(unsafeRunSync(kind)).isNull();
+      assertThat(IO_OP.unsafeRunSync(kind)).isNull();
       assertThat(effectsLog).isEmpty();
     }
   }
@@ -80,12 +80,12 @@ class IOMonadTest {
 
       assertThat(effectsLog).isEmpty(); // No effect yet
 
-      assertThat(unsafeRunSync(mappedKind)).isEqualTo("Val:10");
+      assertThat(IO_OP.unsafeRunSync(mappedKind)).isEqualTo("Val:10");
       assertThat(effectsLog).containsExactly("Effect1"); // Original effect ran
 
       // Run again
       effectsLog.clear();
-      assertThat(unsafeRunSync(mappedKind)).isEqualTo("Val:10");
+      assertThat(IO_OP.unsafeRunSync(mappedKind)).isEqualTo("Val:10");
       assertThat(effectsLog).containsExactly("Effect1");
     }
 
@@ -96,7 +96,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> mappedKind = ioMonad.map(i -> "Val:" + i, initialKind);
 
       assertThat(effectsLog).isEmpty();
-      assertThatThrownBy(() -> unsafeRunSync(mappedKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(mappedKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(ex);
       assertThat(effectsLog).containsExactly("EffectFail"); // Effect ran before failing
@@ -115,7 +115,7 @@ class IOMonadTest {
               initialKind);
 
       assertThat(effectsLog).isEmpty();
-      assertThatThrownBy(() -> unsafeRunSync(mappedKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(mappedKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(mapEx);
       // Effects: Original IO runs, then mapper runs and throws
@@ -135,7 +135,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.ap(funcKind, valKind);
       assertThat(effectsLog).isEmpty(); // Lazy
 
-      assertThat(unsafeRunSync(resultKind)).isEqualTo("F(20)");
+      assertThat(IO_OP.unsafeRunSync(resultKind)).isEqualTo("F(20)");
       // ap runs function IO first, then value IO
       assertThat(effectsLog).containsExactly("EffectF", "EffectV");
     }
@@ -149,7 +149,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.ap(funcKind, valKind);
       assertThat(effectsLog).isEmpty();
 
-      assertThatThrownBy(() -> unsafeRunSync(resultKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(funcEx);
       assertThat(effectsLog).containsExactly("EffectF"); // Only first effect ran
@@ -165,7 +165,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.ap(funcKind, valKind);
       assertThat(effectsLog).isEmpty();
 
-      assertThatThrownBy(() -> unsafeRunSync(resultKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(valEx);
       assertThat(effectsLog).containsExactly("EffectF", "EffectV"); // Both effects ran before fail
@@ -186,7 +186,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.ap(funcKind, valKind);
       assertThat(effectsLog).isEmpty();
 
-      assertThatThrownBy(() -> unsafeRunSync(resultKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(applyEx);
       // Effects: Func IO, Value IO, then Apply fails
@@ -206,7 +206,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.flatMap(f, initialKind);
       assertThat(effectsLog).isEmpty(); // Lazy
 
-      assertThat(unsafeRunSync(resultKind)).isEqualTo("Val10");
+      assertThat(IO_OP.unsafeRunSync(resultKind)).isEqualTo("Val10");
       assertThat(effectsLog).containsExactly("Effect1", "Effect2(5)"); // Effects in order
     }
 
@@ -220,7 +220,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.flatMap(f, initialKind);
       assertThat(effectsLog).isEmpty();
 
-      assertThatThrownBy(() -> unsafeRunSync(resultKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(ex1);
       assertThat(effectsLog).containsExactly("Effect1");
@@ -239,7 +239,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.flatMap(f, initialKind);
       assertThat(effectsLog).isEmpty();
 
-      assertThatThrownBy(() -> unsafeRunSync(resultKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(fEx);
       assertThat(effectsLog).containsExactly("Effect1", "FuncRun");
@@ -255,7 +255,7 @@ class IOMonadTest {
       Kind<IOKind.Witness, String> resultKind = ioMonad.flatMap(f, initialKind);
       assertThat(effectsLog).isEmpty();
 
-      assertThatThrownBy(() -> unsafeRunSync(resultKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(ex2);
       assertThat(effectsLog).containsExactly("Effect1", "Effect2(5)");
@@ -295,13 +295,13 @@ class IOMonadTest {
       // Run left side
       lawEffectTracker.set("");
       Kind<IOKind.Witness, String> leftSide = ioMonad.flatMap(fLaw, ofValue);
-      String leftResult = unsafeRunSync(leftSide);
+      String leftResult = IO_OP.unsafeRunSync(leftSide);
       String leftEffects = lawEffectTracker.get();
 
       // Run right side
       lawEffectTracker.set("");
       Kind<IOKind.Witness, String> rightSide = fLaw.apply(value);
-      String rightResult = unsafeRunSync(rightSide);
+      String rightResult = IO_OP.unsafeRunSync(rightSide);
       String rightEffects = lawEffectTracker.get();
 
       assertThat(leftResult).isEqualTo(rightResult);
@@ -312,7 +312,7 @@ class IOMonadTest {
     @DisplayName("2. Right Identity: flatMap(m, of) == m")
     void rightIdentity() {
       Kind<IOKind.Witness, Integer> mValue =
-          IOKindHelper.delay(
+          IO_OP.delay(
               () -> {
                 lawEffectTracker.set(lawEffectTracker.get() + "m");
                 return 10;
@@ -322,12 +322,12 @@ class IOMonadTest {
       // Run left side
       lawEffectTracker.set("");
       Kind<IOKind.Witness, Integer> leftSide = ioMonad.flatMap(ofFunc, mValue);
-      Integer leftResult = unsafeRunSync(leftSide);
+      Integer leftResult = IO_OP.unsafeRunSync(leftSide);
       String leftEffects = lawEffectTracker.get();
 
       // Run right side
       lawEffectTracker.set("");
-      Integer rightResult = unsafeRunSync(mValue);
+      Integer rightResult = IO_OP.unsafeRunSync(mValue);
       String rightEffects = lawEffectTracker.get();
 
       assertThat(leftResult).isEqualTo(rightResult);
@@ -338,7 +338,7 @@ class IOMonadTest {
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
       Kind<IOKind.Witness, Integer> mValue =
-          IOKindHelper.delay(
+          IO_OP.delay(
               () -> {
                 lawEffectTracker.set(lawEffectTracker.get() + "m");
                 return 10;
@@ -348,7 +348,7 @@ class IOMonadTest {
       lawEffectTracker.set("");
       Kind<IOKind.Witness, String> innerLeft = ioMonad.flatMap(fLaw, mValue);
       Kind<IOKind.Witness, String> leftSide = ioMonad.flatMap(gLaw, innerLeft);
-      String leftResult = unsafeRunSync(leftSide);
+      String leftResult = IO_OP.unsafeRunSync(leftSide);
       String leftEffects = lawEffectTracker.get();
 
       // Run right side: flatMap(mValue, a -> flatMap(gLaw, fLaw.apply(a)))
@@ -356,7 +356,7 @@ class IOMonadTest {
       Function<Integer, Kind<IOKind.Witness, String>> rightSideFunc =
           a -> ioMonad.flatMap(gLaw, fLaw.apply(a));
       Kind<IOKind.Witness, String> rightSide = ioMonad.flatMap(rightSideFunc, mValue);
-      String rightResult = unsafeRunSync(rightSide);
+      String rightResult = IO_OP.unsafeRunSync(rightSide);
       String rightEffects = lawEffectTracker.get();
 
       assertThat(leftResult).isEqualTo(rightResult);
@@ -377,7 +377,7 @@ class IOMonadTest {
     void map2_combinesValuesAndEffects() {
       Kind<IOKind.Witness, String> result = ioMonad.map2(io1, io2, (i, s) -> s + i);
       assertThat(effectsLog).isEmpty();
-      assertThat(unsafeRunSync(result)).isEqualTo("A1");
+      assertThat(IO_OP.unsafeRunSync(result)).isEqualTo("A1");
       assertThat(effectsLog).containsExactly("E1", "E2"); // Effects run in order
     }
 
@@ -387,7 +387,7 @@ class IOMonadTest {
           (i, s, d) -> String.format("%s%d-%.1f", s, i, d);
       Kind<IOKind.Witness, String> result = ioMonad.map3(io1, io2, io3, f3);
       assertThat(effectsLog).isEmpty();
-      assertThat(unsafeRunSync(result)).isEqualTo("A1-1.5");
+      assertThat(IO_OP.unsafeRunSync(result)).isEqualTo("A1-1.5");
       assertThat(effectsLog).containsExactly("E1", "E2", "E3");
     }
 
@@ -397,7 +397,7 @@ class IOMonadTest {
           (i, s, d, b) -> String.format("%s%d-%.1f-%b", s, i, d, b);
       Kind<IOKind.Witness, String> result = ioMonad.map4(io1, io2, io3, io4, f4);
       assertThat(effectsLog).isEmpty();
-      assertThat(unsafeRunSync(result)).isEqualTo("A1-1.5-true");
+      assertThat(IO_OP.unsafeRunSync(result)).isEqualTo("A1-1.5-true");
       assertThat(effectsLog).containsExactly("E1", "E2", "E3", "E4");
     }
 
@@ -409,7 +409,7 @@ class IOMonadTest {
 
       Kind<IOKind.Witness, String> result = ioMonad.map3(io1, ioFail, io3, f3);
       assertThat(effectsLog).isEmpty();
-      assertThatThrownBy(() -> unsafeRunSync(result))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(ex);
       // Effects run up to the point of failure

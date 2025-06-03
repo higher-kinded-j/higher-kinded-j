@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.unwrap;
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.wrap;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -46,8 +45,8 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
   @Override
   public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<ReaderKind.Witness<R>, A> fa) {
-    Reader<R, A> readerA = unwrap(fa);
+    Reader<R, A> readerA = READER.narrow(fa);
     Reader<R, B> readerB = readerA.map(f); // Delegates to Reader's own map method
-    return wrap(readerB);
+    return READER.widen(readerB);
   }
 }

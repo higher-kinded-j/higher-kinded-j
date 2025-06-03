@@ -45,13 +45,16 @@ public interface OptionalTKind<F, A> extends Kind<OptionalTKind.Witness<F>, A> {
 
 ```java
 
-public final class OptionalTKindHelper {
+public enum OptionalTKindHelper {
+   
+  OPTIONAL_T;
+  
     // Unwraps Kind<OptionalTKind.Witness<F>, A> to OptionalT<F, A>
-    public static <F, A> @NonNull OptionalT<F, A> unwrap(
+    public  <F, A> @NonNull OptionalT<F, A> narrow(
         @Nullable Kind<OptionalTKind.Witness<F>, A> kind);
 
     // Wraps OptionalT<F, A> into OptionalTKind<F, A>
-    public static <F, A> @NonNull OptionalTKind<F, A> wrap(
+    public  <F, A> @NonNull OptionalTKind<F, A> widen(
         @NonNull OptionalT<F, A> optionalT);
 }
 ```
@@ -106,7 +109,7 @@ public void createExample() {
     // 1. `OptionalT.fromKind(Kind<F, Optional<A>> value)`
     //    Wraps an existing F<Optional<A>>.
     Kind<CompletableFutureKind.Witness, Optional<String>> fOptional =
-        CompletableFutureKindHelper.wrap(CompletableFuture.completedFuture(Optional.of(presentValue)));
+        FUTURE.widen(CompletableFuture.completedFuture(Optional.of(presentValue)));
     OptionalT<CompletableFutureKind.Witness, String> ot1 = OptionalT.fromKind(fOptional);
     // Value: CompletableFuture<Optional.of("Data")>
 
@@ -135,19 +138,19 @@ public void createExample() {
     // 5. `OptionalT.liftF(Monad<F> monad, Kind<F, A> fa)`
     //    Lifts an F<A> into OptionalT. If A is null, it becomes F<Optional.empty()>, otherwise F<Optional.of(A)>.
     Kind<CompletableFutureKind.Witness, String> fValue =
-        CompletableFutureKindHelper.wrap(CompletableFuture.completedFuture(presentValue));
+        FUTURE.widen(CompletableFuture.completedFuture(presentValue));
     OptionalT<CompletableFutureKind.Witness, String> ot5 = OptionalT.liftF(futureMonad, fValue);
     // Value: CompletableFuture<Optional.of("Data   ")>
 
     Kind<CompletableFutureKind.Witness, String> fNullValue =
-        CompletableFutureKindHelper.wrap(CompletableFuture.completedFuture(null)); // F<null>
+        FUTURE.widen(CompletableFuture.completedFuture(null)); // F<null>
     OptionalT<CompletableFutureKind.Witness, String> ot5Null = OptionalT.liftF(futureMonad, fNullValue);
     // Value: CompletableFuture<Optional.empty()> (because the value inside F was null)
 
 
     // Accessing the wrapped value:
     Kind<CompletableFutureKind.Witness, Optional<String>> wrappedFVO = ot1.value();
-    CompletableFuture<Optional<String>> futureOptional = CompletableFutureKindHelper.unwrap(wrappedFVO);
+    CompletableFuture<Optional<String>> futureOptional = FUTURE.narrow(wrappedFVO);
     futureOptional.thenAccept(optStr -> System.out.println("ot1 result: " + optStr));
   }
 ```
@@ -170,7 +173,7 @@ public static class OptionalTAsyncExample {
     static final ExecutorService executor = Executors.newFixedThreadPool(2);
 
     public static Kind<CompletableFutureKind.Witness, Optional<User>> fetchUserAsync(String userId) {
-      return CompletableFutureKindHelper.wrap(CompletableFuture.supplyAsync(() -> {
+      return FUTURE.widen(CompletableFuture.supplyAsync(() -> {
         System.out.println("Fetching user " + userId + " on " + Thread.currentThread().getName());
         try {
           TimeUnit.MILLISECONDS.sleep(50);
@@ -180,7 +183,7 @@ public static class OptionalTAsyncExample {
     }
 
     public static Kind<CompletableFutureKind.Witness, Optional<UserProfile>> fetchProfileAsync(String userId) {
-      return CompletableFutureKindHelper.wrap(CompletableFuture.supplyAsync(() -> {
+      return FUTURE.widen(CompletableFuture.supplyAsync(() -> {
         System.out.println("Fetching profile for " + userId + " on " + Thread.currentThread().getName());
         try {
           TimeUnit.MILLISECONDS.sleep(50);
@@ -190,7 +193,7 @@ public static class OptionalTAsyncExample {
     }
 
     public static Kind<CompletableFutureKind.Witness, Optional<UserPreferences>> fetchPrefsAsync(String userId) {
-      return CompletableFutureKindHelper.wrap(CompletableFuture.supplyAsync(() -> {
+      return FUTURE.widen(CompletableFuture.supplyAsync(() -> {
         System.out.println("Fetching preferences for " + userId + " on " + Thread.currentThread().getName());
         try {
           TimeUnit.MILLISECONDS.sleep(50);
@@ -210,19 +213,19 @@ public static class OptionalTAsyncExample {
 
       // If user exists, fetch profile
       OptionalT<CompletableFutureKind.Witness, UserProfile> profileOT =
-          OptionalTKindHelper.unwrap(
+          OPTIONAL_T.narrow(
               optionalTFutureMonad.flatMap(
-                  user -> OptionalTKindHelper.wrap(OptionalT.fromKind(fetchProfileAsync(user.id()))),
-                  OptionalTKindHelper.wrap(userOT)
+                  user -> OPTIONAL_T.widen(OptionalT.fromKind(fetchProfileAsync(user.id()))),
+                  OPTIONAL_T.widen(userOT)
               )
           );
 
       // If profile exists, fetch preferences
       OptionalT<CompletableFutureKind.Witness, UserPreferences> preferencesOT =
-          OptionalTKindHelper.unwrap(
+          OPTIONAL_T.narrow(
               optionalTFutureMonad.flatMap(
-                  profile -> OptionalTKindHelper.wrap(OptionalT.fromKind(fetchPrefsAsync(profile.userId()))),
-                  OptionalTKindHelper.wrap(profileOT)
+                  profile -> OPTIONAL_T.widen(OptionalT.fromKind(fetchPrefsAsync(profile.userId()))),
+                  OPTIONAL_T.widen(profileOT)
               )
           );
       return preferencesOT;
@@ -234,22 +237,22 @@ public static class OptionalTAsyncExample {
 
       Kind<OptionalTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> recoveredPrefsOTKind =
           optionalTFutureMonad.handleErrorWith(
-              OptionalTKindHelper.wrap(prefsAttemptOT),
+              OPTIONAL_T.widen(prefsAttemptOT),
               (Unit v) -> { // This lambda is called if prefsAttemptOT results in F<Optional.empty()>
                 System.out.println("Preferences not found for " + userId + ", providing default.");
                 // Lift a default preference into OptionalT
                 UserPreferences defaultPrefs = new UserPreferences(userId, "default-light");
-                return OptionalTKindHelper.wrap(OptionalT.some(futureMonad, defaultPrefs));
+                return OPTIONAL_T.widen(OptionalT.some(futureMonad, defaultPrefs));
               }
           );
-      return OptionalTKindHelper.unwrap(recoveredPrefsOTKind);
+      return OPTIONAL_T.narrow(recoveredPrefsOTKind);
     }
 
     public static void main(String[] args) {
       System.out.println("--- Attempting to get preferences for existing user (user1) ---");
       OptionalT<CompletableFutureKind.Witness, UserPreferences> resultUser1OT = getFullUserPreferences("user1");
       CompletableFuture<Optional<UserPreferences>> future1 =
-          CompletableFutureKindHelper.unwrap(resultUser1OT.value());
+          FUTURE.narrow(resultUser1OT.value());
 
       future1.whenComplete((optPrefs, ex) -> {
         if (ex != null) {
@@ -263,7 +266,7 @@ public static class OptionalTAsyncExample {
       System.out.println("\n--- Attempting to get preferences for non-existing user (user2) ---");
       OptionalT<CompletableFutureKind.Witness, UserPreferences> resultUser2OT = getFullUserPreferences("user2");
       CompletableFuture<Optional<UserPreferences>> future2 =
-          CompletableFutureKindHelper.unwrap(resultUser2OT.value());
+          FUTURE.narrow(resultUser2OT.value());
 
       future2.whenComplete((optPrefs, ex) -> {
         if (ex != null) {
@@ -276,7 +279,7 @@ public static class OptionalTAsyncExample {
       System.out.println("\n--- Attempting to get preferences for user1 WITH DEFAULT ---");
       OptionalT<CompletableFutureKind.Witness, UserPreferences> resultUser1WithDefaultOT = getPrefsWithDefault("user1");
       CompletableFuture<Optional<UserPreferences>> future3 =
-          CompletableFutureKindHelper.unwrap(resultUser1WithDefaultOT.value());
+          FUTURE.narrow(resultUser1WithDefaultOT.value());
 
       future3.whenComplete((optPrefs, ex) -> {
         if (ex != null) {

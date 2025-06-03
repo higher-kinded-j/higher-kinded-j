@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trans.either_t;
 
+import static org.higherkindedj.hkt.trans.either_t.EitherTKindHelper.EITHER_T;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -54,7 +56,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
   @Override
   public <R> @NonNull Kind<EitherTKind.Witness<F, L>, R> of(@Nullable R r) {
     EitherT<F, L, R> concreteEitherT = EitherT.right(outerMonad, r);
-    return EitherTKindHelper.wrap(concreteEitherT);
+    return EITHER_T.widen(concreteEitherT);
   }
 
   /**
@@ -74,9 +76,9 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
     Objects.requireNonNull(f, "Function f cannot be null for map");
     Objects.requireNonNull(fa, "Kind fa cannot be null for map");
 
-    EitherT<F, L, R_IN> eitherT = EitherTKindHelper.unwrap(fa);
+    EitherT<F, L, R_IN> eitherT = EITHER_T.narrow(fa);
     Kind<F, Either<L, R_OUT>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());
-    return EitherTKindHelper.wrap(EitherT.fromKind(newValue));
+    return EITHER_T.widen(EitherT.fromKind(newValue));
   }
 
   /**
@@ -97,8 +99,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
     Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
     Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
 
-    EitherT<F, L, Function<R_IN, R_OUT>> funcT = EitherTKindHelper.unwrap(ff);
-    EitherT<F, L, R_IN> valT = EitherTKindHelper.unwrap(fa);
+    EitherT<F, L, Function<R_IN, R_OUT>> funcT = EITHER_T.narrow(ff);
+    EitherT<F, L, R_IN> valT = EITHER_T.narrow(fa);
 
     Kind<F, Either<L, R_OUT>> resultValue =
         outerMonad.flatMap(
@@ -109,7 +111,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
                     valT.value()),
             funcT.value());
 
-    return EitherTKindHelper.wrap(EitherT.fromKind(resultValue));
+    return EITHER_T.widen(EitherT.fromKind(resultValue));
   }
 
   /**
@@ -131,7 +133,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
     Objects.requireNonNull(f, "Function f cannot be null for flatMap");
     Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
 
-    EitherT<F, L, R_IN> eitherT_ma = EitherTKindHelper.unwrap(ma);
+    EitherT<F, L, R_IN> eitherT_ma = EITHER_T.narrow(ma);
 
     Kind<F, Either<L, R_OUT>> newUnderlyingValue =
         outerMonad.flatMap(
@@ -139,7 +141,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
               if (innerEither.isRight()) {
                 R_IN r_in = innerEither.getRight();
                 Kind<EitherTKind.Witness<F, L>, R_OUT> resultKindT = f.apply(r_in);
-                EitherT<F, L, R_OUT> resultT = EitherTKindHelper.unwrap(resultKindT);
+                EitherT<F, L, R_OUT> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R_OUT>>
               } else {
                 // Propagate the Left by lifting it into F
@@ -148,7 +150,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
             },
             eitherT_ma.value() // This is Kind<F, Either<L, R_IN>>
             );
-    return EitherTKindHelper.wrap(EitherT.fromKind(newUnderlyingValue));
+    return EITHER_T.widen(EitherT.fromKind(newUnderlyingValue));
   }
 
   // --- MonadError Methods ---
@@ -165,7 +167,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
   @Override
   public <R> @NonNull Kind<EitherTKind.Witness<F, L>, R> raiseError(@Nullable L error) {
     EitherT<F, L, R> concreteEitherT = EitherT.left(outerMonad, error);
-    return EitherTKindHelper.wrap(concreteEitherT);
+    return EITHER_T.widen(concreteEitherT);
   }
 
   /**
@@ -189,7 +191,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
 
-    EitherT<F, L, R> eitherT_ma = EitherTKindHelper.unwrap(ma);
+    EitherT<F, L, R> eitherT_ma = EITHER_T.narrow(ma);
 
     Kind<F, Either<L, R>> newUnderlyingValue =
         outerMonad.flatMap(
@@ -199,12 +201,12 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
               } else {
                 L leftVal = innerEither.getLeft();
                 Kind<EitherTKind.Witness<F, L>, R> resultKindT = handler.apply(leftVal);
-                EitherT<F, L, R> resultT = EitherTKindHelper.unwrap(resultKindT);
+                EitherT<F, L, R> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R>>
               }
             },
             eitherT_ma.value() // This is Kind<F, Either<L, R>>
             );
-    return EitherTKindHelper.wrap(EitherT.fromKind(newUnderlyingValue));
+    return EITHER_T.widen(EitherT.fromKind(newUnderlyingValue));
   }
 }

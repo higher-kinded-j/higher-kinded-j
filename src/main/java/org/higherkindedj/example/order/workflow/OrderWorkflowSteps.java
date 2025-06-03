@@ -5,6 +5,9 @@ package org.higherkindedj.example.order.workflow;
 import static java.lang.String.format;
 import static org.higherkindedj.example.order.error.DomainError.*;
 import static org.higherkindedj.example.order.model.WorkflowModels.*;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.Objects;
 import java.util.Random;
@@ -15,12 +18,9 @@ import org.higherkindedj.example.order.error.DomainError;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryKindHelper;
 import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 
@@ -67,13 +67,12 @@ public class OrderWorkflowSteps {
       dependencies.log("Validation Failed (Either): " + msg);
       // Need to specify types for Either.left with var if not fully inferable or for clarity
       Either<DomainError, ValidatedOrder> errorResult = Either.left(new ValidationError(msg));
-      return EitherKindHelper.wrap(errorResult);
+      return EITHER.widen(errorResult);
     }
     if (data.productId().isEmpty()) {
       var msg = "Product ID missing for order " + data.orderId();
       dependencies.log("Validation Failed (Either): " + msg);
-      return EitherKindHelper.wrap(
-          Either.<DomainError, ValidatedOrder>left(new ValidationError(msg)));
+      return EITHER.widen(Either.<DomainError, ValidatedOrder>left(new ValidationError(msg)));
     }
     var amount = data.quantity() * 19.99;
     var validated =
@@ -86,7 +85,7 @@ public class OrderWorkflowSteps {
             data.shippingAddress(),
             data.customerId());
     dependencies.log("Validation Succeeded (Either) for order " + data.orderId());
-    return EitherKindHelper.wrap(Either.right(validated));
+    return EITHER.widen(Either.right(validated));
   }
 
   /**
@@ -99,7 +98,7 @@ public class OrderWorkflowSteps {
    *     Try.Success<ValidatedOrder>} or a {@link Try.Failure} wrapping the thrown exception.
    */
   public Kind<TryKind.Witness, ValidatedOrder> validateOrderWithTry(OrderData data) {
-    return TryKindHelper.tryOf(
+    return TRY.tryOf(
         () -> {
           dependencies.log("Step (sync - Try): Validating order " + data.orderId());
           if (data.quantity() <= 0) {
@@ -196,7 +195,7 @@ public class OrderWorkflowSteps {
               dependencies.log(format("... Check Inventory: delay complete for %s.", productId));
               return Either.<DomainError, Unit>right(Unit.INSTANCE);
             });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   /**
@@ -236,7 +235,7 @@ public class OrderWorkflowSteps {
                   new PaymentConfirmation(
                       "TXN_" + System.currentTimeMillis() + "_" + random.nextInt(1000)));
             });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   /**
@@ -282,7 +281,7 @@ public class OrderWorkflowSteps {
                   new ShipmentInfo(
                       "TRACK_" + System.currentTimeMillis() + "_" + random.nextInt(1000)));
             });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   /**
@@ -321,6 +320,6 @@ public class OrderWorkflowSteps {
                     new DomainError.NotificationError("Notification interrupted"));
               }
             });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 }

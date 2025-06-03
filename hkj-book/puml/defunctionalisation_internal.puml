@@ -15,8 +15,8 @@ package "Defunctionalisation Pattern For Library-Defined Types (Id, Maybe, IO, T
     IdRecord --|> IdKindInterface
 
     class "IdKindHelper" as IdKindHelper {
-        + {static} wrap(id: Id<A>): Kind<Id.Witness, A>
-        + {static} unwrap(kind: Kind<Id.Witness, A>): Id<A>
+        + {static} widen(id: Id<A>): Kind<Id.Witness, A>
+        + {static} narrow(kind: Kind<Id.Witness, A>): Id<A>
     }
     IdKindHelper ..> IdRecord : "casts to/from"
 

@@ -3,8 +3,7 @@
 package org.higherkindedj.hkt.writer;
 
 import static java.util.Objects.requireNonNull;
-import static org.higherkindedj.hkt.writer.WriterKindHelper.unwrap;
-import static org.higherkindedj.hkt.writer.WriterKindHelper.wrap;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -57,7 +56,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    */
   @Override
   public <A> @NonNull Kind<WriterKind.Witness<W>, A> of(@Nullable A value) {
-    return WriterKindHelper.value(monoidW, value);
+    return WRITER.value(monoidW, value);
   }
 
   /**
@@ -83,8 +82,8 @@ public class WriterApplicative<W> extends WriterFunctor<W>
       @NonNull Kind<WriterKind.Witness<W>, Function<A, B>> ff,
       @NonNull Kind<WriterKind.Witness<W>, A> fa) {
 
-    Writer<W, Function<A, B>> writerF = unwrap(ff);
-    Writer<W, A> writerA = unwrap(fa);
+    Writer<W, Function<A, B>> writerF = WRITER.narrow(ff);
+    Writer<W, A> writerA = WRITER.narrow(fa);
 
     W combinedLog = monoidW.combine(writerF.log(), writerA.log());
 
@@ -97,6 +96,6 @@ public class WriterApplicative<W> extends WriterFunctor<W>
             + "This may indicate an issue with how the Writer<W, Function<A,B>> was constructed.");
     B resultValue = func.apply(val);
 
-    return wrap(new Writer<>(combinedLog, resultValue));
+    return WRITER.widen(new Writer<>(combinedLog, resultValue));
   }
 }

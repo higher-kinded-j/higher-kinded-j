@@ -2,14 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.id;
 
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.trans.state_t.StateTKindHelper.STATE_T;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdentityMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.trans.state_t.StateTKind;
-import org.higherkindedj.hkt.trans.state_t.StateTKindHelper;
 import org.higherkindedj.hkt.trans.state_t.StateTMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/identity.html">Identity Monad</a>} */
@@ -38,12 +39,12 @@ public class IdExample {
 
     // 1. 'of' (lifting a value)
     Kind<Id.Witness, Integer> kindInt = idMonad.of(42);
-    Id<Integer> idFromOf = IdKindHelper.narrow(kindInt);
+    Id<Integer> idFromOf = ID.narrow(kindInt);
     System.out.println("From of: " + idFromOf.value()); // Output: From of: 42
 
     // 2. 'map' (applying a function to the wrapped value)
     Kind<Id.Witness, String> kindStringMapped = idMonad.map(i -> "Value is " + i, kindInt);
-    Id<String> idMapped = IdKindHelper.narrow(kindStringMapped);
+    Id<String> idMapped = ID.narrow(kindStringMapped);
     System.out.println("Mapped: " + idMapped.value()); // Output: Mapped: Value is 42
 
     // 3. 'flatMap' (applying a function that returns an Id)
@@ -51,7 +52,7 @@ public class IdExample {
         idMonad.flatMap(
             i -> Id.of("FlatMapped: " + (i * 2)), // Function returns Id<String>
             kindInt);
-    Id<String> idFlatMapped = IdKindHelper.narrow(kindStringFlatMapped);
+    Id<String> idFlatMapped = ID.narrow(kindStringFlatMapped);
     System.out.println("FlatMapped: " + idFlatMapped.value()); // Output: FlatMapped: 84
 
     // flatMap can also be called directly on Id if the function returns Id
@@ -61,7 +62,7 @@ public class IdExample {
     // 4. 'ap' (applicative apply)
     Kind<Id.Witness, Function<Integer, String>> kindFunction = idMonad.of(i -> "Applied: " + i);
     Kind<Id.Witness, String> kindApplied = idMonad.ap(kindFunction, kindInt);
-    Id<String> idApplied = IdKindHelper.narrow(kindApplied);
+    Id<String> idApplied = ID.narrow(kindApplied);
     System.out.println("Applied: " + idApplied.value()); // Output: Applied: 42
   }
 
@@ -77,15 +78,15 @@ public class IdExample {
 
     // Create the StateT (acting as State)
     Kind<StateTKind.Witness<Integer, Id.Witness>, Integer> incrementAndGet =
-        StateTKindHelper.stateT(runStateFn, IdentityMonad.instance());
+        STATE_T.stateT(runStateFn, IdentityMonad.instance());
 
     // Run it
     Integer initialState = 10;
     Kind<Id.Witness, StateTuple<Integer, Integer>> resultIdTuple =
-        StateTKindHelper.runStateT(incrementAndGet, initialState);
+        STATE_T.runStateT(incrementAndGet, initialState);
 
     // Unwrap the Id and then the StateTuple
-    Id<StateTuple<Integer, Integer>> idTuple = IdKindHelper.narrow(resultIdTuple);
+    Id<StateTuple<Integer, Integer>> idTuple = ID.narrow(resultIdTuple);
     StateTuple<Integer, Integer> tuple = idTuple.value();
 
     System.out.println("Initial State: " + initialState); // Output: Initial State: 10

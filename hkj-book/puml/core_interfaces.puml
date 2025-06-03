@@ -19,12 +19,12 @@ package "Defunctionalisation Pattern Details" {
             }
         }
         OptionalKindHelper ..> OptionalHolder : "creates / uses"
-        OptionalKindHelper ..> JavaOptional : "wraps / unwraps"
+        OptionalKindHelper ..> JavaOptional : "widens / narrows"
         OptionalHolder ..> JavaOptional : "holds"
 
         class "OptionalKindHelper" as OptionalKindHelper {
-            + {static} wrap(opt: java.util.Optional<A>): Kind<OptionalKind.Witness, A>
-            + {static} unwrap(kind: Kind<OptionalKind.Witness, A>): java.util.Optional<A>
+            + {static} widen(opt: java.util.Optional<A>): Kind<OptionalKind.Witness, A>
+            + {static} narrow(kind: Kind<OptionalKind.Witness, A>): java.util.Optional<A>
         }
         class "OptionalMonad" as OptionalMonad implements MonadError<OptionalKind.Witness, Unit> {
             ' Uses OptionalKindHelper
@@ -42,8 +42,8 @@ package "Defunctionalisation Pattern Details" {
         IdRecord --|> IdKindInterface
 
         class "IdKindHelper" as IdKindHelper {
-            + {static} wrap(id: Id<A>): Kind<Id.Witness, A>
-            + {static} unwrap(kind: Kind<Id.Witness, A>): Id<A>
+            + {static} widen(id: Id<A>): Kind<Id.Witness, A>
+            + {static} narrow(kind: Kind<Id.Witness, A>): Id<A>
         }
         IdKindHelper ..> IdRecord : "casts to/from"
 

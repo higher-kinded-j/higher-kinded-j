@@ -5,8 +5,6 @@ package org.higherkindedj.hkt.io;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.*;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
@@ -28,47 +26,47 @@ class IOKindHelperTest {
           });
 
   @Nested
-  @DisplayName("wrap()")
+  @DisplayName("IO_OP.widen()")
   class WrapTests {
     @Test
-    void wrap_shouldReturnHolderForIO() {
-      IOKind<String> kind = wrap(baseIO);
+    void widen_shouldReturnHolderForIO() {
+      var kind = IO_OP.widen(baseIO);
       assertThat(kind).isInstanceOf(IOHolder.class);
       // Unwrap to verify
-      assertThat(unwrap(kind)).isSameAs(baseIO);
+      assertThat(IO_OP.narrow(kind)).isSameAs(baseIO);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
+    void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
+          .isThrownBy(() -> IO_OP.widen(null))
           .withMessageContaining("Input IO cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
+  @DisplayName("IO_OP.narrow()")
   class UnwrapTests {
     @Test
-    void unwrap_shouldReturnOriginalIO() {
-      IOKind<String> kind = wrap(baseIO);
-      assertThat(unwrap(kind)).isSameAs(baseIO);
+    void narrow_shouldReturnOriginalIO() {
+      var kind = IO_OP.widen(baseIO);
+      assertThat(IO_OP.narrow(kind)).isSameAs(baseIO);
     }
 
     // Dummy Kind implementation that is not IOHolder
     record DummyIOKind<A>() implements IOKind<A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+    void narrow_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> IO_OP.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
+    void narrow_shouldThrowForUnknownKindType() {
       IOKind<String> unknownKind = new DummyIOKind<>();
-      assertThatThrownBy(() -> unwrap(unknownKind))
+      assertThatThrownBy(() -> IO_OP.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyIOKind.class.getName());
     }
@@ -85,13 +83,13 @@ class IOKindHelperTest {
             counter.incrementAndGet();
             return 42;
           };
-      Kind<IOKind.Witness, Integer> kind = IOKindHelper.delay(supplier);
+      Kind<IOKind.Witness, Integer> kind = IO_OP.delay(supplier);
 
       // Effect should not run yet
       assertThat(counter.get()).isZero();
 
       // Unwrap and run
-      IO<Integer> io = unwrap(kind);
+      IO<Integer> io = IO_OP.narrow(kind);
       assertThat(io.unsafeRunSync()).isEqualTo(42);
       assertThat(counter.get()).isEqualTo(1);
 
@@ -103,7 +101,7 @@ class IOKindHelperTest {
     @Test
     void delay_shouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
-          .isThrownBy(() -> IOKindHelper.delay(null))
+          .isThrownBy(() -> IO_OP.delay(null))
           .withMessageContaining("thunk"); // Message from IO.delay check
     }
   }
@@ -115,50 +113,34 @@ class IOKindHelperTest {
     void unsafeRunSync_shouldExecuteWrappedIO() {
       AtomicInteger counter = new AtomicInteger(0);
       Kind<IOKind.Witness, String> kind =
-          IOKindHelper.delay(
+          IO_OP.delay(
               () -> {
                 counter.incrementAndGet();
                 return "Executed";
               });
 
       assertThat(counter.get()).isZero();
-      assertThat(unsafeRunSync(kind)).isEqualTo("Executed");
+      assertThat(IO_OP.unsafeRunSync(kind)).isEqualTo("Executed");
       assertThat(counter.get()).isEqualTo(1);
 
       // Run again
-      assertThat(unsafeRunSync(kind)).isEqualTo("Executed");
+      assertThat(IO_OP.unsafeRunSync(kind)).isEqualTo("Executed");
       assertThat(counter.get()).isEqualTo(2);
     }
 
     @Test
     void unsafeRunSync_shouldPropagateExceptionFromIO() {
-      IOKind<String> failingKind = wrap(failingIO);
+      var failingKind = IO_OP.widen(failingIO);
 
-      assertThatThrownBy(() -> unsafeRunSync(failingKind))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(failingKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(testException);
     }
 
     @Test
     void unsafeRunSync_shouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> unsafeRunSync(null))
+      assertThatThrownBy(() -> IO_OP.unsafeRunSync(null))
           .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<IOKindHelper> constructor = IOKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }

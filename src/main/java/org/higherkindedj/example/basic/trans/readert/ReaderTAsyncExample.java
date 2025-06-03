@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trans.readert;
 
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.trans.reader_t.ReaderTKindHelper.READER_T;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -9,11 +12,9 @@ import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.higherkindedj.hkt.trans.reader_t.ReaderT;
 import org.higherkindedj.hkt.trans.reader_t.ReaderTKind;
-import org.higherkindedj.hkt.trans.reader_t.ReaderTKindHelper;
 import org.higherkindedj.hkt.trans.reader_t.ReaderTMonad;
 
 /**
@@ -52,7 +53,7 @@ public class ReaderTAsyncExample {
               return new ServiceData("Raw data for " + itemId + " from " + config.serviceUrl());
             },
             config.executor());
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   // Operation 1: Fetch data, wrapped in ReaderT
@@ -99,16 +100,16 @@ public class ReaderTAsyncExample {
         workflowRTKind =
             cfReaderTMonad.flatMap(
                 serviceData ->
-                    ReaderTKindHelper.wrap(
+                    READER_T.widen(
                         processDataRT(
                             serviceData)), // ServiceData -> ReaderTKind<..., ProcessedData>
-                ReaderTKindHelper.wrap(
+                READER_T.widen(
                     fetchServiceDataRT("item123")) // Initial ReaderTKind<..., ServiceData>
                 );
 
     // Unwrap to the concrete ReaderT to run it
     ReaderT<CompletableFutureKind.Witness, AppConfig, ProcessedData> composedWorkflow =
-        ReaderTKindHelper.unwrap(workflowRTKind);
+        READER_T.narrow(workflowRTKind);
 
     // --- Running the workflow with different configurations ---
 
@@ -117,8 +118,7 @@ public class ReaderTAsyncExample {
     // This returns Kind<CompletableFutureKind.Witness, ProcessedData>
     Kind<CompletableFutureKind.Witness, ProcessedData> futureResultProd =
         composedWorkflow.run().apply(prodConfig);
-    ProcessedData resultProd =
-        CompletableFutureKindHelper.join(futureResultProd); // Blocks for result
+    ProcessedData resultProd = FUTURE.join(futureResultProd); // Blocks for result
     System.out.println("Prod Result: " + resultProd);
     // Expected output will show "prod_secret_key_xyz",
     // "[https://api.prod.example.com](https://api.prod.example.com)" in logs
@@ -129,8 +129,7 @@ public class ReaderTAsyncExample {
     // Run the same workflow with 'stagingConfig'
     Kind<CompletableFutureKind.Witness, ProcessedData> futureResultStaging =
         composedWorkflow.run().apply(stagingConfig);
-    ProcessedData resultStaging =
-        CompletableFutureKindHelper.join(futureResultStaging); // Blocks for result
+    ProcessedData resultStaging = FUTURE.join(futureResultStaging); // Blocks for result
     System.out.println("Staging Result: " + resultStaging);
     // Expected output will show "stag_test_key_123",
     // "[https://api.staging.example.com](https://api.staging.example.com)" in logs
@@ -144,11 +143,10 @@ public class ReaderTAsyncExample {
     Kind<ReaderTKind.Witness<CompletableFutureKind.Witness, AppConfig>, String> getServiceUrlRT =
         cfReaderTMonad.map(
             (AppConfig cfg) -> "Service URL from ask: " + cfg.serviceUrl(),
-            ReaderTKindHelper.wrap(getConfigSettingRT));
+            READER_T.widen(getConfigSettingRT));
 
     String stagingServiceUrl =
-        CompletableFutureKindHelper.join(
-            ReaderTKindHelper.unwrap(getServiceUrlRT).run().apply(stagingConfig));
+        FUTURE.join(READER_T.narrow(getServiceUrlRT).run().apply(stagingConfig));
     System.out.println("\nStaging Service URL via ask: " + stagingServiceUrl);
 
     executor.shutdown();
@@ -161,8 +159,6 @@ public class ReaderTAsyncExample {
       Thread.currentThread().interrupt();
     }
   }
-
-  // --- ReaderT-based Service Operations ---
 
   // --- Environment ---
   record AppConfig(String apiKey, String serviceUrl, ExecutorService executor) {}

@@ -1,0 +1,44 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.either;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Defines conversion operations (widen and narrow) specific to Either types and their Kind
+ * representations. The methods are generic to handle the left (L) and right (R) types.
+ *
+ * <p>This interface is intended to be implemented by a service provider, such as an enum, offering
+ * these operations as instance methods.
+ */
+public interface EitherConverterOps {
+
+  /**
+   * Widens a concrete {@link Either Either&lt;L, R&gt;} instance into its higher-kinded
+   * representation, {@code Kind<EitherKind.Witness<L>, R>}.
+   *
+   * @param <L> The type of the "Left" value of the {@code Either}.
+   * @param <R> The type of the "Right" value of the {@code Either}.
+   * @param either The non-null, concrete {@code Either<L, R>} instance to widen.
+   * @return A non-null {@code Kind<EitherKind.Witness<L>, R>} representing the wrapped {@code
+   *     Either}.
+   * @throws NullPointerException if {@code either} is {@code null}.
+   */
+  <L, R> @NonNull Kind<EitherKind.Witness<L>, R> widen(@NonNull Either<L, R> either);
+
+  /**
+   * Narrows a {@code Kind<EitherKind.Witness<L>, R>} back to its concrete {@code Either<L, R>}
+   * type.
+   *
+   * @param <L> The type of the "Left" value of the target {@code Either}.
+   * @param <R> The type of the "Right" value of the target {@code Either}.
+   * @param kind The {@code Kind<EitherKind.Witness<L>, R>} instance to narrow. May be {@code null}.
+   * @return The underlying, non-null {@code Either<L, R>} instance.
+   * @throws KindUnwrapException if the input {@code kind} is {@code null} or not a representation
+   *     of an {@code Either<L,R>}.
+   */
+  <L, R> @NonNull Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind);
+}

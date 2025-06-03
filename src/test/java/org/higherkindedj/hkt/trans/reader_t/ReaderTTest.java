@@ -4,13 +4,13 @@ package org.higherkindedj.hkt.trans.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +32,7 @@ class ReaderTTest {
   private <A> Optional<A> runReaderT(
       ReaderT<OptionalKind.Witness, Config, A> readerT, Config config) {
     Kind<OptionalKind.Witness, A> resultKind = readerT.run().apply(config);
-    return OptionalKindHelper.unwrap(resultKind);
+    return OPTIONAL.narrow(resultKind);
   }
 
   @BeforeEach
@@ -48,7 +48,7 @@ class ReaderTTest {
     @DisplayName("of should wrap the run function")
     void of_wrapsRunFunction() {
       Function<Config, Kind<OptionalKind.Witness, String>> runFunc =
-          cfg -> OptionalKindHelper.wrap(Optional.of("Computed:" + cfg.setting()));
+          cfg -> OPTIONAL.widen(Optional.of("Computed:" + cfg.setting()));
       ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.of(runFunc);
 
       assertThat(rt.run()).isSameAs(runFunc);
@@ -66,8 +66,8 @@ class ReaderTTest {
     @Test
     @DisplayName("lift should create ReaderT ignoring env, returning F<A>")
     void lift_ignoresEnv() {
-      Kind<OptionalKind.Witness, Integer> outerValue = OptionalKindHelper.wrap(Optional.of(123));
-      Kind<OptionalKind.Witness, Integer> outerEmpty = OptionalKindHelper.wrap(Optional.empty());
+      Kind<OptionalKind.Witness, Integer> outerValue = OPTIONAL.widen(Optional.of(123));
+      Kind<OptionalKind.Witness, Integer> outerEmpty = OPTIONAL.widen(Optional.empty());
 
       ReaderT<OptionalKind.Witness, Config, Integer> rtValue = ReaderT.lift(outerMonad, outerValue);
       ReaderT<OptionalKind.Witness, Config, Integer> rtEmpty = ReaderT.lift(outerMonad, outerEmpty);
@@ -84,7 +84,7 @@ class ReaderTTest {
     @Test
     @DisplayName("lift should throw NullPointerException for null monad or value")
     void lift_throwsOnNulls() {
-      Kind<OptionalKind.Witness, Integer> outerValue = OptionalKindHelper.wrap(Optional.of(123));
+      Kind<OptionalKind.Witness, Integer> outerValue = OPTIONAL.widen(Optional.of(123));
       assertThatNullPointerException()
           .isThrownBy(() -> ReaderT.lift(null, outerValue))
           .withMessageContaining("Outer Monad cannot be null");

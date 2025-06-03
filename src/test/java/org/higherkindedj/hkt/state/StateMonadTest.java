@@ -33,7 +33,7 @@ class StateMonadTest {
   // Helper to run and get the tuple (value, state)
   private <A> StateTuple<Integer, A> runS(
       Kind<StateKind.Witness<Integer>, A> kind, Integer startState) {
-    return runState(kind, startState);
+    return STATE.runState(kind, startState);
   }
 
   // --- Basic Operations ---
@@ -65,7 +65,7 @@ class StateMonadTest {
     void map_shouldApplyFunctionToResultValueAndKeepStateTransition() {
       // State: s -> (s+1, s+1)
       Kind<StateKind.Witness<Integer>, Integer> incKind =
-          wrap(State.of((Integer s) -> new StateTuple<>(s + 1, s + 1)));
+          STATE.widen(State.of((Integer s) -> new StateTuple<>(s + 1, s + 1)));
 
       // Map: x -> "Val:" + x
       Kind<StateKind.Witness<Integer>, String> mappedKind =
@@ -81,7 +81,7 @@ class StateMonadTest {
     void map_shouldChainFunctions() {
       // State: s -> (s * 2, s + 5)
       Kind<StateKind.Witness<Integer>, Integer> initialKind =
-          wrap(State.of((Integer s) -> new StateTuple<>(s * 2, s + 5)));
+          STATE.widen(State.of((Integer s) -> new StateTuple<>(s * 2, s + 5)));
 
       // Map: double -> string
       Kind<StateKind.Witness<Integer>, String> mappedKind =
@@ -108,11 +108,11 @@ class StateMonadTest {
     void ap_shouldApplyStateFunctionToStateValue() {
       // State<Integer, Function<Integer, String>>: s -> (i -> "F"+i+s, s+1)
       Kind<StateKind.Witness<Integer>, Function<Integer, String>> funcKind =
-          wrap(State.of((Integer s) -> new StateTuple<>(i -> "F" + i + s, s + 1)));
+          STATE.widen(State.of((Integer s) -> new StateTuple<>(i -> "F" + i + s, s + 1)));
 
       // State<Integer, Integer>: s -> (s*10, s+2)
       Kind<StateKind.Witness<Integer>, Integer> valKind =
-          wrap(State.of((Integer s) -> new StateTuple<>(s * 10, s + 2)));
+          STATE.widen(State.of((Integer s) -> new StateTuple<>(s * 10, s + 2)));
 
       Kind<StateKind.Witness<Integer>, String> resultKind = stateMonad.ap(funcKind, valKind);
 
@@ -142,10 +142,10 @@ class StateMonadTest {
     @DisplayName("ap should throw NullPointerException if wrapped function is null")
     void ap_shouldThrowNPEForNullFunction() {
       Kind<StateKind.Witness<Integer>, Function<Integer, String>> funcKindNull =
-          wrap(State.of((Integer s) -> new StateTuple<>(null, s + 10)));
+          STATE.widen(State.of((Integer s) -> new StateTuple<>(null, s + 10)));
 
       Kind<StateKind.Witness<Integer>, Integer> valKind =
-          wrap(State.of((Integer s) -> new StateTuple<>(s * 10, s + 2)));
+          STATE.widen(State.of((Integer s) -> new StateTuple<>(s * 10, s + 2)));
 
       Kind<StateKind.Witness<Integer>, String> resultKind = stateMonad.ap(funcKindNull, valKind);
 
@@ -160,9 +160,8 @@ class StateMonadTest {
   class FlatMapTests {
     @Test
     void flatMap_shouldSequenceComputationsAndPassState() {
-      Kind<StateKind.Witness<Integer>, Integer> getState = StateKindHelper.get();
-      Kind<StateKind.Witness<Integer>, Unit> incState =
-          StateKindHelper.modify((Integer i) -> i + 1);
+      Kind<StateKind.Witness<Integer>, Integer> getState = STATE.get();
+      Kind<StateKind.Witness<Integer>, Unit> incState = STATE.modify((Integer i) -> i + 1);
 
       Kind<StateKind.Witness<Integer>, Integer> getStateAndInc =
           stateMonad.flatMap(
@@ -170,7 +169,7 @@ class StateMonadTest {
 
       Function<Integer, Kind<StateKind.Witness<Integer>, String>> processValueAndAdd10 =
           originalStateValue ->
-              wrap(
+              STATE.widen(
                   State.of(
                       (Integer currentState) -> // Explicit type for currentState
                       new StateTuple<>("Val:" + (originalStateValue * 2), currentState + 10)));
@@ -190,13 +189,13 @@ class StateMonadTest {
   final Function<String, String> appendWorld = s -> s + " world";
 
   final Kind<StateKind.Witness<Integer>, Integer> mValue =
-      wrap(State.of((Integer s) -> new StateTuple<>(s * 10, s + 1)));
+      STATE.widen(State.of((Integer s) -> new StateTuple<>(s * 10, s + 1)));
 
   final Function<Integer, Kind<StateKind.Witness<Integer>, String>> f =
-      i -> wrap(State.of((Integer s) -> new StateTuple<>("v" + i, s + i)));
+      i -> STATE.widen(State.of((Integer s) -> new StateTuple<>("v" + i, s + i)));
 
   final Function<String, Kind<StateKind.Witness<Integer>, String>> g =
-      str -> wrap(State.of((Integer s) -> new StateTuple<>(str + "!", s + str.length())));
+      str -> STATE.widen(State.of((Integer s) -> new StateTuple<>(str + "!", s + str.length())));
 
   private <A> void assertStateEquals(
       Kind<StateKind.Witness<Integer>, A> k1,
@@ -241,9 +240,9 @@ class StateMonadTest {
   class ApplicativeLaws {
     Kind<StateKind.Witness<Integer>, Integer> v = mValue;
     Kind<StateKind.Witness<Integer>, Function<Integer, String>> fKind =
-        wrap(State.of((Integer s) -> new StateTuple<>(intToString, s * 2)));
+        STATE.widen(State.of((Integer s) -> new StateTuple<>(intToString, s * 2)));
     Kind<StateKind.Witness<Integer>, Function<String, String>> gKind =
-        wrap(State.of((Integer s) -> new StateTuple<>(appendWorld, s + 5)));
+        STATE.widen(State.of((Integer s) -> new StateTuple<>(appendWorld, s + 5)));
 
     @Test
     @DisplayName("1. Identity: ap(of(id), v) == v")
@@ -348,13 +347,13 @@ class StateMonadTest {
   @DisplayName("mapN tests")
   class MapNTests {
     Kind<StateKind.Witness<Integer>, Integer> st1 =
-        wrap(State.of((Integer s) -> new StateTuple<>(s + 1, s + 1)));
+        STATE.widen(State.of((Integer s) -> new StateTuple<>(s + 1, s + 1)));
     Kind<StateKind.Witness<Integer>, String> st2 =
-        wrap(State.of((Integer s) -> new StateTuple<>("S" + s, s * 2)));
+        STATE.widen(State.of((Integer s) -> new StateTuple<>("S" + s, s * 2)));
     Kind<StateKind.Witness<Integer>, Double> st3 =
-        wrap(State.of((Integer s) -> new StateTuple<>(s / 2.0, s + 5)));
+        STATE.widen(State.of((Integer s) -> new StateTuple<>(s / 2.0, s + 5)));
     Kind<StateKind.Witness<Integer>, Boolean> st4 =
-        wrap(State.of((Integer s) -> new StateTuple<>(s > 10, s - 1)));
+        STATE.widen(State.of((Integer s) -> new StateTuple<>(s > 10, s - 1)));
 
     @Test
     void map2_combinesStateAndValues() {

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -23,7 +24,7 @@ class TryMonadErrorTest {
 
   // --- Helper Functions ---
   private <A> Try<A> unwrapTry(Kind<TryKind.Witness, A> kind) {
-    return TryKindHelper.unwrap(kind);
+    return TRY.narrow(kind);
   }
 
   // Gets value or throws if Failure
@@ -33,12 +34,12 @@ class TryMonadErrorTest {
 
   // Creates a Success Kind
   private <A> Kind<TryKind.Witness, A> successKind(A value) {
-    return TryKindHelper.success(value);
+    return TRY.success(value);
   }
 
   // Creates a Failure Kind
   private <A> Kind<TryKind.Witness, A> failureKind(Throwable t) {
-    return TryKindHelper.failure(t);
+    return TRY.failure(t);
   }
 
   // Test Exceptions

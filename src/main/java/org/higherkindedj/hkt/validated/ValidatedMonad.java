@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -63,9 +64,9 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     requireNonNull(fn, MAP_FN_NULL_MSG);
     requireNonNull(valueKind, MAP_VALUE_KIND_NULL_MSG);
 
-    Validated<E, A> validated = ValidatedKindHelper.narrow(valueKind);
+    Validated<E, A> validated = VALIDATED.narrow(valueKind);
     Validated<E, B> result = validated.map(fn);
-    return ValidatedKindHelper.widen(result);
+    return VALIDATED.widen(result);
   }
 
   /**
@@ -82,7 +83,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   public <A> @NonNull Kind<ValidatedKind.Witness<E>, A> of(@NonNull A value) {
     requireNonNull(value, OF_VALUE_NULL_MSG);
     Validated<E, A> validInstance = Validated.valid(value);
-    return ValidatedKindHelper.widen(validInstance);
+    return VALIDATED.widen(validInstance);
   }
 
   @Override
@@ -93,14 +94,14 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     requireNonNull(fnKind, AP_FN_KIND_NULL_MSG);
     requireNonNull(valueKind, AP_VALUE_KIND_NULL_MSG);
 
-    Validated<E, Function<A, B>> fnValidated = ValidatedKindHelper.narrow(fnKind);
-    Validated<E, A> valueValidated = ValidatedKindHelper.narrow(valueKind);
+    Validated<E, Function<A, B>> fnValidated = VALIDATED.narrow(fnKind);
+    Validated<E, A> valueValidated = VALIDATED.narrow(valueKind);
     // Ensure the function type matches what Validated.ap expects
     Validated<E, Function<? super A, ? extends B>> fnValidatedWithWildcards =
         fnValidated.map(f -> (Function<? super A, ? extends B>) f);
 
     Validated<E, B> result = valueValidated.<B>ap(fnValidatedWithWildcards);
-    return ValidatedKindHelper.widen(result);
+    return VALIDATED.widen(result);
   }
 
   /**
@@ -122,15 +123,15 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     requireNonNull(fn, FLATMAP_FN_NULL_MSG);
     requireNonNull(valueKind, FLATMAP_VALUE_KIND_NULL_MSG);
 
-    Validated<E, A> validatedValue = ValidatedKindHelper.narrow(valueKind);
+    Validated<E, A> validatedValue = VALIDATED.narrow(valueKind);
     Validated<E, B> result =
         validatedValue.flatMap(
             a -> {
               Kind<ValidatedKind.Witness<E>, B> kindResult = fn.apply(a);
               requireNonNull(kindResult, FLATMAP_FN_RETURNED_NULL_KIND_MSG);
-              return ValidatedKindHelper.narrow(kindResult);
+              return VALIDATED.narrow(kindResult);
             });
-    return ValidatedKindHelper.widen(result);
+    return VALIDATED.widen(result);
   }
 
   // --- MonadError Implementation ---
@@ -147,7 +148,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   @Override
   public <A> @NonNull Kind<ValidatedKind.Witness<E>, A> raiseError(@NonNull E error) {
     requireNonNull(error, RAISE_ERROR_ERROR_NULL_MSG);
-    return ValidatedKindHelper.invalid(error);
+    return VALIDATED.invalid(error);
   }
 
   /**
@@ -172,7 +173,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     requireNonNull(ma, HANDLE_ERROR_WITH_MA_NULL_MSG);
     requireNonNull(handler, HANDLE_ERROR_WITH_HANDLER_NULL_MSG);
 
-    Validated<E, A> validated = ValidatedKindHelper.narrow(ma);
+    Validated<E, A> validated = VALIDATED.narrow(ma);
 
     if (validated.isInvalid()) {
       E errorValue = validated.getError();

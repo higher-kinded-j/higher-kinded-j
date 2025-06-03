@@ -49,9 +49,9 @@ public interface MaybeTKind<F, A> extends Kind<MaybeTKind.Witness<F>, A> {
 ```java
 // To wrap:
 // MaybeT<F, A> maybeT = ...;
-Kind<MaybeTKind.Witness<F>, A> kind = MaybeTKindHelper.wrap(maybeT);
+Kind<MaybeTKind.Witness<F>, A> kind = MAYBE_T.widen(maybeT);
 // To unwrap:
-MaybeT<F, A> unwrappedMaybeT = MaybeTKindHelper.unwrap(kind);
+MaybeT<F, A> unwrappedMaybeT = MAYBE_T.narrow(kind);
 ```
 
 ## `MaybeTMonad<F>`: Operating on `MaybeT`
@@ -122,24 +122,24 @@ public void createExample() {
 
 
     // 4. Lifting an outer monad value F<A>: Optional<Maybe<A>> (using fromNullable)
-    Kind<OptionalKind.Witness, String> outerOptional = OptionalKindHelper.wrap(Optional.of("World"));
+    Kind<OptionalKind.Witness, String> outerOptional = OPTIONAL.widen(Optional.of("World"));
     MaybeT<OptionalKind.Witness, String> mtLiftF = MaybeT.liftF(optMonad, outerOptional);
     // Resulting wrapped value: Optional.of(Maybe.just("World"))
 
-    Kind<OptionalKind.Witness, String> outerEmptyOptional = OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, String> outerEmptyOptional = OPTIONAL.widen(Optional.empty());
     MaybeT<OptionalKind.Witness, String> mtLiftFEmpty = MaybeT.liftF(optMonad, outerEmptyOptional);
     // Resulting wrapped value: Optional.of(Maybe.nothing())
 
 
     // 5. Wrapping an existing nested Kind: F<Maybe<A>>
     Kind<OptionalKind.Witness, Maybe<String>> nestedKind =
-        OptionalKindHelper.wrap(Optional.of(Maybe.just("Present")));
+        OPTIONAL.widen(Optional.of(Maybe.just("Present")));
     MaybeT<OptionalKind.Witness, String> mtFromKind = MaybeT.fromKind(nestedKind);
     // Resulting wrapped value: Optional.of(Maybe.just("Present"))
 
     // Accessing the wrapped value:
     Kind<OptionalKind.Witness, Maybe<String>> wrappedValue = mtJust.value();
-    Optional<Maybe<String>> unwrappedOptional = OptionalKindHelper.unwrap(wrappedValue);
+    Optional<Maybe<String>> unwrappedOptional = OPTIONAL.narrow(wrappedValue);
     // unwrappedOptional is Optional.of(Maybe.just("Hello"))
   }
 ```
@@ -167,7 +167,7 @@ public static class MaybeTAsyncExample {
       }
       return Maybe.nothing();
     });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   // Simulates fetching user preferences asynchronously
@@ -182,7 +182,7 @@ public static class MaybeTAsyncExample {
       }
       return Maybe.nothing(); // No preferences for other users or if user fetch failed
     });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   // --- Service Stubs (returning Future<Maybe<T>>) ---
@@ -193,7 +193,7 @@ public static class MaybeTAsyncExample {
     // Step 1: Fetch User
     // Directly use MaybeT.fromKind as fetchUserAsync already returns F<Maybe<User>>
     Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, User> userMT =
-        MaybeTKindHelper.wrap(MaybeT.fromKind(fetchUserAsync(userIdToFetch)));
+        MAYBE_T.widen(MaybeT.fromKind(fetchUserAsync(userIdToFetch)));
 
     // Step 2: Fetch Preferences if User was found
     Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> preferencesMT =
@@ -202,7 +202,7 @@ public static class MaybeTAsyncExample {
               System.out.println("User found: " + user.name() + ". Now fetching preferences.");
               // fetchPreferencesAsync returns Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>>
               // which is F<Maybe<A>>, so we can wrap it directly.
-              return MaybeTKindHelper.wrap(MaybeT.fromKind(fetchPreferencesAsync(user.id())));
+              return MAYBE_T.widen(MaybeT.fromKind(fetchPreferencesAsync(user.id())));
             },
             userMT // Input to flatMap
         );
@@ -220,7 +220,7 @@ public static class MaybeTAsyncExample {
 
     // Unwrap the final MaybeT to get the underlying Future<Maybe<UserPreferences>>
     MaybeT<CompletableFutureKind.Witness, UserPreferences> finalMaybeT =
-        MaybeTKindHelper.unwrap(preferencesWithDefaultMT); // or preferencesMT if no recovery
+        MAYBE_T.narrow(preferencesWithDefaultMT); // or preferencesMT if no recovery
     return finalMaybeT.value();
   }
 
@@ -228,14 +228,14 @@ public static class MaybeTAsyncExample {
     System.out.println("--- Fetching preferences for known user (user123) ---");
     Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultKnownUserKind =
         getUserPreferencesWorkflow("user123");
-    Maybe<UserPreferences> resultKnownUser = CompletableFutureKindHelper.join(resultKnownUserKind);
+    Maybe<UserPreferences> resultKnownUser = FUTURE.join(resultKnownUserKind);
     System.out.println("Known User Result: " + resultKnownUser);
     // Expected: Just(UserPreferences[userId=user123, theme=dark-mode])
 
     System.out.println("\n--- Fetching preferences for unknown user (user999) ---");
     Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultUnknownUserKind =
         getUserPreferencesWorkflow("user999");
-    Maybe<UserPreferences> resultUnknownUser = CompletableFutureKindHelper.join(resultUnknownUserKind);
+    Maybe<UserPreferences> resultUnknownUser = FUTURE.join(resultUnknownUserKind);
     System.out.println("Unknown User Result: " + resultUnknownUser);
     // Expected: Nothing
   }

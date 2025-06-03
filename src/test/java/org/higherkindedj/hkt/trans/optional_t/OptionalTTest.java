@@ -4,12 +4,12 @@ package org.higherkindedj.hkt.trans.optional_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,15 +36,15 @@ class OptionalTTest {
   void setUp() {
     outerMonad = new OptionalMonad(); // OptionalMonad now provides Monad<OptionalKind.Witness>
 
-    wrappedPresent = OptionalKindHelper.wrap(Optional.of(Optional.of(presentValue)));
-    wrappedEmpty = OptionalKindHelper.wrap(Optional.of(Optional.empty()));
+    wrappedPresent = OPTIONAL.widen(Optional.of(Optional.of(presentValue)));
+    wrappedEmpty = OPTIONAL.widen(Optional.of(Optional.empty()));
     // For wrappedOuterEmpty, previously was Kind<OptionalKind<?>,Optional<String>>
     // Now Kind<OptionalKind.Witness, Optional<String>>
     Kind<OptionalKind.Witness, Optional<String>> tempWrappedOuterEmpty =
-        OptionalKindHelper.wrap(Optional.empty());
+        OPTIONAL.widen(Optional.empty());
 
-    wrappedOuterValue = OptionalKindHelper.wrap(Optional.of(otherPresentValue));
-    wrappedOuterEmptyValue = OptionalKindHelper.wrap(Optional.empty());
+    wrappedOuterValue = OPTIONAL.widen(Optional.of(otherPresentValue));
+    wrappedOuterEmptyValue = OPTIONAL.widen(Optional.empty());
 
     plainPresent = Optional.of(presentValue);
     plainEmpty = Optional.empty();
@@ -52,7 +52,7 @@ class OptionalTTest {
 
   private <A> Optional<Optional<A>> unwrapT(OptionalT<OptionalKind.Witness, A> optionalT) {
     Kind<OptionalKind.Witness, Optional<A>> outerKind = optionalT.value();
-    return OptionalKindHelper.unwrap(outerKind);
+    return OPTIONAL.narrow(outerKind);
   }
 
   @Nested
@@ -67,7 +67,7 @@ class OptionalTTest {
       // Test with an outer empty Kind. This needs to be Kind<OptionalKind.Witness,
       // Optional<String>>
       Kind<OptionalKind.Witness, Optional<String>> outerEmptyKind =
-          OptionalKindHelper.wrap(Optional.empty());
+          OPTIONAL.widen(Optional.empty());
       OptionalT<OptionalKind.Witness, String> otEmptyOuter = OptionalT.fromKind(outerEmptyKind);
 
       assertThat(unwrapT(otPresent)).isPresent().contains(Optional.of(presentValue));
@@ -146,7 +146,7 @@ class OptionalTTest {
       assertThat(ot.value()).isSameAs(wrappedPresent);
 
       Kind<OptionalKind.Witness, Optional<String>> outerEmptyKind =
-          OptionalKindHelper.wrap(Optional.empty());
+          OPTIONAL.widen(Optional.empty());
       OptionalT<OptionalKind.Witness, String> otEmptyOuter = OptionalT.fromKind(outerEmptyKind);
       assertThat(otEmptyOuter.value()).isSameAs(outerEmptyKind);
     }
@@ -156,17 +156,17 @@ class OptionalTTest {
   @DisplayName("Object Methods")
   class ObjectTests {
     Kind<OptionalKind.Witness, Optional<String>> wrappedPresentOpt1 =
-        OptionalKindHelper.wrap(Optional.of(Optional.of("A")));
+        OPTIONAL.widen(Optional.of(Optional.of("A")));
     Kind<OptionalKind.Witness, Optional<String>> wrappedPresentOpt2 =
-        OptionalKindHelper.wrap(Optional.of(Optional.of("A")));
+        OPTIONAL.widen(Optional.of(Optional.of("A")));
     Kind<OptionalKind.Witness, Optional<String>> wrappedPresentOpt3 =
-        OptionalKindHelper.wrap(Optional.of(Optional.of("B")));
+        OPTIONAL.widen(Optional.of(Optional.of("B")));
     Kind<OptionalKind.Witness, Optional<String>> wrappedEmptyOpt1 =
-        OptionalKindHelper.wrap(Optional.of(Optional.empty()));
+        OPTIONAL.widen(Optional.of(Optional.empty()));
     Kind<OptionalKind.Witness, Optional<String>> wrappedEmptyOpt2 =
-        OptionalKindHelper.wrap(Optional.of(Optional.empty()));
+        OPTIONAL.widen(Optional.of(Optional.empty()));
     Kind<OptionalKind.Witness, Optional<String>> wrappedOuterEmpty1 =
-        OptionalKindHelper.wrap(Optional.empty());
+        OPTIONAL.widen(Optional.empty());
 
     OptionalT<OptionalKind.Witness, String> ot1 = OptionalT.fromKind(wrappedPresentOpt1);
     OptionalT<OptionalKind.Witness, String> ot2 = OptionalT.fromKind(wrappedPresentOpt2);

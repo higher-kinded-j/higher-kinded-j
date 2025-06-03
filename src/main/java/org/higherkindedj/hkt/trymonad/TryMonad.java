@@ -35,18 +35,18 @@ public class TryMonad extends TryApplicative implements Monad<TryKind.Witness> {
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> flatMap(
       @NonNull Function<A, Kind<TryKind.Witness, B>> f, @NonNull Kind<TryKind.Witness, A> ma) {
-    Try<A> tryA = unwrap(ma);
+    Try<A> tryA = TRY.narrow(ma);
 
     Try<B> resultTry =
         tryA.flatMap(
             a -> {
               try {
                 Kind<TryKind.Witness, B> kindB = f.apply(a);
-                return unwrap(kindB);
+                return TRY.narrow(kindB);
               } catch (Throwable t) {
                 return Try.failure(t);
               }
             });
-    return wrap(resultTry);
+    return TRY.widen(resultTry);
   }
 }

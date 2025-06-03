@@ -2,12 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.list.ListKind; // For ListKind.Witness
-import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.jspecify.annotations.NonNull; // Assuming usage
 
@@ -72,46 +73,45 @@ public class MonadSimulation {
     // 1. Simulate 'of'
     System.out.println("\n--- Simulating 'of' ---");
     Kind<ListKind.Witness, Integer> ofList = simulateOf(10); // Correct type
-    System.out.println("listMonad.of(10): " + ListKindHelper.unwrap(ofList));
+    System.out.println("listMonad.of(10): " + LIST.narrow(ofList));
 
     // 2. Simulate 'map'
     System.out.println("\n--- Simulating 'map' ---");
     List<Integer> numbers = Arrays.asList(1, 2, 3, 4);
-    Kind<ListKind.Witness, Integer> numberKind = ListKindHelper.wrap(numbers); // Correct type
+    Kind<ListKind.Witness, Integer> numberKind = LIST.widen(numbers); // Correct type
     Kind<ListKind.Witness, String> stringsKind =
         simulateMap(Object::toString, numberKind); // Correct type
-    System.out.println("map(toString, [1,2,3,4]): " + ListKindHelper.unwrap(stringsKind));
+    System.out.println("map(toString, [1,2,3,4]): " + LIST.narrow(stringsKind));
 
     Kind<ListKind.Witness, Integer> doubledKind = simulateMap(x -> x * 2, numberKind);
-    System.out.println("map(x -> x*2, [1,2,3,4]): " + ListKindHelper.unwrap(doubledKind));
+    System.out.println("map(x -> x*2, [1,2,3,4]): " + LIST.narrow(doubledKind));
 
     // 3. Simulate 'flatMap'
     System.out.println("\n--- Simulating 'flatMap' ---");
     // Function for flatMap: takes an Integer, returns a ListKind<Integer>
     Function<Integer, Kind<ListKind.Witness, Integer>> duplicateAndMultiply =
-        x -> ListKindHelper.wrap(Arrays.asList(x, x * 10)); // Correct return type
+        x -> LIST.widen(Arrays.asList(x, x * 10)); // Correct return type
 
     // 'numberKind' is already Kind<ListKind.Witness, Integer>
     Kind<ListKind.Witness, Integer> flatMappedList =
         simulateFlatMap(duplicateAndMultiply, numberKind); // Correct type
-    System.out.println(
-        "flatMap(x -> [x, x*10], [1,2,3,4]): " + ListKindHelper.unwrap(flatMappedList));
+    System.out.println("flatMap(x -> [x, x*10], [1,2,3,4]): " + LIST.narrow(flatMappedList));
     // Expected: [1, 10, 2, 20, 3, 30, 4, 40]
 
     // Another flatMap example: Integer -> ListKind<String>
     Function<Integer, Kind<ListKind.Witness, String>> intToWords =
         x -> {
-          if (x == 1) return ListKindHelper.wrap(Arrays.asList("One", "Uno"));
-          if (x == 2) return ListKindHelper.wrap(Collections.singletonList("Two"));
-          return ListKindHelper.wrap(Collections.emptyList());
+          if (x == 1) return LIST.widen(Arrays.asList("One", "Uno"));
+          if (x == 2) return LIST.widen(Collections.singletonList("Two"));
+          return LIST.widen(Collections.emptyList());
         };
     Kind<ListKind.Witness, String> wordsList = simulateFlatMap(intToWords, numberKind);
-    System.out.println("flatMap(intToWords, [1,2,3,4]): " + ListKindHelper.unwrap(wordsList));
+    System.out.println("flatMap(intToWords, [1,2,3,4]): " + LIST.narrow(wordsList));
     // Expected: ["One", "Uno", "Two"]
 
     // Chaining operations
     System.out.println("\n--- Chaining Operations ---");
-    Kind<ListKind.Witness, Integer> initialData = ListKindHelper.wrap(Arrays.asList(5, 6));
+    Kind<ListKind.Witness, Integer> initialData = LIST.widen(Arrays.asList(5, 6));
     Kind<ListKind.Witness, String> chainedResult =
         listMonad.flatMap(
             (Integer x) ->
@@ -121,8 +121,7 @@ public class MonadSimulation {
                     ),
             initialData);
     System.out.println(
-        "Chained (flatMap(x -> map(y -> Res:x+y, of(x*2)))): "
-            + ListKindHelper.unwrap(chainedResult));
+        "Chained (flatMap(x -> map(y -> Res:x+y, of(x*2)))): " + LIST.narrow(chainedResult));
     // For 5: flatMap(x=5 -> map(y -> "Res:"+(5+y), List(10) )) -> map(y=10 -> "Res:"+(5+10),
     // List(10)) -> List("Res:15")
     // For 6: flatMap(x=6 -> map(y -> "Res:"+(6+y), List(12) )) -> map(y=12 -> "Res:"+(6+12),

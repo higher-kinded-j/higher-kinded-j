@@ -4,8 +4,8 @@ hide empty members
 
 class CompletableFutureKindHelper {}
 
-class CompletableFutureFunctor implements Functor<CompletableFutureKind<?>> {
- + Kind<CFK, B> map(Function<A, B>, Kind<CFK, A>) ' CFK = CompletableFutureKind<?>
+class CompletableFutureFunctor implements Functor<CompletableFutureKind.Witness> {
+ + Kind<CFK, B> map(Function<A, B>, Kind<CFK, A>) ' CFK = CompletableFutureKind.Witness
 }
 CompletableFutureFunctor ..> CompletableFutureKindHelper : uses
 
@@ -14,7 +14,7 @@ class CompletableFutureApplicative extends CompletableFutureFunctor implements A
   + Kind<CFK, B> ap(Kind<CFK, Function<A, B>>, Kind<CFK, A>)
 }
 
-class CompletableFutureMonad extends CompletableFutureApplicative implements Monad<CompletableFutureKind<?>> {
+class CompletableFutureMonad extends CompletableFutureApplicative implements Monad<CompletableFutureKind.Witness> {
  + Kind<CFK, B> flatMap(Function<A, Kind<CFK, B>>, Kind<CFK, A>)
 }
 

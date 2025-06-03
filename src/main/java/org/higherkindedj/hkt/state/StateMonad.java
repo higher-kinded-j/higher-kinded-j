@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import static org.higherkindedj.hkt.state.StateKindHelper.unwrap;
-import static org.higherkindedj.hkt.state.StateKindHelper.wrap;
+import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -42,15 +41,15 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
       @NonNull Function<A, Kind<StateKind.Witness<S>, B>> f,
       @NonNull Kind<StateKind.Witness<S>, A> ma) {
 
-    State<S, A> stateA = unwrap(ma);
+    State<S, A> stateA = STATE.narrow(ma);
 
     State<S, B> stateB =
         stateA.flatMap(
             a -> {
               Kind<StateKind.Witness<S>, B> kindB = f.apply(a);
-              return unwrap(kindB); // unwrap here expects Kind<StateKind.Witness<S>, B>
+              return STATE.narrow(kindB); // narrow here expects Kind<StateKind.Witness<S>, B>
             });
 
-    return wrap(stateB);
+    return STATE.widen(stateB);
   }
 }

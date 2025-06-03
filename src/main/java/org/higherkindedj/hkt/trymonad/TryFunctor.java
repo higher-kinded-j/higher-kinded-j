@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trymonad;
 
-import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -29,8 +29,8 @@ public class TryFunctor implements Functor<TryKind.Witness> {
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<TryKind.Witness, A> fa) {
-    Try<A> tryA = unwrap(fa);
+    Try<A> tryA = TRY.narrow(fa);
     Try<B> resultTry = tryA.map(f);
-    return wrap(resultTry);
+    return TRY.widen(resultTry);
   }
 }

@@ -4,9 +4,8 @@ package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -18,98 +17,77 @@ import org.junit.jupiter.api.Test;
 class OptionalKindHelperTest {
 
   @Nested
-  @DisplayName("wrap()")
+  @DisplayName("OPTIONAL.widen()")
   class WrapTests {
 
     @Test
-    void wrap_shouldReturnHolderForPresentOptional() {
+    void widen_shouldReturnHolderForPresentOptional() {
       Optional<String> present = Optional.of("value");
-      Kind<OptionalKind.Witness, String> kind = wrap(present);
+      Kind<OptionalKind.Witness, String> kind = OPTIONAL.widen(present);
 
       assertThat(kind).isInstanceOf(OptionalHolder.class);
-      assertThat(unwrap(kind)).isSameAs(present);
+      assertThat(OPTIONAL.narrow(kind)).isSameAs(present);
     }
 
     @Test
-    void wrap_shouldReturnHolderForEmptyOptional() {
+    void widen_shouldReturnHolderForEmptyOptional() {
       Optional<String> empty = Optional.empty();
-      Kind<OptionalKind.Witness, String> kind = wrap(empty);
+      Kind<OptionalKind.Witness, String> kind = OPTIONAL.widen(empty);
 
       assertThat(kind).isInstanceOf(OptionalHolder.class);
-      assertThat(unwrap(kind)).isSameAs(empty);
+      assertThat(OPTIONAL.narrow(kind)).isSameAs(empty);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
+    void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
+          .isThrownBy(() -> OPTIONAL.widen(null))
           .withMessageContaining("Input Optional cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
+  @DisplayName("OPTIONAL.narrow()")
   class UnwrapTests {
 
     // --- Success Cases ---
     @Test
-    void unwrap_shouldReturnOriginalPresentOptional() {
+    void narrow_shouldReturnOriginalPresentOptional() {
       Optional<Integer> original = Optional.of(123);
-      Kind<OptionalKind.Witness, Integer> kind = wrap(original);
-      assertThat(unwrap(kind)).isSameAs(original);
+      Kind<OptionalKind.Witness, Integer> kind = OPTIONAL.widen(original);
+      assertThat(OPTIONAL.narrow(kind)).isSameAs(original);
     }
 
     @Test
-    void unwrap_shouldReturnOriginalEmptyOptional() {
+    void narrow_shouldReturnOriginalEmptyOptional() {
       Optional<Float> original = Optional.empty();
-      Kind<OptionalKind.Witness, Float> kind = wrap(original);
-      assertThat(unwrap(kind)).isSameAs(original);
+      Kind<OptionalKind.Witness, Float> kind = OPTIONAL.widen(original);
+      assertThat(OPTIONAL.narrow(kind)).isSameAs(original);
     }
 
     // --- Failure Cases ---
     record DummyOptionalKind<A>() implements Kind<OptionalKind.Witness, A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+    void narrow_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> OPTIONAL.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
+    void narrow_shouldThrowForUnknownKindType() {
       Kind<OptionalKind.Witness, Integer> unknownKind = new DummyOptionalKind<>();
-      assertThatThrownBy(() -> unwrap(unknownKind))
+      assertThatThrownBy(() -> OPTIONAL.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOptionalKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldThrowForHolderWithNullOptional() {
-      // OptionalHolder constructor now checks for null, so this specific path
-      // to INVALID_HOLDER_STATE_MSG from unwrap is harder to hit if wrap is used.
-      // This test now more directly tests the holder's construction.
+    void narrow_shouldThrowForHolderWithNullOptional() {
       assertThatNullPointerException()
           .isThrownBy(() -> new OptionalHolder<>(null))
           .withMessageContaining("Wrapped Optional instance cannot be null in OptionalHolder");
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<OptionalKindHelper> constructor =
-          OptionalKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }

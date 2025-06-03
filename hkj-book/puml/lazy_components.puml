@@ -34,8 +34,8 @@ interface LazyKind<A> extends Kind<LazyKind<?>, A> {
 
   class LazyKindHelper {
     .. Static Helper Methods ..
-    + {static} LazyKind<A> wrap(Lazy<A>)
-    + {static} Lazy<A> unwrap(Kind<LazyKind<?>, A>)
+    + {static} Kind<LazyKind.Witness, A> widen(Lazy<A>)
+    + {static} Lazy<A> narrow(Kind<LazyKind<?>, A>)
     + {static} Kind<LazyKind<?>, A> defer(ThrowableSupplier<A>)
     + {static} Kind<LazyKind<?>, A> now(A)
     + {static} A force(Kind<LazyKind<?>, A>) throws Throwable

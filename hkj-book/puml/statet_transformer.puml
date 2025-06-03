@@ -15,7 +15,6 @@ interface Monad<F>  {
 }
 
 
-
 ' StateTuple
 class StateTuple<S, A> {
   + S state
@@ -57,7 +56,7 @@ class StateTuple<S, A> {
 
   class StateTKindHelper {
     + {static} narrow(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>): StateT<S, F_WITNESS, A>
-    + {static} wrap(stateT: StateT<S, F_WITNESS, A>): Kind<StateTKind.Witness<S, F_WITNESS>, A>
+    + {static} widen(stateT: StateT<S, F_WITNESS, A>): Kind<StateTKind.Witness<S, F_WITNESS>, A>
     + {static} runStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S): Kind<F_WITNESS, StateTuple<S, A>>
     + {static} evalStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S): Kind<F_WITNESS, A>
     + {static} execStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S): Kind<F_WITNESS, S>
@@ -73,7 +72,7 @@ StateTMonadInstance ..> StateTWitness : uses witness (for Monad<F>)
 StateTMonadInstance ..> Monad : depends on (holds ref to underlying monadF)
 StateT ..> Monad : depends on (holds ref to underlying monadF)
 StateT ..> StateTuple : uses (in its run function's return type)
-StateTKindHelper ..> StateT : narrows to/wraps
+StateTKindHelper ..> StateT : narrows to/ widens from
 StateTKindHelper ..> StateTKind : operates on
 StateTKindHelper ..> StateTWitness : uses witness
 StateTKindHelper ..> StateTuple : uses (in runStateT return type)

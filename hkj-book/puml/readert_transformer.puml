@@ -31,8 +31,8 @@ interface Monad<F_HKT>
 
   class ReaderTKindHelper {
     ' Helper methods
-    + static <F, R, A> ReaderT<F, R, A> unwrap(Kind<ReaderTKind.Witness<F, R>, A>)
-    + static <F, R, A> ReaderTKind<F, R, A> wrap(ReaderT<F, R, A>)
+    + static <F, R, A> ReaderT<F, R, A> narrow(Kind<ReaderTKind.Witness<F, R>, A>)
+    + static <F, R, A> Kind<ReaderTKind.Witness<F, R>, A> widen(ReaderT<F, R, A>)
 
 
   }
@@ -42,8 +42,8 @@ interface Monad<F_HKT>
   ReaderTMonad ..> ReaderTKindHelper : uses
   ReaderTMonad ..> ReaderT : creates / operates on
 
-  ReaderTKindHelper ..> ReaderT : unwrap() returns
-  ReaderTKindHelper ..> ReaderTKind : wrap() returns
+  ReaderTKindHelper ..> ReaderT : narrow() returns
+  ReaderTKindHelper ..> ReaderTKind : widen() returns
 
 
   ReaderT ..> "run() returns Kind<F,A>" Kind

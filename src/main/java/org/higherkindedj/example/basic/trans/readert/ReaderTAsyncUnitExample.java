@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trans.readert;
 
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -9,7 +11,6 @@ import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.higherkindedj.hkt.trans.reader_t.ReaderT;
 import org.higherkindedj.hkt.trans.reader_t.ReaderTMonad;
@@ -50,7 +51,7 @@ public class ReaderTAsyncUnitExample {
                 },
                 config.executor())
             .thenApply(v -> Unit.INSTANCE);
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   // Wrap the action in ReaderT: R -> F<Unit>
@@ -75,7 +76,7 @@ public class ReaderTAsyncUnitExample {
     Kind<CompletableFutureKind.Witness, Unit> futureUnit = initAction.run().apply(prodConfig);
 
     // Wait for completion and get the Unit result (which is just Unit.INSTANCE)
-    Unit result = CompletableFutureKindHelper.join(futureUnit);
+    Unit result = FUTURE.join(futureUnit);
     System.out.println("Initialization Result: " + result); // Expected: Initialization Result: ()
 
     executor.shutdown();

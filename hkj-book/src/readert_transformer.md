@@ -44,16 +44,18 @@ public interface ReaderTKind<F, R, A> extends Kind<ReaderTKind.Witness<F, R>, A>
 
 ## `ReaderTKindHelper`: Utility for Wrapping and Unwrapping
 
-`ReaderTKindHelper` provides essential static utility methods to convert between the concrete `ReaderT<F, R, A>` type and its `Kind` representation (`Kind<ReaderTKind.Witness<F, R>, A>`).
+`ReaderTKindHelper` provides READER_T enum essential utility methods to convert between the concrete `ReaderT<F, R, A>` type and its `Kind` representation (`Kind<ReaderTKind.Witness<F, R>, A>`).
 
 ```java
-public final class ReaderTKindHelper {
+public enum ReaderTKindHelper {
+   READER_T;
+  
     // Unwraps Kind<ReaderTKind.Witness<F, R>, A> to ReaderT<F, R, A>
-    public static <F, R, A> @NonNull ReaderT<F, R, A> unwrap(
+    public <F, R, A> @NonNull ReaderT<F, R, A> narrow(
         @Nullable Kind<ReaderTKind.Witness<F, R>, A> kind);
 
     // Wraps ReaderT<F, R, A> into ReaderTKind<F, R, A>
-    public static <F, R, A> @NonNull ReaderTKind<F, R, A> wrap(
+    public <F, R, A> @NonNull ReaderTKind<F, R, A> widen(
         @NonNull ReaderT<F, R, A> readerT);
 }
 ```
@@ -108,43 +110,43 @@ You typically create `ReaderT` instances using its static factory methods. These
   // 1. `ReaderT.of(Function<R, Kind<F, A>> runFunction)`
   //    Constructs directly from the R -> F<A> function.
   Function<Config, Kind<OptionalKind.Witness, String>> runFn1 =
-      cfg -> OptionalKindHelper.wrap(Optional.of("Data based on " + cfg.setting()));
+      cfg -> OPTIONAL.widen(Optional.of("Data based on " + cfg.setting()));
   ReaderT<OptionalKind.Witness, Config, String> rt1 = ReaderT.of(runFn1);
-  // To run: OptionalKindHelper.unwrap(rt1.run().apply(testConfig)) is Optional.of("Data based on TestValue")
-  System.out.println(OptionalKindHelper.unwrap(rt1.run().apply(testConfig)));
+  // To run: OPTIONAL.narrow(rt1.run().apply(testConfig)) is Optional.of("Data based on TestValue")
+  System.out.println(OPTIONAL.narrow(rt1.run().apply(testConfig)));
 
   // 2. `ReaderT.lift(Monad<F> outerMonad, Kind<F, A> fa)`
   //    Lifts an existing monadic value `Kind<F, A>` into ReaderT.
   //    The resulting ReaderT ignores the environment R and always returns `fa`.
-  Kind<OptionalKind.Witness, Integer> optionalValue = OptionalKindHelper.wrap(Optional.of(123));
+  Kind<OptionalKind.Witness, Integer> optionalValue = OPTIONAL.widen(Optional.of(123));
   ReaderT<OptionalKind.Witness, Config, Integer> rt2 = ReaderT.lift(optMonad, optionalValue);
-  // To run: OptionalKindHelper.unwrap(rt2.run().apply(testConfig)) is Optional.of(123)
-  System.out.println(OptionalKindHelper.unwrap(rt2.run().apply(testConfig)));
+  // To run: OPTIONAL.narrow(rt2.run().apply(testConfig)) is Optional.of(123)
+  System.out.println(OPTIONAL.narrow(rt2.run().apply(testConfig)));
 
-  Kind<OptionalKind.Witness, Integer> emptyOptional = OptionalKindHelper.wrap(Optional.empty());
+  Kind<OptionalKind.Witness, Integer> emptyOptional = OPTIONAL.widen(Optional.empty());
   ReaderT<OptionalKind.Witness, Config, Integer> rt2Empty = ReaderT.lift(optMonad, emptyOptional);
-  // To run: OptionalKindHelper.unwrap(rt2Empty.run().apply(testConfig)) is Optional.empty()
+  // To run: OPTIONAL.narrow(rt2Empty.run().apply(testConfig)) is Optional.empty()
 
 
   // 3. `ReaderT.reader(Monad<F> outerMonad, Function<R, A> f)`
   //    Creates a ReaderT from a function R -> A. The result A is then lifted into F using outerMonad.of(A).
   Function<Config, String> simpleReaderFn = cfg -> "Hello from " + cfg.setting();
   ReaderT<OptionalKind.Witness, Config, String> rt3 = ReaderT.reader(optMonad, simpleReaderFn);
-  // To run: OptionalKindHelper.unwrap(rt3.run().apply(testConfig)) is Optional.of("Hello from TestValue")
-  System.out.println(OptionalKindHelper.unwrap(rt3.run().apply(testConfig)));
+  // To run: OPTIONAL.narrow(rt3.run().apply(testConfig)) is Optional.of("Hello from TestValue")
+  System.out.println(OPTIONAL.narrow(rt3.run().apply(testConfig)));
 
   // 4. `ReaderT.ask(Monad<F> outerMonad)`
   //    Creates a ReaderT that, when run, provides the environment R itself as the result, lifted into F.
   //    The function is r -> outerMonad.of(r).
   ReaderT<OptionalKind.Witness, Config, Config> rt4 = ReaderT.ask(optMonad);
-  // To run: OptionalKindHelper.unwrap(rt4.run().apply(testConfig)) is Optional.of(new Config("TestValue"))
-  System.out.println(OptionalKindHelper.unwrap(rt4.run().apply(testConfig)));
+  // To run: OPTIONAL.narrow(rt4.run().apply(testConfig)) is Optional.of(new Config("TestValue"))
+  System.out.println(OPTIONAL.narrow(rt4.run().apply(testConfig)));
 
-  // --- Using ReaderTKindHelper to wrap/unwrap for Monad operations ---
+  // --- Using ReaderTKindHelper.READER_T to widen/narrow for Monad operations ---
   //    Avoid a cast with var ReaderTKind<OptionalKind.Witness, Config, String> kindRt1 =
-  //        (ReaderTKind<OptionalKind.Witness, Config, String>) ReaderTKindHelper.wrap(rt1);
-  var kindRt1 = ReaderTKindHelper.wrap(rt1);
-  ReaderT<OptionalKind.Witness, Config, String> unwrappedRt1 = ReaderTKindHelper.unwrap(kindRt1);
+  //        (ReaderTKind<OptionalKind.Witness, Config, String>) READER_T.widen(rt1);
+  var kindRt1 = READER_T.widen(rt1);
+  ReaderT<OptionalKind.Witness, Config, String> unwrappedRt1 = READER_T.narrow(kindRt1);
 }
 ```
 ~~~
@@ -174,7 +176,7 @@ Let's extend the asynchronous example to include an action that logs a message u
             System.out.println("Thread: " + Thread.currentThread().getName() +
                 " - Initialization complete for: " + config.serviceUrl());
         }, config.executor()).thenApply(v -> Unit.INSTANCE); // Ensure CompletableFuture<Unit>
-        return CompletableFutureKindHelper.wrap(future);
+        return FUTURE.widen(future);
     }
 
     // Wrap the action in ReaderT: R -> F<Unit>
@@ -195,7 +197,7 @@ Let's extend the asynchronous example to include an action that logs a message u
         Kind<CompletableFutureKind.Witness, Unit> futureUnit = initAction.run().apply(prodConfig);
 
         // Wait for completion and get the Unit result (which is just Unit.INSTANCE)
-        Unit result = CompletableFutureKindHelper.join(futureUnit);
+        Unit result = FUTURE.join(futureUnit);
         System.out.println("Initialization Result: " + result); // Expected: Initialization Result: ()
 
         executor.shutdown();
@@ -246,7 +248,7 @@ public class ReaderTAsyncExample {
       }
       return new ServiceData("Raw data for " + itemId + " from " + config.serviceUrl());
     }, config.executor());
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   // Operation 1: Fetch data, wrapped in ReaderT
@@ -278,13 +280,13 @@ public class ReaderTAsyncExample {
     // The AppConfig is threaded through automatically by ReaderT.
     Kind<ReaderTKind.Witness<CompletableFutureKind.Witness, AppConfig>, ProcessedData> workflowRTKind =
         cfReaderTMonad.flatMap(
-            serviceData -> ReaderTKindHelper.wrap(processDataRT(serviceData)), // ServiceData -> ReaderTKind<..., ProcessedData>
-            ReaderTKindHelper.wrap(fetchServiceDataRT("item123")) // Initial ReaderTKind<..., ServiceData>
+            serviceData -> READER_T.widen(processDataRT(serviceData)), // ServiceData -> ReaderTKind<..., ProcessedData>
+            READER_T.widen(fetchServiceDataRT("item123")) // Initial ReaderTKind<..., ServiceData>
         );
 
     // Unwrap to the concrete ReaderT to run it
     ReaderT<CompletableFutureKind.Witness, AppConfig, ProcessedData> composedWorkflow =
-        ReaderTKindHelper.unwrap(workflowRTKind);
+        READER_T.narrow(workflowRTKind);
 
     // --- Running the workflow with different configurations ---
 
@@ -292,7 +294,7 @@ public class ReaderTAsyncExample {
     // Run the workflow by providing the 'prodConfig' environment
     // This returns Kind<CompletableFutureKind.Witness, ProcessedData>
     Kind<CompletableFutureKind.Witness, ProcessedData> futureResultProd = composedWorkflow.run().apply(prodConfig);
-    ProcessedData resultProd = CompletableFutureKindHelper.join(futureResultProd); // Blocks for result
+    ProcessedData resultProd = FUTURE.join(futureResultProd); // Blocks for result
     System.out.println("Prod Result: " + resultProd);
     // Expected output will show "prod_secret_key_xyz", "[https://api.prod.example.com](https://api.prod.example.com)" in logs
     // and "Processed: RAW DATA FOR ITEM123 FROM [https://api.prod.example.com](https://api.prod.example.com) (API Key Suffix: xyz)"
@@ -301,7 +303,7 @@ public class ReaderTAsyncExample {
     System.out.println("\n--- Running with Staging Config ---");
     // Run the same workflow with 'stagingConfig'
     Kind<CompletableFutureKind.Witness, ProcessedData> futureResultStaging = composedWorkflow.run().apply(stagingConfig);
-    ProcessedData resultStaging = CompletableFutureKindHelper.join(futureResultStaging); // Blocks for result
+    ProcessedData resultStaging = FUTURE.join(futureResultStaging); // Blocks for result
     System.out.println("Staging Result: " + resultStaging);
     // Expected output will show "stag_test_key_123", "[https://api.staging.example.com](https://api.staging.example.com)" in logs
     // and "Processed: RAW DATA FOR ITEM123 FROM [https://api.staging.example.com](https://api.staging.example.com) (API Key Suffix: 123)"
@@ -314,11 +316,11 @@ public class ReaderTAsyncExample {
     Kind<ReaderTKind.Witness<CompletableFutureKind.Witness, AppConfig>, String> getServiceUrlRT =
         cfReaderTMonad.map(
             (AppConfig cfg) -> "Service URL from ask: " + cfg.serviceUrl(),
-            ReaderTKindHelper.wrap(getConfigSettingRT)
+            READER_T.widen(getConfigSettingRT)
         );
 
-    String stagingServiceUrl = CompletableFutureKindHelper.join(
-        ReaderTKindHelper.unwrap(getServiceUrlRT).run().apply(stagingConfig)
+    String stagingServiceUrl = FUTURE.join(
+        READER_T.narrow(getServiceUrlRT).run().apply(stagingConfig)
     );
     System.out.println("\nStaging Service URL via ask: " + stagingServiceUrl);
 
