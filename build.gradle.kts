@@ -95,6 +95,9 @@ tasks.jacocoTestReport {
 val isSnapshotVersion = project.version.toString().endsWith("-SNAPSHOT")
 val isReleaseBuild = project.hasProperty("release") || !isSnapshotVersion
 
+
+
+
 publishing {
   publications {
     create<MavenPublication>("mavenJava") {
@@ -142,23 +145,37 @@ publishing {
   }
 }
 
+
 signing {
   val signingKey = System.getenv("SIGNING_KEY")
   val signingPassword = System.getenv("SIGNING_PASSWORD")
   val hasSigningKey = signingKey != null && signingKey.isNotEmpty()
   val hasSigningPassword = signingPassword != null && signingPassword.isNotEmpty()
 
-  val isReleaseBuild = project.hasProperty("release") || !version.toString().endsWith("-SNAPSHOT")
+  val isReleaseBuildRequiringSigning = project.hasProperty("release") || !project.version.toString().endsWith("-SNAPSHOT")
 
-  if (hasSigningKey && hasSigningPassword) {
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign(publishing.publications["mavenJava"])
-  } else if (isReleaseBuild) {
-    project.logger.error(
-        "RELEASE BUILD ERROR: Signing keys (SIGNING_KEY, SIGNING_PASSWORD) are not set or are empty in the environment. Publication cannot be signed.")
+  if (isReleaseBuildRequiringSigning) {
+    project.logger.lifecycle("[SIGNING_CONFIG] Release build detected (version: ${project.version}). Signing will be configured and required.")
+    if (hasSigningKey && hasSigningPassword) {
+      useInMemoryPgpKeys(signingKey, signingPassword)
+      // IMPORTANT: Only configure the 'mavenJava' publication for signing if it's a release build.
+      sign(publishing.publications["mavenJava"])
+      project.logger.lifecycle("[SIGNING_CONFIG] 'mavenJava' publication has been configured for signing.")
+    } else {
+      // If it's a release build but keys are missing, log an error.
+      // The build might still fail later if signing is truly required by the publish process.
+      project.logger.error(
+        "RELEASE BUILD SIGNING ERROR: Signing keys (SIGNING_KEY, SIGNING_PASSWORD) are not set or are empty in the environment. Publication cannot be signed for this release build.")
+    }
+    // For release builds, signing tasks should be considered required.
+    isRequired = true
+  } else {
+    // For snapshot builds (or any non-release build)
+    project.logger.lifecycle("[SIGNING_CONFIG] Snapshot build detected (version: ${project.version}). Signing will NOT be configured for 'mavenJava' publication and is NOT required.")
+    isRequired = false
   }
-  isRequired = isReleaseBuild
 }
+
 
 if (!isSnapshotVersion) {
   centralPortal {
@@ -193,4 +210,5 @@ if (!isSnapshotVersion) {
       }
     }
   }
+
 }
