@@ -9,8 +9,10 @@
          |___/                                                                  
 ```
 ## _Bringing Higher-Kinded Types to Java functional patterns_
-[![codecov](https://codecov.io/gh/higher-kinded-j/higher-kinded-j/graph/badge.svg?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j)
 
+[![Static Badge](https://img.shields.io/badge/code-blue?logo=github)
+](https://github.com/higher-kinded-j/higher-kinded-j)
+[![Codecov](https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j) [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/higher-kinded-j)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/higher-kinded-j) [![GitHub Discussions](https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j)](https://github.com/higher-kinded-j/higher-kinded-j/discussions) [![Mastodon Follow](https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto)](https://techhub.social/@ultramagnetic)
 
 This library for Higher-Kinded Types in Java was initially created as a simulation for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) to help illustrate different approaches.
 

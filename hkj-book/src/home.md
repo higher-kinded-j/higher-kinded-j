@@ -10,7 +10,10 @@
 ```
 ## [_Bringing Higher-Kinded Types to Java functional patterns_](https://github.com/higher-kinded-j/higher-kinded-j)
 
-<a href="https://github.com/higher-kinded-j/higher-kinded-j" style="color: #e70073"> Take me to the code ==> <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/refs/heads/6.x/svgs/brands/github.svg" width="20" height="20" style="vertical-align:middle" alt="github link to code"></a>
+[![Static Badge](https://img.shields.io/badge/code-blue?logo=github)
+](https://github.com/higher-kinded-j/higher-kinded-j)
+[![Codecov](https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j) [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/higher-kinded-j)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/higher-kinded-j) [![GitHub Discussions](https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j)](https://github.com/higher-kinded-j/higher-kinded-j/discussions) [![Mastodon Follow](https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto)](https://techhub.social/@ultramagnetic)
+
 
 
 Higher-Kinded-J brings popular functional patterns to Java by providing implementations of common Monads and Transformers supporting Higher-Kinded Types.
@@ -66,7 +69,8 @@ To understand and use Higher-Kinded-J effectively, explore these documents:
 
 You could adapt Higher-Kinded-J for use in your own projects:
 
-1.  **Include the dependency:** The relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) are available in the following dependency from maven central
+
+1.  **Include the dependency:** The relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) are available from [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/higher-kinded-j)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/higher-kinded-j) 
 
 ~~~ admonish info
 
@@ -74,7 +78,7 @@ You could adapt Higher-Kinded-J for use in your own projects:
 // latest gradle release 
 
 dependencies {
-  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.3")
+  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.4")
 }
 
 // alternatively if you want to try a SNAPSHOT
@@ -87,7 +91,7 @@ repositories {
 }
 
 dependencies {
-  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.4-SNAPSHOT")
+  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.5-SNAPSHOT")
 }
 
 ```
