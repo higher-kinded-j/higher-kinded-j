@@ -30,7 +30,7 @@ public class TryMonadError extends TryMonad implements MonadError<TryKind.Witnes
    */
   @Override
   public <A> @NonNull Kind<TryKind.Witness, A> raiseError(@NonNull Throwable error) {
-    return wrap(Try.failure(error));
+    return TRY.widen(Try.failure(error));
   }
 
   /**
@@ -49,18 +49,18 @@ public class TryMonadError extends TryMonad implements MonadError<TryKind.Witnes
   public <A> @NonNull Kind<TryKind.Witness, A> handleErrorWith(
       @NonNull Kind<TryKind.Witness, A> ma,
       @NonNull Function<Throwable, Kind<TryKind.Witness, A>> handler) {
-    Try<A> tryA = unwrap(ma);
+    Try<A> tryA = TRY.narrow(ma);
 
     Try<A> resultTry =
         tryA.recoverWith(
             throwable -> {
               try {
                 Kind<TryKind.Witness, A> recoveryKind = handler.apply(throwable);
-                return unwrap(recoveryKind);
+                return TRY.narrow(recoveryKind);
               } catch (Throwable t) {
                 return Try.failure(t);
               }
             });
-    return wrap(resultTry);
+    return TRY.widen(resultTry);
   }
 }

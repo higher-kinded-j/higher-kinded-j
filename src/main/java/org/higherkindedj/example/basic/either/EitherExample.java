@@ -2,12 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.either;
 
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.either.EitherMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/either_monad.html">Either Monad</a>} */
@@ -107,17 +108,16 @@ public class EitherExample {
 
     Either<String, Integer> myEither = Either.right(10);
     // F_WITNESS is EitherKind.Witness<String>, A is Integer
-    Kind<EitherKind.Witness<String>, Integer> eitherKind = EitherKindHelper.wrap(myEither);
+    Kind<EitherKind.Witness<String>, Integer> eitherKind = EITHER.widen(myEither);
 
     // Using map via the Monad instance
     Kind<EitherKind.Witness<String>, String> mappedKind =
         eitherMonad.map(Object::toString, eitherKind);
-    System.out.println(
-        "mappedKind: " + EitherKindHelper.unwrap(mappedKind)); // Output: Right[value = 10]
+    System.out.println("mappedKind: " + EITHER.narrow(mappedKind)); // Output: Right[value = 10]
 
     // Using flatMap via the Monad instance
     Function<Integer, Kind<EitherKind.Witness<String>, Double>> nextStep =
-        i -> EitherKindHelper.wrap((i > 5) ? Either.right(i / 2.0) : Either.left("TooSmall"));
+        i -> EITHER.widen((i > 5) ? Either.right(i / 2.0) : Either.left("TooSmall"));
     Kind<EitherKind.Witness<String>, Double> flatMappedKind =
         eitherMonad.flatMap(nextStep, eitherKind);
 
@@ -134,7 +134,7 @@ public class EitherExample {
               return eitherMonad.of(0); // Recover with Right(0)
             });
 
-    Either<String, Integer> finalEither = EitherKindHelper.unwrap(handledKind);
+    Either<String, Integer> finalEither = EITHER.narrow(handledKind);
     System.out.println("Final unwrapped Either: " + finalEither); // Output: Right(0)
   }
 }

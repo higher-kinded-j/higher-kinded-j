@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.future;
 
-import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.unwrap;
-import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.wrap;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -89,13 +88,13 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
   public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> flatMap(
       @NonNull Function<@Nullable A, @NonNull Kind<CompletableFutureKind.Witness, B>> f,
       @NonNull Kind<CompletableFutureKind.Witness, A> ma) {
-    CompletableFuture<A> futureA = unwrap(ma);
+    CompletableFuture<A> futureA = FUTURE.narrow(ma);
     CompletableFuture<B> futureB =
         futureA.thenCompose(
             a -> {
               Kind<CompletableFutureKind.Witness, B> kindB = f.apply(a);
-              return unwrap(kindB);
+              return FUTURE.narrow(kindB);
             });
-    return wrap(futureB);
+    return FUTURE.widen(futureB);
   }
 }

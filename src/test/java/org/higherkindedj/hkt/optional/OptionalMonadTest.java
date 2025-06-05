@@ -3,8 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.unwrap;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.wrap;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -24,9 +23,9 @@ class OptionalMonadTest {
   private final Function<Integer, String> intToStringAppendWorld = intToString.andThen(appendWorld);
 
   private final Function<Integer, Kind<OptionalKind.Witness, String>> f =
-      i -> wrap(Optional.of("v" + i));
+      i -> OPTIONAL.widen(Optional.of("v" + i));
   private final Function<String, Kind<OptionalKind.Witness, String>> g =
-      s -> wrap(Optional.of(s + "!"));
+      s -> OPTIONAL.widen(Optional.of(s + "!"));
 
   @Nested
   @DisplayName("Applicative 'of' tests")
@@ -34,13 +33,13 @@ class OptionalMonadTest {
     @Test
     void of_shouldWrapValueInOptional() {
       Kind<OptionalKind.Witness, String> kind = optionalMonad.of("test");
-      assertThat(unwrap(kind)).isPresent().contains("test");
+      assertThat(OPTIONAL.narrow(kind)).isPresent().contains("test");
     }
 
     @Test
     void of_shouldWrapNullAsOptionalEmpty() {
       Kind<OptionalKind.Witness, String> kind = optionalMonad.of(null);
-      assertThat(unwrap(kind)).isEmpty();
+      assertThat(OPTIONAL.narrow(kind)).isEmpty();
     }
   }
 
@@ -49,23 +48,23 @@ class OptionalMonadTest {
   class MapTests {
     @Test
     void map_shouldApplyFunctionWhenPresent() {
-      Kind<OptionalKind.Witness, Integer> input = wrap(Optional.of(5));
+      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.of(5));
       Kind<OptionalKind.Witness, String> result = optionalMonad.map(Object::toString, input);
-      assertThat(unwrap(result)).isPresent().contains("5");
+      assertThat(OPTIONAL.narrow(result)).isPresent().contains("5");
     }
 
     @Test
     void map_shouldReturnEmptyWhenEmpty() {
-      Kind<OptionalKind.Witness, Integer> input = wrap(Optional.empty());
+      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.empty());
       Kind<OptionalKind.Witness, String> result = optionalMonad.map(Object::toString, input);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
 
     @Test
     void map_shouldHandleMappingToNullAsEmpty() {
-      Kind<OptionalKind.Witness, Integer> input = wrap(Optional.of(5));
+      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.of(5));
       Kind<OptionalKind.Witness, String> result = optionalMonad.map(x -> null, input);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
   }
 
@@ -84,25 +83,25 @@ class OptionalMonadTest {
     void ap_shouldApplyPresentFunctionToPresentValue() {
       Kind<OptionalKind.Witness, String> result =
           optionalMonad.ap(funcKindPresent, valueKindPresent);
-      assertThat(unwrap(result)).isPresent().contains("N10");
+      assertThat(OPTIONAL.narrow(result)).isPresent().contains("N10");
     }
 
     @Test
     void ap_shouldReturnEmptyIfFunctionIsEmpty() {
       Kind<OptionalKind.Witness, String> result = optionalMonad.ap(funcKindEmpty, valueKindPresent);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnEmptyIfValueIsEmpty() {
       Kind<OptionalKind.Witness, String> result = optionalMonad.ap(funcKindPresent, valueKindEmpty);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
 
     @Test
     void ap_shouldReturnEmptyIfBothAreEmpty() {
       Kind<OptionalKind.Witness, String> result = optionalMonad.ap(funcKindEmpty, valueKindEmpty);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
   }
 
@@ -111,27 +110,27 @@ class OptionalMonadTest {
   class FlatMapTests {
 
     Function<Integer, Kind<OptionalKind.Witness, Double>> safeDivide =
-        divisor -> wrap((divisor == 0) ? Optional.empty() : Optional.of(100.0 / divisor));
+        divisor -> OPTIONAL.widen((divisor == 0) ? Optional.empty() : Optional.of(100.0 / divisor));
 
     @Test
     void flatMap_shouldApplyFunctionWhenPresent() {
       Kind<OptionalKind.Witness, Integer> presentValue = optionalMonad.of(5);
       Kind<OptionalKind.Witness, Double> result = optionalMonad.flatMap(safeDivide, presentValue);
-      assertThat(unwrap(result)).isPresent().contains(20.0);
+      assertThat(OPTIONAL.narrow(result)).isPresent().contains(20.0);
     }
 
     @Test
     void flatMap_shouldReturnEmptyWhenInputIsEmpty() {
       Kind<OptionalKind.Witness, Integer> emptyValue = optionalMonad.of(null);
       Kind<OptionalKind.Witness, Double> result = optionalMonad.flatMap(safeDivide, emptyValue);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
 
     @Test
     void flatMap_shouldReturnEmptyWhenFunctionResultIsEmpty() {
       Kind<OptionalKind.Witness, Integer> zeroValue = optionalMonad.of(0);
       Kind<OptionalKind.Witness, Double> result = optionalMonad.flatMap(safeDivide, zeroValue);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
     }
   }
 
@@ -146,9 +145,10 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, Integer> fa = optionalMonad.of(10);
       Kind<OptionalKind.Witness, Integer> faEmpty = optionalMonad.of(null);
 
-      assertThat(unwrap(optionalMonad.map(Function.identity(), fa))).isEqualTo(unwrap(fa));
-      assertThat(unwrap(optionalMonad.map(Function.identity(), faEmpty)))
-          .isEqualTo(unwrap(faEmpty));
+      assertThat(OPTIONAL.narrow(optionalMonad.map(Function.identity(), fa)))
+          .isEqualTo(OPTIONAL.narrow(fa));
+      assertThat(OPTIONAL.narrow(optionalMonad.map(Function.identity(), faEmpty)))
+          .isEqualTo(OPTIONAL.narrow(faEmpty));
     }
 
     @Test
@@ -166,8 +166,8 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, String> rightSideEmpty =
           optionalMonad.map(appendWorld, optionalMonad.map(intToString, faEmpty));
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
+      assertThat(OPTIONAL.narrow(leftSide)).isEqualTo(OPTIONAL.narrow(rightSide));
+      assertThat(OPTIONAL.narrow(leftSideEmpty)).isEqualTo(OPTIONAL.narrow(rightSideEmpty));
     }
   }
 
@@ -186,8 +186,9 @@ class OptionalMonadTest {
     void identity() {
       Kind<OptionalKind.Witness, Function<Integer, Integer>> idFuncKind =
           optionalMonad.of(Function.identity());
-      assertThat(unwrap(optionalMonad.ap(idFuncKind, v))).isEqualTo(unwrap(v));
-      assertThat(unwrap(optionalMonad.ap(idFuncKind, vEmpty))).isEqualTo(unwrap(vEmpty));
+      assertThat(OPTIONAL.narrow(optionalMonad.ap(idFuncKind, v))).isEqualTo(OPTIONAL.narrow(v));
+      assertThat(OPTIONAL.narrow(optionalMonad.ap(idFuncKind, vEmpty)))
+          .isEqualTo(OPTIONAL.narrow(vEmpty));
     }
 
     @Test
@@ -201,7 +202,7 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, String> leftSide = optionalMonad.ap(apFunc, apVal);
       Kind<OptionalKind.Witness, String> rightSide = optionalMonad.of(func.apply(x));
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(OPTIONAL.narrow(leftSide)).isEqualTo(OPTIONAL.narrow(rightSide));
     }
 
     @Test
@@ -219,8 +220,8 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, String> rightSide = optionalMonad.ap(evalKind, fKind);
       Kind<OptionalKind.Witness, String> rightSideEmpty = optionalMonad.ap(evalKind, fKindEmpty);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
+      assertThat(OPTIONAL.narrow(leftSide)).isEqualTo(OPTIONAL.narrow(rightSide));
+      assertThat(OPTIONAL.narrow(leftSideEmpty)).isEqualTo(OPTIONAL.narrow(rightSideEmpty));
     }
 
     @Test
@@ -240,7 +241,7 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, String> innerAp = optionalMonad.ap(fKind, v);
       Kind<OptionalKind.Witness, String> rightSide = optionalMonad.ap(gKind, innerAp);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(OPTIONAL.narrow(leftSide)).isEqualTo(OPTIONAL.narrow(rightSide));
     }
   }
 
@@ -259,7 +260,7 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, String> leftSide = optionalMonad.flatMap(f, ofValue);
       Kind<OptionalKind.Witness, String> rightSide = f.apply(value);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(OPTIONAL.narrow(leftSide)).isEqualTo(OPTIONAL.narrow(rightSide));
     }
 
     @Test
@@ -271,8 +272,8 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, Integer> leftSideEmpty =
           optionalMonad.flatMap(ofFunc, mValueEmpty);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(mValue));
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(mValueEmpty));
+      assertThat(OPTIONAL.narrow(leftSide)).isEqualTo(OPTIONAL.narrow(mValue));
+      assertThat(OPTIONAL.narrow(leftSideEmpty)).isEqualTo(OPTIONAL.narrow(mValueEmpty));
     }
 
     @Test
@@ -285,14 +286,14 @@ class OptionalMonadTest {
           a -> optionalMonad.flatMap(g, f.apply(a));
       Kind<OptionalKind.Witness, String> rightSide = optionalMonad.flatMap(rightSideFunc, mValue);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(OPTIONAL.narrow(leftSide)).isEqualTo(OPTIONAL.narrow(rightSide));
 
       Kind<OptionalKind.Witness, String> innerFlatMapEmpty = optionalMonad.flatMap(f, mValueEmpty);
       Kind<OptionalKind.Witness, String> leftSideEmpty =
           optionalMonad.flatMap(g, innerFlatMapEmpty);
       Kind<OptionalKind.Witness, String> rightSideEmpty =
           optionalMonad.flatMap(rightSideFunc, mValueEmpty);
-      assertThat(unwrap(leftSideEmpty)).isEqualTo(unwrap(rightSideEmpty));
+      assertThat(OPTIONAL.narrow(leftSideEmpty)).isEqualTo(OPTIONAL.narrow(rightSideEmpty));
     }
   }
 
@@ -306,14 +307,14 @@ class OptionalMonadTest {
 
     @Test
     void raiseError_shouldCreateEmpty() {
-      assertThat(unwrap(raisedErrorKind)).isEmpty();
+      assertThat(OPTIONAL.narrow(raisedErrorKind)).isEmpty();
     }
 
     @Test
     void handleErrorWith_shouldHandleEmpty() {
       Function<Unit, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(0);
       Kind<OptionalKind.Witness, Integer> result = optionalMonad.handleErrorWith(emptyVal, handler);
-      assertThat(unwrap(result)).isPresent().contains(0);
+      assertThat(OPTIONAL.narrow(result)).isPresent().contains(0);
     }
 
     @Test
@@ -322,7 +323,7 @@ class OptionalMonadTest {
       Kind<OptionalKind.Witness, Integer> result =
           optionalMonad.handleErrorWith(presentVal, handler);
       assertThat(result).isSameAs(presentVal);
-      assertThat(unwrap(result)).isPresent().contains(100);
+      assertThat(OPTIONAL.narrow(result)).isPresent().contains(100);
     }
   }
 }

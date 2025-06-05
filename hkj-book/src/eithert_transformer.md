@@ -33,14 +33,14 @@ Just like other types in the Higher-Kinded-J, `EitherT` needs a corresponding `K
 You'll primarily interact with this type when providing type signatures or receiving results from `EitherTMonad` methods.
 
 ## `EitherTKindHelper` 
-* Provides static wrap and unwrap methods to safely convert between the concrete `EitherT<F, L, R>` and its Kind representation (`Kind<EitherTKind<F, L, ?>, R>`).
+* Provides widen and narrow methods to safely convert between the concrete `EitherT<F, L, R>` and its Kind representation (`Kind<EitherTKind<F, L, ?>, R>`).
 
 ## `EitherTMonad<F, L>`: Operating on `EitherT`
 
 * The EitherTMonad class implements `MonadError<EitherTKind.Witness<F, L>, L>`.
 
 - It requires a Monad<F> instance for the outer monad F to be provided during construction. This outer monad instance is used internally to handle the effects of `F`.
-- It uses `EitherTKindHelper.wrap` and `EitherTKindHelper.unwrap` internally to manage the conversion between the `Kind` and the concrete `EitherT`.
+- It uses `EITHER_T.widen` and `EITHER_T.narrow` internally to manage the conversion between the `Kind` and the concrete `EitherT`.
 - The error type E for MonadError is fixed to L, the 'Left' type of the inner Either. Error handling operations like `raiseError(L l)` will create an `EitherT` representing `F<Left(l)>`, and `handleErrorWith` allows recovering from such Left states.
 
 
@@ -97,19 +97,19 @@ EitherT<OptionalKind.Witness, String, String> etFromEither = EitherT.fromEither(
 // Resulting wrapped value: Optional.of(Either.left("FAILED"))
 
 // 4. Lifting an outer monad value F<R>: Optional<Right(R)>
-Kind<OptionalKind.Witness, Integer> outerOptional = OptionalKindHelper.wrap(Optional.of(otherR));
+Kind<OptionalKind.Witness, Integer> outerOptional = OPTIONAL.widen(Optional.of(otherR));
 EitherT<OptionalKind.Witness, String, Integer> etLiftF = EitherT.liftF(optMonad, outerOptional);
 // Resulting wrapped value: Optional.of(Either.right(123))
 
 // 5. Wrapping an existing nested Kind: F<Either<L, R>>
 Kind<OptionalKind.Witness, Either<String, String>> nestedKind =
-    OptionalKindHelper.wrap(Optional.of(Either.right(successR)));
+    OPTIONAL.widen(Optional.of(Either.right(successR)));
 EitherT<OptionalKind.Witness, String, String> etFromKind = EitherT.fromKind(nestedKind);
 // Resulting wrapped value: Optional.of(Either.right("OK"))
 
 // Accessing the wrapped value:
 Kind<OptionalKind.Witness, Either<String, String>> wrappedValue = etRight.value();
-Optional<Either<String, String>> unwrappedOptional = OptionalKindHelper.unwrap(wrappedValue);
+Optional<Either<String, String>> unwrappedOptional = OPTIONAL.narrow(wrappedValue);
 // unwrappedOptional is Optional.of(Either.right("OK"))
 ```
 ~~~
@@ -146,9 +146,9 @@ public class EitherTExample {
   Kind<EitherKind.Witness<DomainError>, ValidatedData> validateSync(String input) {
     System.out.println("Validating synchronously...");
     if (input.isEmpty()) {
-      return EitherKindHelper.wrap(Either.left(new DomainError("Input empty")));
+      return EITHER.widen(Either.left(new DomainError("Input empty")));
     }
-    return EitherKindHelper.wrap(Either.right(new ValidatedData("Validated:" + input)));
+    return EITHER.widen(Either.right(new ValidatedData("Validated:" + input)));
   }
 
   // Simulates an async processing step returning Future<Either>
@@ -164,7 +164,7 @@ public class EitherTExample {
               }
               return Either.right(new ProcessedData("Processed:" + vd.data()));
             });
-    return CompletableFutureKindHelper.wrap(future);
+    return FUTURE.widen(future);
   }
 
   // Function to run the workflow for given input
@@ -181,7 +181,7 @@ public class EitherTExample {
                       // Correction 1: Use EitherKind.Witness here
                       Kind<EitherKind.Witness<DomainError>, ValidatedData> validationResult = validateSync(input);
                       // Lift the Either result into EitherT using fromEither
-                      return EitherT.fromEither(futureMonad, EitherKindHelper.unwrap(validationResult));
+                      return EitherT.fromEither(futureMonad, EITHER.narrow(validationResult));
                     },
                     initialET
             );
@@ -221,19 +221,19 @@ public class EitherTExample {
     System.out.println("--- Running Good Workflow ---");
 
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultGoodKind = runWorkflow(inputData);
-    System.out.println("Good Result: "+CompletableFutureKindHelper.join(resultGoodKind));
+    System.out.println("Good Result: "+FUTURE.join(resultGoodKind));
     // Expected: Right(ProcessedData[data=Processed:Validated:Data])
 
     System.out.println("\n--- Running Bad Input Workflow ---");
 
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultBadInputKind = runWorkflow(badInputData);
-    System.out.println("Bad Input Result: "+ CompletableFutureKindHelper.join(resultBadInputKind));
+    System.out.println("Bad Input Result: "+ FUTURE.join(resultBadInputKind));
     // Expected: Left(DomainError[message=Input empty])
 
     System.out.println("\n--- Running Processing Failure Workflow ---");
 
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultProcFailKind = runWorkflow(processingFailData);
-    System.out.println("Processing Fail Result: "+CompletableFutureKindHelper.join(resultProcFailKind));
+    System.out.println("Processing Fail Result: "+FUTURE.join(resultProcFailKind));
     // Expected: Left(DomainError[message=Processing failed])
 
   }
@@ -285,7 +285,7 @@ Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, WorkflowCo
         ctx -> { // Lambda receives WorkflowContext if initialET was Right
             // Call sync step -> Either<DomainError, ValidatedOrder>
             Either<DomainError, ValidatedOrder> syncResultEither =
-                EitherKindHelper.unwrap(steps.validateOrder(ctx.initialData()));
+                EITHER.narrow(steps.validateOrder(ctx.initialData()));
 
             // Lift sync Either into EitherT: -> F<Either<DomainError, ValidatedOrder>>
             Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ValidatedOrder>

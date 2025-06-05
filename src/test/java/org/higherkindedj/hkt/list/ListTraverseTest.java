@@ -3,17 +3,14 @@
 package org.higherkindedj.hkt.list;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.list.ListKindHelper.unwrap;
-import static org.higherkindedj.hkt.list.ListKindHelper.wrap;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-// import java.util.stream.Collectors; // Not used
 import org.higherkindedj.hkt.Applicative;
-// Not directly used by tests, but Traverse extends it
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
@@ -24,7 +21,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ListTraverse Tests")
 class ListTraverseTest {
 
-  // Changed from ListKind.Witness to ListKind.Witness
   private final Traverse<ListKind.Witness> listTraverse = ListTraverse.INSTANCE;
 
   // --- Mock/Simple Optional HKT for Testing Traverse ---
@@ -40,7 +36,6 @@ class ListTraverseTest {
   interface TestOptional<A> extends Kind<TestOptionalKindWitness, A> {
     Optional<A> getOptional();
 
-    @SuppressWarnings("unchecked")
     static <A> TestOptional<A> narrow(Kind<TestOptionalKindWitness, A> kind) {
       return (TestOptional<A>) kind;
     }
@@ -122,23 +117,23 @@ class ListTraverseTest {
     @Test
     void map_emptyList_shouldReturnEmptyListKind() {
       // Changed from ListKind.Witness to ListKind.Witness
-      Kind<ListKind.Witness, Integer> input = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Collections.emptyList());
       Kind<ListKind.Witness, String> result = listTraverse.map(Object::toString, input);
-      assertThat(unwrap(result)).isEmpty();
+      assertThat(LIST.narrow(result)).isEmpty();
     }
 
     @Test
     void map_nonEmptyList_shouldApplyFunction() {
-      Kind<ListKind.Witness, Integer> input = wrap(Arrays.asList(1, 2, 3));
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2, 3));
       Kind<ListKind.Witness, Integer> result = listTraverse.map(x -> x * 2, input);
-      assertThat(unwrap(result)).containsExactly(2, 4, 6);
+      assertThat(LIST.narrow(result)).containsExactly(2, 4, 6);
     }
 
     @Test
     void map_functionChangesType() {
-      Kind<ListKind.Witness, Integer> input = wrap(Arrays.asList(1, 2));
+      Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2));
       Kind<ListKind.Witness, String> result = listTraverse.map(x -> "v" + x, input);
-      assertThat(unwrap(result)).containsExactly("v1", "v2");
+      assertThat(LIST.narrow(result)).containsExactly("v1", "v2");
     }
   }
 
@@ -156,7 +151,7 @@ class ListTraverseTest {
 
     @Test
     void traverse_emptyList_shouldReturnApplicativeOfEmptyListKind() {
-      Kind<ListKind.Witness, Integer> emptyListKind = wrap(Collections.emptyList());
+      Kind<ListKind.Witness, Integer> emptyListKind = LIST.widen(Collections.emptyList());
 
       // G = TestOptionalKindWitness
       // A = Integer
@@ -168,12 +163,12 @@ class ListTraverseTest {
       Optional<Kind<ListKind.Witness, String>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();
       assertThat(resultOptional).isPresent();
-      assertThat(unwrap(resultOptional.get())).isEmpty();
+      assertThat(LIST.narrow(resultOptional.get())).isEmpty();
     }
 
     @Test
     void traverse_allEffectsSucceed_shouldReturnApplicativeOfListOfResults() {
-      Kind<ListKind.Witness, Integer> inputList = wrap(Arrays.asList(1, 2, 3));
+      Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 2, 3));
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, String>> resultKind =
           listTraverse.traverse(optionalApplicative, inputList, intToOptionalStringKind);
@@ -181,12 +176,12 @@ class ListTraverseTest {
       Optional<Kind<ListKind.Witness, String>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();
       assertThat(resultOptional).isPresent();
-      assertThat(unwrap(resultOptional.get())).containsExactly("v1", "v2", "v3");
+      assertThat(LIST.narrow(resultOptional.get())).containsExactly("v1", "v2", "v3");
     }
 
     @Test
     void traverse_oneEffectFails_shouldReturnApplicativeOfNone() {
-      Kind<ListKind.Witness, Integer> inputList = wrap(Arrays.asList(1, 2, 3));
+      Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 2, 3));
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
           listTraverse.traverse(optionalApplicative, inputList, intToOptionalIntSometimesNoneKind);
@@ -198,7 +193,7 @@ class ListTraverseTest {
 
     @Test
     void traverse_allEffectsSucceed_noFailure() {
-      Kind<ListKind.Witness, Integer> inputList = wrap(Arrays.asList(1, 3, 5));
+      Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 3, 5));
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
           listTraverse.traverse(optionalApplicative, inputList, intToOptionalIntSometimesNoneKind);
@@ -206,7 +201,7 @@ class ListTraverseTest {
       Optional<Kind<ListKind.Witness, Integer>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();
       assertThat(resultOptional).isPresent();
-      assertThat(unwrap(resultOptional.get())).containsExactly(3, 9, 15);
+      assertThat(LIST.narrow(resultOptional.get())).containsExactly(3, 9, 15);
     }
   }
 
@@ -220,7 +215,7 @@ class ListTraverseTest {
     void sequenceA_emptyListOfEffects_shouldReturnApplicativeOfEmptyList() {
       List<Kind<TestOptionalKindWitness, Integer>> actualEmptyList = Collections.emptyList();
       Kind<ListKind.Witness, Kind<TestOptionalKindWitness, Integer>> emptyListOfEffects =
-          wrap(actualEmptyList);
+          LIST.widen(actualEmptyList);
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
           listTraverse.<TestOptionalKindWitness, Integer>sequenceA(
@@ -229,7 +224,7 @@ class ListTraverseTest {
       Optional<Kind<ListKind.Witness, Integer>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();
       assertThat(resultOptional).isPresent();
-      assertThat(unwrap(resultOptional.get())).isEmpty();
+      assertThat(LIST.narrow(resultOptional.get())).isEmpty();
     }
 
     @Test
@@ -237,7 +232,7 @@ class ListTraverseTest {
       List<Kind<TestOptionalKindWitness, Integer>> listOfActualEffects =
           Arrays.asList(TestOptional.some(10), TestOptional.some(20), TestOptional.some(30));
       Kind<ListKind.Witness, Kind<TestOptionalKindWitness, Integer>> listOfEffects =
-          wrap(listOfActualEffects);
+          LIST.widen(listOfActualEffects);
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
           listTraverse.<TestOptionalKindWitness, Integer>sequenceA(
@@ -246,7 +241,7 @@ class ListTraverseTest {
       Optional<Kind<ListKind.Witness, Integer>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();
       assertThat(resultOptional).isPresent();
-      assertThat(unwrap(resultOptional.get())).containsExactly(10, 20, 30);
+      assertThat(LIST.narrow(resultOptional.get())).containsExactly(10, 20, 30);
     }
 
     @Test
@@ -254,7 +249,7 @@ class ListTraverseTest {
       List<Kind<TestOptionalKindWitness, Integer>> listOfActualEffects =
           Arrays.asList(TestOptional.some(10), TestOptional.none(), TestOptional.some(30));
       Kind<ListKind.Witness, Kind<TestOptionalKindWitness, Integer>> listOfEffects =
-          wrap(listOfActualEffects);
+          LIST.widen(listOfActualEffects);
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
           listTraverse.<TestOptionalKindWitness, Integer>sequenceA(

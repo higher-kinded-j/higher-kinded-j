@@ -20,7 +20,6 @@ import org.jspecify.annotations.NonNull;
  * @param <A> The type of the potential valid value (unused in {@code Invalid}, but part of the
  *     {@link Validated} contract).
  * @param error The non-null error value held by this {@code Invalid} instance.
- * @throws NullPointerException if the provided {@code error} is null during construction.
  */
 public record Invalid<E, A>(@NonNull E error) implements Validated<E, A>, ValidatedKind<E, A> {
 

@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trans.reader_t;
 
+import static org.higherkindedj.hkt.trans.reader_t.ReaderTKindHelper.READER_T;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -60,7 +62,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
   @Override
   public <A> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> of(@Nullable A value) {
     ReaderT<F, R_ENV, A> readerT = new ReaderT<>(r -> outerMonad.of(value));
-    return ReaderTKindHelper.wrap(readerT);
+    return READER_T.widen(readerT);
   }
 
   /**
@@ -85,8 +87,8 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
       @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, Function<A, B>> ff,
       @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    ReaderT<F, R_ENV, Function<A, B>> ffT = ReaderTKindHelper.unwrap(ff);
-    ReaderT<F, R_ENV, A> faT = ReaderTKindHelper.unwrap(fa);
+    ReaderT<F, R_ENV, Function<A, B>> ffT = READER_T.narrow(ff);
+    ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
 
     Applicative<F> outerApplicative = this.outerMonad;
 
@@ -98,7 +100,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
         };
 
     ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
-    return ReaderTKindHelper.wrap(resultReaderT);
+    return READER_T.widen(resultReaderT);
   }
 
   /**
@@ -119,7 +121,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
   public <A, B> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    ReaderT<F, R_ENV, A> faT = ReaderTKindHelper.unwrap(fa);
+    ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
 
     Function<R_ENV, Kind<F, B>> newRun =
         r -> {
@@ -128,7 +130,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
         };
 
     ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
-    return ReaderTKindHelper.wrap(resultReaderT);
+    return READER_T.widen(resultReaderT);
   }
 
   /**
@@ -156,7 +158,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
       @NonNull Function<A, Kind<ReaderTKind.Witness<F, R_ENV>, B>> f,
       @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> ma) {
 
-    ReaderT<F, R_ENV, A> maT = ReaderTKindHelper.unwrap(ma);
+    ReaderT<F, R_ENV, A> maT = READER_T.narrow(ma);
 
     Function<R_ENV, Kind<F, B>> newRun =
         r -> {
@@ -165,13 +167,13 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
           Function<A, Kind<F, B>> functionForOuterFlatMap =
               a -> {
                 Kind<ReaderTKind.Witness<F, R_ENV>, B> resultReaderTKind = f.apply(a);
-                ReaderT<F, R_ENV, B> nextReaderT = ReaderTKindHelper.unwrap(resultReaderTKind);
+                ReaderT<F, R_ENV, B> nextReaderT = READER_T.narrow(resultReaderTKind);
                 return nextReaderT.run().apply(r);
               };
           return outerMonad.flatMap(functionForOuterFlatMap, kindA);
         };
 
     ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
-    return ReaderTKindHelper.wrap(resultReaderT);
+    return READER_T.widen(resultReaderT);
   }
 }

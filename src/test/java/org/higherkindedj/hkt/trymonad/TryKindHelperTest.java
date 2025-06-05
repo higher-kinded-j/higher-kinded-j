@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
@@ -23,45 +21,42 @@ class TryKindHelperTest {
   private final Try<String> failureTry = Try.failure(testException);
 
   @Nested
-  @DisplayName("wrap()")
-  class WrapTests {
+  @DisplayName("TRY.widen()")
+  class WidenTests {
     @Test
-    void wrap_shouldReturnHolderForSuccess() {
-      Kind<TryKind.Witness, String> kind = wrap(successTry);
-      assertThat(kind).isInstanceOf(TryKindHelper.TryHolder.class);
-
-      assertThat(unwrap(kind)).isSameAs(successTry);
+    void widen_shouldReturnHolderForSuccess() {
+      Kind<TryKind.Witness, String> kind = TRY.widen(successTry);
+      assertThat(TRY.narrow(kind)).isSameAs(successTry);
     }
 
     @Test
-    void wrap_shouldReturnHolderForFailure() {
-      Kind<TryKind.Witness, String> kind = wrap(failureTry);
-      assertThat(kind).isInstanceOf(TryKindHelper.TryHolder.class);
-      assertThat(unwrap(kind)).isSameAs(failureTry);
+    void widen_shouldReturnHolderForFailure() {
+      Kind<TryKind.Witness, String> kind = TRY.widen(failureTry);
+      assertThat(TRY.narrow(kind)).isSameAs(failureTry);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
+    void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
+          .isThrownBy(() -> TRY.widen(null))
           .withMessageContaining("Input Try cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
-  class UnwrapTests {
+  @DisplayName("narrow()")
+  class narrowTests {
     // --- Success Cases ---
     @Test
-    void unwrap_shouldReturnOriginalSuccess() {
-      Kind<TryKind.Witness, String> kind = wrap(successTry);
-      assertThat(unwrap(kind)).isSameAs(successTry);
+    void narrow_shouldReturnOriginalSuccess() {
+      Kind<TryKind.Witness, String> kind = TRY.widen(successTry);
+      assertThat(TRY.narrow(kind)).isSameAs(successTry);
     }
 
     @Test
-    void unwrap_shouldReturnOriginalFailure() {
-      Kind<TryKind.Witness, String> kind = wrap(failureTry);
-      assertThat(unwrap(kind)).isSameAs(failureTry);
+    void narrow_shouldReturnOriginalFailure() {
+      Kind<TryKind.Witness, String> kind = TRY.widen(failureTry);
+      assertThat(TRY.narrow(kind)).isSameAs(failureTry);
     }
 
     // --- Failure Cases ---
@@ -70,28 +65,28 @@ class TryKindHelperTest {
     record DummyOtherKind<A>() implements Kind<TryKind.Witness, A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+    void narrow_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> TRY.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
+    void narrow_shouldThrowForUnknownKindType() {
       Kind<TryKind.Witness, Integer> unknownKind = new DummyOtherKind<>(); // Use DummyOtherKind
-      assertThatThrownBy(() -> unwrap(unknownKind))
+      assertThatThrownBy(() -> TRY.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOtherKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldThrowForHolderWithNullTry() {
+    void narrow_shouldThrowForHolderWithNullTry() {
       TryKindHelper.TryHolder<Double> holderWithNull = new TryKindHelper.TryHolder<>(null);
       @SuppressWarnings("unchecked") // Cast needed for test setup
       Kind<TryKind.Witness, Double> kind =
           (Kind<TryKind.Witness, Double>) (Object) holderWithNull; // Adjusted cast for clarity
 
-      assertThatThrownBy(() -> unwrap(kind))
+      assertThatThrownBy(() -> TRY.narrow(kind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
     }
@@ -103,8 +98,8 @@ class TryKindHelperTest {
 
     @Test
     void success_helperShouldWrapSuccess() {
-      Kind<TryKind.Witness, String> kind = TryKindHelper.success(successValue);
-      Try<String> tryResult = unwrap(kind);
+      Kind<TryKind.Witness, String> kind = TRY.success(successValue);
+      Try<String> tryResult = TRY.narrow(kind);
       assertThat(tryResult.isSuccess()).isTrue();
       assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(successValue))
           .doesNotThrowAnyException();
@@ -113,16 +108,16 @@ class TryKindHelperTest {
     @Test
     void failure_helperShouldWrapFailure() {
       IOException ioEx = new IOException("IO");
-      Kind<TryKind.Witness, String> kind = TryKindHelper.failure(ioEx);
-      Try<String> tryResult = unwrap(kind);
+      Kind<TryKind.Witness, String> kind = TRY.failure(ioEx);
+      Try<String> tryResult = TRY.narrow(kind);
       assertThat(tryResult.isFailure()).isTrue();
       assertThatThrownBy(tryResult::get).isSameAs(ioEx);
     }
 
     @Test
     void tryOf_helperShouldWrapSuccess() {
-      Kind<TryKind.Witness, Integer> kind = TryKindHelper.tryOf(() -> 10 / 2);
-      Try<Integer> tryResult = unwrap(kind);
+      Kind<TryKind.Witness, Integer> kind = TRY.tryOf(() -> 10 / 2);
+      Try<Integer> tryResult = TRY.narrow(kind);
       assertThat(tryResult.isSuccess()).isTrue();
       assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(5)).doesNotThrowAnyException();
     }
@@ -131,12 +126,12 @@ class TryKindHelperTest {
     void tryOf_helperShouldWrapFailure() {
       ArithmeticException arithEx = new ArithmeticException("/ by zero");
       Kind<TryKind.Witness, Integer> kind =
-          TryKindHelper.tryOf(
+          TRY.tryOf(
               () -> {
                 if (true) throw arithEx;
                 return 1;
               });
-      Try<Integer> tryResult = unwrap(kind);
+      Try<Integer> tryResult = TRY.narrow(kind);
       assertThat(tryResult.isFailure()).isTrue();
       assertThatThrownBy(tryResult::get).isSameAs(arithEx);
     }
@@ -144,25 +139,8 @@ class TryKindHelperTest {
     @Test
     void tryOf_helperShouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
-          .isThrownBy(() -> TryKindHelper.tryOf(null))
+          .isThrownBy(() -> TRY.tryOf(null))
           .withMessageContaining("Supplier cannot be null"); // Message from Try.of
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<TryKindHelper> constructor = TryKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }

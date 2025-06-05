@@ -60,13 +60,13 @@ For each Java type constructor (like `List`, `Optional`, `IO`) you want to simul
   * **Example:** `public interface OptionalKind<A> extends Kind<OptionalKind.Witness, A> { /* ... Witness class ... */ }`
   * The `Witness` (e.g., `OptionalKind.Witness`) is a static nested final class (or a separate accessible class) within `OptionalKind`. This `Witness` type is what's used as the `F` parameter in generic type classes like `Monad<F>`.
 
-* **The `KindHelper` Class (e.g., `OptionalKindHelper`):** A crucial utility class with static `wrap` and `unwrap` methods:
-  * `wrap(...)`: Converts the standard Java type (e.g., `Optional<String>`) into its `Kind<F, A>` representation.
-  * `unwrap(Kind<F, A> kind)`: Converts the `Kind<F, A>` representation back to the underlying Java type (e.g., `Optional<String>`).
+* **The `KindHelper` Class (e.g., `OptionalKindHelper`):** A crucial utility `widen` and `narrow` methods:
+  * `widen(...)`: Converts the standard Java type (e.g., `Optional<String>`) into its `Kind<F, A>` representation.
+  * `narrow(Kind<F, A> kind)`: Converts the `Kind<F, A>` representation back to the underlying Java type (e.g., `Optional<String>`).
     * **Crucially, this method throws `KindUnwrapException` if the input `kind` is structurally invalid** (e.g., `null`, the wrong `Kind` type, or, where applicable, a `Holder` containing `null` where it shouldn't). This ensures robustness.
   * May contain other convenience factory methods.
 
-* **Type Class Instance(s):** Concrete classes implementing `Functor<F>`, `Monad<F>`, etc., for the specific witness type `F` (e.g., `OptionalMonad implements Monad<OptionalKind.Witness>`). These instances use the `KindHelper`'s `wrap` and `unwrap` methods to operate on the underlying Java types.
+* **Type Class Instance(s):** Concrete classes implementing `Functor<F>`, `Monad<F>`, etc., for the specific witness type `F` (e.g., `OptionalMonad implements Monad<OptionalKind.Witness>`). These instances use the `KindHelper`'s `widen` and `narrow` methods to operate on the underlying Java types.
 
 **External Types:**
 

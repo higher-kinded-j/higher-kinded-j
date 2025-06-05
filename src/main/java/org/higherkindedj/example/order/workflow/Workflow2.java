@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import static org.higherkindedj.hkt.trans.either_t.EitherTKindHelper.EITHER_T;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.higherkindedj.example.order.error.DomainError;
@@ -12,8 +15,6 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.trans.either_t.EitherT;
 import org.higherkindedj.hkt.trans.either_t.EitherTKind;
-import org.higherkindedj.hkt.trans.either_t.EitherTKindHelper;
-import org.higherkindedj.hkt.trymonad.TryKindHelper;
 import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 
@@ -171,7 +172,7 @@ public class Workflow2 {
         ctx -> {
           // Synchronous step returning Kind<TryKind.Witness, ValidatedOrder>
           var tryResultKind = steps.validateOrderWithTry(ctx.initialData());
-          var tryResult = TryKindHelper.unwrap(tryResultKind);
+          var tryResult = TRY.narrow(tryResultKind);
 
           // Convert Try<ValidatedOrder> to Either<DomainError, ValidatedOrder>
           var eitherResult =
@@ -184,7 +185,7 @@ public class Workflow2 {
                   });
 
           var validatedOrderET_Concrete = EitherT.fromEither(futureMonad, eitherResult);
-          var validatedOrderET_Kind = EitherTKindHelper.wrap(validatedOrderET_Concrete);
+          var validatedOrderET_Kind = EITHER_T.widen(validatedOrderET_Concrete);
 
           return eitherTMonad.map(ctx::withValidatedOrder, validatedOrderET_Kind);
         },
@@ -410,7 +411,7 @@ public class Workflow2 {
             WorkflowModels.FinalResult>
         finalResultWithNotificationET = completeWorkflow.apply(initialET);
 
-    var finalConcreteET = EitherTKindHelper.unwrap(finalResultWithNotificationET);
+    var finalConcreteET = EITHER_T.narrow(finalResultWithNotificationET);
     return finalConcreteET.value();
   }
 }

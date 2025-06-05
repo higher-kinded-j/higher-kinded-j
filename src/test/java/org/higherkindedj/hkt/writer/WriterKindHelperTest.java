@@ -5,8 +5,6 @@ package org.higherkindedj.hkt.writer;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -32,47 +30,47 @@ class WriterKindHelperTest {
   }
 
   @Nested
-  @DisplayName("wrap()")
+  @DisplayName("WRITER.widen()")
   class WrapTests {
     @Test
-    void wrap_shouldReturnHolderForWriter() {
-      Kind<WriterKind.Witness<String>, Integer> kind = wrap(baseWriter);
+    void widen_shouldReturnHolderForWriter() {
+      Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(baseWriter);
       assertThat(kind).isInstanceOf(WriterHolder.class);
       // Unwrap to verify
-      assertThat(unwrap(kind)).isSameAs(baseWriter);
+      assertThat(WRITER.narrow(kind)).isSameAs(baseWriter);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
+    void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
+          .isThrownBy(() -> WRITER.widen(null))
           .withMessageContaining("Input Writer cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
+  @DisplayName("WRITER.narrow()")
   class UnwrapTests {
     @Test
-    void unwrap_shouldReturnOriginalWriter() {
-      WriterKind<String, Integer> kind = wrap(baseWriter);
-      assertThat(unwrap(kind)).isSameAs(baseWriter);
+    void narrow_shouldReturnOriginalWriter() {
+      Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(baseWriter);
+      assertThat(WRITER.narrow(kind)).isSameAs(baseWriter);
     }
 
     // Dummy Kind implementation
     record DummyWriterKind<W, A>() implements Kind<WriterKind.Witness<W>, A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+    void narrow_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> WRITER.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
+    void narrow_shouldThrowForUnknownKindType() {
       Kind<WriterKind.Witness<String>, Integer> unknownKind = new DummyWriterKind<>();
-      assertThatThrownBy(() -> unwrap(unknownKind))
+      assertThatThrownBy(() -> WRITER.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyWriterKind.class.getName());
     }
@@ -83,16 +81,16 @@ class WriterKindHelperTest {
   class HelperFactoriesTests {
     @Test
     void value_shouldWrapValueWithEmptyLog() {
-      Kind<WriterKind.Witness<String>, Integer> kind = WriterKindHelper.value(stringMonoid, 50);
-      Writer<String, Integer> w = unwrap(kind);
+      Kind<WriterKind.Witness<String>, Integer> kind = WRITER.value(stringMonoid, 50);
+      Writer<String, Integer> w = WRITER.narrow(kind);
       assertThat(w.log()).isEqualTo(stringMonoid.empty());
       assertThat(w.value()).isEqualTo(50);
     }
 
     @Test
     void tell_shouldWrapLogWithNullValue() {
-      Kind<WriterKind.Witness<String>, Unit> kind = WriterKindHelper.tell(stringMonoid, "LogMsg");
-      Writer<String, Unit> w = unwrap(kind);
+      Kind<WriterKind.Witness<String>, Unit> kind = WRITER.tell("LogMsg");
+      Writer<String, Unit> w = WRITER.narrow(kind);
       assertThat(w.log()).isEqualTo("LogMsg");
       assertThat(w.value()).isEqualTo(Unit.INSTANCE);
     }
@@ -103,42 +101,26 @@ class WriterKindHelperTest {
   class RunExecTests {
     @Test
     void runWriter_shouldReturnOriginalWriter() {
-      var kind = wrap(baseWriter);
-      assertThat(runWriter(kind)).isSameAs(baseWriter);
+      var kind = WRITER.widen(baseWriter);
+      assertThat(WRITER.runWriter(kind)).isSameAs(baseWriter);
     }
 
     @Test
     void run_shouldReturnValue() {
-      var kind = wrap(baseWriter);
-      assertThat(run(kind)).isEqualTo(10);
+      var kind = WRITER.widen(baseWriter);
+      assertThat(WRITER.run(kind)).isEqualTo(10);
 
-      var tellKind = wrap(tellWriter);
-      assertThat(run(tellKind)).isEqualTo(Unit.INSTANCE);
+      var tellKind = WRITER.widen(tellWriter);
+      assertThat(WRITER.run(tellKind)).isEqualTo(Unit.INSTANCE);
     }
 
     @Test
     void exec_shouldReturnLog() {
-      var kind = wrap(baseWriter);
-      assertThat(exec(kind)).isEqualTo("Log;");
+      var kind = WRITER.widen(baseWriter);
+      assertThat(WRITER.exec(kind)).isEqualTo("Log;");
 
-      var tellKind = wrap(tellWriter);
-      assertThat(exec(tellKind)).isEqualTo("Tell;");
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<WriterKindHelper> constructor = WriterKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
+      var tellKind = WRITER.widen(tellWriter);
+      assertThat(WRITER.exec(tellKind)).isEqualTo("Tell;");
     }
   }
 }

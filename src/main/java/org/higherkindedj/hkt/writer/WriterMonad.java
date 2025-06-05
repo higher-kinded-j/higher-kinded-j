@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.writer.WriterKindHelper.unwrap;
-import static org.higherkindedj.hkt.writer.WriterKindHelper.wrap;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -63,7 +62,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
       @NonNull Function<A, Kind<WriterKind.Witness<W>, B>> f,
       @NonNull Kind<WriterKind.Witness<W>, A> ma) {
 
-    Writer<W, A> writerA = unwrap(ma);
+    Writer<W, A> writerA = WRITER.narrow(ma);
 
     // Adapt the function f: A -> Kind<WriterKind.Witness<W>, B>
     // to a function A -> Writer<W, B> for Writer's native flatMap.
@@ -72,9 +71,9 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
             this.monoidW,
             a -> {
               Kind<WriterKind.Witness<W>, B> kindB = f.apply(a);
-              return unwrap(kindB);
+              return WRITER.narrow(kindB);
             });
 
-    return wrap(writerB);
+    return WRITER.widen(writerB);
   }
 }

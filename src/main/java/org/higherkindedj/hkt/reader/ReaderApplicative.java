@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.unwrap;
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.wrap;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -46,7 +45,7 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
   @Override
   public <A> @NonNull Kind<ReaderKind.Witness<R>, A> of(@Nullable A value) {
     // Reader.constant(value) creates a Reader that ignores the environment and returns the value.
-    return ReaderKindHelper.constant(value);
+    return READER.constant(value);
   }
 
   /**
@@ -72,8 +71,8 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
       @NonNull Kind<ReaderKind.Witness<R>, Function<A, B>> ff,
       @NonNull Kind<ReaderKind.Witness<R>, A> fa) {
 
-    Reader<R, Function<A, B>> readerF = unwrap(ff);
-    Reader<R, A> readerA = unwrap(fa);
+    Reader<R, Function<A, B>> readerF = READER.narrow(ff);
+    Reader<R, A> readerA = READER.narrow(fa);
 
     Reader<R, B> readerB =
         (R r) -> {
@@ -82,6 +81,6 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
           return func.apply(val);
         };
 
-    return wrap(readerB);
+    return READER.widen(readerB);
   }
 }

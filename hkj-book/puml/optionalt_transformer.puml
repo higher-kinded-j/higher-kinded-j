@@ -30,10 +30,10 @@ interface "MonadError<F_HKT, E_ERR>" as MonadError
 
   class OptionalTKindHelper {
     ' Helper methods
-    + static <F, A> OptionalT<F, A> unwrap(Kind<OptionalTKind.Witness<F>, A> kind)
-    + static <F, A> OptionalTKind<F, A> wrap(OptionalT<F, A> optionalT)
+    + static <F, A> OptionalT<F, A> narrow(Kind<OptionalTKind.Witness<F>, A> kind)
+    + static <F, A> OptionalTKind<F, A> widen(OptionalT<F, A> optionalT)
 
-    note right of OptionalTKindHelper::wrap
+    note right of OptionalTKindHelper::widen
       Uses internal OptionalTHolder
       (not shown for brevity)
     end note
@@ -44,8 +44,8 @@ interface "MonadError<F_HKT, E_ERR>" as MonadError
   OptionalTMonad ..> OptionalTKindHelper : uses
   OptionalTMonad ..> OptionalT : creates / operates on
 
-  OptionalTKindHelper ..> OptionalT : unwrap() returns
-  OptionalTKindHelper ..> OptionalTKind : wrap() returns
+  OptionalTKindHelper ..> OptionalT : narrow() returns
+  OptionalTKindHelper ..> OptionalTKind : widen() returns
 
 
   OptionalT ..> "value is Kind<F, Optional<A>>" Kind

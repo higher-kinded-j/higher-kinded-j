@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.trans.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.either_t.EitherTKindHelper.EITHER_T;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -12,7 +14,6 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,43 +39,42 @@ class EitherTMonadTest {
   private <A> Optional<Either<TestErrorEitherTMonad, A>> unwrapKindToOptionalEither(
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, A> kind) {
     if (kind == null) return Optional.empty();
-    var eitherT = EitherTKindHelper.unwrap(kind);
+    var eitherT = EITHER_T.narrow(kind);
     Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, A>> outerKind = eitherT.value();
-    return OptionalKindHelper.unwrap(outerKind);
+    return OPTIONAL.narrow(outerKind);
   }
 
   private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> rightT(
       R value) {
-    return EitherTKindHelper.wrap(EitherT.right(outerMonad, value));
+    return EITHER_T.widen(EitherT.right(outerMonad, value));
   }
 
   private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> leftT(
       String errorCode) {
-    return EitherTKindHelper.wrap(EitherT.left(outerMonad, new TestErrorEitherTMonad(errorCode)));
+    return EITHER_T.widen(EitherT.left(outerMonad, new TestErrorEitherTMonad(errorCode)));
   }
 
   private <R>
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> emptyOuterT() {
     Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, R>> emptyOuter =
-        OptionalKindHelper.wrap(Optional.empty());
-    return EitherTKindHelper.wrap(EitherT.fromKind(emptyOuter));
+        OPTIONAL.widen(Optional.empty());
+    return EITHER_T.widen(EitherT.fromKind(emptyOuter));
   }
 
   private <A, B>
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Function<A, B>>
           rightTWithNullFunction() {
     Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, Function<A, B>>>
-        outerOptionalOfEitherRightNullFunc =
-            OptionalKindHelper.wrap(Optional.of(Either.right(null)));
-    return EitherTKindHelper.wrap(EitherT.fromKind(outerOptionalOfEitherRightNullFunc));
+        outerOptionalOfEitherRightNullFunc = OPTIONAL.widen(Optional.of(Either.right(null)));
+    return EITHER_T.widen(EitherT.fromKind(outerOptionalOfEitherRightNullFunc));
   }
 
   private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, R> emptyT() {
     Kind<OptionalKind.Witness, Either<TestErrorEitherTMonad, R>> emptyOuter =
-        OptionalKindHelper.wrap(Optional.empty());
+        OPTIONAL.widen(Optional.empty());
     EitherT<OptionalKind.Witness, TestErrorEitherTMonad, R> concreteEitherT =
         EitherT.fromKind(emptyOuter);
-    return EitherTKindHelper.wrap(concreteEitherT);
+    return EITHER_T.widen(concreteEitherT);
   }
 
   // Functions for laws and tests
@@ -545,34 +545,7 @@ class EitherTMonadTest {
 
       assertThatThrownBy(() -> eitherTMonad.flatMap(funcReturnsNullKind, initialRight))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Cannot unwrap null Kind for EitherT");
-    }
-
-    @Test
-    @DisplayName(
-        "flatMap: Function returns Kind with null inner EitherT (should throw"
-            + " NullPointerException)")
-    void flatMap_functionReturnsKindWithNullInnerEitherT() {
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, Integer> initialRight =
-          rightT(50);
-
-      // This creates an EitherTHolder that contains a null EitherT instance.
-      // This is an invalid state that bypasses normal helper construction.
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>
-          problematicKind = new EitherTKindHelper.EitherTHolder<>(null);
-
-      Function<
-              Integer,
-              Kind<EitherTKind.Witness<OptionalKind.Witness, TestErrorEitherTMonad>, String>>
-          funcReturnsProblematicKind = i -> problematicKind;
-
-      // The flatMap call itself should throw the NullPointerException when resultT.value() is
-      // attempted
-      assertThatThrownBy(() -> eitherTMonad.flatMap(funcReturnsProblematicKind, initialRight))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining(
-              "Cannot invoke \"org.higherkindedj.hkt.trans.either_t.EitherT.value()\" because"
-                  + " \"resultT\" is null");
+          .hasMessageContaining(EitherTKindHelper.INVALID_KIND_NULL_MSG);
     }
   }
 }

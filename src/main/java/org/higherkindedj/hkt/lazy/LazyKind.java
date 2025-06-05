@@ -27,9 +27,9 @@ import org.higherkindedj.hkt.Kind;
  * </ul>
  *
  * <p>An instance of {@code Kind<LazyKind.Witness, A>} can be converted back to a concrete {@code
- * Lazy<A>} using the {@link LazyKindHelper#unwrap(Kind)} method. This helper method handles the
- * necessary type casting, often via an internal representation (like a private record implementing
- * this {@code LazyKind} interface).
+ * Lazy<A>} using the {@link LazyKindHelper#narrow(org.higherkindedj.hkt.Kind)} method. This helper
+ * method handles the necessary type casting, often via an internal representation (like a private
+ * record implementing this {@code LazyKind} interface).
  *
  * <p>The {@link Lazy} monad encapsulates a computation that is not executed until its result is
  * explicitly requested (e.g., via a {@code run()} or {@code get()} method on the concrete {@code
@@ -40,7 +40,7 @@ import org.higherkindedj.hkt.Kind;
  *     varies for the higher-kinded type represented by {@link LazyKind.Witness}.
  * @see Lazy
  * @see LazyKindHelper
- * @see LazyKindHelper#unwrap(Kind)
+ * @see LazyKindHelper#narrow(org.higherkindedj.hkt.Kind)
  * @see org.higherkindedj.hkt.Kind
  */
 public interface LazyKind<A> extends Kind<LazyKind.Witness, A> {

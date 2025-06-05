@@ -5,8 +5,8 @@ hide empty members
 
 
 class LazyKindHelper {
- {static} LazyKind<A> wrap(Lazy<A>)
- {static} Lazy<A> unwrap(Kind<LazyKind.Witness, A>)
+ {static} Kind<LazyKind.Witness, A> widen(Lazy<A>)
+ {static} Lazy<A> narrow(Kind<LazyKind.Witness, A>)
  ' ...
 }
 

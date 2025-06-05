@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -41,16 +39,16 @@ class LazyKindHelperTest {
   @DisplayName("wrap()")
   class WrapTests {
     @Test
-    void wrap_shouldReturnHolderForLazy() {
-      Kind<LazyKind.Witness, String> kind = wrap(baseLazy);
+    void widen_shouldReturnHolderForLazy() {
+      Kind<LazyKind.Witness, String> kind = LAZY.widen(baseLazy);
       assertThat(kind).isInstanceOf(LazyKindHelper.LazyHolder.class);
-      assertThat(unwrap(kind)).isSameAs(baseLazy);
+      assertThat(LAZY.narrow(kind)).isSameAs(baseLazy);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
+    void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
+          .isThrownBy(() -> LAZY.widen(null))
           .withMessageContaining("Input Lazy cannot be null");
     }
   }
@@ -59,24 +57,24 @@ class LazyKindHelperTest {
   @DisplayName("unwrap()")
   class UnwrapTests {
     @Test
-    void unwrap_shouldReturnOriginalLazy() {
-      Kind<LazyKind.Witness, String> kind = wrap(baseLazy);
-      assertThat(unwrap(kind)).isSameAs(baseLazy);
+    void narrow_shouldReturnOriginalLazy() {
+      Kind<LazyKind.Witness, String> kind = LAZY.widen(baseLazy);
+      assertThat(LAZY.narrow(kind)).isSameAs(baseLazy);
     }
 
     record DummyOtherKind<A>() implements Kind<LazyKind.Witness, A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+    void narrow_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> LAZY.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
+    void narrow_shouldThrowForUnknownKindType() {
       Kind<LazyKind.Witness, String> unknownKind = new DummyOtherKind<>();
-      assertThatThrownBy(() -> unwrap(unknownKind))
+      assertThatThrownBy(() -> LAZY.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOtherKind.class.getName());
     }
@@ -86,7 +84,7 @@ class LazyKindHelperTest {
   @DisplayName("Helper Factories")
   class HelperFactoriesTests {
     @Test
-    // Add throws Throwable because force() is called indirectly via unwrap().force()
+    // Add throws Throwable because LAZY.force() is called indirectly via unwrap().LAZY.force()
     void defer_shouldWrapSupplier() throws Throwable {
       AtomicInteger counter = new AtomicInteger(0);
       ThrowableSupplier<Integer> supplier =
@@ -94,11 +92,11 @@ class LazyKindHelperTest {
             counter.incrementAndGet();
             return 42;
           };
-      Kind<LazyKind.Witness, Integer> kind = LazyKindHelper.defer(supplier);
+      Kind<LazyKind.Witness, Integer> kind = LAZY.defer(supplier);
 
       assertThat(counter.get()).isZero();
 
-      Lazy<Integer> lazy = unwrap(kind);
+      Lazy<Integer> lazy = LAZY.narrow(kind);
       assertThat(lazy.force()).isEqualTo(42);
       assertThat(counter.get()).isEqualTo(1);
 
@@ -109,25 +107,25 @@ class LazyKindHelperTest {
     @Test
     void defer_shouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
-          .isThrownBy(() -> LazyKindHelper.defer(null))
+          .isThrownBy(() -> LAZY.defer(null))
           .withMessageContaining("computation"); // Message from Lazy.defer check
     }
 
     @Test
     void now_shouldWrapAlreadyEvaluatedValue() throws Throwable {
       AtomicInteger counter = new AtomicInteger(0);
-      Kind<LazyKind.Witness, String> kind = LazyKindHelper.now("Precomputed");
+      Kind<LazyKind.Witness, String> kind = LAZY.now("Precomputed");
 
       assertThat(counter.get()).isZero();
-      Lazy<String> lazy = unwrap(kind);
+      Lazy<String> lazy = LAZY.narrow(kind);
       assertThat(lazy.force()).isEqualTo("Precomputed");
       assertThat(counter.get()).isZero();
     }
 
     @Test
     void now_shouldWrapNullValue() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = LazyKindHelper.now(null);
-      Lazy<String> lazy = unwrap(kind);
+      Kind<LazyKind.Witness, String> kind = LAZY.now(null);
+      Lazy<String> lazy = LAZY.narrow(kind);
       assertThat(lazy.force()).isNull();
     }
   }
@@ -139,54 +137,38 @@ class LazyKindHelperTest {
     void force_shouldExecuteWrappedLazy() throws Throwable {
       AtomicInteger counter = new AtomicInteger(0);
       Kind<LazyKind.Witness, String> kind =
-          LazyKindHelper.defer( // Use ThrowableSupplier implicitly
+          LazyKindHelper.LAZY.defer( // Use ThrowableSupplier implicitly
               () -> {
                 counter.incrementAndGet();
                 return "Executed";
               });
 
       assertThat(counter.get()).isZero();
-      assertThat(force(kind)).isEqualTo("Executed");
+      assertThat(LAZY.force(kind)).isEqualTo("Executed");
       assertThat(counter.get()).isEqualTo(1);
 
-      assertThat(force(kind)).isEqualTo("Executed");
+      assertThat(LAZY.force(kind)).isEqualTo("Executed");
       assertThat(counter.get()).isEqualTo(1);
     }
 
     @Test
     void force_shouldPropagateRuntimeExceptionFromLazy() {
-      Kind<LazyKind.Witness, String> failingKind = wrap(failingLazy);
-      assertThatThrownBy(() -> force(failingKind))
+      Kind<LazyKind.Witness, String> failingKind = LAZY.widen(failingLazy);
+      assertThatThrownBy(() -> LAZY.force(failingKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(testException);
     }
 
     @Test
     void force_shouldPropagateCheckedExceptionFromLazy() {
-      Kind<LazyKind.Witness, String> checkedFailingKind = wrap(checkedFailingLazy);
-      Throwable thrown = catchThrowable(() -> force(checkedFailingKind));
+      Kind<LazyKind.Witness, String> checkedFailingKind = LAZY.widen(checkedFailingLazy);
+      Throwable thrown = catchThrowable(() -> LAZY.force(checkedFailingKind));
       assertThat(thrown).isInstanceOf(IOException.class).hasMessage("Checked IO Failure");
     }
 
     @Test
     void force_shouldThrowKindUnwrapExceptionIfKindIsInvalid() {
-      assertThatThrownBy(() -> force(null)).isInstanceOf(KindUnwrapException.class);
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<LazyKindHelper> constructor = LazyKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
+      assertThatThrownBy(() -> LAZY.force(null)).isInstanceOf(KindUnwrapException.class);
     }
   }
 }

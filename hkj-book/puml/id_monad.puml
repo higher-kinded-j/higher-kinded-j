@@ -4,48 +4,20 @@
 
 hide empty members
 
-' Core HKT Interfaces
+
 interface "Kind<F, A>" as Kind {}
 interface "Functor<M>" as FunctorBase {}
 interface "Applicative<M>" as ApplicativeBase {}
 interface "Monad<M>" as MonadBase {}
 
-' --- Id Specific Components ---
 
-' Id<A> is a record and itself acts as the Kind for Id.Witness
 class "Id<A>" as Id << (R,orchid) Record >> {
-  ' Actual members of Id<A> record:
-  ' + @Nullable A value()
-  ' Static factory:
-  ' + {static} <T> Id<T> of(@Nullable T value)
-  ' Instance methods (also part of Monad concept but directly on Id for convenience):
-  ' + <B> Id<B> map(Function<? super A, ? extends B> fn)
-  ' + <B> Id<B> flatMap(Function<? super A, ? extends Id<? extends B>> fn)
 }
 
 class "IdKindHelper" as IdKindHelper << (H,grey) >> {
-  ' Utility for Id<A> and Kind<Id.Witness, A>
-  ' Constructor:
-  ' - IdKindHelper() ' private
-  ' Static methods:
-  ' + {static} <A> Id<A> narrow(Kind<Id.Witness, A> kind)
-  ' + {static} <A> Kind<Id.Witness, A> wrap(Id<A> id)
-  ' + {static} <A> @Nullable A unwrap(Kind<Id.Witness, A> kind)
 }
 
 class IdentityMonad {
-  ' Implements Monad<Id.Witness>
-  ' Singleton instance:
-  ' - INSTANCE: IdentityMonad
-  ' Constructor:
-  ' - IdentityMonad() ' private
-  ' Static factory for instance:
-  ' + {static} IdentityMonad instance()
-  ' Monad interface methods:
-  ' + <A> Kind<Id.Witness, A> of(@Nullable A a)
-  ' + <A, B> Kind<Id.Witness, B> map(Function<A, B> fn, Kind<Id.Witness, A> fa)
-  ' + <A, B> Kind<Id.Witness, B> ap(Kind<Id.Witness, Function<A, B>> ff, Kind<Id.Witness, A> fa)
-  ' + <A, B> Kind<Id.Witness, B> flatMap(Function<A, Kind<Id.Witness, B>> fn, Kind<Id.Witness, A> fa)
 }
 
 ' --- Relationships ---
@@ -55,8 +27,7 @@ MonadBase --|> ApplicativeBase
 ApplicativeBase --|> FunctorBase
 FunctorBase --|> Kind
 
-' Id relationships
-' Id<A> record implements Kind<Id.Witness, A> directly
+
 Id --|> Kind : <Id.Witness, A>
 
 
@@ -66,7 +37,7 @@ IdentityMonad ..|> MonadBase : <Id.Witness>
 IdentityMonad ..> IdKindHelper : uses narrow
 IdentityMonad ..> Id : uses
 
-IdKindHelper ..> Id : uses wrap/unwrap
+IdKindHelper ..> Id : uses widen / narrow
 
 
 

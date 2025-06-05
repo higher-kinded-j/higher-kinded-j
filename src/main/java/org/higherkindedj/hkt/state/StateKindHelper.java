@@ -11,36 +11,18 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A utility class for working with the {@link State} monad in the context of Higher-Kinded Types
- * (HKT) simulation.
+ * Enum implementing {@link StateConverterOps} for widen/narrow operations, and providing additional
+ * factory and utility instance methods for {@link State} types.
  *
- * <p>This class provides essential static methods to:
- *
- * <ul>
- *   <li>Wrap concrete {@link State}{@code <S, A>} instances into their HKT representation, {@link
- *       StateKind}{@code <S, A>}.
- *   <li>Unwrap {@link StateKind}{@code <S, A>} (which is a {@link Kind}&lt;{@link
- *       StateKind.Witness}, A&gt;) back to the concrete {@link State}{@code <S, A>} type.
- *   <li>Offer factory methods for creating {@link StateKind} instances that represent common {@code
- *       State} operations like {@code pure}, {@code get}, {@code set}, {@code modify}, and {@code
- *       inspect}.
- *   <li>Provide methods to run {@code StateKind} computations ({@code runState}, {@code evalState},
- *       {@code execState}).
- * </ul>
- *
- * The HKT marker (witness type) used for {@code State} is {@link StateKind.Witness}. This class is
- * final and cannot be instantiated.
- *
- * @see State
- * @see StateKind
- * @see StateKind.Witness
- * @see Kind
+ * <p>Access these operations via the singleton {@code STATE}. For example: {@code
+ * StateKindHelper.STATE.widen(State.pure("value"));}
  */
-public final class StateKindHelper {
+public enum StateKindHelper implements StateConverterOps {
+  STATE;
 
   // Error Messages
-  /** Error message for when a null {@link Kind} is passed to {@link #unwrap(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for State";
+  /** Error message for when a null {@link Kind} is passed to {@link #narrow(Kind)}. */
+  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for State";
 
   /**
    * Error message prefix for when the {@link Kind} instance is not the expected {@link StateHolder}
@@ -50,21 +32,13 @@ public final class StateKindHelper {
 
   /**
    * Error message for when a {@link StateHolder} internally contains a null {@link State} instance.
+   * This should not be reachable if widen ensures non-null State instances are wrapped.
    */
   public static final String INVALID_HOLDER_STATE_MSG = "StateHolder contained null State instance";
 
-  private StateKindHelper() {
-    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-  }
-
   /**
    * An internal record that implements {@link StateKind}{@code <S, A>} to hold the concrete {@link
-   * State}{@code <S, A>} instance.
-   *
-   * <p>This serves as the carrier for {@code State} objects within the HKT simulation. By
-   * implementing {@code StateKind<S, A>}, it also conforms to {@code Kind<StateKind.Witness, A>},
-   * allowing it to be used with generic HKT abstractions like {@link org.higherkindedj.hkt.Functor}
-   * or {@link org.higherkindedj.hkt.Monad}.
+   * State}{@code <S, A>} instance. Changed to package-private for potential test access.
    *
    * @param <S> The type of the state.
    * @param <A> The type of the computed value.
@@ -73,28 +47,41 @@ public final class StateKindHelper {
   record StateHolder<S, A>(@NonNull State<S, A> stateInstance) implements StateKind<S, A> {}
 
   /**
-   * Unwraps a {@link Kind}&lt;{@link StateKind.Witness}, A&gt; (which is effectively a {@link
-   * StateKind}&lt;S, A&gt;) back to its concrete {@link State}{@code <S, A>} type.
+   * Widens a concrete {@link State}{@code <S, A>} instance into its higher-kinded representation,
+   * {@link Kind<StateKind.Witness<S>, A>}. Implements {@link StateConverterOps#widen}.
    *
-   * <p>The type parameter {@code S} (state type) is typically inferred from the context in which
-   * the resulting {@code State<S, A>} is used.
+   * @param <S> The type of the state.
+   * @param <A> The type of the computed value.
+   * @param state The non-null, concrete {@link State}{@code <S, A>} instance to widen.
+   * @return A non-null {@link Kind<StateKind.Witness<S>, A>} representing the wrapped {@code State}
+   *     computation.
+   * @throws NullPointerException if {@code state} is {@code null}.
+   */
+  @Override
+  public <S, A> @NonNull Kind<StateKind.Witness<S>, A> widen(@NonNull State<S, A> state) {
+    Objects.requireNonNull(state, "Input State cannot be null for widen");
+    return new StateHolder<>(state);
+  }
+
+  /**
+   * Narrows a {@link Kind}&lt;{@link StateKind.Witness}, A&gt; (which is effectively a {@link
+   * StateKind}&lt;S, A&gt;) back to its concrete {@link State}{@code <S, A>} type. Implements
+   * {@link StateConverterOps#narrow}.
    *
    * @param <S> The type of the state. This is often inferred.
    * @param <A> The type of the computed value associated with the {@code Kind}.
-   * @param kind The {@code Kind<StateKind.Witness, A>} instance to unwrap. May be {@code null}, in
-   *     which case an exception is thrown.
+   * @param kind The {@code Kind<StateKind.Witness<S>, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link State}{@code <S, A>} instance.
-   * @throws KindUnwrapException if the input {@code kind} is {@code null}, is not an instance of
-   *     {@link StateHolder}, or if the holder's internal {@code State} instance is {@code null}
-   *     (which indicates an invalid state).
+   * @throws KindUnwrapException if the input {@code kind} is {@code null}, or not an instance of
+   *     {@link StateHolder}. The {@code StateHolder} guarantees its internal {@code stateInstance}
+   *     is non-null.
    */
-  @SuppressWarnings(
-      "unchecked") // Necessary for casting to State<S, A> due to S not being part of Kind's
-  // signature for State.
-  public static <S, A> @NonNull State<S, A> unwrap(@Nullable Kind<StateKind.Witness<S>, A> kind) {
+  @Override
+  @SuppressWarnings("unchecked")
+  public <S, A> @NonNull State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(StateKindHelper.INVALID_KIND_NULL_MSG);
-      case StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
+      case StateKindHelper.StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
       default ->
           throw new KindUnwrapException(
               StateKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
@@ -102,174 +89,111 @@ public final class StateKindHelper {
   }
 
   /**
-   * Wraps a concrete {@link State}{@code <S, A>} instance into its higher-kinded representation,
-   * {@link StateKind}{@code <S, A>}.
-   *
-   * <p>The returned {@code StateKind<S, A>} also implements {@code Kind<StateKind.Witness, A>},
-   * making it usable in generic HKT contexts.
+   * Lifts a pure value {@code A} into a {@link Kind}{@code <StateKind.Witness<S>, A>} context.
    *
    * @param <S> The type of the state.
-   * @param <A> The type of the computed value.
-   * @param state The non-null, concrete {@link State}{@code <S, A>} instance to wrap.
-   * @return A non-null {@link StateKind}{@code <S, A>} representing the wrapped {@code State}
-   *     computation.
-   * @throws NullPointerException if {@code state} is {@code null}.
-   */
-  public static <S, A> @NonNull StateKind<S, A> wrap(@NonNull State<S, A> state) {
-    Objects.requireNonNull(state, "Input State cannot be null for wrap");
-    return new StateHolder<>(state);
-  }
-
-  /**
-   * Lifts a pure value {@code A} into a {@link StateKind}{@code <S, A>} context. The resulting
-   * {@code State} computation, when run, will return the given {@code value} and leave the state
-   * {@code S} unchanged.
-   *
-   * <p>This is equivalent to {@code State.pure(value)} followed by {@link #wrap(State)}.
-   *
-   * @param <S> The type of the state, which remains unaffected by this computation.
    * @param <A> The type of the pure value being lifted.
-   * @param value The value to lift into the {@code State} context. May be {@code null} if {@code A}
-   *     is a nullable type.
-   * @return A non-null {@link StateKind}{@code <S, A>} representing the pure computation.
+   * @param value The value to lift.
+   * @return A non-null {@link Kind<StateKind.Witness<S>, A>} representing the pure computation.
    */
-  public static <S, A> @NonNull StateKind<S, A> pure(@Nullable A value) {
-    return wrap(State.pure(value));
+  public <S, A> @NonNull Kind<StateKind.Witness<S>, A> pure(@Nullable A value) {
+    return this.widen(State.pure(value));
   }
 
   /**
-   * Creates a {@link StateKind}{@code <S, S>} that, when run, returns the current state {@code S}
-   * as its computed value and leaves the state unchanged.
+   * Creates a {@link Kind}{@code <StateKind.Witness<S>, S>} that yields the current state.
    *
-   * <p>This is equivalent to {@code State.get()} followed by {@link #wrap(State)}.
-   *
-   * @param <S> The type of the state, which is also the type of the value returned by this
-   *     computation.
-   * @return A non-null {@link StateKind}{@code <S, S>} that yields the current state.
+   * @param <S> The type of the state.
+   * @return A non-null {@link Kind<StateKind.Witness<S>, S>} that yields the current state.
    */
-  public static <S> @NonNull StateKind<S, S> get() {
-    return wrap(State.get());
+  public <S> @NonNull Kind<StateKind.Witness<S>, S> get() {
+    return this.widen(State.get());
   }
 
   /**
-   * Creates a {@link StateKind}{@code <S, Unit>} that, when run, replaces the current state with
-   * {@code newState} and returns {@link Unit#INSTANCE} as its computed value.
-   *
-   * <p>This is equivalent to {@code State.set(newState)} followed by {@link #wrap(State)}. ({@code
-   * State.set} is assumed to be updated to return {@code State<S, Unit>}).
+   * Creates a {@link Kind}{@code <StateKind.Witness<S>, Unit>} that replaces the current state.
    *
    * @param <S> The type of the state.
    * @param newState The non-null new state to be set.
-   * @return A non-null {@link StateKind}{@code <S, Unit>} that performs the state update.
-   * @throws NullPointerException if {@code newState} is {@code null}.
+   * @return A non-null {@link Kind<StateKind.Witness<S>, Unit>} that performs the state update.
    */
-  public static <S> @NonNull StateKind<S, Unit> set(@NonNull S newState) {
-    // State.set itself will handle the NullPointerException for newState and now returns State<S,
-    // Unit>.
-    return wrap(State.set(newState));
+  public <S> @NonNull Kind<StateKind.Witness<S>, Unit> set(@NonNull S newState) {
+    return this.widen(State.set(newState));
   }
 
   /**
-   * Creates a {@link StateKind}{@code <S, Unit>} that, when run, modifies the current state {@code
-   * S} using the provided function {@code f}, and returns {@link Unit#INSTANCE} as its computed
-   * value.
-   *
-   * <p>This is equivalent to {@code State.modify(f)} followed by {@link #wrap(State)}. ({@code
-   * State.modify} is assumed to be updated to return {@code State<S, Unit>}).
+   * Creates a {@link Kind}{@code <StateKind.Witness<S>, Unit>} that modifies the current state.
    *
    * @param <S> The type of the state.
-   * @param f The non-null function to transform the current state. It must take a non-null state
-   *     and return a non-null new state.
-   * @return A non-null {@link StateKind}{@code <S, Unit>} that performs the state modification.
-   * @throws NullPointerException if {@code f} is {@code null}.
+   * @param f The non-null function to transform the current state.
+   * @return A non-null {@link Kind<StateKind.Witness<S>, Unit>} that performs the state
+   *     modification.
    */
-  public static <S> @NonNull StateKind<S, Unit> modify(
+  public <S> @NonNull Kind<StateKind.Witness<S>, Unit> modify(
       @NonNull Function<@NonNull S, @NonNull S> f) {
-    // State.modify itself will handle the NullPointerException for f and now returns State<S,
-    // Unit>.
-    return wrap(State.modify(f));
+    return this.widen(State.modify(f));
   }
 
   /**
-   * Creates a {@link StateKind}{@code <S, A>} that, when run, inspects the current state {@code S}
-   * using the function {@code f}, returns the result of {@code f.apply(currentState)} as its
-   * computed value, and leaves the state unchanged.
-   *
-   * <p>This is equivalent to {@code State.inspect(f)} followed by {@link #wrap(State)}.
+   * Creates a {@link Kind}{@code <StateKind.Witness<S>, A>} that inspects the current state.
    *
    * @param <S> The type of the state.
    * @param <A> The type of the value produced by inspecting the state.
-   * @param f The non-null function to apply to the current state to produce a value. This function
-   *     takes a non-null state and can return a {@code @Nullable A} if {@code A} is a nullable
-   *     type.
-   * @return A non-null {@link StateKind}{@code <S, A>} that returns the result of inspecting the
-   *     state.
-   * @throws NullPointerException if {@code f} is {@code null}.
+   * @param f The non-null function to apply to the current state.
+   * @return A non-null {@link Kind<StateKind.Witness<S>, A>} that returns the result of inspecting
+   *     the state.
    */
-  public static <S, A> @NonNull StateKind<S, A> inspect(
+  public <S, A> @NonNull Kind<StateKind.Witness<S>, A> inspect(
       @NonNull Function<@NonNull S, @Nullable A> f) {
-    // State.inspect itself will handle the NullPointerException for f.
-    return wrap(State.inspect(f));
+    return this.widen(State.inspect(f));
   }
 
   /**
-   * Runs the {@link State}{@code <S, A>} computation held within the {@code Kind} wrapper, starting
-   * with the given {@code initialState}.
+   * Runs the {@link State}{@code <S, A>} computation held within the {@code Kind} wrapper.
    *
    * @param <S> The type of the state.
    * @param <A> The type of the computed value.
-   * @param kind The {@code Kind<StateKind.Witness, A>} (effectively a {@link StateKind}{@code <S,
-   *     A>}) holding the {@code State} computation. May be {@code null}.
-   * @param initialState The non-null initial state to run the computation with.
-   * @return A non-null {@link StateTuple}{@code <S, A>} containing both the final computed value
-   *     and the final state.
-   * @throws KindUnwrapException if {@code kind} is invalid (e.g., {@code null}, or not a valid
-   *     representation of a {@code State}).
+   * @param kind The {@code Kind<StateKind.Witness<S>, A>} holding the {@code State} computation.
+   * @param initialState The non-null initial state.
+   * @return A non-null {@link StateTuple}{@code <S, A>}.
+   * @throws KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
-  public static <S, A> @NonNull StateTuple<S, A> runState(
+  public <S, A> @NonNull StateTuple<S, A> runState(
       @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
     Objects.requireNonNull(initialState, "Initial state cannot be null for runState");
-    State<S, A> stateToRun = unwrap(kind); // unwrap handles null kind
-    return stateToRun.run(initialState);
+    return this.narrow(kind).run(initialState);
   }
 
   /**
-   * Evaluates the {@link State}{@code <S, A>} computation held within the {@code Kind} wrapper,
-   * starting with {@code initialState}, and returns only the final computed value {@code A}. The
-   * final state is discarded.
+   * Evaluates the {@link State}{@code <S, A>} computation and returns only the final value.
    *
    * @param <S> The type of the state.
    * @param <A> The type of the computed value.
-   * @param kind The {@code Kind<StateKind.Witness, A>} (effectively a {@link StateKind}{@code <S,
-   *     A>}) holding the {@code State} computation. May be {@code null}.
-   * @param initialState The non-null initial state to run the computation with.
-   * @return The final computed value from the {@code State} computation. This can be {@code null}
-   *     if {@code A} is a nullable type.
+   * @param kind The {@code Kind<StateKind.Witness<S>, A>} holding the {@code State} computation.
+   * @param initialState The non-null initial state.
+   * @return The final computed value.
    * @throws KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
-  public static <S, A> @Nullable A evalState(
+  public <S, A> @Nullable A evalState(
       @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
-    return runState(kind, initialState).value();
+    return this.runState(kind, initialState).value();
   }
 
   /**
-   * Executes the {@link State}{@code <S, A>} computation held within the {@code Kind} wrapper,
-   * starting with {@code initialState}, and returns only the final state {@code S}. The final
-   * computed value is discarded.
+   * Executes the {@link State}{@code <S, A>} computation and returns only the final state.
    *
    * @param <S> The type of the state.
-   * @param <A> The type of the computed value (which is ignored in the result).
-   * @param kind The {@code Kind<StateKind.Witness, A>} (effectively a {@link StateKind}{@code <S,
-   *     A>}) holding the {@code State} computation. May be {@code null}.
-   * @param initialState The non-null initial state to run the computation with.
-   * @return The non-null final state from the {@code State} computation.
+   * @param <A> The type of the computed value.
+   * @param kind The {@code Kind<StateKind.Witness<S>, A>} holding the {@code State} computation.
+   * @param initialState The non-null initial state.
+   * @return The non-null final state.
    * @throws KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
-  public static <S, A> @NonNull S execState(
+  public <S, A> @NonNull S execState(
       @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
-    return runState(kind, initialState).state();
+    return this.runState(kind, initialState).state();
   }
 }

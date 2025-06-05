@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.optional;
 
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.unit.Unit;
 
@@ -29,8 +30,9 @@ public class OptionalExample {
 
   public void mapExample() {
     OptionalMonad optionalMonad = new OptionalMonad();
-    OptionalKind<Integer> presentNumber = OptionalKindHelper.wrap(Optional.of(10));
-    OptionalKind<Integer> emptyNumber = OptionalKindHelper.wrap(Optional.empty());
+    // Using OPTIONAL.widen which calls the instance method on OptionalKindHelper.OPTIONAL
+    Kind<OptionalKind.Witness, Integer> presentNumber = OPTIONAL.widen(Optional.of(10));
+    Kind<OptionalKind.Witness, Integer> emptyNumber = OPTIONAL.widen(Optional.empty());
 
     Function<Integer, String> intToString = i -> "Number: " + i;
     Kind<OptionalKind.Witness, String> presentString =
@@ -38,25 +40,27 @@ public class OptionalExample {
 
     Kind<OptionalKind.Witness, String> emptyString = optionalMonad.map(intToString, emptyNumber);
 
-    Function<Integer, String> intToNull = i -> null;
+    Function<Integer, String> intToNull =
+        i -> null; // Optional.ofNullable(null) will result in Optional.empty()
     Kind<OptionalKind.Witness, String> mappedToNull = optionalMonad.map(intToNull, presentNumber);
 
-    System.out.println("Map (Present): " + OptionalKindHelper.unwrap(presentString));
-    System.out.println("Map (Empty): " + OptionalKindHelper.unwrap(emptyString));
-    System.out.println("Map (To Null): " + OptionalKindHelper.unwrap(mappedToNull));
+    // Using OPTIONAL.narrow which calls the instance method on OptionalKindHelper.OPTIONAL
+    System.out.println("Map (Present): " + OPTIONAL.narrow(presentString));
+    System.out.println("Map (Empty): " + OPTIONAL.narrow(emptyString));
+    System.out.println("Map (To Null): " + OPTIONAL.narrow(mappedToNull));
   }
 
   public void flatMapExample() {
     OptionalMonad optionalMonad = new OptionalMonad();
-    OptionalKind<String> presentInput = OptionalKindHelper.wrap(Optional.of("5"));
-    OptionalKind<String> emptyInput = OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, String> presentInput = OPTIONAL.widen(Optional.of("5"));
+    Kind<OptionalKind.Witness, String> emptyInput = OPTIONAL.widen(Optional.empty());
 
     Function<String, Kind<OptionalKind.Witness, Integer>> parseToIntKind =
         s -> {
           try {
-            return OptionalKindHelper.wrap(Optional.of(Integer.parseInt(s)));
+            return OPTIONAL.widen(Optional.of(Integer.parseInt(s)));
           } catch (NumberFormatException e) {
-            return OptionalKindHelper.wrap(Optional.empty());
+            return OPTIONAL.widen(Optional.empty());
           }
         };
 
@@ -66,25 +70,25 @@ public class OptionalExample {
     Kind<OptionalKind.Witness, Integer> parsedEmpty =
         optionalMonad.flatMap(parseToIntKind, emptyInput);
 
-    OptionalKind<String> nonNumericInput = OptionalKindHelper.wrap(Optional.of("abc"));
+    Kind<OptionalKind.Witness, String> nonNumericInput = OPTIONAL.widen(Optional.of("abc"));
     Kind<OptionalKind.Witness, Integer> parsedNonNumeric =
         optionalMonad.flatMap(parseToIntKind, nonNumericInput);
 
-    System.out.println("FlatMap (Present): " + OptionalKindHelper.unwrap(parsedPresent));
-    System.out.println("FlatMap (Empty Input): " + OptionalKindHelper.unwrap(parsedEmpty));
-    System.out.println("FlatMap (Non-numeric): " + OptionalKindHelper.unwrap(parsedNonNumeric));
+    System.out.println("FlatMap (Present): " + OPTIONAL.narrow(parsedPresent));
+    System.out.println("FlatMap (Empty Input): " + OPTIONAL.narrow(parsedEmpty));
+    System.out.println("FlatMap (Non-numeric): " + OPTIONAL.narrow(parsedNonNumeric));
   }
 
   public void apExample() {
     OptionalMonad optionalMonad = new OptionalMonad();
 
-    OptionalKind<Function<Integer, String>> presentFuncKind =
-        OptionalKindHelper.wrap(Optional.of(i -> "Value: " + i));
-    OptionalKind<Function<Integer, String>> emptyFuncKind =
-        OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, Function<Integer, String>> presentFuncKind =
+        OPTIONAL.widen(Optional.of(i -> "Value: " + i));
+    Kind<OptionalKind.Witness, Function<Integer, String>> emptyFuncKind =
+        OPTIONAL.widen(Optional.empty());
 
-    OptionalKind<Integer> presentValueKind = OptionalKindHelper.wrap(Optional.of(100));
-    OptionalKind<Integer> emptyValueKind = OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, Integer> presentValueKind = OPTIONAL.widen(Optional.of(100));
+    Kind<OptionalKind.Witness, Integer> emptyValueKind = OPTIONAL.widen(Optional.empty());
 
     Kind<OptionalKind.Witness, String> result1 =
         optionalMonad.ap(presentFuncKind, presentValueKind);
@@ -93,19 +97,19 @@ public class OptionalExample {
 
     Kind<OptionalKind.Witness, String> result3 = optionalMonad.ap(presentFuncKind, emptyValueKind);
 
-    System.out.println("Ap (Both Present): " + OptionalKindHelper.unwrap(result1));
-    System.out.println("Ap (Function Empty): " + OptionalKindHelper.unwrap(result2));
-    System.out.println("Ap (Value Empty): " + OptionalKindHelper.unwrap(result3));
+    System.out.println("Ap (Both Present): " + OPTIONAL.narrow(result1));
+    System.out.println("Ap (Function Empty): " + OPTIONAL.narrow(result2));
+    System.out.println("Ap (Value Empty): " + OPTIONAL.narrow(result3));
   }
 
   public void handleErrorWithExample() {
     OptionalMonad optionalMonad = new OptionalMonad();
 
-    Kind<OptionalKind.Witness, String> presentKind = OptionalKindHelper.wrap(Optional.of("Exists"));
-    OptionalKind<String> emptyKind = OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, String> presentKind = OPTIONAL.widen(Optional.of("Exists"));
+    Kind<OptionalKind.Witness, String> emptyKind = OPTIONAL.widen(Optional.empty());
 
     Function<Unit, Kind<OptionalKind.Witness, String>> recoveryFunction =
-        ignoredUnit -> OptionalKindHelper.wrap(Optional.of("Recovered Value"));
+        ignoredUnit -> OPTIONAL.widen(Optional.of("Recovered Value"));
 
     Kind<OptionalKind.Witness, String> handledPresent =
         optionalMonad.handleErrorWith(presentKind, recoveryFunction);
@@ -113,14 +117,14 @@ public class OptionalExample {
     Kind<OptionalKind.Witness, String> handledEmpty =
         optionalMonad.handleErrorWith(emptyKind, recoveryFunction);
 
-    System.out.println("HandleError (Present): " + OptionalKindHelper.unwrap(handledPresent));
-    System.out.println("HandleError (Empty): " + OptionalKindHelper.unwrap(handledEmpty));
+    System.out.println("HandleError (Present): " + OPTIONAL.narrow(handledPresent));
+    System.out.println("HandleError (Empty): " + OPTIONAL.narrow(handledEmpty));
   }
 
   public void monadExample() {
     OptionalMonad optionalMonad = new OptionalMonad();
 
-    OptionalKind<Integer> presentIntKind = OptionalKindHelper.wrap(Optional.of(10));
+    Kind<OptionalKind.Witness, Integer> presentIntKind = OPTIONAL.widen(Optional.of(10));
 
     Kind<OptionalKind.Witness, Integer> emptyIntKind = optionalMonad.raiseError(Unit.INSTANCE);
 
@@ -129,8 +133,8 @@ public class OptionalExample {
         optionalMonad.map(intToMessage, presentIntKind);
     Kind<OptionalKind.Witness, String> mappedEmpty = optionalMonad.map(intToMessage, emptyIntKind);
 
-    System.out.println("Mapped (Present): " + OptionalKindHelper.unwrap(mappedPresent));
-    System.out.println("Mapped (Empty): " + OptionalKindHelper.unwrap(mappedEmpty));
+    System.out.println("Mapped (Present): " + OPTIONAL.narrow(mappedPresent));
+    System.out.println("Mapped (Empty): " + OPTIONAL.narrow(mappedEmpty));
 
     Function<Integer, Kind<OptionalKind.Witness, Double>> intToOptionalDouble =
         n -> (n > 0) ? optionalMonad.of(n / 2.0) : optionalMonad.raiseError(Unit.INSTANCE);
@@ -139,30 +143,27 @@ public class OptionalExample {
         optionalMonad.flatMap(intToOptionalDouble, presentIntKind);
     Kind<OptionalKind.Witness, Double> flatMappedEmpty =
         optionalMonad.flatMap(intToOptionalDouble, emptyIntKind);
-    Kind<OptionalKind.Witness, Integer> zeroIntKind = optionalMonad.of(0);
+    Kind<OptionalKind.Witness, Integer> zeroIntKind =
+        optionalMonad.of(0); // OPTIONAL.widen(Optional.of(0)) would also work
     Kind<OptionalKind.Witness, Double> flatMappedZero =
         optionalMonad.flatMap(intToOptionalDouble, zeroIntKind);
 
-    System.out.println("FlatMapped (Present): " + OptionalKindHelper.unwrap(flatMappedPresent));
-    System.out.println("FlatMapped (Empty): " + OptionalKindHelper.unwrap(flatMappedEmpty));
-    System.out.println("FlatMapped (Zero): " + OptionalKindHelper.unwrap(flatMappedZero));
-
-    Kind<OptionalKind.Witness, String> kindFromValue = optionalMonad.of("World");
-    Kind<OptionalKind.Witness, Integer> kindFromNullValue = optionalMonad.of(null);
+    System.out.println("FlatMapped (Present): " + OPTIONAL.narrow(flatMappedPresent));
+    System.out.println("FlatMapped (Empty): " + OPTIONAL.narrow(flatMappedEmpty));
+    System.out.println("FlatMapped (Zero): " + OPTIONAL.narrow(flatMappedZero));
 
     Function<Unit, Kind<OptionalKind.Witness, Integer>> recoverWithDefault =
-        unitVal -> optionalMonad.of(-1);
+        unitVal -> optionalMonad.of(-1); // OPTIONAL.widen(Optional.of(-1)) would also work
 
     Kind<OptionalKind.Witness, Integer> recoveredFromEmpty =
         optionalMonad.handleErrorWith(emptyIntKind, recoverWithDefault);
     Kind<OptionalKind.Witness, Integer> notRecoveredFromPresent =
         optionalMonad.handleErrorWith(presentIntKind, recoverWithDefault);
 
-    System.out.println("Recovered (from Empty): " + OptionalKindHelper.unwrap(recoveredFromEmpty));
-    System.out.println(
-        "Recovered (from Present): " + OptionalKindHelper.unwrap(notRecoveredFromPresent));
+    System.out.println("Recovered (from Empty): " + OPTIONAL.narrow(recoveredFromEmpty));
+    System.out.println("Recovered (from Present): " + OPTIONAL.narrow(notRecoveredFromPresent));
 
-    Optional<String> finalMappedOptional = OptionalKindHelper.unwrap(mappedPresent);
+    Optional<String> finalMappedOptional = OPTIONAL.narrow(mappedPresent);
     System.out.println("Final unwrapped mapped optional: " + finalMappedOptional);
   }
 }

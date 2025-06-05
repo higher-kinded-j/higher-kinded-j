@@ -4,13 +4,13 @@ package org.higherkindedj.hkt.trans.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,12 +38,12 @@ class EitherTTest {
   void setUp() {
     outerMonad = new OptionalMonad();
 
-    wrappedRight = OptionalKindHelper.wrap(Optional.of(Either.right(rightValue)));
-    wrappedLeft = OptionalKindHelper.wrap(Optional.of(Either.left(leftValue)));
+    wrappedRight = OPTIONAL.widen(Optional.of(Either.right(rightValue)));
+    wrappedLeft = OPTIONAL.widen(Optional.of(Either.left(leftValue)));
     // wrappedEmpty represents an empty Optional that would contain an Either
-    wrappedEmpty = OptionalKindHelper.wrap(Optional.empty());
+    wrappedEmpty = OPTIONAL.widen(Optional.empty());
 
-    wrappedOuterValue = OptionalKindHelper.wrap(Optional.of(otherRightValue));
+    wrappedOuterValue = OPTIONAL.widen(Optional.of(otherRightValue));
 
     plainRight = Either.right(rightValue);
     plainLeft = Either.left(leftValue);
@@ -52,7 +52,7 @@ class EitherTTest {
   private <A> Optional<Either<String, A>> unwrapT(
       EitherT<OptionalKind.Witness, String, A> eitherT) {
     Kind<OptionalKind.Witness, Either<String, A>> outerKind = eitherT.value();
-    return OptionalKindHelper.unwrap(outerKind);
+    return OPTIONAL.narrow(outerKind);
   }
 
   @Nested
@@ -127,7 +127,7 @@ class EitherTTest {
     @Test
     @DisplayName("liftF should handle empty outer Kind")
     void liftF_handlesEmptyOuterKind() {
-      Kind<OptionalKind.Witness, Integer> emptyOuter = OptionalKindHelper.wrap(Optional.empty());
+      Kind<OptionalKind.Witness, Integer> emptyOuter = OPTIONAL.widen(Optional.empty());
       EitherT<OptionalKind.Witness, String, Integer> et = EitherT.liftF(outerMonad, emptyOuter);
       assertThat(unwrapT(et)).isEmpty();
     }
@@ -153,15 +153,15 @@ class EitherTTest {
   class ObjectTests {
 
     Kind<OptionalKind.Witness, Either<String, String>> wrappedRight1 =
-        OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+        OPTIONAL.widen(Optional.of(Either.right("A")));
     Kind<OptionalKind.Witness, Either<String, String>> wrappedRight2 =
-        OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+        OPTIONAL.widen(Optional.of(Either.right("A")));
     Kind<OptionalKind.Witness, Either<String, String>> wrappedRight3 =
-        OptionalKindHelper.wrap(Optional.of(Either.right("B")));
+        OPTIONAL.widen(Optional.of(Either.right("B")));
     Kind<OptionalKind.Witness, Either<String, String>> wrappedLeft1 =
-        OptionalKindHelper.wrap(Optional.of(Either.left("E")));
+        OPTIONAL.widen(Optional.of(Either.left("E")));
     Kind<OptionalKind.Witness, Either<String, String>> wrappedEmpty1 =
-        OptionalKindHelper.wrap(Optional.empty());
+        OPTIONAL.widen(Optional.empty());
 
     EitherT<OptionalKind.Witness, String, String> et1 = EitherT.fromKind(wrappedRight1);
     EitherT<OptionalKind.Witness, String, String> et2 = EitherT.fromKind(wrappedRight2);
@@ -214,9 +214,9 @@ class EitherTTest {
     @DisplayName("equals should return true for equal wrapped Kinds")
     void equals_comparesEqualWrappedValue() {
       Kind<OptionalKind.Witness, Either<String, String>> locWrapped1 =
-          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+          OPTIONAL.widen(Optional.of(Either.right("A")));
       Kind<OptionalKind.Witness, Either<String, String>> locWrapped2 =
-          OptionalKindHelper.wrap(Optional.of(Either.right("A")));
+          OPTIONAL.widen(Optional.of(Either.right("A")));
 
       EitherT<OptionalKind.Witness, String, String> localEt1 = EitherT.fromKind(locWrapped1);
       EitherT<OptionalKind.Witness, String, String> localEt2 = EitherT.fromKind(locWrapped2);

@@ -19,7 +19,7 @@ public class LazyExample {
     java.util.concurrent.atomic.AtomicInteger counter =
         new java.util.concurrent.atomic.AtomicInteger(0);
     Kind<LazyKind.Witness, String> deferredLazy =
-        defer(
+        LAZY.defer(
             () -> {
               System.out.println("Executing expensive computation...");
               counter.incrementAndGet();
@@ -33,7 +33,7 @@ public class LazyExample {
             });
 
     // 2. Creating an already evaluated Lazy
-    Kind<LazyKind.Witness, String> nowLazy = now("Precomputed Value");
+    Kind<LazyKind.Witness, String> nowLazy = LAZY.now("Precomputed Value");
 
     // 3. Using the underlying Lazy type directly (less common when using HKT)
     Lazy<String> directLazy =
@@ -48,18 +48,18 @@ public class LazyExample {
 
     try {
       // Force the deferred computation
-      String result1 = force(deferredLazy); // force() throws Throwable
+      String result1 = LAZY.force(deferredLazy); // force() throws Throwable
       System.out.println("Result 1: " + result1);
       System.out.println("Counter after first force: " + counter.get()); // Output: 1
 
       // Force again - uses memoised result
-      String result2 = force(deferredLazy);
+      String result2 = LAZY.force(deferredLazy);
       System.out.println("Result 2: " + result2);
       System.out.println(
           "Counter after second force: " + counter.get()); // Output: 1 (not re-computed)
 
       // Force the 'now' instance
-      String resultNow = force(nowLazy);
+      String resultNow = LAZY.force(nowLazy);
       System.out.println("Result Now: " + resultNow);
       System.out.println(
           "Counter after forcing 'now': "
@@ -69,7 +69,7 @@ public class LazyExample {
       System.err.println("Caught exception during force: " + t);
       // Exception is also memoized:
       try {
-        force(deferredLazy);
+        LAZY.force(deferredLazy);
       } catch (Throwable t2) {
         System.err.println("Caught memoized exception: " + t2);
         System.out.println("Counter after failed force: " + counter.get()); // Output: 1
@@ -81,7 +81,7 @@ public class LazyExample {
     counter.set(0); // Reset counter for this example
 
     Kind<LazyKind.Witness, Integer> initialLazy =
-        defer(
+        LAZY.defer(
             () -> {
               counter.incrementAndGet();
               return 10;
@@ -96,7 +96,7 @@ public class LazyExample {
 
     try {
       System.out.println(
-          "Mapped Result: " + force(mappedLazy)); // Triggers evaluation of initialLazy & map
+          "Mapped Result: " + LAZY.force(mappedLazy)); // Triggers evaluation of initialLazy & map
       // Output: Mapped Result: Value: 10
       System.out.println("Counter after forcing mapped: " + counter.get()); // Output: 1
     } catch (Throwable t) {
@@ -107,7 +107,7 @@ public class LazyExample {
     // Sequence lazy computations
     Function<Integer, Kind<LazyKind.Witness, String>> multiplyAndStringifyLazy =
         i ->
-            defer(
+            LAZY.defer(
                 () -> { // Inner computation is also lazy
                   int result = i * 5;
                   return "Multiplied: " + result;
@@ -122,7 +122,7 @@ public class LazyExample {
 
     try {
       System.out.println(
-          "FlatMapped Result: " + force(flatMappedLazy)); // Triggers evaluation of inner lazy
+          "FlatMapped Result: " + LAZY.force(flatMappedLazy)); // Triggers evaluation of inner lazy
       // Output: FlatMapped Result: Multiplied: 50
     } catch (Throwable t) {
       /* ... */
@@ -134,13 +134,13 @@ public class LazyExample {
             value1 ->
                 lazyMonad.map(
                     value2 -> "Combined: " + value1 + " & " + value2, // Combine results
-                    defer(() -> value1 * 2) // Second lazy step, depends on result of first
+                    LAZY.defer(() -> value1 * 2) // Second lazy step, depends on result of first
                     ),
-            defer(() -> 5) // First lazy step
+            LAZY.defer(() -> 5) // First lazy step
             );
 
     try {
-      System.out.println("Chained Result: " + force(chainedLazy)); // Output: Combined: 5 & 10
+      System.out.println("Chained Result: " + LAZY.force(chainedLazy)); // Output: Combined: 5 & 10
     } catch (Throwable t) {
       /* ... */
     }

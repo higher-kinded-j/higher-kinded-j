@@ -49,7 +49,7 @@ public class CompletableFutureMonadError extends CompletableFutureMonad
    */
   @Override
   public <A> @NonNull Kind<CompletableFutureKind.Witness, A> raiseError(@NonNull Throwable error) {
-    return wrap(CompletableFuture.failedFuture(error));
+    return FUTURE.widen(CompletableFuture.failedFuture(error));
   }
 
   /**
@@ -75,7 +75,7 @@ public class CompletableFutureMonadError extends CompletableFutureMonad
   public <A> @NonNull Kind<CompletableFutureKind.Witness, A> handleErrorWith(
       @NonNull Kind<CompletableFutureKind.Witness, A> ma,
       @NonNull Function<Throwable, Kind<CompletableFutureKind.Witness, A>> handler) {
-    CompletableFuture<A> futureA = unwrap(ma);
+    CompletableFuture<A> futureA = FUTURE.narrow(ma);
 
     // Optimization: If already successfully completed, no need to attach handler.
     if (futureA.isDone() && !futureA.isCompletedExceptionally()) {
@@ -90,8 +90,8 @@ public class CompletableFutureMonadError extends CompletableFutureMonad
                       ? throwable.getCause()
                       : throwable;
               Kind<CompletableFutureKind.Witness, A> recoveryKind = handler.apply(cause);
-              return unwrap(recoveryKind);
+              return FUTURE.narrow(recoveryKind);
             });
-    return wrap(recoveredFuture);
+    return FUTURE.widen(recoveredFuture);
   }
 }

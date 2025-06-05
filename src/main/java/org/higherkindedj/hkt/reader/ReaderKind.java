@@ -31,7 +31,7 @@ import org.higherkindedj.hkt.Kind;
  *
  * <p>An instance of {@code Kind<ReaderKind.Witness<R>, A>} can be converted back to a concrete
  * {@code Reader<R, A>} using methods in {@link ReaderKindHelper}, primarily {@link
- * ReaderKindHelper#unwrap(Kind)}.
+ * ReaderKindHelper#narrow(org.higherkindedj.hkt.Kind)}.
  *
  * @param <R> The type of the environment that the {@link Reader} computation will access. This
  *     parameter is captured by the {@link Witness} type.
@@ -56,7 +56,6 @@ public interface ReaderKind<R, A> extends Kind<ReaderKind.Witness<R>, A> {
    * @param <TYPE_R> The type of the environment {@code R} associated with this witness.
    */
   final class Witness<TYPE_R> {
-    private Witness() { // Private constructor to prevent instantiation.
-    }
+    private Witness() {}
   }
 }

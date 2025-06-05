@@ -73,7 +73,7 @@ public class OptionalMonad extends OptionalFunctor
    */
   @Override
   public <A> @NonNull Kind<OptionalKind.Witness, A> of(@Nullable A value) {
-    return wrap(Optional.ofNullable(value));
+    return OPTIONAL.widen(Optional.ofNullable(value));
   }
 
   /**
@@ -95,14 +95,14 @@ public class OptionalMonad extends OptionalFunctor
   public <A, B> @NonNull Kind<OptionalKind.Witness, B> flatMap(
       @NonNull Function<A, Kind<OptionalKind.Witness, B>> f,
       @NonNull Kind<OptionalKind.Witness, A> ma) {
-    Optional<A> optA = unwrap(ma);
+    Optional<A> optA = OPTIONAL.narrow(ma);
     Optional<B> resultOpt =
         optA.flatMap(
             a -> {
               Kind<OptionalKind.Witness, B> kindB = f.apply(a);
-              return unwrap(kindB);
+              return OPTIONAL.narrow(kindB);
             });
-    return wrap(resultOpt);
+    return OPTIONAL.widen(resultOpt);
   }
 
   /**
@@ -123,10 +123,10 @@ public class OptionalMonad extends OptionalFunctor
   public <A, B> @NonNull Kind<OptionalKind.Witness, B> ap(
       @NonNull Kind<OptionalKind.Witness, Function<A, B>> ff,
       @NonNull Kind<OptionalKind.Witness, A> fa) {
-    Optional<Function<A, B>> optF = unwrap(ff);
-    Optional<A> optA = unwrap(fa);
+    Optional<Function<A, B>> optF = OPTIONAL.narrow(ff);
+    Optional<A> optA = OPTIONAL.narrow(fa);
     Optional<B> resultOpt = optF.flatMap(optA::map);
-    return wrap(resultOpt);
+    return OPTIONAL.widen(resultOpt);
   }
 
   /**
@@ -139,7 +139,7 @@ public class OptionalMonad extends OptionalFunctor
    */
   @Override
   public <A> @NonNull Kind<OptionalKind.Witness, A> raiseError(@NonNull Unit error) {
-    return wrap(Optional.empty());
+    return OPTIONAL.widen(Optional.empty());
   }
 
   /**
@@ -159,7 +159,7 @@ public class OptionalMonad extends OptionalFunctor
   public <A> @NonNull Kind<OptionalKind.Witness, A> handleErrorWith(
       @NonNull Kind<OptionalKind.Witness, A> ma,
       @NonNull Function<Unit, Kind<OptionalKind.Witness, A>> handler) {
-    Optional<A> optional = unwrap(ma);
+    Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
       return handler.apply(Unit.INSTANCE);
     } else {

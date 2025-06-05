@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.writer.WriterKindHelper.unwrap;
-import static org.higherkindedj.hkt.writer.WriterKindHelper.wrap;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -41,8 +40,8 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
   @Override
   public <A, B> @NonNull Kind<WriterKind.Witness<W>, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<WriterKind.Witness<W>, A> fa) {
-    Writer<W, A> writerA = unwrap(fa);
+    Writer<W, A> writerA = WRITER.narrow(fa);
     Writer<W, B> writerB = writerA.map(f); // Delegates to Writer's own map method
-    return wrap(writerB);
+    return WRITER.widen(writerB);
   }
 }

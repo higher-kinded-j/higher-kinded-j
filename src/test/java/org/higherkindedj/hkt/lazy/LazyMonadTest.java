@@ -39,7 +39,7 @@ class LazyMonadTest {
           default -> throw new IllegalArgumentException("Unexpected label: " + label);
         };
     // Return a LazyKind that increments the selected counter upon evaluation
-    return LazyKindHelper.defer(
+    return LAZY.defer(
         () -> {
           counter.incrementAndGet();
           // System.out.println("Evaluating " + label + " (Count: " + counter.get() + ")");
@@ -66,7 +66,7 @@ class LazyMonadTest {
     @Test
     void of_shouldCreateAlreadyEvaluatedLazy() throws Throwable {
       Kind<LazyKind.Witness, String> kind = lazyMonad.of("pureValue");
-      assertThat(force(kind)).isEqualTo("pureValue"); // Line 69
+      assertThat(LAZY.force(kind)).isEqualTo("pureValue"); // Line 69
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
     }
@@ -74,7 +74,7 @@ class LazyMonadTest {
     @Test
     void of_shouldAllowNullValue() throws Throwable {
       Kind<LazyKind.Witness, String> kind = lazyMonad.of(null);
-      assertThat(force(kind)).isNull();
+      assertThat(LAZY.force(kind)).isNull();
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
     }
@@ -96,11 +96,11 @@ class LazyMonadTest {
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
 
-      assertThat(force(mappedKind)).isEqualTo("Val:10");
+      assertThat(LAZY.force(mappedKind)).isEqualTo("Val:10");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterF.get()).isEqualTo(1);
 
-      assertThat(force(mappedKind)).isEqualTo("Val:10");
+      assertThat(LAZY.force(mappedKind)).isEqualTo("Val:10");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterF.get()).isEqualTo(1);
     }
@@ -118,11 +118,13 @@ class LazyMonadTest {
 
       assertThat(counterA.get()).isZero();
 
-      Throwable thrown = catchThrowable(() -> force(mappedKind));
+      Throwable thrown = catchThrowable(() -> LAZY.force(mappedKind));
       assertThat(thrown).isInstanceOf(RuntimeException.class).isSameAs(ex);
       assertThat(counterA.get()).isEqualTo(1);
 
-      assertThatThrownBy(() -> force(mappedKind)).isInstanceOf(RuntimeException.class).isSameAs(ex);
+      assertThatThrownBy(() -> LAZY.force(mappedKind))
+          .isInstanceOf(RuntimeException.class)
+          .isSameAs(ex);
       assertThat(counterA.get()).isEqualTo(1);
     }
 
@@ -140,12 +142,12 @@ class LazyMonadTest {
 
       assertThat(counterA.get()).isZero();
       assertThat(counterF.get()).isZero();
-      Throwable thrown = catchThrowable(() -> force(mappedKind));
+      Throwable thrown = catchThrowable(() -> LAZY.force(mappedKind));
       assertThat(thrown).isInstanceOf(RuntimeException.class).isSameAs(mapEx);
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterF.get()).isEqualTo(1);
 
-      assertThatThrownBy(() -> force(mappedKind))
+      assertThatThrownBy(() -> LAZY.force(mappedKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(mapEx);
       assertThat(counterA.get()).isEqualTo(1);
@@ -166,11 +168,11 @@ class LazyMonadTest {
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
 
-      assertThat(force(resultKind)).isEqualTo("F20");
+      assertThat(LAZY.force(resultKind)).isEqualTo("F20");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
 
-      assertThat(force(resultKind)).isEqualTo("F20");
+      assertThat(LAZY.force(resultKind)).isEqualTo("F20");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
     }
@@ -187,7 +189,7 @@ class LazyMonadTest {
       Kind<LazyKind.Witness, Integer> valKind = countingDefer("B", () -> 20);
 
       Kind<LazyKind.Witness, String> resultKind = lazyMonad.ap(funcKind, valKind);
-      assertThatThrownBy(() -> force(resultKind))
+      assertThatThrownBy(() -> LAZY.force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(funcEx);
       assertThat(counterA.get()).isEqualTo(1);
@@ -207,7 +209,7 @@ class LazyMonadTest {
               });
 
       Kind<LazyKind.Witness, String> resultKind = lazyMonad.ap(funcKind, valKind);
-      assertThatThrownBy(() -> force(resultKind))
+      assertThatThrownBy(() -> LAZY.force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(valEx);
       assertThat(counterA.get()).isEqualTo(1);
@@ -228,7 +230,7 @@ class LazyMonadTest {
       Kind<LazyKind.Witness, Integer> valKind = countingDefer("B", () -> 20);
 
       Kind<LazyKind.Witness, String> resultKind = lazyMonad.ap(funcKind, valKind);
-      assertThatThrownBy(() -> force(resultKind))
+      assertThatThrownBy(() -> LAZY.force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(applyEx);
       assertThat(counterA.get()).isEqualTo(1);
@@ -241,7 +243,7 @@ class LazyMonadTest {
   @DisplayName("Monad 'flatMap' tests")
   class FlatMapTests {
     @Test
-    // Add 'throws Throwable' because force() is called
+    // Add 'throws Throwable' because LAZY.force() is called
     void flatMap_shouldSequenceLazilyAndMemoize() throws Throwable {
       Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 5);
       Function<Integer, Kind<LazyKind.Witness, String>> f =
@@ -255,12 +257,12 @@ class LazyMonadTest {
       assertThat(counterF.get()).isZero();
       assertThat(counterB.get()).isZero();
 
-      assertThat(force(resultKind)).isEqualTo("Val10");
+      assertThat(LAZY.force(resultKind)).isEqualTo("Val10");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterF.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
 
-      assertThat(force(resultKind)).isEqualTo("Val10");
+      assertThat(LAZY.force(resultKind)).isEqualTo("Val10");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterF.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
@@ -282,7 +284,7 @@ class LazyMonadTest {
           };
 
       Kind<LazyKind.Witness, String> resultKind = lazyMonad.flatMap(f, initialKind);
-      assertThatThrownBy(() -> force(resultKind))
+      assertThatThrownBy(() -> LAZY.force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(exA);
       assertThat(counterA.get()).isEqualTo(1);
@@ -301,7 +303,7 @@ class LazyMonadTest {
           };
 
       Kind<LazyKind.Witness, String> resultKind = lazyMonad.flatMap(f, initialKind);
-      assertThatThrownBy(() -> force(resultKind))
+      assertThatThrownBy(() -> LAZY.force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(fEx);
       assertThat(counterA.get()).isEqualTo(1);
@@ -324,7 +326,7 @@ class LazyMonadTest {
           };
 
       Kind<LazyKind.Witness, String> resultKind = lazyMonad.flatMap(f, initialKind);
-      assertThatThrownBy(() -> force(resultKind))
+      assertThatThrownBy(() -> LAZY.force(resultKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(exB);
       assertThat(counterA.get()).isEqualTo(1);
@@ -376,7 +378,7 @@ class LazyMonadTest {
       counterC.set(0);
       counterF.set(0); // Reset counters
       Kind<LazyKind.Witness, String> leftSide = lazyMonad.flatMap(f, ofValue);
-      String leftResult = force(leftSide);
+      String leftResult = LAZY.force(leftSide);
       int leftEvalA = counterA.get();
       int leftEvalB = counterB.get();
       int leftEvalC = counterC.get();
@@ -388,7 +390,7 @@ class LazyMonadTest {
       counterC.set(0);
       counterF.set(0); // Reset counters
       Kind<LazyKind.Witness, String> rightSide = f.apply(value);
-      String rightResult = force(rightSide);
+      String rightResult = LAZY.force(rightSide);
       int rightEvalA = counterA.get();
       int rightEvalB = counterB.get();
       int rightEvalC = counterC.get();
@@ -415,14 +417,14 @@ class LazyMonadTest {
       Kind<LazyKind.Witness, Integer> mValueLeft = countingDefer("A", () -> 10);
       Function<Integer, Kind<LazyKind.Witness, Integer>> ofFunc = i -> lazyMonad.of(i);
       Kind<LazyKind.Witness, Integer> leftSide = lazyMonad.flatMap(ofFunc, mValueLeft);
-      Integer leftResult = force(leftSide);
+      Integer leftResult = LAZY.force(leftSide);
       int leftEvalA = counterA.get();
       int leftEvalF = counterF.get();
 
       counterA.set(0);
       counterF.set(0);
       Kind<LazyKind.Witness, Integer> mValueRight = countingDefer("A", () -> 10);
-      Integer rightResult = force(mValueRight);
+      Integer rightResult = LAZY.force(mValueRight);
       int rightEvalA = counterA.get();
       int rightEvalF = counterF.get();
 
@@ -448,7 +450,7 @@ class LazyMonadTest {
       Kind<LazyKind.Witness, Integer> mValueLeft = countingDefer("A", () -> 10);
       Kind<LazyKind.Witness, String> innerLeft = lazyMonad.flatMap(f, mValueLeft);
       Kind<LazyKind.Witness, String> leftSide = lazyMonad.flatMap(g, innerLeft);
-      String leftResult = force(leftSide);
+      String leftResult = LAZY.force(leftSide);
       int leftEvalA = counterA.get();
       int leftEvalB = counterB.get();
       int leftEvalC = counterC.get();
@@ -467,7 +469,7 @@ class LazyMonadTest {
       Function<Integer, Kind<LazyKind.Witness, String>> rightSideFunc =
           a -> lazyMonad.flatMap(gRight, fRight.apply(a)); // Use fresh f/g instances
       Kind<LazyKind.Witness, String> rightSide = lazyMonad.flatMap(rightSideFunc, mValueRight);
-      String rightResult = force(rightSide);
+      String rightResult = LAZY.force(rightSide);
       int rightEvalA = counterA.get();
       int rightEvalB = counterB.get();
       int rightEvalC = counterC.get();
@@ -513,11 +515,11 @@ class LazyMonadTest {
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
 
-      assertThat(force(result)).isEqualTo("X1");
+      assertThat(LAZY.force(result)).isEqualTo("X1");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
 
-      assertThat(force(result)).isEqualTo("X1");
+      assertThat(LAZY.force(result)).isEqualTo("X1");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
     }
@@ -531,12 +533,12 @@ class LazyMonadTest {
       assertThat(counterB.get()).isZero();
       assertThat(counterC.get()).isZero();
 
-      assertThat(force(result)).isEqualTo("X1-2.5");
+      assertThat(LAZY.force(result)).isEqualTo("X1-2.5");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
       assertThat(counterC.get()).isEqualTo(1);
 
-      assertThat(force(result)).isEqualTo("X1-2.5");
+      assertThat(LAZY.force(result)).isEqualTo("X1-2.5");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
       assertThat(counterC.get()).isEqualTo(1);
@@ -552,13 +554,13 @@ class LazyMonadTest {
       assertThat(counterC.get()).isZero();
       assertThat(counterD.get()).isZero();
 
-      assertThat(force(result)).isEqualTo("X1-2.5-true");
+      assertThat(LAZY.force(result)).isEqualTo("X1-2.5-true");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
       assertThat(counterC.get()).isEqualTo(1);
       assertThat(counterD.get()).isEqualTo(1);
 
-      assertThat(force(result)).isEqualTo("X1-2.5-true");
+      assertThat(LAZY.force(result)).isEqualTo("X1-2.5-true");
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
       assertThat(counterC.get()).isEqualTo(1);
@@ -581,7 +583,9 @@ class LazyMonadTest {
       assertThat(counterB.get()).isZero();
       assertThat(counterC.get()).isZero();
 
-      assertThatThrownBy(() -> force(result)).isInstanceOf(RuntimeException.class).isSameAs(ex);
+      assertThatThrownBy(() -> LAZY.force(result))
+          .isInstanceOf(RuntimeException.class)
+          .isSameAs(ex);
       assertThat(counterA.get()).isEqualTo(1);
       assertThat(counterB.get()).isEqualTo(1);
       assertThat(counterC.get()).isZero();

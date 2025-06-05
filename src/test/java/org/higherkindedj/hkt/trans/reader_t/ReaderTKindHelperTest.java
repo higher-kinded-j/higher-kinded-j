@@ -4,16 +4,15 @@ package org.higherkindedj.hkt.trans.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.reader_t.ReaderTKindHelper.READER_T;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,71 +38,52 @@ class ReaderTKindHelperTest {
     return ReaderT.of(runFn);
   }
 
-  @Test
-  @DisplayName("private constructor should prevent instantiation")
-  void privateConstructor_shouldThrowException() {
-    assertThatThrownBy(
-            () -> {
-              Constructor<ReaderTKindHelper> constructor =
-                  ReaderTKindHelper.class.getDeclaredConstructor();
-              constructor.setAccessible(true);
-              try {
-                constructor.newInstance();
-              } catch (InvocationTargetException e) {
-                throw e.getCause();
-              }
-            })
-        .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessage("This is a utility class and cannot be instantiated");
-  }
-
   @Nested
-  @DisplayName("wrap() tests")
+  @DisplayName("READER_T.widen() tests")
   class WrapTests {
     @Test
     @DisplayName("should wrap a non-null ReaderT into a Kind<ReaderTKind.Witness<F,R>,A>")
-    void wrap_nonNullReaderT_shouldReturnReaderTKind() {
+    void widen_nonNullReaderT_shouldReturnReaderTKind() {
       ReaderT<OptionalKind.Witness, String, Integer> concreteReaderT =
-          createReaderT(env -> OptionalKindHelper.wrap(Optional.of(env.length())));
+          createReaderT(env -> OPTIONAL.widen(Optional.of(env.length())));
 
       Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
-          ReaderTKindHelper.wrap(concreteReaderT);
+          READER_T.widen(concreteReaderT);
 
       assertThat(wrapped).isNotNull().isInstanceOf(ReaderT.class);
-      assertThat(ReaderTKindHelper.<OptionalKind.Witness, String, Integer>unwrap(wrapped))
-          .isSameAs(concreteReaderT);
+      assertThat(READER_T.narrow(wrapped)).isSameAs(concreteReaderT);
     }
 
     @Test
     @DisplayName("should throw NullPointerException when wrapping null")
-    void wrap_nullReaderT_shouldThrowNullPointerException() {
-      assertThatThrownBy(() -> ReaderTKindHelper.wrap(null))
+    void widen_nullReaderT_shouldThrowNullPointerException() {
+      assertThatThrownBy(() -> READER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage("Input ReaderT cannot be null for wrap");
+          .hasMessage(ReaderTKindHelper.INVALID_KIND_TYPE_NULL_MSG);
     }
   }
 
   @Nested
-  @DisplayName("unwrap() tests")
+  @DisplayName("READER_T.narrow() tests")
   class UnwrapTests {
     @Test
     @DisplayName("should unwrap a valid Kind to the original ReaderT instance")
-    void unwrap_validKind_shouldReturnReaderT() {
+    void narrow_validKind_shouldReturnReaderT() {
       ReaderT<OptionalKind.Witness, String, Integer> originalReaderT =
-          createReaderT(env -> OptionalKindHelper.wrap(Optional.of(env.hashCode())));
+          createReaderT(env -> OPTIONAL.widen(Optional.of(env.hashCode())));
       Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrappedKind =
-          ReaderTKindHelper.wrap(originalReaderT);
+          READER_T.widen(originalReaderT);
 
       ReaderT<OptionalKind.Witness, String, Integer> unwrappedReaderT =
-          ReaderTKindHelper.unwrap(wrappedKind);
+          READER_T.narrow(wrappedKind);
 
       assertThat(unwrappedReaderT).isSameAs(originalReaderT);
     }
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping null")
-    void unwrap_nullKind_shouldThrowKindUnwrapException() {
-      assertThatThrownBy(() -> ReaderTKindHelper.<OptionalKind.Witness, String, Object>unwrap(null))
+    void narrow_nullKind_shouldThrowKindUnwrapException() {
+      assertThatThrownBy(() -> READER_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessage(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
     }
@@ -116,7 +96,7 @@ class ReaderTKindHelperTest {
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
-    void unwrap_incorrectKindType_shouldThrowKindUnwrapException() {
+    void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
       class SimpleIncorrectKind<A> implements Kind<SimpleIncorrectKind<?>, A> {}
       SimpleIncorrectKind<Integer> incorrectKind = new SimpleIncorrectKind<>();
 
@@ -124,7 +104,7 @@ class ReaderTKindHelperTest {
       Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> kindToTest =
           (Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer>) (Kind) incorrectKind;
 
-      assertThatThrownBy(() -> ReaderTKindHelper.unwrap(kindToTest))
+      assertThatThrownBy(() -> READER_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageStartingWith(ReaderTKindHelper.INVALID_KIND_TYPE_MSG)
           .hasMessageContaining(SimpleIncorrectKind.class.getName());

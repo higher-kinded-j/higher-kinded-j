@@ -32,20 +32,14 @@ interface "Kind<F_WITNESS, A>" as Kind
 
 
   class EitherKindHelper {
-    + {static} wrap(either: Either<L,R>): Kind<EitherKind.Witness<L>, R>
-    + {static} unwrap(kind: Kind<EitherKind.Witness<L>, R>): Either<L,R>
+    + {static} widen(either: Either<L,R>): Kind<EitherKind.Witness<L>, R>
+    + {static} narrow(kind: Kind<EitherKind.Witness<L>, R>): Either<L,R>
     + {static} left(monad: MonadError<F,L>, error: L): Kind<F,R> ' This is more for EitherT.left
     + {static} right(monad: Monad<F>, value: R): Kind<F,R>      ' This is more for EitherT.right
   }
-  note right of EitherKindHelper::wrap
-    `wrap` effectively casts `Either` to `Kind`
-    as `Either` directly implements `EitherKind`.
-  end note
-  note right of EitherKindHelper::unwrap
-    `unwrap` checks `instanceof Either` and casts.
-  end note
 
-  EitherKindHelper ..> "Either<L, R>" : "casts to/from"
+
+  EitherKindHelper ..> "Either<L, R>" : "widens / narrows"
 
 EitherKind --|> Kind
 

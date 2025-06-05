@@ -14,8 +14,8 @@ class "CompletableFuture<A>" {
 
 
   class CompletableFutureKindHelper {
-    + {static} CompletableFutureKind<A> wrap(@NonNull CompletableFuture<A>)
-    + {static} @NonNull CompletableFuture<A> unwrap(@Nullable Kind<CompletableFutureKind<?>, A>)
+    + {static} Kind<CompletableFutureKind.Witness, A> widen(@NonNull CompletableFuture<A>)
+    + {static} @NonNull CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind<?>, A>)
     + {static} A join(Kind<CompletableFutureKind<?>, A>)
     ' ...
   }
@@ -25,7 +25,7 @@ class "CompletableFuture<A>" {
   }
 
   CompletableFutureKindHelper ..> CompletableFutureHolder : creates
-  CompletableFutureKindHelper ..> "CompletableFuture<A>" : unwraps to / wraps from
+  CompletableFutureKindHelper ..> "CompletableFuture<A>" : narrows to / widens from
   CompletableFutureHolder o--> "CompletableFuture<A>" : holds
 
 

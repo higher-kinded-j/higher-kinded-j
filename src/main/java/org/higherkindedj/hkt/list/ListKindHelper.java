@@ -10,47 +10,47 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper class for working with {@link ListKind} and {@link Kind} representations of {@link List}.
- * This class provides utility methods to wrap and unwrap lists from their HKT form.
+ * Enum implementing {@link ListConverterOps} for widen/narrow operations, and providing additional
+ * utility instance methods for {@link List} types in an HKT context.
+ *
+ * <p>Access these operations via the singleton {@code LIST}. For example: {@code
+ * ListKindHelper.LIST.widen(new ArrayList<>());} Or, with static import: {@code import static
+ * org.higherkindedj.hkt.list.ListKindHelper.LIST; LIST.widen(...);}
  */
-public final class ListKindHelper {
+public enum ListKindHelper implements ListConverterOps {
+  LIST;
 
-  private ListKindHelper() {
-    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-  }
+  public static final String INVALID_KIND_TYPE_NULL_MSG = "list cannot be null for widen";
 
   /**
-   * Wraps a standard {@link java.util.List} into its higher-kinded representation, {@code
-   * Kind<ListKind.Witness, A>}.
+   * Widens a standard {@link java.util.List} into its higher-kinded representation, {@code
+   * Kind<ListKind.Witness, A>}. Implements {@link ListConverterOps#widen}.
    *
-   * <p>This method uses the static {@code ListKind.of(list)} factory method, which returns a {@code
-   * ListView<A>} instance (which implements {@code ListKind<A>}, and therefore {@code
-   * Kind<ListKind.Witness, A>}).
+   * <p>This method uses the static {@code ListKind.of(list)} factory method.
    *
-   * @param list The {@link List} to wrap. Must not be null.
+   * @param list The {@link List} to widen. Must not be null.
    * @param <A> The element type of the list.
-   * @return The higher-kinded representation of the list, specifically an instance of {@link
-   *     ListKind.ListView}. Returns an HKT representation of an empty list if the input list is
-   *     empty.
+   * @return The higher-kinded representation of the list.
    */
-  public static <A> @NonNull Kind<ListKind.Witness, A> wrap(@NonNull List<A> list) {
-    Objects.requireNonNull(list, "list cannot be null for wrap");
+  @Override
+  public <A> @NonNull Kind<ListKind.Witness, A> widen(@NonNull List<A> list) {
+    Objects.requireNonNull(list, INVALID_KIND_TYPE_NULL_MSG);
     return ListKind.of(list);
   }
 
   /**
-   * Unwraps a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
-   * standard {@link java.util.List}.
+   * Narrows a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
+   * standard {@link java.util.List}. Implements {@link ListConverterOps#narrow}.
    *
    * <p>This method uses the {@code ListKind.narrow(kind).unwrap()} pattern.
    *
    * @param kind The higher-kinded representation of the list. Can be null.
    * @param <A> The element type of the list.
-   * @return The underlying {@link java.util.List}. Returns an empty list if {@code kind} is null or
-   *     represents an empty list. Returns the unwrapped list otherwise.
+   * @return The underlying {@link java.util.List}. Returns an empty list if {@code kind} is null.
    * @throws ClassCastException if the provided {@code kind} is not actually a {@code ListKind}.
    */
-  public static <A> @NonNull List<A> unwrap(@Nullable Kind<ListKind.Witness, A> kind) {
+  @Override
+  public <A> @NonNull List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
     if (kind == null) {
       return Collections.emptyList();
     }
@@ -60,7 +60,7 @@ public final class ListKindHelper {
   }
 
   /**
-   * Unwraps a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
+   * Narrows a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
    * standard {@link java.util.List}, providing a default list if the kind is null.
    *
    * @param kind The higher-kinded representation of the list.
@@ -69,7 +69,7 @@ public final class ListKindHelper {
    * @return The unwrapped list, or {@code defaultValue} if {@code kind} is null.
    * @throws ClassCastException if the provided {@code kind} is not actually a {@code ListKind}.
    */
-  public static <A> @NonNull List<A> unwrapOr(
+  public <A> @NonNull List<A> unwrapOr(
       @Nullable Kind<ListKind.Witness, A> kind, @NonNull List<A> defaultValue) {
     Objects.requireNonNull(defaultValue, "defaultValue cannot be null");
     if (kind == null) {

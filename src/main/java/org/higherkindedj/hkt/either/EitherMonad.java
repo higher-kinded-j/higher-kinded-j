@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.higherkindedj.hkt.either.EitherKindHelper.unwrap;
-import static org.higherkindedj.hkt.either.EitherKindHelper.wrap;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -40,7 +39,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
    */
   @Override
   public <R> @NonNull Kind<EitherKind.Witness<L>, R> of(@Nullable R value) {
-    return wrap(Either.right(value));
+    return EITHER.widen(Either.right(value));
   }
 
   /**
@@ -60,14 +59,14 @@ public class EitherMonad<L> extends EitherFunctor<L>
   public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> flatMap(
       @NonNull Function<A, Kind<EitherKind.Witness<L>, B>> f,
       @NonNull Kind<EitherKind.Witness<L>, A> ma) {
-    Either<L, A> eitherA = unwrap(ma);
+    Either<L, A> eitherA = EITHER.narrow(ma);
     Either<L, B> resultEither =
         eitherA.flatMap(
             a -> {
               Kind<EitherKind.Witness<L>, B> kindB = f.apply(a);
-              return unwrap(kindB); // Unwrap inner Kind to Either for Either.flatMap
+              return EITHER.narrow(kindB); // Unwrap inner Kind to Either for Either.flatMap
             });
-    return wrap(resultEither);
+    return EITHER.widen(resultEither);
   }
 
   /**
@@ -88,17 +87,14 @@ public class EitherMonad<L> extends EitherFunctor<L>
   public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> ap(
       @NonNull Kind<EitherKind.Witness<L>, Function<A, B>> ffKind,
       @NonNull Kind<EitherKind.Witness<L>, A> faKind) {
-    Either<L, Function<A, B>> eitherF = unwrap(ffKind);
-    Either<L, A> eitherA = unwrap(faKind);
+    Either<L, Function<A, B>> eitherF = EITHER.narrow(ffKind);
+    Either<L, A> eitherA = EITHER.narrow(faKind);
 
     // This uses the Either.flatMap and Either.map methods directly, which is efficient.
-    Either<L, B> resultEither =
-        eitherF.flatMap(
-            funcValue -> // funcValue is the Function<A,B> from eitherF if Right
-            eitherA.map(
-                    argValue -> // argValue is the A from eitherA if Right
-                    funcValue.apply(argValue)));
-    return wrap(resultEither);
+    // funcValue is the Function<A,B> from eitherF if Right
+    // argValue is the A from eitherA if Right
+    Either<L, B> resultEither = eitherF.flatMap(eitherA::map);
+    return EITHER.widen(resultEither);
   }
 
   // map is inherited from EitherFunctor and is correct.
@@ -129,18 +125,16 @@ public class EitherMonad<L> extends EitherFunctor<L>
         faKind);
   }
 
-  // --- MonadError Methods ---
-
   @Override
   public <A> @NonNull Kind<EitherKind.Witness<L>, A> raiseError(@Nullable L error) {
-    return wrap(Either.left(error));
+    return EITHER.widen(Either.left(error));
   }
 
   @Override
   public <A> @NonNull Kind<EitherKind.Witness<L>, A> handleErrorWith(
       @NonNull Kind<EitherKind.Witness<L>, A> ma,
       @NonNull Function<L, Kind<EitherKind.Witness<L>, A>> handler) {
-    Either<L, A> either = unwrap(ma);
-    return either.fold(leftValue -> handler.apply(leftValue), rightValue -> ma);
+    Either<L, A> either = EITHER.narrow(ma);
+    return either.fold(handler, rightValue -> ma);
   }
 }

@@ -5,8 +5,6 @@ package org.higherkindedj.hkt.maybe;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.*;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
@@ -17,31 +15,31 @@ import org.junit.jupiter.api.Test;
 class MaybeKindHelperTest {
 
   @Nested
-  @DisplayName("wrap()")
+  @DisplayName("MAYBE.widen()")
   class WrapTests {
     @Test
-    void wrap_shouldReturnHolderForJust() {
+    void widen_shouldReturnHolderForJust() {
       Maybe<String> just = Maybe.just("value");
-      Kind<MaybeKind.Witness, String> kind = wrap(just);
+      Kind<MaybeKind.Witness, String> kind = MAYBE.widen(just);
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
-      assertThat(unwrap(kind)).isSameAs(just);
+      assertThat(MAYBE.narrow(kind)).isSameAs(just);
     }
 
     @Test
-    void wrap_shouldReturnHolderForNothing() {
+    void widen_shouldReturnHolderForNothing() {
       Maybe<Integer> nothingVal = Maybe.nothing(); // Use variable for clarity
-      Kind<MaybeKind.Witness, Integer> kind = wrap(nothingVal);
+      Kind<MaybeKind.Witness, Integer> kind = MAYBE.widen(nothingVal);
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
-      assertThat(unwrap(kind)).isSameAs(nothingVal);
+      assertThat(MAYBE.narrow(kind)).isSameAs(nothingVal);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
+    void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
-          .withMessageContaining("Input Maybe cannot be null"); // Check message from wrap
+          .isThrownBy(() -> MAYBE.widen(null))
+          .withMessageContaining("Input Maybe cannot be null");
     }
   }
 
@@ -51,10 +49,10 @@ class MaybeKindHelperTest {
     @Test
     void just_shouldWrapJustValue() {
       String value = "test";
-      Kind<MaybeKind.Witness, String> kind = just(value);
+      Kind<MaybeKind.Witness, String> kind = MAYBE.just(value);
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
-      Maybe<String> maybe = unwrap(kind);
+      Maybe<String> maybe = MAYBE.narrow(kind);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(value);
     }
@@ -62,7 +60,7 @@ class MaybeKindHelperTest {
     @Test
     void just_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> just(null))
+          .isThrownBy(() -> MAYBE.just(null))
           .withMessageContaining("Value for Just cannot be null");
     }
   }
@@ -72,32 +70,32 @@ class MaybeKindHelperTest {
   class NothingHelperTests {
     @Test
     void nothing_shouldWrapNothingValue() {
-      Kind<MaybeKind.Witness, Integer> kind = nothing();
+      Kind<MaybeKind.Witness, Integer> kind = MAYBE.nothing();
 
       assertThat(kind).isInstanceOf(MaybeHolder.class);
-      Maybe<Integer> maybe = unwrap(kind);
+      Maybe<Integer> maybe = MAYBE.narrow(kind);
       assertThat(maybe.isNothing()).isTrue();
       assertThat(maybe).isSameAs(Maybe.nothing());
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
+  @DisplayName("MAYBE.narrow()")
   class UnwrapTests {
 
     // --- Success Cases ---
     @Test
-    void unwrap_shouldReturnOriginalJust() {
+    void narrow_shouldReturnOriginalJust() {
       Maybe<Integer> original = Maybe.just(123);
-      Kind<MaybeKind.Witness, Integer> kind = wrap(original);
-      assertThat(unwrap(kind)).isSameAs(original);
+      Kind<MaybeKind.Witness, Integer> kind = MAYBE.widen(original);
+      assertThat(MAYBE.narrow(kind)).isSameAs(original);
     }
 
     @Test
-    void unwrap_shouldReturnOriginalNothing() {
+    void narrow_shouldReturnOriginalNothing() {
       Maybe<String> original = Maybe.nothing();
-      Kind<MaybeKind.Witness, String> kind = wrap(original);
-      assertThat(unwrap(kind)).isSameAs(original);
+      Kind<MaybeKind.Witness, String> kind = MAYBE.widen(original);
+      assertThat(MAYBE.narrow(kind)).isSameAs(original);
     }
 
     // --- Failure Cases ---
@@ -105,45 +103,28 @@ class MaybeKindHelperTest {
     record DummyMaybeKind<A>() implements Kind<MaybeKind.Witness, A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+    void narrow_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> MAYBE.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
+    void narrow_shouldThrowForUnknownKindType() {
       Kind<MaybeKind.Witness, Integer> unknownKind = new DummyMaybeKind<>();
-      assertThatThrownBy(() -> unwrap(unknownKind))
+      assertThatThrownBy(() -> MAYBE.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyMaybeKind.class.getName());
     }
 
     @Test
-    void unwrap_shouldThrowForHolderWithNullMaybe() {
+    void narrow_shouldThrowForHolderWithNullMaybe() {
 
       Kind<MaybeKind.Witness, Double> kind = new MaybeHolder<>(null);
 
-      assertThatThrownBy(() -> unwrap(kind))
+      assertThatThrownBy(() -> MAYBE.narrow(kind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<MaybeKindHelper> constructor = MaybeKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }

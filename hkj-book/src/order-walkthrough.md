@@ -132,7 +132,7 @@ var initialET = eitherTMonad.of(initialContext);
 return eitherTMonad.flatMap(
     ctx -> {
       var syncResultEitherKind = steps.validateOrder(ctx.initialData()); //
-      var syncResultEither = EitherKindHelper.unwrap(syncResultEitherKind);
+      var syncResultEither = EITHER.narrow(syncResultEitherKind);
       var validatedOrderET = EitherT.fromEither(futureMonad, syncResultEither);
       return eitherTMonad.map(ctx::withValidatedOrder, validatedOrderET);
     },
@@ -298,7 +298,7 @@ return eitherTMonad.flatMap(
 ```java
 // From Workflow1.run()
 // ... composed workflow results in finalResultWithNotificationET
-var finalConcreteET = EitherTKindHelper.unwrap(finalResultWithNotificationET);
+var finalConcreteET = EITHER_T.narrow(finalResultWithNotificationET);
 return finalConcreteET.value();
 ```
 
@@ -306,7 +306,7 @@ return finalConcreteET.value();
 * The result of the `flatMap` chain, `finalResultWithNotificationET`, is still a `Kind` representing the `EitherT`.
 * We use `EitherTKindHelper.unwrap` to safely cast it back to the concrete `EitherT` record type.
 * We call `finalConcreteET.value()` to extract the underlying `Kind<CompletableFutureKind.Witness, Either<DomainError, FinalResult>>`.
-* The `main` method in `OrderWorkflowRunner` then further unwraps this to a `CompletableFuture<Either<DomainError, FinalResult>>` using `CompletableFutureKindHelper.unwrap()` and calls `.join()` to get the final `Either` result for printing.
+* The `main` method in `OrderWorkflowRunner` then further unwraps this to a `CompletableFuture<Either<DomainError, FinalResult>>` using `FUTURE.narrow()` and calls `.join()` to get the final `Either` result for printing.
 ~~~
 ---
 
@@ -323,7 +323,7 @@ The `OrderWorkflowRunner` also initialises and can run `Workflow2`. This workflo
 return eitherTMonad.flatMap(
     ctx -> {
       var tryResultKind = steps.validateOrderWithTry(ctx.initialData()); //
-      var tryResult = TryKindHelper.unwrap(tryResultKind);
+      var tryResult = TRY.narrow(tryResultKind);
 
       var eitherResult =
           tryResult.toEither(
@@ -335,7 +335,7 @@ return eitherTMonad.flatMap(
               });
 
       var validatedOrderET_Concrete = EitherT.fromEither(futureMonad, eitherResult);
-      var validatedOrderET_Kind = EitherTKindHelper.wrap(validatedOrderET_Concrete);
+      var validatedOrderET_Kind = EITHER_T.widen(validatedOrderET_Concrete);
 
       return eitherTMonad.map(ctx::withValidatedOrder, validatedOrderET_Kind);
     },
@@ -343,7 +343,7 @@ return eitherTMonad.flatMap(
 ```
 
 * The `steps.validateOrderWithTry` method is designed to throw exceptions on validation failure (e.g., `IllegalArgumentException`).
-* `TryKindHelper.tryOf(...)` in `OrderWorkflowSteps` wraps this potentially exception-throwing code, returning a `Kind<TryKind.Witness, ValidatedOrder>`.
+* `TRY.tryOf(...)` in `OrderWorkflowSteps` wraps this potentially exception-throwing code, returning a `Kind<TryKind.Witness, ValidatedOrder>`.
 * In the runner (`Workflow2`), we `unwrap` this to get a `Try<ValidatedOrder>`.
 * We use `tryResult.fold(...)` to convert the `Try` into an `Either<DomainError, ValidatedOrder>`:
   * A `Try.Success(validatedOrder)` becomes `Either.right(validatedOrder)`.
@@ -369,7 +369,7 @@ This example illustrates several powerful patterns enabled by Higher-Kinded-J:
     * Lift errors (`L`) into `EitherT` using `eitherTMonad.raiseError` or `EitherT.left`.
 2.  **Typed Domain Errors**: Use `Either` (often with a sealed interface like `DomainError` for the `Left` type) to represent expected business failures clearly. This improves type safety and makes error handling more explicit.
 3.  **Error Recovery**: Use `eitherTMonad.handleErrorWith` (for complex recovery returning another `EitherT`) or `handleError` (for simpler recovery to a pure value for the `Right` side) to inspect `DomainError`s and potentially recover, allowing the workflow to continue gracefully.
-4.  **Integrating `Try`**: If dealing with synchronous legacy code or libraries that throw exceptions, wrap calls using `TryKindHelper.tryOf`. Then, `unwrap` the `Try` and use `toEither` (or `fold`) to convert `Try.Failure` into an appropriate `Either.Left<DomainError>` before lifting into `EitherT`.
+4.  **Integrating `Try`**: If dealing with synchronous legacy code or libraries that throw exceptions, wrap calls using `TRY.tryOf`. Then, `unwrap` the `Try` and use `toEither` (or `fold`) to convert `Try.Failure` into an appropriate `Either.Left<DomainError>` before lifting into `EitherT`.
 5.  **Dependency Injection**: Pass necessary dependencies (loggers, service clients, configurations) into your workflow steps (e.g., via a constructor and a `Dependencies` record). This promotes loose coupling and testability.
 6.  **Structured Logging**: Use an injected logger within steps to provide visibility into the workflow's progress and state without tying the steps to a specific logging implementation (like `System.out`).
 7.  **`var` for Conciseness**: Utilise Java's `var` for local variable type inference where the type is clear from the right-hand side of an assignment. This can reduce verbosity, especially with complex generic types common in HKT.

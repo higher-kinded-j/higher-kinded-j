@@ -28,8 +28,8 @@ An `Id<A>` is simply a container that holds a value of type `A`.
 * **`Id.Witness`**: A static nested class (or interface) used as the first type parameter to `Kind` (i.e., `F` in `Kind<F, A>`) to represent the `Id` type constructor at the type level. This is part of the HKT emulation pattern.
 * **`IdKindHelper`**: A utility class providing static helper methods:
   * `narrow(Kind<Id.Witness, A> kind)`: Safely casts a `Kind` back to a concrete `Id<A>`.
-  * `wrap(Id<A> id)`: Casts an `Id<A>` to `Kind<Id.Witness, A>`. (Often an identity cast since `Id` implements `Kind`).
-  * `unwrap(Kind<Id.Witness, A> kind)`: A convenience to narrow and then get the value.
+  * `widen(Id<A> id)`: widens an `Id<A>` to `Kind<Id.Witness, A>`. (Often an identity cast since `Id` implements `Kind`).
+  * `narrows(Kind<Id.Witness, A> kind)`: A convenience to narrow and then get the value.
 * **`IdentityMonad`**: The singleton class that implements `Monad<Id.Witness>`, providing the monadic operations for `Id`.
 
 ## Using `Id` and `IdentityMonad`
@@ -65,7 +65,7 @@ public void monadExample(){
 
   // 1. 'of' (lifting a value)
   Kind<Id.Witness, Integer> kindInt = idMonad.of(42);
-  Id<Integer> idFromOf = IdKindHelper.narrow(kindInt);
+  Id<Integer> idFromOf = ID.narrow(kindInt);
   System.out.println("From of: " + idFromOf.value()); // Output: From of: 42
 
   // 2. 'map' (applying a function to the wrapped value)
@@ -73,7 +73,7 @@ public void monadExample(){
       i -> "Value is " + i,
       kindInt
   );
-  Id<String> idMapped = IdKindHelper.narrow(kindStringMapped);
+  Id<String> idMapped = ID.narrow(kindStringMapped);
   System.out.println("Mapped: " + idMapped.value()); // Output: Mapped: Value is 42
 
   // 3. 'flatMap' (applying a function that returns an Id)
@@ -81,7 +81,7 @@ public void monadExample(){
       i -> Id.of("FlatMapped: " + (i * 2)), // Function returns Id<String>
       kindInt
   );
-  Id<String> idFlatMapped = IdKindHelper.narrow(kindStringFlatMapped);
+  Id<String> idFlatMapped = ID.narrow(kindStringFlatMapped);
   System.out.println("FlatMapped: " + idFlatMapped.value()); // Output: FlatMapped: 84
 
   // flatMap can also be called directly on Id if the function returns Id
@@ -91,7 +91,7 @@ public void monadExample(){
   // 4. 'ap' (applicative apply)
   Kind<Id.Witness, Function<Integer, String>> kindFunction = idMonad.of(i -> "Applied: " + i);
   Kind<Id.Witness, String> kindApplied = idMonad.ap(kindFunction, kindInt);
-  Id<String> idApplied = IdKindHelper.narrow(kindApplied);
+  Id<String> idApplied = ID.narrow(kindApplied);
   System.out.println("Applied: " + idApplied.value()); // Output: Applied: 42
 }
 ```
@@ -126,7 +126,7 @@ Let's illustrate how you might define a `State` monad type alias or use `StateT`
       StateTKindHelper.runStateT(incrementAndGet, initialState);
 
   // Unwrap the Id and then the StateTuple
-  Id<StateTuple<Integer, Integer>> idTuple = IdKindHelper.narrow(resultIdTuple);
+  Id<StateTuple<Integer, Integer>> idTuple = ID.narrow(resultIdTuple);
   StateTuple<Integer, Integer> tuple = idTuple.value();
 
   System.out.println("Initial State: " + initialState);       // Output: Initial State: 10

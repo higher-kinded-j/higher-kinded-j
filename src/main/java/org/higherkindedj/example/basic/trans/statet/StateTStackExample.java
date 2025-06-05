@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trans.statet;
 
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.state_t.StateTKindHelper.STATE_T;
+
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -9,7 +12,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.trans.state_t.*;
@@ -26,7 +28,7 @@ public class StateTStackExample {
   // Helper to lift a state function into StateT<List<Integer>, OptionalKind.Witness, A>
   private static <A> Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, A> liftOpt(
       Function<List<Integer>, Kind<OptionalKind.Witness, StateTuple<List<Integer>, A>>> f) {
-    return StateTKindHelper.stateT(f, OPT_MONAD);
+    return STATE_T.stateT(f, OPT_MONAD);
   }
 
   // push operation
@@ -36,7 +38,7 @@ public class StateTStackExample {
         stack -> {
           List<Integer> newStack = new LinkedList<>(stack);
           newStack.add(0, value); // Add to front
-          return OptionalKindHelper.wrap(Optional.of(StateTuple.of(newStack, null)));
+          return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, null)));
         });
   }
 
@@ -45,11 +47,11 @@ public class StateTStackExample {
     return liftOpt(
         stack -> {
           if (stack.isEmpty()) {
-            return OptionalKindHelper.wrap(Optional.empty()); // Cannot pop from empty stack
+            return OPTIONAL.widen(Optional.empty()); // Cannot pop from empty stack
           }
           List<Integer> newStack = new LinkedList<>(stack);
           Integer poppedValue = newStack.remove(0);
-          return OptionalKindHelper.wrap(Optional.of(StateTuple.of(newStack, poppedValue)));
+          return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, poppedValue)));
         });
   }
 
@@ -76,10 +78,9 @@ public class StateTStackExample {
 
     List<Integer> initialStack = Collections.emptyList();
     Kind<OptionalKind.Witness, StateTuple<List<Integer>, Integer>> resultWrapped =
-        StateTKindHelper.runStateT(computation, initialStack);
+        STATE_T.runStateT(computation, initialStack);
 
-    Optional<StateTuple<List<Integer>, Integer>> resultOpt =
-        OptionalKindHelper.unwrap(resultWrapped);
+    Optional<StateTuple<List<Integer>, Integer>> resultOpt = OPTIONAL.narrow(resultWrapped);
 
     resultOpt.ifPresentOrElse(
         tuple -> {
@@ -91,8 +92,7 @@ public class StateTStackExample {
     // Example of popping an empty stack
     Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> popEmptyStack = pop();
     Optional<StateTuple<List<Integer>, Integer>> emptyPopResult =
-        OptionalKindHelper.unwrap(
-            StateTKindHelper.runStateT(popEmptyStack, Collections.emptyList()));
+        OPTIONAL.narrow(STATE_T.runStateT(popEmptyStack, Collections.emptyList()));
     System.out.println(
         "Popping empty stack was successful: " + emptyPopResult.isPresent()); // false
   }

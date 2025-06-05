@@ -12,8 +12,8 @@ public class IOFunctor implements Functor<IOKind.Witness> {
   @Override
   public <A, B> @NonNull Kind<IOKind.Witness, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<IOKind.Witness, A> fa) {
-    IO<A> ioA = unwrap(fa);
+    IO<A> ioA = IO_OP.narrow(fa);
     IO<B> ioB = ioA.map(f); // Use IO's own map
-    return wrap(ioB);
+    return IO_OP.widen(ioB);
   }
 }

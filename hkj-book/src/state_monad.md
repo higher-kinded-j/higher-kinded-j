@@ -75,8 +75,8 @@ To integrate `State` with Higher-Kinded-J:
 
 * **`StateKind<S, A>`:** The marker interface extending `Kind<StateKind.Witness<S>, A>`. The witness type `F` is `StateKind.Witness<S>` (where `S` is fixed for a given monad instance), and the value type `A` is the result type `A` from `StateTuple`.
 * **`StateKindHelper`:** The utility class with static methods:
-  * `wrap(State<S, A>)`: Converts a `State` to `StateKind<S, A>`.
-  * `unwrap(Kind<StateKind.Witness<S>, A>)`: Converts `StateKind` back to `State`. Throws `KindUnwrapException` if the input is invalid.
+  * `widen(State<S, A>)`: Converts a `State` to `Kind<StateKind.Witness<S>, A>`.
+  * `narrow(Kind<StateKind.Witness<S>, A>)`: Converts `StateKind` back to `State`. Throws `KindUnwrapException` if the input is invalid.
   * `pure(A value)`: Factory for `Kind` equivalent to `State.pure`.
   * `get()`: Factory for `Kind` equivalent to `State.get`.
   * `set(S newState)`: Factory for `Kind` equivalent to `State.set`.
@@ -206,7 +206,7 @@ public class BankAccountWorkflow {
   public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Unit>> deposit(
           String description) {
     return amount ->
-        StateKindHelper.wrap(
+        STATE.widen(
           State.modify(
             currentState -> {
               if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -230,7 +230,7 @@ public class BankAccountWorkflow {
   public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Boolean>> withdraw(
           String description) {
     return amount ->
-        StateKindHelper.wrap(
+        STATE.widen(
                 State.of(
                     currentState -> {
                       if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -270,11 +270,11 @@ public class BankAccountWorkflow {
   }
 
   public static Kind<StateKind.Witness<AccountState>, BigDecimal> getBalance() {
-    return StateKindHelper.wrap(State.inspect(AccountState::balance));
+    return STATE.widen(State.inspect(AccountState::balance));
   }
 
   public static Kind<StateKind.Witness<AccountState>, List<Transaction>> getHistory() {
-    return StateKindHelper.wrap(State.inspect(AccountState::history));
+    return STATE.widen(State.inspect(AccountState::history));
   }
 
   // ... main method will be added

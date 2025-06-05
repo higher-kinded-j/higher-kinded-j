@@ -22,19 +22,19 @@ It implements `Monad<ListKind<?>>`, inheriting from `Functor<ListKind<?>>` and `
 
 `ListKind<A>` is the higher-kinded type representation for `java.util.List<A>`. You typically create `ListKind` instances using the `ListKindHelper` utility class or the `of` method from `ListMonad`.
 
-~~~admonish title="_ListKindHelper.wrap(List<A>)_"
+~~~admonish title="_LIST.widen(List<A>)_"
 
 Converts a standard `java.util.List<A>` into a `Kind<ListKind.Witness, A>`.
 
 ```java
 List<String> stringList = Arrays.asList("a", "b", "c");
-Kind<ListKind.Witness, String> listKind1 = ListKindHelper.wrap(stringList);
+Kind<ListKind.Witness, String> listKind1 = LIST.widen(stringList);
 
 List<Integer> intList = Collections.singletonList(10);
-Kind<ListKind.Witness, Integer> listKind2 = ListKindHelper.wrap(intList);
+Kind<ListKind.Witness, Integer> listKind2 = LIST.widen(intList);
 
 List<Object> emptyList = Collections.emptyList();
-Kind<ListKind.Witness, Object> listKindEmpty = ListKindHelper.wrap(emptyList);
+Kind<ListKind.Witness, Object> listKindEmpty = LIST.widen(emptyList);
 
 ```
 ~~~
@@ -53,13 +53,13 @@ Kind<ListKind.Witness, Object> listKindFromNull = listMonad.of(null); // Contain
 ```
 ~~~
 
-~~~admonish title="_ListKindHelper.unwrap()_"  
+~~~admonish title="_LIST.narrow()_"  
 
-To get the underlying `java.util.List<A>` from a `Kind<ListKind.Witness, A>`, use `ListKindHelper.unwrap()`:
+To get the underlying `java.util.List<A>` from a `Kind<ListKind.Witness, A>`, use `LIST.narrow()`:
 
 ```java
-Kind<ListKind.Witness, A> listKind = ListKindHelper.wrap(List.of("example"));
-List<String> unwrappedList = ListKindHelper.unwrap(listKind); // Returns Arrays.asList("example")
+Kind<ListKind.Witness, A> listKind = LIST.widen(List.of("example"));
+List<String> unwrappedList = LIST.narrow(listKind); // Returns Arrays.asList("example")
 System.out.println(unwrappedList);
 ```
 ~~~
@@ -75,13 +75,13 @@ Applies a function `f` to each element of the list within `fa`, returning a new 
 ```java
 
 ListMonad listMonad = ListMonad.INSTANCE;
-ListKind<Integer> numbers = ListKindHelper.wrap(Arrays.asList(1, 2, 3));
+ListKind<Integer> numbers = LIST.widen(Arrays.asList(1, 2, 3));
 
 Function<Integer, String> intToString = i -> "Number: " + i;
 ListKind<String> strings = listMonad.map(intToString, numbers);
 
-// ListKindHelper.unwrap(strings) would be: ["Number: 1", "Number: 2", "Number: 3"]
-System.out.println(ListKindHelper.unwrap(strings));
+// LIST.narrow(strings) would be: ["Number: 1", "Number: 2", "Number: 3"]
+System.out.println(LIST.narrow(strings));
 ```
 ~~~
 
@@ -93,26 +93,26 @@ Applies a function `f` to each element of the list within `ma`. The function `f`
 ```java
 
 ListMonad listMonad = ListMonad.INSTANCE;
-Kind<ListKind.Witness, Integer> initialValues = ListKindHelper.wrap(Arrays.asList(1, 2, 3));
+Kind<ListKind.Witness, Integer> initialValues = LIST.widen(Arrays.asList(1, 2, 3));
 
 // Function that takes an integer and returns a list of itself and itself + 10
 Function<Integer, Kind<ListKind.Witness, Integer>> replicateAndAddTen =
-    i -> ListKindHelper.wrap(Arrays.asList(i, i + 10));
+    i -> LIST.widen(Arrays.asList(i, i + 10));
 
 Kind<ListKind.Witness, Integer> flattenedList = listMonad.flatMap(replicateAndAddTen, initialValues);
 
-// ListKindHelper.unwrap(flattenedList) would be: [1, 11, 2, 12, 3, 13]
-System.out.println(ListKindHelper.unwrap(flattenedList));
+// LIST.narrow(flattenedList) would be: [1, 11, 2, 12, 3, 13]
+System.out.println(LIST.narrow(flattenedList));
 
 // Example with empty list results
 Function<Integer, Kind<ListKind.Witness, String>> toWordsIfEven =
     i -> (i % 2 == 0) ?
-         ListKindHelper.wrap(Arrays.asList("even", String.valueOf(i))) :
-         ListKindHelper.wrap(new ArrayList<>()); // empty list for odd numbers
+         LIST.widen(Arrays.asList("even", String.valueOf(i))) :
+         LIST.widen(new ArrayList<>()); // empty list for odd numbers
 
 Kind<ListKind.Witness, String> wordsList = listMonad.flatMap(toWordsIfEven, initialValues);
-// ListKindHelper.unwrap(wordsList) would be: ["even", "2"]
- System.out.println(ListKindHelper.unwrap(wordsList));
+// LIST.narrow(wordsList) would be: ["even", "2"]
+ System.out.println(LIST.narrow(wordsList));
 ```
 ~~~
 
@@ -129,14 +129,14 @@ Function<Integer, String> addPrefix = i -> "Val: " + i;
 Function<Integer, String> multiplyAndString = i -> "Mul: " + (i * 2);
 
 Kind<ListKind.Witness, Function<Integer, String>> functions =
-    ListKindHelper.wrap(Arrays.asList(addPrefix, multiplyAndString));
-Kind<ListKind.Witness, Integer> values = ListKindHelper.wrap(Arrays.asList(10, 20));
+    LIST.widen(Arrays.asList(addPrefix, multiplyAndString));
+Kind<ListKind.Witness, Integer> values = LIST.widen(Arrays.asList(10, 20));
 
 Kind<ListKind.Witness, String> appliedResults = listMonad.ap(functions, values);
 
-// ListKindHelper.unwrap(appliedResults) would be:
+// LIST.narrow(appliedResults) would be:
 // ["Val: 10", "Val: 20", "Mul: 20", "Mul: 40"]
-System.out.println(ListKindHelper.unwrap(appliedResults));
+System.out.println(LIST.narrow(appliedResults));
 ```
 ~~~
 
@@ -157,7 +157,7 @@ ListMonad listMonad = ListMonad.INSTANCE;
 
 ```java
 List<Integer> myList = Arrays.asList(10, 20, 30);
-Kind<ListKind.Witness, Integer> listKind = ListKindHelper.wrap(myList);
+Kind<ListKind.Witness, Integer> listKind = LIST.widen(myList);
 ```
 
 3. **Use `ListMonad` methods:**
@@ -178,52 +178,52 @@ public class ListMonadExample {
       ListMonad listMonad = ListMonad.INSTANCE;
 
       // 1. Create a ListKind
-      Kind<ListKind.Witness, Integer> numbersKind = ListKindHelper.wrap(Arrays.asList(1, 2, 3, 4));
+      Kind<ListKind.Witness, Integer> numbersKind = LIST.widen(Arrays.asList(1, 2, 3, 4));
 
       // 2. Use map
       Function<Integer, String> numberToDecoratedString = n -> "*" + n + "*";
       Kind<ListKind.Witness, String> stringsKind = listMonad.map(numberToDecoratedString, numbersKind);
-      System.out.println("Mapped: " + ListKindHelper.unwrap(stringsKind));
+      System.out.println("Mapped: " + LIST.narrow(stringsKind));
       // Expected: Mapped: [*1*, *2*, *3*, *4*]
 
       // 3. Use flatMap
       // Function: integer -> ListKind of [integer, integer*10] if even, else empty ListKind
       Function<Integer, Kind<ListKind.Witness, Integer>> duplicateIfEven = n -> {
          if (n % 2 == 0) {
-            return ListKindHelper.wrap(Arrays.asList(n, n * 10));
+            return LIST.widen(Arrays.asList(n, n * 10));
          } else {
-            return ListKindHelper.wrap(List.of()); // Empty list
+            return LIST.widen(List.of()); // Empty list
          }
       };
       Kind<ListKind.Witness, Integer> flatMappedKind = listMonad.flatMap(duplicateIfEven, numbersKind);
-      System.out.println("FlatMapped: " + ListKindHelper.unwrap(flatMappedKind));
+      System.out.println("FlatMapped: " + LIST.narrow(flatMappedKind));
       // Expected: FlatMapped: [2, 20, 4, 40]
 
       // 4. Use of
       Kind<ListKind.Witness, String> singleValueKind = listMonad.of("hello world");
-      System.out.println("From 'of': " + ListKindHelper.unwrap(singleValueKind));
+      System.out.println("From 'of': " + LIST.narrow(singleValueKind));
       // Expected: From 'of': [hello world]
 
       Kind<ListKind.Witness, String> fromNullOf = listMonad.of(null);
-      System.out.println("From 'of' with null: " + ListKindHelper.unwrap(fromNullOf));
+      System.out.println("From 'of' with null: " + LIST.narrow(fromNullOf));
       // Expected: From 'of' with null: []
 
 
       // 5. Use ap
       Kind<ListKind.Witness, Function<Integer, String>> listOfFunctions =
-              ListKindHelper.wrap(Arrays.asList(
+              LIST.widen(Arrays.asList(
                       i -> "F1:" + i,
                       i -> "F2:" + (i * i)
               ));
-      Kind<ListKind.Witness, Integer> inputNumbersForAp = ListKindHelper.wrap(Arrays.asList(5, 6));
+      Kind<ListKind.Witness, Integer> inputNumbersForAp = LIST.widen(Arrays.asList(5, 6));
 
       Kind<ListKind.Witness, String> apResult = listMonad.ap(listOfFunctions, inputNumbersForAp);
-      System.out.println("Ap result: " + ListKindHelper.unwrap(apResult));
+      System.out.println("Ap result: " + LIST.narrow(apResult));
       // Expected: Ap result: [F1:5, F1:6, F2:25, F2:36]
 
 
       // Unwrap to get back the standard List
-      List<Integer> finalFlatMappedList = ListKindHelper.unwrap(flatMappedKind);
+      List<Integer> finalFlatMappedList = LIST.narrow(flatMappedKind);
       System.out.println("Final unwrapped flatMapped list: " + finalFlatMappedList);
    }
 }

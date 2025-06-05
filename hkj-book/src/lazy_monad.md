@@ -21,8 +21,8 @@ The lazy evaluation feature revolves around these key types:
 2. **`Lazy<A>`**: The core class representing a computation that produces a value of type `A` lazily. It takes a `ThrowableSupplier<? extends A>` during construction (`Lazy.defer`). Evaluation is triggered only by the `force()` method, and the result or exception is cached. `Lazy.now(value)` creates an already evaluated instance.
 3. **`LazyKind<A>`**: The HKT marker interface (`Kind<LazyKind.Witness, A>`) for `Lazy`, allowing it to be used generically with type classes like `Functor` and `Monad`.
 4. **`LazyKindHelper`**: A utility class providing static methods to bridge between the concrete `Lazy<A>` type and its HKT representation `LazyKind<A>`. It includes:
-   * `wrap(Lazy<A>)`: Wraps a `Lazy` instance into `LazyKind`.
-   * `unwrap(Kind<LazyKind.Witness, A>)`: Unwraps `LazyKind` back to `Lazy`. Throws `KindUnwrapException` if the input Kind is invalid.
+   * `widen(Lazy<A>)`: Wraps a `Lazy` instance into `LazyKind`.
+   * `narrow(Kind<LazyKind.Witness, A>)`: Unwraps `LazyKind` back to `Lazy`. Throws `KindUnwrapException` if the input Kind is invalid.
    * `defer(ThrowableSupplier<A>)`: Factory to create a `LazyKind` from a computation.
    * `now(A value)`: Factory to create an already evaluated `LazyKind`.
    * `force(Kind<LazyKind.Witness, A>)`: Convenience method to unwrap and force evaluation.
@@ -41,14 +41,10 @@ The lazy evaluation feature revolves around these key types:
 - [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 ```java
-import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.lazy.LazyKind;
-import org.higherkindedj.hkt.lazy.Lazy; // For unwrap
 
 // 1. Deferring a computation (that might throw checked exception)
 java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
-Kind<LazyKind.Witness, String> deferredLazy = defer(() -> {
+Kind<LazyKind.Witness, String> deferredLazy = LAZY.defer(() -> {
     System.out.println("Executing expensive computation...");
     counter.incrementAndGet();
     // Simulate potential failure
@@ -61,7 +57,7 @@ Kind<LazyKind.Witness, String> deferredLazy = defer(() -> {
 });
 
 // 2. Creating an already evaluated Lazy
-Kind<LazyKind.Witness, String> nowLazy = now("Precomputed Value");
+Kind<LazyKind.Witness, String> nowLazy = LAZY.now("Precomputed Value");
 
 // 3. Using the underlying Lazy type directly (less common when using HKT)
 Lazy<String> directLazy = Lazy.defer(() -> { counter.incrementAndGet(); return "Direct Lazy"; });
@@ -80,17 +76,17 @@ System.out.println("Lazy instances created. Counter: " + counter.get()); // Outp
 
 try {
     // Force the deferred computation
-    String result1 = force(deferredLazy); // force() throws Throwable
+    String result1 = LAZY.force(deferredLazy); // force() throws Throwable
     System.out.println("Result 1: " + result1);
     System.out.println("Counter after first force: " + counter.get()); // Output: 1
 
     // Force again - uses memoized result
-    String result2 = force(deferredLazy);
+    String result2 = LAZY.force(deferredLazy);
     System.out.println("Result 2: " + result2);
     System.out.println("Counter after second force: " + counter.get()); // Output: 1 (not re-computed)
 
     // Force the 'now' instance
-    String resultNow = force(nowLazy);
+    String resultNow = LAZY.force(nowLazy);
     System.out.println("Result Now: " + resultNow);
     System.out.println("Counter after forcing 'now': " + counter.get()); // Output: 1 (no computation ran for 'now')
 
@@ -98,7 +94,7 @@ try {
     System.err.println("Caught exception during force: " + t);
     // Exception is also memoized:
     try {
-        force(deferredLazy);
+        LAZY.force(deferredLazy);
     } catch (Throwable t2) {
         System.err.println("Caught memoized exception: " + t2);
         System.out.println("Counter after failed force: " + counter.get()); // Output: 1
@@ -112,13 +108,11 @@ try {
 - [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 ```java
-import org.higherkindedj.hkt.lazy.LazyMonad;
-import java.util.function.Function;
 
 LazyMonad lazyMonad = new LazyMonad();
 counter.set(0); // Reset counter for this example
 
-Kind<LazyKind.Witness, Integer> initialLazy = defer(() -> { counter.incrementAndGet(); return 10; });
+Kind<LazyKind.Witness, Integer> initialLazy = LAZY.defer(() -> { counter.incrementAndGet(); return 10; });
 
 // --- map ---
 // Apply a function lazily
@@ -128,7 +122,7 @@ Kind<LazyKind.Witness, String> mappedLazy = lazyMonad.map(toStringMapper, initia
 System.out.println("Mapped Lazy created. Counter: " + counter.get()); // Output: 0
 
 try {
-    System.out.println("Mapped Result: " + force(mappedLazy)); // Triggers evaluation of initialLazy & map
+    System.out.println("Mapped Result: " + LAZY.force(mappedLazy)); // Triggers evaluation of initialLazy & map
     // Output: Mapped Result: Value: 10
     System.out.println("Counter after forcing mapped: " + counter.get()); // Output: 1
 } catch (Throwable t) { /* ... */ }
@@ -137,7 +131,7 @@ try {
 // --- flatMap ---
 // Sequence lazy computations
 Function<Integer, Kind<LazyKind.Witness, String>> multiplyAndStringifyLazy =
-    i -> defer(() -> { // Inner computation is also lazy
+    i -> LAZY.defer(() -> { // Inner computation is also lazy
         int result = i * 5;
         return "Multiplied: " + result;
     });
@@ -155,9 +149,9 @@ try {
 Kind<LazyKind.Witness, String> chainedLazy = lazyMonad.flatMap(
     value1 -> lazyMonad.map(
         value2 -> "Combined: " + value1 + " & " + value2, // Combine results
-        defer(()->value1 * 2) // Second lazy step, depends on result of first
+        LAZY.defer(()->value1 * 2) // Second lazy step, depends on result of first
     ),
-    defer(()->5) // First lazy step
+    LAZY.defer(()->5) // First lazy step
 );
 
 try{

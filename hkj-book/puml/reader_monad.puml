@@ -23,8 +23,8 @@ interface Reader<R, A> <<Functional Interface>> {
 
 
 class ReaderKindHelper {
-  + {static} Reader<R, A> unwrap(Kind<ReaderKind.Witness<R>, A> kind)
-  + {static} ReaderKind<R, A> wrap(Reader<R, A> reader)
+  + {static} Reader<R, A> narrow(Kind<ReaderKind.Witness<R>, A> kind)
+  + {static} ReaderKind<R, A> widen(Reader<R, A> reader)
   + {static} ReaderKind<R, A> reader(Function<R, A> runFunction)
   + {static} ReaderKind<R, A> constant(A value)
   + {static} ReaderKind<R, R> ask()
@@ -46,8 +46,8 @@ class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Wi
 ' Relationships
 "ReaderKind<R,A>" --> Kind : extends <ReaderKind.Witness<R>, A>
 
-ReaderKindHelper ..> Reader : creates/unwraps
-ReaderKindHelper ..> "ReaderKind<R,A>" : creates/unwraps
+ReaderKindHelper ..> Reader : widens/narrows
+ReaderKindHelper ..> "ReaderKind<R,A>" : widens/narrows
 
 ReaderMonad ..> "ReaderKind<R,A>" : operates on <ReaderKind<R,?>>
 ReaderMonad ..> Reader : uses methods of

@@ -164,37 +164,35 @@ Try<Double> recoveredWith2 = result3.recoverWith(recoverWithHandler); // Failure
 To use `Try` with generic code expecting `Kind<F, A>`:
 
 1. **Get Instance:**`TryMonadError tryMonad = new TryMonadError();`
-2. **Wrap:** Use `TryKindHelper.wrap(myTry)` or factories like `TryKindHelper.tryOf(() -> ...)`.
+2. **Wrap(Widen):** Use `TRY.widen(myTry)` or factories like `TRY.tryOf(() -> ...)`.
 3. **Operate:** Use `tryMonad.map(...)`, `tryMonad.flatMap(...)`, `tryMonad.handleErrorWith(...)` etc.
-4. **Unwrap:** Use `TryKindHelper.unwrap(tryKind)` to get the `Try<T>` back.
+4. **Unwrap(Narrow):** Use `TRY.narrow(tryKind)` to get the `Try<T>` back.
 
 ```java
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.trymonad.*;
 
 TryMonadError tryMonad = new TryMonadError();
 
-Kind<TryKind.Witness, Integer> tryKind1 = TryKindHelper.tryOf(() -> 10 / 2); // Success(5) Kind
-Kind<TryKind.Witness, Integer> tryKind2 = TryKindHelper.tryOf(() -> 10 / 0); // Failure(...) Kind
+Kind<TryKind.Witness, Integer> tryKind1 = TRY.tryOf(() -> 10 / 2); // Success(5) Kind
+Kind<TryKind.Witness, Integer> tryKind2 = TRY.tryOf(() -> 10 / 0); // Failure(...) Kind
 
 // Map using Monad instance
 Kind<TryKind.Witness, String> mappedKind = tryMonad.map(Object::toString, tryKind1); // Success("5") Kind
 
 // FlatMap using Monad instance
 Function<Integer, Kind<TryKind.Witness, Double>> safeDivideKind =
-        i -> TryKindHelper.tryOf(() -> 10.0 / i);
+        i -> TRY.tryOf(() -> 10.0 / i);
 Kind<TryKind.Witness, Double> flatMappedKind = tryMonad.flatMap(safeDivideKind, tryKind1); // Success(2.0) Kind
 
 // Handle error using MonadError instance
 Kind<TryKind.Witness, Integer> handledKind = tryMonad.handleErrorWith(
         tryKind2, // The Failure Kind
-        error -> TryKindHelper.success(-1) // Recover to Success(-1) Kind
+        error -> TRY.success(-1) // Recover to Success(-1) Kind
 );
 
 // Unwrap
-Try<String> mappedTry = TryKindHelper.unwrap(mappedKind); // Success("5")
-Try<Double> flatMappedTry = TryKindHelper.unwrap(flatMappedKind); // Success(2.0)
-Try<Integer> handledTry = TryKindHelper.unwrap(handledKind); // Success(-1)
+Try<String> mappedTry = TRY.narrow(mappedKind); // Success("5")
+Try<Double> flatMappedTry = TRY.narrow(flatMappedKind); // Success(2.0)
+Try<Integer> handledTry = TRY.narrow(handledKind); // Success(-1)
 
 System.out.println(mappedTry);
 System.out.println(flatMappedTry);

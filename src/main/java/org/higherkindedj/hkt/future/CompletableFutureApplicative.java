@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.future;
 
-import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.unwrap;
-import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.wrap;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -62,7 +61,7 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
    */
   @Override
   public <A> @NonNull Kind<CompletableFutureKind.Witness, A> of(@Nullable A value) {
-    return wrap(CompletableFuture.completedFuture(value));
+    return FUTURE.widen(CompletableFuture.completedFuture(value));
   }
 
   /**
@@ -99,10 +98,10 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
   public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> ap(
       @NonNull Kind<CompletableFutureKind.Witness, Function<A, B>> ff,
       @NonNull Kind<CompletableFutureKind.Witness, A> fa) {
-    CompletableFuture<Function<A, B>> futureF = unwrap(ff);
-    CompletableFuture<A> futureA = unwrap(fa);
+    CompletableFuture<Function<A, B>> futureF = FUTURE.narrow(ff);
+    CompletableFuture<A> futureA = FUTURE.narrow(fa);
 
     CompletableFuture<B> futureB = futureF.thenCombine(futureA, (func, val) -> func.apply(val));
-    return wrap(futureB);
+    return FUTURE.widen(futureB);
   }
 }

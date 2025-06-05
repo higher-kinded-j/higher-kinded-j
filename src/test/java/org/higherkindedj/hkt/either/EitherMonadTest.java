@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -22,20 +23,20 @@ class EitherMonadTest {
   private final EitherMonad<TestError> eitherMonad = new EitherMonad<>();
 
   // Helper Functions
-  private <R> Either<TestError, R> unwrap(Kind<EitherKind.Witness<TestError>, R> kind) {
-    return EitherKindHelper.unwrap(kind);
+  private <R> Either<TestError, R> narrow(Kind<EitherKind.Witness<TestError>, R> kind) {
+    return EITHER.narrow(kind);
   }
 
-  private <R> Kind<EitherKind.Witness<TestError>, R> wrap(Either<TestError, R> either) {
-    return EitherKindHelper.wrap(either);
+  private <R> Kind<EitherKind.Witness<TestError>, R> widen(Either<TestError, R> either) {
+    return EITHER.widen(either);
   }
 
   private <R> Kind<EitherKind.Witness<TestError>, R> right(R value) {
-    return wrap(Either.right(value));
+    return widen(Either.right(value));
   }
 
   private <R> Kind<EitherKind.Witness<TestError>, R> left(String errorCode) {
-    return wrap(Either.left(new TestError(errorCode)));
+    return widen(Either.left(new TestError(errorCode)));
   }
 
   // Functions for laws
@@ -46,16 +47,13 @@ class EitherMonadTest {
   // Dummy Kind implementation for unwrap robustness test
   record DummyEitherKind<L, R>() implements Kind<EitherKind<L, ?>, R> {}
 
-  // Expected error string defined in the helper for invalid unwraps
-  private static final String INVALID_KIND_ERROR = "Invalid Kind state (null or unexpected type)";
-
   @Nested
   @DisplayName("Applicative 'of' tests")
   class OfTests {
     @Test
     void of_shouldWrapValueAsRight() {
       var kind = eitherMonad.of("success");
-      Either<TestError, String> either = unwrap(kind);
+      Either<TestError, String> either = narrow(kind);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo("success");
     }
@@ -64,7 +62,7 @@ class EitherMonadTest {
     void of_shouldWrapNullValueAsRight() {
       // Either.Right allows null by default in this impl
       Kind<EitherKind.Witness<TestError>, String> kind = eitherMonad.of(null);
-      Either<TestError, String> either = unwrap(kind);
+      Either<TestError, String> either = narrow(kind);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isNull();
     }
@@ -77,7 +75,7 @@ class EitherMonadTest {
     void map_shouldApplyFunctionWhenRight() {
       Kind<EitherKind.Witness<TestError>, Integer> input = right(10);
       Kind<EitherKind.Witness<TestError>, Integer> result = eitherMonad.map(x -> x * 2, input);
-      Either<TestError, Integer> either = unwrap(result);
+      Either<TestError, Integer> either = narrow(result);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo(20);
     }
@@ -86,7 +84,7 @@ class EitherMonadTest {
     void map_shouldPropagateLeftWhenLeft() {
       Kind<EitherKind.Witness<TestError>, Integer> input = left("E1");
       Kind<EitherKind.Witness<TestError>, Integer> result = eitherMonad.map(x -> x * 2, input);
-      Either<TestError, Integer> either = unwrap(result);
+      Either<TestError, Integer> either = narrow(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("E1"));
     }
@@ -105,7 +103,7 @@ class EitherMonadTest {
     void ap_shouldApplyRightFunctionToRightValue() {
       Kind<EitherKind.Witness<TestError>, String> result =
           eitherMonad.ap(funcKindRight, valueKindRight);
-      Either<TestError, String> either = unwrap(result);
+      Either<TestError, String> either = narrow(result);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo("N10");
     }
@@ -113,7 +111,7 @@ class EitherMonadTest {
     @Test
     void ap_shouldReturnLeftIfFunctionIsLeft() {
       var result = eitherMonad.ap(funcKindLeft, valueKindRight);
-      Either<TestError, String> either = unwrap(result);
+      Either<TestError, String> either = narrow(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("FE")); // Function's error propagates
     }
@@ -121,7 +119,7 @@ class EitherMonadTest {
     @Test
     void ap_shouldReturnLeftIfValueIsLeft() {
       var result = eitherMonad.ap(funcKindRight, valueKindLeft);
-      Either<TestError, String> either = unwrap(result);
+      Either<TestError, String> either = narrow(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("VE")); // Value's error propagates
     }
@@ -129,7 +127,7 @@ class EitherMonadTest {
     @Test
     void ap_shouldReturnFirstLeftIfBothAreLeft() {
       var result = eitherMonad.ap(funcKindLeft, valueKindLeft);
-      Either<TestError, String> either = unwrap(result);
+      Either<TestError, String> either = narrow(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft())
           .isEqualTo(
@@ -141,7 +139,7 @@ class EitherMonadTest {
     void ap_shouldPropagateFunctionException() {
       RuntimeException applyException = new RuntimeException("Apply failed!");
       Kind<EitherKind.Witness<TestError>, Function<Integer, String>> funcKindThrows =
-          wrap(
+          widen(
               Either.right(
                   i -> {
                     throw applyException;
@@ -170,7 +168,7 @@ class EitherMonadTest {
     void flatMap_shouldApplyFunctionWhenRight() {
       Kind<EitherKind.Witness<TestError>, Double> result =
           eitherMonad.flatMap(safeDivideEither, rightValue);
-      Either<TestError, Double> either = unwrap(result);
+      Either<TestError, Double> either = narrow(result);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo(20.0);
     }
@@ -178,7 +176,7 @@ class EitherMonadTest {
     @Test
     void flatMap_shouldReturnLeftWhenFunctionReturnsLeft() {
       var result = eitherMonad.flatMap(safeDivideEither, zeroValue);
-      Either<TestError, Double> either = unwrap(result);
+      Either<TestError, Double> either = narrow(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("DIV0"));
     }
@@ -186,7 +184,7 @@ class EitherMonadTest {
     @Test
     void flatMap_shouldPropagateLeftWhenInputIsLeft() {
       var result = eitherMonad.flatMap(safeDivideEither, leftValue);
-      Either<TestError, Double> either = unwrap(result);
+      Either<TestError, Double> either = narrow(result);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("INIT_ERR")); // Initial error propagates
     }
@@ -211,7 +209,7 @@ class EitherMonadTest {
                       safeDivideEither, parseIntEither.apply(str)), // nested flatMap
               initial);
 
-      Either<TestError, Double> either = unwrap(finalResult);
+      Either<TestError, Double> either = narrow(finalResult);
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).isEqualTo(5.0); // 100.0 / 20
     }
@@ -237,7 +235,7 @@ class EitherMonadTest {
                       parseIntEither.apply(str)), // safeDivideEither is never reached
               initial);
 
-      Either<TestError, Double> either = unwrap(finalResult);
+      Either<TestError, Double> either = narrow(finalResult);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(new TestError("PARSE_ERR"));
     }
@@ -270,7 +268,8 @@ class EitherMonadTest {
       assertThatThrownBy(() -> eitherMonad.flatMap(nullReturningMapper, rightInput))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              "Cannot unwrap null Kind for Either"); // Exception originates from unwrap(null) call
+              EitherKindHelper
+                  .INVALID_KIND_NULL_MSG); // Exception originates from unwrap(null) call
     }
   }
 
@@ -285,8 +284,8 @@ class EitherMonadTest {
       var fa = right(10);
       var faLeft = left("E1");
 
-      assertThat(unwrap(eitherMonad.map(Function.identity(), fa))).isEqualTo(unwrap(fa));
-      assertThat(unwrap(eitherMonad.map(Function.identity(), faLeft))).isEqualTo(unwrap(faLeft));
+      assertThat(narrow(eitherMonad.map(Function.identity(), fa))).isEqualTo(narrow(fa));
+      assertThat(narrow(eitherMonad.map(Function.identity(), faLeft))).isEqualTo(narrow(faLeft));
     }
 
     @Test
@@ -301,8 +300,8 @@ class EitherMonadTest {
       var leftSideLeft = eitherMonad.map(appendWorld.compose(intToString), faLeft);
       var rightSideLeft = eitherMonad.map(appendWorld, eitherMonad.map(intToString, faLeft));
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideLeft)).isEqualTo(unwrap(rightSideLeft));
+      assertThat(narrow(leftSide)).isEqualTo(narrow(rightSide));
+      assertThat(narrow(leftSideLeft)).isEqualTo(narrow(rightSideLeft));
     }
   }
 
@@ -322,8 +321,8 @@ class EitherMonadTest {
     void identity() {
       Kind<EitherKind.Witness<TestError>, Function<Integer, Integer>> idFuncKind =
           eitherMonad.of(Function.identity());
-      assertThat(unwrap(eitherMonad.ap(idFuncKind, v))).isEqualTo(unwrap(v));
-      assertThat(unwrap(eitherMonad.ap(idFuncKind, vLeft))).isEqualTo(unwrap(vLeft));
+      assertThat(narrow(eitherMonad.ap(idFuncKind, v))).isEqualTo(narrow(v));
+      assertThat(narrow(eitherMonad.ap(idFuncKind, vLeft))).isEqualTo(narrow(vLeft));
     }
 
     @Test
@@ -337,7 +336,7 @@ class EitherMonadTest {
       var leftSide = eitherMonad.ap(apFunc, apVal);
       var rightSide = eitherMonad.of(f.apply(x));
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(narrow(leftSide)).isEqualTo(narrow(rightSide));
     }
 
     @Test
@@ -356,8 +355,8 @@ class EitherMonadTest {
       var rightSide = eitherMonad.ap(evalKind, fKind);
       var rightSideFuncLeft = eitherMonad.ap(evalKind, fKindLeft);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
-      assertThat(unwrap(leftSideFuncLeft)).isEqualTo(unwrap(rightSideFuncLeft));
+      assertThat(narrow(leftSide)).isEqualTo(narrow(rightSide));
+      assertThat(narrow(leftSideFuncLeft)).isEqualTo(narrow(rightSideFuncLeft));
     }
 
     @Test
@@ -393,24 +392,24 @@ class EitherMonadTest {
       var innerAp = eitherMonad.ap(fKind, value);
       var rightSide = eitherMonad.ap(gKind, innerAp);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(narrow(leftSide)).isEqualTo(narrow(rightSide));
 
       // Test with Left propagation
       var leftSideGLeft =
           eitherMonad.ap(eitherMonad.ap(eitherMonad.map(composeMap, gKindLeft), fKind), value);
       var rightSideGLeft = eitherMonad.ap(gKindLeft, eitherMonad.ap(fKind, value));
-      assertThat(unwrap(leftSideGLeft)).isEqualTo(unwrap(rightSideGLeft));
+      assertThat(narrow(leftSideGLeft)).isEqualTo(narrow(rightSideGLeft));
 
       var leftSideFLeft =
           eitherMonad.ap(eitherMonad.ap(eitherMonad.map(composeMap, gKind), fKindLeft), value);
       var rightSideFLeft = eitherMonad.ap(gKind, eitherMonad.ap(fKindLeft, value));
-      assertThat(unwrap(leftSideFLeft)).isEqualTo(unwrap(rightSideFLeft));
+      assertThat(narrow(leftSideFLeft)).isEqualTo(narrow(rightSideFLeft));
 
       Kind<EitherKind.Witness<TestError>, Integer> valueLeft = left("VAL_ERR");
       var leftSideValLeft =
           eitherMonad.ap(eitherMonad.ap(eitherMonad.map(composeMap, gKind), fKind), valueLeft);
       var rightSideValLeft = eitherMonad.ap(gKind, eitherMonad.ap(fKind, valueLeft));
-      assertThat(unwrap(leftSideValLeft)).isEqualTo(unwrap(rightSideValLeft));
+      assertThat(narrow(leftSideValLeft)).isEqualTo(narrow(rightSideValLeft));
     }
   }
 
@@ -434,7 +433,7 @@ class EitherMonadTest {
       var leftSide = eitherMonad.flatMap(f, ofValue);
       var rightSide = f.apply(value);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(narrow(leftSide)).isEqualTo(narrow(rightSide));
     }
 
     @Test
@@ -447,8 +446,8 @@ class EitherMonadTest {
       Kind<EitherKind.Witness<TestError>, Integer> leftSideLeft =
           eitherMonad.flatMap(ofFunc, mValueLeft);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(mValue));
-      assertThat(unwrap(leftSideLeft)).isEqualTo(unwrap(mValueLeft)); // Check Left propagation
+      assertThat(narrow(leftSide)).isEqualTo(narrow(mValue));
+      assertThat(narrow(leftSideLeft)).isEqualTo(narrow(mValueLeft)); // Check Left propagation
     }
 
     @Test
@@ -463,7 +462,7 @@ class EitherMonadTest {
           a -> eitherMonad.flatMap(g, f.apply(a));
       var rightSide = eitherMonad.flatMap(rightSideFunc, mValue);
 
-      assertThat(unwrap(leftSide)).isEqualTo(unwrap(rightSide));
+      assertThat(narrow(leftSide)).isEqualTo(narrow(rightSide));
 
       // Check Left propagation
       var innerFlatMapLeft = eitherMonad.flatMap(f, mValueLeft); // Should be Left
@@ -471,7 +470,7 @@ class EitherMonadTest {
 
       var rightSideLeft = eitherMonad.flatMap(rightSideFunc, mValueLeft); // Should be Left
 
-      assertThat(unwrap(leftSideLeft)).isEqualTo(unwrap(rightSideLeft));
+      assertThat(narrow(leftSideLeft)).isEqualTo(narrow(rightSideLeft));
     }
   }
 
@@ -498,32 +497,32 @@ class EitherMonadTest {
 
       var result = eitherMonad.map3(r1, r2, r3, f3);
 
-      assertThat(unwrap(result).isRight()).isTrue();
-      assertThat(unwrap(result).getRight()).isEqualTo("I:10 S:hello D:1.5");
+      assertThat(narrow(result).isRight()).isTrue();
+      assertThat(narrow(result).getRight()).isEqualTo("I:10 S:hello D:1.5");
     }
 
     @Test
     void map3_firstLeft() {
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
       var result = eitherMonad.map3(l1, r2, r3, f3);
-      assertThat(unwrap(result).isLeft()).isTrue();
-      assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L1"));
+      assertThat(narrow(result).isLeft()).isTrue();
+      assertThat(narrow(result).getLeft()).isEqualTo(new TestError("L1"));
     }
 
     @Test
     void map3_middleLeft() {
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
       var result = eitherMonad.map3(r1, l2, r3, f3);
-      assertThat(unwrap(result).isLeft()).isTrue();
-      assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L2"));
+      assertThat(narrow(result).isLeft()).isTrue();
+      assertThat(narrow(result).getLeft()).isEqualTo(new TestError("L2"));
     }
 
     @Test
     void map3_lastLeft() {
       Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
       var result = eitherMonad.map3(r1, r2, l3, f3);
-      assertThat(unwrap(result).isLeft()).isTrue();
-      assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L3"));
+      assertThat(narrow(result).isLeft()).isTrue();
+      assertThat(narrow(result).getLeft()).isEqualTo(new TestError("L3"));
     }
 
     @Test
@@ -533,24 +532,24 @@ class EitherMonadTest {
 
       var result = eitherMonad.map4(r1, r2, r3, r4, f4);
 
-      assertThat(unwrap(result).isRight()).isTrue();
-      assertThat(unwrap(result).getRight()).isEqualTo("I:10 S:hello D:1.5 B:true");
+      assertThat(narrow(result).isRight()).isTrue();
+      assertThat(narrow(result).getRight()).isEqualTo("I:10 S:hello D:1.5 B:true");
     }
 
     @Test
     void map4_firstLeft() {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
       var result = eitherMonad.map4(l1, r2, r3, r4, f4);
-      assertThat(unwrap(result).isLeft()).isTrue();
-      assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L1"));
+      assertThat(narrow(result).isLeft()).isTrue();
+      assertThat(narrow(result).getLeft()).isEqualTo(new TestError("L1"));
     }
 
     @Test
     void map4_middleLeft() {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
       var result = eitherMonad.map4(r1, l2, r3, r4, f4);
-      assertThat(unwrap(result).isLeft()).isTrue();
-      assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L2"));
+      assertThat(narrow(result).isLeft()).isTrue();
+      assertThat(narrow(result).getLeft()).isEqualTo(new TestError("L2"));
     }
 
     @Test
@@ -567,16 +566,16 @@ class EitherMonadTest {
               f4);
 
       // Assert that the result is the Left from the third argument (l3)
-      assertThat(unwrap(result).isLeft()).isTrue();
-      assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L3"));
+      assertThat(narrow(result).isLeft()).isTrue();
+      assertThat(narrow(result).getLeft()).isEqualTo(new TestError("L3"));
     }
 
     @Test
     void map4_lastLeft() {
       Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
       var result = eitherMonad.map4(r1, r2, r3, l4, f4);
-      assertThat(unwrap(result).isLeft()).isTrue();
-      assertThat(unwrap(result).getLeft()).isEqualTo(new TestError("L4"));
+      assertThat(narrow(result).isLeft()).isTrue();
+      assertThat(narrow(result).getLeft()).isEqualTo(new TestError("L4"));
     }
   }
 
@@ -592,7 +591,7 @@ class EitherMonadTest {
 
     @Test
     void raiseError_shouldCreateLeft() {
-      Either<TestError, Integer> either = unwrap(raisedErrorKind);
+      Either<TestError, Integer> either = narrow(raisedErrorKind);
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo(raisedError);
     }
@@ -605,8 +604,8 @@ class EitherMonadTest {
       Kind<EitherKind.Witness<TestError>, Integer> result =
           eitherMonad.handleErrorWith(leftVal, handler);
 
-      assertThat(unwrap(result).isRight()).isTrue();
-      assertThat(unwrap(result).getRight()).isEqualTo(404);
+      assertThat(narrow(result).isRight()).isTrue();
+      assertThat(narrow(result).getRight()).isEqualTo(404);
     }
 
     @Test
@@ -618,8 +617,8 @@ class EitherMonadTest {
           eitherMonad.handleErrorWith(rightVal, handler);
 
       assertThat(result).isSameAs(rightVal); // Should return original Kind instance
-      assertThat(unwrap(result).isRight()).isTrue();
-      assertThat(unwrap(result).getRight()).isEqualTo(100);
+      assertThat(narrow(result).isRight()).isTrue();
+      assertThat(narrow(result).getRight()).isEqualTo(100);
     }
 
     @Test
@@ -629,8 +628,8 @@ class EitherMonadTest {
       Kind<EitherKind.Witness<TestError>, Integer> result =
           eitherMonad.handleError(leftVal, handler);
 
-      assertThat(unwrap(result).isRight()).isTrue();
-      assertThat(unwrap(result).getRight()).isEqualTo(-99);
+      assertThat(narrow(result).isRight()).isTrue();
+      assertThat(narrow(result).getRight()).isEqualTo(-99);
     }
 
     @Test
@@ -641,8 +640,8 @@ class EitherMonadTest {
           eitherMonad.handleError(rightVal, handler);
 
       assertThat(result).isSameAs(rightVal); // Should return original Kind instance
-      assertThat(unwrap(result).isRight()).isTrue();
-      assertThat(unwrap(result).getRight()).isEqualTo(100);
+      assertThat(narrow(result).isRight()).isTrue();
+      assertThat(narrow(result).getRight()).isEqualTo(100);
     }
 
     @Test
@@ -664,8 +663,8 @@ class EitherMonadTest {
     @Test
     void recover_shouldReplaceLeftWithOfValue() {
       Kind<EitherKind.Witness<TestError>, Integer> result = eitherMonad.recover(leftVal, 0);
-      assertThat(unwrap(result).isRight()).isTrue();
-      assertThat(unwrap(result).getRight()).isEqualTo(0);
+      assertThat(narrow(result).isRight()).isTrue();
+      assertThat(narrow(result).getRight()).isEqualTo(0);
     }
 
     @Test
@@ -708,10 +707,9 @@ class EitherMonadTest {
       assertThat(resultKind).isNull();
 
       // Assert that attempting to unwrap this null result throws KindUnwrapException
-      assertThatThrownBy(
-              () -> EitherKindHelper.unwrap(resultKind)) // Pass the null resultKind to unwrap
+      assertThatThrownBy(() -> EITHER.narrow(resultKind)) // Pass the null resultKind to unwrap
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Cannot unwrap null Kind for Either");
+          .hasMessageContaining(EitherKindHelper.INVALID_KIND_NULL_MSG);
     }
   }
 }

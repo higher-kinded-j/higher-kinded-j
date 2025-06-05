@@ -68,9 +68,9 @@ You typically create `StateT` instances in a few ways:
     Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
         currentState -> {
           if (currentState < 0) {
-            return OptionalKindHelper.wrap(Optional.empty());
+            return OPTIONAL.widen(Optional.empty());
           }
-          return OptionalKindHelper.wrap(Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState)));
+          return OPTIONAL.widen(Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState)));
         };
 
     StateT<Integer, OptionalKind.Witness, String> stateTExplicit =
@@ -90,7 +90,7 @@ You typically create `StateT` instances in a few ways:
 
  
     Optional<StateTuple<Integer, String>> pureResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(pureStateT, 10));
+        OPTIONAL.narrow(StateTKindHelper.runStateT(pureStateT, 10));
     System.out.println("Pure StateT result: " + pureResult);
    // When run with state 10, this will result in Optional.of(StateTuple(10, "pure value"))
    ```
@@ -106,7 +106,7 @@ To execute a `StateT` computation and extract the result, you use methods from `
   Kind<OptionalKind.Witness, StateTuple<Integer, String>> resultOptionalTuple =
         StateTKindHelper.runStateT(stateTKind, 10);
 
-    Optional<StateTuple<Integer, String>> actualOptional = OptionalKindHelper.unwrap(resultOptionalTuple);
+    Optional<StateTuple<Integer, String>> actualOptional = OPTIONAL.narrow(resultOptionalTuple);
 
     if (actualOptional.isPresent()) {
       StateTuple<Integer, String> tuple = actualOptional.get();
@@ -119,7 +119,7 @@ To execute a `StateT` computation and extract the result, you use methods from `
     // Example with negative initial state (expecting empty Optional)
     Kind<OptionalKind.Witness, StateTuple<Integer, String>> resultEmptyOptional =
         StateTKindHelper.runStateT(stateTKind, -5);
-    Optional<StateTuple<Integer, String>> actualEmpty = OptionalKindHelper.unwrap(resultEmptyOptional);
+    Optional<StateTuple<Integer, String>> actualEmpty = OPTIONAL.narrow(resultEmptyOptional);
     // Output: Is empty: true
     System.out.println("Is empty (for initial state -5): " + actualEmpty.isEmpty());
 
@@ -135,7 +135,7 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
 
   ```java
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> initialComputation =
-        StateT.create(s -> OptionalKindHelper.wrap(Optional.of(StateTuple.of(s + 1, s * 2))), optionalMonad);
+        StateT.create(s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 2))), optionalMonad);
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> mappedComputation =
         stateTMonad.map(
@@ -147,7 +147,7 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
     // 2. map's function ("Computed: " + 10) is applied to 10.
     // Result: Optional.of(StateTuple(6, "Computed: 10"))
     Optional<StateTuple<Integer, String>> mappedResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(mappedComputation, 5));
+        OPTIONAL.narrow(StateTKindHelper.runStateT(mappedComputation, 5));
     System.out.print("Mapped result (initial state 5): ");
     mappedResult.ifPresentOrElse(System.out::println, () -> System.out.println("Empty"));
     // Output: StateTuple[state=6, value=Computed: 10]
@@ -157,15 +157,15 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
   ```java
       // stateTMonad and optionalMonad are defined
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> firstStep =
-        StateT.create(s -> OptionalKindHelper.wrap(Optional.of(StateTuple.of(s + 1, s * 10))), optionalMonad);
+        StateT.create(s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))), optionalMonad);
 
     Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>> secondStepFn =
         prevValue -> StateT.create(
             s -> {
               if (prevValue > 100) {
-                return OptionalKindHelper.wrap(Optional.of(StateTuple.of(s + prevValue, "Large: " + prevValue)));
+                return OPTIONAL.widen(Optional.of(StateTuple.of(s + prevValue, "Large: " + prevValue)));
               } else {
-                return OptionalKindHelper.wrap(Optional.empty());
+                return OPTIONAL.widen(Optional.empty());
               }
             },
             optionalMonad);
@@ -180,7 +180,7 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
     //    Its function: s' (which is 16) -> Optional.of(StateTuple(16 + 150, "Large: 150"))
     //    Result: Optional.of(StateTuple(166, "Large: 150"))
     Optional<StateTuple<Integer, String>> combinedResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(combined, 15));
+        OPTIONAL.narrow(StateTKindHelper.runStateT(combined, 15));
     System.out.print("Combined result (initial state 15): ");
     combinedResult.ifPresentOrElse(System.out::println, () -> System.out.println("Empty"));
 
@@ -193,7 +193,7 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
     //    Its function: s' (which is 6) -> Optional.empty()
     //    Result: Optional.empty()
     Optional<StateTuple<Integer, String>> combinedEmptyResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(combined, 5));
+        OPTIONAL.narrow(StateTKindHelper.runStateT(combined, 5));
     // Output: true
     System.out.println("Is empty from small initial (state 5 for combined): " + combinedEmptyResult.isEmpty());
   ```
@@ -272,7 +272,7 @@ public class StateTStackExample {
     return liftOpt(stack -> {
       List<Integer> newStack = new LinkedList<>(stack);
       newStack.add(0, value); // Add to front
-      return OptionalKindHelper.wrap(Optional.of(StateTuple.of(newStack, Unit.INSTANCE)));
+      return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, Unit.INSTANCE)));
     });
   }
 
@@ -280,11 +280,11 @@ public class StateTStackExample {
   public static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> pop() {
     return liftOpt(stack -> {
       if (stack.isEmpty()) {
-        return OptionalKindHelper.wrap(Optional.empty()); // Cannot pop from empty stack
+        return OPTIONAL.widen(Optional.empty()); // Cannot pop from empty stack
       }
       List<Integer> newStack = new LinkedList<>(stack);
       Integer poppedValue = newStack.remove(0);
-      return OptionalKindHelper.wrap(Optional.of(StateTuple.of(newStack, poppedValue)));
+      return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, poppedValue)));
     });
   }
 
@@ -309,7 +309,7 @@ public class StateTStackExample {
         StateTKindHelper.runStateT(computation, initialStack);
 
     Optional<StateTuple<List<Integer>, Integer>> resultOpt =
-        OptionalKindHelper.unwrap(resultWrapped);
+        OPTIONAL.narrow(resultWrapped);
 
     resultOpt.ifPresentOrElse(
         tuple -> {
@@ -322,7 +322,7 @@ public class StateTStackExample {
     // Example of popping an empty stack
     Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> popEmptyStack = pop();
     Optional<StateTuple<List<Integer>, Integer>> emptyPopResult =
-        OptionalKindHelper.unwrap(StateTKindHelper.runStateT(popEmptyStack, Collections.emptyList()));
+        OPTIONAL.narrow(StateTKindHelper.runStateT(popEmptyStack, Collections.emptyList()));
     System.out.println("Popping empty stack was successful: " + emptyPopResult.isPresent()); // false
   }
 }

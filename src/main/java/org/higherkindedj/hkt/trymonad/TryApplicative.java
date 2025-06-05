@@ -30,7 +30,7 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
    */
   @Override
   public <A> @NonNull Kind<TryKind.Witness, A> of(@Nullable A value) {
-    return wrap(Try.success(value));
+    return TRY.widen(Try.success(value));
   }
 
   /**
@@ -49,11 +49,11 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> ap(
       @NonNull Kind<TryKind.Witness, Function<A, B>> ff, @NonNull Kind<TryKind.Witness, A> fa) {
-    Try<Function<A, B>> tryF = unwrap(ff);
-    Try<A> tryA = unwrap(fa);
+    Try<Function<A, B>> tryF = TRY.narrow(ff);
+    Try<A> tryA = TRY.narrow(fa);
 
     Try<B> resultTry =
         tryF.fold(f -> tryA.fold(a -> Try.of(() -> f.apply(a)), Try::failure), Try::failure);
-    return wrap(resultTry);
+    return TRY.widen(resultTry);
   }
 }

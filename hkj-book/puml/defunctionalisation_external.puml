@@ -18,12 +18,12 @@ package "Defunctionalisation Pattern For External Types (Optional, CompletableFu
         }
     }
     OptionalKindHelper ..> OptionalHolder : "creates / uses"
-    OptionalKindHelper ..> JavaOptional : "wraps / unwraps"
+    OptionalKindHelper ..> JavaOptional : "widens / narrows"
     OptionalHolder ..> JavaOptional : "holds"
 
     class "OptionalKindHelper" as OptionalKindHelper {
-        + {static} wrap(opt: java.util.Optional<A>): Kind<OptionalKind.Witness, A>
-        + {static} unwrap(kind: Kind<OptionalKind.Witness, A>): java.util.Optional<A>
+        + {static} widen(opt: java.util.Optional<A>): Kind<OptionalKind.Witness, A>
+        + {static} narrow(kind: Kind<OptionalKind.Witness, A>): java.util.Optional<A>
     }
     class "OptionalMonad" as OptionalMonad implements MonadError<OptionalKind.Witness, Unit> {
         ' Uses OptionalKindHelper

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -22,7 +23,7 @@ class IdentityMonadTest {
     idMonad = IdentityMonad.instance();
   }
 
-  // Minimal imposter Kind for testing ClassCastException in IdKindHelper.narrow
+  // Minimal imposter Kind for testing ClassCastException in ID.narrow
   private static class ImposterKind<A> implements Kind<Id.Witness, A> {
     public ImposterKind(A value) {}
   }
@@ -145,7 +146,7 @@ class IdentityMonadTest {
     @DisplayName("narrow() should cast Kind to Id for correct type")
     void narrow_castsKindToId() {
       Kind<Id.Witness, String> kind = Id.of("test");
-      Id<String> id = IdKindHelper.narrow(kind);
+      Id<String> id = ID.narrow(kind);
       assertThat(id.value()).isEqualTo("test");
       assertThat(id).isInstanceOf(Id.class);
     }
@@ -156,59 +157,57 @@ class IdentityMonadTest {
             + " Witness")
     void narrow_throwsClassCastExceptionForWrongKindImplementation() {
       Kind<Id.Witness, String> imposterKind = new ImposterKind<>("imposter");
-      assertThatThrownBy(() -> IdKindHelper.narrow(imposterKind))
-          .isInstanceOf(ClassCastException.class);
+      assertThatThrownBy(() -> ID.narrow(imposterKind)).isInstanceOf(ClassCastException.class);
     }
 
     @Test
     @DisplayName("narrow() should throw NullPointerException if kind is null")
     void narrow_throwsNullPointerExceptionIfKindIsNull() {
-      assertThatThrownBy(() -> IdKindHelper.narrow(null))
+      assertThatThrownBy(() -> ID.narrow(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind cannot be null");
     }
 
     @Test
     @DisplayName("wrap() should cast Id to Kind")
-    void wrap_castsIdToKind() {
+    void widen_castsIdToKind() {
       Id<String> id = Id.of("test");
-      Kind<Id.Witness, String> kind = IdKindHelper.wrap(id);
+      Kind<Id.Witness, String> kind = ID.widen(id);
       assertThat(kind).isSameAs(id);
-      assertThat(IdKindHelper.narrow(kind).value()).isEqualTo("test");
+      assertThat(ID.narrow(kind).value()).isEqualTo("test");
     }
 
     @Test
     @DisplayName("wrap() should throw NullPointerException if id is null")
-    void wrap_throwsNullPointerExceptionIfIdIsNull() {
-      assertThatThrownBy(() -> IdKindHelper.wrap(null))
+    void widen_throwsNullPointerExceptionIfIdIsNull() {
+      assertThatThrownBy(() -> ID.widen(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Id cannot be null");
     }
 
     @Test
     @DisplayName("unwrap() should return value from Kind")
-    void unwrap_returnsValueFromKind() {
+    void narrow_returnsValueFromKind() {
       Kind<Id.Witness, String> kind = Id.of("test");
-      assertThat(IdKindHelper.unwrap(kind)).isEqualTo("test");
+      assertThat(ID.unwrap(kind)).isEqualTo("test");
 
       Kind<Id.Witness, Integer> kindNull = Id.of(null);
-      assertThat(IdKindHelper.unwrap(kindNull)).isNull();
+      assertThat(ID.unwrap(kindNull)).isNull();
     }
 
     @Test
     @DisplayName("unwrap() should throw NullPointerException if kind is null")
-    void unwrap_throwsNPEIfKindIsNull() {
-      assertThatThrownBy(() -> IdKindHelper.unwrap(null))
+    void narrow_throwsNPEIfKindIsNull() {
+      assertThatThrownBy(() -> ID.unwrap(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind cannot be null");
     }
 
     @Test
     @DisplayName("unwrap() should throw ClassCastException for wrong Kind implementation")
-    void unwrap_throwsCCEForWrongKindImplementation() {
+    void narrow_throwsCCEForWrongKindImplementation() {
       Kind<Id.Witness, String> imposterKind = new ImposterKind<>("imposter");
-      assertThatThrownBy(() -> IdKindHelper.unwrap(imposterKind))
-          .isInstanceOf(ClassCastException.class);
+      assertThatThrownBy(() -> ID.unwrap(imposterKind)).isInstanceOf(ClassCastException.class);
     }
   }
 
@@ -226,10 +225,10 @@ class IdentityMonadTest {
     @DisplayName("of() should wrap value in Id Kind")
     void of_wrapsValueInIdKind() {
       Kind<Id.Witness, String> kind = idMonad.of("hello");
-      assertThat(IdKindHelper.narrow(kind).value()).isEqualTo("hello");
+      assertThat(ID.narrow(kind).value()).isEqualTo("hello");
 
       Kind<Id.Witness, Object> kindNull = idMonad.of(null);
-      assertThat(IdKindHelper.narrow(kindNull).value()).isNull();
+      assertThat(ID.narrow(kindNull).value()).isNull();
     }
 
     @Test
@@ -237,7 +236,7 @@ class IdentityMonadTest {
     void map_transformsValueInIdKind() {
       Kind<Id.Witness, Integer> kindInt = idMonad.of(10);
       Kind<Id.Witness, String> kindString = idMonad.map(i -> "Num:" + i, kindInt);
-      assertThat(IdKindHelper.narrow(kindString).value()).isEqualTo("Num:10");
+      assertThat(ID.narrow(kindString).value()).isEqualTo("Num:10");
     }
 
     @Test
@@ -245,7 +244,7 @@ class IdentityMonadTest {
     void map_withNullOriginalValue() {
       Kind<Id.Witness, String> kindNull = idMonad.of(null);
       Kind<Id.Witness, String> kindString = idMonad.map(s -> "WasNull", kindNull);
-      assertThat(IdKindHelper.narrow(kindString).value()).isEqualTo("WasNull");
+      assertThat(ID.narrow(kindString).value()).isEqualTo("WasNull");
     }
 
     @Test
@@ -254,7 +253,7 @@ class IdentityMonadTest {
       Kind<Id.Witness, Function<Integer, String>> kindFn = idMonad.of(i -> "Res:" + (i * 2));
       Kind<Id.Witness, Integer> kindVal = idMonad.of(5);
       Kind<Id.Witness, String> result = idMonad.ap(kindFn, kindVal);
-      assertThat(IdKindHelper.narrow(result).value()).isEqualTo("Res:10");
+      assertThat(ID.narrow(result).value()).isEqualTo("Res:10");
     }
 
     @Test
@@ -272,7 +271,7 @@ class IdentityMonadTest {
     void flatMap_appliesFunctionReturningIdKind() {
       Kind<Id.Witness, Integer> kindInt = idMonad.of(7);
       Kind<Id.Witness, String> result = idMonad.flatMap(i -> Id.of("Flat:" + (i + 3)), kindInt);
-      assertThat(IdKindHelper.narrow(result).value()).isEqualTo("Flat:10");
+      assertThat(ID.narrow(result).value()).isEqualTo("Flat:10");
     }
 
     @Test
@@ -308,7 +307,7 @@ class IdentityMonadTest {
       Kind<Id.Witness, String> leftSide = idMonad.flatMap(f, idMonad.of(testValue));
       Kind<Id.Witness, String> rightSide = f.apply(testValue);
 
-      assertThat(IdKindHelper.unwrap(leftSide)).isEqualTo(IdKindHelper.unwrap(rightSide));
+      assertThat(ID.unwrap(leftSide)).isEqualTo(ID.unwrap(rightSide));
     }
 
     @Test
@@ -316,7 +315,7 @@ class IdentityMonadTest {
     void rightIdentity() {
       Kind<Id.Witness, Integer> leftSide = idMonad.flatMap(idMonad::of, m);
 
-      assertThat(IdKindHelper.unwrap(leftSide)).isEqualTo(IdKindHelper.unwrap(m));
+      assertThat(ID.unwrap(leftSide)).isEqualTo(ID.unwrap(m));
       assertThat(leftSide).isEqualTo(m);
     }
 
@@ -325,7 +324,7 @@ class IdentityMonadTest {
     void associativity() {
       Kind<Id.Witness, String> leftSide = idMonad.flatMap(g, idMonad.flatMap(f, m));
       Kind<Id.Witness, String> rightSide = idMonad.flatMap(x -> idMonad.flatMap(g, f.apply(x)), m);
-      assertThat(IdKindHelper.unwrap(leftSide)).isEqualTo(IdKindHelper.unwrap(rightSide));
+      assertThat(ID.unwrap(leftSide)).isEqualTo(ID.unwrap(rightSide));
     }
   }
 }

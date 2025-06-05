@@ -51,21 +51,21 @@ Creates an `Invalid` instance holding a **non-null** error.
 Validated<List<String>, String> invalidInstance = Validated.invalid(Collections.singletonList("Error: Something went wrong.")); // Invalid([Error: Something went wrong.])
 ```
 
-Converts a `Validated<E, A>` to `Kind<ValidatedKind.Witness<E>, A>` using `ValidatedKindHelper.widen()`.
+Converts a `Validated<E, A>` to `Kind<ValidatedKind.Witness<E>, A>` using `VALIDATED.widen()`.
 ```java
-Kind<ValidatedKind.Witness<List<String>>, String> kindValid = ValidatedKindHelper.widen(Validated.valid("Wrapped"));
+Kind<ValidatedKind.Witness<List<String>>, String> kindValid = VALIDATED.widen(Validated.valid("Wrapped"));
 ```
-Converts a `Kind<ValidatedKind.Witness<E>, A>` back to `Validated<E, A>` using `ValidatedKindHelper.narrow()`.
+Converts a `Kind<ValidatedKind.Witness<E>, A>` back to `Validated<E, A>` using `VALIDATED.narrow()`.
 ```java
-Validated<List<String>, String> narrowedValidated = ValidatedKindHelper.narrow(kindValid);
+Validated<List<String>, String> narrowedValidated = VALIDATED.narrow(kindValid);
 ```
-Convenience for `widen(Validated.valid(value))`using `ValidatedKindHelper.valid()`.
+Convenience for `widen(Validated.valid(value))`using `VALIDATED.valid()`.
 ```java
-Kind<ValidatedKind.Witness<List<String>>, Integer> kindValidInt = ValidatedKindHelper.valid(123);
+Kind<ValidatedKind.Witness<List<String>>, Integer> kindValidInt = VALIDATED.valid(123);
 ```
-Convenience for `widen(Validated.invalid(error))` using `ValidatedKindHelper.invalid()`.
+Convenience for `widen(Validated.invalid(error))` using `VALIDATED.invalid()`.
 ```java
-Kind<ValidatedKind.Witness<List<String>>, Integer> kindInvalidInt = ValidatedKindHelper.invalid(Collections.singletonList("Bad number"));
+Kind<ValidatedKind.Witness<List<String>>, Integer> kindInvalidInt = VALIDATED.invalid(Collections.singletonList("Bad number"));
 ```
 ~~~
 
@@ -77,7 +77,7 @@ Lifts a value into `ValidatedKind.Witness<E>`, creating a `Valid(value)`. This i
 ```java
 ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance();
 Kind<ValidatedKind.Witness<List<String>>, String> kindFromMonadOf = validatedMonad.of("Monadic Valid"); // Valid("Monadic Valid")
-System.out.println("From monad.of(): " + ValidatedKindHelper.narrow(kindFromMonadOf));
+System.out.println("From monad.of(): " + VALIDATED.narrow(kindFromMonadOf));
 ```
 
 Lifts an error `E` into the `ValidatedKind` context, creating an `Invalid(error)`. This is part of the `MonadError` interface.
@@ -86,7 +86,7 @@ ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance();
 List<String> errorPayload = Collections.singletonList("Raised error condition");
 Kind<ValidatedKind.Witness<List<String>>, String> raisedError =
     validatedMonad.raiseError(errorPayload); // Invalid(["Raised error condition"])
-System.out.println("From monad.raiseError(): " + ValidatedKindHelper.narrow(raisedError));
+System.out.println("From monad.raiseError(): " + VALIDATED.narrow(raisedError));
 ```
 ~~~
 
@@ -119,17 +119,17 @@ Applies `f` to the value inside `kind` if it's `Valid`. If `kind` is `Invalid`, 
 ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance();
 Kind<ValidatedKind.Witness<List<String>>, Integer> validKindFromOf = validatedMonad.of(42);
 Kind<ValidatedKind.Witness<List<String>>, Integer> invalidIntKind =
-    ValidatedKindHelper.invalid(Collections.singletonList("Initial error for map"));
+    VALIDATED.invalid(Collections.singletonList("Initial error for map"));
 
 Function<Integer, String> intToString = i -> "Value: " + i;
 
 Kind<ValidatedKind.Witness<List<String>>, String> mappedValid =
     validatedMonad.map(intToString, validKindFromOf); // Valid("Value: 42")
-System.out.println("Map (Valid input): " + ValidatedKindHelper.narrow(mappedValid));
+System.out.println("Map (Valid input): " + VALIDATED.narrow(mappedValid));
 
 Kind<ValidatedKind.Witness<List<String>>, String> mappedInvalid =
     validatedMonad.map(intToString, invalidIntKind); // Invalid(["Initial error for map"])
-System.out.println("Map (Invalid input): " + ValidatedKindHelper.narrow(mappedInvalid));
+System.out.println("Map (Invalid input): " + VALIDATED.narrow(mappedInvalid));
 ```
 ~~~
 
@@ -144,29 +144,29 @@ ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance();
 Kind<ValidatedKind.Witness<List<String>>, Integer> positiveNumKind = validatedMonad.of(10);
 Kind<ValidatedKind.Witness<List<String>>, Integer> nonPositiveNumKind = validatedMonad.of(-5);
 Kind<ValidatedKind.Witness<List<String>>, Integer> invalidIntKind =
-        ValidatedKindHelper.invalid(Collections.singletonList("Initial error for flatMap"));
+        VALIDATED.invalid(Collections.singletonList("Initial error for flatMap"));
 
 
 Function<Integer, Kind<ValidatedKind.Witness<List<String>>, String>> intToValidatedStringKind =
     i -> {
       if (i > 0) {
-        return ValidatedKindHelper.valid("Positive: " + i);
+        return VALIDATED.valid("Positive: " + i);
       } else {
-        return ValidatedKindHelper.invalid(Collections.singletonList("Number not positive: " + i));
+        return VALIDATED.invalid(Collections.singletonList("Number not positive: " + i));
       }
     };
 
 Kind<ValidatedKind.Witness<List<String>>, String> flatMappedToValid =
     validatedMonad.flatMap(intToValidatedStringKind, positiveNumKind); // Valid("Positive: 10")
-System.out.println("FlatMap (Valid to Valid): " + ValidatedKindHelper.narrow(flatMappedToValid));
+System.out.println("FlatMap (Valid to Valid): " + VALIDATED.narrow(flatMappedToValid));
 
 Kind<ValidatedKind.Witness<List<String>>, String> flatMappedToInvalid =
     validatedMonad.flatMap(intToValidatedStringKind, nonPositiveNumKind); // Invalid(["Number not positive: -5"])
-System.out.println("FlatMap (Valid to Invalid): " + ValidatedKindHelper.narrow(flatMappedToInvalid));
+System.out.println("FlatMap (Valid to Invalid): " + VALIDATED.narrow(flatMappedToInvalid));
 
 Kind<ValidatedKind.Witness<List<String>>, String> flatMappedFromInvalid =
     validatedMonad.flatMap(intToValidatedStringKind, invalidIntKind); // Invalid(["Initial error for flatMap"])
-System.out.println("FlatMap (Invalid input): " + ValidatedKindHelper.narrow(flatMappedFromInvalid));
+System.out.println("FlatMap (Invalid input): " + VALIDATED.narrow(flatMappedFromInvalid));
 ```
 
 ~~~
@@ -182,33 +182,33 @@ If `ff` is `Valid(f)` and `fa` is `Valid(a)`, applies `f` to `a`, resulting in `
 // From ValidatedMonadExample.java (Section 4)
 ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance();
 Kind<ValidatedKind.Witness<List<String>>, Function<Integer, String>> validFnKind =
-    ValidatedKindHelper.valid(i -> "Applied: " + (i * 2));
+    VALIDATED.valid(i -> "Applied: " + (i * 2));
 Kind<ValidatedKind.Witness<List<String>>, Function<Integer, String>> invalidFnKind =
-    ValidatedKindHelper.invalid(Collections.singletonList("Function is invalid"));
+    VALIDATED.invalid(Collections.singletonList("Function is invalid"));
 
 Kind<ValidatedKind.Witness<List<String>>, Integer> validValueForAp = validatedMonad.of(25);
 Kind<ValidatedKind.Witness<List<String>>, Integer> invalidValueForAp =
-    ValidatedKindHelper.invalid(Collections.singletonList("Value is invalid"));
+    VALIDATED.invalid(Collections.singletonList("Value is invalid"));
 
 // Valid function, Valid value
 Kind<ValidatedKind.Witness<List<String>>, String> apValidFnValidVal =
     validatedMonad.ap(validFnKind, validValueForAp); // Valid("Applied: 50")
-System.out.println("Ap (ValidFn, ValidVal): " + ValidatedKindHelper.narrow(apValidFnValidVal));
+System.out.println("Ap (ValidFn, ValidVal): " + VALIDATED.narrow(apValidFnValidVal));
 
 // Invalid function, Valid value
 Kind<ValidatedKind.Witness<List<String>>, String> apInvalidFnValidVal =
     validatedMonad.ap(invalidFnKind, validValueForAp); // Invalid(["Function is invalid"])
-System.out.println("Ap (InvalidFn, ValidVal): " + ValidatedKindHelper.narrow(apInvalidFnValidVal));
+System.out.println("Ap (InvalidFn, ValidVal): " + VALIDATED.narrow(apInvalidFnValidVal));
 
 // Valid function, Invalid value
 Kind<ValidatedKind.Witness<List<String>>, String> apValidFnInvalidVal =
     validatedMonad.ap(validFnKind, invalidValueForAp); // Invalid(["Value is invalid"])
-System.out.println("Ap (ValidFn, InvalidVal): " + ValidatedKindHelper.narrow(apValidFnInvalidVal));
+System.out.println("Ap (ValidFn, InvalidVal): " + VALIDATED.narrow(apValidFnInvalidVal));
 
 // Invalid function, Invalid value
 Kind<ValidatedKind.Witness<List<String>>, String> apInvalidFnInvalidVal =
     validatedMonad.ap(invalidFnKind, invalidValueForAp); // Invalid(["Function is invalid"])
-System.out.println("Ap (InvalidFn, InvalidVal): " + ValidatedKindHelper.narrow(apInvalidFnInvalidVal));
+System.out.println("Ap (InvalidFn, InvalidVal): " + VALIDATED.narrow(apInvalidFnInvalidVal));
 ```
 ~~~
 
@@ -225,7 +225,7 @@ List<String> initialError = Collections.singletonList("Initial Failure");
 // 1. Create an Invalid Kind using raiseError
 Kind<ValidatedKind.Witness<List<String>>, Integer> invalidKindRaised = // Renamed to avoid conflict
     validatedMonad.raiseError(initialError);
-System.out.println("Raised error: " + ValidatedKindHelper.narrow(invalidKindRaised)); // Invalid([Initial Failure])
+System.out.println("Raised error: " + VALIDATED.narrow(invalidKindRaised)); // Invalid([Initial Failure])
 
 // 2. Handle the error: recover to a Valid state
 Function<List<String>, Kind<ValidatedKind.Witness<List<String>>, Integer>> recoverToValid =
@@ -235,26 +235,26 @@ Function<List<String>, Kind<ValidatedKind.Witness<List<String>>, Integer>> recov
     };
 Kind<ValidatedKind.Witness<List<String>>, Integer> recoveredValid =
     validatedMonad.handleErrorWith(invalidKindRaised, recoverToValid);
-System.out.println("Recovered to Valid: " + ValidatedKindHelper.narrow(recoveredValid)); // Valid(0)
+System.out.println("Recovered to Valid: " + VALIDATED.narrow(recoveredValid)); // Valid(0)
 
 // 3. Handle the error: transform to another Invalid state
 Function<List<String>, Kind<ValidatedKind.Witness<List<String>>, Integer>> transformError =
     errors -> validatedMonad.raiseError(Collections.singletonList("Transformed Error: " + errors.get(0)));
 Kind<ValidatedKind.Witness<List<String>>, Integer> transformedInvalid =
     validatedMonad.handleErrorWith(invalidKindRaised, transformError);
-System.out.println("Transformed to Invalid: " + ValidatedKindHelper.narrow(transformedInvalid)); // Invalid([Transformed Error: Initial Failure])
+System.out.println("Transformed to Invalid: " + VALIDATED.narrow(transformedInvalid)); // Invalid([Transformed Error: Initial Failure])
 
 // 4. Handle a Valid Kind: handler is not called
 Kind<ValidatedKind.Witness<List<String>>, Integer> validKindOriginal = validatedMonad.of(100);
 Kind<ValidatedKind.Witness<List<String>>, Integer> notHandled =
     validatedMonad.handleErrorWith(validKindOriginal, recoverToValid); // Handler not called
-System.out.println("Handling Valid (no change): " + ValidatedKindHelper.narrow(notHandled)); // Valid(100)
+System.out.println("Handling Valid (no change): " + VALIDATED.narrow(notHandled)); // Valid(100)
 
 // 5. Using a default method like handleError
 Kind<ValidatedKind.Witness<List<String>>, Integer> errorForHandle = validatedMonad.raiseError(Collections.singletonList("Error for handleError"));
 Function<List<String>, Integer> plainValueRecoveryHandler = errors -> -1; // Returns plain value
 Kind<ValidatedKind.Witness<List<String>>, Integer> recoveredWithHandle = validatedMonad.handleError(errorForHandle, plainValueRecoveryHandler);
-System.out.println("Recovered with handleError: " + ValidatedKindHelper.narrow(recoveredWithHandle)); // Valid(-1)
+System.out.println("Recovered with handleError: " + VALIDATED.narrow(recoveredWithHandle)); // Valid(-1)
 ```
 The default `recover` and `recoverWith` methods from `MonadError` are also available.
 ~~~
@@ -290,8 +290,8 @@ public void combinedValidationScenarioWithMonadError() {
   Kind<ValidatedKind.Witness<List<String>>, Integer> parsed2 =
       validatedMonad.flatMap(parseToIntKindMonadError, userInput2); // Will be Invalid
 
-  System.out.println("Parsed Input 1 (Combined): " + ValidatedKindHelper.narrow(parsed1)); // Valid(123)
-  System.out.println("Parsed Input 2 (Combined): " + ValidatedKindHelper.narrow(parsed2)); // Invalid(['abc' is not a number...])
+  System.out.println("Parsed Input 1 (Combined): " + VALIDATED.narrow(parsed1)); // Valid(123)
+  System.out.println("Parsed Input 2 (Combined): " + VALIDATED.narrow(parsed2)); // Invalid(['abc' is not a number...])
 
   // Example of recovering the parse of userInput2 using handleErrorWith
   Kind<ValidatedKind.Witness<List<String>>, Integer> parsed2Recovered =
@@ -302,7 +302,7 @@ public void combinedValidationScenarioWithMonadError() {
             return validatedMonad.of(0); // Default to 0 if parsing failed
           });
   System.out.println(
-      "Parsed Input 2 (Recovered to 0): " + ValidatedKindHelper.narrow(parsed2Recovered)); // Valid(0)
+      "Parsed Input 2 (Recovered to 0): " + VALIDATED.narrow(parsed2Recovered)); // Valid(0)
 }
 ```
 This example demonstrates how `ValidatedMonad` along with `Validated` can be used to chain operations that might succeed or fail, propagating errors and allowing for clear handling of either outcome, further enhanced by `MonadError` capabilities.

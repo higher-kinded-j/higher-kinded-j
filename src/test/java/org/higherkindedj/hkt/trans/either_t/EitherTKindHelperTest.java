@@ -4,9 +4,8 @@ package org.higherkindedj.hkt.trans.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.trans.either_t.EitherTKindHelper.EITHER_T;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
@@ -33,46 +32,27 @@ class EitherTKindHelperTest {
     return EitherT.fromEither(outerMonad, either);
   }
 
-  @Test
-  @DisplayName("private constructor should prevent instantiation")
-  void privateConstructor_shouldThrowException() {
-    assertThatThrownBy(
-            () -> {
-              Constructor<EitherTKindHelper> constructor =
-                  EitherTKindHelper.class.getDeclaredConstructor();
-              constructor.setAccessible(true);
-              try {
-                constructor.newInstance();
-              } catch (InvocationTargetException e) {
-                throw e.getCause();
-              }
-            })
-        .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessage("This is a utility class and cannot be instantiated");
-  }
-
   @Nested
   @DisplayName("wrap() tests")
   class WrapTests {
     @Test
     @DisplayName("should wrap a non-null EitherT (Right) into an EitherTKind")
-    void wrap_nonNullEitherTRight_shouldReturnEitherTKind() {
+    void widen_nonNullEitherTRight_shouldReturnEitherTKind() {
       EitherT<OptionalKind.Witness, String, Integer> concreteEitherT =
           createEitherT(Either.right(123));
       Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
-          EitherTKindHelper.wrap(concreteEitherT);
+          EITHER_T.widen(concreteEitherT);
 
       assertThat(wrapped).isNotNull().isInstanceOf(EitherTKind.class);
-      assertThat(EitherTKindHelper.<OptionalKind.Witness, String, Integer>unwrap(wrapped))
-          .isSameAs(concreteEitherT);
+      assertThat(EITHER_T.narrow(wrapped)).isSameAs(concreteEitherT);
     }
 
     @Test
     @DisplayName("should throw NullPointerException when wrapping null")
-    void wrap_nullEitherT_shouldThrowNullPointerException() {
-      assertThatThrownBy(() -> EitherTKindHelper.wrap(null))
+    void widen_nullEitherT_shouldThrowNullPointerException() {
+      assertThatThrownBy(() -> EITHER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage("Input EitherT cannot be null for wrap");
+          .hasMessage(EitherTKindHelper.INVALID_KIND_TYPE_NULL_MSG);
     }
   }
 
@@ -81,21 +61,21 @@ class EitherTKindHelperTest {
   class UnwrapTests {
     @Test
     @DisplayName("should unwrap a valid EitherTKind (Right) to the original EitherT instance")
-    void unwrap_validKindRight_shouldReturnEitherT() {
+    void narrow_validKindRight_shouldReturnEitherT() {
       EitherT<OptionalKind.Witness, String, Integer> originalEitherT =
           createEitherT(Either.right(456));
-      var wrappedKind = EitherTKindHelper.wrap(originalEitherT);
+      var wrappedKind = EITHER_T.widen(originalEitherT);
 
       EitherT<OptionalKind.Witness, String, Integer> unwrappedEitherT =
-          EitherTKindHelper.unwrap(wrappedKind);
+          EITHER_T.narrow(wrappedKind);
 
       assertThat(unwrappedEitherT).isSameAs(originalEitherT);
     }
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping null")
-    void unwrap_nullKind_shouldThrowKindUnwrapException() {
-      assertThatThrownBy(() -> EitherTKindHelper.unwrap(null))
+    void narrow_nullKind_shouldThrowKindUnwrapException() {
+      assertThatThrownBy(() -> EITHER_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessage(EitherTKindHelper.INVALID_KIND_NULL_MSG);
     }
@@ -106,14 +86,14 @@ class EitherTKindHelperTest {
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
-    void unwrap_incorrectKindType_shouldThrowKindUnwrapException() {
+    void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
       OtherKind<OptionalKind.Witness, String, Integer> incorrectKind = new OtherKind<>();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> kindToTest =
           (Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer>) (Kind) incorrectKind;
 
-      assertThatThrownBy(() -> EitherTKindHelper.unwrap(kindToTest))
+      assertThatThrownBy(() -> EITHER_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageStartingWith(EitherTKindHelper.INVALID_KIND_TYPE_MSG)
           .hasMessageContaining(OtherKind.class.getName());

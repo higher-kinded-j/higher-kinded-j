@@ -58,8 +58,8 @@ To integrate `Reader` with Higher-Kinded-J:
 
 * **`ReaderKind<R, A>`:** The marker interface extending `Kind<ReaderKind.Witness<R>, A>`. The witness type `F` is `ReaderKind.Witness<R>` (where `R` is fixed for a given monad instance), and the value type `A` is the result type of the reader.
 * **`ReaderKindHelper`:** The utility class with static methods:
-  * `wrap(Reader<R, A>)`: Converts a `Reader` to `ReaderKind<R, A>`.
-  * `unwrap(Kind<ReaderKind.Witness<R>, A>)`: Converts `ReaderKind` back to `Reader`. Throws `KindUnwrapException` if the input is invalid.
+  * `widen(Reader<R, A>)`: Converts a `Reader` to `ReaderKind<R, A>`.
+  * `narrow(Kind<ReaderKind.Witness<R>, A>)`: Converts `ReaderKind` back to `Reader`. Throws `KindUnwrapException` if the input is invalid.
   * `reader(Function<R, A>)`: Factory method to create a `ReaderKind` from a function.
   * `constant(A value)`: Factory method for a `ReaderKind` returning a constant value.
   * `ask()`: Factory method for a `ReaderKind` that returns the environment.

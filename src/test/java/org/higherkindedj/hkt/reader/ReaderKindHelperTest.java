@@ -5,8 +5,6 @@ package org.higherkindedj.hkt.reader;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -24,47 +22,47 @@ class ReaderKindHelperTest {
   final Reader<Env, Integer> lenReader = env -> env.value().length();
 
   @Nested
-  @DisplayName("wrap()")
+  @DisplayName("READER.widen()")
   class WrapTests {
     @Test
-    void wrap_shouldReturnHolderForReader() {
-      ReaderKind<Env, String> kind = wrap(baseReader);
+    void widen_shouldReturnHolderForReader() {
+      var kind = READER.widen(baseReader);
       assertThat(kind).isInstanceOf(ReaderHolder.class);
       // Unwrap to verify
-      assertThat(unwrap(kind)).isSameAs(baseReader);
+      assertThat(READER.narrow(kind)).isSameAs(baseReader);
     }
 
     @Test
-    void wrap_shouldThrowForNullInput() {
+    void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
-          .isThrownBy(() -> wrap(null))
+          .isThrownBy(() -> READER.widen(null))
           .withMessageContaining("Input Reader cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
+  @DisplayName("READER.narrow()")
   class UnwrapTests {
     @Test
-    void unwrap_shouldReturnOriginalReader() {
-      ReaderKind<Env, String> kind = wrap(baseReader);
-      assertThat(unwrap(kind)).isSameAs(baseReader);
+    void narrow_shouldReturnOriginalReader() {
+      var kind = READER.widen(baseReader);
+      assertThat(READER.narrow(kind)).isSameAs(baseReader);
     }
 
     // Dummy Kind implementation that is not ReaderHolder
     record DummyReaderKind<R, A>() implements ReaderKind<R, A> {}
 
     @Test
-    void unwrap_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> unwrap(null))
+    void narrow_shouldThrowForNullInput() {
+      assertThatThrownBy(() -> READER.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_NULL_MSG);
     }
 
     @Test
-    void unwrap_shouldThrowForUnknownKindType() {
+    void narrow_shouldThrowForUnknownKindType() {
       ReaderKind<Env, String> unknownKind = new DummyReaderKind<>();
-      assertThatThrownBy(() -> unwrap(unknownKind))
+      assertThatThrownBy(() -> READER.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyReaderKind.class.getName());
     }
@@ -76,21 +74,21 @@ class ReaderKindHelperTest {
     @Test
     void reader_shouldWrapFunction() {
       Function<Env, Integer> f = env -> env.value().hashCode();
-      Kind<ReaderKind.Witness<Env>, Integer> kind = reader(f);
-      assertThat(unwrap(kind).run(testEnv)).isEqualTo(testEnv.value().hashCode());
+      Kind<ReaderKind.Witness<Env>, Integer> kind = READER.reader(f);
+      assertThat(READER.narrow(kind).run(testEnv)).isEqualTo(testEnv.value().hashCode());
     }
 
     @Test
     void constant_shouldWrapConstant() {
-      Kind<ReaderKind.Witness<Env>, String> kind = constant("hello");
-      assertThat(unwrap(kind).run(testEnv)).isEqualTo("hello");
-      assertThat(unwrap(kind).run(new Env("other"))).isEqualTo("hello");
+      Kind<ReaderKind.Witness<Env>, String> kind = READER.constant("hello");
+      assertThat(READER.narrow(kind).run(testEnv)).isEqualTo("hello");
+      assertThat(READER.narrow(kind).run(new Env("other"))).isEqualTo("hello");
     }
 
     @Test
     void ask_shouldWrapAsk() {
-      Kind<ReaderKind.Witness<Env>, Env> kind = ask();
-      assertThat(unwrap(kind).run(testEnv)).isSameAs(testEnv);
+      Kind<ReaderKind.Witness<Env>, Env> kind = READER.ask();
+      assertThat(READER.narrow(kind).run(testEnv)).isSameAs(testEnv);
     }
   }
 
@@ -99,30 +97,14 @@ class ReaderKindHelperTest {
   class RunReaderTests {
     @Test
     void runReader_shouldExecuteWrappedReader() {
-      Kind<ReaderKind.Witness<Env>, Integer> kind = wrap(lenReader);
-      assertThat(runReader(kind, testEnv)).isEqualTo(testEnv.value().length());
+      Kind<ReaderKind.Witness<Env>, Integer> kind = READER.widen(lenReader);
+      assertThat(READER.runReader(kind, testEnv)).isEqualTo(testEnv.value().length());
     }
 
     @Test
     void runReader_shouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> runReader(null, testEnv))
+      assertThatThrownBy(() -> READER.runReader(null, testEnv))
           .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
-    }
-  }
-
-  @Nested
-  @DisplayName("Private Constructor")
-  class PrivateConstructorTest {
-    @Test
-    @DisplayName("should throw UnsupportedOperationException when invoked via reflection")
-    void constructor_shouldThrowException() throws NoSuchMethodException {
-      Constructor<ReaderKindHelper> constructor = ReaderKindHelper.class.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      assertThatThrownBy(constructor::newInstance)
-          .isInstanceOf(InvocationTargetException.class)
-          .hasCauseInstanceOf(UnsupportedOperationException.class)
-          .cause()
-          .hasMessageContaining("This is a utility class and cannot be instantiated");
     }
   }
 }

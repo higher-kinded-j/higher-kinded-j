@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.future;
 
-import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.unwrap;
-import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.wrap;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -71,8 +70,8 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
   public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> map(
       @NonNull Function<A, @Nullable B> f, // Function A -> B, where B can be null
       @NonNull Kind<CompletableFutureKind.Witness, A> fa) {
-    CompletableFuture<A> futureA = unwrap(fa);
+    CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);
-    return wrap(futureB);
+    return FUTURE.widen(futureB);
   }
 }

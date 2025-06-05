@@ -19,34 +19,34 @@ import org.jspecify.annotations.Nullable;
 public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Witness, Unit> {
 
   @Override
-  public <A> @NonNull MaybeKind<A> of(@Nullable A value) {
-    return wrap(Maybe.fromNullable(value));
+  public <A> @NonNull Kind<MaybeKind.Witness, A> of(@Nullable A value) {
+    return MAYBE.widen(Maybe.fromNullable(value));
   }
 
   @Override
-  public <A, B> @NonNull MaybeKind<B> flatMap(
+  public <A, B> @NonNull Kind<MaybeKind.Witness, B> flatMap(
       @NonNull Function<A, Kind<MaybeKind.Witness, B>> f, @NonNull Kind<MaybeKind.Witness, A> ma) {
-    Maybe<A> maybeA = unwrap(ma);
+    Maybe<A> maybeA = MAYBE.narrow(ma);
 
     Maybe<B> resultMaybe =
         maybeA.flatMap(
             a -> {
               Kind<MaybeKind.Witness, B> kindB = f.apply(a);
-              return unwrap(kindB);
+              return MAYBE.narrow(kindB);
             });
 
-    return wrap(resultMaybe);
+    return MAYBE.widen(resultMaybe);
   }
 
   @Override
-  public <A, B> @NonNull MaybeKind<B> ap(
+  public <A, B> @NonNull Kind<MaybeKind.Witness, B> ap(
       @NonNull Kind<MaybeKind.Witness, Function<A, B>> ff, @NonNull Kind<MaybeKind.Witness, A> fa) {
-    Maybe<Function<A, B>> maybeF = unwrap(ff);
-    Maybe<A> maybeA = unwrap(fa);
+    Maybe<Function<A, B>> maybeF = MAYBE.narrow(ff);
+    Maybe<A> maybeA = MAYBE.narrow(fa);
 
-    Maybe<B> resultMaybe = maybeF.flatMap(f -> maybeA.map(f));
+    Maybe<B> resultMaybe = maybeF.flatMap(maybeA::map);
 
-    return wrap(resultMaybe);
+    return MAYBE.widen(resultMaybe);
   }
 
   // --- MonadError Methods ---
@@ -60,8 +60,8 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Wit
    * @return A MaybeKind representing Nothing. (NonNull)
    */
   @Override
-  public <A> @NonNull MaybeKind<A> raiseError(@NonNull Unit error) {
-    return MaybeKindHelper.nothing();
+  public <A> @NonNull Kind<MaybeKind.Witness, A> raiseError(@NonNull Unit error) {
+    return MAYBE.nothing();
   }
 
   /**
@@ -76,9 +76,11 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Wit
    * @return Original Kind if Just, or result of handler if Nothing. (NonNull)
    */
   @Override
-  public <A> @NonNull MaybeKind<A> handleErrorWith(
+  public <A> @NonNull Kind<MaybeKind.Witness, A> handleErrorWith(
       @NonNull Kind<MaybeKind.Witness, A> ma,
       @NonNull Function<Unit, Kind<MaybeKind.Witness, A>> handler) {
-    return unwrap(ma).isNothing() ? (MaybeKind<A>) handler.apply(Unit.INSTANCE) : (MaybeKind<A>) ma;
+    return MAYBE.narrow(ma).isNothing()
+        ? (MaybeKind<A>) handler.apply(Unit.INSTANCE)
+        : (MaybeKind<A>) ma;
   }
 }

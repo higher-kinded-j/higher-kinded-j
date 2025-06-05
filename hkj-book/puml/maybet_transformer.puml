@@ -41,36 +41,11 @@ hide empty members
     + {static} INVALID_KIND_NULL_MSG: String
     + {static} INVALID_KIND_TYPE_MSG: String
     --
-    + {static} unwrap(Kind<MaybeTKind.Witness<F>, A> kind): MaybeT<F, A>
-    + {static} wrap(MaybeT<F, A> maybeT): Kind<MaybeTKind.Witness<F>, A>
+    + {static} narrow(Kind<MaybeTKind.Witness<F>, A> kind): MaybeT<F, A>
+    + {static} widen(MaybeT<F, A> maybeT): Kind<MaybeTKind.Witness<F>, A>
   }
-  note left of MaybeTKindHelper : Utility for HKT wrap/unwrap.
+  note left of MaybeTKindHelper : Utility for HKT widen / narrow.
 
-
-
-'package "hkt" {
-'  interface Kind<F, A>
-'  interface "Functor<F>"
-'  interface "Applicative<F> extends Functor<F>"
-'  interface "Monad<M> extends Applicative<M>"
-'  interface "MonadError<M, E> extends Monad<M>"
-'}
-
-'package "maybe" {
-'  interface Maybe<A> {
-'    + {static} just(A value): Maybe<A>
-'    + {static} nothing(): Maybe<A>
-'    + {static} fromNullable(A value): Maybe<A>
-'    ..
-'    + isJust(): boolean
-'    + isNothing(): boolean
-'    + get(): A
-'    + map(Function<A,B> mapper): Maybe<B>
-'    + flatMap(Function<A, Maybe<B>> mapper): Maybe<B>
-'  }
-'  class "Just<A> implements Maybe<A>"
-'  class "Nothing<A> implements Maybe<A>"
-'}
 
 ' Relationships
 MaybeT --> "value" Kind
@@ -83,15 +58,8 @@ MaybeTMonad ..> MaybeT : uses via KindHelper
 MaybeTMonad ..> MaybeTKind.Witness : uses in signature
 MaybeTMonad ..> Maybe : manipulates
 
-MaybeTKindHelper ..> MaybeT : wraps/unwraps
+MaybeTKindHelper ..> MaybeT : widen/narrow
 MaybeTKindHelper ..> MaybeTKind.Witness : uses in signature
 
-' Grouping related components
-'together {
-'  MaybeT
-'  MaybeTKind
-'  MaybeTMonad
-'  MaybeTKindHelper
-'}
 
 @enduml

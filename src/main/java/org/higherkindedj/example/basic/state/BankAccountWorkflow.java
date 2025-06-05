@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.state;
 
+import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,7 +23,7 @@ public class BankAccountWorkflow {
   public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Unit>> deposit(
       String description) {
     return amount ->
-        StateKindHelper.wrap(
+        STATE.widen(
             State.modify(
                 currentState -> {
                   if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -44,7 +46,7 @@ public class BankAccountWorkflow {
   public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Boolean>> withdraw(
       String description) {
     return amount ->
-        StateKindHelper.wrap(
+        STATE.widen(
             State.of(
                 currentState -> {
                   if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -81,11 +83,11 @@ public class BankAccountWorkflow {
   }
 
   public static Kind<StateKind.Witness<AccountState>, BigDecimal> getBalance() {
-    return StateKindHelper.wrap(State.inspect(AccountState::balance));
+    return STATE.widen(State.inspect(AccountState::balance));
   }
 
   public static Kind<StateKind.Witness<AccountState>, List<Transaction>> getHistory() {
-    return StateKindHelper.wrap(State.inspect(AccountState::history));
+    return STATE.widen(State.inspect(AccountState::history));
   }
 
   public static void main(String[] args) {
@@ -113,8 +115,7 @@ public class BankAccountWorkflow {
                     withdraw("Bill Payment").apply(new BigDecimal("50.00"))),
             deposit("Salary").apply(new BigDecimal("20.00")));
 
-    StateTuple<AccountState, String> finalResultTuple =
-        StateKindHelper.runState(workflow, initialState);
+    StateTuple<AccountState, String> finalResultTuple = STATE.runState(workflow, initialState);
 
     System.out.println(finalResultTuple.value());
 

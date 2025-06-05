@@ -14,7 +14,7 @@ package Transformers {
      EitherT <|.. EitherTKind
      EitherTKind <|.. CoreInterfaces.Kind
      EitherTMonad ..> CoreInterfaces.Monad : requires F
-     EitherT ..> CoreInterfaces.Kind : wraps Kind<F, Either<L,R>>
+     EitherT ..> CoreInterfaces.Kind : widens/narrows  Kind<F, Either<L,R>>
 }
 
 

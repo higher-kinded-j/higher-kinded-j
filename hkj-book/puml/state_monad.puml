@@ -31,13 +31,13 @@ class StateTuple<S, A> <<record>>  {
 
 
 class StateKindHelper {
-  + {static} State<S, A> unwrap(Kind<StateKind.Witness<S>, A> kind)
-  + {static} StateKind<S, A> wrap(State<S, A> state)
-  + {static} StateKind<S, A> pure(A value)
-  + {static} StateKind<S, S> get()
-  + {static} StateKind<S, Unit> set(S newState)
-  + {static} StateKind<S, Unit> modify(Function<S, S> f)
-  + {static} StateKind<S, A> inspect(Function<S, A> f)
+  + {static} State<S, A> narrow(Kind<StateKind.Witness<S>, A> kind)
+  + {static} Kind<StateKind.Witness<S>, A> widen(State<S, A> state)
+  + {static} Kind<StateKind.Witness<S>, A> pure(A value)
+  + {static} Kind<StateKind.Witness<S>, S> get()
+  + {static} Kind<StateKind.Witness<S>, Unit> set(S newState)
+  + {static} Kind<StateKind.Witness<S>, Unit> modify(Function<S, S> f)
+  + {static} Kind<StateKind.Witness<S>, A> inspect(Function<S, A> f)
   + {static} StateTuple<S, A> runState(Kind<StateKind.Witness<S>, A> kind, S initialState)
   + {static} A evalState(Kind<StateKind.Witness<S>, A> kind, S initialState)
   + {static} S execState(Kind<StateKind.Witness<S>, A> kind, S initialState)
@@ -59,10 +59,10 @@ class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witne
 "StateKind<S, A>" --|> Kind : <StateKind.Witness<S>, A>
 
 
-StateKindHelper ..> State : creates/unwraps
-StateKindHelper ..> "StateKind<S, A>" : creates/unwraps
+StateKindHelper ..> State : widens/narrows
+StateKindHelper ..> "StateKind<S, A>" : widens/narrows
 
-StateMonad ..> "StateKind<S, A>" : operates on <StateKind<S,?>>
+StateMonad ..> "StateKind<S, A>" : operates on Kind<StateKind.Witness<S>, A>
 StateMonad ..> State : uses methods of
 
 @enduml

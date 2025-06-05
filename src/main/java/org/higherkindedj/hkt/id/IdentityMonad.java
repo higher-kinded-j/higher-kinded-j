@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.id;
 
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -86,7 +88,7 @@ public final class IdentityMonad implements Monad<Id.Witness> {
     Objects.requireNonNull(fn, "Function cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
     // Delegate to Id.map for directness. Id.map handles null values wrapped in Id correctly.
-    return IdKindHelper.narrow(fa).map(fn);
+    return ID.narrow(fa).map(fn);
   }
 
   /**
@@ -113,8 +115,8 @@ public final class IdentityMonad implements Monad<Id.Witness> {
       @NonNull Kind<Id.Witness, Function<A, B>> ff, @NonNull Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
-    Function<A, B> function = IdKindHelper.narrow(ff).value();
-    A value = IdKindHelper.narrow(fa).value();
+    Function<A, B> function = ID.narrow(ff).value();
+    A value = ID.narrow(fa).value();
 
     if (function == null) {
       throw new NullPointerException("Function wrapped in Id is null");
@@ -149,7 +151,7 @@ public final class IdentityMonad implements Monad<Id.Witness> {
       @NonNull Function<A, Kind<Id.Witness, B>> fn, @NonNull Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(fn, "Function cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
-    A valueInA = IdKindHelper.narrow(fa).value();
+    A valueInA = ID.narrow(fa).value();
     Kind<Id.Witness, B> resultKind = fn.apply(valueInA);
     // The function fn is expected to return a non-null Kind (which will be an Id instance).
     return Objects.requireNonNull(resultKind, "Function passed to flatMap returned null Kind");

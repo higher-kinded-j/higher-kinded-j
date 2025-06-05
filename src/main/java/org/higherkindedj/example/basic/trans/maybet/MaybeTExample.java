@@ -2,6 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trans.maybet;
 
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.trans.maybe_t.MaybeTKindHelper.MAYBE_T;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -9,15 +13,12 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.trans.maybe_t.MaybeT;
 import org.higherkindedj.hkt.trans.maybe_t.MaybeTKind;
-import org.higherkindedj.hkt.trans.maybe_t.MaybeTKindHelper;
 import org.higherkindedj.hkt.trans.maybe_t.MaybeTMonad;
 import org.higherkindedj.hkt.unit.Unit;
 
@@ -48,20 +49,18 @@ public class MaybeTExample {
     MaybeT<OptionalKind.Witness, Integer> mtFromMaybeNothing =
         MaybeT.fromMaybe(optMonad, plainNothing);
 
-    Kind<OptionalKind.Witness, String> outerOptional =
-        OptionalKindHelper.wrap(Optional.of("World"));
+    Kind<OptionalKind.Witness, String> outerOptional = OPTIONAL.widen(Optional.of("World"));
     MaybeT<OptionalKind.Witness, String> mtLiftF = MaybeT.liftF(optMonad, outerOptional);
 
-    Kind<OptionalKind.Witness, String> outerEmptyOptional =
-        OptionalKindHelper.wrap(Optional.empty());
+    Kind<OptionalKind.Witness, String> outerEmptyOptional = OPTIONAL.widen(Optional.empty());
     MaybeT<OptionalKind.Witness, String> mtLiftFEmpty = MaybeT.liftF(optMonad, outerEmptyOptional);
 
     Kind<OptionalKind.Witness, Maybe<String>> nestedKind =
-        OptionalKindHelper.wrap(Optional.of(Maybe.just("Present")));
+        OPTIONAL.widen(Optional.of(Maybe.just("Present")));
     MaybeT<OptionalKind.Witness, String> mtFromKind = MaybeT.fromKind(nestedKind);
 
     Kind<OptionalKind.Witness, Maybe<String>> wrappedValue = mtJust.value();
-    Optional<Maybe<String>> unwrappedOptional = OptionalKindHelper.unwrap(wrappedValue);
+    Optional<Maybe<String>> unwrappedOptional = OPTIONAL.narrow(wrappedValue);
     System.out.println("mtJust unwrapped: " + unwrappedOptional);
   }
 
@@ -85,7 +84,7 @@ public class MaybeTExample {
                 }
                 return Maybe.nothing();
               });
-      return CompletableFutureKindHelper.wrap(future);
+      return FUTURE.widen(future);
     }
 
     Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> fetchPreferencesAsync(
@@ -104,20 +103,20 @@ public class MaybeTExample {
                 }
                 return Maybe.nothing();
               });
-      return CompletableFutureKindHelper.wrap(future);
+      return FUTURE.widen(future);
     }
 
     Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> getUserPreferencesWorkflow(
         String userIdToFetch) {
 
       Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, User> userMT =
-          MaybeTKindHelper.wrap(MaybeT.fromKind(fetchUserAsync(userIdToFetch)));
+          MAYBE_T.widen(MaybeT.fromKind(fetchUserAsync(userIdToFetch)));
 
       Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> preferencesMT =
           maybeTMonad.flatMap(
               user -> {
                 System.out.println("User found: " + user.name() + ". Now fetching preferences.");
-                return MaybeTKindHelper.wrap(MaybeT.fromKind(fetchPreferencesAsync(user.id())));
+                return MAYBE_T.widen(MaybeT.fromKind(fetchPreferencesAsync(user.id())));
               },
               userMT);
 
@@ -134,7 +133,7 @@ public class MaybeTExample {
                   });
 
       MaybeT<CompletableFutureKind.Witness, UserPreferences> finalMaybeT =
-          MaybeTKindHelper.unwrap(preferencesWithDefaultMT);
+          MAYBE_T.narrow(preferencesWithDefaultMT);
       return finalMaybeT.value();
     }
 
@@ -142,15 +141,13 @@ public class MaybeTExample {
       System.out.println("--- Fetching preferences for known user (user123) ---");
       Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultKnownUserKind =
           getUserPreferencesWorkflow("user123");
-      Maybe<UserPreferences> resultKnownUser =
-          CompletableFutureKindHelper.join(resultKnownUserKind);
+      Maybe<UserPreferences> resultKnownUser = FUTURE.join(resultKnownUserKind);
       System.out.println("Known User Result: " + resultKnownUser);
 
       System.out.println("\n--- Fetching preferences for unknown user (user999) ---");
       Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultUnknownUserKind =
           getUserPreferencesWorkflow("user999");
-      Maybe<UserPreferences> resultUnknownUser =
-          CompletableFutureKindHelper.join(resultUnknownUserKind);
+      Maybe<UserPreferences> resultUnknownUser = FUTURE.join(resultUnknownUserKind);
       System.out.println("Unknown User Result: " + resultUnknownUser);
     }
 

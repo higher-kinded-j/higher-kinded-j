@@ -11,43 +11,35 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper class for working with {@link WriterKind} in the context of higher-kinded types (HKT).
- * Provides static methods for wrapping a {@link Writer} into its HKT form, unwrapping it back,
- * creating {@link Writer} instances represented as HKTs, and running them.
+ * Enum implementing {@link WriterConverterOps} for widen/narrow operations, and providing
+ * additional factory and utility instance methods for {@link Writer} types.
  *
- * @see Writer
- * @see WriterKind
- * @see WriterKind.Witness
- * @see Kind
- * @see Monoid
+ * <p>Access these operations via the singleton {@code WRITER}. For example: {@code
+ * WriterKindHelper.WRITER.widen(Writer.tell("log"));}
  */
-public final class WriterKindHelper {
+public enum WriterKindHelper implements WriterConverterOps {
+  WRITER;
 
-  /** Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Writer";
+  /** Error message for when a {@code null} {@link Kind} is passed to {@link #narrow(Kind)}. */
+  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for Writer";
 
   /**
-   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #unwrap(Kind)}.
+   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #narrow(Kind)}.
    */
   public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a WriterHolder: ";
 
   /**
-   * Error message for when the internal holder in {@link #unwrap(Kind)} contains a {@code null}
-   * Writer instance. This should ideally not occur if {@link #wrap(Writer)} enforces non-null
-   * Writer instances.
+   * Error message for when the internal holder in {@link #narrow(Kind)} contains a {@code null}
+   * Writer instance. This should ideally not occur if {@link #widen(Writer)} enforces non-null
+   * Writer instances and WriterHolder guarantees its content.
    */
   public static final String INVALID_HOLDER_STATE_MSG =
       "WriterHolder contained null Writer instance";
 
-  private WriterKindHelper() {
-    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-  }
-
   /**
    * Internal record implementing {@link WriterKind WriterKind&lt;W, A&gt;} to hold the concrete
-   * {@link Writer Writer&lt;W, A&gt;} instance. Since {@code WriterKind<W, A>} now extends {@code
-   * Kind<WriterKind.Witness<W>, A>}, this holder bridges the concrete type and its HKT
-   * representation.
+   * {@link Writer Writer&lt;W, A&gt;} instance. Changed to package-private for potential test
+   * access.
    *
    * @param <W> The log type.
    * @param <A> The value type.
@@ -56,19 +48,39 @@ public final class WriterKindHelper {
   record WriterHolder<W, A>(@NonNull Writer<W, A> writer) implements WriterKind<W, A> {}
 
   /**
-   * Unwraps a {@code Kind<WriterKind.Witness<W>, A>} back to its concrete {@link Writer
-   * Writer&lt;W, A&gt;} type.
+   * Widens a concrete {@link Writer Writer&lt;W, A&gt;} instance into its higher-kinded
+   * representation, {@code Kind<WriterKind.Witness<W>, A>}. Implements {@link
+   * WriterConverterOps#widen}.
    *
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
-   * @param kind The {@code Kind<WriterKind.Witness<W>, A>} instance to unwrap. Can be
+   * @param writer The concrete {@link Writer Writer&lt;W, A&gt;} instance to widen. Must be
+   *     non-null.
+   * @return A non-null {@code Kind<WriterKind.Witness<W>, A>} representing the wrapped {@code
+   *     Writer}.
+   * @throws NullPointerException if {@code writer} is null.
+   */
+  @Override
+  public <W, A> @NonNull Kind<WriterKind.Witness<W>, A> widen(@NonNull Writer<W, A> writer) {
+    Objects.requireNonNull(writer, "Input Writer cannot be null for widen");
+    return new WriterHolder<>(writer);
+  }
+
+  /**
+   * Narrows a {@code Kind<WriterKind.Witness<W>, A>} back to its concrete {@link Writer
+   * Writer&lt;W, A&gt;} type. Implements {@link WriterConverterOps#narrow}.
+   *
+   * @param <W> The type of the accumulated log/output.
+   * @param <A> The type of the computed value.
+   * @param kind The {@code Kind<WriterKind.Witness<W>, A>} instance to narrow. Can be
    *     {@code @Nullable}.
    * @return The unwrapped, non-null {@link Writer Writer&lt;W, A&gt;} instance.
    * @throws KindUnwrapException if the input {@code kind} is null or not an instance of {@code
-   *     WriterHolder}.
+   *     WriterHolder}. The {@code WriterHolder} guarantees its internal {@code writer} is non-null.
    */
+  @Override
   @SuppressWarnings("unchecked")
-  public static <W, A> @NonNull Writer<W, A> unwrap(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
+  public <W, A> @NonNull Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case WriterKindHelper.WriterHolder<?, ?> holder -> (Writer<W, A>) holder.writer();
@@ -76,64 +88,35 @@ public final class WriterKindHelper {
     };
   }
 
-  /**
-   * Wraps a concrete {@link Writer Writer&lt;W, A&gt;} instance into its higher-kinded
-   * representation, {@link WriterKind WriterKind&lt;W, A&gt;} (which is also a {@code
-   * Kind<WriterKind.Witness<W>, A>}).
-   *
-   * @param <W> The type of the accumulated log/output.
-   * @param <A> The type of the computed value.
-   * @param writer The concrete {@link Writer Writer&lt;W, A&gt;} instance to wrap. Must be
-   *     {@code @NonNull}.
-   * @return A non-null {@link WriterKind WriterKind&lt;W, A&gt;} representing the wrapped {@code
-   *     Writer}.
-   * @throws NullPointerException if {@code writer} is null.
-   */
-  public static <W, A> @NonNull WriterKind<W, A> wrap(@NonNull Writer<W, A> writer) {
-    Objects.requireNonNull(writer, "Input Writer cannot be null for wrap");
-    return new WriterHolder<>(writer);
-  }
+  // --- Additional Writer-specific methods directly on the enum ---
 
   /**
    * Creates a {@code Kind<WriterKind.Witness<W>, A>} with an empty log (based on the provided
-   * {@link Monoid}) and the given value. This is a common way to lift a pure value into the {@link
-   * Writer} context.
+   * {@link Monoid}) and the given value.
    *
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
-   * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must be
-   *     {@code @NonNull}.
+   * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must be non-null.
    * @param value The computed value. Can be {@code @Nullable}.
    * @return A {@code Kind<WriterKind.Witness<W>, A>} representing the value with an empty log.
-   *     Never null.
-   * @throws NullPointerException if {@code monoidW} is null.
    */
-  public static <W, A> @NonNull Kind<WriterKind.Witness<W>, A> value(
+  public <W, A> @NonNull Kind<WriterKind.Witness<W>, A> value(
       @NonNull Monoid<W> monoidW, @Nullable A value) {
-    return wrap(Writer.value(monoidW, value));
+    return this.widen(Writer.value(monoidW, value));
   }
 
   /**
    * Creates a {@code Kind<WriterKind.Witness<W>, Unit>} that logs a message and has a {@link
-   * Unit#INSTANCE} value. Assumes {@link Writer#tell(Object)} is updated to produce {@code
-   * Writer<W, Unit>}.
+   * Unit#INSTANCE} value.
    *
    * @param <W> The type of the accumulated log/output.
-   * @param monoidW The {@link Monoid} instance for the log type {@code W}. (Note: {@code
-   *     Writer.tell} typically doesn't use the monoid directly for the tell operation itself, but
-   *     it's passed for consistency if other operations in {@code Writer} might need it, or if
-   *     {@code Writer.tell} internally uses it to construct a Writer that might be combined later).
-   *     Must be {@code @NonNull}.
    * @param log The log message to accumulate. Must be {@code @NonNull}.
-   * @return A {@code Kind<WriterKind.Witness<W>, Unit>} representing only the log action. Never
-   *     null.
-   * @throws NullPointerException if {@code monoidW} or {@code log} is null.
+   * @return A {@code Kind<WriterKind.Witness<W>, Unit>} representing only the log action.
+   * @throws NullPointerException if {@code log} is null (delegated to Writer.tell).
    */
-  public static <W> @NonNull Kind<WriterKind.Witness<W>, Unit> tell(
-      @NonNull Monoid<W> monoidW, @NonNull W log) {
-    Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for tell helper");
+  public <W> @NonNull Kind<WriterKind.Witness<W>, Unit> tell(@NonNull W log) {
     Objects.requireNonNull(log, "Log message for tell cannot be null");
-    return wrap(Writer.tell(log));
+    return this.widen(Writer.tell(log));
   }
 
   /**
@@ -143,14 +126,12 @@ public final class WriterKindHelper {
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
    * @param kind The {@code Kind<WriterKind.Witness<W>, A>} holding the {@code Writer} computation.
-   *     Must be {@code @NonNull}.
-   * @return The {@link Writer Writer&lt;W, A&gt;} record containing the final value and log. Never
-   *     null.
+   *     Must be non-null.
+   * @return The {@link Writer Writer&lt;W, A&gt;} record containing the final value and log.
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    */
-  public static <W, A> @NonNull Writer<W, A> runWriter(
-      @NonNull Kind<WriterKind.Witness<W>, A> kind) {
-    return unwrap(kind);
+  public <W, A> @NonNull Writer<W, A> runWriter(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
+    return this.narrow(kind);
   }
 
   /**
@@ -160,12 +141,12 @@ public final class WriterKindHelper {
    * @param <W> The type of the accumulated log/output (discarded).
    * @param <A> The type of the computed value.
    * @param kind The {@code Kind<WriterKind.Witness<W>, A>} holding the {@code Writer} computation.
-   *     Must be {@code @NonNull}.
-   * @return The computed value {@code A}. Can be {@code @Nullable} depending on {@code A}.
+   *     Must be non-null.
+   * @return The computed value {@code A}.
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    */
-  public static <W, A> @Nullable A run(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
-    return unwrap(kind).run();
+  public <W, A> @Nullable A run(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
+    return this.narrow(kind).run();
   }
 
   /**
@@ -175,12 +156,11 @@ public final class WriterKindHelper {
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value (discarded).
    * @param kind The {@code Kind<WriterKind.Witness<W>, A>} holding the {@code Writer} computation.
-   *     Must be {@code @NonNull}.
-   * @return The accumulated log {@code W}. Never null (as {@link Writer}'s log is
-   *     {@code @NonNull}).
+   *     Must be non-null.
+   * @return The accumulated log {@code W}.
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    */
-  public static <W, A> @NonNull W exec(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
-    return unwrap(kind).exec();
+  public <W, A> @NonNull W exec(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
+    return this.narrow(kind).exec();
   }
 }

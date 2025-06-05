@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trans.optional_t;
 
+import static org.higherkindedj.hkt.trans.optional_t.OptionalTKindHelper.OPTIONAL_T;
+
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -52,7 +54,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
   @Override
   public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> of(@Nullable A value) {
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.ofNullable(value));
-    return OptionalTKindHelper.wrap(OptionalT.fromKind(lifted));
+    return OPTIONAL_T.widen(OptionalT.fromKind(lifted));
   }
 
   /**
@@ -73,9 +75,9 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       @NonNull Function<A, @Nullable B> f, @NonNull Kind<OptionalTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(f, "Function f cannot be null for map");
     Objects.requireNonNull(fa, "Kind fa cannot be null for map");
-    OptionalT<F, A> optionalT = OptionalTKindHelper.unwrap(fa);
+    OptionalT<F, A> optionalT = OPTIONAL_T.narrow(fa);
     Kind<F, Optional<B>> newValue = outerMonad.map(opt -> opt.map(f), optionalT.value());
-    return OptionalTKindHelper.wrap(OptionalT.fromKind(newValue));
+    return OPTIONAL_T.widen(OptionalT.fromKind(newValue));
   }
 
   /**
@@ -104,13 +106,13 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       @NonNull Kind<OptionalTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
     Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
-    OptionalT<F, Function<A, @Nullable B>> funcT = OptionalTKindHelper.unwrap(ff);
-    OptionalT<F, A> valT = OptionalTKindHelper.unwrap(fa);
+    OptionalT<F, Function<A, @Nullable B>> funcT = OPTIONAL_T.narrow(ff);
+    OptionalT<F, A> valT = OPTIONAL_T.narrow(fa);
 
     Kind<F, Optional<B>> resultValue =
         outerMonad.flatMap(
             optF -> outerMonad.map(optA -> optF.flatMap(optA::map), valT.value()), funcT.value());
-    return OptionalTKindHelper.wrap(OptionalT.fromKind(resultValue));
+    return OPTIONAL_T.widen(OptionalT.fromKind(resultValue));
   }
 
   /**
@@ -134,7 +136,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       @NonNull Kind<OptionalTKind.Witness<F>, A> ma) {
     Objects.requireNonNull(f, "Function f cannot be null for flatMap");
     Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
-    OptionalT<F, A> optionalT = OptionalTKindHelper.unwrap(ma);
+    OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 
     Kind<F, Optional<B>> newValue =
         outerMonad.flatMap(
@@ -142,12 +144,12 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
                 optA.map(
                         a -> {
                           Kind<OptionalTKind.Witness<F>, B> resultKind = f.apply(a);
-                          OptionalT<F, B> resultT = OptionalTKindHelper.unwrap(resultKind);
+                          OptionalT<F, B> resultT = OPTIONAL_T.narrow(resultKind);
                           return resultT.value();
                         })
                     .orElseGet(() -> outerMonad.of(Optional.empty())),
             optionalT.value());
-    return OptionalTKindHelper.wrap(OptionalT.fromKind(newValue));
+    return OPTIONAL_T.widen(OptionalT.fromKind(newValue));
   }
 
   // --- MonadError Methods (Error Type E = Unit) ---
@@ -164,7 +166,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    */
   @Override
   public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> raiseError(@NonNull Unit error) {
-    return OptionalTKindHelper.wrap(OptionalT.none(outerMonad));
+    return OPTIONAL_T.widen(OptionalT.none(outerMonad));
   }
 
   /**
@@ -188,7 +190,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       @NonNull Function<Unit, Kind<OptionalTKind.Witness<F>, A>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
-    OptionalT<F, A> optionalT = OptionalTKindHelper.unwrap(ma);
+    OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 
     Kind<F, Optional<A>> handledValue =
         outerMonad.flatMap(
@@ -197,11 +199,11 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
                 return outerMonad.of(optA);
               } else {
                 Kind<OptionalTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
-                OptionalT<F, A> resultT = OptionalTKindHelper.unwrap(resultKind);
+                OptionalT<F, A> resultT = OPTIONAL_T.narrow(resultKind);
                 return resultT.value();
               }
             },
             optionalT.value());
-    return OptionalTKindHelper.wrap(OptionalT.fromKind(handledValue));
+    return OPTIONAL_T.widen(OptionalT.fromKind(handledValue));
   }
 }

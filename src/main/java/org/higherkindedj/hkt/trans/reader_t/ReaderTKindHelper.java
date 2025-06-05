@@ -9,53 +9,66 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A utility class providing static helper methods for working with {@link ReaderT} instances in the
- * context of higher-kinded types (HKT). It facilitates the conversion between the concrete {@link
- * ReaderT ReaderT&lt;F, R, A&gt;} type and its HKT representation, {@code
- * Kind<ReaderTKind.Witness<F, R>, A>}.
+ * Enum implementing {@link ReaderTConverterOps} for widen/narrow operations for {@link ReaderT}
+ * types.
  *
- * <p>Since {@link ReaderT} now directly implements {@link ReaderTKind}, this helper primarily
- * facilitates type casting and provides runtime safety checks.
- *
- * @see ReaderT
- * @see ReaderTKind
- * @see Kind
- * @see KindUnwrapException
+ * <p>Access these operations via the singleton {@code READER_T}. For example: {@code
+ * ReaderTKindHelper.READER_T.widen(myReaderTInstance);}
  */
-public final class ReaderTKindHelper {
+public enum ReaderTKindHelper implements ReaderTConverterOps {
+  READER_T;
 
-  /** Error message for when a {@code null} {@link Kind} is passed to {@link #unwrap(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for ReaderT";
+  /** Error message for when a {@code null} {@link Kind} is passed to {@link #narrow(Kind)}. */
+  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for ReaderT";
 
   /**
-   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #unwrap(Kind)}.
+   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #narrow(Kind)}.
    */
   public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a ReaderT: ";
 
-  private ReaderTKindHelper() {
-    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  public static final String INVALID_KIND_TYPE_NULL_MSG = "Input ReaderT cannot be null for widen";
+
+  /**
+   * Widens a concrete {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance into its higher-kinded
+   * representation, {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>}. Implements {@link
+   * ReaderTConverterOps#widen}.
+   *
+   * <p>Since {@link ReaderT} directly implements {@link ReaderTKind} (which extends {@code
+   * Kind<ReaderTKind.Witness<F, R_ENV>, A>}), this method effectively performs a safe cast.
+   *
+   * @param <F> The witness type of the outer monad in {@code ReaderT}.
+   * @param <R_ENV> The type of the environment required by the {@code ReaderT}.
+   * @param <A> The type of the value produced by the {@code ReaderT}.
+   * @param readerT The concrete {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance to widen. Must
+   *     be {@code @NonNull}.
+   * @return A non-null {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} representing the wrapped
+   *     {@code readerT}.
+   * @throws NullPointerException if {@code readerT} is {@code null}.
+   */
+  @Override
+  public <F, R_ENV, A> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(
+      @NonNull ReaderT<F, R_ENV, A> readerT) {
+    Objects.requireNonNull(readerT, INVALID_KIND_TYPE_NULL_MSG);
+    // ReaderT<F,R_ENV,A> is already a ReaderTKind<F,R_ENV,A>,
+    // which is a Kind<ReaderTKind.Witness<F,R_ENV>,A>.
+    return readerT;
   }
 
   /**
-   * Unwraps a {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} back to its concrete {@link ReaderT
-   * ReaderT&lt;F, R_ENV, A&gt;} type.
-   *
-   * <p>This method performs runtime checks to ensure the provided {@link Kind} is valid and
-   * actually represents a {@link ReaderT} computation. The type parameter {@code
-   * ReaderTKind.Witness<F, R_ENV>} acts as the witness for the higher-kinded type {@code ReaderT<F,
-   * R_ENV, _>}.
+   * Narrows a {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} back to its concrete {@link ReaderT
+   * ReaderT&lt;F, R_ENV, A&gt;} type. Implements {@link ReaderTConverterOps#narrow}.
    *
    * @param <F> The witness type of the outer monad in {@code ReaderT}.
    * @param <R_ENV> The type of the environment required by the {@code ReaderT}.
    * @param <A> The type of the value produced by the {@code ReaderT} within its outer monad.
-   * @param kind The {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} instance to unwrap. May be
+   * @param kind The {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} instance to narrow. May be
    *     {@code null}.
    * @return The underlying, non-null {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance.
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not an instance of
    *     {@link ReaderT}.
    */
-  @SuppressWarnings("unchecked")
-  public static <F, R_ENV, A> @NonNull ReaderT<F, R_ENV, A> unwrap(
+  @Override
+  public <F, R_ENV, A> @NonNull ReaderT<F, R_ENV, A> narrow(
       @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
@@ -64,27 +77,5 @@ public final class ReaderTKindHelper {
           throw new KindUnwrapException(
               ReaderTKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
-  }
-
-  /**
-   * Wraps a concrete {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance into its higher-kinded
-   * representation, {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>}.
-   *
-   * <p>Since {@link ReaderT} directly implements {@link ReaderTKind} (which extends {@code
-   * Kind<ReaderTKind.Witness<F, R_ENV>, A>}), this method effectively performs a safe cast.
-   *
-   * @param <F> The witness type of the outer monad in {@code ReaderT}.
-   * @param <R_ENV> The type of the environment required by the {@code ReaderT}.
-   * @param <A> The type of the value produced by the {@code ReaderT}.
-   * @param readerT The concrete {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance to wrap. Must
-   *     be {@code @NonNull}.
-   * @return A non-null {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} representing the wrapped
-   *     {@code readerT}.
-   * @throws NullPointerException if {@code readerT} is {@code null}.
-   */
-  public static <F, R_ENV, A> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> wrap(
-      @NonNull ReaderT<F, R_ENV, A> readerT) {
-    Objects.requireNonNull(readerT, "Input ReaderT cannot be null for wrap");
-    return (Kind<ReaderTKind.Witness<F, R_ENV>, A>) (ReaderTKind<F, R_ENV, A>) readerT;
   }
 }
