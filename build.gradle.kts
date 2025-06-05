@@ -148,16 +148,15 @@ signing {
   val hasSigningKey = signingKey != null && signingKey.isNotEmpty()
   val hasSigningPassword = signingPassword != null && signingPassword.isNotEmpty()
 
-  val isReleaseBuild = project.hasProperty("release") || !version.toString().endsWith("-SNAPSHOT")
-
-  if (hasSigningKey && hasSigningPassword) {
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign(publishing.publications["mavenJava"])
-  } else if (isReleaseBuild) {
-    project.logger.error(
-        "RELEASE BUILD ERROR: Signing keys (SIGNING_KEY, SIGNING_PASSWORD) are not set or are empty in the environment. Publication cannot be signed.")
+  if (isReleaseBuild) {
+    if (hasSigningKey && hasSigningPassword) {
+      useInMemoryPgpKeys(signingKey, signingPassword)
+      sign(publishing.publications["mavenJava"])
+    }
+    isRequired = true
+  } else {
+    isRequired = false
   }
-  isRequired = isReleaseBuild
 }
 
 if (!isSnapshotVersion) {
