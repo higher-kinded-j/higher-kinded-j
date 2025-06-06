@@ -4,7 +4,6 @@ package org.higherkindedj.example.draughts;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateKind;
