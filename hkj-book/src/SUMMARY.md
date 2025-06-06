@@ -30,6 +30,7 @@
 
 # Examples
 - [Order Workflow](./order-walkthrough.md)
+- [Draughts Game](./draughts.md)
 
 # Project Info
 - [Contributing](./CONTRIBUTING.md)  
