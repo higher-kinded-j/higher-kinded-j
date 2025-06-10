@@ -71,7 +71,7 @@ The `ReaderTMonad<F, R>` class implements the `Monad<ReaderTKind.Witness<F, R>>`
 ```java
 // Example: F = OptionalKind.Witness, R = AppConfig
 // 1. Get the Monad instance for the outer monad F
-Monad<OptionalKind.Witness> optionalMonad = new OptionalMonad();
+OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
 // 2. Define your environment type
 record AppConfig(String apiKey) {}
@@ -98,7 +98,7 @@ You typically create `ReaderT` instances using its static factory methods. These
  public void createExample(){
   // --- Setup ---
   // Outer Monad F = OptionalKind.Witness
-  Monad<OptionalKind.Witness> optMonad = new OptionalMonad();
+  OptionalMonad optMonad = OptionalMonad.INSTANCE;
 
   // Environment Type R
   record Config(String setting) {

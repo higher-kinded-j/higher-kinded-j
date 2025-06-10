@@ -36,7 +36,7 @@ class EitherTTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    outerMonad = OptionalMonad.INSTANCE;
 
     wrappedRight = OPTIONAL.widen(Optional.of(Either.right(rightValue)));
     wrappedLeft = OPTIONAL.widen(Optional.of(Either.left(leftValue)));

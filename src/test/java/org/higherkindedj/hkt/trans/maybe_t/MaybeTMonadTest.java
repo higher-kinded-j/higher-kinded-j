@@ -25,15 +25,14 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MaybeTMonad Tests (F=OptionalKind.Witness)")
 class MaybeTMonadTest {
 
-  private final Monad<OptionalKind.Witness> outerMonad = new OptionalMonad();
+  private final Monad<OptionalKind.Witness> outerMonad = OptionalMonad.INSTANCE;
   private Monad<MaybeTKind.Witness<OptionalKind.Witness>> maybeTMonad;
 
-  private final String successValue = "SUCCESS";
   private final Integer initialValue = 123;
 
   private <A> Optional<Maybe<A>> unwrapKindToOptionalMaybe(
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> kind) {
-    MaybeT<OptionalKind.Witness, A> maybeT = MAYBE_T.<OptionalKind.Witness, A>narrow(kind);
+    MaybeT<OptionalKind.Witness, A> maybeT = MAYBE_T.narrow(kind);
     Kind<OptionalKind.Witness, Maybe<A>> outerKind = maybeT.value();
     return OPTIONAL.narrow(outerKind);
   }
@@ -65,6 +64,7 @@ class MaybeTMonadTest {
   class OfTests {
     @Test
     void of_shouldWrapValueAsJustInOptional() {
+      String successValue = "SUCCESS";
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> kind = maybeTMonad.of(successValue);
       assertThat(unwrapKindToOptionalMaybe(kind)).isPresent().contains(Maybe.just(successValue));
     }

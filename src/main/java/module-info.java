@@ -3,6 +3,8 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt;
   exports org.higherkindedj.hkt.function;
   exports org.higherkindedj.hkt.exception;
+  exports org.higherkindedj.hkt.tuple;
+  exports org.higherkindedj.hkt.expression;
 
   // Export packages for each HKT simulation
   exports org.higherkindedj.hkt.list;

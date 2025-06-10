@@ -32,7 +32,7 @@ class EitherTMonadTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    outerMonad = OptionalMonad.INSTANCE;
     eitherTMonad = new EitherTMonad<>(outerMonad);
   }
 

@@ -32,7 +32,7 @@ Determine which type constructor (computational context) you want to work with a
 
 Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicative<F_WITNESS>`, `Monad<F_WITNESS>`, `MonadError<F_WITNESS, E>`) for your chosen context's witness type `F_WITNESS`. These are concrete classes provided in the corresponding package.
 
-* Example (`Optional`): `OptionalMonad optionalMonad = new OptionalMonad();` (This implements `MonadError<OptionalKind.Witness, Unit>`)
+* Example (`Optional`): `OptionalMonad optionalMonad = OptionalMonad.INSTANCE;` (This implements `MonadError<OptionalKind.Witness, Unit>`)
 * Example (`List`): `ListMonad listMonad = new ListMonad();` (This implements `Monad<ListKind.Witness>`)
 * Example (`CompletableFuture`): `CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();` (This implements `MonadError<CompletableFutureKind.Witness, Throwable>`)
 * Example (`Either<String, ?>`): `EitherMonad<String> eitherMonad = new EitherMonad<>();` (This implements `MonadError<EitherKind.Witness<String>, String>`)
@@ -70,7 +70,7 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
    ```java
     import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
     // ...
-    OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
     Kind<OptionalKind.Witness, String> optionalKind = OPTIONAL.widen(Optional.of("test")); // from previous step
 
     // --- Using map ---
@@ -184,7 +184,7 @@ public static <F_WITNESS, A, B> Kind<F_WITNESS, B> mapWithFunctor(
 public void genericExample() { // Corrected typo from genricExample
   // Get instances of the type classes for the specific types (F_WITNESS) we want to use
   ListMonad listMonad = new ListMonad(); // Implements Functor<ListKind.Witness>
-  OptionalMonad optionalMonad = new OptionalMonad(); // Implements Functor<OptionalKind.Witness>
+  OptionalMonad optionalMonad = OptionalMonad.INSTANCE; // Implements Functor<OptionalKind.Witness>
 
   Function<Integer, Integer> doubleFn = x -> x * 2;
 

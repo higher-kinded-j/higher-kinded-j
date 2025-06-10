@@ -100,7 +100,7 @@ instance:
 
 ```java
 public void createExample() {
-    Monad<OptionalKind.Witness> optMonad = new OptionalMonad(); // Outer Monad F=Optional
+    Monad<OptionalKind.Witness> optMonad = OptionalMonad.INSTANCE; // Outer Monad F=Optional
     String presentValue = "Hello";
 
     // 1. Lifting a non-null value: Optional<Just(value)>

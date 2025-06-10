@@ -34,7 +34,7 @@ class OptionalTTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad(); // OptionalMonad now provides Monad<OptionalKind.Witness>
+    outerMonad = OptionalMonad.INSTANCE;
 
     wrappedPresent = OPTIONAL.widen(Optional.of(Optional.of(presentValue)));
     wrappedEmpty = OPTIONAL.widen(Optional.of(Optional.empty()));

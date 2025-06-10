@@ -32,7 +32,7 @@ class StateTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    optMonad = new OptionalMonad();
+    optMonad = OptionalMonad.INSTANCE;
     baseStateT =
         StateT.<Integer, OptionalKind.Witness, String>create(
             s -> optMonad.of(StateTuple.of(s + 1, "Val:" + s)), optMonad);

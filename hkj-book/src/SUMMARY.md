@@ -5,6 +5,7 @@
 - [Concepts](./core-concepts.md)
 - [Usage Guide](./usage-guide.md)
 - [Extending](./extending-simulation.md)
+- [For Comprehension](./for_comprehension.md)
 
 - [Monads](./supported-types.md)
   - [CompletableFuture](./cf_monad.md)
@@ -20,6 +21,7 @@
   - [Try](./try_monad.md)
   - [Validated](./validated_monad.md)
   - [Writer](./writer_monad.md)
+  - [MonadZero](./monad_zero.md)
 
 - [Transformers](./transformers.md)
   - [EitherT](./eithert_transformer.md)

@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -35,11 +36,14 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link #raiseError(Unit)}: Returns an empty {@code OptionalKind}.
  *   <li>{@link #handleErrorWith(Kind, Function)}: Allows recovery from an empty {@code
  *       OptionalKind}.
+ *   <li>It treats {@link Optional#empty()} as both the error state and the "zero" element.
  * </ul>
  *
  * <p>This class extends {@link OptionalFunctor} and transitively implements {@link
- * org.higherkindedj.hkt.Monad}, {@link org.higherkindedj.hkt.Applicative}, and {@link
+ * org.higherkindedj.hkt.MonadZero}, {@link org.higherkindedj.hkt.Applicative}, and {@link
  * org.higherkindedj.hkt.Functor}.
+ *
+ * <p>This class is a final singleton, accessible via the static {@link #INSTANCE} field.
  *
  * @see Optional
  * @see OptionalKind
@@ -49,14 +53,13 @@ import org.jspecify.annotations.Nullable;
  * @see Kind
  * @see Unit
  */
-public class OptionalMonad extends OptionalFunctor
-    implements MonadError<OptionalKind.Witness, Unit> {
+public final class OptionalMonad extends OptionalFunctor
+    implements MonadError<OptionalKind.Witness, Unit>, MonadZero<OptionalKind.Witness> {
+  /** Singleton instance of {@code OptionalMonad}. */
+  public static final OptionalMonad INSTANCE = new OptionalMonad();
 
-  /**
-   * Constructs a new {@code OptionalMonad} instance. This constructor is public to allow
-   * instantiation where needed, although typically a single instance can be reused.
-   */
-  public OptionalMonad() {
+  /** Private constructor to enforce the singleton pattern. */
+  private OptionalMonad() {
     // Default constructor
   }
 
@@ -165,5 +168,10 @@ public class OptionalMonad extends OptionalFunctor
     } else {
       return ma;
     }
+  }
+
+  @Override
+  public <T> Kind<OptionalKind.Witness, T> zero() {
+    return OPTIONAL.widen(Optional.empty());
   }
 }

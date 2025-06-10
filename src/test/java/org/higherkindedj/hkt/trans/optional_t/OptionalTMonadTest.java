@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("OptionalTMonad Tests (F=OptionalKind.Witness)")
 class OptionalTMonadTest {
 
-  private final Monad<OptionalKind.Witness> outerMonad = new OptionalMonad();
+  private final Monad<OptionalKind.Witness> outerMonad = OptionalMonad.INSTANCE;
   private MonadError<OptionalTKind.Witness<OptionalKind.Witness>, Unit> optionalTMonad;
 
   private final String successValue = "SUCCESS";

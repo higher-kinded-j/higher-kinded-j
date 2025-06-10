@@ -4,12 +4,11 @@ package org.higherkindedj.example.draughts;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.hkt.io.IOMonad;
-import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateKindHelper;
-import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.unit.Unit;
 
 public class Draughts {
@@ -34,33 +33,35 @@ public class Draughts {
     Kind<IOKind.Witness, Either<GameError, MoveCommand>> readAction =
         InputHandler.readMoveCommand();
 
-    return ioMonad.flatMap(
-        ignored -> // After display...
-        ioMonad.flatMap(
-                eitherResult -> // After read...
-                eitherResult.fold(
-                        error -> { // Left case: Input error
-                          // Create an IO action that prints the error and returns the unchanged
-                          // state
-                          return IOKindHelper.IO_OP.delay(
-                              () -> {
-                                System.out.println("Error: " + error.description());
-                                return currentGameState;
-                              });
-                        },
-                        moveCommand -> { // Right case: Valid input format
-                          // Run the stateful game logic
-                          Kind<StateKind.Witness<GameState>, MoveResult> stateComputation =
-                              GameLogic.applyMove(moveCommand);
-                          StateTuple<GameState, MoveResult> resultTuple =
-                              StateKindHelper.STATE.runState(stateComputation, currentGameState);
+    // 1. Use 'For' to clearly sequence the display and read actions.
+    var sequence =
+        For.from(ioMonad, displayAction)
+            .from(ignored -> readAction)
+            .yield((ignored, eitherResult) -> eitherResult); // Yield the result of the read action
 
-                          // The new state is in the tuple result
-                          GameState nextState = resultTuple.state();
-                          return ioMonad.of(nextState); // Lift the new state back into IO
-                        }),
-                readAction),
-        displayAction);
+    // 2. The result of the 'For' is an IO<Either<...>>.
+    //    Now, flatMap that single result to handle the branching.
+    return ioMonad.flatMap(
+        eitherResult ->
+            eitherResult.fold(
+                error -> { // Left case: Input error
+                  // Print the error and return the unchanged state within an IO action.
+                  return IOKindHelper.IO_OP.delay(
+                      () -> {
+                        System.out.println("Error: " + error.description());
+                        return currentGameState;
+                      });
+                },
+                moveCommand -> { // Right case: Valid input
+                  // Run the stateful game logic.
+                  var stateComputation = GameLogic.applyMove(moveCommand);
+                  var resultTuple =
+                      StateKindHelper.STATE.runState(stateComputation, currentGameState);
+                  GameState nextState = resultTuple.state();
+                  // Lift the new state back into IO.
+                  return ioMonad.of(nextState);
+                }),
+        sequence);
   }
 
   public static void main(String[] args) {

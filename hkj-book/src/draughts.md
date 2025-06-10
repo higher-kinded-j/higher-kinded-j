@@ -1,10 +1,8 @@
-# Building a Playable Draughts Game 
-
+# Building a Playable Draughts Game
 
 ![draughts_board.png](images/draughts_board.png)
 
-
-This tutorial will guide you through building a complete and playable command-line draughts (checkers) game. 
+This tutorial will guide you through building a complete and playable command-line draughts (checkers) game.
 
 We will provide all the necessary code, broken down into manageable files. More importantly, we will demonstrate how `higher-kinded-j` makes this process more robust, maintainable, and functionally elegant by cleanly separating game logic, user interaction, and state management.
 
@@ -22,7 +20,7 @@ At its core, a game like draughts involves several key aspects where functional 
 * **[`State` Monad](state_monad.md)**: For cleanly managing and transitioning the game state without mutable variables.
 * **[`Either` Monad](either_monad.md)**: For handling input parsing and move validation, clearly distinguishing between success and different kinds of errors.
 * **[`IO` Monad](io_monad.md)**: For encapsulating side effects like reading from and printing to the console, keeping the core logic pure.
-* **Monad Transformers** (e.g., [`StateT`](statet_transformer.md), [`EitherT`](eithert_transformer.md)): For when we need to combine effects, like stateful operations that also perform I/O or can fail. We might touch upon this conceptually.
+* [`For` Comprehension](https://www.google.com/search?q=for-comprehension.md): To flatten sequences of monadic operations (`flatMap` calls) into a more readable, sequential style.
 
 By using these, we can build a more declarative and composable game.
 
@@ -319,9 +317,14 @@ This uses `State.of` to create a stateful computation. `State.get()`, `State.set
 
 ### Step 5: Composing with `flatMap` - The Monadic Power
 
-Now, we combine these pieces. We want to: read input (`IO`), then if valid, apply it to the game state (`State`), and then display the result (`IO`). This is where `flatMap` (sometimes you might see this called  `bind`) is essential for sequencing monadic operations.
+Now, we combine these pieces. The main loop needs to:
 
-Since `IO` and `State` are different monads, directly `flatMap`ping them together requires a monad transformer like `StateT<S, IO, A>` or careful sequencing. For simplicity in this introductory tutorial, we can run the `State` computation within an `IO` action.
+1. Display the board (`IO`).
+2. Read user input (`IO`).
+3. If the input is valid, apply it to the game logic (`State`).
+4. Loop with the new game state.
+
+This sequence of operations is a goodt use case for a `For` comprehension to improve on nested `flatMap` calls.
 
 ```java
 
@@ -331,44 +334,41 @@ public class Draughts {
   
   // Processes a single turn of the game
   private static Kind<IOKind.Witness, GameState> processTurn(GameState currentGameState) {
-    // The flow for a turn: Display -> Read -> Process -> Return New State
-    Kind<IOKind.Witness, Unit> displayAction = BoardDisplay.displayBoard(currentGameState);
-    Kind<IOKind.Witness, Either<GameError, MoveCommand>> readAction =
-        InputHandler.readMoveCommand();
+  
+    // 1. Use 'For' to clearly sequence the display and read actions.
+    var sequence = For.from(ioMonad, BoardDisplay.displayBoard(currentGameState))
+        .from(ignored -> InputHandler.readMoveCommand())
+        .yield((ignored, eitherResult) -> eitherResult); // Yield the result of the read action
 
+    // 2. The result of the 'For' is an IO<Either<...>>.
+    //    Now, flatMap that single result to handle the branching.
     return ioMonad.flatMap(
-        ignored -> // After display...
-        ioMonad.flatMap(
-                eitherResult -> // After read...
-                eitherResult.fold(
-                        error -> { // Left case: Input error
-                          // Create an IO action that prints the error and returns the unchanged
-                          // state
-                          return IOKindHelper.IO_OP.delay(
-                              () -> {
-                                System.out.println("Error: " + error.description());
-                                return currentGameState;
-                              });
-                        },
-                        moveCommand -> { // Right case: Valid input format
-                          // Run the stateful game logic
-                          Kind<StateKind.Witness<GameState>, MoveResult> stateComputation =
-                              GameLogic.applyMove(moveCommand);
-                          StateTuple<GameState, MoveResult> resultTuple =
-                              StateKindHelper.STATE.runState(stateComputation, currentGameState);
-
-                          // The new state is in the tuple result
-                          GameState nextState = resultTuple.state();
-                          return ioMonad.of(nextState); // Lift the new state back into IO
-                        }),
-                readAction),
-        displayAction);
+        eitherResult ->
+            eitherResult.fold(
+                error -> { // Left case: Input error
+                  return IOKindHelper.IO_OP.delay(
+                      () -> {
+                        System.out.println("Error: " + error.description());
+                        return currentGameState;
+                      });
+                },
+                moveCommand -> { // Right case: Valid input
+                  var stateComputation = GameLogic.applyMove(moveCommand);
+                  var resultTuple = StateKindHelper.STATE.runState(stateComputation, currentGameState);
+                  return ioMonad.of(resultTuple.state());
+                }),
+        sequence);
   }
+
   
   // other methods....
 }
 
 ```
+
+The `For` comprehension flattens the `display -> read` sequence, making the primary workflow more declarative and easier to read than nested callbacks.
+
+
 
 The [Order Processing Example](order-walkthrough.md) in the `higher-kinded-j` docs shows a more complex scenario using `CompletableFuture` and `EitherT`, which is a great reference for getting started with monad transformers.
 
@@ -455,16 +455,20 @@ public class BoardDisplay {
 
 ![draughts_game.png](images/draughts_game.png)
 
-In the game we can see the black has "kinged" a piece by reaching `e8`.  One thing we are missing is the ability to capture multiple pieces, as would be the case in a real game of draughts.
+In the game we can see the black has "kinged" a piece by reaching `e8`.  
 
 ### Step 8: Refactoring for Multiple Captures
+
+A key rule in draughts is that if a capture is available, it must be taken, and if a capture leads to another possible capture for the same piece, that jump must also be taken.
 
 The beauty of our functional approach is that we only need to modify the core rules in `GameLogic.java`. `The Draughts.java` game loop, the IO handlers, and the data models don't need to change at all.
 
 The core idea is to modify the `performJump` method. After a jump is completed, we will check if the piece that just moved can make another jump from its new position.
 
-If it can, we will update the board state but not switch the current player, forcing them to make another capture.
-If it cannot, we will switch the player as normal.
+We do this by adding a helper `canPieceJump` and modify `performJump` to check for subsequent jumps. 
+
+If another jump is possible, the player's turn does not end., we will update the board state but not switch the current player, forcing them to make another capture.
+If another jump is not possible, we will switch the player as normal.
 
 ```java
 
@@ -502,7 +506,7 @@ If it cannot, we will switch the player as normal.
     return false;
   }
 
-  /** Now checks for subsequent jumps after a capture. */
+  /** Now it checks for further jumps after a capture. */
   private static StateTuple<GameState, MoveResult> performJump(
       GameState state, MoveCommand command, Piece piece, Square jumpedSquare) {
     // Perform the jump and update board
@@ -545,7 +549,6 @@ If it cannot, we will switch the player as normal.
   }
 
 ```
-
 
 ### Why This Functional Approach is Better
 

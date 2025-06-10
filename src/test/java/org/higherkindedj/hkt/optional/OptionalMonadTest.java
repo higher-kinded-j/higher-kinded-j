@@ -15,7 +15,7 @@ import org.junit.jupiter.api.*;
 @DisplayName("OptionalMonad Tests")
 class OptionalMonadTest {
 
-  private final MonadError<OptionalKind.Witness, Unit> optionalMonad = new OptionalMonad();
+  private final MonadError<OptionalKind.Witness, Unit> optionalMonad = OptionalMonad.INSTANCE;
 
   // Helper Functions for Laws
   private final Function<Integer, String> intToString = Object::toString;
@@ -324,6 +324,17 @@ class OptionalMonadTest {
           optionalMonad.handleErrorWith(presentVal, handler);
       assertThat(result).isSameAs(presentVal);
       assertThat(OPTIONAL.narrow(result)).isPresent().contains(100);
+    }
+  }
+
+  @Nested
+  @DisplayName("MonadZero tests")
+  class MonadZeroTests {
+    @Test
+    void zero_shouldReturnEmptyOptional() {
+      Kind<OptionalKind.Witness, Object> zeroKind = OptionalMonad.INSTANCE.zero();
+      Optional<Object> result = OPTIONAL.narrow(zeroKind);
+      assertThat(result).isEmpty();
     }
   }
 }

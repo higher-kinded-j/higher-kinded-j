@@ -78,7 +78,7 @@ You typically create `EitherT` instances using its static factory methods, provi
 
 ```java
 // Assume:
-Monad<OptionalKind.Witness> optMonad = new OptionalMonad(); // Outer Monad F=Optional
+Monad<OptionalKind.Witness> optMonad = OptionalMonad.INSTANCE; // Outer Monad F=Optional
 String errorL = "FAILED";
 String successR = "OK";
 Integer otherR = 123;

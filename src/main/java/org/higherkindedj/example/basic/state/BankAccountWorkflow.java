@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.state.*;
 import org.higherkindedj.hkt.unit.Unit;
 
@@ -92,29 +93,19 @@ public class BankAccountWorkflow {
 
   public static void main(String[] args) {
     AccountState initialState = AccountState.initial(new BigDecimal("100.00"));
-    StringBuilder report = new StringBuilder();
 
-    Kind<StateKind.Witness<AccountState>, String> workflow =
-        accountStateMonad.flatMap(
-            depositTxResult ->
-                accountStateMonad.flatMap(
-                    withdrawTx1Success ->
-                        accountStateMonad.flatMap(
-                            withdrawTx2Result ->
-                                accountStateMonad.flatMap(
-                                    currentBalance ->
-                                        accountStateMonad.map(
-                                            history -> {
-                                              history.forEach(
-                                                  tx -> report.append("  - %s\n".formatted(tx)));
-                                              return report.toString();
-                                            },
-                                            getHistory()),
-                                    getBalance()),
-                            withdraw("Groceries").apply(new BigDecimal("70.00"))),
-                    withdraw("Bill Payment").apply(new BigDecimal("50.00"))),
-            deposit("Salary").apply(new BigDecimal("20.00")));
-
+    var workflow =
+        For.from(accountStateMonad, deposit("Salary").apply(new BigDecimal("20.00")))
+            .from(a -> withdraw("Bill Payment").apply(new BigDecimal("50.00")))
+            .from(b -> withdraw("Groceries").apply(new BigDecimal("70.00")))
+            .from(c -> getBalance())
+            .from(t -> getHistory())
+            .yield(
+                (deposit, w1, w2, bal, history) -> {
+                  var report = new StringBuilder();
+                  history.forEach(tx -> report.append("  - %s\n".formatted(tx)));
+                  return report.toString();
+                });
     StateTuple<AccountState, String> finalResultTuple = STATE.runState(workflow, initialState);
 
     System.out.println(finalResultTuple.value());

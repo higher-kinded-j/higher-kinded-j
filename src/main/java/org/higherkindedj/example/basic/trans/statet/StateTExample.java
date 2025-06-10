@@ -19,7 +19,7 @@ import org.higherkindedj.hkt.trans.state_t.StateTMonad;
 public class StateTExample {
 
   public static void main(String[] args) {
-    OptionalMonad optionalMonad = new OptionalMonad() {};
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
     Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
         currentState -> {

@@ -24,7 +24,7 @@ class EitherTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    outerMonad = OptionalMonad.INSTANCE;
   }
 
   // Helper to create a concrete EitherT with OptionalKind.Witness as F

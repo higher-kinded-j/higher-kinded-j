@@ -28,7 +28,7 @@ class ReaderTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    outerMonad = OptionalMonad.INSTANCE;
   }
 
   // Helper to create a ReaderT for testing
