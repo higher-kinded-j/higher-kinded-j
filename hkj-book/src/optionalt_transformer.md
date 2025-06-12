@@ -70,7 +70,7 @@ public enum OptionalTKindHelper {
 ```java
 // Example: F = CompletableFutureKind.Witness
 // 1. Get the Monad instance for the outer monad F
-Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
 
 // 2. Create the OptionalTMonad
 OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
@@ -94,7 +94,7 @@ OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
 
 ~~~admonish title="Creating _OptionalT_ Instances"
 
-- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/optionalt/OptionalTExample.java)
+- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/optional_t/OptionalTExample.java)
 
 `OptionalT` instances are typically created using its static factory methods. These often require a `Monad<F>` instance for the outer monad.
 
@@ -102,7 +102,7 @@ OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
 public void createExample() {
     // --- Setup ---
     // Outer Monad F = CompletableFutureKind.Witness
-    Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+    Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
     String presentValue = "Data";
     Integer numericValue = 123;
 
@@ -159,7 +159,7 @@ public void createExample() {
 
 ~~~admonish Example title="Asynchronous Multi-Step Data Retrieval"
 
-- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/optionalt/OptionalTExample.java)
+- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/optional_t/OptionalTExample.java)
 
 Consider a scenario where you need to fetch a user, then their profile, and finally their preferences. Each step is asynchronous (`CompletableFuture`) and might return an empty `Optional` if the data is not found. `OptionalT` helps manage this composition cleanly.
 
@@ -167,7 +167,7 @@ Consider a scenario where you need to fetch a user, then their profile, and fina
 public static class OptionalTAsyncExample {
 
     // --- Monad Setup ---
-    static final Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+    static final Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
     static final OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
         new OptionalTMonad<>(futureMonad);
     static final ExecutorService executor = Executors.newFixedThreadPool(2);

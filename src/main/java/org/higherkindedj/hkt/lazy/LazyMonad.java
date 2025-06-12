@@ -28,6 +28,14 @@ import org.jspecify.annotations.Nullable;
 public class LazyMonad
     implements Monad<LazyKind.Witness>, Applicative<LazyKind.Witness>, Functor<LazyKind.Witness> {
 
+  /** Singleton instance of {@code LazyMonad}. */
+  public static final LazyMonad INSTANCE = new LazyMonad();
+
+  /** Private constructor to enforce the singleton pattern. */
+  private LazyMonad() {
+    // Private constructor
+  }
+
   /**
    * Maps a function over a {@code Kind<LazyKind.Witness, A>}.
    *

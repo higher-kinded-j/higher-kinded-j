@@ -8,7 +8,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryMonadError;
+import org.higherkindedj.hkt.trymonad.TryMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/try_monad.html">Try Monad</a>} */
 public class TryExample {
@@ -71,7 +71,7 @@ public class TryExample {
   }
 
   public void basicMonadExample() {
-    TryMonadError tryMonad = new TryMonadError();
+    TryMonad tryMonad = TryMonad.INSTANCE;
 
     Kind<TryKind.Witness, Integer> tryKind1 = TRY.tryOf(() -> 10 / 2); // Success(5) Kind
     Kind<TryKind.Witness, Integer> tryKind2 = TRY.tryOf(() -> 10 / 0); // Failure(...) Kind

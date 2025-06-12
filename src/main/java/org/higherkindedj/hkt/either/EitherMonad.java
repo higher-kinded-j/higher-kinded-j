@@ -29,6 +29,17 @@ import org.jspecify.annotations.Nullable;
 public class EitherMonad<L> extends EitherFunctor<L>
     implements MonadError<EitherKind.Witness<L>, L> {
 
+  private static final EitherMonad<?> INSTANCE = new EitherMonad<>();
+
+  private EitherMonad() {
+    // Private constructor
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <L> EitherMonad<L> instance() {
+    return (EitherMonad<L>) INSTANCE;
+  }
+
   /**
    * Lifts a value into the "Right" side of an {@link Either}. This is equivalent to {@code
    * Either.right(value)}.

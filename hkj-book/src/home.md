@@ -78,7 +78,7 @@ You could adapt Higher-Kinded-J for use in your own projects:
 // latest gradle release 
 
 dependencies {
-  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.4")
+  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.5")
 }
 
 // alternatively if you want to try a SNAPSHOT
@@ -91,7 +91,7 @@ repositories {
 }
 
 dependencies {
-  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.5-SNAPSHOT")
+  implementation("io.github.higher-kinded-j:higher-kinded-j:0.1.6-SNAPSHOT")
 }
 
 ```

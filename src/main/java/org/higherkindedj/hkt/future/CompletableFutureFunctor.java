@@ -35,7 +35,7 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
   /**
    * Constructs a new {@code CompletableFutureFunctor} instance. This constructor is public to allow
    * instantiation where needed, although typically functor operations are accessed via a {@link
-   * CompletableFutureMonadError} instance.
+   * CompletableFutureMonad} instance.
    */
   public CompletableFutureFunctor() {
     // Default constructor

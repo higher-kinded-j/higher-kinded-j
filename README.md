@@ -53,7 +53,7 @@ To see these concepts applied in a more realistic scenario, check out the **Orde
 
 This example demonstrates:
 
-* Orchestrating an asynchronous workflow using `CompletableFutureMonadError`.
+* Orchestrating an asynchronous workflow using `CompletableFutureMonad`.
 * Handling domain-specific errors using `Either` (wrapped within the future).
 * Using the `EitherT` monad transformer to simplify working with the nested `CompletableFuture<Either<DomainError, T>>` structure.
 * Integrating synchronous steps (returning `Either` or `Try`) and asynchronous steps seamlessly within the monadic flow.
@@ -89,26 +89,31 @@ While useful the approach to simulating Higher-Kinded Types has inherent limitat
 The code is organized into packages:
 
 * `org.higherkindedj.hkt`: Core interfaces (`Kind`, `Functor`, `Applicative`, `Monad`, `MonadError`, `Monoid`).
-* `org.higherkindedj.hkt.list`: Components for `List` simulation.
-* `org.higherkindedj.hkt.optional`: Components for `Optional` simulation.
-* `org.higherkindedj.hkt.maybe`: Components for `Maybe` simulation and the `Maybe` type itself.
 * `org.higherkindedj.hkt.either`: Components for `Either` simulation and the `Either` type itself.
+* `org.higherkindedj.hkt.either_t`: Monad Transformer (`EitherT`) components.
+* `org.higherkindedj.hkt.exception`: Custom exceptions like `KindUnwrapException`.
+* `org.higherkindedj.hkt.expression`: For comprehension.
+* `org.higherkindedj.hkt.function`: Helper functional interfaces (`Function3`, `Function4`, `Function5`).
 * `org.higherkindedj.hkt.future`: Components for `CompletableFuture` simulation.
-* `org.higherkindedj.hkt.trymonad`: Components for `Try` simulation and the `Try` type itself.
-* `org.higherkindedj.hkt.io`: Components for `Id` simulation and the `Id` type itself.
+* `org.higherkindedj.hkt.id`: Components for `Id` simulation and the `Id` type itself.
 * `org.higherkindedj.hkt.io`: Components for `IO` simulation and the `IO` type itself.
 * `org.higherkindedj.hkt.lazy`: Components for `Lazy` simulation and the `Lazy` type itself.
+* `org.higherkindedj.hkt.list`: Components for `List` simulation.
+* `org.higherkindedj.hkt.maybe`: Components for `Maybe` simulation and the `Maybe` type itself.
+* `org.higherkindedj.hkt.maybe_t`: Monad Transformer (`MaybeT`) components.
+* `org.higherkindedj.hkt.optional`: Components for `Optional` simulation.
+* `org.higherkindedj.hkt.optional_t`: Monad Transformer (`OptionalT`) components.
 * `org.higherkindedj.hkt.reader`: Components for `Reader` simulation and the `Reader` type itself.
-* `org.higherkindedj.hkt.state`: Components for `State` simulation and the `State` type itself.
+* `org.higherkindedj.hkt.reader_t`: Monad Transformer (`ReaderT`) components.
+* `org.higherkindedj.hkt.state`: Components for `State` simulation and the `State` type itsself
+* `org.higherkindedj.hkt.state_t`: Monad Transformer (`StateT`) components.
+* `org.higherkindedj.hkt.trymonad`: Components for `Try` simulation and the `Try` type itself.
+* `org.higherkindedj.hkt.tuple`: Structural tuples(`Tuple1`, `Tuple2`, `Tuple3`, `Tuple4`, `Tuple5`).
+* `org.higherkindedj.hkt.unit`: Components for `Unit` simulation and the `Unit` type itself.
+* `org.higherkindedj.hkt.validated`: `Validated` simulation and the `Validated` type itsself
 * `org.higherkindedj.hkt.writer`: Components for `Writer` simulation and the `Writer` type itself.
-* `org.higherkindedj.hkt.trans.either_t`: Monad Transformer (`EitherT`) components.
-* `org.higherkindedj.hkt.trans.maybe_t`: Monad Transformer (`MaybeT`) components.
-* `org.higherkindedj.hkt.trans.optional_t`: Monad Transformer (`OptionalT`) components.
-* `org.higherkindedj.hkt.trans.reader_t`: Monad Transformer (`ReaderT`) components.
-* `org.higherkindedj.hkt.trans.state_t`: Monad Transformer (`StateT`) components.
-* `org.higherkindedj.hkt.function`: Helper functional interfaces (`Function3`, `Function4`).
-* `org.higherkindedj.hkt.exception`: Custom exceptions like `KindUnwrapException`.
 * `org.higherkindedj.example.order`: A practical example demonstrating an order processing workflow.
+* `org.higherkindedj.example.order`: A Draughts game showing various features and patterns.
 * `org.higherkindedj.hkt.example`: Contains executable examples demonstrating basic usage.
 
 ## Requirements

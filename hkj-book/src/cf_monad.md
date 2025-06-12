@@ -24,7 +24,7 @@ The simulation for `CompletableFuture` involves these components:
    * `ap(Kind<F, Function<A,B>>, Kind<F, A>)`: Corresponds to `CompletableFuture.thenCombine()`, applying a function from one future to the value of another when both complete.
 6. **`CompletableFutureMonad`**: Extends `Applicative`, implements `Monad<CompletableFutureKind.Witness>`.
    * `flatMap(Function<A, Kind<F, B>>, Kind<F, A>)`: Corresponds to `CompletableFuture.thenCompose()`, sequencing asynchronous operations where one depends on the result of the previous one.
-7. **`CompletableFutureMonadError`**: Extends `Monad`, implements `MonadError<CompletableFutureKind.Witness, Throwable>`. This is often the most useful instance to work with.
+7. **`CompletableFutureMonad`**: Extends `Monad`, implements `MonadError<CompletableFutureKind.Witness, Throwable>`. This is often the most useful instance to work with.
    * `raiseError(Throwable error)`: Creates an already exceptionally completed `CompletableFutureKind` using `CompletableFuture.failedFuture(error)`.
    * `handleErrorWith(Kind<F, A>, Function<Throwable, Kind<F, A>>)`: Corresponds to `CompletableFuture.exceptionallyCompose()`, allowing asynchronous recovery from failures.
 
@@ -44,7 +44,7 @@ The simulation for `CompletableFuture` involves these components:
 ```java
 public void createExample() {
    // Get the MonadError instance
-   CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();
+   CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
 
    // --- Using of() ---
    // Creates a Kind wrapping an already completed future
@@ -84,7 +84,7 @@ These examples show how to use the type class instance (`futureMonad`) to apply 
 ```java
 public void monadExample() {
    // Get the MonadError instance
-   CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();
+   CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
 
    // --- map (thenApply) ---
    Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);
@@ -131,12 +131,12 @@ public void monadExample() {
 
 - [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
-This is where `CompletableFutureMonadError` shines, providing functional error recovery.
+This is where `CompletableFutureMonad` shines, providing functional error recovery.
 
 ```java
  public void errorHandlingExample(){
    // Get the MonadError instance
-   CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();
+   CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
    RuntimeException runtimeEx = new IllegalStateException("Processing Failed");
    IOException checkedEx = new IOException("File Not Found");
 

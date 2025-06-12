@@ -5,7 +5,7 @@ package org.higherkindedj.example.basic.expression;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-import static org.higherkindedj.hkt.trans.state_t.StateTKindHelper.STATE_T;
+import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,9 +20,9 @@ import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.trans.state_t.StateT;
-import org.higherkindedj.hkt.trans.state_t.StateTKind;
-import org.higherkindedj.hkt.trans.state_t.StateTMonad;
+import org.higherkindedj.hkt.state_t.StateT;
+import org.higherkindedj.hkt.state_t.StateTKind;
+import org.higherkindedj.hkt.state_t.StateTMonad;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.hkt.unit.Unit;
 
@@ -55,7 +55,7 @@ public class ForComprehensionExample {
   }
 
   private static void maybeExample() {
-    final MaybeMonad maybeMonad = new MaybeMonad();
+    final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 
     final Kind<MaybeKind.Witness, Integer> maybeInt = MAYBE.just(10);
     final Kind<MaybeKind.Witness, String> maybeString = MAYBE.just("Hello");

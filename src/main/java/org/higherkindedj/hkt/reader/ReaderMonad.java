@@ -20,6 +20,9 @@ import org.jspecify.annotations.NonNull;
  * Witness&lt;R&gt;}. This means that when using {@code ReaderMonad} with generic HKT abstractions,
  * a {@code Reader<R, A>} is represented as {@code Kind<ReaderKind.Witness<R>, A>}.
  *
+ * <p>This class is a singleton for any given environment type {@code R}, managed via the static
+ * {@link #instance()} factory method.
+ *
  * @param <R> The type of the read-only environment. This environment is fixed for a given instance
  *     of {@code ReaderMonad}.
  * @see Reader
@@ -29,7 +32,25 @@ import org.jspecify.annotations.NonNull;
  * @see Monad
  * @see ReaderApplicative
  */
-public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Witness<R>> {
+public final class ReaderMonad<R> extends ReaderApplicative<R>
+    implements Monad<ReaderKind.Witness<R>> {
+
+  private static final ReaderMonad<?> INSTANCE = new ReaderMonad<>();
+
+  private ReaderMonad() {
+    // Private constructor to enforce singleton-per-type pattern
+  }
+
+  /**
+   * Returns the singleton instance of {@code ReaderMonad} for a given environment type {@code R}.
+   *
+   * @param <R> The environment type.
+   * @return The singleton {@code ReaderMonad<R>} instance.
+   */
+  @SuppressWarnings("unchecked")
+  public static <R> ReaderMonad<R> instance() {
+    return (ReaderMonad<R>) INSTANCE;
+  }
 
   /**
    * Sequentially composes two {@link Reader} actions, passing the result of the first {@code

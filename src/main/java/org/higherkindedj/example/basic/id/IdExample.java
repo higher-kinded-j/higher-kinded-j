@@ -3,15 +3,15 @@
 package org.higherkindedj.example.basic.id;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
-import static org.higherkindedj.hkt.trans.state_t.StateTKindHelper.STATE_T;
+import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdentityMonad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.trans.state_t.StateTKind;
-import org.higherkindedj.hkt.trans.state_t.StateTMonad;
+import org.higherkindedj.hkt.state_t.StateTKind;
+import org.higherkindedj.hkt.state_t.StateTMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/identity.html">Identity Monad</a>} */
 public class IdExample {

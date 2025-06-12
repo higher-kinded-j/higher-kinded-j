@@ -79,7 +79,7 @@ public class GenericExample {
     System.out.println("Handled Optional: " + handledOptional); // Output: Optional[Default Value]
 
     // Example for IO:
-    IOMonad ioMonad = new IOMonad();
+    IOMonad ioMonad = IOMonad.INSTANCE;
     Kind<IOKind.Witness, String> ioKind = IO_OP.delay(() -> "Hello from IO!");
     String ioResult = IO_OP.unsafeRunSync(ioKind); // unsafeRunSync is specific to IOKindHelper
     System.out.println(ioResult);

@@ -39,7 +39,7 @@ public class MaybeExample {
   }
 
   void monadExample() {
-    MaybeMonad maybeMonad = new MaybeMonad();
+    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 
     Kind<MaybeKind.Witness, Integer> presentIntKind = MAYBE.just(100);
     Kind<MaybeKind.Witness, Integer> absentIntKind = MAYBE.nothing();
@@ -94,7 +94,7 @@ public class MaybeExample {
   }
 
   void handleErrorWithExample() {
-    MaybeMonad maybeMonad = new MaybeMonad();
+    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     Function<Unit, Kind<MaybeKind.Witness, String>> recover = unitVal -> MAYBE.just("Recovered");
 
     Kind<MaybeKind.Witness, String> handledJust =
@@ -107,7 +107,7 @@ public class MaybeExample {
   }
 
   void apExample() {
-    MaybeMonad maybeMonad = new MaybeMonad();
+    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
     Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
     Kind<MaybeKind.Witness, Function<Integer, String>> justFunc = MAYBE.just(i -> "Result: " + i);
@@ -123,7 +123,7 @@ public class MaybeExample {
   }
 
   void flatMapExample() {
-    MaybeMonad maybeMonad = new MaybeMonad();
+    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     Function<String, Kind<MaybeKind.Witness, Integer>> parseString =
         s -> {
           try {
@@ -144,7 +144,7 @@ public class MaybeExample {
   }
 
   void mapExample() {
-    MaybeMonad maybeMonad = new MaybeMonad();
+    MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
     Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
     Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
 

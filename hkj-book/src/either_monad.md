@@ -170,13 +170,13 @@ To use `Either` within Higher-Kinded-J framework:
 
    ```java
    // Assuming TestError is your error type
-   EitherMonad<TestError> eitherMonad = new EitherMonad<>();
+   EitherMonad<TestError> eitherMonad = EitherMonad.instance()
    // Now 'eitherMonad' can be used for operations on Kind<EitherKind.Witness<String>, A>
    ```
 3. **Wrap**: Convert your `Either<L, R>` instances to `Kind<EitherKind.Witness<L>, R>` using `EITHER.widen()`. Since `Either<L,R>` directly implements `EitherKind<L,R>`.
 
    ```java
-    EitherMonad<String> eitherMonad = new EitherMonad<>();
+    EitherMonad<String> eitherMonad = EitherMonad.instance()
 
     Either<String, Integer> myEither = Either.right(10);
     // F_WITNESS is EitherKind.Witness<String>, A is Integer

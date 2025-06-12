@@ -73,7 +73,7 @@ Convenience for `widen(Maybe.nothing())`.
 
 Lifts a value into `Kind<MaybeKind.Witness, A>`. Uses `Maybe.fromNullable()` internally.
   ```java
-  MaybeMonad maybeMonad = new MaybeMonad();
+  MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
   Kind<MaybeKind.Witness, String> kindFromMonad = maybeMonad.of("Monadic"); // Just("Monadic")
   Kind<MaybeKind.Witness, String> kindNullFromMonad = maybeMonad.of(null);   // Nothing
   ```
@@ -119,7 +119,7 @@ Applies `f` to the value inside `ma` if it's `Just`. If `ma` is `Nothing`, or if
 
 ```java
 void mapExample() {
-  MaybeMonad maybeMonad = new MaybeMonad();
+  MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
   Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
   Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
 
@@ -143,7 +143,7 @@ If `ma` is `Just(a)`, applies `f` to `a`. `f` must return a `Kind<MaybeKind.Witn
 
 ```java
 void flatMapExample() {
-  MaybeMonad maybeMonad = new MaybeMonad();
+  MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
   Function<String, Kind<MaybeKind.Witness, Integer>> parseString = s -> {
     try {
       return MAYBE.just(Integer.parseInt(s));
@@ -170,7 +170,7 @@ If `ff` is `Just(f)` and `fa` is `Just(a)`, applies `f` to `a`. Otherwise, `Noth
 
 ```java
 void apExample() {
-  MaybeMonad maybeMonad = new MaybeMonad();
+  MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
   Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
   Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
   Kind<MaybeKind.Witness, Function<Integer, String>> justFunc = MAYBE.just(i -> "Result: " + i);
@@ -193,7 +193,7 @@ If `ma` is `Just`, it's returned. If `ma` is `Nothing` (the "error" state), `han
 
 ```java
 void handleErrorWithExample() {
-  MaybeMonad maybeMonad = new MaybeMonad();
+  MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
   Function<Unit, Kind<MaybeKind.Witness, String>> recover = v -> MAYBE.just("Recovered");
 
   Kind<MaybeKind.Witness, String> handledJust = maybeMonad.handleErrorWith(MAYBE.just("Original"), recover); // Just("Original")
@@ -212,7 +212,7 @@ A complete example demonstrating generic usage:
 
 ```java
 public void monadExample() {
-  MaybeMonad maybeMonad = new MaybeMonad();
+  MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 
   // 1. Create MaybeKind instances
   Kind<MaybeKind.Witness, Integer> presentIntKind = MAYBE.just(100);

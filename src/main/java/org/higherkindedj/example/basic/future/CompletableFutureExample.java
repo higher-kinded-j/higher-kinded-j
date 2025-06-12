@@ -12,7 +12,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonadError;
+import org.higherkindedj.hkt.future.CompletableFutureMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/cf_monad.html">CompletableFuture Monad</a>} */
 public class CompletableFutureExample {
@@ -25,7 +25,7 @@ public class CompletableFutureExample {
 
   public void errorHandlingExample() {
     // Get the MonadError instance
-    CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();
+    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
     RuntimeException runtimeEx = new IllegalStateException("Processing Failed");
     IOException checkedEx = new IOException("File Not Found");
 
@@ -107,7 +107,7 @@ public class CompletableFutureExample {
 
   public void createExample() {
     // Get the MonadError instance
-    CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();
+    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
 
     // --- Using of() ---
     // Creates a Kind wrapping an already completed future
@@ -143,7 +143,7 @@ public class CompletableFutureExample {
 
   public void monadExample() {
     // Get the MonadError instance
-    CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();
+    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
 
     // --- map (thenApply) ---
     Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);

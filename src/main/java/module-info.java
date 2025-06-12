@@ -23,11 +23,11 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.unit;
 
   // Export packages for monad transformers
-  exports org.higherkindedj.hkt.trans.either_t;
-  exports org.higherkindedj.hkt.trans.maybe_t;
-  exports org.higherkindedj.hkt.trans.optional_t;
-  exports org.higherkindedj.hkt.trans.reader_t;
-  exports org.higherkindedj.hkt.trans.state_t;
+  exports org.higherkindedj.hkt.either_t;
+  exports org.higherkindedj.hkt.maybe_t;
+  exports org.higherkindedj.hkt.optional_t;
+  exports org.higherkindedj.hkt.reader_t;
+  exports org.higherkindedj.hkt.state_t;
 
   requires org.jspecify;
 }

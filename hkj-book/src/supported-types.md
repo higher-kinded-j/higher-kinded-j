@@ -100,8 +100,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Type Class Instances**:
   * `TryFunctor` (`Functor<TryKind.Witness>`)
   * `TryApplicative` (`Applicative<TryKind.Witness>`)
-  * `TryMonad` (`Monad<TryKind.Witness>`)
-  * [`TryMonadError`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trymonad/TryMonadError.java) (`MonadError<TryKind.Witness, Throwable>`)
+  * [`TryMonad`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/trymonad/TryMonad.java) (`MonadError<TryKind.Witness, Throwable>`)
 * **Notes**: `Failure(t)` is the error state. `of(v)` creates `Success(v)`.
 * **Usage**: [How to use the Try Monad](./try_monad.md)
 
@@ -117,7 +116,7 @@ This is achieved by representing the application of a type constructor `F` to a 
   * `CompletableFutureFunctor` (`Functor<CompletableFutureKind.Witness>`)
   * `CompletableFutureApplicative` (`Applicative<CompletableFutureKind.Witness>`)
   * `CompletableFutureMonad` (`Monad<CompletableFutureKind.Witness>`)
-  * [`CompletableFutureMonadError`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/future/CompletableFutureMonadError.java) (`MonadError<CompletableFutureKind.Witness, Throwable>`)
+  * [`CompletableFutureMonad`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/hkt/future/CompletableFutureMonad.java) (`MonadError<CompletableFutureKind.Witness, Throwable>`)
 * **Notes**: Represents asynchronous computations. A failed future is the error state. `of(v)` creates `CompletableFuture.completedFuture(v)`.
 * **Usage**: [How to use the CompletableFuture Monad](./cf_monad.md)
 

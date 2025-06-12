@@ -49,7 +49,7 @@ class LazyMonadTest {
 
   @BeforeEach
   void setUp() {
-    lazyMonad = new LazyMonad();
+    lazyMonad = LazyMonad.INSTANCE;
     // Initialise counters before each test
     counterA = new AtomicInteger(0);
     counterB = new AtomicInteger(0);

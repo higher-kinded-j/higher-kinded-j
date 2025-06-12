@@ -48,7 +48,7 @@ You'll primarily interact with this type when providing type signatures or recei
 ```java
 // Example: F = CompletableFutureKind.Witness, L = DomainError
 // 1. Get the MonadError instance for the outer monad F
-MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = new CompletableFutureMonadError();
+MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = CompletableFutureMonad.INSTANCE;
 
 // 2. Create the EitherTMonad, providing the outer monad instance
 //    This EitherTMonad handles DomainError for the inner Either.
@@ -118,7 +118,7 @@ Optional<Either<String, String>> unwrappedOptional = OPTIONAL.narrow(wrappedValu
 
 ~~~admonish Example title="Async Workflow with Error Handling"
 
-- [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/eithert/EitherTExample.java)
+- [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)
 
 The most common use case for `EitherT` is combining asynchronous operations (`CompletableFuture`) with domain error handling (`Either`).  The `OrderWorkflowRunner` class provides a detailed example.
 
@@ -136,7 +136,7 @@ public class EitherTExample {
   record ValidatedData(String data) {}
   record ProcessedData(String data) {}
 
-  MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = new CompletableFutureMonadError();
+  MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = CompletableFutureMonad.INSTANCE;
   MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError> eitherTMonad =
           new EitherTMonad<>(futureMonad);
 
@@ -249,7 +249,7 @@ public class EitherTExample {
 
 This example demonstrates:
 
-1. Instantiating `EitherTMonad` with the outer `CompletableFutureMonadError`.
+1. Instantiating `EitherTMonad` with the outer `CompletableFutureMonad`.
 2. Lifting the initial value using `eitherTMonad.of`.
 3. Using `eitherTMonad.flatMap` to sequence steps.
 4. Lifting a synchronous `Either` result into `EitherT` using `EitherT.fromEither`.
@@ -270,7 +270,7 @@ The primary use is chaining operations using `flatMap` and handling errors using
 // Assume setup:
 // F = CompletableFutureKind<?>
 // L = DomainError
-// futureMonad = new CompletableFutureMonadError();
+// futureMonad = CompletableFutureMonad.INSTANCE;
 // eitherTMonad = new EitherTMonad<>(futureMonad);
 // steps = new OrderWorkflowSteps(dependencies); // Contains workflow logic
 

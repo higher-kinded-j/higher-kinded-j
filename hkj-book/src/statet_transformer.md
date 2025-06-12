@@ -4,9 +4,9 @@ The `StateT` monad transformer is a powerful construct that allows you to add st
 
 This is incredibly useful when you have computations that are both stateful and involve other effects, such as:
 
-* Potentially missing values (`OptionalKind`)
-* Operations that can fail (`EitherKind`, `TryKind`)
-* Side-effecting computations (`IOKind`)
+* Potentially missing values (`Optional`)
+* Operations that can fail (`Either`, `Try`)
+* Side-effecting computations (`IO`)
 
 ## What is StateT?
 
@@ -25,7 +25,6 @@ Where:
 * `F`: The witness type for the underlying monad (e.g., `OptionalKind.Witness`, `IOKind.Witness`).
 * `A`: The type of the computed value.
 * `StateTuple<S, A>`: A simple container holding a pair of `(state, value)`.
-
 
 ![statet_transformer.svg](images/puml/statet_transformer.svg)
 
@@ -48,9 +47,10 @@ Imagine you're processing a sequence of items, and for each item:
 Without `StateT`, you might end up with deeply nested `Optional<StateTuple<S, A>>` and manually manage both the optionality and the state threading. `StateT<S, OptionalKind.Witness, A>` elegantly combines these concerns.
 
 ## Usage
-~~~admonish example title="Example StateT"
 
-- [StateTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/statet/StateTExample.java)
+
+
+- [StateTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/state_t/StateTExample.java)
 ### Creating StateT Instances
 
 
@@ -90,7 +90,7 @@ You typically create `StateT` instances in a few ways:
 
  
     Optional<StateTuple<Integer, String>> pureResult =
-        OPTIONAL.narrow(StateTKindHelper.runStateT(pureStateT, 10));
+        OPTIONAL.narrow(STATE_T.runStateT(pureStateT, 10));
     System.out.println("Pure StateT result: " + pureResult);
    // When run with state 10, this will result in Optional.of(StateTuple(10, "pure value"))
    ```
@@ -147,7 +147,7 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
     // 2. map's function ("Computed: " + 10) is applied to 10.
     // Result: Optional.of(StateTuple(6, "Computed: 10"))
     Optional<StateTuple<Integer, String>> mappedResult =
-        OPTIONAL.narrow(StateTKindHelper.runStateT(mappedComputation, 5));
+        OPTIONAL.narrow(STATE_T.runStateT(mappedComputation, 5));
     System.out.print("Mapped result (initial state 5): ");
     mappedResult.ifPresentOrElse(System.out::println, () -> System.out.println("Empty"));
     // Output: StateTuple[state=6, value=Computed: 10]
@@ -180,7 +180,7 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
     //    Its function: s' (which is 16) -> Optional.of(StateTuple(16 + 150, "Large: 150"))
     //    Result: Optional.of(StateTuple(166, "Large: 150"))
     Optional<StateTuple<Integer, String>> combinedResult =
-        OPTIONAL.narrow(StateTKindHelper.runStateT(combined, 15));
+        OPTIONAL.narrow(STATE_T.runStateT(combined, 15));
     System.out.print("Combined result (initial state 15): ");
     combinedResult.ifPresentOrElse(System.out::println, () -> System.out.println("Empty"));
 
@@ -193,17 +193,23 @@ Like any monad, `StateT` computations can be composed using `map` and `flatMap`.
     //    Its function: s' (which is 6) -> Optional.empty()
     //    Result: Optional.empty()
     Optional<StateTuple<Integer, String>> combinedEmptyResult =
-        OPTIONAL.narrow(StateTKindHelper.runStateT(combined, 5));
+        OPTIONAL.narrow(STATE_T.runStateT(combined, 5));
     // Output: true
     System.out.println("Is empty from small initial (state 5 for combined): " + combinedEmptyResult.isEmpty());
   ```
-~~~
+* **`ap(ff, fa)`**: Applies a wrapped function to a wrapped value.
+  
+~~~ admonish warning  title="Null Handling"
+  > **Note on Null Handling:** The `ap` method requires the function it extracts from the first `StateT` computation to be non-null. If the function is `null`, a `NullPointerException` will be thrown when the computation is executed. It is the developer's responsibility to ensure that any functions provided within a `StateT` context are non-null. Similarly, the value from the second computation may be `null`, and the provided function must be able to handle a `null` input if that is a valid state.
+  >
+ ~~~
+
 
 ### State-Specific Operations
 
 While `higher-kinded-j`'s `StateT` provides the core monadic structure, you'll often want common state operations like `get`, `set`, `modify`. These can be constructed using `StateT.create` or `StateTKind.lift`.
-~~~admonish example title="_get()_"
-Retrieves the current state as the value.
+
+* **`get()`**:  Retrieves the current state as the value.
 
   ```java
   public static <S, F> Kind<StateTKind.Witness<S, F>, S> get(Monad<F> monadF) {
@@ -212,10 +218,8 @@ Retrieves the current state as the value.
   }
   // Usage: stateTMonad.flatMap(currentState -> ..., get(optionalMonad))
   ```
-~~~
 
-~~~admonish example title="_set(S newState)_"
-Replaces the current state with `newState`. The value is often `Void` or `Unit`.
+* **`set(newState, monadF)`**: Replaces the current state with `newState`. The value is often `Void` or `Unit`.
 
   ```java
   public static <S, F> Kind<StateTKind.Witness<S, F>, Unit> set(S newState, Monad<F> monadF) {
@@ -223,11 +227,9 @@ Replaces the current state with `newState`. The value is often `Void` or `Unit`.
     return StateT.create(runFn, monadF);
   }
   ```
-~~~
 
-~~~admonish example title="_modify(Function<S, S> f)_"
   
-Modifies the state using a function.
+* **`modify(f, monadF)`**: Modifies the state using a function.
 
   ```java
   public static <S, F> Kind<StateTKind.Witness<S, F>, Unit> modify(Function<S, S> f, Monad<F> monadF) {
@@ -235,10 +237,10 @@ Modifies the state using a function.
     return StateT.create(runFn, monadF);
   }
   ```
- ~~~
 
-~~~admonish example title="_gets(Function<S, A> f)_"
-Retrieves a value derived from the current state.
+
+
+* **`gets(f, monadF)`**: Retrieves a value derived from the current state.
 
 ```java
 public static <S, F, A> Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
@@ -246,18 +248,16 @@ Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.of(StateTuple.of(s, f
 return StateT.create(runFn, monadF);
 }
   ```
-~~~
 
-~~~admonish example title="Example: Example: Simple Stack Operations with _StateT<List<Integer>, OptionalKind.Witness, ...>"
 
-- [StateTStackExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trans/statet/StateTStackExample.java)
+- [StateTStackExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/state_t/StateTStackExample.java)
 
 Let's simulate stack operations where the stack is a `List<Integer>` and operations might be absent if, for example, popping an empty stack.
 
 ```java
 public class StateTStackExample {
 
-  private static final OptionalMonad OPT_MONAD = OptionalMonad.INSTANCE;;
+  private static final OptionalMonad OPT_MONAD = OptionalMonad.INSTANCE;
   private static final StateTMonad<List<Integer>, OptionalKind.Witness> ST_OPT_MONAD =
       StateTMonad.instance(OPT_MONAD);
 
@@ -323,7 +323,6 @@ public class StateTStackExample {
   }
 }
 ```
-~~~
 
 ~~~ admonish important  title="Key Points:"
 

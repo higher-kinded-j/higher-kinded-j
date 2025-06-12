@@ -330,7 +330,7 @@ This sequence of operations is a goodt use case for a `For` comprehension to imp
 
 public class Draughts {
 
-  private static final IOMonad ioMonad = new IOMonad();
+  private static final IOMonad ioMonad = IOMonad.INSTANCE;
   
   // Processes a single turn of the game
   private static Kind<IOKind.Witness, GameState> processTurn(GameState currentGameState) {
@@ -380,7 +380,7 @@ The [Order Processing Example](order-walkthrough.md) in the `higher-kinded-j` do
 
 public class Draughts {
 
-  private static final IOMonad ioMonad = new IOMonad();
+  private static final IOMonad ioMonad = IOMonad.INSTANCE;
 
   // The main game loop as a single, recursive IO computation
   private static Kind<IOKind.Witness, Unit> gameLoop(GameState gameState) {
