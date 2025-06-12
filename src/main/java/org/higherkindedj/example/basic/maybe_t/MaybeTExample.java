@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.example.basic.maybet;
+package org.higherkindedj.example.basic.maybe_t;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;

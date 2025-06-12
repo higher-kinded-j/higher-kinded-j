@@ -1,3 +1,5 @@
+// src/test/java/org/higherkindedj/hkt/trans/state_t/StateTMonadTest.java
+
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
@@ -7,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
+
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -15,6 +18,7 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
+
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;
@@ -103,16 +107,11 @@ class StringErrorMonad implements MonadError<IdKind.Witness, String> {
   @Override
   public <A> @NonNull Kind<IdKind.Witness, A> raiseError(@Nullable String error) {
     if (error == null) {
-      // This specific MonadError expects a String, not a Void-representing null.
-      // This situation highlights the type difference when StateTMonad tries to use
-      // its 'ap' error path which assumes it can pass 'null' to a MonadError<F, Void>.
       throw new ClassCastException(
           "Simulated CCE: Null received by StringErrorMonad.raiseError, "
               + "which expects a String representation or has specific null handling "
               + "incompatible with being treated as MonadError<F, Void>.raiseError(null).");
     }
-    // For this stub, we represent error by a null value in IdKind,
-    // and the 'error' string is conceptually associated with it.
     return IdKind.of(null);
   }
 
@@ -121,11 +120,9 @@ class StringErrorMonad implements MonadError<IdKind.Witness, String> {
       @NonNull Kind<IdKind.Witness, A> ma,
       @NonNull Function<String, Kind<IdKind.Witness, A>> handler) {
     IdKind<A> idMa = IdKind.narrow(ma);
-    // Let's assume this IdKind being null means it's in an error state for this MonadError
-    if (idMa.value != null) { // If value is present, it's success
+    if (idMa.value != null) {
       return ma;
     }
-    // If value is null, it's an error; apply handler
     return handler.apply("SIMULATED_ERROR_VALUE_FOR_HANDLER");
   }
 }
@@ -141,7 +138,7 @@ class StateTMonadTest {
 
   private Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> mValue;
   private Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer>
-      mEmpty; // Represents F<empty tuple>
+      mEmpty;
 
   private Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>> f;
   private Function<String, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>> g;
@@ -154,8 +151,8 @@ class StateTMonadTest {
   }
 
   private <A>
-      Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, A> createStateTKindForOptional(
-          Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, A>>> runFn) {
+  Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, A> createStateTKindForOptional(
+      Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, A>>> runFn) {
     if (optMonad == null) {
       throw new IllegalStateException("optMonad must be initialized before creating StateTKind");
     }
@@ -193,15 +190,6 @@ class StateTMonadTest {
     void of_shouldWrapNullAsPresentOptionalHoldingTupleWithNullValue() {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> kind = stateTMonad.of(null);
       Optional<StateTuple<Integer, String>> result = runOptStateT(kind, initialState);
-      // OptionalMonad.of(null) -> Optional.empty()
-      // So StateT.of(null) using OptionalMonad -> s -> Optional.empty()
-      // If the `of` in StateTMonad is s -> monadF.of(StateTuple.of(s, a)),
-      // and monadF.of (OptionalMonad.of) maps null to Optional.empty(), then
-      // this path needs review.
-      // StateTMonad.of(A a) is: s -> monadF.of(StateTuple.of(s,a))
-      // If a is null, it's: s -> optMonad.of(StateTuple.of(s, null))
-      // Since StateTuple can hold null value, optMonad.of(StateTuple.of(s,null)) becomes
-      // Optional.of(StateTuple.of(s,null))
       assertThat(result).isPresent().contains(StateTuple.of(initialState, null));
     }
   }
@@ -241,8 +229,6 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> mappedKind =
           stateTMonad.map(i -> null, initialKind);
       Optional<StateTuple<Integer, String>> result = runOptStateT(mappedKind, initialState);
-      // Optional.map(StateTuple(s',valA) -> StateTuple(s', f(valA)))
-      // If f(valA) is null, it becomes Optional.of(StateTuple(s', null))
       assertThat(result).isPresent().contains(StateTuple.of(initialState + 1, null));
     }
   }
@@ -274,17 +260,6 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> resultKind =
           stateTMonad.ap(funcKind, valKind);
       Optional<StateTuple<Integer, String>> result = runOptStateT(resultKind, 5);
-      // Trace:
-      // s0 = 5
-      // stateTf.run(5) -> optMonad.of(StateTuple(6, func1)) where func1 = i -> "F"+i+5
-      //   tupleF = (StateTuple(6, func1))
-      //   function = func1
-      //   s1 = 6
-      // stateTa.run(s1=6) -> optMonad.of(StateTuple(12, 16)) where valA = 16
-      //   tupleA = StateTuple(12, 16)
-      //   appliedValue = func1(16) = "F"+16+5 = "F165"
-      //   s2 = 12
-      // Result: StateTuple(12, "F165")
       assertThat(result).isPresent().contains(StateTuple.of(12, "F165"));
     }
 
@@ -303,12 +278,14 @@ class StateTMonadTest {
     }
 
     @Test
-    void ap_shouldReturnEmptyIfFunctionInTupleIsNull() {
-      // This tests the path where `monadErrorF.raiseError(null)` is called.
-      // If monadF is OptionalMonad, its MonadError type is Void, so raiseError(null) is fine.
+    @DisplayName("ap should throw NPE when function in tuple is null")
+    void ap_shouldThrowNPEWhenFunctionInTupleIsNull() {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> resultKind =
           stateTMonad.ap(nullFuncKind, valKind);
-      assertThat(runOptStateT(resultKind, 5)).isEmpty();
+
+      assertThatThrownBy(() -> runOptStateT(resultKind, 5))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("Function wrapped in StateT for 'ap' cannot be null.");
     }
   }
 
@@ -337,13 +314,6 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> resultKind =
           stateTMonad.flatMap(fFlatMap, initialKindFlatMap);
       Optional<StateTuple<Integer, String>> result = runOptStateT(resultKind, 10);
-      // Trace:
-      // s0 = 10
-      // initialKindFlatMap.run(10) -> optMonad.of(StateTuple(11, 20))
-      //   tupleA = StateTuple(11, 20), value = 20, state = 11
-      // fFlatMap.apply(20) -> returns StateT B
-      //   StateT B.run(state=11) -> optMonad.of(StateTuple(11+20, "Val:20")) =
-      // optMonad.of(StateTuple(31, "Val:20"))
       assertThat(result).isPresent().contains(StateTuple.of(31, "Val:20"));
     }
 
@@ -367,7 +337,7 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, A> k2) {
     Integer s1 = initialState;
     Integer s2 = initialState + 5;
-    Integer s3 = -1; // Represents a different starting state
+    Integer s3 = -1;
     assertThat(runOptStateT(k1, s1)).as("State %d", s1).isEqualTo(runOptStateT(k2, s1));
     assertThat(runOptStateT(k1, s2)).as("State %d", s2).isEqualTo(runOptStateT(k2, s2));
     assertThat(runOptStateT(k1, s3)).as("State %d", s3).isEqualTo(runOptStateT(k2, s3));
@@ -383,7 +353,7 @@ class StateTMonadTest {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> ofValue =
           stateTMonad.of(value);
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> leftSide =
-          stateTMonad.flatMap(f, ofValue); // f is already defined to return correct Kind
+          stateTMonad.flatMap(f, ofValue);
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> rightSide = f.apply(value);
       assertStateTEquals(leftSide, rightSide);
     }
@@ -394,10 +364,10 @@ class StateTMonadTest {
       Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer>> ofFunc =
           stateTMonad::of;
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> leftSideSuccess =
-          stateTMonad.flatMap(ofFunc, mValue); // mValue is already defined with correct Kind
+          stateTMonad.flatMap(ofFunc, mValue);
       assertStateTEquals(leftSideSuccess, mValue);
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> leftSideEmpty =
-          stateTMonad.flatMap(ofFunc, mEmpty); // mEmpty is already defined with correct Kind
+          stateTMonad.flatMap(ofFunc, mEmpty);
       assertStateTEquals(leftSideEmpty, mEmpty);
     }
 
@@ -405,9 +375,9 @@ class StateTMonadTest {
     @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
     void associativity() {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> innerSuccess =
-          stateTMonad.flatMap(f, mValue); // f, mValue already correct
+          stateTMonad.flatMap(f, mValue);
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> leftSideSuccess =
-          stateTMonad.flatMap(g, innerSuccess); // g is already correct
+          stateTMonad.flatMap(g, innerSuccess);
       Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>>
           rightSideInnerFunc = a -> stateTMonad.flatMap(g, f.apply(a));
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> rightSideSuccess =
@@ -442,7 +412,7 @@ class StateTMonadTest {
       Kind<IdKind.Witness, StateTuple<Integer, String>> resultWrapped =
           STATE_T.runStateT(kind, localInitialState);
       StateTuple<Integer, String> resultTuple =
-          IdKind.narrow(resultWrapped).value; // Assuming IdKind stores value directly
+          IdKind.narrow(resultWrapped).value;
 
       Assertions.assertNotNull(resultTuple);
       assertThat(resultTuple.state()).isEqualTo(localInitialState);
@@ -456,9 +426,8 @@ class StateTMonadTest {
     }
 
     @Test
-    @DisplayName(
-        "ap should throw IllegalStateException when monadErrorF is null and function is null")
-    void ap_throwsIllegalStateWhenMonadErrorFIsNullAndFunctionIsNull() {
+    @DisplayName("ap should throw NullPointerException when function is null")
+    void ap_throwsNPEWhenFunctionIsNullRegardlessOfMonadError() {
       NonErrorMonad nonErrorMonad = new NonErrorMonad(); // Uses IdKind.Witness
       StateTMonad<Integer, IdKind.Witness> stateTWithNonErrorMonad =
           StateTMonad.instance(nonErrorMonad);
@@ -473,14 +442,13 @@ class StateTMonadTest {
           stateTWithNonErrorMonad.ap(nullFuncKind, valKind);
 
       assertThatThrownBy(() -> STATE_T.runStateT(resultKind, localInitialState))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("MonadError<F> instance not available");
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function wrapped in StateT for 'ap' cannot be null");
     }
 
     @Test
-    @DisplayName(
-        "ap should throw IllegalStateException via ClassCastException for non-Void MonadError")
-    void ap_throwsIllegalStateFromClassCastExceptionForNonVoidErrorType() {
+    @DisplayName("ap should throw NullPointerException for null function even with MonadError")
+    void ap_throwsNPEWhenFunctionIsNullForAnyMonadErrorType() {
       StringErrorMonad stringErrorMonad = new StringErrorMonad(); // Uses IdKind.Witness
       StateTMonad<Integer, IdKind.Witness> stateTWithStringErrorMonad =
           StateTMonad.instance(stringErrorMonad);
@@ -495,12 +463,8 @@ class StateTMonadTest {
           stateTWithStringErrorMonad.ap(nullFuncKind, valKind);
 
       assertThatThrownBy(() -> STATE_T.runStateT(resultKind, localInitialState))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining(
-              "Underlying MonadError<F> does not have Unit error type as expected for null function"
-                  + " handling.")
-          .hasCauseInstanceOf(
-              ClassCastException.class); // This CCE is from MonadError cast inside 'ap'
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function wrapped in StateT for 'ap' cannot be null");
     }
   }
 }

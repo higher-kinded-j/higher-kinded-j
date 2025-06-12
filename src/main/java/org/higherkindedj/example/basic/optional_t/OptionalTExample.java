@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.example.basic.optionalt;
+package org.higherkindedj.example.basic.optional_t;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;

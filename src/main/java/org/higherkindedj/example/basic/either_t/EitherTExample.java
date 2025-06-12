@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.example.basic.eithert;
+package org.higherkindedj.example.basic.either_t;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;

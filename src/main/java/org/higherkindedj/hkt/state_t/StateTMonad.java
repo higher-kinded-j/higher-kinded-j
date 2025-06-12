@@ -6,9 +6,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -19,48 +17,33 @@ import org.jspecify.annotations.Nullable;
  * of type {@code S} and produces a result of type {@code A} along with a new state, all within the
  * context of an underlying monad {@code F}.
  *
- * <p>This {@code Monad} instance allows {@code StateT} to be used in monadic compositions, enabling
- * sequences of stateful computations. It requires a {@code Monad<F>} instance for the underlying
- * monad {@code F} to lift operations into {@code StateT}. If the underlying monad {@code F} also
- * implements {@link MonadError}, this instance can leverage error-handling capabilities (e.g., in
- * {@link #ap(Kind, Kind)}).
+ * <p>This {@code Monad} instance enables chaining stateful operations. The underlying monad {@code
+ * F} dictates how the stateful computations are executed (e.g., synchronously, asynchronously, with
+ * error handling). This transformer sequences operations using the flatMap and map capabilities of
+ * the underlying monad.
  *
  * @param <S> The type of the state threaded through the computations.
- * @param <F> The higher-kinded type witness for the underlying monad. This monad dictates how the
- *     stateful computations are executed (e.g., synchronously, asynchronously, with error
- *     handling).
+ * @param <F> The higher-kinded type witness for the underlying monad.
  * @see StateT
  * @see Monad
- * @see MonadError
  */
 public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> {
 
   private final Monad<F> monadF;
-  // Store monadF also as MonadError if it implements it, for raiseError access.
-  private final @Nullable MonadError<F, ?> monadErrorF; // Wildcard for error type
 
   // Private constructor, use factory method
   private StateTMonad(Monad<F> monadF) {
     this.monadF = Objects.requireNonNull(monadF, "Underlying Monad<F> cannot be null");
-    // Check if it's also a MonadError
-    if (monadF instanceof MonadError) {
-      // Store it with a wildcard for the error type, as we don't know it here.
-      this.monadErrorF = (MonadError<F, ?>) monadF;
-    } else {
-      this.monadErrorF = null;
-    }
   }
 
   /**
    * Creates a {@link Monad} instance for {@link StateT} given a {@link Monad} instance for the
    * underlying monad {@code F}.
    *
-   * @param monadF The {@link Monad} instance for the underlying monad {@code F}. This instance
-   *     provides the basic monadic operations (of, map, flatMap, ap) for {@code F}.
+   * @param monadF The {@link Monad} instance for the underlying monad {@code F}.
    * @param <S> The type of the state.
    * @param <F> The higher-kinded type witness for the underlying monad {@code F}.
-   * @return A {@code Monad<StateTKind.Witness<S, F>>} instance capable of performing monadic
-   *     operations on {@code StateT<S, F, A>} values.
+   * @return A {@code Monad<StateTKind.Witness<S, F>>} instance.
    */
   public static <S, F> StateTMonad<S, F> instance(Monad<F> monadF) {
     return new StateTMonad<>(monadF);
@@ -75,13 +58,10 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    *
    * @param a The pure value to lift. Can be {@code null}.
    * @param <A> The type of the value.
-   * @return A {@code StateT<S, F, A>} instance representing the lifted value {@code a} alongside an
-   *     unchanged state, wrapped in the underlying monad {@code F}. Specifically, it's {@code s ->
-   *     monadF.of(StateTuple.of(s, a))}.
+   * @return A {@code StateT<S, F, A>} instance representing the lifted value.
    */
   @Override
   public <A> Kind<StateTKind.Witness<S, F>, A> of(@Nullable A a) {
-    // The run function takes state 's' and returns F<StateTuple(s, a)>
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.of(StateTuple.of(s, a));
     return StateT.<S, F, A>create(runFn, monadF);
   }
@@ -90,35 +70,21 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    * Transforms the value type of a {@code StateT<S, F, A>} from {@code A} to {@code B} using the
    * provided function {@code f}, without altering the state transformation behavior.
    *
-   * <p>The function {@code f} is applied to the value produced by the original {@code StateT}
-   * computation. The state transformation remains the same as the original {@code fa}. This
-   * operation relies on the {@code map} operation of the underlying monad {@code F}.
-   *
    * @param f The function to apply to the value. Must not be {@code null}.
-   * @param fa The {@code StateT<S, F, A>} instance whose value is to be transformed. Must not be
-   *     {@code null}.
+   * @param fa The {@code StateT<S, F, A>} instance whose value is to be transformed.
    * @param <A> The original value type.
    * @param <B> The new value type.
-   * @return A new {@code StateT<S, F, B>} instance. When run, it executes the original state
-   *     transformation and then applies {@code f} to the resulting value, all within the context of
-   *     {@code F}. Specifically, its run function is {@code s -> monadF.map(stateTuple ->
-   *     StateTuple.of(stateTuple.state(), f.apply(stateTuple.value())), stateT.runStateT(s))}.
+   * @return A new {@code StateT<S, F, B>} instance.
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
       @NonNull Function<A, B> f, @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
-    // Define the new run function:
-    // s -> F.map(stateTuple -> StateTuple(stateTuple.state, f(stateTuple.value)),
-    // stateT.runStateT(s))
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s ->
             monadF.map(
-                // Input type for map's function is StateTuple<S, A>
-                // Output type is StateTuple<S, B>
                 stateTuple -> StateTuple.of(stateTuple.state(), f.apply(stateTuple.value())),
-                stateT.runStateT(s) // Input Kind is Kind<F, StateTuple<S, A>>
-                );
+                stateT.runStateT(s));
     return StateT.<S, F, B>create(newRunFn, monadF);
   }
 
@@ -139,26 +105,23 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    * All operations are performed within the context of the underlying monad {@code F}, using its
    * {@code flatMap} and {@code map} methods.
    *
-   * <p>If the function {@code func} extracted from {@code stateTf} is {@code null}, and the
-   * underlying monad {@code F} implements {@link MonadError}, this method attempts to produce an
-   * "empty" or "error" result for {@code StateTuple<S, B>}. This is done by attempting to cast the
-   * stored {@code MonadError<F, ?>} to {@code MonadError<F, Unit>} and calling {@code
-   * raiseError(Unit.INSTANCE)}. This specific handling assumes that the relevant error types (like
-   * those from OptionalMonad or MaybeMonad) are being transitioned to use {@link Unit}. If {@code
-   * F} is not a {@code MonadError} or if the cast/call fails, an {@link IllegalStateException} is
-   * thrown.
+   * <p><b>Important Note on Nulls:</b> The value {@code valA} extracted from the second computation
+   * ({@code fa}) may be {@code null}. This implementation passes this potentially null value
+   * directly to the function extracted from the first computation ({@code ff}). It is the
+   * developer's responsibility to ensure that the provided function can handle a {@code null} input
+   * if the preceding computations can result in a {@code null} value. Failure to do so may result
+   * in a {@code NullPointerException} during execution.
    *
-   * @param ff The {@code StateT<S, F, Function<A, B>>} containing the function to apply. Must not
-   *     be {@code null}.
+   * @param ff The {@code StateT<S, F, Function<A, B>>} containing the function to apply. The
+   *     function wrapped within the StateT must not be null.
    * @param fa The {@code StateT<S, F, A>} containing the value to which the function is applied.
    *     Must not be {@code null}.
    * @param <A> The type of the input value for the function.
    * @param <B> The type of the result of the function application.
    * @return A new {@code StateT<S, F, B>} instance representing the result of applying the function
    *     and sequencing the state transformations.
-   * @throws IllegalStateException if the function extracted from {@code ff} is null and the
-   *     underlying monad {@code F} is not a {@link MonadError} or cannot produce an appropriate
-   *     empty/error value compatible with {@link Unit}.
+   * @throws NullPointerException if {@code ff}, {@code fa}, or the function wrapped within {@code
+   *     ff} is {@code null}.
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
@@ -169,54 +132,32 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
 
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s0 ->
-            // Run the function StateT first
-            monadF.<StateTuple<S, Function<A, B>>, StateTuple<S, B>>flatMap(
-                // Input: tupleF is StateTuple<S, Function<A, B>>
-                // Output: Kind<F, StateTuple<S, B>>
+            // 1. Run the first state computation (which yields the function)
+            monadF.flatMap(
                 tupleF -> {
                   Function<A, B> function = tupleF.value();
                   S s1 = tupleF.state();
 
-                  if (function == null) {
-                    // If function is null, the result of this flatMap step should be empty.
-                    if (this.monadErrorF == null) {
-                      throw new IllegalStateException(
-                          "MonadError<F> instance not available, cannot produce empty value for"
-                              + " null function in ap.");
-                    }
-                    try {
-                      @SuppressWarnings("unchecked")
-                      MonadError<F, Unit> specificMonadError =
-                          (MonadError<F, Unit>) this.monadErrorF;
-                      return specificMonadError.<StateTuple<S, B>>raiseError(Unit.INSTANCE);
-                    } catch (ClassCastException cce) {
-                      throw new IllegalStateException(
-                          "Underlying MonadError<F> does not have Unit error type as expected for"
-                              + " null function handling.",
-                          cce);
-                    }
-                  }
+                  // 2. Enforce that the wrapped function is non-null.
+                  Objects.requireNonNull(
+                      function, "Function wrapped in StateT for 'ap' cannot be null.");
 
-                  // Function is not null, proceed to run stateTa
+                  // 3. Run the second state computation (which yields the value)
+                  //    with the intermediate state (s1).
                   Kind<F, StateTuple<S, A>> resultA = stateTa.runStateT(s1);
 
-                  // Map over the result of stateTa
-                  return monadF.<StateTuple<S, A>, StateTuple<S, B>>map(
+                  // 4. Map over the result of the second computation to apply the function.
+                  return monadF.map(
                       tupleA -> {
-                        // We know 'function' is not null here
-                        B appliedValue = function.apply(tupleA.value());
                         S s2 = tupleA.state();
-                        // Rely on underlying map to handle if appliedValue is
-                        // null for types like Optional
-                        return StateTuple.of(s2, appliedValue);
+                        B finalValue = function.apply(tupleA.value());
+                        return StateTuple.of(s2, finalValue);
                       },
                       resultA);
                 },
-                // Initial run of the function StateT
-                stateTf.runStateT(s0) // Kind<F, StateTuple<S, Function<A, B>>>
-                );
+                stateTf.runStateT(s0));
 
-    return StateT.<S, F, B>create(newRunFn, monadF);
+    return StateT.create(newRunFn, monadF);
   }
 
   /**
