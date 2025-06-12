@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.expression;
 
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -75,6 +76,8 @@ import org.higherkindedj.hkt.tuple.Tuple5;
  * @see Kind
  */
 public final class For {
+
+  private static final String YIELD_CANNOT_RETURN_NULL = "The yield function must not return null.";
 
   private For() {} // Static access only
 
@@ -316,7 +319,9 @@ public final class For {
      * @return A monadic value of type {@code R}.
      */
     public <R> Kind<M, R> yield(Function3<A, B, C, R> f) {
-      return monad.map(t -> f.apply(t._1(), t._2(), t._3()), computation);
+      return monad.map(
+          t -> Objects.requireNonNull(f.apply(t._1(), t._2(), t._3()), YIELD_CANNOT_RETURN_NULL),
+          computation);
     }
 
     /**
@@ -386,7 +391,11 @@ public final class For {
      * @return A monadic value of type {@code R}.
      */
     public <R> Kind<M, R> yield(Function4<A, B, C, D, R> f) {
-      return monad.map(t -> f.apply(t._1(), t._2(), t._3(), t._4()), computation);
+      return monad.map(
+          t ->
+              Objects.requireNonNull(
+                  f.apply(t._1(), t._2(), t._3(), t._4()), YIELD_CANNOT_RETURN_NULL),
+          computation);
     }
 
     /**
@@ -422,7 +431,11 @@ public final class For {
      * @return A monadic value of type {@code R}.
      */
     public <R> Kind<M, R> yield(Function5<A, B, C, D, E, R> f) {
-      return monad.map(t -> f.apply(t._1(), t._2(), t._3(), t._4(), t._5()), computation);
+      return monad.map(
+          t ->
+              Objects.requireNonNull(
+                  f.apply(t._1(), t._2(), t._3(), t._4(), t._5()), YIELD_CANNOT_RETURN_NULL),
+          computation);
     }
 
     /**
@@ -645,7 +658,9 @@ public final class For {
      * @return A monadic value of type {@code R}.
      */
     public <R> Kind<M, R> yield(Function3<A, B, C, R> f) {
-      return monad.map(t -> f.apply(t._1(), t._2(), t._3()), computation);
+      return monad.map(
+          t -> Objects.requireNonNull(f.apply(t._1(), t._2(), t._3()), YIELD_CANNOT_RETURN_NULL),
+          computation);
     }
 
     /**
@@ -727,7 +742,11 @@ public final class For {
      * @return A monadic value of type {@code R}.
      */
     public <R> Kind<M, R> yield(Function4<A, B, C, D, R> f) {
-      return monad.map(t -> f.apply(t._1(), t._2(), t._3(), t._4()), computation);
+      return monad.map(
+          t ->
+              Objects.requireNonNull(
+                  f.apply(t._1(), t._2(), t._3(), t._4()), YIELD_CANNOT_RETURN_NULL),
+          computation);
     }
 
     /**
@@ -775,7 +794,11 @@ public final class For {
      * @return A monadic value of type {@code R}.
      */
     public <R> Kind<M, R> yield(Function5<A, B, C, D, E, R> f) {
-      return monad.map(t -> f.apply(t._1(), t._2(), t._3(), t._4(), t._5()), computation);
+      return monad.map(
+          t ->
+              Objects.requireNonNull(
+                  f.apply(t._1(), t._2(), t._3(), t._4(), t._5()), YIELD_CANNOT_RETURN_NULL),
+          computation);
     }
 
     /**
