@@ -37,7 +37,7 @@ class ReaderTTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    outerMonad = OptionalMonad.INSTANCE;
   }
 
   @Nested

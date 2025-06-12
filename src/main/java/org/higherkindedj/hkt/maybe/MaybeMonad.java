@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -16,7 +17,8 @@ import org.jspecify.annotations.Nullable;
  * the Nothing state. Provides Functor and Monad operations for the Maybe type within the HKT
  * Higher-Kinded-J.
  */
-public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Witness, Unit> {
+public class MaybeMonad extends MaybeFunctor
+    implements MonadError<MaybeKind.Witness, Unit>, MonadZero<MaybeKind.Witness> {
 
   @Override
   public <A> @NonNull Kind<MaybeKind.Witness, A> of(@Nullable A value) {
@@ -82,5 +84,17 @@ public class MaybeMonad extends MaybeFunctor implements MonadError<MaybeKind.Wit
     return MAYBE.narrow(ma).isNothing()
         ? (MaybeKind<A>) handler.apply(Unit.INSTANCE)
         : (MaybeKind<A>) ma;
+  }
+
+  /**
+   * Returns the zero element for the Maybe monad, which is {@code Nothing}. The result is
+   * polymorphic and can be safely cast to any {@code Kind<MaybeKind.Witness, T>}.
+   *
+   * @param <T> The desired inner type of the zero value.
+   * @return The {@code Nothing} instance as a {@code Kind<MaybeKind.Witness, T>}.
+   */
+  @Override
+  public <T> Kind<MaybeKind.Witness, T> zero() {
+    return MAYBE.nothing();
   }
 }

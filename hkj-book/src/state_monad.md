@@ -292,32 +292,17 @@ public class BankAccountWorkflow {
   public static void main(String[] args) {
     // Initial state: Account with £100 balance.
     AccountState initialState = AccountState.initial(new BigDecimal("100.00"));
-    StringBuilder report = new StringBuilder();
-    // Define a sequence of operations
-    Kind<StateKind.Witness<AccountState>, String> workflow =
-        accountStateMonad.flatMap(
-            depositTxResult -> // result of deposit("Salary")
-            accountStateMonad.flatMap(
-                    withdrawTx1Success -> // result of withdraw("Bill Payment")
-                    accountStateMonad.flatMap(
-                            withdrawTx2Result -> // result of withdraw("Groceries")
-                            accountStateMonad.flatMap(
-                                    currentBalance -> // result of getBalance()
-                                    accountStateMonad.map(
-                                            history -> { // 'history' is the result of getHistory()
-                                              history.forEach(
-                                                  tx -> report.append("  - %s\n".formatted(tx)));
-                                              return report.toString();
-                                            },
-                                            getHistory()),
-                                    getBalance()),
-                            withdraw("Groceries").apply(new BigDecimal("70.00"))),
-                    withdraw("Bill Payment").apply(new BigDecimal("50.00"))),
-            deposit("Salary")
-                .apply(
-                    new BigDecimal(
-                        "20.00")) // This is the first stateful ACTION in the flatMap chain
-            );
+   var workflow =
+           For.from(accountStateMonad, deposit("Salary").apply(new BigDecimal("20.00")))
+               .from(a -> withdraw("Bill Payment").apply(new BigDecimal("50.00")))
+               .from(b -> withdraw("Groceries").apply(new BigDecimal("70.00")))
+               .from(c -> getBalance())
+               .from(t -> getHistory())
+               .yield((deposit, w1, w2, bal, history) -> {
+                 var report = new StringBuilder();
+                 history.forEach(tx -> report.append("  - %s\n".formatted(tx)));
+                 return report.toString();
+               });
 
     StateTuple<AccountState, String> finalResultTuple =
         StateKindHelper.runState(workflow, initialState);
@@ -353,7 +338,7 @@ History contains 4 transaction(s):
 ~~~admonish important  title="Key Points:"
 The State monad (`State<S, A>`, `StateKind`, `StateMonad`) , as provided by higher-kinded-j, offers an elegant and functional way to manage state transformations. 
 
-By defining atomic state operations and composing them with map and flatMap, you can build complex stateful workflows that are easier to reason about, test, and maintain, as the state is explicitly managed by the monad's structure rather than through mutable side effects.
+By defining atomic state operations and composing them with map and flatMap, you can build complex stateful workflows that are easier to reason about, test, and maintain, as the state is explicitly managed by the monad's structure rather than through mutable side effects. The For comprehension helps simplify the workflow.
 
 Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.
 

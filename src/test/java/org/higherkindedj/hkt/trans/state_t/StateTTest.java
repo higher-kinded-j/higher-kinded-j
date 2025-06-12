@@ -30,7 +30,7 @@ class StateTTest {
 
   @BeforeEach
   void setUp() {
-    optMonad = new OptionalMonad();
+    optMonad = OptionalMonad.INSTANCE;
   }
 
   // Helper to run and unwrap the outer Optional

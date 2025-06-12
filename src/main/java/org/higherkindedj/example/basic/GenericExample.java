@@ -45,7 +45,7 @@ public class GenericExample {
     // Wrap it into the Higher-Kinded-J Kind type
     // F_WITNESS here is OptionalKind.Witness
     Kind<OptionalKind.Witness, String> optionalKind = OPTIONAL.widen(myOptional);
-    OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
     // --- Using map ---
     Function<String, Integer> lengthFunc = String::length;
     // Apply map using the monad instance
@@ -98,7 +98,8 @@ public class GenericExample {
   public void genricExample() {
     // Get instances of the type classes for the specific types (F_WITNESS) we want to use
     ListMonad listMonad = ListMonad.INSTANCE; // Implements Functor<ListKind.Witness>
-    OptionalMonad optionalMonad = new OptionalMonad(); // Implements Functor<OptionalKind.Witness>
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
+    ; // Implements Functor<OptionalKind.Witness>
 
     Function<Integer, Integer> doubleFn = x -> x * 2;
 

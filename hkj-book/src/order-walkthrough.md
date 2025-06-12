@@ -1,12 +1,12 @@
 # The Order Workflow Example
 
-This example is a practical demonstration of how to use the Higher-Kinded-J library to manage a common real-world scenario.  
+This example is a practical demonstration of how to use the Higher-Kinded-J library to manage a common real-world scenario.
 
 The scenario covers an Order workflow that involves asynchronous operations.  The Operations can fail with specific, expected business errors.
 
 ## Async Operations with Error Handling:
 
-You can find the code for the Order Processing example in the [`org.higherkindedj.example.order`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow) package. 
+You can find the code for the Order Processing example in the [`org.higherkindedj.example.order`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow) package.
 
 **Goal of this Example:**
 
@@ -77,7 +77,6 @@ This example tackles these challenges using:
 4. **Dependency Injection:** A `Dependencies` record holds external collaborators (like a logger). This record is passed to `OrderWorkflowSteps`, making dependencies explicit and testable.
 5. **Structured Logging:** Steps use the injected logger (`dependencies.log(...)`) for consistent logging.
 
-
 ### Setting up `EitherTMonad`
 
 In `OrderWorkflowRunner`, we get the necessary type class instances:
@@ -103,279 +102,173 @@ Now, `eitherTMonad` can be used to chain operations on `EitherT` values (which a
 
 ## Workflow Step-by-Step (`Workflow1.java`)
 
-Let's trace the execution flow defined in `Workflow1`. The workflow uses `flatMap` on the `eitherTMonad` to sequence steps. The state (`WorkflowContext`) is carried implicitly within the `Right` side of the `EitherT`. 
+- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
+
+Let's trace the execution flow defined in `Workflow1`. The workflow uses a `For` comprehension to sequentially chain the steps. steps. The state (`WorkflowContext`) is carried implicitly within the `Right` side of the `EitherT`.
 
 The `OrderWorkflowRunner` initialises and calls `Workflow1` (or `Workflow2`). The core logic for composing the steps resides within these classes.
-~~~admonish example title="Initial State"
 
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
 
-```java
-// From Workflow1.run()
-var initialContext = WorkflowModels.WorkflowContext.start(orderData);
-// Lift the initial context into EitherT: Represents Future<Right(initialContext)>
-var initialET = eitherTMonad.of(initialContext);
-```
+We start with `OrderData` and create an initial `WorkflowContext`.
 
-* We start with `OrderData` and create an initial `WorkflowContext`.
-* `eitherTMonad.of(initialContext)` lifts this context into an `EitherT` value. This represents a `CompletableFuture` that is already successfully completed with an `Either.Right(initialContext)`.We start with OrderData and create an initial WorkflowContext.
+Next `eitherTMonad.of(initialContext)` lifts this context into an `EitherT` value. This represents a `CompletableFuture` that is already successfully completed with an `Either.Right(initialContext)`.We start with OrderData and create an initial WorkflowContext.
   eitherTMonad.of(initialContext) lifts this context into an EitherT value. This represents a CompletableFuture that is already successfully completed with an Either.Right(initialContext).
-~~~
 
 
-~~~admonish example title="Step 1: Validate Order (Synchronous, returns `Either`)"
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
-
-```java
-// From Workflow1.step1ValidateOrder()
-return eitherTMonad.flatMap(
-    ctx -> {
-      var syncResultEitherKind = steps.validateOrder(ctx.initialData()); //
-      var syncResultEither = EITHER.narrow(syncResultEitherKind);
-      var validatedOrderET = EitherT.fromEither(futureMonad, syncResultEither);
-      return eitherTMonad.map(ctx::withValidatedOrder, validatedOrderET);
-    },
-    initialET);
-```
-
-* **Purpose:** Validate the basic order data.
-* **Sync/Async:** Synchronous. `steps.validateOrder` returns `Kind<EitherKind.Witness<DomainError>, ValidatedOrder>`.
-* **HKT Integration:** The `Either` result is unwrapped from its `Kind` and then lifted into the `EitherT<CompletableFuture, ...>` context using `EitherT.fromEither(futureMonad, syncResultEither)`. This wraps the immediate `Either` in a *completed*`CompletableFuture`.
-* **Error Handling:** If `validateOrder` returns a `Left(ValidationError)`, `EitherT.fromEither` creates a `Future<Left(validationError)>`. The subsequent `eitherTMonad.map` to update the context is effectively skipped for the error case within `flatMap`'s logic. The `validatedET` will hold this `Future<Left(validationError)>`, and subsequent `flatMap` calls in the chain will also be skipped.
-~~~
-
-~~~admonish example title="Step 2: Check Inventory (_Asynchronous_)"
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
-
-```java
-// From Workflow1.step2CheckInventory()
-return eitherTMonad.flatMap(
-    ctx -> {
-      var inventoryCheckFutureKind =
-          steps.checkInventoryAsync( //
-              ctx.validatedOrder().productId(), ctx.validatedOrder().quantity());
-      var inventoryCheckET = EitherT.fromKind(inventoryCheckFutureKind);
-      return eitherTMonad.map(ignored -> ctx.withInventoryChecked(), inventoryCheckET);
-    },
-    validatedET); // validatedET is the result from step 1
-```
-
-* **Purpose:** Check if the product is in stock via an external service.
-* **Sync/Async:** Asynchronous. `steps.checkInventoryAsync` returns `Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>>`.
-* **HKT Integration:** The `Kind` returned by the async step (which represents `CompletableFuture<Either<...>>`) is directly wrapped into `EitherT` using `EitherT.fromKind(inventoryCheckFutureKind)`.
-* **Error Handling:** If the `CompletableFuture` from `checkInventoryAsync` completes with `Left(StockError)`, this `Left` is propagated by `flatMap`. If the `CompletableFuture` itself fails (e.g., network error), the outer monad (`futureMonad`) handles it, resulting in a failed `CompletableFuture` wrapped within `inventoryET`.
-~~~
-
-~~~admonish example title="Step 3: Process Payment (_Asynchronous_)"
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
-
-```java
-// From Workflow1.step3ProcessPayment()
-return eitherTMonad.flatMap(
-    ctx -> {
-      var paymentFutureKind =
-          steps.processPaymentAsync( //
-              ctx.validatedOrder().paymentDetails(), ctx.validatedOrder().amount());
-      var paymentConfirmET = EitherT.fromKind(paymentFutureKind);
-      return eitherTMonad.map(ctx::withPaymentConfirmation, paymentConfirmET);
-    },
-    inventoryET); // inventoryET is the result from step 2
-```
-
-* **Purpose:** Charge the customer via a payment gateway.
-* **Sync/Async:** Asynchronous. `steps.processPaymentAsync` returns `Kind<CompletableFutureKind.Witness, Either<DomainError, PaymentConfirmation>>`.
-* **HKT Integration:** Same as Step 2, using `EitherT.fromKind`.
-* **Error Handling:** Propagates `Left(PaymentError)` or underlying `CompletableFuture` failures.
-~~~
-
-~~~admonish example title="Step 4: Create Shipment (_Asynchronous with Recovery_)"
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
-
-```java
-// From Workflow1.step4CreateShipment()
-return eitherTMonad.flatMap(
-    ctx -> {
-      var shipmentAttemptFutureKind =
-          steps.createShipmentAsync( //
-              ctx.validatedOrder().orderId(), ctx.validatedOrder().shippingAddress());
-      var shipmentAttemptET = EitherT.fromKind(shipmentAttemptFutureKind);
-
-      var recoveredShipmentET =
-          eitherTMonad.handleErrorWith(
-              shipmentAttemptET,
-              error -> {
-                if (error instanceof DomainError.ShippingError(String reason) //
-                    && "Temporary Glitch".equals(reason)) {
-                  dependencies.log( //
-                      "WARN (EitherT): Recovering from temporary shipping glitch"
-                          + " with default for order "
-                          + ctx.validatedOrder().orderId());
-                  return eitherTMonad.of( //
-                      new WorkflowModels.ShipmentInfo("DEFAULT_SHIPPING_USED"));
-                } else {
-                  return eitherTMonad.raiseError(error); //
-                }
-              });
-      return eitherTMonad.map(ctx::withShipmentInfo, recoveredShipmentET);
-    },
-    paymentET); // paymentET is the result from step 3
-```
-
-* **Purpose:** Arrange shipment via a shipping service.
-* **Sync/Async:** Asynchronous.
-* **HKT Integration:** Uses `EitherT.fromKind`. Crucially, it then uses `eitherTMonad.handleErrorWith`.
-* **Error Handling & Recovery:** This step demonstrates recovery. If `createShipmentAsync` results in `Left(ShippingError("Temporary Glitch"))`, the `handleErrorWith` block catches this specific `DomainError`. Instead of propagating the error, it returns a *successful*`EitherT` (`eitherTMonad.of(...)`) containing default shipment info. The workflow can then proceed. If any other `DomainError` occurs, it's re-raised using `eitherTMonad.raiseError(...)`, propagating the `Left` state. System errors from the `CompletableFuture` are still handled implicitly by the outer `CompletableFuture` layer.
-~~~
-
-
-~~~admonish example title="Step 5: Map to Final Result"
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
-
-```java
-// From Workflow1.step5FinalResult()
-return eitherTMonad.map(
-    ctx -> {
-      dependencies.log( //
-          "Mapping final context to FinalResult (EitherT) for Order: "
-              + ctx.validatedOrder().orderId());
-      return new WorkflowModels.FinalResult( //
-          ctx.validatedOrder().orderId(),
-          ctx.paymentConfirmation().transactionId(),
-          ctx.shipmentInfo().trackingId());
-    },
-    shipmentET); // shipmentET is the result from step 4
-```
-
-* **Purpose:** Transform the final successful `WorkflowContext` into the desired `FinalResult` record.
-* **HKT Integration:** Uses `eitherTMonad.map` because we are only transforming the value within the `Right` case of the `EitherT`. If `shipmentET` was `Left`, this `map` is skipped, and `finalResultET` will also be `Left`.
-~~~
-
-~~~admonish example title="Step 6: Attempt Notification (_Optional Final Step with Recovery_)"
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
-
-```java
-// From Workflow1.step6NotifyCustomer() / createNotifyCustomerFunction()
-return eitherTMonad.flatMap(
-    finalResult -> {
-      var notifyFutureKind =
-          steps.notifyCustomerAsync( //
-              orderData.customerId(), "Order processed: " + finalResult.orderId());
-      var notifyET = EitherT.fromKind(notifyFutureKind);
-
-      return eitherTMonad.map(
-          ignored -> finalResult, // Return original FinalResult
-          eitherTMonad.handleError( //
-              notifyET,
-              notifyError -> {
-                dependencies.log( //
-                    "WARN (EitherT): Notification failed for successful order "
-                        + finalResult.orderId()
-                        + ": "
-                        + notifyError.message());
-                return Unit.INSTANCE; 
-              })
-      );
-    },
-    finalResultET); // finalResultET is the result from step 5
-```
-
-* **Purpose:** Send a notification (e.g., email) to the customer. Failure here shouldn't fail the whole order.
-* **Sync/Async:** Asynchronous.
-* **HKT Integration:** Uses `flatMap` to sequence the notification, `EitherT.fromKind` to lift the async result, and `handleError` for simple recovery.
-* **Error Handling:** If `notifyCustomerAsync` results in a `Left(NotificationError)`, `handleError` catches it, logs a warning, and recovers by effectively making the notification step result in a `Right(Unit.INSTANCE)` . The outer `map` ensures that the `FinalResult` from the previous step (`finalResultET`) is preserved and becomes the `Right` value of `finalResultWithNotificationET`, regardless of the notification's success or failure.
-~~~
-
-~~~admonish example title="Final Unwrapping"
-
-- [Workflow1.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow1.java)
 
 ```java
 // From Workflow1.run()
-// ... composed workflow results in finalResultWithNotificationET
-var finalConcreteET = EITHER_T.narrow(finalResultWithNotificationET);
+
+var initialContext = WorkflowModels.WorkflowContext.start(orderData);
+
+// The For-comprehension expresses the workflow sequentially.
+// Each 'from' step represents a monadic bind (flatMap).
+var workflow = For.from(eitherTMonad, eitherTMonad.of(initialContext))
+    // Step 1: Validation. The lambda receives the initial context.
+    .from(ctx1 -> {
+      var validatedOrderET = EitherT.fromEither(futureMonad, EITHER.narrow(steps.validateOrder(ctx1.initialData())));
+      return eitherTMonad.map(ctx1::withValidatedOrder, validatedOrderET);
+    })
+    // Step 2: Inventory. The lambda receives a tuple of (initial context, context after validation).
+    .from(t -> {
+      var ctx = t._2(); // Get the context from the previous step
+      var inventoryCheckET = EitherT.fromKind(steps.checkInventoryAsync(ctx.validatedOrder().productId(), ctx.validatedOrder().quantity()));
+      return eitherTMonad.map(ignored -> ctx.withInventoryChecked(), inventoryCheckET);
+    })
+    // Step 3: Payment. The lambda receives a tuple of all previous results. The latest context is the last element.
+    .from(t -> {
+      var ctx = t._3(); // Get the context from the previous step
+      var paymentConfirmET = EitherT.fromKind(steps.processPaymentAsync(ctx.validatedOrder().paymentDetails(), ctx.validatedOrder().amount()));
+      return eitherTMonad.map(ctx::withPaymentConfirmation, paymentConfirmET);
+    })
+    // Step 4: Shipment (with error handling).
+    .from(t -> {
+        var ctx = t._4(); // Get the context from the previous step
+        var shipmentAttemptET = EitherT.fromKind(steps.createShipmentAsync(ctx.validatedOrder().orderId(), ctx.validatedOrder().shippingAddress()));
+        var recoveredShipmentET = eitherTMonad.handleErrorWith(shipmentAttemptET, error -> {
+            if (error instanceof DomainError.ShippingError(var reason) && "Temporary Glitch".equals(reason)) {
+                dependencies.log("WARN: Recovering from temporary shipping glitch for order " + ctx.validatedOrder().orderId());
+                return eitherTMonad.of(new WorkflowModels.ShipmentInfo("DEFAULT_SHIPPING_USED"));
+            }
+            return eitherTMonad.raiseError(error);
+        });
+        return eitherTMonad.map(ctx::withShipmentInfo, recoveredShipmentET);
+    })
+    // Step 5 & 6 are combined in the yield for a cleaner result.
+    .yield(t -> {
+      var finalContext = t._5(); // The context after the last 'from'
+      var finalResult = new WorkflowModels.FinalResult(
+          finalContext.validatedOrder().orderId(),
+          finalContext.paymentConfirmation().transactionId(),
+          finalContext.shipmentInfo().trackingId()
+      );
+
+      // Attempt notification, but recover from failure, returning the original FinalResult.
+      var notifyET = EitherT.fromKind(steps.notifyCustomerAsync(finalContext.initialData().customerId(), "Order processed: " + finalResult.orderId()));
+      var recoveredNotifyET = eitherTMonad.handleError(notifyET, notifyError -> {
+        dependencies.log("WARN: Notification failed for order " + finalResult.orderId() + ": " + notifyError.message());
+        return Unit.INSTANCE;
+      });
+
+      // Map the result of the notification back to the FinalResult we want to return.
+      return eitherTMonad.map(ignored -> finalResult, recoveredNotifyET);
+    });
+
+// The yield returns a Kind<M, Kind<M, R>>, so we must flatten it one last time.
+var flattenedFinalResultET = eitherTMonad.flatMap(x -> x, workflow);
+
+var finalConcreteET = EITHER_T.narrow(flattenedFinalResultET);
 return finalConcreteET.value();
 ```
 
+There is a lot going on in the `For` comprehension so lets try and unpick it.
 
-* The result of the `flatMap` chain, `finalResultWithNotificationET`, is still a `Kind` representing the `EitherT`.
-* We use `EitherTKindHelper.unwrap` to safely cast it back to the concrete `EitherT` record type.
-* We call `finalConcreteET.value()` to extract the underlying `Kind<CompletableFutureKind.Witness, Either<DomainError, FinalResult>>`.
-* The `main` method in `OrderWorkflowRunner` then further unwraps this to a `CompletableFuture<Either<DomainError, FinalResult>>` using `FUTURE.narrow()` and calls `.join()` to get the final `Either` result for printing.
-~~~
+#### Breakdown of the `For` Comprehension:
+
+1. **`For.from(eitherTMonad, eitherTMonad.of(initialContext))`**: The comprehension is initiated with a starting value. We lift the initial `WorkflowContext` into our `EitherT` monad, representing a successful, asynchronous starting point: `Future<Right(initialContext)>`.
+2. **`.from(ctx1 -> ...)` (Validation)**:
+   * **Purpose:** Validates the basic order data.
+   * **Sync/Async:** Synchronous. `steps.validateOrder` returns `Kind<EitherKind.Witness<DomainError>, ValidatedOrder>`.
+   * **HKT Integration:** The `Either` result is lifted into the `EitherT<CompletableFuture, ...>` context using `EitherT.fromEither(...)`. This wraps the immediate `Either` result in a *completed*`CompletableFuture`.
+   * **Error Handling:** If validation fails, `validateOrder` returns a `Left(ValidationError)`. This becomes a `Future<Left(ValidationError)>`, and the `For` comprehension automatically short-circuits, skipping all subsequent steps.
+3. **`.from(t -> ...)` (Inventory Check)**:
+   * **Purpose:** Asynchronously checks if the product is in stock.
+   * **Sync/Async:** Asynchronous. `steps.checkInventoryAsync` returns `Kind<CompletableFutureKind.Witness, Either<DomainError, Unit>>`.
+   * **HKT Integration:** The `Kind` returned by the async step is directly wrapped into `EitherT` using `EitherT.fromKind(...)`.
+   * **Error Handling:** Propagates `Left(StockError)` or underlying `CompletableFuture` failures.
+4. **`.from(t -> ...)` (Payment)**:
+   * **Purpose:** Asynchronously processes the payment.
+   * **Sync/Async:** Asynchronous.
+   * **HKT Integration & Error Handling:** Works just like the inventory check, propagating `Left(PaymentError)` or `CompletableFuture` failures.
+5. **`.from(t -> ...)` (Shipment with Recovery)**:
+   * **Purpose:** Asynchronously creates a shipment.
+   * **HKT Integration:** Uses `EitherT.fromKind` and `eitherTMonad.handleErrorWith`.
+   * **Error Handling & Recovery:** If `createShipmentAsync` returns a `Left(ShippingError("Temporary Glitch"))`, the `handleErrorWith` block catches it and returns a *successful*`EitherT` with default shipment info, allowing the workflow to proceed. All other errors are propagated.
+6. **`.yield(t -> ...)` (Final Result and Notification)**:
+   * **Purpose:** The final block of the `For` comprehension. It takes the accumulated results from all previous steps (in a tuple `t`) and produces the final result of the entire chain.
+   * **Logic:**
+     1. It constructs the `FinalResult` from the successful `WorkflowContext`.
+     2. It attempts the final, non-critical notification step (`notifyCustomerAsync`).
+     3. Crucially, it uses `handleError` on the notification result. If notification fails, it logs a warning but recovers to a `Right(Unit.INSTANCE)`, ensuring the overall workflow remains successful.
+     4. It then maps the result of the recovered notification step back to the `FinalResult`, which becomes the final value of the entire comprehension.
+7. **Final `flatMap` and Unwrapping**:
+   * The `yield` block itself can return a monadic value. To get the final, single-layer result, we do one last `flatMap` over the `For` comprehension's result.
+   * Finally, `EITHER_T.narrow(...)` and `.value()` are used to extract the underlying `Kind<CompletableFutureKind.Witness, Either<...>>` from the `EitherT` record. The `main` method in `OrderWorkflowRunner` then uses `FUTURE.narrow()` and `.join()` to get the final `Either` result for printing.
+
+
 ---
+
 
 ## Alternative: Handling Exceptions with `Try` (`Workflow2.java`)
 
-The `OrderWorkflowRunner` also initialises and can run `Workflow2`. This workflow is very similar to `Workflow1`, but its first step (validation) calls `steps.validateOrderWithTry(ctx.initialData())`.
-
-~~~admonish example title="Handling Exceptions with `Try`"
+The `OrderWorkflowRunner` also initialises and can run `Workflow2`. This workflow is identical to Workflow1 except for the first step. It demonstrates how to integrate synchronous code that might throw exceptions.
 
 - [Workflow2.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/order/workflow/Workflow2.java)
 
 ```java
-// From Workflow2.step1ValidateOrder()
-return eitherTMonad.flatMap(
-    ctx -> {
-      var tryResultKind = steps.validateOrderWithTry(ctx.initialData()); //
-      var tryResult = TRY.narrow(tryResultKind);
-
-      var eitherResult =
-          tryResult.toEither(
-              throwable -> {
-                dependencies.log( //
-                    "Converting Try.Failure to DomainError.ValidationError: "
-                        + throwable.getMessage());
-                return (DomainError) new DomainError.ValidationError(throwable.getMessage()); //
-              });
-
-      var validatedOrderET_Concrete = EitherT.fromEither(futureMonad, eitherResult);
-      var validatedOrderET_Kind = EITHER_T.widen(validatedOrderET_Concrete);
-
-      return eitherTMonad.map(ctx::withValidatedOrder, validatedOrderET_Kind);
-    },
-    initialET);
+// From Workflow2.run(), inside the first .from(...)
+.from(ctx1 -> {
+  var tryResult = TRY.narrow(steps.validateOrderWithTry(ctx1.initialData()));
+  var eitherResult = tryResult.toEither(
+      throwable -> (DomainError) new DomainError.ValidationError(throwable.getMessage()));
+  var validatedOrderET = EitherT.fromEither(futureMonad, eitherResult);
+  // ... map context ...
+})
 ```
 
 * The `steps.validateOrderWithTry` method is designed to throw exceptions on validation failure (e.g., `IllegalArgumentException`).
 * `TRY.tryOf(...)` in `OrderWorkflowSteps` wraps this potentially exception-throwing code, returning a `Kind<TryKind.Witness, ValidatedOrder>`.
-* In the runner (`Workflow2`), we `unwrap` this to get a `Try<ValidatedOrder>`.
-* We use `tryResult.fold(...)` to convert the `Try` into an `Either<DomainError, ValidatedOrder>`:
-  * A `Try.Success(validatedOrder)` becomes `Either.right(validatedOrder)`.
-  * A `Try.Failure(throwable)` is mapped to an `Either.left(new DomainError.ValidationError(throwable.getMessage()))`.
+* In `Workflow2`, we `narrow` this to a concrete `Try<ValidatedOrder>`.
+* We use `tryResult.toEither(...)` to convert the `Try` into an `Either<DomainError, ValidatedOrder>`:
+    * A `Try.Success(validatedOrder)` becomes `Either.right(validatedOrder)`.
+    * A `Try.Failure(throwable)` is mapped to an `Either.left(new DomainError.ValidationError(throwable.getMessage()))`.
 * The resulting `Either` is then lifted into `EitherT` using `EitherT.fromEither`, and the rest of the workflow proceeds as before.
 
-This demonstrates how to integrate synchronous code that might throw exceptions into the `EitherT`-based workflow by explicitly converting `Try.Failure`s into your defined `DomainError` types.
-~~~
+This demonstrates a practical pattern for integrating synchronous, exception-throwing code into the `EitherT`-based workflow by explicitly converting failures into your defined `DomainError` types.
 
-----
+---
 
-~~~admonish important  title="Key Takeaways & How to Apply"
+~~~admonish important  title="Key Points:"
 
 
 This example illustrates several powerful patterns enabled by Higher-Kinded-J:
 
 1.  **`EitherT` for `Future<Either<Error, Value>>`**: This is the core pattern. Use `EitherT` whenever you need to sequence asynchronous operations (`CompletableFuture`) where each step can also fail with a specific, typed error (`Either`).
     * Instantiate `EitherTMonad<F_OUTER_WITNESS, L_ERROR>` with the `Monad<F_OUTER_WITNESS>` instance for your outer monad (e.g., `CompletableFutureMonadError`).
-    * Use `eitherTMonad.flatMap` to chain steps.
+    * Use `eitherTMonad.flatMap` or a `For` comprehension to chain steps.
     * Lift async results (`Kind<F_OUTER_WITNESS, Either<L, R>>`) into `EitherT` using `EitherT.fromKind`.
     * Lift sync results (`Either<L, R>`) into `EitherT` using `EitherT.fromEither`.
     * Lift pure values (`R`) into `EitherT` using `eitherTMonad.of` or `EitherT.right`.
     * Lift errors (`L`) into `EitherT` using `eitherTMonad.raiseError` or `EitherT.left`.
 2.  **Typed Domain Errors**: Use `Either` (often with a sealed interface like `DomainError` for the `Left` type) to represent expected business failures clearly. This improves type safety and makes error handling more explicit.
 3.  **Error Recovery**: Use `eitherTMonad.handleErrorWith` (for complex recovery returning another `EitherT`) or `handleError` (for simpler recovery to a pure value for the `Right` side) to inspect `DomainError`s and potentially recover, allowing the workflow to continue gracefully.
-4.  **Integrating `Try`**: If dealing with synchronous legacy code or libraries that throw exceptions, wrap calls using `TRY.tryOf`. Then, `unwrap` the `Try` and use `toEither` (or `fold`) to convert `Try.Failure` into an appropriate `Either.Left<DomainError>` before lifting into `EitherT`.
+4.  **Integrating `Try`**: If dealing with synchronous legacy code or libraries that throw exceptions, wrap calls using `TRY.tryOf`. Then, `narrow` the `Try` and use `toEither` (or `fold`) to convert `Try.Failure` into an appropriate `Either.Left<DomainError>` before lifting into `EitherT`.
 5.  **Dependency Injection**: Pass necessary dependencies (loggers, service clients, configurations) into your workflow steps (e.g., via a constructor and a `Dependencies` record). This promotes loose coupling and testability.
 6.  **Structured Logging**: Use an injected logger within steps to provide visibility into the workflow's progress and state without tying the steps to a specific logging implementation (like `System.out`).
 7.  **`var` for Conciseness**: Utilise Java's `var` for local variable type inference where the type is clear from the right-hand side of an assignment. This can reduce verbosity, especially with complex generic types common in HKT.
 ~~~
 
-----
+---
 
 ~~~admonish success title="Further Considerations & Potential Enhancements"
 
@@ -393,7 +286,7 @@ While this example covers a the core concepts, a real-world application might in
    * For operations requiring atomicity (all succeed or all fail and roll back), traditional distributed transactions are complex. The Saga pattern mentioned above is a common alternative for managing distributed consistency.
    * Individual steps might interact with transactional resources (e.g., a database). The workflow itself would coordinate these, but doesn't typically manage a global transaction across disparate async services.
 5. **More Detailed & Structured Logging:**
-   * The current logging is simple string messages. For better observability, use a structured logging library (e.g., SLF4J with Logback/Log4j2) and log key-value pairs (e.g., `orderId`, `stepName`, `status`, `durationMs`, `errorType` if applicable). This makes logs easier to parse, query, and analyze.
+   * The current logging is simple string messages. For better observability, use a structured logging library (e.g., SLF4J with Logback/Log4j2) and log key-value pairs (e.g., `orderId`, `stepName`, `status`, `durationMs`, `errorType` if applicable). This makes logs easier to parse, query, and analyse.
    * Consider logging at the beginning and end of each significant step, including the outcome (success/failure and error details).
 6. **Metrics & Monitoring:**
    * Instrument the workflow to emit metrics (e.g., using Micrometer). Track things like workflow execution time, step durations, success/failure counts for each step, and error rates. This is crucial for monitoring the health and performance of the system.

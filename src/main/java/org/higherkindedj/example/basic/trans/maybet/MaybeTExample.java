@@ -35,7 +35,7 @@ public class MaybeTExample {
   }
 
   public void createExample() {
-    Monad<OptionalKind.Witness> optMonad = new OptionalMonad();
+    OptionalMonad optMonad = OptionalMonad.INSTANCE;
     String presentValue = "Hello";
 
     MaybeT<OptionalKind.Witness, String> mtJust = MaybeT.just(optMonad, presentValue);

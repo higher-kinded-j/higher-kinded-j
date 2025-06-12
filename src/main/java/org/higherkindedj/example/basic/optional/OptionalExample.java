@@ -29,7 +29,7 @@ public class OptionalExample {
   }
 
   public void mapExample() {
-    OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
     // Using OPTIONAL.widen which calls the instance method on OptionalKindHelper.OPTIONAL
     Kind<OptionalKind.Witness, Integer> presentNumber = OPTIONAL.widen(Optional.of(10));
     Kind<OptionalKind.Witness, Integer> emptyNumber = OPTIONAL.widen(Optional.empty());
@@ -51,7 +51,7 @@ public class OptionalExample {
   }
 
   public void flatMapExample() {
-    OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
     Kind<OptionalKind.Witness, String> presentInput = OPTIONAL.widen(Optional.of("5"));
     Kind<OptionalKind.Witness, String> emptyInput = OPTIONAL.widen(Optional.empty());
 
@@ -80,7 +80,7 @@ public class OptionalExample {
   }
 
   public void apExample() {
-    OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
     Kind<OptionalKind.Witness, Function<Integer, String>> presentFuncKind =
         OPTIONAL.widen(Optional.of(i -> "Value: " + i));
@@ -103,7 +103,7 @@ public class OptionalExample {
   }
 
   public void handleErrorWithExample() {
-    OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
     Kind<OptionalKind.Witness, String> presentKind = OPTIONAL.widen(Optional.of("Exists"));
     Kind<OptionalKind.Witness, String> emptyKind = OPTIONAL.widen(Optional.empty());
@@ -122,7 +122,7 @@ public class OptionalExample {
   }
 
   public void monadExample() {
-    OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
     Kind<OptionalKind.Witness, Integer> presentIntKind = OPTIONAL.widen(Optional.of(10));
 

@@ -165,7 +165,7 @@ class StateTMonadTest {
 
   @BeforeEach
   void setUp() {
-    optMonad = new OptionalMonad(); // OptionalMonad now uses OptionalKind.Witness
+    optMonad = OptionalMonad.INSTANCE;
     stateTMonad = StateTMonad.instance(optMonad);
 
     mValue = createStateTKindForOptional(s -> optMonad.of(StateTuple.of(s + 1, s * 10)));

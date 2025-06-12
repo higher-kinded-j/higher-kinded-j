@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.trans.reader_t.ReaderTKindHelper.READER_T;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.trans.reader_t.ReaderT;
@@ -27,7 +26,7 @@ public class ReaderTExample {
   public void createExample() {
     // --- Setup ---
     // Outer Monad F = OptionalKind.Witness
-    Monad<OptionalKind.Witness> optMonad = new OptionalMonad();
+    OptionalMonad optMonad = OptionalMonad.INSTANCE;
 
     // Environment Type R
     record Config(String setting) {}

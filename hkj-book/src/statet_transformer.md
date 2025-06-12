@@ -63,7 +63,7 @@ You typically create `StateT` instances in a few ways:
  
 
    // Assume S = Integer (state type), F = OptionalKind.Witness, A = String (value type)
-    OptionalMonad optionalMonad = new OptionalMonad() {};
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
     Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
         currentState -> {
@@ -257,7 +257,7 @@ Let's simulate stack operations where the stack is a `List<Integer>` and operati
 ```java
 public class StateTStackExample {
 
-  private static final OptionalMonad OPT_MONAD = new OptionalMonad();
+  private static final OptionalMonad OPT_MONAD = OptionalMonad.INSTANCE;;
   private static final StateTMonad<List<Integer>, OptionalKind.Witness> ST_OPT_MONAD =
       StateTMonad.instance(OPT_MONAD);
 
@@ -289,19 +289,15 @@ public class StateTStackExample {
   }
 
   public static void main(String[] args) {
-    Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> computation =
-        ST_OPT_MONAD.flatMap(v1 -> // v1 is Unit.INSTANCE from push(10)
-                ST_OPT_MONAD.flatMap(v2 -> // v2 is Unit.INSTANCE from push(20)
-                        ST_OPT_MONAD.flatMap(popped1 -> // popped1 should be 20
-                                ST_OPT_MONAD.flatMap(popped2 -> { // popped2 should be 10
-                                  // Do something with popped1 and popped2
-                                  System.out.println("Popped in order: " + popped1 + ", then " + popped2);
-                                  // Final value of the computation
-                                  return ST_OPT_MONAD.of(popped1 + popped2);
-                                }, pop())
-                            , pop())
-                    , push(20))
-            , push(10));
+    var computation =
+        For.from(ST_OPT_MONAD, push(10))
+            .from(_ -> push(20))
+            .from(_ -> pop())
+            .from(_ -> pop()) // t._3() is the first popped value
+            .yield((a, b, p1, p2) -> {
+              System.out.println("Popped in order: " + p1 + ", then " + p2);
+              return p1 + p2;
+            });
 
 
     List<Integer> initialStack = Collections.emptyList();

@@ -36,7 +36,7 @@ class MaybeTTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    outerMonad = OptionalMonad.INSTANCE;
 
     wrappedJust = OPTIONAL.widen(Optional.of(Maybe.just(presentValue)));
     wrappedNothing = OPTIONAL.widen(Optional.of(Maybe.nothing()));

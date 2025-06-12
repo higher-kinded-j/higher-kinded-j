@@ -32,7 +32,7 @@ class MaybeTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    optionalOuterMonad = new OptionalMonad();
+    optionalOuterMonad = OptionalMonad.INSTANCE;
     ioOuterMonad = new IOMonad();
   }
 

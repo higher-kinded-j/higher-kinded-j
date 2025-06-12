@@ -50,7 +50,7 @@ class ReaderTMonadTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new OptionalMonad();
+    outerMonad = OptionalMonad.INSTANCE;
     readerTMonad = new ReaderTMonad<>(outerMonad);
   }
 

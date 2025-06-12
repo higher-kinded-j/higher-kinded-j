@@ -7,15 +7,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@link Monad} instance for {@link ListKind.Witness}. This class provides monadic operations for
- * lists, treating lists as context that can hold zero, one, or multiple values.
+ * {@link MonadZero} instance for {@link ListKind.Witness}. This class provides monadic operations
+ * for lists, treating lists as a context that can hold zero, one, or multiple values. It also
+ * provides a "zero" element (an empty list).
  */
-public class ListMonad implements Monad<ListKind.Witness> {
+public class ListMonad implements MonadZero<ListKind.Witness> {
 
   /** A ListMonad singleton */
   public static final ListMonad INSTANCE = new ListMonad();
@@ -113,5 +114,10 @@ public class ListMonad implements Monad<ListKind.Witness> {
       resultList.addAll(ListKind.narrow(kindB).unwrap());
     }
     return ListKind.of(resultList);
+  }
+
+  @Override
+  public <T> Kind<ListKind.Witness, T> zero() {
+    return ListKind.of(Collections.emptyList());
   }
 }

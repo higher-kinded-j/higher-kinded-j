@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateMonad;
@@ -72,18 +73,13 @@ public class StateExample {
                         : s.stack().get(s.stack().size() - 1))); // Assuming 0 for empty peek
 
     // Stack Example: Push 10, Push 20, Pop, then Pop again and sum their results
-    Kind<StateKind.Witness<StackState>, Integer> stackProgram =
-        stackStateMonad.flatMap(
-            _ignoredFromPush1 ->
-                stackStateMonad.flatMap(
-                    _ignoredFromPush2 ->
-                        stackStateMonad.flatMap(
-                            poppedValue1 ->
-                                stackStateMonad.map(
-                                    poppedValue2 -> poppedValue1 + poppedValue2, pop),
-                            pop),
-                    push.apply(20)),
-            push.apply(10));
+    // This is much cleaner with a For comprehension.
+    var stackProgram =
+        For.from(stackStateMonad, push.apply(10)) // a is Unit
+            .from(a -> push.apply(20)) // b is Unit
+            .from(b -> pop) // c is 20
+            .from(t -> pop) // d is 10
+            .yield((a, b, c, d) -> c + d); // yield 20 + 10
 
     // To use these actions, you would typically run them with an initial state.
     CounterState initialCounter = new CounterState(0);
@@ -97,16 +93,11 @@ public class StateExample {
     System.out.println("Current count: " + currentCountResult.value());
 
     StackState initialStack = new StackState(Collections.emptyList());
-    Kind<StateKind.Witness<StackState>, Unit> pushTen = push.apply(10);
-    Kind<StateKind.Witness<StackState>, Unit> pushTwenty = push.apply(20);
 
-    StateTuple<StackState, Unit> afterPush10 = STATE.narrow(pushTen).run(initialStack);
-    StateTuple<StackState, Unit> afterPush20 = STATE.narrow(pushTwenty).run(afterPush10.state());
-    System.out.println("Stack after pushes: " + afterPush20.state().stack());
+    StateTuple<StackState, Integer> stackProgramResult = STATE.runState(stackProgram, initialStack);
 
-    StateTuple<StackState, Integer> poppedValueResult = STATE.narrow(pop).run(afterPush20.state());
-    System.out.println("Popped value: " + poppedValueResult.value());
-    System.out.println("Stack after pop: " + poppedValueResult.state().stack());
+    System.out.println("Stack program result: " + stackProgramResult.value());
+    System.out.println("Stack after program: " + stackProgramResult.state().stack());
   }
 
   record CounterState(int count) {}

@@ -49,7 +49,7 @@ Converts a standard `java.util.Optional<A>` into an `OptionalKind<A>`.
 Lifts a single value (which can be `null`) into the `OptionalKind` context. It uses `Optional.ofNullable(value)` internally.
 
 ```java
-OptionalMonad optionalMonad = new OptionalMonad();
+OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
 Kind<OptionalKind.Witness, String> kindFromValue = optionalMonad.of("World"); // Wraps Optional.of("World")
 Kind<OptionalKind.Witness, Integer> kindFromNullValue = optionalMonad.of(null); // Wraps Optional.empty()
@@ -63,7 +63,7 @@ Creates an empty `OptionalKind`. Since `Unit` is the error type, this method eff
 
 ```java
 
-OptionalMonad optionalMonad = new OptionalMonad();
+OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 Kind<OptionalKind.Witness, String> emptyKindFromError = optionalMonad.raiseError(Unit.INSTANCE); // Represents Optional.empty()
 ```
 ~~~
@@ -98,7 +98,7 @@ Applies a function `f` to the value inside `fa` if it's present. If `fa` is empt
 ```java
 
 public void mapExample() {
-   OptionalMonad optionalMonad = new OptionalMonad();
+   OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
    OptionalKind<Integer> presentNumber = OPTIONAL.widen(Optional.of(10));
    OptionalKind<Integer> emptyNumber = OPTIONAL.widen(Optional.empty());
 
@@ -129,7 +129,7 @@ Applies a function `f` to the value inside `ma` if it's present. The function `f
 
 ```java
 public void flatMapExample() {
-   OptionalMonad optionalMonad = new OptionalMonad();
+   OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
    OptionalKind<String> presentInput = OPTIONAL.widen(Optional.of("5"));
    OptionalKind<String> emptyInput = OPTIONAL.widen(Optional.empty());
 
@@ -166,7 +166,7 @@ Applies an `OptionalKind` containing a function `ff` to an `OptionalKind` contai
 
 ```java
  public void apExample() {
-   OptionalMonad optionalMonad = new OptionalMonad();
+   OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
    OptionalKind<Function<Integer, String>> presentFuncKind =
            OPTIONAL.widen(Optional.of(i -> "Value: " + i));
@@ -204,7 +204,7 @@ If `ma` is present, it's returned. If `ma` is empty (the "error" state), the `ha
 
 ```java
 public void handleErrorWithExample() {
-   OptionalMonad optionalMonad = new OptionalMonad();
+   OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
    Kind<OptionalKind.Witness, String> presentKind = OPTIONAL.widen(Optional.of("Exists"));
    OptionalKind<String> emptyKind = OPTIONAL.widen(Optional.empty());
@@ -234,48 +234,48 @@ public void handleErrorWithExample() {
 To use `OptionalMonad` in generic contexts that operate over `Kind<F, A>`:
 ```java
 public void monadExample() {
-OptionalMonad optionalMonad = new OptionalMonad();
+    OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
     // 1. Create OptionalKind instances
     OptionalKind<Integer> presentIntKind = OPTIONAL.widen(Optional.of(10));
     Kind<OptionalKind.Witness, Integer> emptyIntKind = optionalMonad.raiseError(null); // Creates empty
-
+    
     // 2. Use map
     Function<Integer, String> intToMessage = n -> "Value is " + n;
     Kind<OptionalKind.Witness, String> mappedPresent = optionalMonad.map(intToMessage, presentIntKind);
     Kind<OptionalKind.Witness, String> mappedEmpty = optionalMonad.map(intToMessage, emptyIntKind);
-
+    
     System.out.println("Mapped (Present): " + OPTIONAL.narrow(mappedPresent)); // Optional[Value is 10]
     System.out.println("Mapped (Empty): " + OPTIONAL.narrow(mappedEmpty));   // Optional.empty
-
+    
     // 3. Use flatMap
     Function<Integer, Kind<OptionalKind.Witness, Double>> intToOptionalDouble = n ->
         (n > 0) ? optionalMonad.of(n / 2.0) : optionalMonad.raiseError(null);
-
+    
     Kind<OptionalKind.Witness, Double> flatMappedPresent = optionalMonad.flatMap(intToOptionalDouble, presentIntKind);
     Kind<OptionalKind.Witness, Double> flatMappedEmpty = optionalMonad.flatMap(intToOptionalDouble, emptyIntKind);
     Kind<OptionalKind.Witness, Integer> zeroIntKind = optionalMonad.of(0);
     Kind<OptionalKind.Witness, Double> flatMappedZero = optionalMonad.flatMap(intToOptionalDouble, zeroIntKind);
-
-
+    
+    
     System.out.println("FlatMapped (Present): " + OPTIONAL.narrow(flatMappedPresent)); // Optional[5.0]
     System.out.println("FlatMapped (Empty): " + OPTIONAL.narrow(flatMappedEmpty));     // Optional.empty
     System.out.println("FlatMapped (Zero): " + OPTIONAL.narrow(flatMappedZero));       // Optional.empty
-
+    
     // 4. Use 'of' and 'raiseError' (already shown in creation)
-
+    
     // 5. Use handleErrorWith
     Function<Unit, Kind<OptionalKind.Witness, Integer>> recoverWithDefault =
         v -> optionalMonad.of(-1); // Default value if empty
-
+    
     Kind<OptionalKind.Witness, Integer> recoveredFromEmpty =
         optionalMonad.handleErrorWith(emptyIntKind, recoverWithDefault);
     Kind<OptionalKind.Witness, Integer> notRecoveredFromPresent =
         optionalMonad.handleErrorWith(presentIntKind, recoverWithDefault);
-
+    
     System.out.println("Recovered (from Empty): " + OPTIONAL.narrow(recoveredFromEmpty)); // Optional[-1]
     System.out.println("Recovered (from Present): " + OPTIONAL.narrow(notRecoveredFromPresent)); // Optional[10]
-
+    
     // Unwrap to get back the standard Optional
     Optional<String> finalMappedOptional = OPTIONAL.narrow(mappedPresent);
     System.out.println("Final unwrapped mapped optional: " + finalMappedOptional);
