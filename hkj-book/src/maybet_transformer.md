@@ -17,7 +17,7 @@ an absence of a value.
 * **`A`**: The type of the value potentially held by the inner `Maybe`.
 
 ```
-// From: org.higherkindedj.hkt.trans.maybe_t.MaybeT
+// From: org.higherkindedj.hkt.maybe_t.MaybeT
 public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) { 
 /* ... static factories ... */ }
 ```

@@ -14,12 +14,12 @@ import org.higherkindedj.example.order.error.DomainError;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either_t.EitherT;
+import org.higherkindedj.hkt.either_t.EitherTKind;
+import org.higherkindedj.hkt.either_t.EitherTKindHelper;
+import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonadError;
-import org.higherkindedj.hkt.trans.either_t.EitherT;
-import org.higherkindedj.hkt.trans.either_t.EitherTKind;
-import org.higherkindedj.hkt.trans.either_t.EitherTKindHelper;
-import org.higherkindedj.hkt.trans.either_t.EitherTMonad;
 import org.jspecify.annotations.NonNull;
 
 /**

@@ -157,7 +157,7 @@ The true power of the `For` comprehension shines when working with more complex 
 
 ```java
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-import static org.higherkindedj.hkt.trans.state_t.StateTKindHelper.STATE_T;
+import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 // ... other imports
 
 private static void stateTExample() {

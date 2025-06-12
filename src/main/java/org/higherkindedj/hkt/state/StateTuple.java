@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A record representing the result of a stateful computation, typically used with the {@link State}
- * monad or {@link org.higherkindedj.hkt.trans.state_t.StateT} monad transformer.
+ * monad or {@link org.higherkindedj.hkt.state_t.StateT} monad transformer.
  *
  * <p>A stateful computation, when run, produces a final computed value along with a new (or
  * updated) state. This {@code StateTuple} encapsulates these two pieces of information: the
@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  *     Unit#INSTANCE}.
  * @param state The final state after the stateful operation has been run. Must not be {@code null}.
  * @see State
- * @see org.higherkindedj.hkt.trans.state_t.StateT
+ * @see org.higherkindedj.hkt.state_t.StateT
  * @see Unit
  */
 public record StateTuple<S, A>(@Nullable A value, @NonNull S state) {
