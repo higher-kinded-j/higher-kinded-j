@@ -28,7 +28,7 @@ class OptionalTKindHelperTest {
 
   @BeforeEach
   void setUp() {
-    outerMonad = new IOMonad();
+    outerMonad = IOMonad.INSTANCE;
   }
 
   private <A extends @NonNull Object> OptionalT<IOKind.Witness, A> createConcreteOptionalTSome(

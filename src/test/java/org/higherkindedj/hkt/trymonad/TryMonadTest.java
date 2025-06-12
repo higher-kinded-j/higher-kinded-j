@@ -17,10 +17,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("TryMonadError Tests")
-class TryMonadErrorTest {
+@DisplayName("TryMonad Tests")
+class TryMonadTest {
 
-  private final TryMonadError tryMonad = new TryMonadError();
+  private final TryMonad tryMonad = TryMonad.INSTANCE;
 
   // --- Helper Functions ---
   private <A> Try<A> unwrapTry(Kind<TryKind.Witness, A> kind) {

@@ -9,8 +9,8 @@ package "Supported Types (Monad Implementations)" {
     class OptionalMonad
     class MaybeMonad
     class "EitherMonad<L>" as EitherMonad
-    class CompletableFutureMonadError
-    class TryMonadError
+    class CompletableFutureMonad
+    class TryMonad
     class IOMonad
     class LazyMonad
     class IdMonad
@@ -23,8 +23,8 @@ package "Supported Types (Monad Implementations)" {
     OptionalMonad <|.. CoreInterfaces.MonadError
     MaybeMonad <|.. CoreInterfaces.MonadError
     EitherMonad <|.. CoreInterfaces.MonadError
-    CompletableFutureMonadError <|.. CoreInterfaces.MonadError
-    TryMonadError <|.. CoreInterfaces.MonadError
+    CompletableFutureMonad <|.. CoreInterfaces.MonadError
+    TryMonad <|.. CoreInterfaces.MonadError
     ValidatedMonad <|.. CoreInterfaces.MonadError
     IdMonad <|.. CoreInterfaces.Monad
     IOMonad <|.. CoreInterfaces.Monad

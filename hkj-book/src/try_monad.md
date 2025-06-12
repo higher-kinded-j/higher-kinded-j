@@ -16,7 +16,7 @@ Key benefits include:
 
 * **Explicit Error Handling:** Makes it clear from the return type (`Try<T>`) that a computation might fail.
 * **Composability:** Allows chaining operations using methods like `map` and `flatMap`, where failures are automatically propagated without interrupting the flow with exceptions.
-* **Integration with HKT:** Provides HKT simulation (`TryKind`) and type class instances (`TryMonadError`) to work seamlessly with generic functional abstractions operating over `Kind<F, A>`.
+* **Integration with HKT:** Provides HKT simulation (`TryKind`) and type class instances (`TryMonad`) to work seamlessly with generic functional abstractions operating over `Kind<F, A>`.
 * **Error Recovery:** Offers methods like `recover` and `recoverWith` to handle failures gracefully within the computation chain.
 
 It implements `MonadError<TryKind<?>, Throwable>`, signifying its monadic nature and its ability to handle errors of type `Throwable.
@@ -163,14 +163,14 @@ Try<Double> recoveredWith2 = result3.recoverWith(recoverWithHandler); // Failure
 
 To use `Try` with generic code expecting `Kind<F, A>`:
 
-1. **Get Instance:**`TryMonadError tryMonad = new TryMonadError();`
+1. **Get Instance:**`TryMonad tryMonad = TryMonad.INSTANCE;`
 2. **Wrap(Widen):** Use `TRY.widen(myTry)` or factories like `TRY.tryOf(() -> ...)`.
 3. **Operate:** Use `tryMonad.map(...)`, `tryMonad.flatMap(...)`, `tryMonad.handleErrorWith(...)` etc.
 4. **Unwrap(Narrow):** Use `TRY.narrow(tryKind)` to get the `Try<T>` back.
 
 ```java
 
-TryMonadError tryMonad = new TryMonadError();
+TryMonad tryMonad = TryMonad.INSTANCE;
 
 Kind<TryKind.Witness, Integer> tryKind1 = TRY.tryOf(() -> 10 / 2); // Success(5) Kind
 Kind<TryKind.Witness, Integer> tryKind2 = TRY.tryOf(() -> 10 / 0); // Failure(...) Kind

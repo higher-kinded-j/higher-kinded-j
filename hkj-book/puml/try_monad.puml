@@ -10,24 +10,23 @@ interface "Try<T>" as Try
 
 interface "TryKind<T>" extends "Kind<TryKind.Witness, T>" as TryKind
 
-class TryFunctor implements Functor<TryKind<?>> {
+class TryFunctor implements Functor<TryKind.Witness> {
   + Kind<TryKind.Witness, B> map(Function<A, B> f, Kind<TryKind.Witness, A> fa)
 }
-class TryApplicative extends TryFunctor implements Applicative<TryKind<?>> {
+class TryApplicative extends TryFunctor implements Applicative<TryKind.Witness> {
   + Kind<TryKind.Witness, A> of(A value)
   + Kind<TryKind.Witness, B> ap(Kind<TryKind.Witness, Function<A, B>> ff, Kind<TryKind.Witness, A> fa)
 }
-class TryMonad extends TryApplicative implements Monad<TryKind<?>> {
+class TryMonad extends TryApplicative implements MonadError<Kind<TryKind.Witness>, Throwable> {
   + Kind<TryKind.Witness, B> flatMap(Function<A, Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma)
-}
-class TryMonadError extends TryMonad implements MonadError<TryKind<?>, Throwable> {
   + Kind<TryKind.Witness, A> raiseError(Throwable error)
-  + Kind<TryKind.Witness, A> handleErrorWith(Kind<TryKind.Witness, A> ma, Function<Throwable, Kind<TryKind.Witness, A>> handler)
+    + Kind<TryKind.Witness, A> handleErrorWith(Kind<TryKind.Witness, A> ma, Function<Throwable, Kind<TryKind.Witness, A>> handler)
 }
+
 
 TryKind -- Kind : extends
 
-TryMonadError ..> TryKind : operates on <TryKind<?>>
-TryMonadError ..> Try : uses methods of
+TryMonad ..> TryKind : operates on <TryKind.Witness>
+
 
 @enduml

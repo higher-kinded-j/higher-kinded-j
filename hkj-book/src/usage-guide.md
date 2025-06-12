@@ -34,9 +34,9 @@ Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicativ
 
 * Example (`Optional`): `OptionalMonad optionalMonad = OptionalMonad.INSTANCE;` (This implements `MonadError<OptionalKind.Witness, Unit>`)
 * Example (`List`): `ListMonad listMonad = new ListMonad();` (This implements `Monad<ListKind.Witness>`)
-* Example (`CompletableFuture`): `CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();` (This implements `MonadError<CompletableFutureKind.Witness, Throwable>`)
+* Example (`CompletableFuture`): `CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;` (This implements `MonadError<CompletableFutureKind.Witness, Throwable>`)
 * Example (`Either<String, ?>`): `EitherMonad<String> eitherMonad = new EitherMonad<>();` (This implements `MonadError<EitherKind.Witness<String>, String>`)
-* Example (`IO`): `IOMonad ioMonad = new IOMonad();` (This implements `Monad<IOKind.Witness>`)
+* Example (`IO`): `IOMonad ioMonad = IOMonad.INSTANCE;` (This implements `Monad<IOKind.Witness>`)
 * Example (`Writer<String, ?>`): `WriterMonad<String> writerMonad = new WriterMonad<>(new StringMonoid());` (This implements `Monad<WriterKind.Witness<String>>`)
 ~~~
 
@@ -119,7 +119,7 @@ WWhen you need the underlying Java value back (e.g., to return from a method bou
      System.out.println("Handled Optional: " + handledOptional); // Output: Optional[Default Value]
  
      // Example for IO:
-      IOMonad ioMonad = new IOMonad();
+      IOMonad ioMonad = IOMonad.INSTANCE;
       Kind<IOKind.Witness, String> ioKind = IO_OP.delay(() -> "Hello from IO!"); // Use IO_OP.delay
       // unsafeRunSync is an instance method on IOKindHelper.IO_OP
       String ioResult = IO_OP.unsafeRunSync(ioKind);

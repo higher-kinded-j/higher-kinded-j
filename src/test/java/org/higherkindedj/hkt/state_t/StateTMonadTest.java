@@ -1,5 +1,3 @@
-// src/test/java/org/higherkindedj/hkt/trans/state_t/StateTMonadTest.java
-
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
@@ -9,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
-
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -18,7 +15,6 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.state.StateTuple;
-
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;
@@ -137,8 +133,7 @@ class StateTMonadTest {
   private final Integer initialState = 10;
 
   private Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> mValue;
-  private Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer>
-      mEmpty;
+  private Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> mEmpty;
 
   private Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>> f;
   private Function<String, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>> g;
@@ -151,8 +146,8 @@ class StateTMonadTest {
   }
 
   private <A>
-  Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, A> createStateTKindForOptional(
-      Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, A>>> runFn) {
+      Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, A> createStateTKindForOptional(
+          Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, A>>> runFn) {
     if (optMonad == null) {
       throw new IllegalStateException("optMonad must be initialized before creating StateTKind");
     }
@@ -411,8 +406,7 @@ class StateTMonadTest {
           stateTWithNonErrorMonad.of("testValue");
       Kind<IdKind.Witness, StateTuple<Integer, String>> resultWrapped =
           STATE_T.runStateT(kind, localInitialState);
-      StateTuple<Integer, String> resultTuple =
-          IdKind.narrow(resultWrapped).value;
+      StateTuple<Integer, String> resultTuple = IdKind.narrow(resultWrapped).value;
 
       Assertions.assertNotNull(resultTuple);
       assertThat(resultTuple.state()).isEqualTo(localInitialState);

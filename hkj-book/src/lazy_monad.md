@@ -109,7 +109,7 @@ try {
 
 ```java
 
-LazyMonad lazyMonad = new LazyMonad();
+LazyMonad lazyMonad = LazyMonad.INSTANCE;
 counter.set(0); // Reset counter for this example
 
 Kind<LazyKind.Witness, Integer> initialLazy = LAZY.defer(() -> { counter.incrementAndGet(); return 10; });

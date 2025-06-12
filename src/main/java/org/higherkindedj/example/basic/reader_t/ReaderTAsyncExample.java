@@ -24,7 +24,7 @@ import org.higherkindedj.hkt.reader_t.ReaderTMonad;
 public class ReaderTAsyncExample {
   // --- Monad Setup ---
   // Outer Monad F = CompletableFutureKind.Witness
-  static final Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+  static final Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
   // ReaderTMonad for AppConfig and CompletableFutureKind
   static final ReaderTMonad<CompletableFutureKind.Witness, AppConfig> cfReaderTMonad =
       new ReaderTMonad<>(futureMonad);

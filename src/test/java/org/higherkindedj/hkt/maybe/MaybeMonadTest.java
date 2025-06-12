@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 
 class MaybeMonadTest {
 
-  private final MaybeMonad maybeMonad = new MaybeMonad();
+  private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 
   // Helper Functions for Laws
   private final Function<Integer, String> intToString = Object::toString;

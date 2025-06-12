@@ -77,7 +77,7 @@ public class LazyExample {
     }
 
     // Using LazyMonad (map and flatMap)
-    LazyMonad lazyMonad = new LazyMonad();
+    LazyMonad lazyMonad = LazyMonad.INSTANCE;
     counter.set(0); // Reset counter for this example
 
     Kind<LazyKind.Witness, Integer> initialLazy =

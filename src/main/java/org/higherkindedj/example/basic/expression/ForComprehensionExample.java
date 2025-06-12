@@ -55,7 +55,7 @@ public class ForComprehensionExample {
   }
 
   private static void maybeExample() {
-    final MaybeMonad maybeMonad = new MaybeMonad();
+    final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 
     final Kind<MaybeKind.Witness, Integer> maybeInt = MAYBE.just(10);
     final Kind<MaybeKind.Witness, String> maybeString = MAYBE.just("Hello");

@@ -85,7 +85,7 @@ In `OrderWorkflowRunner`, we get the necessary type class instances:
 // MonadError instance for CompletableFuture (handles Throwable)
 // F_OUTER_WITNESS for CompletableFuture is CompletableFutureKind.Witness
 private final @NonNull MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
-    new CompletableFutureMonadError();
+    CompletableFutureMonad.INSTANCE;
 
 // EitherTMonad instance, providing the outer monad (futureMonad).
 // This instance handles DomainError for the inner Either.
@@ -254,7 +254,7 @@ This demonstrates a practical pattern for integrating synchronous, exception-thr
 This example illustrates several powerful patterns enabled by Higher-Kinded-J:
 
 1.  **`EitherT` for `Future<Either<Error, Value>>`**: This is the core pattern. Use `EitherT` whenever you need to sequence asynchronous operations (`CompletableFuture`) where each step can also fail with a specific, typed error (`Either`).
-    * Instantiate `EitherTMonad<F_OUTER_WITNESS, L_ERROR>` with the `Monad<F_OUTER_WITNESS>` instance for your outer monad (e.g., `CompletableFutureMonadError`).
+    * Instantiate `EitherTMonad<F_OUTER_WITNESS, L_ERROR>` with the `Monad<F_OUTER_WITNESS>` instance for your outer monad (e.g., `CompletableFutureMonad`).
     * Use `eitherTMonad.flatMap` or a `For` comprehension to chain steps.
     * Lift async results (`Kind<F_OUTER_WITNESS, Either<L, R>>`) into `EitherT` using `EitherT.fromKind`.
     * Lift sync results (`Either<L, R>`) into `EitherT` using `EitherT.fromEither`.

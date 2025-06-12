@@ -44,7 +44,7 @@ class IOMonadTest {
 
   @BeforeEach
   void setUp() {
-    ioMonad = new IOMonad();
+    ioMonad = IOMonad.INSTANCE;
     effectsLog = new ArrayList<>(); // Reset log for each test
   }
 

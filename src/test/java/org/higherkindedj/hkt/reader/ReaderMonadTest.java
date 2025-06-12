@@ -14,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Tests for ReaderMonad<R>. */
 @DisplayName("ReaderMonad Tests")
 class ReaderMonadTest {
 
@@ -28,7 +27,7 @@ class ReaderMonadTest {
 
   @BeforeEach
   void setUp() {
-    readerMonad = new ReaderMonad<>();
+    readerMonad = ReaderMonad.instance();
   }
 
   // Helper to run and get result

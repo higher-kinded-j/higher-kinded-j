@@ -9,7 +9,7 @@ Working with monads often involves chaining operations using `flatMap` and `map`
 Consider this example using `Maybe`:
 
 ```java
-MaybeMonad maybeMonad = new MaybeMonad();
+MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 Kind<MaybeKind.Witness, Integer> maybeA = MAYBE.just(5);
 Kind<MaybeKind.Witness, Integer> maybeB = MAYBE.just(10);
 Kind<MaybeKind.Witness, Integer> maybeC = MAYBE.just(20);
@@ -53,7 +53,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.expression.For;
 // ... other imports
 
-var maybeMonad = new MaybeMonad();
+var maybeMonad = MaybeMonad.INSTANCE;
 
 var maybeA = MAYBE.just(5);
 var maybeB = MAYBE.just(10);

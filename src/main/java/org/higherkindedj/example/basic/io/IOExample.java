@@ -14,7 +14,7 @@ import org.higherkindedj.hkt.unit.Unit;
 /** see {<a href="https://higher-kinded-j.github.io/io_monad.html">IO Monad</a>} */
 public class IOExample {
   // Get the IOMonad instance
-  IOMonad ioMonad = new IOMonad();
+  IOMonad ioMonad = IOMonad.INSTANCE;
 
   // IO action to print a message
   Kind<IOKind.Witness, Unit> printHello =

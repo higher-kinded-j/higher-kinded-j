@@ -20,7 +20,7 @@ public class ReaderTAsyncUnitExample {
 
   record AppConfig(String apiKey, String serviceUrl, ExecutorService executor) {}
 
-  static final Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+  static final Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
   static final ReaderTMonad<CompletableFutureKind.Witness, AppConfig> cfReaderTMonad =
       new ReaderTMonad<>(futureMonad);
 

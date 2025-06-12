@@ -13,7 +13,7 @@ import org.higherkindedj.hkt.unit.Unit;
 
 public class Draughts {
 
-  private static final IOMonad ioMonad = new IOMonad();
+  private static final IOMonad ioMonad = IOMonad.INSTANCE;
 
   // The main game loop as a single, recursive IO computation
   private static Kind<IOKind.Witness, Unit> gameLoop(GameState gameState) {

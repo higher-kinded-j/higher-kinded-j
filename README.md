@@ -53,7 +53,7 @@ To see these concepts applied in a more realistic scenario, check out the **Orde
 
 This example demonstrates:
 
-* Orchestrating an asynchronous workflow using `CompletableFutureMonadError`.
+* Orchestrating an asynchronous workflow using `CompletableFutureMonad`.
 * Handling domain-specific errors using `Either` (wrapped within the future).
 * Using the `EitherT` monad transformer to simplify working with the nested `CompletableFuture<Either<DomainError, T>>` structure.
 * Integrating synchronous steps (returning `Either` or `Try`) and asynchronous steps seamlessly within the monadic flow.

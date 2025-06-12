@@ -20,7 +20,7 @@ record TestError(String code) {}
 class EitherMonadTest {
 
   // Monad instance for Either<TestError, ?>
-  private final EitherMonad<TestError> eitherMonad = new EitherMonad<>();
+  private final EitherMonad<TestError> eitherMonad = EitherMonad.instance();
 
   // Helper Functions
   private <R> Either<TestError, R> narrow(Kind<EitherKind.Witness<TestError>, R> kind) {

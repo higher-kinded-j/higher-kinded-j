@@ -21,9 +21,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-class CompletableFutureMonadErrorTest {
+class CompletableFutureMonadTest {
 
-  private final CompletableFutureMonadError futureMonad = new CompletableFutureMonadError();
+  private final CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
 
   // --- Helper Functions ---
   private <A> CompletableFuture<A> unwrapFuture(Kind<CompletableFutureKind.Witness, A> kind) {

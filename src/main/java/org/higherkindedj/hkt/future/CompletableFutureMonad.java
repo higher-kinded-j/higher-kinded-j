@@ -2,53 +2,44 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.future;
 
-import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Implements the {@link Monad} type class for {@link java.util.concurrent.CompletableFuture}, using
- * {@link CompletableFutureKind.Witness} as the higher-kinded type witness.
+ * Implements the {@link MonadError} type class for {@link java.util.concurrent.CompletableFuture},
+ * using {@link CompletableFutureKind.Witness} as the higher-kinded type witness and {@link
+ * Throwable} as the error type. This class is a stateless singleton, accessible via {@link
+ * #INSTANCE}.
  *
- * <p>A {@link Monad} extends {@link org.higherkindedj.hkt.Applicative} (and thus {@link
- * org.higherkindedj.hkt.Functor}) by adding the {@link #flatMap(Function, Kind)} operation (also
- * known as {@code bind} or {@code >>=}). This allows sequencing of asynchronous operations where
- * each step depends on the result of the previous one and returns a new {@code CompletableFuture}.
- *
- * <p>This class provides:
+ * <p>This class extends {@link CompletableFutureMonad} and adds error handling capabilities:
  *
  * <ul>
- *   <li>{@link #of(Object)}: Lifts a pure value into a completed {@code CompletableFuture}.
- *       (Inherited from Applicative)
- *   <li>{@link #ap(Kind, Kind)}: Applies a future of a function to a future of a value. (Inherited
- *       from Applicative)
- *   <li>{@link #map(Function, Kind)}: Applies a pure function to the result of a future. (Inherited
- *       from Functor)
- *   <li>{@link #flatMap(Function, Kind)}: Chains an asynchronous computation that depends on the
- *       result of a preceding {@code CompletableFuture}.
+ *   <li>{@link #raiseError(Throwable)}: Creates a {@code CompletableFuture} that is already
+ *       completed exceptionally.
+ *   <li>{@link #handleErrorWith(Kind, Function)}: Allows recovery from an exceptionally completed
+ *       {@code CompletableFuture} by providing a new {@code CompletableFuture}.
  * </ul>
  *
- * <p>The {@link #flatMap(Function, Kind)} implementation uses {@link
- * CompletableFuture#thenCompose(Function)}, which is the idiomatic way to perform monadic binding
- * with {@code CompletableFuture}.
- *
- * @see Monad
- * @see CompletableFutureApplicative
+ * @see MonadError
+ * @see CompletableFutureMonad
  * @see CompletableFuture
- * @see CompletableFutureKind
  * @see CompletableFutureKind.Witness
- * @see CompletableFutureKindHelper
  */
 public class CompletableFutureMonad extends CompletableFutureApplicative
-    implements Monad<CompletableFutureKind.Witness> {
+    implements MonadError<CompletableFutureKind.Witness, Throwable> {
 
-  /** Constructs a new {@code CompletableFutureMonad} instance. */
-  public CompletableFutureMonad() {
+  /** Singleton instance of {@code CompletableFutureMonad}. */
+  public static final CompletableFutureMonad INSTANCE = new CompletableFutureMonad();
+
+  /** Private constructor to enforce the singleton pattern. */
+  private CompletableFutureMonad() {
     // Default constructor
   }
 
@@ -96,5 +87,62 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
               return FUTURE.narrow(kindB);
             });
     return FUTURE.widen(futureB);
+  }
+
+  /**
+   * Creates a {@code Kind<CompletableFutureKind.Witness, A>} that represents an already
+   * exceptionally completed {@link CompletableFuture} with the given {@code error}.
+   *
+   * @param <A> The phantom type of the value (since this future is failed).
+   * @param error The non-null {@link Throwable} with which the future should fail.
+   * @return A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing {@code
+   *     CompletableFuture.failedFuture(error)}.
+   */
+  @Override
+  public <A> @NonNull Kind<CompletableFutureKind.Witness, A> raiseError(@NonNull Throwable error) {
+    return FUTURE.widen(CompletableFuture.failedFuture(error));
+  }
+
+  /**
+   * Handles an exceptionally completed {@code CompletableFuture} (represented by {@code ma}) by
+   * applying a recovery function {@code handler}.
+   *
+   * <p>If {@code ma} completes successfully, its result is returned. If {@code ma} completes
+   * exceptionally, the {@code handler} function is applied to the {@link Throwable}. The {@code
+   * handler} must return a new {@code Kind<CompletableFutureKind.Witness, A>} (another {@code
+   * CompletableFuture<A>}), which then determines the outcome of the operation.
+   *
+   * <p>The {@link Throwable} passed to the handler is typically the cause of the failure, unwrapped
+   * from {@link CompletionException} if necessary.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<CompletableFutureKind.Witness, A>} to handle.
+   * @param handler The non-null function to apply if {@code ma} completes exceptionally. It takes
+   *     the {@link Throwable} and returns a new {@code Kind<CompletableFutureKind.Witness, A>}.
+   * @return A non-null {@code Kind<CompletableFutureKind.Witness, A>}, either the original if
+   *     successful, or the result from the {@code handler}.
+   */
+  @Override
+  public <A> @NonNull Kind<CompletableFutureKind.Witness, A> handleErrorWith(
+      @NonNull Kind<CompletableFutureKind.Witness, A> ma,
+      @NonNull Function<Throwable, Kind<CompletableFutureKind.Witness, A>> handler) {
+    CompletableFuture<A> futureA = FUTURE.narrow(ma);
+
+    // Optimization: If already successfully completed, no need to attach handler.
+    if (futureA.isDone() && !futureA.isCompletedExceptionally()) {
+      return ma;
+    }
+
+    CompletableFuture<A> recoveredFuture =
+        futureA.exceptionallyCompose(
+            throwable -> {
+              Throwable cause =
+                  (throwable instanceof CompletionException && throwable.getCause() != null)
+                      ? throwable.getCause()
+                      : throwable;
+              Kind<CompletableFutureKind.Witness, A> recoveryKind = handler.apply(cause);
+              return FUTURE.narrow(recoveryKind);
+            });
+    return FUTURE.widen(recoveredFuture);
   }
 }

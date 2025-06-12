@@ -65,7 +65,7 @@ public class MaybeTExample {
   }
 
   public static class MaybeTAsyncExample {
-    Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+    Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
     MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
         new MaybeTMonad<>(futureMonad);
 

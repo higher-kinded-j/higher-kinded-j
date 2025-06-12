@@ -21,7 +21,7 @@ public class ReaderExample {
   // Reader that returns the entire configuration environment
   Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = READER.ask();
   // Monad instance for computations depending on AppConfig
-  ReaderMonad<AppConfig> readerMonad = new ReaderMonad<>();
+  ReaderMonad<AppConfig> readerMonad = ReaderMonad.instance();
   // Example 1: Map the timeout value
   Kind<ReaderKind.Witness<AppConfig>, String> timeoutMessage =
       readerMonad.map(

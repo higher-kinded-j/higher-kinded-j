@@ -14,13 +14,12 @@ class CompletableFutureApplicative extends CompletableFutureFunctor implements A
   + Kind<CFK, B> ap(Kind<CFK, Function<A, B>>, Kind<CFK, A>)
 }
 
-class CompletableFutureMonad extends CompletableFutureApplicative implements Monad<CompletableFutureKind.Witness> {
+class CompletableFutureMonad extends CompletableFutureApplicative implements MonadError<CompletableFutureKind.Witness, Throwable> {
  + Kind<CFK, B> flatMap(Function<A, Kind<CFK, B>>, Kind<CFK, A>)
+ + Kind<CFK, A> raiseError(Throwable)
+ + Kind<CFK, A> handleErrorWith(Kind<CFK, A>, Function<Throwable, Kind<CFK, A>>)
 }
 
-class CompletableFutureMonadError extends CompletableFutureMonad implements MonadError<CompletableFutureKind.Witness, Throwable> {
-  + Kind<CFK, A> raiseError(Throwable)
-  + Kind<CFK, A> handleErrorWith(Kind<CFK, A>, Function<Throwable, Kind<CFK, A>>)
-}
+
 
 @enduml

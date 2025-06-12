@@ -360,7 +360,7 @@ class ForTest {
   @Nested
   @DisplayName("With Maybe Monad (Filterable)")
   class ForMaybeTest {
-    private final MaybeMonad maybeMonad = new MaybeMonad();
+    private final MaybeMonad maybeMonad = MaybeMonad.INSTANCE;
 
     @Test
     @DisplayName("should chain let bindings with Maybe")
@@ -441,7 +441,7 @@ class ForTest {
       Kind<MaybeKind.Witness, String> nothing = MAYBE.nothing();
 
       Kind<MaybeKind.Witness, String> result =
-          For.from(maybeMonad, just1)
+          For.from(MaybeMonad.INSTANCE, just1)
               .let(i -> "let-val")
               .from(t -> nothing)
               .yield((a, b, c) -> "should not be reached");

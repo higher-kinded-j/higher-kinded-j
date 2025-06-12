@@ -69,7 +69,7 @@ The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Unit>`.
 ```java
 // Example: F = CompletableFutureKind.Witness, Error type for MonadError is Unit
 // 1. Get the Monad instance for the outer monad F
-Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad(); // Or CompletableFutureMonadError if error handling for F is needed
+Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE; 
 
 // 2. Create the MaybeTMonad, providing the outer monad instance
 MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
@@ -151,7 +151,7 @@ Let's consider fetching a user and then their preferences, where each step is as
 ```java
 public static class MaybeTAsyncExample {
   // --- Setup ---
-  Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+  Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
   MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
       new MaybeTMonad<>(futureMonad);
 

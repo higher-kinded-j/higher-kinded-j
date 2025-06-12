@@ -104,7 +104,7 @@ public class EitherExample {
 
   public void basicMonadExample() {
 
-    EitherMonad<String> eitherMonad = new EitherMonad<>();
+    EitherMonad<String> eitherMonad = EitherMonad.instance();
 
     Either<String, Integer> myEither = Either.right(10);
     // F_WITNESS is EitherKind.Witness<String>, A is Integer

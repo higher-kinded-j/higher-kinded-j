@@ -31,7 +31,7 @@ public class OptionalTExample {
   }
 
   public void createExample() {
-    Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+    Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
     String presentValue = "Data";
     Integer numericValue = 123;
 
@@ -68,7 +68,7 @@ public class OptionalTExample {
 
   public static class OptionalTAsyncExample {
 
-    static final Monad<CompletableFutureKind.Witness> futureMonad = new CompletableFutureMonad();
+    static final Monad<CompletableFutureKind.Witness> futureMonad = CompletableFutureMonad.INSTANCE;
     // OptionalTMonad now uses Unit as its error type
     static final OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
         new OptionalTMonad<>(futureMonad);

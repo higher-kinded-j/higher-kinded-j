@@ -56,7 +56,7 @@ import java.util.function.Supplier;
 import java.util.Scanner;
 
 // Get the IOMonad instance
-IOMonad ioMonad = new IOMonad();
+IOMonad ioMonad = IOMonad.INSTANCE;
 
 // IO action to print a message
 Kind<IOKind.Witness, Unit> printHello = IOKindHelper.delay(() -> {
@@ -143,7 +143,7 @@ import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.unit.Unit;
 import java.util.function.Function;
 
-IOMonad ioMonad = new IOMonad();
+IOMonad ioMonad = IOMonad.INSTANCE;
 
 // --- map example ---
 Kind<IOKind.Witness, String> readLineAction = IOKindHelper.delay(() -> "Test Input"); // Simulate input

@@ -33,7 +33,7 @@ class MaybeTKindHelperTest {
   @BeforeEach
   void setUp() {
     optionalOuterMonad = OptionalMonad.INSTANCE;
-    ioOuterMonad = new IOMonad();
+    ioOuterMonad = IOMonad.INSTANCE;
   }
 
   private <A extends @NonNull Object> MaybeT<OptionalKind.Witness, A> createConcreteMaybeTSomeOpt(

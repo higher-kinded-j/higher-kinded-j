@@ -19,7 +19,7 @@ import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.either_t.EitherTKindHelper;
 import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonadError;
+import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -71,7 +71,7 @@ public class OrderWorkflowRunner {
     requireNonNull(dependencies, "Dependencies cannot be null");
     OrderWorkflowSteps steps = new OrderWorkflowSteps(dependencies);
     MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
-        new CompletableFutureMonadError();
+        CompletableFutureMonad.INSTANCE;
     MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
         eitherTMonad = new EitherTMonad<>(futureMonad);
 
