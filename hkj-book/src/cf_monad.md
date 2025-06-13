@@ -39,7 +39,7 @@ The simulation for `CompletableFuture` involves these components:
 
 ~~~admonish example title="Example 1: Creating _CompletableFutureKind_ Instances"
 
-- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
+- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
 ```java
 public void createExample() {
@@ -77,7 +77,7 @@ public void createExample() {
 
 ~~~admonish example title="Example 2: Using _map_, _flatMap_, _ap_"
 
-- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
+- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
 These examples show how to use the type class instance (`futureMonad`) to apply operations.
 

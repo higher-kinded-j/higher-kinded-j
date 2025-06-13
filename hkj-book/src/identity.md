@@ -36,7 +36,7 @@ An `Id<A>` is simply a container that holds a value of type `A`.
 
 ~~~admonish example title="Example 1: Creating Id Instances"
 
-- [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
+- [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
 ```java
 public void createExample(){
@@ -55,7 +55,7 @@ public void createExample(){
 
 ~~~admonish example title="Example 2: Using with IdentityMonad"
 
-- [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
+- [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
 The `IdentityMonad` provides the standard monadic operations.
 
@@ -99,7 +99,7 @@ public void monadExample(){
 
 ~~~admonish example title="Example 3: Using Id with Monad Transformers"
 
-- [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
+- [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
 As mentioned in the [StateT Monad Transformer](./statet_transformer.md) documentation, `State<S,A>` can be thought of as `StateT<S, Id.Witness, A>`.
 

@@ -5,10 +5,11 @@
 |  _  | |/ _` | '_ \ / _ \ '__|______|    \| | '_ \ / _` |/ _ \/ _` |______| | |
 | | | | | (_| | | | |  __/ |         | |\  \ | | | | (_| |  __/ (_| |    /\__/ /
 \_| |_/_|\__, |_| |_|\___|_|         \_| \_/_|_| |_|\__,_|\___|\__,_|    \____/ 
-          __/ |                                                                 
-         |___/                                                                  
+          __/ |                                                             
+         |___/                                                              
 ```
-## _Bringing Higher-Kinded Types to Java functional patterns_
+
+## _Bringing Higher-Kinded Types and Optics to Java functional patterns_
 
 [![Static Badge](https://img.shields.io/badge/code-blue?logo=github)
 ](https://github.com/higher-kinded-j/higher-kinded-j)
@@ -16,69 +17,122 @@
 
 This library for Higher-Kinded Types in Java was initially created as a simulation for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) to help illustrate different approaches.
 
-This project demonstrates a technique to simulate Higher-Kinded Types (HKTs) in Java, a feature not natively supported by the language's type system.
-It uses a defunctionalisation approach, representing type constructors and type classes as interfaces and objects.
+This project demonstrates a technique to simulate *Higher-Kinded Types (HKTs)* and implement *Optics* in Java, a feature not natively supported by the language's type system.
+It uses a defunctionalisation approachfor HKTs and provides a powerful toolkit for immutable data manipulation with Optics.
 
 ## Where to start
 
 **[All the details you need to get started with Higher-Kinded-J can be found here](https://higher-kinded-j.github.io/home.html)**
 
+## Introduction: Abstracting over Computation and Structure
 
-## Introduction: Abstracting Over Computation in Java
+### Higher-Kinded Types (HKTs)
 
-Java's powerful type system excels in many areas, but it lacks native support for Higher-Kinded Types (HKTs). This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>` in the same way we abstract over the type `A` itself. We can't easily define a generic function that works identically for *any* container or computational context (like List, Optional, Future, IO).
+Java's powerful type system excels in many areas, but it lacks native support for HKTs. This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>`. This project tackles that challenge by **simulating HKTs in Java**, allowing you to use common functional abstractions like `Functor`, `Applicative`, and `Monad` across different type constructors.
 
-This project tackles that challenge by helping  **simulate of HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.
+### Optics
 
+Working with nested immutable data structures in Java can be verbose and tedious. Optics provide a solution by offering a principled way to access and modify parts of a larger structure. They are composable getters and setters that allow you to "focus" on a specific piece of data within a nested object graph and perform operations on it without boilerplate. This library uses an annotation processor to generate the necessary Optics for your data classes automatically.
 
 ## Applying to Your Applications
 
 You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 
-* **Generic Utilities:** Write utility functions that work across different monadic types (e.g., a generic `sequence` function to turn a `List<Kind<F, A>>` into a `Kind<F, List<A>>`).
-* **Composable Workflows:** Structure complex business logic, especially involving asynchronous steps and error handling (like the Order Example), in a more functional and composable manner.
+* **Generic Utilities:** Write utility functions that work across different monadic types (e.g., a generic `sequence` function).
+* **Composable Workflows:** Structure complex business logic, especially involving asynchronicity and error handling, in a more functional way.
+* **Immutable Data Manipulation:** Use **Optics (Lens, Prism, Traversal)** to simplify updates to nested immutable objects, reducing boilerplate and errors.
 * **Managing Side Effects:** Use the `IO` monad to explicitly track and sequence side-effecting operations.
-* **Deferred Computation:** Use the `Lazy` monad for expensive computations that should only run if needed.
 * **Dependency Injection:** Use the `Reader` monad to manage dependencies cleanly.
 * **State Management:** Use the `State` monad for computations that need to thread state through.
-* **Logging/Accumulation:** Use the `Writer` monad to accumulate logs or other values alongside a computation.
-* **Learning Tool:** Understand HKTs, type classes (Functor, Applicative, Monad), and functional error handling concepts through concrete Java examples.
-* **Simulating Custom Types:** Follow the pattern (Kind interface, Holder, Helper, Type Class instances) to make your *own* custom data types or computational contexts work with the provided functional abstractions.
+* **Learning Tool:** Understand HKTs, type classes, and Optics through concrete Java examples.
 
-
+## 
 
 ## Practical Example: Order Processing Workflow
 
-To see these concepts applied in a more realistic scenario, check out the **Order Processing Example** located in `org.higherkindedj.hkt.example.order`.
+To see HKT concepts applied in a realistic scenario, check out the **Order Processing Example** located in the `higher-kinded-j-example` module.
 
 This example demonstrates:
 
 * Orchestrating an asynchronous workflow using `CompletableFutureMonad`.
-* Handling domain-specific errors using `Either` (wrapped within the future).
-* Using the `EitherT` monad transformer to simplify working with the nested `CompletableFuture<Either<DomainError, T>>` structure.
-* Integrating synchronous steps (returning `Either` or `Try`) and asynchronous steps seamlessly within the monadic flow.
-* Using `MonadError` capabilities for error handling and recovery.
-* Managing dependencies (like logging) via injection.
+* Handling domain-specific errors using `Either`.
+* Using the `EitherT` monad transformer to simplify working with nested `CompletableFuture<Either<DomainError, T>>`.
+* Integrating synchronous and asynchronous steps seamlessly within a monadic flow.
 
-Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWith` are used to build the workflow. See the [Order Processing Example_Walkthrough](https://higher-kinded-j.github.io/order-walkthrough.html). for a detailed explanation.
+Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWith` are used to build the workflow.
+
+See the [Order Processing Example_Walkthrough](https://higher-kinded-j.github.io/order-walkthrough.html). for a detailed explanation.
+
+## Practical Example: Optics for Data Manipulation
+
+The `higher-kinded-j-example` module also contains examples of how to use **Optics**. See the `OpticsExample` class for demonstrations of:
+
+* **Lens:** Focusing on a field within a product type (e.g., a class).
+* **Prism:** Focusing on a case within a sum type (e.g., a sealed interface).
+* **Composition:** Combining Optics to drill down into nested structures.
+
+For instance, you can update a deeply nested field in an immutable object with a single, elegant expression:
+
+```java
+  @GenerateLenses
+  public record Player(String name, int score) {}
+
+  @GenerateLenses
+  @GenerateTraversals // Generates a Traversal for the List<Player>
+  public record Team(String name, List<Player> players) {}
+
+  @GenerateLenses
+  @GenerateTraversals // Generates a Traversal for the List<Team>
+  public record League(String name, List<Team> teams) {}
+  
+  // Get the generated Traversals and Lenses
+  Traversal<League, Team> leagueToTeams = LeagueTraversals.teams();
+  Traversal<Team, Player> teamToPlayers = TeamTraversals.players();
+  Lens<Player, Integer> playerToScore = PlayerLenses.score();
+  
+  // Compose them to create a single, deep traversal.
+  // The path is: League -> each Team -> each Player -> score
+  Traversal<League, Integer> leagueToAllPlayerScores =
+  leagueToTeams.andThen(teamToPlayers).andThen(playerToScore);
+```
+[Full Example](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
 
 ## How to Use This Library
 
-If you want to leverage this simulation in your own code:
+The project is modular. To use it, add the relevant dependencies to your `build.gradle` or `pom.xml`. The use of an annotation processor helps to automatically generate the required boilerplate for Optics and other patterns.
 
-1.  **Include the Code:** Copy the relevant packages (`org.higherkindedj.hkt` and the packages for the types you need, e.g., `org.higherkindedj.hkt.optional`) into your project's source code.
-2.  **Understand the Pattern:** Familiarise yourself with the `Kind` interface, the specific `*Kind` interfaces (e.g., `OptionalKind`), the `*KindHelper` classes (e.g., `OptionalKindHelper`), and the type class instances (e.g., `OptionalMonad`).
-3.  **Follow the Usage Guide:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/usage-guide.md) to wrap your Java objects, obtain monad instances, use `map`/`flatMap`/etc., and unwrap the results.
-4.  **Extend if Necessary:** If you need HKT simulation for types not included, follow the guide in [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/extending-simulation.md).
+**For HKTs:**
+
+```gradle
+// build.gradle.kts
+    implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
+```
+
+* **Follow the Usage Guides:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/usage-guide.md) to wrap your Java objects for HKT operations or to define and use Optics for your data models.
+* **Extend if Necessary:** Follow the guide [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/extending-simulation.md) in the documentation to create your own HKT simulations or Optics for custom types.
+
+**For Optics:**
+
+```gradle
+// build.gradle.kts
+    implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
+```
+
+* **Annotate your data classes:** Use the provided annotations (e.g., `@optics`) on your immutable classes.
+* **Build your project:** The annotation processor will generate the corresponding `Lens` and `Prism` implementations for you.
+* **Use the generated Optics:** Import and use the generated optics classes to manipulate your data structures in a clean, functional, and immutable way.
+
+## 
 
 **Note:** This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
 
-
 ## Limitations
 
-While useful the approach to simulating Higher-Kinded Types has inherent limitations in Java compared to languages with native HKTs:
+While useful the approach to simulating Higher-Kinded Types has some inherent limitations in Java compared to languages with native HKTs:
 
-* **Boilerplate:** Requires additional setup code for each simulated type.
+* **Boilerplate:** HKTs Require additional setup code for each simulated type. Optics also require definitions, though they significantly reduce boilerplate at the usage site.
 * **Verbosity:** Usage often involves explicit wrapping/unwrapping and witness types.
 * **Complexity:** Adds cognitive load to understand the simulation mechanism.
 * **Type Safety Gaps:** Relies on some internal casting (`unwrap` methods), although the helpers are designed to be robust (throwing `KindUnwrapException` on structural failure).
@@ -86,41 +140,57 @@ While useful the approach to simulating Higher-Kinded Types has inherent limitat
 
 ## Project Structure
 
-The code is organized into packages:
+```mermaid
+graph TD;
+    root["higher-kinded-j (root)"] --> hkj_api["hkj-api"];
+    root --> hkj_annotations["hkj-annotations"];
+    root --> hkj_core["hkj-core"];
+    root --> hkj_processor["hkj-processor"];
+    hkj_processor --> hkj_processor_plugins["hkj-processor-plugins"];
+    root --> hkj_examples["hkj-examples"];
+    root --> hkj_book["hkj-book"];
+```
 
-* `org.higherkindedj.hkt`: Core interfaces (`Kind`, `Functor`, `Applicative`, `Monad`, `MonadError`, `Monoid`).
-* `org.higherkindedj.hkt.either`: Components for `Either` simulation and the `Either` type itself.
-* `org.higherkindedj.hkt.either_t`: Monad Transformer (`EitherT`) components.
-* `org.higherkindedj.hkt.exception`: Custom exceptions like `KindUnwrapException`.
-* `org.higherkindedj.hkt.expression`: For comprehension.
-* `org.higherkindedj.hkt.function`: Helper functional interfaces (`Function3`, `Function4`, `Function5`).
-* `org.higherkindedj.hkt.future`: Components for `CompletableFuture` simulation.
-* `org.higherkindedj.hkt.id`: Components for `Id` simulation and the `Id` type itself.
-* `org.higherkindedj.hkt.io`: Components for `IO` simulation and the `IO` type itself.
-* `org.higherkindedj.hkt.lazy`: Components for `Lazy` simulation and the `Lazy` type itself.
-* `org.higherkindedj.hkt.list`: Components for `List` simulation.
-* `org.higherkindedj.hkt.maybe`: Components for `Maybe` simulation and the `Maybe` type itself.
-* `org.higherkindedj.hkt.maybe_t`: Monad Transformer (`MaybeT`) components.
-* `org.higherkindedj.hkt.optional`: Components for `Optional` simulation.
-* `org.higherkindedj.hkt.optional_t`: Monad Transformer (`OptionalT`) components.
-* `org.higherkindedj.hkt.reader`: Components for `Reader` simulation and the `Reader` type itself.
-* `org.higherkindedj.hkt.reader_t`: Monad Transformer (`ReaderT`) components.
-* `org.higherkindedj.hkt.state`: Components for `State` simulation and the `State` type itsself
-* `org.higherkindedj.hkt.state_t`: Monad Transformer (`StateT`) components.
-* `org.higherkindedj.hkt.trymonad`: Components for `Try` simulation and the `Try` type itself.
-* `org.higherkindedj.hkt.tuple`: Structural tuples(`Tuple1`, `Tuple2`, `Tuple3`, `Tuple4`, `Tuple5`).
-* `org.higherkindedj.hkt.unit`: Components for `Unit` simulation and the `Unit` type itself.
-* `org.higherkindedj.hkt.validated`: `Validated` simulation and the `Validated` type itsself
-* `org.higherkindedj.hkt.writer`: Components for `Writer` simulation and the `Writer` type itself.
-* `org.higherkindedj.example.order`: A practical example demonstrating an order processing workflow.
-* `org.higherkindedj.example.order`: A Draughts game showing various features and patterns.
-* `org.higherkindedj.hkt.example`: Contains executable examples demonstrating basic usage.
+
+
+### Folder Structure:
+
+* **hkj-api**: Defines the public API, including core interfaces for HKTs and Optics.
+* **hkj-annotations**: Contains the Java annotations used for code generation.
+* **hkj-core**: The core module containing the main implementation of the HKT and Optics patterns.
+* **hkj-processor**: The annotation processor that generates boilerplate code.
+* **hkj-processor-plugins**: Extensible plugins for the annotation processor.
+* **hkj-examples**: A collection of examples demonstrating how to use the library.
+* **hkj-book**: Contains the project's documentation, built with `mdbook`.
+
+### Code Structure
+
+The code is organized into a multi-module structure to ensure clear separation of concerns:
+
+* **`org.higherkindedj.api`**: Defines the public API, including core functional interfaces and optics intended for developers using the library.
+  * `org.higherkindedj.optics`: Core Optics interfaces (`Lens`, `Prism`, `Traversal`, etc.) and their
+  * `org.higherkindedj.hkt`: Core interfaces (`Kind`, `Functor`, `Monad`, etc.).
+* **`org.higherkindedj.core`**: The core HKT/Optics module.
+  * `org.higherkindedj.hkt.*`: HKT simulations for various types (`Either`, `List`, `Optional`, `IO`, etc.) and Monad Transformers.
+  * `org.higherkindedj.optics`: Some utils for Optics
+* **`higher-kinded-j-annotations`**: Contains the Java annotations  that you use to mark your code for processing.
+  * `org.higherkindedj.optics.annotations`: (e.g., `@GeneratePrisms, @GenrateTraversals, @GenerateLenses`)
+* **`higher-kinded-j-processor`**: The main annotation processor. It scans for annotations from the `annotations` module and generates the required boilerplate code (e.g., Optics implementations).
+* **`higher-kinded-j-processor-plugins`**: Contains plugins for the annotation processor, providing Traversal support for many types by defining generators
+
+### Code Examples
+
+* **`org.higherkindedj.examples`**: Practical examples demonstrating how to use the libraries.
+  * `org.higherkindedj.example.basic`: Examples demonstrating basic HKT usage.
+  * `org.higherkindedj.example.optics`: Examples showing how to use the generated Optics.
+  * `org.higherkindedj.example.draughts`: A Draughts game showcasing various HKT features.
+  * `org.higherkindedj.example.order`: An Order workflow showcasing various HKT features.
+
 
 ## Requirements
 
 * **Java Development Kit (JDK): Version 24** or later.
 * Gradle (the project includes a Gradle wrapper).
-
 
 ## Contributing
 
@@ -128,22 +198,23 @@ Contributions to this project are very welcome! Whether it's adding new features
 
 **Areas for Contribution:**
 
+* **Improve Annotation Processor:** Enhance the code generation capabilities to support more patterns or edge cases.
 * **Simulate More Types:** Add HKT simulations and type class instances for other common Java types (e.g., `Stream`, `java.time` types) or functional concepts.
 * **Implement More Type Classes:** Add implementations for other useful type classes like `Traverse`, `Semigroup`, etc., where applicable.
 * **Enhance Existing Implementations:** Improve performance, clarity, or robustness of the current simulations and type class instances.
 * **Add Examples:** Create more diverse examples showcasing different use cases of Higher-Kinded Type simulation.
-* **Improve Documentation:** Clarify concepts, add diagrams, or improve the Wiki/README.
+* **Improve Documentation:** Clarify concepts, add tutorials, or improve the hkj-book/README.
 * **Refactor with New Java Features:** Explore opportunities to use features like Structured Concurrency, etc., to improve the simulation or examples.
 * **Testing:** Increase test coverage, particularly for type class laws and edge cases.
 
 **How to Contribute:**
 
-1.  **Fork the Repository:** Create your own fork of the project on GitHub.
-2.  **Create a Branch:** Make your changes in a dedicated branch (e.g., `feature/add-stream-kind`, `fix/optional-monad-bug`).
-3.  **Develop:** Implement your changes or fixes.
-4.  **Add Tests:** Ensure your changes are well-tested. Verify that existing tests pass.
-5.  **Commit:** Make clear, concise commit messages.
-6.  **Push:** Push your branch to your fork.
-7.  **Submit a Pull Request:** Open a Pull Request (PR) from your branch to the `main` branch of the original repository. Describe your changes clearly in the PR description.
+1. **Fork the Repository:** Create your own fork of the project on GitHub.
+2. **Create a Branch:** Make your changes in a dedicated branch (e.g., `feature/add-stream-kind`, `fix/optional-monad-bug`).
+3. **Develop:** Implement your changes or fixes.
+4. **Add Tests:** Ensure your changes are well-tested. Verify that existing tests pass.
+5. **Commit:** Make clear, concise commit messages.
+6. **Push:** Push your branch to your fork.
+7. **Submit a Pull Request:** Open a Pull Request (PR) from your branch to the `main` branch of the original repository. Describe your changes clearly in the PR description.
 
 If you're unsure where to start or want to discuss an idea, feel free to open a GitHub Issue first.

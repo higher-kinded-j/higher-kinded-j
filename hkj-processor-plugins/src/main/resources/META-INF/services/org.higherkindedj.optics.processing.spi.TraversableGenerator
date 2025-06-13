@@ -1,0 +1,9 @@
+org.higherkindedj.optics.processing.generator.ListGenerator
+org.higherkindedj.optics.processing.generator.OptionalGenerator
+org.higherkindedj.optics.processing.generator.MaybeGenerator
+org.higherkindedj.optics.processing.generator.TryGenerator
+org.higherkindedj.optics.processing.generator.ValidatedGenerator
+org.higherkindedj.optics.processing.generator.EitherGenerator
+org.higherkindedj.optics.processing.generator.ArrayGenerator
+org.higherkindedj.optics.processing.generator.SetGenerator
+org.higherkindedj.optics.processing.generator.MapValueGenerator

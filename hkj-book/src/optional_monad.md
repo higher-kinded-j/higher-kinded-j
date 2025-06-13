@@ -91,7 +91,7 @@ The `OptionalMonad` provides standard monadic and error-handling operations:
 
 ~~~admonish example title="Example: _map(Function<A, B> f, Kind<OptionalKind.Witness, A> fa)_"
 
-- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
+- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
 
 Applies a function `f` to the value inside `fa` if it's present. If `fa` is empty, it remains empty. The function `f` can return `null`, which `Optional.map` will turn into an `Optional.empty()`.
 
@@ -122,7 +122,7 @@ public void mapExample() {
 
 ~~~admonish example title="Example: _flatMap(Function<A, Kind<OptionalKind.Witness, B>> f, Kind<OptionalKind.Witness, A> ma)_"
 
-- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
+- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
 
 
 Applies a function `f` to the value inside `ma` if it's present. The function `f` itself returns an `OptionalKind<B>`. If `ma` is empty, or if `f` returns an empty `OptionalKind`, the result is an empty `OptionalKind`.
@@ -160,7 +160,7 @@ public void flatMapExample() {
 
 ~~~admonish example title="Example: _ap(Kind<OptionalKind.Witness, Function<A, B>> ff, Kind<OptionalKind.Witness, A> fa)_"
 
-- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
+- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
 
 Applies an `OptionalKind` containing a function `ff` to an `OptionalKind` containing a value `fa`. If both are present, the function is applied. Otherwise, the result is empty.
 

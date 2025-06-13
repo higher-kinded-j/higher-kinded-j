@@ -157,7 +157,7 @@ Sometimes, a computation dependent on an environment `R` and involving an outer 
 
 Let's extend the asynchronous example to include an action that logs a message using the `AppConfig` and completes asynchronously, returning `Unit`.
 
-- [ReaderTAsyncUnitExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncUnitExample.java)
+- [ReaderTAsyncUnitExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncUnitExample.java)
 
 ```java
     // Action: Log a message using AppConfig, complete asynchronously returning F<Unit>

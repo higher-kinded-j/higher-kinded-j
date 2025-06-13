@@ -51,10 +51,10 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
     }
     ```
 
-**Create the `ConverterOps` Interface (`SetConverterOps.java`)**:
-    * Define an interface specifying the `widen` and `narrow` methods for `Set`.
+2.  **Create the `ConverterOps` Interface (`SetConverterOps.java`)**: 
+    *   Define an interface specifying the `widen` and `narrow` methods for `Set`.
 
-    ```java
+    ``` java
     package org.higherkindedj.hkt.set;
 
     import java.util.Set;
