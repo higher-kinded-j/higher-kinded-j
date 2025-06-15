@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
 import java.util.function.Function;
@@ -6,9 +8,9 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.tuple.Tuple2;
 
 /**
- * A container for static methods that create lenses for {@link Tuple2}.
- * This provides foundational optics that are widely useful, especially for
- * monads like Writer and State that are built on tuples.
+ * A container for static methods that create lenses for {@link Tuple2}. This provides foundational
+ * optics that are widely useful, especially for monads like Writer and State that are built on
+ * tuples.
  */
 public final class Tuple2Lenses {
 

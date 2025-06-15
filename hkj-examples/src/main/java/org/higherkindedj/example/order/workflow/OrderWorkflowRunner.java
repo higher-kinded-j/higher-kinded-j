@@ -58,6 +58,7 @@ public class OrderWorkflowRunner {
 
   Workflow1 workflowEitherT;
   Workflow2 workflowEitherTWithTryValidation;
+  WorkflowOptics workflowOptics;
 
   /**
    * Constructs an {@code OrderWorkflowRunner} with the specified dependencies. Initializes two
@@ -79,6 +80,8 @@ public class OrderWorkflowRunner {
 
     workflowEitherTWithTryValidation =
         new Workflow2(dependencies, steps, futureMonad, eitherTMonad);
+
+    workflowOptics = new WorkflowOptics(dependencies, steps, futureMonad, eitherTMonad);
   }
 
   public static void main(String[] args) {
@@ -125,6 +128,21 @@ public class OrderWorkflowRunner {
         "Stock Error (Try Valid)", runner.workflowEitherTWithTryValidation::run, stockData);
     runAndPrintResult(
         "Payment Error (Try Valid)", runner.workflowEitherTWithTryValidation::run, paymentData);
+
+
+    System.out.println("\n--- Running Workflow with Lenses and Prisms ---");
+    runAndPrintResult("Good (Optics)", runner.workflowOptics::run, goodData);
+    runAndPrintResult("Bad Qty (Optics)", runner.workflowOptics::run, badQtyData);
+    runAndPrintResult("Stock Error (Optics)", runner.workflowOptics::run, stockData);
+    runAndPrintResult("Payment Error (Optics)", runner.workflowOptics::run, paymentData);
+    runAndPrintResult(
+            "Recoverable Shipping (Optics)",
+            runner.workflowOptics::run,
+            recoverableShippingData);
+    runAndPrintResult(
+            "Non-Recoverable Shipping (Optics)",
+            runner.workflowOptics::run,
+            nonRecoverableShippingData);
   }
 
   /**

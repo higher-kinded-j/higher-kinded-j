@@ -3,6 +3,7 @@
 package org.higherkindedj.example.order.model;
 
 import java.util.Objects;
+import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -120,6 +121,7 @@ public final class WorkflowModels {
    * @param shipmentInfo The {@link ShipmentInfo} after successful shipment creation. Null until
    *     populated.
    */
+  @GenerateLenses
   public record WorkflowContext(
       @NonNull OrderData initialData,
       @Nullable ValidatedOrder validatedOrder,

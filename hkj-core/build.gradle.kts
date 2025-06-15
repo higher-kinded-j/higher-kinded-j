@@ -1,53 +1,78 @@
-// build.gradle.kts
 plugins {
-  java
   `maven-publish`
-  signing
+    signing
   id("net.thebugmc.gradle.sonatype-central-portal-publisher") version "1.2.4"
-  id("com.diffplug.spotless") version "7.0.4"
+    jacoco
 }
 
-// Global properties for all modules
-group = "io.github.higher-kinded-j"
-version = project.findProperty("projectVersion")?.toString() ?: "v0.1.4-SNAPSHOT"
-
-// Define these properties once for the entire project
-extra["isSnapshotVersion"] = project.version.toString().endsWith("-SNAPSHOT")
-extra["isReleaseBuild"] = project.hasProperty("release") || !(extra["isSnapshotVersion"] as Boolean)
+dependencies {
 
 
-allprojects{
-  apply(plugin = "java-library")
-  apply(plugin = "com.diffplug.spotless")
-  extensions.configure<org.gradle.api.plugins.JavaPluginExtension> {
-    sourceCompatibility = JavaVersion.VERSION_24
-    targetCompatibility = JavaVersion.VERSION_24
-  }
+//  // API dependencies
+  api("org.jspecify:jspecify:1.0.0")
+
+  // Testing dependencies
+  testImplementation(platform("org.junit:junit-bom:5.13.0"))
+  testImplementation("org.junit.jupiter:junit-jupiter")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testImplementation("org.assertj:assertj-core:3.27.3")
 }
 
-// Configure all submodules
-subprojects {
 
-  repositories {
-    mavenCentral()
-    gradlePluginPortal()
+tasks.jacocoTestReport {
+  dependsOn(tasks.test)
+  reports {
+    xml.required.set(true)
+    html.required.set(true)
   }
-  // Apply Spotless configuration to all java sources in subprojects
-  apply(plugin = "com.diffplug.spotless")
-  spotless {
-    lineEndings = com.diffplug.spotless.LineEnding.UNIX
-    java {
-      target("src/**/*.java")
-      googleJavaFormat("1.27.0").reflowLongStrings().formatJavadoc(true)
-      removeUnusedImports()
-      trimTrailingWhitespace()
-      licenseHeaderFile(rootProject.file("config/spotless/copyright.txt"), "(package|import|public|@)")
-    }
+  // Jacoco configuration remains specific to this module's source code
+}
+
+tasks.javadoc {
+  source = sourceSets.main.get().allJava
+  exclude("org/higherkindedj/example/**")
+  (options as? CoreJavadocOptions)?.addStringOption("Xdoclint:none", "-quiet")
+}
+tasks.test {
+  useJUnitPlatform()
+  finalizedBy(tasks.jacocoTestReport)
+  jvmArgs = listOf("--add-opens", "org.higherkindedj.hkj/org.higherkindedj.internal=ALL-UNNAMED")
+}
+
+tasks.jacocoTestReport {
+  dependsOn(tasks.test)
+
+  reports {
+    xml.required.set(true)
+    html.required.set(true)
+    csv.required.set(false)
   }
+
+  val mainSourceSet = sourceSets.main.get()
+  val compiledClasses = mainSourceSet.output.classesDirs
+  classDirectories.setFrom(
+      files(
+          compiledClasses.map { dir ->
+            fileTree(dir).apply {
+              exclude(
+                  "**/example/**", // Exclude the example package
+                  "**/*Kind.class",
+                  "**/*Holder*.class"
+                  )
+            }
+          }))
+  sourceDirectories.setFrom(files(mainSourceSet.allSource.srcDirs))
 }
 
 val isSnapshotVersion: Boolean by rootProject.extra
 val isReleaseBuild: Boolean by rootProject.extra
+
+signing {
+  isRequired = isReleaseBuild
+  if (isReleaseBuild) {
+    sign(publishing.publications["mavenJava"])
+  }
+}
 
 publishing {
   publications {
@@ -56,8 +81,8 @@ publishing {
       from(components["java"])
 
       pom {
-        name.set("Higher-Kinded-J")
-        description.set("Bringing Higher-Kinded Types to Java Functional Patterns")
+        name.set("Higher-Kinded-J Core Library")
+        description.set("Bringing Higher-Kinded Types to Java Functional Patterns - Core Library")
         url.set("https://github.com/higher-kinded-j/higher-kinded-j")
 
         licenses {
@@ -95,22 +120,14 @@ publishing {
     }
   }
 }
-
 signing {
-  if (isReleaseBuild) {
-    val signingKey = System.getenv("SIGNING_KEY")
-    val signingPassword = System.getenv("SIGNING_PASSWORD")
-    val hasSigningKey = signingKey != null && signingKey.isNotEmpty()
-    val hasSigningPassword = signingPassword != null && signingPassword.isNotEmpty()
-
-
-    if (hasSigningKey && hasSigningPassword) {
-      useInMemoryPgpKeys(signingKey, signingPassword)
-      sign(publishing.publications["mavenJava"])
-    }
-  }
+  // It still needs to be signed if it's part of a release
   isRequired = isReleaseBuild
+  if (isReleaseBuild) {
+    sign(publishing.publications["mavenJava"])
+  }
 }
+
 
 if (!isSnapshotVersion) {
   centralPortal {
@@ -120,8 +137,8 @@ if (!isSnapshotVersion) {
     publishingType = net.thebugmc.gradle.sonatypepublisher.PublishingType.AUTOMATIC
 
     pom {
-      name.set("Higher-Kinded-J")
-      description.set("Bringing Higher-Kinded Types to Java Functional Patterns")
+      name.set("Higher-Kinded-J Core Library")
+      description.set("Bringing Higher-Kinded Types to Java Functional Patterns - Core Library")
       url.set("https://github.com/higher-kinded-j/higher-kinded-j")
 
       licenses {

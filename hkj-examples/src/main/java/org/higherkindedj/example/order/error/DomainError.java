@@ -3,6 +3,7 @@
 package org.higherkindedj.example.order.error;
 
 import java.io.Serializable;
+import org.higherkindedj.optics.annotations.GeneratePrisms;
 
 /**
  * Represents a hierarchy of domain-specific errors that can occur within the order processing
@@ -24,6 +25,7 @@ import java.io.Serializable;
  * @see ShippingError
  * @see NotificationError
  */
+@GeneratePrisms
 public sealed interface DomainError extends Serializable {
   /**
    * Retrieves the user-friendly message associated with this domain error.
