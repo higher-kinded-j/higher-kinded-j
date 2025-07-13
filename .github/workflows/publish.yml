@@ -71,21 +71,12 @@ jobs:
         env:
           # Credentials for the Central Portal plugin
           CENTRAL_PORTAL_USERNAME: ${{ secrets.CENTRAL_PORTAL_USERNAME }}
-          CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
-
-          # Signing keys
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+#          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
         run: |
           echo "Publishing version ${{ steps.versioner.outputs.version }} to Central Portal"
-          
-          if [[ "${{ steps.versioner.outputs.is_snapshot }}" == "false" ]]; then
-          # RELEASE build using the net.thebugmc plugin
-          ./gradlew publishToCentralPortal -PprojectVersion=${{ steps.versioner.outputs.version }} -Prelease
-          else
-          # SNAPSHOT build using standard maven-publish to the snapshot repository
-          # The task name would be like 'publishMavenJavaPublicationToCentralPortalSnapshotsRepository'
-          ./gradlew publish -PprojectVersion=${{ steps.versioner.outputs.version }}
-          fi
+          ./gradlew publishToMavenCentral -PprojectVersion=${{ steps.versioner.outputs.version }}
         shell: bash

@@ -42,3 +42,9 @@ bin/
 ### Mac OS ###
 .DS_Store
 /.idea/
+
+
+/hkj-book/mdbook-admonish.css
+/hkj-book/src/CODE_OF_CONDUCT.md
+/hkj-book/src/CONTRIBUTING.md
+/hkj-book/src/LICENSE.md

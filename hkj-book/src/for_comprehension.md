@@ -4,7 +4,7 @@ Tired of endless nested callbacks and unreadable chains of flatMap calls? The `h
 
 Let me show you how to transform "callback hell" into a readable, sequential script.
 
-## The Pyramind of Doom Problem
+## The Pyramid of Doom Problem
 
 In functional programming, monads are a powerful tool for sequencing operations, especially those with a context like `Optional`, `List`, or `CompletableFuture`. However, chaining these operations with `flatMap` can quickly become hard to read.
 

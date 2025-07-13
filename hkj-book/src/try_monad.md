@@ -26,7 +26,7 @@ It implements `MonadError<TryKind<?>, Throwable>`, signifying its monadic nature
 
 ~~~admonish title="Creating Instance"
 
-- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 You can create `Try` instances in several ways:
 
@@ -59,7 +59,7 @@ You can create `Try` instances in several ways:
 ~~~
 ~~~admonish title="Checking the State"
 
-- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 
 * `isSuccess()`: Returns `true` if it's a `Success`.
@@ -73,7 +73,7 @@ You can create `Try` instances in several ways:
 
 ~~~admonish title="Transforming Values (_map_)"
 
-- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 Applies a function to the value inside a `Success`. If the function throws an exception, the result becomes a `Failure`. If the original `Try` was a `Failure`, `map` does nothing and returns the original `Failure`.
 
@@ -90,7 +90,7 @@ Try<Integer> mapThrows = initialSuccess.map(value -> { throw new NullPointerExce
 
 ~~~admonish title="Chaining Operations (_flatMap_)"
 
-- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
+- [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 
 Applies a function that returns another `Try` to the value inside a `Success`. This is used to sequence operations where each step might fail. Failures are propagated.
 

@@ -88,7 +88,7 @@ These classes provide the standard functional operations for `Kind<WriterKind.Wi
 
 ~~~admonish example title="Example: Logging a complex calculation"
 
-[WriterExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/writer/WriterExample.java)
+[WriterExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/writer/WriterExample.java)
 
 You typically instantiate `WriterMonad<W>` for the specific log type `W` and its corresponding `Monoid`.
 

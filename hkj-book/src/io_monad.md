@@ -44,7 +44,7 @@ The `IO` functionality is built upon several related components:
 
 ~~~admonish example title="Example 1: Creating Basic IO Actions"
 
-- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
+- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
 Use `IOKindHelper.delay` to capture side effects. Use `IOMonad.of` for pure values within IO.
 

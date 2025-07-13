@@ -94,7 +94,7 @@ OptionalTMonad<CompletableFutureKind.Witness> optionalTFutureMonad =
 
 ~~~admonish title="Creating _OptionalT_ Instances"
 
-- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/optional_t/OptionalTExample.java)
+- [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional_t/OptionalTExample.java)
 
 `OptionalT` instances are typically created using its static factory methods. These often require a `Monad<F>` instance for the outer monad.
 

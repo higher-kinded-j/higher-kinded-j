@@ -8,7 +8,7 @@ The general process involves these steps:
 
 ~~~admonish title="1: Identify the Context (_F_WITNESS_)"
 
-- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Determine which type constructor (computational context) you want to work with abstractly. This context is represented by its *witness type*. Examples:
 
@@ -28,7 +28,7 @@ Determine which type constructor (computational context) you want to work with a
 
 ~~~admonish title="2: Find the Type Class Instance"
 
-- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicative<F_WITNESS>`, `Monad<F_WITNESS>`, `MonadError<F_WITNESS, E>`) for your chosen context's witness type `F_WITNESS`. These are concrete classes provided in the corresponding package.
 
@@ -42,7 +42,7 @@ Obtain an instance of the required type class (`Functor<F_WITNESS>`, `Applicativ
 
 ~~~admonish title="3: Wrap Your Value (_JavaType<A>_ -> _Kind<F_WITNESS, A>_)"
 
-- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into Higher-Kinded-J's `Kind` representation using the `widen` instance method from the corresponding `XxxKindHelper` enum's singleton instance. You'll typically use a static import for the singleton instance for brevity.
 
@@ -63,7 +63,7 @@ Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>
 
 ~~~admonish title="4: Apply Type Class Methods"
 
-- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the **type class instance** obtained in *Step 2*, passing your `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object itself if it's just the `Kind` interface.** (Some concrete `Kind` implementations like `Id` or `Maybe` might offer direct methods, but for generic programming, use the type class instance).
 
@@ -94,12 +94,12 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
         emptyKind,
         ignoredError -> OPTIONAL.widen(Optional.of("Default Value")) // Ensure recovery function also returns a Kind
     );
-   ```
+   
    ```
 ~~~
 ~~~admonish title="5: Unwrap/Narrow the Result (_Kind<F_WITNESS, A> -> JavaType<A>_)"
 
-- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 WWhen you need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running `IO`), use the `narrow` instance method from the corresponding `XxxKindHelper` enum's singleton instance.
  
@@ -131,7 +131,7 @@ WWhen you need the underlying Java value back (e.g., to return from a method bou
 
 ~~~admonish title="Handling _KindUnwrapException_"
 
-- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
+- [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/GenericExample.java)
 
 The `narrow` instance methods in all `KindHelper` enums are designed to be robust against *structural* errors within the HKT simulation layer.
 
@@ -181,7 +181,7 @@ public static <F_WITNESS, A, B> Kind<F_WITNESS, B> mapWithFunctor(
   return functorInstance.map(fn, kindABox);
 }
 
-public void genericExample() { // Corrected typo from genricExample
+public void genericExample() { 
   // Get instances of the type classes for the specific types (F_WITNESS) we want to use
   ListMonad listMonad = new ListMonad(); // Implements Functor<ListKind.Witness>
   OptionalMonad optionalMonad = OptionalMonad.INSTANCE; // Implements Functor<OptionalKind.Witness>
