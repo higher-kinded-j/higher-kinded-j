@@ -111,8 +111,8 @@ The project is modular. To use it, add the relevant dependencies to your `build.
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
 ```
 
-* **Follow the Usage Guides:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/usage-guide.md) to wrap your Java objects for HKT operations or to define and use Optics for your data models.
-* **Extend if Necessary:** Follow the guide [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/extending-simulation.md) in the documentation to create your own HKT simulations or Optics for custom types.
+* **Follow the Usage Guides:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/usage-guide.html) to wrap your Java objects for HKT operations or to define and use Optics for your data models.
+* **Extend if Necessary:** Follow the guide [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/extending-simulation.html) in the documentation to create your own HKT simulations or Optics for custom types.
 
 **For Optics:**
 
@@ -121,6 +121,18 @@ The project is modular. To use it, add the relevant dependencies to your `build.
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
+```
+
+
+**For SNAPSHOTS:**
+
+```gradle
+repositories {
+    mavenCentral()
+    maven {
+        url= uri("https://central.sonatype.com/repository/maven-snapshots/")
+    }
+}
 ```
 
 * **Annotate your data classes:** Use the provided annotations (e.g., `@optics`) on your immutable classes.

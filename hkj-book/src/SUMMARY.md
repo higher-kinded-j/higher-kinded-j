@@ -43,6 +43,8 @@
 - [Basic Examples - How to use Optics](optics/optics_examples.md)
 - [Complex Data - The Power of Optics](optics/auditing_complex_data_example.md) 
 
+# More Functional Thinking
+- [Blog series](reading.md)
 
 # Project Info
 - [Contributing](./CONTRIBUTING.md)  

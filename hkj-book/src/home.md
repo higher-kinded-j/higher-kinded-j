@@ -76,7 +76,16 @@ The project is modular. To use it, add the relevant dependencies to your `build.
     annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
 ```
+**For SNAPSHOTS:**
 
+```gradle
+repositories {
+    mavenCentral()
+    maven {
+        url= uri("https://central.sonatype.com/repository/maven-snapshots/")
+    }
+}
+```
 
 ## Documentation
 
