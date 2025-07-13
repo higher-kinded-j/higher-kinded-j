@@ -118,7 +118,7 @@ Optional<Either<String, String>> unwrappedOptional = OPTIONAL.narrow(wrappedValu
 
 ~~~admonish Example title="Async Workflow with Error Handling"
 
-- [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)
+- [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)
 
 The most common use case for `EitherT` is combining asynchronous operations (`CompletableFuture`) with domain error handling (`Either`).  The `OrderWorkflowRunner` class provides a detailed example.
 

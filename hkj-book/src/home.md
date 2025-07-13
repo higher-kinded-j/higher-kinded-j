@@ -64,14 +64,14 @@ The project is modular. To use it, add the relevant dependencies to your `build.
 **For HKTs:**
 
 ```gradle
-// build.gradle.kts
+    // build.gradle.kts
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
 ```
 
 **For Optics:**
 
 ```gradle
-// build.gradle.kts
+    // build.gradle.kts
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")

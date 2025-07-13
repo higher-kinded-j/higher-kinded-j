@@ -15,10 +15,9 @@
 ](https://github.com/higher-kinded-j/higher-kinded-j)
 [![Codecov](https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j) [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/higher-kinded-j)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/higher-kinded-j) [![GitHub Discussions](https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j)](https://github.com/higher-kinded-j/higher-kinded-j/discussions) [![Mastodon Follow](https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto)](https://techhub.social/@ultramagnetic)
 
-This library for Higher-Kinded Types in Java was initially created as a simulation for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) to help illustrate different approaches.
 
 This project demonstrates a technique to simulate *Higher-Kinded Types (HKTs)* and implement *Optics* in Java, a feature not natively supported by the language's type system.
-It uses a defunctionalisation approachfor HKTs and provides a powerful toolkit for immutable data manipulation with Optics.
+It uses a defunctionalisation approach for HKTs and provides a powerful toolkit for immutable data manipulation with Optics.
 
 ## Where to start
 
@@ -46,7 +45,6 @@ You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 * **State Management:** Use the `State` monad for computations that need to thread state through.
 * **Learning Tool:** Understand HKTs, type classes, and Optics through concrete Java examples.
 
-## 
 
 ## Practical Example: Order Processing Workflow
 
@@ -95,7 +93,12 @@ For instance, you can update a deeply nested field in an immutable object with a
   Traversal<League, Integer> leagueToAllPlayerScores =
   leagueToTeams.andThen(teamToPlayers).andThen(playerToScore);
 ```
-[Full Example](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
+[Full Example](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
+
+## Requirements
+
+* **Java Development Kit (JDK): Version 24** or later.
+* Gradle (the project includes a Gradle wrapper).
 
 ## How to Use This Library
 
@@ -186,11 +189,9 @@ The code is organized into a multi-module structure to ensure clear separation o
   * `org.higherkindedj.example.draughts`: A Draughts game showcasing various HKT features.
   * `org.higherkindedj.example.order`: An Order workflow showcasing various HKT features.
 
+### History
+**Higher-Kinded-J evolved from a simulation** that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then Higher-Kinded-J has grown into something altogether more useful supporting more functional patterns.
 
-## Requirements
-
-* **Java Development Kit (JDK): Version 24** or later.
-* Gradle (the project includes a Gradle wrapper).
 
 ## Contributing
 

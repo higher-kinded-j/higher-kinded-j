@@ -30,7 +30,7 @@ The `ValidatedMonad<E>` provides a monadic interface for `Validated<E, A>` (wher
 
 ## How to Use `ValidatedMonad<E>` and `Validated<E, A>`
 
-- [ValidatedMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedMonadExample.java)
+- [ValidatedMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedMonadExample.java)
 
 ### Creating Instances
 
