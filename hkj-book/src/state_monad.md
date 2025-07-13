@@ -113,7 +113,7 @@ All these operations will affect or depend on the account's state (balance and h
 First, we define a record to represent the state of our bank account.
 
 
-- [AccountState.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
+- [AccountState.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
 
 
 ```java

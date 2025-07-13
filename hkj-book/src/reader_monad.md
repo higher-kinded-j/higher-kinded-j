@@ -77,7 +77,7 @@ You typically instantiate `ReaderMonad<R>` for the specific environment type `R`
 
 ~~~admonish example title="Example: Managing Configuration"
 
-- [ReaderExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader/ReaderExample.java)
+- [ReaderExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader/ReaderExample.java)
 
 ### 1. Define Your Environment
 

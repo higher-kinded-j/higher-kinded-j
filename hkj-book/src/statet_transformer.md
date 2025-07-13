@@ -50,7 +50,7 @@ Without `StateT`, you might end up with deeply nested `Optional<StateTuple<S, A>
 
 
 
-- [StateTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/state_t/StateTExample.java)
+- [StateTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state_t/StateTExample.java)
 ### Creating StateT Instances
 
 

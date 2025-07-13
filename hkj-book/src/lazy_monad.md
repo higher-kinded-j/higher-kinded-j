@@ -38,7 +38,7 @@ The lazy evaluation feature revolves around these key types:
 
 ~~~admonish example title="Example: Creating Lazy Instances"
 
-- [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/hkj-examples/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
+- [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
 ```java
 
