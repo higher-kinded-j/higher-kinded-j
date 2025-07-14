@@ -1,6 +1,6 @@
 [book]
-title = "HKJ  Higher-Kinded Types for Java"
-description = "Explore Higher-Kinded Types (HKTs) in Java with the Higher-Kinded-J library. Learn about Functors, Applicatives, Monads, Transformers, practical functional patterns, and how to write cleaner, more composable Java code for your projects."
+title = "Higher-Kinded Types and Optics for Java"
+description = "Explore Higher-Kinded Types (HKTs) and Optcs in Java with the Higher-Kinded-J library. Learn about Functors, Applicatives, Monads, Transformers, practical functional patterns, and how to write cleaner, more composable Java code for your projects using Optics."
 authors = ["The Higher-Kinded-J Team"]
 language = "en"
 multilingual = false
