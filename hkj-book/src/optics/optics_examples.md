@@ -2,12 +2,12 @@
 
 ~~~ admonish info
 
-This document provides a brief summary of the example classes found in the  `org.higherkindedj.example.optics` package in the [HKJ-Examples](https://github.com/higher-kinded-j/higher-kinded-j/tree//hkj-examples/src/main/java/org/higherkindedj/example/optics).
+This document provides a brief summary of the example classes found in the  `org.higherkindedj.example.optics` package in the [HKJ-Examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics).
 ~~~
 
 These examples showcase how to use the code generation features (`@GenerateLenses`, `@GeneratePrisms`, `@GenerateTraversals`) and the resulting optics to work with immutable data structures in a clean and powerful way.
 
-## LensUsageExample.java
+## [LensUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
 
 This example is the primary introduction to **Lenses**. It demonstrates how to automatically generate `Lens` optics for immutable records and then compose them to read and update deeply nested fields.
 
@@ -28,7 +28,7 @@ String teamName = leagueToTeamName.get(league);
 League updatedLeague = leagueToTeamName.set("New Team Name").apply(league);
 ```
 
-## PrismUsageExample.java
+## [PrismUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PrismUsageExample.java)
 
 This example introduces **Prisms**. It shows how to generate optics for a sealed interface (a sum type) and use the resulting `Prism` to focus on a specific implementation of that interface.
 
@@ -51,7 +51,7 @@ This example introduces **Prisms**. It shows how to generate optics for a sealed
                                        .apply(new Circle(20.0)); // Returns Optional.empty
 ```
 
-## TraversalUsageExample.java
+## [TraversalUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
 
 This example showcases the power of composing **Traversals** and **Lenses** to perform bulk updates on items within nested collections.
 
@@ -76,7 +76,7 @@ This example showcases the power of composing **Traversals** and **Lenses** to p
   ).value();
 ```
 
-## ValidatedTraversalExample.java
+## [ValidatedTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java)
 
 This example demonstrates a more advanced use case for **Traversals** where the goal is to validate multiple fields on a single object and accumulate all errors.
 
@@ -87,46 +87,46 @@ This example demonstrates a more advanced use case for **Traversals** where the 
   * Using this traversal with `Validated` to run a validation function on each field.
   * Because `Validated` has an `Applicative` that accumulates errors, the end result is a `Validated` object containing either the original form or a list of all validation failures.
 
-## Traversal Sub-package Examples
+## Traversal Examples
 
 These examples focus on using generated traversals for specific collection and container types, often demonstrating "effectful" traversals where each operation can succeed or fail.
 
-### `traversal/list/ListTraversalExample.java`
+### [ListTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/list/ListTraversalExample.java)
 
 * **Demonstrates**: Traversing a `List<String>` field.
 * **Scenario**: A `Project` has a list of team members. The traversal is used with a `lookupUser` function that returns a `Validated` type. This allows validating every member in the list. If any lookup fails, the entire operation results in an `Invalid`.
 
-### `traversal/array/ArrayTraversalExample.java`
+### [ArrayTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/array/ArrayTraversalExample.java)
 
 * **Demonstrates**: Traversing an `Integer[]` field.
 * **Scenario**: A `Survey` has an array of answers. The traversal is used with a validation function to ensure every answer is within a valid range (1-5), accumulating errors with `Validated`.
 
-### `traversal/set/SetTraversalExample.java`
+### [SetTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/set/SetTraversalExample.java)
 
 * **Demonstrates**: Traversing a `Set<String>` field.
 * **Scenario**: A `UserGroup` has a set of member emails. The traversal validates that every email in the set has a valid format (`contains "@"`).
 
-### `traversal/map/MapValueTraversalExample.java`
+### [MapValueTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/map/MapValueTraversalExample.java)
 
 * **Demonstrates**: Traversing the *values* of a `Map<String, Boolean>` field.
 * **Scenario**: A `FeatureToggles` record holds a map of flags. The traversal focuses on every `Boolean` value in the map, allowing for a bulk update to disable all features at once.
 
-### `traversal/either/EitherTraversalExample.java`
+### [EitherTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/either/EitherTraversalExample.java)
 
 * **Demonstrates**: Traversing an `Either<String, Integer>` field.
 * **Scenario**: A `Computation` can result in a success (`Right`) or failure (`Left`). The traversal shows that `modifyF` only affects the value if the `Either` is a `Right`, leaving a `Left` untouched.
 
-### `traversal/maybe/MaybeTraversalExample.java`
+### [MaybeTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/maybe/MaybeTraversalExample.java)
 
 * **Demonstrates**: Traversing a `Maybe<String>` field.
 * **Scenario**: A `Configuration` has an optional `proxyHost`. The traversal shows that an operation is only applied if the `Maybe` is a `Just`, leaving a `Nothing` untouched, which is analogous to the `Either` example.
 
-### `traversal/optional/OptionalTraversalExample.java`
+### [OptionalTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/optional/OptionalTraversalExample.java)
 
 * **Demonstrates**: Traversing a `java.util.Optional<String>` field.
 * **Scenario**: A `User` record has an optional `middleName`. The traversal is used to apply a function (like `toUpperCase`) to the middle name only if it is present. This shows how to work with standard Java types in a functional way.
 
-### `traversal/try/TryTraversalExample.java`
+### [TryTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/traversal/trymonad/TryTraversalExample.java)
 
 * **Demonstrates**: Traversing a `Try<Integer>` field.
 * **Scenario**: A `NetworkRequest` record holds the result of an operation that could have thrown an exception, wrapped in a `Try`. The traversal allows modification of the value only if the `Try` is a `Success`, leaving a `Failure` (containing an exception) unchanged.

@@ -1,4 +1,9 @@
-# Capstone Example: Composing Optics for Deep Validation
+# Capstone Example: 
+## _Composing Optics for Deep Validation_
+
+~~~ admonish example title="See Example Code:"
+[ValidatedTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java)
+~~~
 
 In the previous guides, we explored each core optic—`Lens`, `Prism`, `Iso`, and `Traversal`—as individual tools in our functional toolkit. We've seen how they provide focused, reusable, and composable access to immutable data.
 

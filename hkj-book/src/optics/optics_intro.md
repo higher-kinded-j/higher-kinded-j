@@ -1,4 +1,5 @@
-# An Introduction to Optics with Higher-Kinded-J
+# An Introduction to Optics
+![optics.jpg](../images/optics.jpg)
 
 As Java developers, we love the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data can be a verbose and error-prone nightmare.
 
@@ -7,7 +8,7 @@ Consider a simple nested record structure:
 ```java
 record Street(String name, int number) {}
 record Address(Street street, String city) {}
-record User(String name, Address address) {}
+record User(String name, Address address) {}e
 ```
 
 How do you update the user's street name? In standard Java, you're forced into a "copy-and-update" cascade:

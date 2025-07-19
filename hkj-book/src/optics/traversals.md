@@ -1,4 +1,9 @@
-# Practical Guide: Bulk Updates with Traversals
+# Traversals: Practical Guide
+## _Handling Bulk Updates_
+
+~~~ admonish example title="See Example Code:"
+[TraversalUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
+~~~
 
 So far, our journey through optics has shown us how to handle singular focus:
 
