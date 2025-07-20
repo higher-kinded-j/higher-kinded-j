@@ -1,4 +1,9 @@
-# Practical Guide: Handling Sum Types with Prisms
+# Prisms: A Practical Guide
+## _Working with Sum Types_
+![prism.jpeg](../images/prism.jpeg)
+~~~ admonish example title="See Example Code:"
+[PrismUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PrismUsageExample.java)
+~~~
 
 The previous guide demonstrated how a **`Lens`** gives us a powerful, composable way to work with "has-a" relationships—a field that is guaranteed to exist within a record.
 

@@ -17,16 +17,16 @@
 
 Higher-Kinded-J brings two powerful functional programming toolsets to Java, enabling developers to write more abstract, composable, and robust code.
 
-It provides:
+ Higher-Kinded-J provides:
 
 1. A **Higher-Kinded Types (HKT) Simulation** to abstract over computational contexts like `Optional`, `List`, or `CompletableFuture`.
 2. A powerful **Optics Library** to abstract over immutable data structures, with boilerplate-free code generation.
 
 These two pillars work together to solve common problems in a functional, type-safe way.
 
-## Core Features: Two Pillars of Functional Programming
+## _Two Pillars of Functional Programming_
 
-### Pillar 1: A Higher-Kinded Types Simulation ⚙️
+## 1: A [Higher-Kinded Types](hkts/hkt_introduction.md) Simulation ⚙️
 
 Java's type system lacks native support for Higher-Kinded Types, making it difficult to write code that abstracts over "container" types. We can't easily define a generic function that works identically for `List<A>`, `Optional<A>`, and `CompletableFuture<A>`.
 
@@ -38,7 +38,7 @@ Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunct
 * **Leverage Typeclasses:** Consistently apply powerful patterns like `map`, `flatMap`, `sequence`, and `traverse` across diverse data types.
 * **Manage Effects:** Use provided monads like `IO`, `Either`, `Validated`, and `State` to build robust, composable workflows.
 
-### Pillar 2: A Powerful Optics Library 🔎
+## 2: A Powerful [Optics](optics/optics_intro.md) Library 🔎
 
 Working with immutable data structures, like Java records, is great for safety but leads to verbose "copy-and-update" logic for nested data.
 
@@ -106,11 +106,13 @@ This series provides a practical, step-by-step introduction to solving real-worl
 
 For users who want to understand the underlying HKT simulation that powers the optics library or use monads directly.
 
-* **[Core Concepts](core-concepts.md):** Understand `Kind`, Witness Types, and Type Classes (`Functor`, `Monad`).
-* **[Supported Types](supported-types.md):** See which types are simulated and have typeclass instances.
-* **[Usage Guide](usage-guide.md):** Learn the practical steps for using the HKT simulation directly.
-* **[Order Example Walkthrough](order-walkthrough.md):** A detailed example of building a robust workflow with monad transformers.
-* **[Extending Higher-Kinded-J](extending-simulation.md):** Learn how to add HKT support for your own custom types.
+1. **[An Introduction to HKTs](hkts/hkt_introduction.md):** Learn what HKTs are and the problems they solve.
+2. **[Core Concepts](hkts/core-concepts.md):** Understand `Kind`, Witness Types, and Type Classes (`Functor`, `Monad`).
+3. **[Supported Types](monads/supported-types.md):** See which types are simulated and have typeclass instances.
+4. **[Usage Guide](hkts/usage-guide.md):** Learn the practical steps for using the HKT simulation directly.
+5. **[Examples of how to use HKTs](hkts/hkt_basic_examples.md)**: Practical Examples of how to use the Monads.
+6. **[Order Example Walkthrough](hkts/order-walkthrough.md):** A detailed example of building a robust workflow with monad transformers.
+7. **[Extending Higher-Kinded-J](hkts/extending-simulation.md):** Learn how to add HKT support for your own custom types.
 
 #### History
 **Higher-Kinded-J evolved from a simulation** that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then Higher-Kinded-J has grown into something altogether more useful supporting more functional patterns.

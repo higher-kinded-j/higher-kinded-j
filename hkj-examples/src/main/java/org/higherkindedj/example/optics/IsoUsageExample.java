@@ -28,13 +28,13 @@ public class IsoUsageExample {
   }
 
   public static void main(String[] args) {
+    // 1. Define a point.
     var myPoint = new Point(10, 20);
 
     System.out.println("Original Point: " + myPoint);
     System.out.println("------------------------------------------");
 
     // 2. Get the generated Iso.
-    // Corrected: Accessing the generated field directly, not as a method.
     var pointToTupleIso = ConvertersIsos.pointToTuple;
 
     // --- Use the Iso to perform conversions ---

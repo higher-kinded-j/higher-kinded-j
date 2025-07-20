@@ -1,4 +1,9 @@
-# Practical Guide: Data Equivalence with Isos
+# Isomorphisms: A Practical Guide 
+## _Data Equivalence with Isos_
+
+~~~ admonish example title="See Example Code:"
+[IsoUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IsoUsageExample.java)
+~~~
 
 In the previous guides, we explored two essential optics: the **`Lens`**, for targeting data that *must* exist (a "has-a" relationship), and the **`Prism`**, for safely targeting data that *might* exist in a specific shape (an "is-a" relationship).
 
@@ -113,15 +118,17 @@ package org.higherkindedj.example.iso;
 
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
-import org.higherkindedj.hkt.tuple.Tuple2Lenses; // Assuming generated lenses for Tuple2
+import org.higherkindedj.hkt.tuple.Tuple2Lenses; 
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateIsos;
 
 public class IsoUsageExample {
 
     public record Point(int x, int y) {}
 
     public static class Converters {
+        @GenerateIsos
         public static Iso<Point, Tuple2<Integer, Integer>> pointToTuple() {
             return Iso.of(
                 point -> Tuple.of(point.x(), point.y()),
@@ -130,27 +137,35 @@ public class IsoUsageExample {
     }
 
     public static void main(String[] args) {
+        // 1. Define a point.
         var myPoint = new Point(10, 20);
+    
         System.out.println("Original Point: " + myPoint);
         System.out.println("------------------------------------------");
-
-        // 1. Get the Iso and use it for direct conversion
-        var pointToTupleIso = Converters.pointToTuple();
+    
+        // 2. Get the generated Iso.
+        var pointToTupleIso = ConvertersIsos.pointToTuple;
+    
+        // --- Use the Iso to perform conversions ---
         Tuple2<Integer, Integer> myTuple = pointToTupleIso.get(myPoint);
-        Point convertedBackPoint = pointToTupleIso.reverse().get(myTuple);
-
         System.out.println("After `get`:       " + myTuple);
+    
+        Point convertedBackPoint = pointToTupleIso.reverse().get(myTuple);
         System.out.println("After `reverse`:   " + convertedBackPoint);
         System.out.println("------------------------------------------");
-
-
-        // 2. Compose the Iso with a Lens to create a new Lens
+    
+        // 3. Compose the Iso with other optics.
+        // Corrected: Using the now-generated Tuple2Lenses class.
         Lens<Tuple2<Integer, Integer>, Integer> tupleFirstElementLens = Tuple2Lenses._1();
+    
+        // The result of composing an Iso and a Lens is a new Lens.
         Lens<Point, Integer> pointToX = pointToTupleIso.andThen(tupleFirstElementLens);
-
-        // 3. Use the new composed Lens to perform an update
+    
+        // Use the new Lens to modify the 'x' coordinate of the Point.
         Point movedPoint = pointToX.modify(x -> x + 5, myPoint);
+    
         System.out.println("After composing with a Lens to modify 'x': " + movedPoint);
+        System.out.println("Original is unchanged: " + myPoint);
     }
 }
 ```

@@ -1,12 +1,13 @@
-# Real-World Deep Dive: Auditing Complex Data with Optics
+# Auditing Complex Data with Optics
+## _A Real-World Deep Dive_: The Power of Optics
 
 In modern software, we often work with complex, nested data structures. Performing a seemingly simple task—like "find and decode all production database passwords"—can lead to messy, error-prone code with nested loops, `if` statements, and manual type casting.
 
-This tutorial demonstrates how to solve a sophisticated, real-world problem elegantly using the full power of **hkj-optics**. We'll build a single, declarative, type-safe optic that performs a deep, conditional data transformation.
+This tutorial demonstrates how to solve a sophisticated, real-world problem elegantly using the full power of **higher-kinded-j optics**. We'll build a single, declarative, type-safe optic that performs a deep, conditional data transformation.
 
 ~~~ admonish info
 
-All the example code can be found in the  `org.higherkindedj.example.optics` package in the [HKJ-Examples](https://github.com/higher-kinded-j/higher-kinded-j/tree//hkj-examples/src/main/java/org/higherkindedj/example/optics).
+All the example code can be found in the  `org.higherkindedj.example.optics` package in the [HKJ-Examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics).
 
 ~~~
 

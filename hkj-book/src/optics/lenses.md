@@ -1,4 +1,9 @@
-# Practical Guide: Solving Nested Updates with Lenses (Product types)
+# Nested Updates with Lenses: A Practical Guide 
+## _Working with Product Types_
+![lens2.jpg](../images/lens2.jpg)
+~~~ admonish example title="See Example Code:"
+[LensesExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
+~~~
 
 In the introduction to optics, we saw how updating nested immutable data can be verbose and why optics provide a clean, functional solution. We identified the `Lens` as the primary tool for working with "has-a" relationships, like a field within a record.
 
