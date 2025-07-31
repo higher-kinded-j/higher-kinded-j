@@ -17,7 +17,7 @@ edit-url-template = "https://github.com/higher-kinded-j/higher-kinded-j/edit/mai
 input-404 = "home.md"
 [output.html.fold]
 enable = true
-level = 0
+level = 1
 [output.html.redirect]
 "/usage-guide.html" = "https://higher-kinded-j.github.io/hkts/usage-guide.html"
 "/core-concepts.html" = "https://higher-kinded-j.github.io/hkts/core-concepts.html"
