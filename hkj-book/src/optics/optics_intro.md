@@ -81,7 +81,6 @@ An **Iso** (Isomorphism) is a special, reversible optic. It represents a lossles
 
 * **Problem it solves**: Swapping between different representations of the same data, such as a wrapper class and its raw value, or between two structurally different but informationally equivalent records.
 * **Example**: Suppose you have a `Point` record and a `Tuple2<Integer, Integer>`, which are structurally different but hold the same data.
-  **Java**
 
   ```java
   public record Point(int x, int y) {}
@@ -129,7 +128,6 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
 
 * **Problem it solves**: Applying an operation to every element in a `List`, `Set`, or other collection that is a field within an object.
 * **Example**: To validate a list of promo codes in an order with `Validated`:
-  **Java**
 
   ```java
   @GenerateTraversals
