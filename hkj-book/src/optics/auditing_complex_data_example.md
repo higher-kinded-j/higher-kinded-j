@@ -7,7 +7,10 @@ This tutorial demonstrates how to solve a sophisticated, real-world problem eleg
 
 ~~~ admonish info
 
-All the example code can be found in the  `org.higherkindedj.example.optics` package in the [HKJ-Examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics).
+All the example code for this tutorial can be found in the  `org.higherkindedj.example package in the [Config Audit example](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/configaudit).
+
+Other examples of using Optics can be found here.
+[Optics examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics).
 
 ~~~
 

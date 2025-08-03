@@ -14,9 +14,16 @@ canonical-site-url = "https://higher-kinded-j.github.io"
 git-repository-url = "https://github.com/higher-kinded-j/higher-kinded-j"
 git-repository-icon = "fa-github"
 edit-url-template = "https://github.com/higher-kinded-j/higher-kinded-j/edit/main/hkj-book/{path}"
+input-404 = "home.md"
 [output.html.fold]
 enable = true
-level = 0
+level = 1
+[output.html.redirect]
+"/usage-guide.html" = "https://higher-kinded-j.github.io/hkts/usage-guide.html"
+"/core-concepts.html" = "https://higher-kinded-j.github.io/hkts/core-concepts.html"
+"/draughts.html" = "https://higher-kinded-j.github.io/hkts/draughts.html"
+"/extending-simulation.html" = "https://higher-kinded-j.github.io/hkts/extending-simulation.html"
+"/for-comprehension.html" = "https://higher-kinded-j.github.io/functional/for-comprehension.html"
 
 [preprocessor.alerts]
 [preprocessor.admonish]
