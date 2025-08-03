@@ -36,5 +36,6 @@ public interface Functor<F> {
    * @return A new Functor structure containing the result(s) of applying the function {@code f},
    *     maintaining the original structure F. Guaranteed non-null.
    */
-  <A, B> @NonNull Kind<F, B> map(@NonNull Function<A, B> f, @NonNull Kind<F, A> fa);
+  <A, B> @NonNull Kind<F, B> map(
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<F, A> fa);
 }

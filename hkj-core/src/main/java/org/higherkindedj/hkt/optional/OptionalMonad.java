@@ -96,7 +96,7 @@ public final class OptionalMonad extends OptionalFunctor
    */
   @Override
   public <A, B> @NonNull Kind<OptionalKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<OptionalKind.Witness, B>> f,
+      @NonNull Function<? super A, ? extends Kind<OptionalKind.Witness, B>> f,
       @NonNull Kind<OptionalKind.Witness, A> ma) {
     Optional<A> optA = OPTIONAL.narrow(ma);
     Optional<B> resultOpt =
@@ -124,9 +124,9 @@ public final class OptionalMonad extends OptionalFunctor
    */
   @Override
   public <A, B> @NonNull Kind<OptionalKind.Witness, B> ap(
-      @NonNull Kind<OptionalKind.Witness, Function<A, B>> ff,
+      @NonNull Kind<OptionalKind.Witness, ? extends Function<A, B>> ff,
       @NonNull Kind<OptionalKind.Witness, A> fa) {
-    Optional<Function<A, B>> optF = OPTIONAL.narrow(ff);
+    Optional<? extends Function<A, B>> optF = OPTIONAL.narrow(ff);
     Optional<A> optA = OPTIONAL.narrow(fa);
     Optional<B> resultOpt = optF.flatMap(optA::map);
     return OPTIONAL.widen(resultOpt);
@@ -161,7 +161,7 @@ public final class OptionalMonad extends OptionalFunctor
   @Override
   public <A> @NonNull Kind<OptionalKind.Witness, A> handleErrorWith(
       @NonNull Kind<OptionalKind.Witness, A> ma,
-      @NonNull Function<Unit, Kind<OptionalKind.Witness, A>> handler) {
+      @NonNull Function<? super Unit, ? extends Kind<OptionalKind.Witness, A>> handler) {
     Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
       return handler.apply(Unit.INSTANCE);

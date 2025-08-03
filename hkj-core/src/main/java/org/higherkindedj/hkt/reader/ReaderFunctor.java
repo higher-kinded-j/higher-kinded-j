@@ -44,7 +44,7 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
    */
   @Override
   public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<ReaderKind.Witness<R>, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ReaderKind.Witness<R>, A> fa) {
     Reader<R, A> readerA = READER.narrow(fa);
     Reader<R, B> readerB = readerA.map(f); // Delegates to Reader's own map method
     return READER.widen(readerB);

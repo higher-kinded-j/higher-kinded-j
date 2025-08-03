@@ -37,8 +37,8 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
    *     operation.
    */
   @Override
-  public <A, B> @NonNull Kind<StateKind.Witness<S>, B> flatMap(
-      @NonNull Function<A, Kind<StateKind.Witness<S>, B>> f,
+  public @NonNull <A, B> Kind<StateKind.Witness<S>, B> flatMap(
+      @NonNull Function<? super A, ? extends Kind<StateKind.Witness<S>, B>> f,
       @NonNull Kind<StateKind.Witness<S>, A> ma) {
 
     State<S, A> stateA = STATE.narrow(ma);

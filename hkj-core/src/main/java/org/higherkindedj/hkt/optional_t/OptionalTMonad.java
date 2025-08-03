@@ -72,7 +72,8 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    */
   @Override
   public <A, B> @NonNull Kind<OptionalTKind.Witness<F>, B> map(
-      @NonNull Function<A, @Nullable B> f, @NonNull Kind<OptionalTKind.Witness<F>, A> fa) {
+      @NonNull Function<? super A, ? extends @Nullable B> f,
+      @NonNull Kind<OptionalTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(f, "Function f cannot be null for map");
     Objects.requireNonNull(fa, "Kind fa cannot be null for map");
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(fa);
@@ -102,11 +103,11 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    */
   @Override
   public <A, B> @NonNull Kind<OptionalTKind.Witness<F>, B> ap(
-      @NonNull Kind<OptionalTKind.Witness<F>, Function<A, @Nullable B>> ff,
+      @NonNull Kind<OptionalTKind.Witness<F>, ? extends Function<A, @Nullable B>> ff,
       @NonNull Kind<OptionalTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
     Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
-    OptionalT<F, Function<A, @Nullable B>> funcT = OPTIONAL_T.narrow(ff);
+    OptionalT<F, ? extends Function<A, @Nullable B>> funcT = OPTIONAL_T.narrow(ff);
     OptionalT<F, A> valT = OPTIONAL_T.narrow(fa);
 
     Kind<F, Optional<B>> resultValue =
@@ -132,7 +133,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    */
   @Override
   public <A, B> @NonNull Kind<OptionalTKind.Witness<F>, B> flatMap(
-      @NonNull Function<A, Kind<OptionalTKind.Witness<F>, B>> f,
+      @NonNull Function<? super A, ? extends Kind<OptionalTKind.Witness<F>, B>> f,
       @NonNull Kind<OptionalTKind.Witness<F>, A> ma) {
     Objects.requireNonNull(f, "Function f cannot be null for flatMap");
     Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
@@ -187,7 +188,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
   @Override
   public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> handleErrorWith(
       @NonNull Kind<OptionalTKind.Witness<F>, A> ma,
-      @NonNull Function<Unit, Kind<OptionalTKind.Witness<F>, A>> handler) {
+      @NonNull Function<? super Unit, ? extends Kind<OptionalTKind.Witness<F>, A>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);

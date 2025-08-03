@@ -68,10 +68,10 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    */
   @Override
   public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> ap(
-      @NonNull Kind<ReaderKind.Witness<R>, Function<A, B>> ff,
+      @NonNull Kind<ReaderKind.Witness<R>, ? extends Function<A, B>> ff,
       @NonNull Kind<ReaderKind.Witness<R>, A> fa) {
 
-    Reader<R, Function<A, B>> readerF = READER.narrow(ff);
+    Reader<R, ? extends Function<A, B>> readerF = READER.narrow(ff);
     Reader<R, A> readerA = READER.narrow(fa);
 
     Reader<R, B> readerB =

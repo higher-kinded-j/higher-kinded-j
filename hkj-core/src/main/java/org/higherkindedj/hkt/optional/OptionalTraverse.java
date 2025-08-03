@@ -23,7 +23,7 @@ public final class OptionalTraverse implements Traverse<OptionalKind.Witness> {
 
   @Override
   public <A, B> @NonNull Kind<OptionalKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<OptionalKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<OptionalKind.Witness, A> fa) {
     return OPTIONAL.widen(OPTIONAL.narrow(fa).map(f));
   }
 
@@ -39,11 +39,8 @@ public final class OptionalTraverse implements Traverse<OptionalKind.Witness> {
       final A value = optional.get();
       final Kind<G, ? extends B> g_of_b = f.apply(value);
 
-      @SuppressWarnings("unchecked")
-      final Kind<G, B> g_of_b_casted = (Kind<G, B>) g_of_b;
-
       // Map the result into a new Optional and widen to a Kind
-      return applicative.map(b -> OPTIONAL.widen(Optional.of(b)), g_of_b_casted);
+      return applicative.map(b -> OPTIONAL.widen(Optional.ofNullable(b)), g_of_b);
     } else {
       // If empty, do nothing. Just lift the empty Optional into the applicative.
       return applicative.of(OPTIONAL.widen(Optional.empty()));

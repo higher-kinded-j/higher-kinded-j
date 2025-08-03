@@ -20,7 +20,8 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
 
   @Override
   public <A, B> @NonNull Kind<IOKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<IOKind.Witness, B>> f, @NonNull Kind<IOKind.Witness, A> ma) {
+      @NonNull Function<? super A, ? extends Kind<IOKind.Witness, B>> f,
+      @NonNull Kind<IOKind.Witness, A> ma) {
     IO<A> ioA = IO_OP.narrow(ma);
     // Need to adapt f: A -> Kind<IO.Witness, B> to A -> IO<B> for IO's flatMap
     IO<B> ioB = ioA.flatMap(a -> IO_OP.narrow(f.apply(a)));

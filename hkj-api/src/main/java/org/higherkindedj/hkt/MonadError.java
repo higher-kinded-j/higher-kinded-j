@@ -28,11 +28,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @param <A> The phantom type parameter of the value (since this represents an error state).
    * @return The error wrapped in the context F. Guaranteed non-null.
    */
-  <A> @NonNull Kind<F, A> raiseError(
-      @Nullable E
-          error); // Retains @Nullable for generality, but implementations with Unit will expect
-
-  // @NonNull Unit.INSTANCE
+  <A> @NonNull Kind<F, A> raiseError(@Nullable E error);
 
   /**
    * Handles an error within the monadic context. If 'ma' represents a success value, it's returned
@@ -48,7 +44,7 @@ public interface MonadError<F, E> extends Monad<F> {
    *     contained an error. Guaranteed non-null.
    */
   <A> @NonNull Kind<F, A> handleErrorWith(
-      @NonNull Kind<F, A> ma, @NonNull Function<E, Kind<F, A>> handler);
+      @NonNull Kind<F, A> ma, @NonNull Function<? super E, ? extends Kind<F, A>> handler);
 
   /**
    * A simpler version of handleErrorWith where the handler returns a pure value 'a' which is then
@@ -63,8 +59,7 @@ public interface MonadError<F, E> extends Monad<F> {
    *     monad if it contained an error. Guaranteed non-null.
    */
   default <A> @NonNull Kind<F, A> handleError(
-      @NonNull Kind<F, A> ma, @NonNull Function<E, A> handler) {
-    // Default implementation using handleErrorWith and 'of'
+      @NonNull Kind<F, A> ma, @NonNull Function<? super E, ? extends A> handler) {
     return handleErrorWith(ma, error -> of(handler.apply(error)));
   }
 

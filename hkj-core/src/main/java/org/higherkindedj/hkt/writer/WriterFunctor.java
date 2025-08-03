@@ -37,11 +37,10 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
    * @return A new {@code Kind<WriterKind.Witness<W>, B>} representing the transformed {@code
    *     Writer<W, B>}. Never null.
    */
-  @Override
   public <A, B> @NonNull Kind<WriterKind.Witness<W>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<WriterKind.Witness<W>, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<WriterKind.Witness<W>, A> fa) {
     Writer<W, A> writerA = WRITER.narrow(fa);
-    Writer<W, B> writerB = writerA.map(f); // Delegates to Writer's own map method
+    Writer<W, B> writerB = writerA.map(f);
     return WRITER.widen(writerB);
   }
 }

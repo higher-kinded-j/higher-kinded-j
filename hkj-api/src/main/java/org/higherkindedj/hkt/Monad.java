@@ -13,7 +13,7 @@ import org.jspecify.annotations.NonNull;
  */
 public interface Monad<M> extends Applicative<M> {
 
-  // 'of' is now inherited from Applicative
+  // 'of' is  inherited from Applicative
   // 'map' is inherited from Functor (via Applicative)
   // 'ap' is inherited from Applicative
 
@@ -28,7 +28,8 @@ public interface Monad<M> extends Applicative<M> {
    * @param <B> The result type within the monad.
    * @return The resulting monadic value (e.g., {@code ListKind<B>}). Guaranteed non-null.
    */
-  <A, B> @NonNull Kind<M, B> flatMap(@NonNull Function<A, Kind<M, B>> f, @NonNull Kind<M, A> ma);
+  <A, B> @NonNull Kind<M, B> flatMap(
+      @NonNull Function<? super A, ? extends Kind<M, B>> f, @NonNull Kind<M, A> ma);
 
   // flatMap can define ap: ap(ff, fa) = flatMap(f -> map(f, fa), ff)
   // You could provide a default implementation of ap here if desired,

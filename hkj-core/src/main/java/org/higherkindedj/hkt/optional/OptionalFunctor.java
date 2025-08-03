@@ -73,7 +73,8 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<OptionalKind.Witness, B> map(
-      @NonNull Function<A, @Nullable B> f, @NonNull Kind<OptionalKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends @Nullable B> f,
+      @NonNull Kind<OptionalKind.Witness, A> fa) {
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()
     Optional<B> resultOptional = optionalA.map(f);

@@ -78,11 +78,12 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s ->
             monadF.map(
+                // The lambda expression here helps the compiler infer types correctly
                 stateTuple -> StateTuple.of(stateTuple.state(), f.apply(stateTuple.value())),
                 stateT.runStateT(s));
     return StateT.<S, F, B>create(newRunFn, monadF);
@@ -125,9 +126,9 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
-      @NonNull Kind<StateTKind.Witness<S, F>, Function<A, B>> ff,
+      @NonNull Kind<StateTKind.Witness<S, F>, ? extends Function<A, B>> ff,
       @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
-    StateT<S, F, Function<A, B>> stateTf = StateTKind.narrow(ff);
+    StateT<S, F, ? extends Function<A, B>> stateTf = StateTKind.narrow(ff);
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
@@ -195,7 +196,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    */
   @Override
   public <A, B> @NonNull Kind<StateTKind.Witness<S, F>, B> flatMap(
-      @NonNull Function<A, Kind<StateTKind.Witness<S, F>, B>> f,
+      @NonNull Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
       @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 

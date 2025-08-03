@@ -67,7 +67,7 @@ class ListFunctor implements Functor<ListKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<ListKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<ListKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ListKind.Witness, A> fa) {
     // Narrow to ListKind<A> to call unwrap, or directly to ListView<A>
     // ListKind.narrow ensures fa is not null and is of the correct type.
     List<A> listA = ListKind.narrow(fa).unwrap();

@@ -72,7 +72,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    */
   @Override
   public <R_IN, R_OUT> @NonNull Kind<EitherTKind.Witness<F, L>, R_OUT> map(
-      @NonNull Function<R_IN, R_OUT> f, @NonNull Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
+      @NonNull Function<? super R_IN, ? extends R_OUT> f,
+      @NonNull Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
     Objects.requireNonNull(f, "Function f cannot be null for map");
     Objects.requireNonNull(fa, "Kind fa cannot be null for map");
 
@@ -94,12 +95,12 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    */
   @Override
   public <R_IN, R_OUT> @NonNull Kind<EitherTKind.Witness<F, L>, R_OUT> ap(
-      @NonNull Kind<EitherTKind.Witness<F, L>, Function<R_IN, R_OUT>> ff,
+      @NonNull Kind<EitherTKind.Witness<F, L>, ? extends Function<R_IN, R_OUT>> ff,
       @NonNull Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
     Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
 
-    EitherT<F, L, Function<R_IN, R_OUT>> funcT = EITHER_T.narrow(ff);
+    EitherT<F, L, ? extends Function<R_IN, R_OUT>> funcT = EITHER_T.narrow(ff);
     EitherT<F, L, R_IN> valT = EITHER_T.narrow(fa);
 
     Kind<F, Either<L, R_OUT>> resultValue =
@@ -128,7 +129,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    */
   @Override
   public <R_IN, R_OUT> @NonNull Kind<EitherTKind.Witness<F, L>, R_OUT> flatMap(
-      @NonNull Function<R_IN, Kind<EitherTKind.Witness<F, L>, R_OUT>> f,
+      @NonNull Function<? super R_IN, ? extends Kind<EitherTKind.Witness<F, L>, R_OUT>> f,
       @NonNull Kind<EitherTKind.Witness<F, L>, R_IN> ma) {
     Objects.requireNonNull(f, "Function f cannot be null for flatMap");
     Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
@@ -187,7 +188,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
   @Override
   public <R> @NonNull Kind<EitherTKind.Witness<F, L>, R> handleErrorWith(
       @NonNull Kind<EitherTKind.Witness<F, L>, R> ma,
-      @NonNull Function<L, Kind<EitherTKind.Witness<F, L>, R>> handler) {
+      @NonNull Function<? super L, ? extends Kind<EitherTKind.Witness<F, L>, R>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
 

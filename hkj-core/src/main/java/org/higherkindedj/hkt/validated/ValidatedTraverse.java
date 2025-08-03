@@ -23,7 +23,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
 
   @Override
   public <A, B> @NonNull Kind<ValidatedKind.Witness<E>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<ValidatedKind.Witness<E>, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ValidatedKind.Witness<E>, A> fa) {
     return VALIDATED.widen(VALIDATED.narrow(fa).map(f));
   }
 

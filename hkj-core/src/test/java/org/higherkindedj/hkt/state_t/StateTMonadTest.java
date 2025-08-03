@@ -48,20 +48,22 @@ class NonErrorMonad implements Monad<IdKind.Witness> {
 
   @Override
   public <A, B> @NonNull Kind<IdKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<IdKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<IdKind.Witness, A> fa) {
     return IdKind.of(f.apply(IdKind.narrow(fa).value));
   }
 
   @Override
   public <A, B> @NonNull Kind<IdKind.Witness, B> ap(
-      @NonNull Kind<IdKind.Witness, Function<A, B>> ff, @NonNull Kind<IdKind.Witness, A> fa) {
+      @NonNull Kind<IdKind.Witness, ? extends Function<A, B>> ff,
+      @NonNull Kind<IdKind.Witness, A> fa) {
     assert IdKind.narrow(ff).value != null;
     return IdKind.of(IdKind.narrow(ff).value.apply(IdKind.narrow(fa).value));
   }
 
   @Override
   public <A, B> @NonNull Kind<IdKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<IdKind.Witness, B>> f, @NonNull Kind<IdKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends Kind<IdKind.Witness, B>> f,
+      @NonNull Kind<IdKind.Witness, A> fa) {
     return f.apply(IdKind.narrow(fa).value);
   }
 }
@@ -74,18 +76,20 @@ class StringErrorMonad implements MonadError<IdKind.Witness, String> {
 
   @Override
   public <A, B> @NonNull Kind<IdKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<IdKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<IdKind.Witness, A> fa) {
     IdKind<A> idFa = IdKind.narrow(fa);
-    if (idFa.value == null && f.apply(null) == null)
-      return IdKind.of(null); // a bit tricky to satisfy NonNull if A/B can be null
+    if (idFa.value == null) {
+      f.apply(null);
+    }
     if (idFa.value == null) return IdKind.of(f.apply(null)); // if map(null) is allowed
     return IdKind.of(f.apply(idFa.value));
   }
 
   @Override
   public <A, B> @NonNull Kind<IdKind.Witness, B> ap(
-      @NonNull Kind<IdKind.Witness, Function<A, B>> ff, @NonNull Kind<IdKind.Witness, A> fa) {
-    IdKind<Function<A, B>> idFf = IdKind.narrow(ff);
+      @NonNull Kind<IdKind.Witness, ? extends Function<A, B>> ff,
+      @NonNull Kind<IdKind.Witness, A> fa) {
+    IdKind<? extends Function<A, B>> idFf = IdKind.narrow(ff);
     IdKind<A> idFa = IdKind.narrow(fa);
     if (idFf.value == null) throw new NullPointerException("Function in ap is null");
     // If value is null, and function can handle null, it's okay.
@@ -94,7 +98,8 @@ class StringErrorMonad implements MonadError<IdKind.Witness, String> {
 
   @Override
   public <A, B> @NonNull Kind<IdKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<IdKind.Witness, B>> f, @NonNull Kind<IdKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends Kind<IdKind.Witness, B>> f,
+      @NonNull Kind<IdKind.Witness, A> fa) {
     IdKind<A> idFa = IdKind.narrow(fa);
     // If value is null, function f might or might not handle it.
     return f.apply(idFa.value);
@@ -114,7 +119,7 @@ class StringErrorMonad implements MonadError<IdKind.Witness, String> {
   @Override
   public <A> @NonNull Kind<IdKind.Witness, A> handleErrorWith(
       @NonNull Kind<IdKind.Witness, A> ma,
-      @NonNull Function<String, Kind<IdKind.Witness, A>> handler) {
+      @NonNull Function<? super String, ? extends Kind<IdKind.Witness, A>> handler) {
     IdKind<A> idMa = IdKind.narrow(ma);
     if (idMa.value != null) {
       return ma;
@@ -148,9 +153,6 @@ class StateTMonadTest {
   private <A>
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, A> createStateTKindForOptional(
           Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, A>>> runFn) {
-    if (optMonad == null) {
-      throw new IllegalStateException("optMonad must be initialized before creating StateTKind");
-    }
     StateT<Integer, OptionalKind.Witness, A> stateT = STATE_T.stateT(runFn, optMonad);
     return STATE_T.widen(stateT);
   }

@@ -28,7 +28,7 @@ public class TryFunctor implements Functor<TryKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<TryKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<TryKind.Witness, A> fa) {
     Try<A> tryA = TRY.narrow(fa);
     Try<B> resultTry = tryA.map(f);
     return TRY.widen(resultTry);

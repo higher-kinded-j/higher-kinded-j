@@ -60,7 +60,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
 
   @Override
   public <A, B> @NonNull Kind<ValidatedKind.Witness<E>, B> map(
-      @NonNull Function<A, B> fn, @NonNull Kind<ValidatedKind.Witness<E>, A> valueKind) {
+      @NonNull Function<? super A, ? extends B> fn,
+      @NonNull Kind<ValidatedKind.Witness<E>, A> valueKind) {
     requireNonNull(fn, MAP_FN_NULL_MSG);
     requireNonNull(valueKind, MAP_VALUE_KIND_NULL_MSG);
 
@@ -88,13 +89,13 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
 
   @Override
   public <A, B> @NonNull Kind<ValidatedKind.Witness<E>, B> ap(
-      @NonNull Kind<ValidatedKind.Witness<E>, Function<A, B>> fnKind,
+      @NonNull Kind<ValidatedKind.Witness<E>, ? extends Function<A, B>> fnKind,
       @NonNull Kind<ValidatedKind.Witness<E>, A> valueKind) {
 
     requireNonNull(fnKind, AP_FN_KIND_NULL_MSG);
     requireNonNull(valueKind, AP_VALUE_KIND_NULL_MSG);
 
-    Validated<E, Function<A, B>> fnValidated = VALIDATED.narrow(fnKind);
+    Validated<E, ? extends Function<A, B>> fnValidated = VALIDATED.narrow(fnKind);
     Validated<E, A> valueValidated = VALIDATED.narrow(valueKind);
     // Ensure the function type matches what Validated.ap expects
     Validated<E, Function<? super A, ? extends B>> fnValidatedWithWildcards =
@@ -118,7 +119,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    */
   @Override
   public <A, B> @NonNull Kind<ValidatedKind.Witness<E>, B> flatMap(
-      @NonNull Function<A, Kind<ValidatedKind.Witness<E>, B>> fn,
+      @NonNull Function<? super A, ? extends Kind<ValidatedKind.Witness<E>, B>> fn,
       @NonNull Kind<ValidatedKind.Witness<E>, A> valueKind) {
     requireNonNull(fn, FLATMAP_FN_NULL_MSG);
     requireNonNull(valueKind, FLATMAP_VALUE_KIND_NULL_MSG);
@@ -169,7 +170,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   @Override
   public <A> @NonNull Kind<ValidatedKind.Witness<E>, A> handleErrorWith(
       @NonNull Kind<ValidatedKind.Witness<E>, A> ma,
-      @NonNull Function<E, Kind<ValidatedKind.Witness<E>, A>> handler) {
+      @NonNull Function<? super E, ? extends Kind<ValidatedKind.Witness<E>, A>> handler) {
     requireNonNull(ma, HANDLE_ERROR_WITH_MA_NULL_MSG);
     requireNonNull(handler, HANDLE_ERROR_WITH_HANDLER_NULL_MSG);
 

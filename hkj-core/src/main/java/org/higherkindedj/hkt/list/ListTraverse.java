@@ -55,7 +55,7 @@ public class ListTraverse implements Traverse<ListKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<ListKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<ListKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ListKind.Witness, A> fa) {
     return ListFunctor.INSTANCE.map(f, fa);
   }
 

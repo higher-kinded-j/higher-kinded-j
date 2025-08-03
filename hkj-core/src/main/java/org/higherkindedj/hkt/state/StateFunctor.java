@@ -61,7 +61,8 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
    */
   @Override
   public <A, B> @NonNull Kind<StateKind.Witness<S>, B> map(
-      @NonNull Function<A, @Nullable B> f, @NonNull Kind<StateKind.Witness<S>, A> fa) {
+      @NonNull Function<? super A, ? extends @Nullable B> f,
+      @NonNull Kind<StateKind.Witness<S>, A> fa) {
     requireNonNull(f, "Mapping function cannot be null");
 
     // 1. Unwrap the Kind to get the concrete State<S, A>.

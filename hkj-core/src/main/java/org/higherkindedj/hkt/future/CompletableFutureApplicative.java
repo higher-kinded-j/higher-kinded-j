@@ -96,9 +96,9 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
    */
   @Override
   public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> ap(
-      @NonNull Kind<CompletableFutureKind.Witness, Function<A, B>> ff,
+      @NonNull Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
       @NonNull Kind<CompletableFutureKind.Witness, A> fa) {
-    CompletableFuture<Function<A, B>> futureF = FUTURE.narrow(ff);
+    CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
 
     CompletableFuture<B> futureB = futureF.thenCombine(futureA, (func, val) -> func.apply(val));

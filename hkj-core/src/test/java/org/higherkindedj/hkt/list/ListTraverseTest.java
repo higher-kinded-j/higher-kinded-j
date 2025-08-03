@@ -87,7 +87,7 @@ class ListTraverseTest {
 
     @Override
     public <A, B> @NonNull Kind<TestOptionalKindWitness, B> map(
-        @NonNull Function<A, B> f, @NonNull Kind<TestOptionalKindWitness, A> fa) {
+        @NonNull Function<? super A, ? extends B> f, @NonNull Kind<TestOptionalKindWitness, A> fa) {
       return TestOptional.narrow(fa)
           .getOptional()
           .map(f)
@@ -97,15 +97,12 @@ class ListTraverseTest {
 
     @Override
     public <A, B> @NonNull Kind<TestOptionalKindWitness, B> ap(
-        @NonNull Kind<TestOptionalKindWitness, Function<A, B>> ff,
+        @NonNull Kind<TestOptionalKindWitness, ? extends Function<A, B>> ff,
         @NonNull Kind<TestOptionalKindWitness, A> fa) {
-      Optional<Function<A, B>> optFunc = TestOptional.narrow(ff).getOptional();
+      Optional<? extends Function<A, B>> optFunc = TestOptional.narrow(ff).getOptional();
       Optional<A> optVal = TestOptional.narrow(fa).getOptional();
 
-      return optFunc
-          .flatMap(f -> optVal.map(f))
-          .map(TestOptional::some)
-          .orElseGet(TestOptional::none);
+      return optFunc.flatMap(optVal::map).map(TestOptional::some).orElseGet(TestOptional::none);
     }
   }
 

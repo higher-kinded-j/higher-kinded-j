@@ -79,10 +79,11 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    */
   @Override
   public <A, B> @NonNull Kind<WriterKind.Witness<W>, B> ap(
-      @NonNull Kind<WriterKind.Witness<W>, Function<A, B>> ff,
+      // 1. Update the signature to match the Applicative interface
+      @NonNull Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff,
       @NonNull Kind<WriterKind.Witness<W>, A> fa) {
 
-    Writer<W, Function<A, B>> writerF = WRITER.narrow(ff);
+    Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);
 
     W combinedLog = monoidW.combine(writerF.log(), writerA.log());

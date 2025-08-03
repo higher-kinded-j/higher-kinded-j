@@ -68,7 +68,7 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
    */
   @Override
   public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> map(
-      @NonNull Function<A, @Nullable B> f, // Function A -> B, where B can be null
+      @NonNull Function<? super A, ? extends @Nullable B> f, // Function A -> B, where B can be null
       @NonNull Kind<CompletableFutureKind.Witness, A> fa) {
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);

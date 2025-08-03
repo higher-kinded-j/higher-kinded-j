@@ -56,9 +56,10 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<ListKind.Witness, B> ap(
-      @NonNull Kind<ListKind.Witness, Function<A, B>> ff, @NonNull Kind<ListKind.Witness, A> fa) {
+      @NonNull Kind<ListKind.Witness, ? extends Function<A, B>> ff,
+      @NonNull Kind<ListKind.Witness, A> fa) {
 
-    List<Function<A, B>> functions = ListKind.narrow(ff).unwrap();
+    List<? extends Function<A, B>> functions = ListKind.narrow(ff).unwrap();
     List<A> values = ListKind.narrow(fa).unwrap();
     List<B> resultList = new ArrayList<>();
 
@@ -87,7 +88,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<ListKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<ListKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ListKind.Witness, A> fa) {
     return ListFunctor.INSTANCE.map(f, fa);
   }
 
@@ -104,7 +105,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<ListKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<ListKind.Witness, B>> f, @NonNull Kind<ListKind.Witness, A> ma) {
+      @NonNull Function<? super A, ? extends Kind<ListKind.Witness, B>> f,
+      @NonNull Kind<ListKind.Witness, A> ma) {
 
     List<A> inputList = ListKind.narrow(ma).unwrap();
     List<B> resultList = new ArrayList<>();
