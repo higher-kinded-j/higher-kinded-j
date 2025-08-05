@@ -2,23 +2,22 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
- * Represents a simulated Higher-Kinded Type (HKT) in Java.
+ * The core of the Higher-Kinded Type (HKT) simulation.
  *
- * <p>Java's type system does not natively support type constructors like {@code F<_>} (e.g., {@code
- * List<_>}, {@code Optional<_>}) as first-class type parameters. This interface serves as a marker
- * or bridge to simulate the concept of applying a type constructor {@code F} to a type argument
- * {@code A}, conceptually representing {@code F<A>}.
+ * <p>{@code Kind<F, A>} is a type that represents the application of a type constructor {@code F}
+ * to a type argument {@code A}. Since Java's type system does not natively support type
+ * constructors as parameters (like F&lt;_&gt;), we use a "witness type" for {@code F} to stand in
+ * for the constructor.
  *
- * <p>Concrete 'kinds' (like ListKind, OptionalKind) implement this interface to participate in the
- * simulation, typically using a pattern like: {@code interface ListKind<T> extends
- * Kind<ListKind<?>, T> {}} where {@code ListKind<?>} acts as the witness type {@code F}.
+ * <p>For example, a {@code java.util.List<String>} would be represented as {@code
+ * Kind<ListKind.Witness, String>}, where {@code ListKind.Witness} is the marker type that
+ * represents the {@code List} type constructor.
  *
- * <p>Interfaces like {@link Functor} and {@code Monad} operate on instances of {@code Kind<F, A>}.
- *
- * @param <F> The witness type representing the type constructor (e.g., {@code ListKind<?>}, {@code
- *     OptionalKind<?>}). This acts as the 'F' in the conceptual type {@code F<A>}.
- * @param <A> The type argument applied to the type constructor F (e.g., {@code Integer} in {@code
- *     List<Integer>}). This acts as the 'A' in the conceptual type {@code F<A>}.
+ * @param <F> The witness type for the type constructor.
+ * @param <A> The type of the value contained within the context.
  */
+@NullMarked
 public interface Kind<F, A> {}

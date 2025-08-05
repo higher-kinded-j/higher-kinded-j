@@ -1,4 +1,4 @@
-# ValidatedMonad:
+#The ValidatedMonad:
 ## _Handling Valid or Invalid Operations_
 
 ~~~ admonish example title="See Example Code:"

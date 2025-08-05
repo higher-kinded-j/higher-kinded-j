@@ -1,4 +1,5 @@
-# EitherT: _Combining Monadic Effects_
+# The EitherT Transformer: 
+## _Combining Monadic Effects_
 
 ~~~ admonish example title="See Example Code:"
 [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)

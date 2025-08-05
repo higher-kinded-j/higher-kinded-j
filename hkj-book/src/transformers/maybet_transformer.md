@@ -1,4 +1,5 @@
-# MaybeT: _Combining Monadic Effects with Optionality_
+# The MaybeT Transformer:
+## _Combining Monadic Effects with Optionality_
 
 ~~~ admonish example title="See Example Code:"
 [MaybeTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/maybe_t/MaybeTExample.java)

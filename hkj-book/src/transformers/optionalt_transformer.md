@@ -1,4 +1,5 @@
-# OptionalT: _Combining Monadic Effects with `java.util.Optional`_
+# The OptionalT Transformer: 
+## _Combining Monadic Effects with `java.util.Optional`_
 
 
 ~~~ admonish example title="See Example Code:"

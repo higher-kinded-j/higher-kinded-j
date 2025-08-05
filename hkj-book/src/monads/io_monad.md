@@ -1,4 +1,4 @@
-# IOMonad: 
+#The IOMonad: 
 ## _Managing Side Effects with `IO`_
 
 ~~~ admonish example title="See Example Code:"

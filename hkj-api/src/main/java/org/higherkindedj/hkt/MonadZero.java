@@ -2,20 +2,30 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
- * An interface for monads that have a "zero" or "empty" element. This is crucial for filtering
- * operations, where a failing predicate results in the zero element.
+ * A Monad that also has a "zero" or "empty" element, which allows it to represent failure or an
+ * empty result.
  *
- * @param <M> The witness type for the Monad.
+ * <p>This is useful for monads that can be filtered, such as {@code List}, {@code Optional}, or
+ * {@code Maybe}. The {@code zero()} method provides the empty value for that monad (e.g., an empty
+ * list or {@code Optional.empty()}).
+ *
+ * <p>This interface is particularly important for enabling the {@code when()} (filtering) clause in
+ * for-comprehensions, allowing computations to be short-circuited.
+ *
+ * @param <F> The witness type of the Monad.
+ * @see Monad
  */
-public interface MonadZero<M> extends Monad<M> {
+@NullMarked
+public interface MonadZero<F> extends Monad<F> {
 
   /**
-   * Returns the zero element for this monad. The result is polymorphic and can be safely cast to
-   * any Kind&lt;M, T&gt;. For example, for List it is an empty list, for Maybe it is Nothing.
+   * Returns the "zero" or "empty" value for this Monad.
    *
-   * @param <T> The desired inner type of the zero value.
-   * @return The zero or empty value for the monad.
+   * @param <A> The type parameter of the Kind, which will not be present.
+   * @return The empty value for the monad (non-null), e.g., {@code Optional.empty()}.
    */
-  <T> Kind<M, T> zero();
+  <A> Kind<F, A> zero();
 }

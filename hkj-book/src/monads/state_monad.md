@@ -1,4 +1,4 @@
-# State Monad:
+# The State Monad:
 ## _Managing State Functionally_
 
 ~~~ admonish example title="See Example Code:"

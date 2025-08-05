@@ -1,4 +1,5 @@
-# Transformers:  _Combining Monadic Effects_
+# The Transformers:  
+_Combining Monadic Effects_
 
 ![stand_back_monad_transformers.jpg](../images/stand_back_monad_transformers.jpg)
 

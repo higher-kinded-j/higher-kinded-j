@@ -1,4 +1,4 @@
-# CompletableFutureMonad: 
+# The CompletableFutureMonad: 
 ## _Asynchronous Computations with `CompletableFuture`_
 
 ~~~ admonish example title="See Example Code:"
