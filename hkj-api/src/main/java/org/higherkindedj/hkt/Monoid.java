@@ -5,9 +5,8 @@ package org.higherkindedj.hkt;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Represents the Monoid type class, a fundamental concept in abstract algebra and functional
- * programming. A Monoid defines a structure for a specific type {@code A} that allows elements of
- * that type to be combined, and it includes a special "identity" element for this combination.
+ * A Monoid: Provides combine and empty. It's for things that can be combined and also have a "zero"
+ * or "identity" value.
  *
  * <p>A Monoid consists of:
  *
@@ -59,7 +58,7 @@ import org.jspecify.annotations.NonNull;
  * @param <A> The type for which the Monoid instance is defined. This type must adhere to the Monoid
  *     laws.
  */
-public interface Monoid<A> {
+public interface Monoid<A> extends Semigroup<A> {
 
   /**
    * Provides the identity element for the Monoid's {@code combine} operation.
@@ -81,21 +80,4 @@ public interface Monoid<A> {
    *     instances like numbers, strings, and collections.
    */
   @NonNull A empty();
-
-  /**
-   * Combines two elements of type {@code A} into a single element of type {@code A}.
-   *
-   * <p>This operation must be associative: {@code combine(x, combine(y, z)) == combine(combine(x,
-   * y), z)} for all {@code x, y, z} of type {@code A}.
-   *
-   * <p>Associativity allows for flexible grouping of operations, which is crucial for tasks like
-   * parallel processing or efficient folding of data structures.
-   *
-   * @param x The first non-null element of type {@code A}.
-   * @param y The second non-null element of type {@code A}.
-   * @return The non-null result of combining {@code x} and {@code y}, also of type {@code A}. The
-   *     non-null annotation implies that combining two non-null values should typically result in a
-   *     non-null value, fitting most common Monoid definitions.
-   */
-  @NonNull A combine(@NonNull A x, @NonNull A y);
 }
