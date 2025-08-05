@@ -5,7 +5,9 @@ package org.higherkindedj.hkt;
 import org.jspecify.annotations.NonNull;
 
 /**
- * <p>A Monoid: Provides combine and empty. It's for things that can be combined and also have a "zero" or "identity" value.
+ * A Monoid: Provides combine and empty. It's for things that can be combined and also have a "zero"
+ * or "identity" value.
+ *
  * <p>A Monoid consists of:
  *
  * <ol>
