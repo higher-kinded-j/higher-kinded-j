@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.writer.Writer;
 import org.higherkindedj.hkt.writer.WriterKind;
 import org.higherkindedj.hkt.writer.WriterMonad;
+import org.jspecify.annotations.NonNull;
 
 /** see {<a href="https://higher-kinded-j.github.io/writer_monad.html">Writer Monad</a>} */
 public class WriterExample {
@@ -83,12 +84,12 @@ public class WriterExample {
 
 class StringMonoid implements Monoid<String> {
   @Override
-  public String empty() {
+  public @NonNull String empty() {
     return "";
   }
 
   @Override
-  public String combine(String x, String y) {
+  public @NonNull String combine(@NonNull String x, @NonNull String y) {
     return x + y;
   }
 }
