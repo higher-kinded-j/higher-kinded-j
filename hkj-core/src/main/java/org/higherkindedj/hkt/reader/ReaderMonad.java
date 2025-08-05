@@ -75,7 +75,7 @@ public final class ReaderMonad<R> extends ReaderApplicative<R>
    */
   @Override
   public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> flatMap(
-      @NonNull Function<A, Kind<ReaderKind.Witness<R>, B>> f,
+      @NonNull Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
       @NonNull Kind<ReaderKind.Witness<R>, A> ma) {
 
     Reader<R, A> readerA = READER.narrow(ma); // Convert Kind back to concrete Reader

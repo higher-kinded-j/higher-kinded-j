@@ -68,7 +68,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
    */
   @Override
   public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> flatMap(
-      @NonNull Function<A, Kind<EitherKind.Witness<L>, B>> f,
+      @NonNull Function<? super A, ? extends Kind<EitherKind.Witness<L>, B>> f,
       @NonNull Kind<EitherKind.Witness<L>, A> ma) {
     Either<L, A> eitherA = EITHER.narrow(ma);
     Either<L, B> resultEither =
@@ -96,9 +96,9 @@ public class EitherMonad<L> extends EitherFunctor<L>
    */
   @Override
   public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> ap(
-      @NonNull Kind<EitherKind.Witness<L>, Function<A, B>> ffKind,
+      @NonNull Kind<EitherKind.Witness<L>, ? extends Function<A, B>> ffKind,
       @NonNull Kind<EitherKind.Witness<L>, A> faKind) {
-    Either<L, Function<A, B>> eitherF = EITHER.narrow(ffKind);
+    Either<L, ? extends Function<A, B>> eitherF = EITHER.narrow(ffKind);
     Either<L, A> eitherA = EITHER.narrow(faKind);
 
     // This uses the Either.flatMap and Either.map methods directly, which is efficient.
@@ -115,7 +115,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
       @NonNull Kind<EitherKind.Witness<L>, A> faKind,
       @NonNull Kind<EitherKind.Witness<L>, B> fbKind,
       @NonNull Kind<EitherKind.Witness<L>, C> fcKind,
-      @NonNull Function3<A, B, C, R_TYPE> f) {
+      @NonNull Function3<? super A, ? super B, ? super C, ? extends R_TYPE> f) {
     // Monad.flatMap(Function<T, Kind<F, U>> func, Kind<F, T> kind)
     // Monad.map(Function<T, U> func, Kind<F, T> kind)
     return this.flatMap(
@@ -128,7 +128,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
       @NonNull Kind<EitherKind.Witness<L>, B> fbKind,
       @NonNull Kind<EitherKind.Witness<L>, C> fcKind,
       @NonNull Kind<EitherKind.Witness<L>, D> fdKind,
-      @NonNull Function4<A, B, C, D, R_TYPE> f) {
+      @NonNull Function4<? super A, ? super B, ? super C, ? super D, ? extends R_TYPE> f) {
     return this.flatMap(
         a ->
             this.flatMap(
@@ -144,7 +144,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
   @Override
   public <A> @NonNull Kind<EitherKind.Witness<L>, A> handleErrorWith(
       @NonNull Kind<EitherKind.Witness<L>, A> ma,
-      @NonNull Function<L, Kind<EitherKind.Witness<L>, A>> handler) {
+      @NonNull Function<? super L, ? extends Kind<EitherKind.Witness<L>, A>> handler) {
     Either<L, A> either = EITHER.narrow(ma);
     return either.fold(handler, rightValue -> ma);
   }

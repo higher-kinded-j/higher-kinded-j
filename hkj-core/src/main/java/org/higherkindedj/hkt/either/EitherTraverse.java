@@ -23,7 +23,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
 
   @Override
   public <A, B> @NonNull Kind<EitherKind.Witness<E>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<EitherKind.Witness<E>, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<EitherKind.Witness<E>, A> fa) {
     return EITHER.widen(EITHER.narrow(fa).map(f));
   }
 

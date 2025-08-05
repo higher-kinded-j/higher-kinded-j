@@ -62,7 +62,8 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    */
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<TryKind.Witness, B>> f, @NonNull Kind<TryKind.Witness, A> ma) {
+      @NonNull Function<? super A, ? extends Kind<TryKind.Witness, B>> f,
+      @NonNull Kind<TryKind.Witness, A> ma) {
     Try<A> tryA = TRY.narrow(ma);
 
     Try<B> resultTry =
@@ -106,7 +107,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
   @Override
   public <A> @NonNull Kind<TryKind.Witness, A> handleErrorWith(
       @NonNull Kind<TryKind.Witness, A> ma,
-      @NonNull Function<Throwable, Kind<TryKind.Witness, A>> handler) {
+      @NonNull Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
     Try<A> tryA = TRY.narrow(ma);
 
     Try<A> resultTry =

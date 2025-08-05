@@ -59,7 +59,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
    */
   @Override
   public <A, B> @NonNull Kind<WriterKind.Witness<W>, B> flatMap(
-      @NonNull Function<A, Kind<WriterKind.Witness<W>, B>> f,
+      @NonNull Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
       @NonNull Kind<WriterKind.Witness<W>, A> ma) {
 
     Writer<W, A> writerA = WRITER.narrow(ma);

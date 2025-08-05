@@ -50,7 +50,8 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<MaybeKind.Witness, B> map(
-      @NonNull Function<A, @Nullable B> f, @NonNull Kind<MaybeKind.Witness, A> ma) {
+      @NonNull Function<? super A, ? extends @Nullable B> f,
+      @NonNull Kind<MaybeKind.Witness, A> ma) {
     // 1. Unwrap the Kind<MaybeKind.Witness, A> to get the concrete Maybe<A>.
     Maybe<A> maybeA = MAYBE.narrow(ma);
     // 2. Apply the function using Maybe's own map method.

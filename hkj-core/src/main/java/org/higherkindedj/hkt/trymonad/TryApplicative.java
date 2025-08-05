@@ -48,8 +48,9 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
    */
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> ap(
-      @NonNull Kind<TryKind.Witness, Function<A, B>> ff, @NonNull Kind<TryKind.Witness, A> fa) {
-    Try<Function<A, B>> tryF = TRY.narrow(ff);
+      @NonNull Kind<TryKind.Witness, ? extends Function<A, B>> ff,
+      @NonNull Kind<TryKind.Witness, A> fa) {
+    Try<? extends Function<A, B>> tryF = TRY.narrow(ff);
     Try<A> tryA = TRY.narrow(fa);
 
     Try<B> resultTry =

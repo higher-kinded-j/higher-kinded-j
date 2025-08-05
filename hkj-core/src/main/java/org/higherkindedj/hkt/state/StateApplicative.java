@@ -48,16 +48,16 @@ public class StateApplicative<S> extends StateFunctor<S>
    */
   @Override
   public <A, B> @NonNull Kind<StateKind.Witness<S>, B> ap(
-      @NonNull Kind<StateKind.Witness<S>, Function<A, B>> ff,
+      @NonNull Kind<StateKind.Witness<S>, ? extends Function<A, B>> ff,
       @NonNull Kind<StateKind.Witness<S>, A> fa) {
 
-    State<S, Function<A, B>> stateF = STATE.narrow(ff);
+    State<S, ? extends Function<A, B>> stateF = STATE.narrow(ff);
     State<S, A> stateA = STATE.narrow(fa);
 
     State<S, B> stateB =
         State.of(
             initialState -> {
-              StateTuple<S, Function<A, B>> resultF = stateF.run(initialState);
+              StateTuple<S, ? extends Function<A, B>> resultF = stateF.run(initialState);
               Function<A, B> func = resultF.value();
               S stateS1 = resultF.state();
 

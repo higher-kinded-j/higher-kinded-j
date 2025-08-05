@@ -84,17 +84,17 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    */
   @Override
   public <A, B> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, B> ap(
-      @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, Function<A, B>> ff,
+      @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, ? extends Function<A, B>> ff,
       @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    ReaderT<F, R_ENV, Function<A, B>> ffT = READER_T.narrow(ff);
+    ReaderT<F, R_ENV, ? extends Function<A, B>> ffT = READER_T.narrow(ff);
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
 
     Applicative<F> outerApplicative = this.outerMonad;
 
     Function<R_ENV, Kind<F, B>> newRun =
         r -> {
-          Kind<F, Function<A, B>> funcKind = ffT.run().apply(r);
+          Kind<F, ? extends Function<A, B>> funcKind = ffT.run().apply(r);
           Kind<F, A> valKind = faT.run().apply(r);
           return outerApplicative.ap(funcKind, valKind);
         };
@@ -119,7 +119,8 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    */
   @Override
   public <A, B> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
+      @NonNull Function<? super A, ? extends B> f,
+      @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
 
@@ -155,7 +156,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    */
   @Override
   public <A, B> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, B> flatMap(
-      @NonNull Function<A, Kind<ReaderTKind.Witness<F, R_ENV>, B>> f,
+      @NonNull Function<? super A, ? extends Kind<ReaderTKind.Witness<F, R_ENV>, B>> f,
       @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> ma) {
 
     ReaderT<F, R_ENV, A> maT = READER_T.narrow(ma);

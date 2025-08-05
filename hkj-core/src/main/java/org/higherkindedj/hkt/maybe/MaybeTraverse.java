@@ -22,7 +22,7 @@ public final class MaybeTraverse implements Traverse<MaybeKind.Witness> {
 
   @Override
   public <A, B> @NonNull Kind<MaybeKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<MaybeKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<MaybeKind.Witness, A> fa) {
     return MAYBE.widen(MAYBE.narrow(fa).map(f));
   }
 

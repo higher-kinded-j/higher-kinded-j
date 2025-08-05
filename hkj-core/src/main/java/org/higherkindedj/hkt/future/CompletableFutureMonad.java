@@ -77,7 +77,9 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    */
   @Override
   public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> flatMap(
-      @NonNull Function<@Nullable A, @NonNull Kind<CompletableFutureKind.Witness, B>> f,
+      @NonNull
+          Function<? super @Nullable A, ? extends @NonNull Kind<CompletableFutureKind.Witness, B>>
+          f,
       @NonNull Kind<CompletableFutureKind.Witness, A> ma) {
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
     CompletableFuture<B> futureB =
@@ -125,7 +127,8 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
   @Override
   public <A> @NonNull Kind<CompletableFutureKind.Witness, A> handleErrorWith(
       @NonNull Kind<CompletableFutureKind.Witness, A> ma,
-      @NonNull Function<Throwable, Kind<CompletableFutureKind.Witness, A>> handler) {
+      @NonNull Function<? super Throwable, ? extends Kind<CompletableFutureKind.Witness, A>>
+          handler) {
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
 
     // Optimization: If already successfully completed, no need to attach handler.

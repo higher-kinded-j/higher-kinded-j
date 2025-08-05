@@ -40,7 +40,7 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
    */
   @Override
   public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<EitherKind.Witness<L>, A> ma) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<EitherKind.Witness<L>, A> ma) {
     Either<L, A> eitherA = EITHER.narrow(ma);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map
     return EITHER.widen(resultEither);

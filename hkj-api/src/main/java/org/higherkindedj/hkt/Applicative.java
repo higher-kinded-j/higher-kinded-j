@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.function.Function3;
@@ -110,18 +111,16 @@ public interface Applicative<F> extends Functor<F> {
    *     "empty" or "failed" context (e.g., {@code Optional.empty()}), the result is typically also
    *     such a context.
    */
-  <A, B> @NonNull Kind<F, B> ap(@NonNull Kind<F, Function<A, B>> ff, @NonNull Kind<F, A> fa);
+  <A, B> @NonNull Kind<F, B> ap(
+      @NonNull Kind<F, ? extends Function<A, B>> ff, @NonNull Kind<F, A> fa);
 
   // --- mapN implementations ---
-  // These are default methods providing convenient ways to combine multiple applicative values.
-  // They are typically implemented using `ap` and `map`.
 
   /**
    * Combines two values {@code fa} and {@code fb}, both in the applicative context {@code F}, using
    * a curried pure function {@code f: A -> (B -> C)}.
    *
-   * <p>This is a common way {@code map2} is defined in terms of {@code ap} and {@code map}. {@code
-   * map(f, fa)} results in {@code Kind<F, Function<B, C>>}, which is then applied to {@code fb}.
+   * <p>This version is implemented using the more common BiFunction-based map2.
    *
    * @param fa The first non-null applicative value {@code Kind<F, A>}.
    * @param fb The second non-null applicative value {@code Kind<F, B>}.
@@ -130,40 +129,36 @@ public interface Applicative<F> extends Functor<F> {
    * @param <A> The type of the value in {@code fa}.
    * @param <B> The type of the value in {@code fb}.
    * @param <C> The type of the result of the combined computation.
-   * @return A non-null {@code Kind<F, C>} containing the result of applying the curried function
-   *     {@code f} to the values from {@code fa} and {@code fb} within the context {@code F}.
+   * @return A non-null {@code Kind<F, C>} containing the result.
    */
   default <A, B, C> @NonNull Kind<F, C> map2(
       @NonNull Kind<F, A> fa, @NonNull Kind<F, B> fb, @NonNull Function<A, Function<B, C>> f) {
-    // map(f, fa) yields Kind<F, Function<B, C>>
-    // ap( Kind<F, Function<B, C>>, Kind<F, B> ) yields Kind<F, C>
-    return ap(map(f, fa), fb);
+    // Delegate to the BiFunction version, which is now the base implementation
+    return map2(fa, fb, (a, b) -> f.apply(a).apply(b));
   }
 
   /**
    * Combines two values {@code fa} and {@code fb}, both in the applicative context {@code F}, using
    * a pure {@link BiFunction BiFunction&lt;A, B, C&gt;}.
    *
-   * <p>This is often a more convenient signature for {@code map2}. It's implemented by currying the
-   * {@link BiFunction} and then using the other {@code map2} or {@code ap} directly.
+   * <p>This is the primary, most flexible version of map2.
    *
    * @param fa The first non-null applicative value {@code Kind<F, A>}.
    * @param fb The second non-null applicative value {@code Kind<F, B>}.
-   * @param f A non-null pure {@link BiFunction} to combine the values from {@code fa} and {@code
-   *     fb}.
+   * @param f A non-null pure {@link BiFunction} to combine the values.
    * @param <A> The type of the value in {@code fa}.
    * @param <B> The type of the value in {@code fb}.
    * @param <C> The type of the result of applying {@code f}.
-   * @return A non-null {@code Kind<F, C>} containing the result of applying {@code f} to the values
-   *     from {@code fa} and {@code fb} within the context {@code F}.
+   * @return A non-null {@code Kind<F, C>} containing the result.
    */
   default <A, B, C> @NonNull Kind<F, C> map2(
-      @NonNull Kind<F, A> fa, @NonNull Kind<F, B> fb, @NonNull BiFunction<A, B, C> f) {
-    // Curry the BiFunction: A -> (B -> C)
-    Function<A, Function<B, C>> curriedF = a -> b -> f.apply(a, b);
-    // Delegate to the other map2 or implement directly using ap:
-    // return ap(map(curriedF, fa), fb);
-    return map2(fa, fb, curriedF);
+      @NonNull Kind<F, A> fa,
+      @NonNull Kind<F, B> fb,
+      @NonNull BiFunction<? super A, ? super B, ? extends C> f) {
+    // The implementation is now based on map and ap, with a curried function.
+    // The key is that the lambda `a -> b -> f.apply(a, b)` helps the compiler
+    // resolve the wildcard types correctly before they are passed to map.
+    return ap(map(a -> b -> f.apply(a, b), fa), fb);
   }
 
   /**
@@ -186,14 +181,8 @@ public interface Applicative<F> extends Functor<F> {
       @NonNull Kind<F, A> fa,
       @NonNull Kind<F, B> fb,
       @NonNull Kind<F, C> fc,
-      @NonNull Function3<A, B, C, R> f) {
-    // Curry the function: A -> (B -> (C -> R))
-    Function<A, Function<B, Function<C, R>>> curriedF = a -> b -> c -> f.apply(a, b, c);
-    // Chained application:
-    // map(curriedF, fa)                                 -> Kind<F, Function<B, Function<C, R>>>
-    // ap(map(curriedF, fa), fb)                         -> Kind<F, Function<C, R>>
-    // ap(ap(map(curriedF, fa), fb), fc)                 -> Kind<F, R>
-    return ap(ap(map(curriedF, fa), fb), fc);
+      @NonNull Function3<? super A, ? super B, ? super C, ? extends R> f) {
+    return ap(map2(fa, fb, (a, b) -> c -> Objects.requireNonNull(f.apply(a, b, c))), fc);
   }
 
   /**
@@ -218,12 +207,8 @@ public interface Applicative<F> extends Functor<F> {
       @NonNull Kind<F, B> fb,
       @NonNull Kind<F, C> fc,
       @NonNull Kind<F, D> fd,
-      @NonNull Function4<A, B, C, D, R> f) {
-    // Curry the function: A -> (B -> (C -> (D -> R)))
-    Function<A, Function<B, Function<C, Function<D, R>>>> curriedF =
-        a -> b -> c -> d -> f.apply(a, b, c, d);
-    // Chained application:
-    return ap(ap(ap(map(curriedF, fa), fb), fc), fd);
+      @NonNull Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
+    return ap(map3(fa, fb, fc, (a, b, c) -> d -> Objects.requireNonNull(f.apply(a, b, c, d))), fd);
   }
 
   /**
@@ -252,11 +237,9 @@ public interface Applicative<F> extends Functor<F> {
       @NonNull Kind<F, C> fc,
       @NonNull Kind<F, D> fd,
       @NonNull Kind<F, E> fe,
-      @NonNull Function5<A, B, C, D, E, R> f) {
-    // Curry the function: A -> (B -> (C -> (D -> (E -> R))))
-    Function<A, Function<B, Function<C, Function<D, Function<E, R>>>>> curriedF =
-        a -> b -> c -> d -> e -> f.apply(a, b, c, d, e);
-    // Chained application:
-    return ap(ap(ap(ap(map(curriedF, fa), fb), fc), fd), fe);
+      @NonNull Function5<? super A, ? super B, ? super C, ? super D, ? super E, ? extends R> f) {
+    return ap(
+        map4(fa, fb, fc, fd, (a, b, c, d) -> e -> Objects.requireNonNull(f.apply(a, b, c, d, e))),
+        fe);
   }
 }

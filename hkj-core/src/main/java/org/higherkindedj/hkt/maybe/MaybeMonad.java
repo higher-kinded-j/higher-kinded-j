@@ -35,7 +35,8 @@ public final class MaybeMonad extends MaybeFunctor
 
   @Override
   public <A, B> @NonNull Kind<MaybeKind.Witness, B> flatMap(
-      @NonNull Function<A, Kind<MaybeKind.Witness, B>> f, @NonNull Kind<MaybeKind.Witness, A> ma) {
+      @NonNull Function<? super A, ? extends Kind<MaybeKind.Witness, B>> f,
+      @NonNull Kind<MaybeKind.Witness, A> ma) {
     Maybe<A> maybeA = MAYBE.narrow(ma);
 
     Maybe<B> resultMaybe =
@@ -50,8 +51,9 @@ public final class MaybeMonad extends MaybeFunctor
 
   @Override
   public <A, B> @NonNull Kind<MaybeKind.Witness, B> ap(
-      @NonNull Kind<MaybeKind.Witness, Function<A, B>> ff, @NonNull Kind<MaybeKind.Witness, A> fa) {
-    Maybe<Function<A, B>> maybeF = MAYBE.narrow(ff);
+      @NonNull Kind<MaybeKind.Witness, ? extends Function<A, B>> ff,
+      @NonNull Kind<MaybeKind.Witness, A> fa) {
+    Maybe<? extends Function<A, B>> maybeF = MAYBE.narrow(ff);
     Maybe<A> maybeA = MAYBE.narrow(fa);
 
     Maybe<B> resultMaybe = maybeF.flatMap(maybeA::map);
@@ -88,7 +90,7 @@ public final class MaybeMonad extends MaybeFunctor
   @Override
   public <A> @NonNull Kind<MaybeKind.Witness, A> handleErrorWith(
       @NonNull Kind<MaybeKind.Witness, A> ma,
-      @NonNull Function<Unit, Kind<MaybeKind.Witness, A>> handler) {
+      @NonNull Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler) {
     return MAYBE.narrow(ma).isNothing() ? handler.apply(Unit.INSTANCE) : ma;
   }
 

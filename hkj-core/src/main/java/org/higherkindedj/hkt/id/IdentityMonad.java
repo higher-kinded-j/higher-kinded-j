@@ -84,7 +84,7 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<Id.Witness, B> map(
-      @NonNull Function<A, B> fn, @NonNull Kind<Id.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> fn, @NonNull Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(fn, "Function cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
     // Delegate to Id.map for directness. Id.map handles null values wrapped in Id correctly.
@@ -112,7 +112,7 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<Id.Witness, B> ap(
-      @NonNull Kind<Id.Witness, Function<A, B>> ff, @NonNull Kind<Id.Witness, A> fa) {
+      @NonNull Kind<Id.Witness, ? extends Function<A, B>> ff, @NonNull Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
     Function<A, B> function = ID.narrow(ff).value();
@@ -148,7 +148,8 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<Id.Witness, B> flatMap(
-      @NonNull Function<A, Kind<Id.Witness, B>> fn, @NonNull Kind<Id.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends Kind<Id.Witness, B>> fn,
+      @NonNull Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(fn, "Function cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
     A valueInA = ID.narrow(fa).value();

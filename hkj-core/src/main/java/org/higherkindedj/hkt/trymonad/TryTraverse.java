@@ -22,7 +22,7 @@ public final class TryTraverse implements Traverse<TryKind.Witness> {
 
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> map(
-      @NonNull Function<A, B> f, @NonNull Kind<TryKind.Witness, A> fa) {
+      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<TryKind.Witness, A> fa) {
     // Delegate to Try's own map method and widen the result.
     return TRY.widen(TRY.narrow(fa).map(f));
   }
