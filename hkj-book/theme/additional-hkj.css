@@ -6,3 +6,8 @@ li:not(:last-of-type) {
 li :is(ul, ol) {
     margin-block-start: 0.5em;
 }
+
+/* Reduces the top margin of an H2 that directly follows an H1 */
+h1 + h2 {
+    margin-top: -2.0rem;
+}

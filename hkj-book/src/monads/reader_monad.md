@@ -1,4 +1,4 @@
-# Reader Monad:
+# The Reader Monad:
 ## _Managed Dependencies and Configuration_
 
 ~~~ admonish example title="See Example Code:"

@@ -1,4 +1,4 @@
-# WriterMonad:
+# The WriterMonad:
 ## _Accumulating Output Alongside Computations_
 
 ~~~ admonish example title="See Example Code:"

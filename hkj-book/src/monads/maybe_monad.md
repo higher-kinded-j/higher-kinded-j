@@ -1,4 +1,4 @@
-# MaybeMonad:
+#The MaybeMonad:
 ## _Handling Optional Values with Non-Null Guarantee_
 
 ~~~ admonish example title="See Example Code:"

@@ -1,4 +1,4 @@
-# EitherMonad: 
+#The EitherMonad: 
 ## _Typed Error Handling_
 
 ~~~ admonish example title="See Example Code:"

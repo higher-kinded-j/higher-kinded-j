@@ -8,6 +8,7 @@
   - [Extending](hkts/extending-simulation.md)
 - [For Comprehension](functional/for_comprehension.md)
 - [Monads](monads/supported-types.md)
+  - [Semigroup and Monoid](monads/semigroup_and_monoid.md)
   - [CompletableFuture](monads/cf_monad.md)
   - [Either](monads/either_monad.md)
   - [Identity](monads/identity.md)

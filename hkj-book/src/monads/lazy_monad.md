@@ -1,4 +1,4 @@
-# Lazy Monad: 
+#The Lazy Monad: 
 ## _Lazy Evaluation with `Lazy`_
 
 ~~~ admonish example title="See Example Code:"

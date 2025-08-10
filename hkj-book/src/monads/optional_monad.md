@@ -1,4 +1,4 @@
-# OptionalMonad:
+# The OptionalMonad:
 ## _Monadic Operations for Java Optional_
 
 ~~~ admonish example title="See Example Code:"

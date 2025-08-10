@@ -10,6 +10,11 @@ Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (H
 
 As we have already discussed, Java's type system lacks native Higher-Kinded Types. We can easily parametrise a type by another type (like `List<String>`), but we cannot easily parametrise a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
 
+~~~ admonish warning
+You will often see Higher-Kinded Types represented with an underscore, like `F<_>` (e.g., `List<_>`, `Optional<_>`). This notation, borrowed from languages like Scala, represents a "type constructor"—a type that is waiting for a type parameter. It's important to note that this underscore is a conceptual placeholder and is not the same as Java's `?` wildcard, which is used for instantiated types. Our library provides a way to simulate this `F<_>` concept in Java.
+
+~~~
+
 ## 2. The `Kind<F, A>` Bridge
 
 ![defunctionalisation_internal.svg](../images/puml/defunctionalisation_internal.svg)
@@ -21,7 +26,9 @@ As we have already discussed, Java's type system lacks native Higher-Kinded Type
   * `EitherKind.Witness<L>` represents the `Either<L, _>` type constructor (where `L` is fixed).
   * `IOKind<IOKind.Witness>` represents the `IO` type constructor.
 * **`A` (Type Argument):** The concrete type contained within or parameterised by the constructor (e.g., `Integer` in `List<Integer>`).
-* **How it Works:** An actual object, like a `java.util.List<Integer>`, is wrapped in a helper class (e.g., `ListHolder`) which implements `Kind<ListKind<?>, Integer>`. This `Kind` object can then be passed to generic functions that expect `Kind<F, A>`.
+* **How it Works:** The library provides a seamless bridge between a standard java type, like a `java.util.List<Integer>`and its `Kind` representation `Kind<ListKind.Witness, Integer>`. Instead of requiring you to manually wrap objects, this conversion is handled by static helper methods, typically `widen` and `narrow`.
+  * To treat a `List<Integer>` as a `Kind`, you use a helper function like `LIST.widen()`.
+  * This `Kind` object can then be passed to generic functions (such as `map` or `flatMap` from a `Functor` or `Monad` instance) that expect `Kind<F, A>`.
 * **Reference:** [`Kind.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Kind.java)
 
 ## 3. Type Classes (`Functor`, `Applicative`, `Monad`, `MonadError`)

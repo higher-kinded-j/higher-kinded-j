@@ -1,14 +1,24 @@
 # MonadZero
 
-The `MonadZero` type class extends the `Monad` interface to include the concept of a "zero" or "empty" element. It is designed for monads that can represent failure, absence, or emptiness, allowing them to be used in filtering operations.
+The `MonadZero` is a more advanced type class extends the `Monad` interface to include the concept of a "zero" or "empty" element. It is designed for monads that can represent failure, absence, or emptiness, allowing them to be used in filtering operations.
 
-### Purpose and Concept
+The interface for MonadZero in hkj-api extends Monad:
+
+```java
+public interface MonadZero<F> extends Monad<F> {
+    <A> Kind<F, A> zero();
+}
+```
+
+### Why is it useful?
 
 A `Monad` provides a way to sequence computations within a context (`flatMap`, `map`, `of`). A `MonadZero` adds one critical operation to this structure:
 
 * `zero()`: Returns the "empty" or "zero" element for the monad.
 
 This `zero` element acts as an absorbing element in a monadic sequence, similar to how multiplying by zero results in zero. If a computation results in a `zero`, subsequent operations in the chain are typically skipped.
+
+`MonadZero` is particularly useful for making for-comprehensions more powerful. When you are working with a monad that has a `MonadZero` instance, you can use a `when()` clause to filter results within the comprehension.
 
 **Key Implementations in this Project:**
 
@@ -22,7 +32,7 @@ The main purpose of `MonadZero` is to enable filtering within monadic comprehens
 
 #### 1. Filtering in For-Comprehensions
 
-The most powerful application in this codebase is within the **`For` comprehension builder**. The builder has two entry points:
+As already mentioned the most powerful application in this codebase is within the **`For` comprehension builder**. The builder has two entry points:
 
 * `For.from(monad, ...)`: For any standard `Monad`.
 * `For.from(monadZero, ...)`: An overloaded version specifically for a `MonadZero`.
