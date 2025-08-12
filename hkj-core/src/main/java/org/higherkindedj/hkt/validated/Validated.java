@@ -7,6 +7,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.either.Either;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -125,21 +127,25 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
       @NonNull Function<? super A, ? extends @NonNull Validated<E, ? extends B>> fn);
 
   /**
-   * Applies a function contained within a {@code Validated} to this {@code Validated}'s value. If
-   * this {@code Validated} is {@code Valid(a)} and {@code fnValidated} is {@code Valid(f)}, then
-   * the result is {@code Valid(f.apply(a))}. If this instance is {@code Invalid} and {@code
-   * fnValidated} is {@code Valid}, this {@code Invalid} instance is returned. If {@code
-   * fnValidated} is {@code Invalid}, its error is returned (this behavior might also depend on the
-   * specific implementation of ap in Invalid). Otherwise, it returns the first {@code Invalid}
-   * encountered.
+   * Applies a function contained within a {@code Validated} to this {@code Validated}'s value.
+   *
+   * <p>If this instance is {@code Valid} and {@code fnValidated} is {@code Valid}, the result is
+   * {@code Valid(f.apply(a))}.
+   *
+   * <p>If either this instance or {@code fnValidated} is {@code Invalid}, an {@code Invalid} is
+   * returned. If both are {@code Invalid}, the errors are combined using the provided {@link
+   * Semigroup}.
    *
    * @param fnValidated A {@code Validated} containing a function from {@code A} to {@code B}. Must
    *     not be null.
+   * @param semigroup A {@link Semigroup} to combine errors if both this and {@code fnValidated} are
+   *     {@code Invalid}.
    * @param <B> The new value type.
    * @return A {@code Validated<E, B>} instance.
    */
   @NonNull <B> Validated<E, B> ap(
-      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated);
+      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated,
+      @NonNull Semigroup<E> semigroup);
 
   /**
    * Applies one of two functions depending on whether this instance is {@link Invalid} or {@link
@@ -160,6 +166,18 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
     } else {
       return validMapper.apply(get());
     }
+  }
+
+  /**
+   * Converts this {@code Validated} to an {@link Either}.
+   *
+   * <p>A {@link Valid} instance becomes an {@link Either.Right}, and an {@link Invalid} instance
+   * becomes an {@link Either.Left}.
+   *
+   * @return An {@code Either<E, A>} representing the state of this {@code Validated}.
+   */
+  default @NonNull Either<E, A> toEither() {
+    return fold(Either::left, Either::right);
   }
 
   /**

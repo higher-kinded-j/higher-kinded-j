@@ -7,13 +7,22 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.MonadError; // Import MonadError
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Semigroup;
 import org.jspecify.annotations.NonNull;
 
 /**
  * Monad instance for {@link Validated}. The error type {@code E} is fixed for this Monad instance.
  * Implements {@link MonadError} which transitively includes {@link org.higherkindedj.hkt.Monad
  * Monad} and {@link org.higherkindedj.hkt.Applicative Applicative}.
+ *
+ * <p><b>Important Note on Monad Laws:</b> With this implementation, the {@link #ap(Kind, Kind) ap}
+ * method (from the {@code Applicative} superclass) accumulates errors, while {@link
+ * #flatMap(Function, Kind) flatMap} will still fail fast on the first {@code Invalid} result. This
+ * means that the monad law stating that {@code ap} should be equivalent to a {@code flatMap}
+ * implementation (i.e., {@code ap(fab, fa)} should equal {@code fab.flatMap(f -> fa.map(f))}) will
+ * not hold. This is a common and accepted trade-off when using {@code Validated} to accumulate
+ * errors.
  *
  * @param <E> The type of the error value. For ValidatedMonad, this error type E is expected to be
  *     non-null.
@@ -43,19 +52,22 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   static final String HANDLE_ERROR_WITH_HANDLER_RETURNED_NULL_KIND_MSG =
       "Handler function in handleErrorWith must not return a null Kind.";
 
-  private static final ValidatedMonad<?> INSTANCE = new ValidatedMonad<>();
+  private final Semigroup<E> semigroup;
 
-  private ValidatedMonad() {}
+  private ValidatedMonad(Semigroup<E> semigroup) {
+    this.semigroup = requireNonNull(semigroup, "Semigroup for ValidatedMonad cannot be null.");
+  }
 
   /**
-   * Provides a singleton instance of {@code ValidatedMonad} for a given error type {@code E}.
+   * Provides an instance of {@code ValidatedMonad} for a given error type {@code E}, which requires
+   * a {@link Semigroup} for error accumulation in {@code ap}.
    *
+   * @param semigroup The semigroup for combining errors.
    * @param <E> The error type.
-   * @return The singleton instance.
+   * @return A new instance of {@code ValidatedMonad}.
    */
-  @SuppressWarnings("unchecked")
-  public static <E> @NonNull ValidatedMonad<E> instance() {
-    return (ValidatedMonad<E>) INSTANCE;
+  public static <E> @NonNull ValidatedMonad<E> instance(@NonNull Semigroup<E> semigroup) {
+    return new ValidatedMonad<>(semigroup);
   }
 
   @Override
@@ -81,7 +93,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    * @throws NullPointerException if value is null.
    */
   @Override
-  public <A> @NonNull Kind<ValidatedKind.Witness<E>, A> of(@NonNull A value) {
+  public <A> @NonNull Kind<ValidatedKind.Witness<E>, A> of(A value) {
     requireNonNull(value, OF_VALUE_NULL_MSG);
     Validated<E, A> validInstance = Validated.valid(value);
     return VALIDATED.widen(validInstance);
@@ -101,7 +113,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     Validated<E, Function<? super A, ? extends B>> fnValidatedWithWildcards =
         fnValidated.map(f -> (Function<? super A, ? extends B>) f);
 
-    Validated<E, B> result = valueValidated.<B>ap(fnValidatedWithWildcards);
+    Validated<E, B> result = valueValidated.ap(fnValidatedWithWildcards, semigroup);
     return VALIDATED.widen(result);
   }
 

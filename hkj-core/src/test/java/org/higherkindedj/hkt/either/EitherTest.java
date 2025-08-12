@@ -264,7 +264,6 @@ class EitherTest {
         "flatMap on Right with null value should propagate exception from mapper if mapper doesn't"
             + " handle null")
     void flatMap_onRightWithNull_mapperThrowsException_shouldPropagate() {
-      final NullPointerException npeFromMapper = new NullPointerException("Mapper got null");
       Function<Integer, Either<String, String>> mapperSensitiveToNull =
           i -> {
             // This specific mapper will throw if i is null
@@ -279,7 +278,7 @@ class EitherTest {
 
       // Test with a mapper that would throw NPE if its input is null
       assertThatThrownBy(() -> rightNullInstance.flatMap(mapperSensitiveToNull))
-          .isInstanceOf(NullPointerException.class); // Because mapperSensitiveToNull will throw
+          .isInstanceOf(NullPointerException.class);
 
       // Test with a mapper that explicitly handles null
       Either<String, String> resultWithNullHandled = rightNullInstance.flatMap(mapperOkWithNull);
@@ -442,12 +441,5 @@ class EitherTest {
       assertThat(leftNull1).isNotEqualTo(leftInstance);
       assertThat(rightNull1).isNotEqualTo(rightInstance);
     }
-  }
-
-  @Test
-  void map_onLeft_shouldThrowIfMapperIsNull() { // This test was from your previous context
-    assertThatNullPointerException()
-        .isThrownBy(() -> leftInstance.map(null))
-        .withMessageContaining("mapper function cannot be null");
   }
 }

@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Set;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -56,7 +58,11 @@ public class ValidatedTraversalExample {
   }
 
   public static void main(String[] args) {
-    Applicative<ValidatedKind.Witness<String>> validatedApplicative = ValidatedMonad.instance();
+    // Define a Semigroup for combining String errors.
+    final Semigroup<String> stringSemigroup = Semigroups.string("; ");
+    // Create the Applicative instance with the error-combining logic.
+    Applicative<ValidatedKind.Witness<String>> validatedApplicative =
+        ValidatedMonad.instance(stringSemigroup);
 
     // --- 3. Compose optics to create a "deep" traversal ---
     Lens<Form, Principal> formPrincipalLens = FormLenses.principal();
@@ -102,14 +108,34 @@ public class ValidatedTraversalExample {
 
     System.out.println("Result: " + VALIDATED.narrow(result2));
 
-    // --- Scenario 3: A form with a Guest principal ---
-    var guestForm = new Form(3, new Guest());
-    System.out.println("\nInput: " + guestForm);
+    // --- Scenario 3: A form with multiple invalid permissions ---
+    var multipleInvalidForm =
+        new Form(
+            3,
+            new User(
+                "Charlie",
+                List.of(
+                    new Permission("PERM_EXECUTE"),
+                    new Permission("PERM_WRITE"),
+                    new Permission("PERM_SUDO"))));
+    System.out.println("\nInput: " + multipleInvalidForm);
 
     Kind<ValidatedKind.Witness<String>, Form> result3 =
         formToPermissionNameTraversal.modifyF(
+            ValidatedTraversalExample::validatePermissionName,
+            multipleInvalidForm,
+            validatedApplicative);
+
+    System.out.println("Result (errors accumulated): " + VALIDATED.narrow(result3));
+
+    // --- Scenario 4: A form with a Guest principal ---
+    var guestForm = new Form(4, new Guest());
+    System.out.println("\nInput: " + guestForm);
+
+    Kind<ValidatedKind.Witness<String>, Form> result4 =
+        formToPermissionNameTraversal.modifyF(
             ValidatedTraversalExample::validatePermissionName, guestForm, validatedApplicative);
 
-    System.out.println("Result: " + VALIDATED.narrow(result3));
+    System.out.println("Result: " + VALIDATED.narrow(result4));
   }
 }

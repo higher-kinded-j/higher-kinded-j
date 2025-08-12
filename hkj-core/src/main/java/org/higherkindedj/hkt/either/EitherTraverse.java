@@ -6,10 +6,21 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
 
+/**
+ * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link Either}, using {@link
+ * EitherKind.Witness} as the higher-kinded type witness.
+ *
+ * <p>Traversal and folding operations are right-biased, meaning they operate on the value inside a
+ * {@link Either.Right} and pass through a {@link Either.Left} unchanged.
+ *
+ * @param <E> The type of the left-hand value (typically an error).
+ */
 public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> {
 
   private static final EitherTraverse<?> INSTANCE = new EitherTraverse<>();
@@ -28,31 +39,28 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   }
 
   @Override
-  public <G, A, B> Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
+  public <G, A, B> @NonNull Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
       @NonNull Applicative<G> applicative,
       @NonNull Kind<EitherKind.Witness<E>, A> ta,
       @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
 
-    final Either<E, A> either = EITHER.narrow(ta);
+    return EITHER
+        .narrow(ta)
+        .fold(
+            // Left case: If it's a Left, wrap the left value in a new Either and lift it
+            // into the applicative context.
+            leftValue -> applicative.of(EITHER.widen(Either.left(leftValue))),
 
-    if (either instanceof Either.Left<E, A> left) {
-      // we create a new Left with the correct type signature.
-      // The value `left.getLeft()` is preserved, but the new Either is now correctly
-      // typed as Either<E, B>, which the compiler can lift into the applicative.
-      final Either<E, B> result = Either.left(left.getLeft());
-      return applicative.of(EITHER.widen(result));
-    } else {
-      // Case 2: Right.
-      final Either.Right<E, A> right = (Either.Right<E, A>) either;
-      final Kind<G, ? extends B> g_of_b = f.apply(right.getRight());
+            // Right case: If it's a Right, apply the function `f` to the right value.
+            // This yields a Kind<G, B>. Then, map over that to wrap the `B` back into a Right.
+            rightValue -> applicative.map(b -> EITHER.widen(Either.right(b)), f.apply(rightValue)));
+  }
 
-      // Add a safe, explicit cast to help Java's type inference.
-      // The '? extends B' wildcard from the function signature makes it hard for
-      // the compiler to match types in the `map` function. This cast clarifies our intent.
-      @SuppressWarnings("unchecked")
-      final Kind<G, B> g_of_b_casted = (Kind<G, B>) g_of_b;
-
-      return applicative.map(b -> EITHER.widen(Either.<E, B>right(b)), g_of_b_casted);
-    }
+  @Override
+  public <A, M> M foldMap(
+      @NonNull Monoid<M> monoid,
+      @NonNull Function<? super A, ? extends M> f,
+      @NonNull Kind<EitherKind.Witness<E>, A> fa) {
+    return EITHER.narrow(fa).fold(left -> monoid.empty(), f);
   }
 }

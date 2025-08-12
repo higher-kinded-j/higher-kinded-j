@@ -8,18 +8,18 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
 
 /**
- * The Traverse instance for {@link java.util.Optional}. Traversal is performed on the present
- * value. If the Optional is empty, the operation short-circuits.
+ * The Traverse and Foldable instance for {@link java.util.Optional}.
+ *
+ * <p>Traversal and folding operations are performed on the present value. If the Optional is empty,
+ * these operations short-circuit or return an empty/identity value.
  */
-public final class OptionalTraverse implements Traverse<OptionalKind.Witness> {
-
-  public static final OptionalTraverse INSTANCE = new OptionalTraverse();
-
-  private OptionalTraverse() {}
+public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
+  INSTANCE;
 
   @Override
   public <A, B> @NonNull Kind<OptionalKind.Witness, B> map(
@@ -28,22 +28,29 @@ public final class OptionalTraverse implements Traverse<OptionalKind.Witness> {
   }
 
   @Override
-  public <G, A, B> Kind<G, Kind<OptionalKind.Witness, B>> traverse(
+  public <G, A, B> @NonNull Kind<G, Kind<OptionalKind.Witness, B>> traverse(
       @NonNull Applicative<G> applicative,
       @NonNull Kind<OptionalKind.Witness, A> ta,
       @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
 
-    final Optional<A> optional = OPTIONAL.narrow(ta);
+    return OPTIONAL
+        .narrow(ta)
+        .map(f)
+        .map(gb -> applicative.map(b -> OPTIONAL.widen(Optional.ofNullable(b)), gb))
+        .orElse(applicative.of(OPTIONAL.widen(Optional.empty())));
+  }
 
+  @Override
+  public <A, M> M foldMap(
+      @NonNull Monoid<M> monoid,
+      @NonNull Function<? super A, ? extends M> f,
+      @NonNull Kind<OptionalKind.Witness, A> fa) {
+    Optional<A> optional = OPTIONAL.narrow(fa);
+    // If present, map the value. If empty, return the monoid's empty value.
     if (optional.isPresent()) {
-      final A value = optional.get();
-      final Kind<G, ? extends B> g_of_b = f.apply(value);
-
-      // Map the result into a new Optional and widen to a Kind
-      return applicative.map(b -> OPTIONAL.widen(Optional.ofNullable(b)), g_of_b);
+      return f.apply(optional.get());
     } else {
-      // If empty, do nothing. Just lift the empty Optional into the applicative.
-      return applicative.of(OPTIONAL.widen(Optional.empty()));
+      return monoid.empty();
     }
   }
 }

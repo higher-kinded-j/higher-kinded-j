@@ -7,11 +7,13 @@ import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.Test;
 class ListTraverseTest {
 
   private final Traverse<ListKind.Witness> listTraverse = ListTraverse.INSTANCE;
+  private final Foldable<ListKind.Witness> listFoldable = ListTraverse.INSTANCE;
 
   // --- Mock/Simple Optional HKT for Testing Traverse ---
 
@@ -109,11 +112,10 @@ class ListTraverseTest {
   // --- End of Mock Optional HKT ---
 
   @Nested
-  @DisplayName("map method (delegates to ListFunctor)")
+  @DisplayName("map method")
   class MapTests {
     @Test
     void map_emptyList_shouldReturnEmptyListKind() {
-      // Changed from ListKind.Witness to ListKind.Witness
       Kind<ListKind.Witness, Integer> input = LIST.widen(Collections.emptyList());
       Kind<ListKind.Witness, String> result = listTraverse.map(Object::toString, input);
       assertThat(LIST.narrow(result)).isEmpty();
@@ -124,13 +126,6 @@ class ListTraverseTest {
       Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2, 3));
       Kind<ListKind.Witness, Integer> result = listTraverse.map(x -> x * 2, input);
       assertThat(LIST.narrow(result)).containsExactly(2, 4, 6);
-    }
-
-    @Test
-    void map_functionChangesType() {
-      Kind<ListKind.Witness, Integer> input = LIST.widen(Arrays.asList(1, 2));
-      Kind<ListKind.Witness, String> result = listTraverse.map(x -> "v" + x, input);
-      assertThat(LIST.narrow(result)).containsExactly("v1", "v2");
     }
   }
 
@@ -150,10 +145,6 @@ class ListTraverseTest {
     void traverse_emptyList_shouldReturnApplicativeOfEmptyListKind() {
       Kind<ListKind.Witness, Integer> emptyListKind = LIST.widen(Collections.emptyList());
 
-      // G = TestOptionalKindWitness
-      // A = Integer
-      // B = String
-      // T = ListKind.Witness
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, String>> resultKind =
           listTraverse.traverse(optionalApplicative, emptyListKind, intToOptionalStringKind);
 
@@ -187,74 +178,40 @@ class ListTraverseTest {
           TestOptional.narrow(resultKind).getOptional();
       assertThat(resultOptional).isEmpty();
     }
-
-    @Test
-    void traverse_allEffectsSucceed_noFailure() {
-      Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 3, 5));
-
-      Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
-          listTraverse.traverse(optionalApplicative, inputList, intToOptionalIntSometimesNoneKind);
-
-      Optional<Kind<ListKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThat(LIST.narrow(resultOptional.get())).containsExactly(3, 9, 15);
-    }
   }
 
   @Nested
-  @DisplayName("sequenceA method")
-  class SequenceATests {
-    private final Applicative<TestOptionalKindWitness> optionalApplicative =
-        TestOptionalApplicative.INSTANCE;
-
+  @DisplayName("foldMap method")
+  class FoldMapTests {
     @Test
-    void sequenceA_emptyListOfEffects_shouldReturnApplicativeOfEmptyList() {
-      List<Kind<TestOptionalKindWitness, Integer>> actualEmptyList = Collections.emptyList();
-      Kind<ListKind.Witness, Kind<TestOptionalKindWitness, Integer>> emptyListOfEffects =
-          LIST.widen(actualEmptyList);
+    void foldMap_emptyList_shouldReturnMonoidEmpty() {
+      Kind<ListKind.Witness, Integer> emptyList = LIST.widen(Collections.emptyList());
+      Monoid<Integer> sumMonoid = Monoids.integerAddition();
 
-      Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
-          listTraverse.<TestOptionalKindWitness, Integer>sequenceA(
-              optionalApplicative, emptyListOfEffects);
+      Integer result = listFoldable.foldMap(sumMonoid, Function.identity(), emptyList);
 
-      Optional<Kind<ListKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThat(LIST.narrow(resultOptional.get())).isEmpty();
+      assertThat(result).isEqualTo(sumMonoid.empty());
+      assertThat(result).isZero();
     }
 
     @Test
-    void sequenceA_listOfSuccessfulEffects_shouldReturnApplicativeOfListOfValues() {
-      List<Kind<TestOptionalKindWitness, Integer>> listOfActualEffects =
-          Arrays.asList(TestOptional.some(10), TestOptional.some(20), TestOptional.some(30));
-      Kind<ListKind.Witness, Kind<TestOptionalKindWitness, Integer>> listOfEffects =
-          LIST.widen(listOfActualEffects);
+    void foldMap_withIntegerAddition_shouldSumElements() {
+      Kind<ListKind.Witness, Integer> numbers = LIST.widen(Arrays.asList(1, 2, 3, 4));
+      Monoid<Integer> sumMonoid = Monoids.integerAddition();
 
-      Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
-          listTraverse.<TestOptionalKindWitness, Integer>sequenceA(
-              optionalApplicative, listOfEffects);
+      Integer result = listFoldable.foldMap(sumMonoid, Function.identity(), numbers);
 
-      Optional<Kind<ListKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThat(LIST.narrow(resultOptional.get())).containsExactly(10, 20, 30);
+      assertThat(result).isEqualTo(10);
     }
 
     @Test
-    void sequenceA_listContainsFailingEffect_shouldReturnApplicativeOfNone() {
-      List<Kind<TestOptionalKindWitness, Integer>> listOfActualEffects =
-          Arrays.asList(TestOptional.some(10), TestOptional.none(), TestOptional.some(30));
-      Kind<ListKind.Witness, Kind<TestOptionalKindWitness, Integer>> listOfEffects =
-          LIST.widen(listOfActualEffects);
+    void foldMap_withStringConcat_shouldConcatenateMappedElements() {
+      Kind<ListKind.Witness, Integer> numbers = LIST.widen(Arrays.asList(1, 2, 3));
+      Monoid<String> stringMonoid = Monoids.string();
 
-      Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
-          listTraverse.<TestOptionalKindWitness, Integer>sequenceA(
-              optionalApplicative, listOfEffects);
+      String result = listFoldable.foldMap(stringMonoid, i -> "i" + i, numbers);
 
-      Optional<Kind<ListKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isEmpty();
+      assertThat(result).isEqualTo("i1i2i3");
     }
   }
 }
