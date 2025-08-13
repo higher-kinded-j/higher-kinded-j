@@ -111,10 +111,6 @@ Employee updatedEmployee = employeeToStreet.set("456 Main St", initialEmployee);
 
 ---
 
-## 
-
----
-
 ## Complete, Runnable Example
 
 The following standalone example puts all these steps together. You can run it to see the output and the immutability in action.
