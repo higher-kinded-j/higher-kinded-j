@@ -62,12 +62,11 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
   * To solve our initial problem of updating the user's street name, we compose lenses:
 
 ```java
-// Perform the deep update in a single, readable line
-User updatedUser = userToStreetName.set("New Street", user);// Compose lenses to create a direct path to the nested data
+// Compose lenses to create a direct path to the nested data
 var userToStreetName = UserLenses.address().andThen(AddressLenses.street()).andThen(StreetLenses.name());
 
 // Perform the deep update in a single, readable line
-User updatedUser = userToStreetName.set("New Street", user);// Manually rebuilding the object tree
+User updatedUser = userToStreetName.set("New Street", user);
 
 ```
 
