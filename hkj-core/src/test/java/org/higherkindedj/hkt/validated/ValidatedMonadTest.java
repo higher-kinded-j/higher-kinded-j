@@ -2,11 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroup;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,8 +19,10 @@ class ValidatedMonadTest {
 
   record TestError(String code, String message) {}
 
-  private final ValidatedMonad<TestError> validatedMonad = ValidatedMonad.instance();
-  private final ValidatedMonad<TestError> sameInstance = ValidatedMonad.instance();
+  private final Semigroup<TestError> errorSemigroup =
+      (e1, e2) -> new TestError(e1.code() + "+" + e2.code(), e1.message() + " & " + e2.message());
+
+  private final ValidatedMonad<TestError> validatedMonad = ValidatedMonad.instance(errorSemigroup);
 
   private final TestError error1 = new TestError("E001", "First Error");
   private final TestError error2 = new TestError("E002", "Second Error");
@@ -35,9 +40,10 @@ class ValidatedMonadTest {
   }
 
   @Test
-  @DisplayName("instance() should return a singleton")
-  void instanceShouldReturnSingleton() {
-    assertThat(validatedMonad).isSameAs(sameInstance);
+  @DisplayName("instance() should return a new instance")
+  void instanceShouldReturnNewInstance() {
+    ValidatedMonad<TestError> anotherInstance = ValidatedMonad.instance(errorSemigroup);
+    assertThat(validatedMonad).isNotSameAs(anotherInstance);
   }
 
   @Nested
@@ -56,7 +62,7 @@ class ValidatedMonadTest {
     @DisplayName("of(value) should throw NullPointerException if argument value is null")
     void ofShouldThrowIfInputToOfIsNull() {
       assertThatNullPointerException()
-          .isThrownBy(() -> validatedMonad.of((String) null))
+          .isThrownBy(() -> validatedMonad.of(null))
           .withMessage(ValidatedMonad.OF_VALUE_NULL_MSG);
     }
   }
@@ -103,8 +109,8 @@ class ValidatedMonadTest {
     }
 
     @Test
-    @DisplayName("map should propagate exception from function (when Valid.map throws)")
-    void mapShouldPropagateExceptionFromFunctionAsInvalid() {
+    @DisplayName("map should propagate exception from function")
+    void mapShouldPropagateExceptionFromFunction() {
       Kind<ValidatedKind.Witness<TestError>, Integer> valid = validKind(123);
       assertThatExceptionOfType(RuntimeException.class)
           .isThrownBy(() -> validatedMonad.map(throwingFunc, valid))
@@ -178,14 +184,15 @@ class ValidatedMonadTest {
     }
 
     @Test
-    @DisplayName("ap with Invalid function and Invalid value")
+    @DisplayName("ap with Invalid function and Invalid value should combine errors")
     void apWithInvalidFunctionAndInvalidValue() {
       Kind<ValidatedKind.Witness<TestError>, Integer> invalidValueKind = invalidKind(error2);
       Kind<ValidatedKind.Witness<TestError>, String> result =
           validatedMonad.ap(invalidFnKind, invalidValueKind);
       Validated<TestError, String> unwrapped = unwrap(result);
       assertThat(unwrapped.isInvalid()).isTrue();
-      assertThat(unwrapped.getError()).isEqualTo(error1);
+      assertThat(unwrapped.getError().message()).isEqualTo("First Error & Second Error");
+      assertThat(unwrapped.getError().code()).isEqualTo("E001+E002");
     }
 
     @Test
@@ -547,7 +554,7 @@ class ValidatedMonadTest {
     void recover_invalidInput_nullFallback_shouldThrowFromOf() {
       Kind<ValidatedKind.Witness<TestError>, String> invalid = invalidKind(error1);
       assertThatNullPointerException()
-          .isThrownBy(() -> validatedMonad.recover(invalid, (String) null))
+          .isThrownBy(() -> validatedMonad.recover(invalid, null))
           .withMessage(ValidatedMonad.OF_VALUE_NULL_MSG);
     }
 

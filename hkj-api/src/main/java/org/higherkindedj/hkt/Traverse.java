@@ -29,7 +29,7 @@ import org.jspecify.annotations.NonNull;
  * @param <T> The type constructor of the traversable data structure (e.g., {@code
  *     ListKind.Witness}).
  */
-public interface Traverse<T> extends Functor<T> {
+public interface Traverse<T> extends Functor<T>, Foldable<T> {
 
   /**
    * Traverses this structure, applying a function {@code f} to each element {@code A} that results

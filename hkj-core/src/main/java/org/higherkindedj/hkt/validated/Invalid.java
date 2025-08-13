@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -24,7 +25,6 @@ import org.jspecify.annotations.NonNull;
 public record Invalid<E, A>(@NonNull E error) implements Validated<E, A>, ValidatedKind<E, A> {
 
   // --- Message Constants ---
-  static final String ERROR_FOR_INVALID_CANNOT_BE_NULL_MSG = "Error for Invalid cannot be null";
   static final String CANNOT_GET_FROM_INVALID_INSTANCE_PREFIX_MSG =
       "Cannot get() from an Invalid instance. Error: ";
   static final String OR_ELSE_OTHER_CANNOT_BE_NULL_MSG =
@@ -46,6 +46,7 @@ public record Invalid<E, A>(@NonNull E error) implements Validated<E, A>, Valida
       "flatMap mapping function cannot be null for Invalid.flatMap";
   static final String AP_FN_VALIDATED_CANNOT_BE_NULL_MSG =
       "Validated function for ap cannot be null.";
+  static String SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG = "semigroup cannot be null.";
 
   /**
    * Compact constructor for {@code Invalid}. Ensures the encapsulated error is non-null.
@@ -209,34 +210,26 @@ public record Invalid<E, A>(@NonNull E error) implements Validated<E, A>, Valida
   }
 
   /**
-   * Determines the result of an applicative operation involving this {@code Invalid} instance.
-   *
-   * <ul>
-   *   <li>If {@code fnValidated} (the {@code Validated} containing the function) is also {@code
-   *       Invalid}, then {@code fnValidated}'s error is propagated (i.e., {@code
-   *       Invalid(fnValidated.getError())} is returned).
-   *   <li>If {@code fnValidated} is {@code Valid}, then this current {@code Invalid} instance is
-   *       returned, as it represents the first encountered error in this specific evaluation path.
-   * </ul>
-   *
-   * This behavior ensures that if the function itself is an error, that error takes precedence.
-   * Otherwise, the error of this value instance is propagated.
+   * Determines the result of an applicative operation involving this {@code Invalid} instance,
+   * accumulating errors.
    *
    * @param fnValidated A {@code Validated} instance expected to contain a function. Must not be
    *     null.
-   * @param <B> The value type of the resulting {@code Validated} instance (phantom type for the
-   *     returned {@code Invalid}).
-   * @return an {@code Invalid<E, B>} instance. If {@code fnValidated} is {@code Invalid}, its error
-   *     is returned. Otherwise, this {@code Invalid} instance is returned.
-   * @throws NullPointerException if {@code fnValidated} is null.
+   * @param semigroup The {@link Semigroup} to use for combining errors.
+   * @param <B> The value type of the resulting {@code Validated} instance.
+   * @return an {@code Invalid<E, B>} instance. If {@code fnValidated} is also {@code Invalid}, its
+   *     error is combined with this instance's error. Otherwise, this instance is returned.
    */
   @Override
   @SuppressWarnings("unchecked")
   public @NonNull <B> Validated<E, B> ap(
-      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated) {
+      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated,
+      @NonNull Semigroup<E> semigroup) {
     Objects.requireNonNull(fnValidated, AP_FN_VALIDATED_CANNOT_BE_NULL_MSG);
+    Objects.requireNonNull(semigroup, SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG);
     if (fnValidated.isInvalid()) {
-      return Validated.invalid(fnValidated.getError());
+      E combinedError = semigroup.combine(fnValidated.getError(), this.error);
+      return Validated.invalid(combinedError);
     }
     return (Validated<E, B>) this;
   }

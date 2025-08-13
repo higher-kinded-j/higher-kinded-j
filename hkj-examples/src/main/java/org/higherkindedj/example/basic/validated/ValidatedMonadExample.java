@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -19,11 +21,15 @@ import org.higherkindedj.hkt.validated.ValidatedMonad;
  *
  * <p>See also: - {@link Validated} - {@link ValidatedMonad} - {@link
  * org.higherkindedj.hkt.validated.Valid} - {@link org.higherkindedj.hkt.validated.Invalid} - {@link
- * ValidatedKindHelper} - {@link org.higherkindedj.hkt.MonadError}
+ * org.higherkindedj.hkt.validated.ValidatedKindHelper} - {@link org.higherkindedj.hkt.MonadError}
  */
 public class ValidatedMonadExample {
 
-  private static final ValidatedMonad<List<String>> validatedMonad = ValidatedMonad.instance();
+  // Define a Semigroup for combining List<String> errors by concatenation.
+  private static final Semigroup<List<String>> listSemigroup = Semigroups.list();
+
+  private static final ValidatedMonad<List<String>> validatedMonad =
+      ValidatedMonad.instance(listSemigroup);
 
   public static void main(String[] args) {
     System.out.println("--- ValidatedMonad Usage Example (with MonadError) ---");
@@ -135,10 +141,12 @@ public class ValidatedMonadExample {
         validatedMonad.ap(validFnKind, invalidValueForAp);
     System.out.println("Ap (ValidFn, InvalidVal): " + VALIDATED.narrow(apValidFnInvalidVal));
 
-    // Invalid function, Invalid value
+    // Invalid function, Invalid value - errors are now accumulated
     Kind<ValidatedKind.Witness<List<String>>, String> apInvalidFnInvalidVal =
         validatedMonad.ap(invalidFnKind, invalidValueForAp);
-    System.out.println("Ap (InvalidFn, InvalidVal): " + VALIDATED.narrow(apInvalidFnInvalidVal));
+    System.out.println(
+        "Ap (InvalidFn, InvalidVal - errors accumulated): "
+            + VALIDATED.narrow(apInvalidFnInvalidVal));
 
     // --- 5. Folding Validated (using Validated.fold()) ---
     System.out.println("\n--- 5. Folding Validated ---");
@@ -216,7 +224,7 @@ public class ValidatedMonadExample {
         validatedMonad.of("abc"); // This will be Invalid
 
     Function<String, Kind<ValidatedKind.Witness<List<String>>, Integer>> parseToIntKindMonadError =
-        (String s) -> {
+        s -> {
           try {
             return validatedMonad.of(Integer.parseInt(s)); // Lifts to Valid
           } catch (NumberFormatException e) {

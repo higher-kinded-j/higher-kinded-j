@@ -6,6 +6,8 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
@@ -48,7 +50,11 @@ public class MaybeTraversalExample {
 
   public static void main(String[] args) {
     // 1. Setup: We need an Applicative for our effect type (Validated).
-    Applicative<ValidatedKind.Witness<String>> validatedApplicative = ValidatedMonad.instance();
+    // Define a Semigroup for combining String errors.
+    final Semigroup<String> stringSemigroup = Semigroups.string("; ");
+    // Create the Applicative instance with the error-combining logic.
+    Applicative<ValidatedKind.Witness<String>> validatedApplicative =
+        ValidatedMonad.instance(stringSemigroup);
 
     // 2. Get the generated traversal for the 'owner' field.
     var ownerTraversal = DeviceTraversals.owner();

@@ -7,18 +7,18 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
 
 /**
- * The Traverse instance for {@link Try}. Traversal is performed on the 'Success' value. If the
- * instance is 'Failure', the operation short-circuits.
+ * The Traverse and Foldable instance for {@link Try}.
+ *
+ * <p>Traversal and folding operations are performed on the 'Success' value. If the instance is
+ * 'Failure', these operations short-circuit or return an empty/identity value.
  */
-public final class TryTraverse implements Traverse<TryKind.Witness> {
-
-  public static final TryTraverse INSTANCE = new TryTraverse();
-
-  private TryTraverse() {}
+public enum TryTraverse implements Traverse<TryKind.Witness> {
+  INSTANCE;
 
   @Override
   public <A, B> @NonNull Kind<TryKind.Witness, B> map(
@@ -28,34 +28,28 @@ public final class TryTraverse implements Traverse<TryKind.Witness> {
   }
 
   @Override
-  public <G, A, B> Kind<G, Kind<TryKind.Witness, B>> traverse(
+  public <G, A, B> @NonNull Kind<G, Kind<TryKind.Witness, B>> traverse(
       @NonNull Applicative<G> applicative,
       @NonNull Kind<TryKind.Witness, A> ta,
       @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
 
-    final Try<A> tryA = TRY.narrow(ta);
+    return TRY.narrow(ta)
+        .fold(
+            // Success case: Apply the effectful function and wrap the result in a Success.
+            successValue -> applicative.map(b -> TRY.widen(Try.success(b)), f.apply(successValue)),
 
-    // Use the fold method for a type-safe implementation.
-    return tryA.fold(
-        successValue -> {
-          // Case 1: The Try is a Success.
-          // Apply the effectful function `f` to the value.
-          final Kind<G, ? extends B> g_of_b = f.apply(successValue);
+            // Failure case: Lift the Failure directly into the applicative context.
+            cause -> applicative.of(TRY.widen(Try.failure(cause))));
+  }
 
-          // This cast helps the type-inferencer with the '? extends B' wildcard.
-          @SuppressWarnings("unchecked")
-          final Kind<G, B> g_of_b_casted = (Kind<G, B>) g_of_b;
+  @Override
+  public <A, M> M foldMap(
+      @NonNull Monoid<M> monoid,
+      @NonNull Function<? super A, ? extends M> f,
+      @NonNull Kind<TryKind.Witness, A> fa) {
 
-          // Map over the result to wrap the new value `B` back into a `Success`,
-          // then widen to a Kind.
-          return applicative.map(b -> TRY.widen(Try.<B>success(b)), g_of_b_casted);
-        },
-        cause -> {
-          // Case 2: The Try is a Failure.
-          // We do nothing and simply lift the Failure instance into the Applicative context 'G'.
-          // We use the static factory from Try to ensure the correct generic type.
-          final Try<B> result = Try.failure(cause);
-          return applicative.of(TRY.widen(result));
-        });
+    // If the Try is a Success, apply the function `f` to the value.
+    // If it's a Failure, return the identity element of the Monoid.
+    return TRY.narrow(fa).fold(f, cause -> monoid.empty());
   }
 }

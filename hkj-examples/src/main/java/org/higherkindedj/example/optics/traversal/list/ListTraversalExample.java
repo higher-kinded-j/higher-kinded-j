@@ -8,7 +8,8 @@ import java.util.List;
 import java.util.Set;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.list.ListTraverse;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -49,10 +50,10 @@ public class ListTraversalExample {
   }
 
   public static void main(String[] args) {
-    // 1. Setup: We need an Applicative for our effect type (Validated).
-    Applicative<ValidatedKind.Witness<String>> validatedApplicative = ValidatedMonad.instance();
-    // And an instance of the Traverse typeclass for List.
-    ListTraverse listTraverse = ListTraverse.INSTANCE;
+    // 1. Setup: Define a Semigroup for combining errors and get the Applicative.
+    final Semigroup<String> stringSemigroup = Semigroups.string("; ");
+    Applicative<ValidatedKind.Witness<String>> validatedApplicative =
+        ValidatedMonad.instance(stringSemigroup);
 
     // 2. Get the generated traversal for the 'teamMembers' field.
     var membersTraversal = ProjectTraversals.teamMembers();
@@ -76,7 +77,7 @@ public class ListTraversalExample {
     Project projectInvalidMember = new Project("Project Hydra", List.of("Alice", "Zeke", "Bob"));
     System.out.println("\nInput: " + projectInvalidMember);
 
-    // The traversal will stop at the first failure ("Zeke").
+    // The traversal will fail on the first failure ("Zeke").
     Kind<ValidatedKind.Witness<String>, Project> result2 =
         membersTraversal.modifyF(
             ListTraversalExample::lookupUser, projectInvalidMember, validatedApplicative);
@@ -85,17 +86,31 @@ public class ListTraversalExample {
     System.out.println("Result: " + validatedResult2);
     // Expected: Invalid(User 'Zeke' not found)
 
-    // --- Scenario 3: A project with no team members ---
+    // --- Scenario 3: A project with multiple invalid team members ---
+    Project projectMultipleInvalid =
+        new Project("Project Cerberus", List.of("David", "Alice", "Eve"));
+    System.out.println("\nInput: " + projectMultipleInvalid);
+
+    // The traversal will accumulate all errors.
+    Kind<ValidatedKind.Witness<String>, Project> result3 =
+        membersTraversal.modifyF(
+            ListTraversalExample::lookupUser, projectMultipleInvalid, validatedApplicative);
+
+    Validated<String, Project> validatedResult3 = VALIDATED.narrow(result3);
+    System.out.println("Result (errors accumulated): " + validatedResult3);
+    // Expected: Invalid(User 'David' not found; User 'Eve' not found)
+
+    // --- Scenario 4: A project with no team members ---
     Project projectEmptyTeam = new Project("Project Solo", List.of());
     System.out.println("\nInput: " + projectEmptyTeam);
 
     // The traversal function is never called because the list is empty.
-    Kind<ValidatedKind.Witness<String>, Project> result3 =
+    Kind<ValidatedKind.Witness<String>, Project> result4 =
         membersTraversal.modifyF(
             ListTraversalExample::lookupUser, projectEmptyTeam, validatedApplicative);
 
-    Validated<String, Project> validatedResult3 = VALIDATED.narrow(result3);
-    System.out.println("Result: " + validatedResult3);
+    Validated<String, Project> validatedResult4 = VALIDATED.narrow(result4);
+    System.out.println("Result: " + validatedResult4);
     // Expected: Valid(Project[name=Project Solo, teamMembers=[]])
   }
 }

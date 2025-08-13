@@ -2,7 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -10,6 +14,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.either.Either;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +26,7 @@ class ValidTest {
 
   private final Valid<String, Integer> validInstance = new Valid<>(123);
   private final Valid<String, String> validStringInstance = new Valid<>("Test");
+  private final Semigroup<String> stringSemigroup = Semigroups.string(" & ");
 
   @Nested
   @DisplayName("Constructor Tests")
@@ -244,13 +252,10 @@ class ValidTest {
     @Test
     @DisplayName("ap with Valid function should apply function to value")
     void apWithValidFunctionShouldApplyFunctionToValue() {
-      Validated<String, Function<Integer, String>> fnValidatedOriginal =
+      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
           Validated.valid(toStringFunc);
-      // Explicitly map to the type expected by ap
-      Validated<String, Function<? super Integer, ? extends String>> fnValidatedForAp =
-          fnValidatedOriginal.map(f -> (Function<? super Integer, ? extends String>) f);
 
-      Validated<String, String> result = validInstance.ap(fnValidatedForAp);
+      Validated<String, String> result = validInstance.ap(fnValidated, stringSemigroup);
       assertThat(result.isValid()).isTrue();
       assertThat(result.get()).isEqualTo("123");
     }
@@ -258,13 +263,10 @@ class ValidTest {
     @Test
     @DisplayName("ap with Invalid function should propagate the function's error")
     void apWithInvalidFunctionShouldPropagateTheFunctionsError() {
-      Validated<String, Function<Integer, String>> fnValidatedOriginal =
+      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
           Validated.invalid("Function Error");
-      // Explicitly map to the type expected by ap
-      Validated<String, Function<? super Integer, ? extends String>> fnValidatedForAp =
-          fnValidatedOriginal.map(f -> (Function<? super Integer, ? extends String>) f);
 
-      Validated<String, String> result = validInstance.ap(fnValidatedForAp);
+      Validated<String, String> result = validInstance.ap(fnValidated, stringSemigroup);
       assertThat(result.isInvalid()).isTrue();
       assertThat(result.getError()).isEqualTo("Function Error");
     }
@@ -272,35 +274,82 @@ class ValidTest {
     @Test
     @DisplayName("ap should throw NullPointerException if fnValidated is null")
     void apShouldThrowIfFnValidatedIsNull() {
-      // No need to map a null Validated, the null check is for fnValidated itself
       assertThatNullPointerException()
-          .isThrownBy(() -> validInstance.ap(null))
+          .isThrownBy(() -> validInstance.ap(null, stringSemigroup))
           .withMessage(Valid.AP_FN_CANNOT_BE_NULL);
     }
 
     @Test
-    @DisplayName("Creating Validated.valid(null function) should throw NPE from factory")
-    void creatingValidatedValidWithNullFunctionShouldThrowNPE() {
-      Function<Integer, String> nullFunction = null;
+    @DisplayName("ap should throw NullPointerException if semigroup is null")
+    void apShouldThrowNullPointerExceptionIfSemigroupIsNull() {
+      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
+          Validated.valid(toStringFunc);
       assertThatNullPointerException()
-          .isThrownBy(() -> Validated.valid(nullFunction))
-          .withMessage(Validated.VALID_VALUE_CANNOT_BE_NULL_MSG);
+          .isThrownBy(() -> validInstance.ap(fnValidated, null))
+          .withMessage(Valid.SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG);
     }
 
     @Test
     @DisplayName("ap should throw NullPointerException if Valid(function) returns null via map")
     void apShouldThrowIfValidFunctionReturnsNull() {
       Function<Integer, String> nullReturningFunc = val -> null;
-      Validated<String, Function<Integer, String>> fnValidatedOriginal =
+      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
           Validated.valid(nullReturningFunc);
-      // Explicitly map to the type expected by ap
-      Validated<String, Function<? super Integer, ? extends String>> fnValidatedForAp =
-          fnValidatedOriginal.map(f -> (Function<? super Integer, ? extends String>) f);
 
       // This triggers the null check for the result of f.apply(value) within this.map(f) inside ap
       assertThatNullPointerException()
-          .isThrownBy(() -> validInstance.ap(fnValidatedForAp))
+          .isThrownBy(() -> validInstance.ap(fnValidated, stringSemigroup))
           .withMessage(Valid.MAP_FN_RETURNED_NULL_MSG);
+    }
+  }
+
+  @Nested
+  @DisplayName("Fold Method")
+  class FoldMethod {
+    @Test
+    @DisplayName("fold should apply validMapper and not invalidMapper")
+    void foldShouldApplyValidMapperAndNotInvalidMapper() {
+      AtomicBoolean invalidMapperCalled = new AtomicBoolean(false);
+      Function<String, String> invalidMapper =
+          err -> {
+            invalidMapperCalled.set(true);
+            return "from invalid";
+          };
+      Function<Integer, String> validMapper = val -> "from valid: " + val;
+
+      String result = validInstance.fold(invalidMapper, validMapper);
+
+      assertThat(result).isEqualTo("from valid: 123");
+      assertThat(invalidMapperCalled.get()).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold should throw if validMapper is null")
+    void foldShouldThrowIfValidMapperIsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> validInstance.fold(err -> err, null))
+          .withMessage(Validated.FOLD_VALID_MAPPER_CANNOT_BE_NULL_MSG);
+    }
+
+    @Test
+    @DisplayName("fold should throw if invalidMapper is null")
+    void foldShouldThrowIfInvalidMapperIsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> validInstance.fold(null, val -> val))
+          .withMessage(Validated.FOLD_INVALID_MAPPER_CANNOT_BE_NULL_MSG);
+    }
+  }
+
+  @Nested
+  @DisplayName("toEither Method")
+  class ToEitherMethod {
+    @Test
+    @DisplayName("toEither should return an Either.Right with the same value")
+    void toEither_shouldReturnRight() {
+      Either<String, Integer> result = validInstance.toEither();
+
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(123);
     }
   }
 
@@ -329,20 +378,20 @@ class ValidTest {
     void equalsAndHashCodeShouldWorkAsExpectedForRecords() {
       Valid<String, Integer> sameValidInstance = new Valid<>(123);
       Valid<String, Integer> differentValidInstance = new Valid<>(404);
-      // For Valid, the error type E is phantom and does not affect equality if the value is the
-      // same.
       Valid<Integer, Integer> differentErrorTypeValidSameValue = new Valid<>(123);
+      Invalid<String, Integer> invalidInstance = new Invalid<>("Error");
 
+      // Equality
       assertThat(validInstance).isEqualTo(sameValidInstance);
-      assertThat(validInstance).hasSameHashCodeAs(sameValidInstance);
-
       assertThat(validInstance).isNotEqualTo(differentValidInstance);
-      assertThat(validInstance.hashCode()).isNotEqualTo(differentValidInstance.hashCode());
-
-      // Standard record equality means if the component (value) is the same, they are equal,
-      // regardless of erased generic type E.
       assertThat(validInstance).isEqualTo(differentErrorTypeValidSameValue);
-      assertThat(validInstance.hashCode()).isEqualTo(differentErrorTypeValidSameValue.hashCode());
+      assertThat(validInstance).isNotEqualTo(invalidInstance);
+      assertThat(validInstance).isNotEqualTo("some string");
+
+      // HashCode
+      assertThat(validInstance).hasSameHashCodeAs(sameValidInstance);
+      assertThat(validInstance.hashCode()).isNotEqualTo(differentValidInstance.hashCode());
+      assertThat(validInstance).hasSameHashCodeAs(differentErrorTypeValidSameValue);
     }
   }
 }

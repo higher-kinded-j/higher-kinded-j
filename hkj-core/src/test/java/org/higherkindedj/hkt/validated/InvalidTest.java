@@ -2,13 +2,20 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.either.Either;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +26,7 @@ class InvalidTest {
   private final Invalid<String, Integer> invalidInstance =
       new Invalid<>("Error: Something went wrong");
   private final Invalid<Integer, String> invalidWithDifferentErrorType = new Invalid<>(404);
+  private final Semigroup<String> stringSemigroup = Semigroups.string(" & ");
 
   @Nested
   @DisplayName("Constructor Tests")
@@ -138,6 +146,15 @@ class InvalidTest {
           .isThrownBy(() -> invalidInstance.orElseThrow(null))
           .withMessage(Invalid.OR_ELSE_THROW_SUPPLIER_CANNOT_BE_NULL_MSG);
     }
+
+    @Test
+    @DisplayName("orElseThrow should throw NullPointerException if supplier produces null")
+    void orElseThrowShouldThrowNullPointerExceptionIfSupplierProducesNull() {
+      Supplier<RuntimeException> nullProducingSupplier = () -> null;
+      assertThatNullPointerException()
+          .isThrownBy(() -> invalidInstance.orElseThrow(nullProducingSupplier))
+          .withMessage(Invalid.OR_ELSE_THROW_SUPPLIER_PRODUCED_NULL_MSG);
+    }
   }
 
   @Nested
@@ -218,37 +235,56 @@ class InvalidTest {
     }
 
     @Test
-    @DisplayName("ap should return Invalid(this.error) if fnValidated is Valid")
+    @DisplayName("ap should return this Invalid instance if the function is Valid")
     void apShouldReturnThisInvalidIfFnValidatedIsValid() {
-      Validated<String, Function<Integer, String>> fnValidatedRaw =
-          Validated.valid(i -> "Applied: " + i);
       Validated<String, Function<? super Integer, ? extends String>> fnValidated =
-          fnValidatedRaw.map(f -> (Function<? super Integer, ? extends String>) f);
+          Validated.valid(i -> "Applied: " + i);
 
-      Validated<String, String> result = invalidInstance.ap(fnValidated);
-      assertThat(result.isInvalid()).isTrue();
+      Validated<String, String> result = invalidInstance.ap(fnValidated, stringSemigroup);
+      assertThat(result).isInstanceOf(Invalid.class);
       assertThat(result.getError()).isEqualTo(invalidInstance.error());
     }
 
     @Test
-    @DisplayName("ap should return Invalid(fnValidated.error) if fnValidated is Invalid")
-    void apShouldReturnFnValidatedErrorIfFnValidatedIsInvalid() {
-      Validated<String, Function<Integer, String>> fnValidatedRaw =
-          Validated.invalid("Function Error");
+    @DisplayName("ap should combine errors if the function is also Invalid")
+    void apShouldCombineErrorsIfFnValidatedIsAlsoInvalid() {
       Validated<String, Function<? super Integer, ? extends String>> fnValidated =
-          fnValidatedRaw.map(f -> (Function<? super Integer, ? extends String>) f);
+          Validated.invalid("Function Error");
 
-      Validated<String, String> result = invalidInstance.ap(fnValidated);
+      Validated<String, String> result = invalidInstance.ap(fnValidated, stringSemigroup);
       assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("Function Error");
+      assertThat(result.getError()).isEqualTo("Function Error & Error: Something went wrong");
     }
 
     @Test
     @DisplayName("ap should throw NullPointerException if fnValidated is null")
     void apShouldThrowNullPointerExceptionIfFnValidatedIsNull() {
       assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.ap(null))
+          .isThrownBy(() -> invalidInstance.ap(null, stringSemigroup))
           .withMessage(Invalid.AP_FN_VALIDATED_CANNOT_BE_NULL_MSG);
+    }
+
+    @Test
+    @DisplayName("ap should throw NullPointerException if semigroup is null")
+    void apShouldThrowNullPointerExceptionIfSemigroupIsNull() {
+      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
+          Validated.valid(i -> "Applied: " + i);
+      assertThatNullPointerException()
+          .isThrownBy(() -> invalidInstance.ap(fnValidated, null))
+          .withMessage(Valid.SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG);
+    }
+  }
+
+  @Nested
+  @DisplayName("toEither Method")
+  class ToEitherMethod {
+    @Test
+    @DisplayName("toEither should return an Either.Left with the same error")
+    void toEither_shouldReturnLeft() {
+      Either<String, Integer> result = invalidInstance.toEither();
+
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft()).isEqualTo("Error: Something went wrong");
     }
   }
 
@@ -278,14 +314,17 @@ class InvalidTest {
       Invalid<String, Integer> sameInvalidInstance = new Invalid<>("Error: Something went wrong");
       Invalid<String, Integer> differentInvalidInstance = new Invalid<>("Another Error");
       Invalid<Integer, Integer> differentErrorTypeInvalid = new Invalid<>(500);
+      String notAnInvalid = "not an invalid";
 
+      // Equality
       assertThat(invalidInstance).isEqualTo(sameInvalidInstance);
-      assertThat(invalidInstance).hasSameHashCodeAs(sameInvalidInstance);
-
       assertThat(invalidInstance).isNotEqualTo(differentInvalidInstance);
-      assertThat(invalidInstance.hashCode()).isNotEqualTo(differentInvalidInstance.hashCode());
-
       assertThat(invalidInstance).isNotEqualTo(differentErrorTypeInvalid);
+      assertThat(invalidInstance).isNotEqualTo(notAnInvalid);
+
+      // HashCode
+      assertThat(invalidInstance).hasSameHashCodeAs(sameInvalidInstance);
+      assertThat(invalidInstance.hashCode()).isNotEqualTo(differentInvalidInstance.hashCode());
     }
   }
 }

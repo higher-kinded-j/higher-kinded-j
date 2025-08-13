@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import java.util.Arrays;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -32,8 +34,10 @@ public class ArrayTraversalExample {
   }
 
   public static void main(String[] args) {
-    // 1. Setup: Get the Applicative for our effect type (Validated).
-    Applicative<ValidatedKind.Witness<String>> validatedApplicative = ValidatedMonad.instance();
+    // 1. Setup: Define a Semigroup for combining String errors and get the Applicative.
+    final Semigroup<String> stringSemigroup = Semigroups.string("; ");
+    Applicative<ValidatedKind.Witness<String>> validatedApplicative =
+        ValidatedMonad.instance(stringSemigroup);
 
     // 2. Get the generated traversal for the 'answers' field.
     var answersTraversal = SurveyTraversals.answers();
@@ -53,17 +57,33 @@ public class ArrayTraversalExample {
     System.out.println("Result: " + VALIDATED.narrow(result1));
     // Expected: Valid(Survey[id=S-001, answers=[1, 5, 3, 4, 2]])
 
-    // --- Scenario 2: A survey with an invalid answer ---
+    // --- Scenario 2: A survey with one invalid answer ---
     var surveyInvalid = new Survey("S-002", new Integer[] {2, 4, 6, 3});
     System.out.println(
         "\nInput: " + surveyInvalid.id() + " " + Arrays.toString(surveyInvalid.answers()));
 
-    // The traversal will fail on the first invalid answer (6).
+    // The traversal will fail on the invalid answer (6).
     var result2 =
         answersTraversal.modifyF(
             ArrayTraversalExample::validateAnswer, surveyInvalid, validatedApplicative);
 
     System.out.println("Result: " + VALIDATED.narrow(result2));
     // Expected: Invalid(Answer '6' is out of range (1-5))
+
+    // --- Scenario 3: A survey with multiple invalid answers ---
+    var surveyMultipleInvalid = new Survey("S-003", new Integer[] {0, 4, 9, 2});
+    System.out.println(
+        "\nInput: "
+            + surveyMultipleInvalid.id()
+            + " "
+            + Arrays.toString(surveyMultipleInvalid.answers()));
+
+    // The traversal will accumulate all errors.
+    var result3 =
+        answersTraversal.modifyF(
+            ArrayTraversalExample::validateAnswer, surveyMultipleInvalid, validatedApplicative);
+
+    System.out.println("Result (errors accumulated): " + VALIDATED.narrow(result3));
+    // Expected: Invalid(Answer '0' is out of range (1-5); Answer '9' is out of range (1-5))
   }
 }

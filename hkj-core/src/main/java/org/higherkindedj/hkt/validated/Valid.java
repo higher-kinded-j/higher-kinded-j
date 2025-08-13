@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -25,7 +26,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
 
   static String CANNOT_GET_ERROR_FROM_VALID_INSTANCE_MSG =
       "Cannot getError() from a Valid instance.";
-  static String VALUE_FOR_AP_CANNOT_BE_NULL_MSG = "Value for ap cannot be null.";
+  static String SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG = "semigroup cannot be null.";
   static String OR_ELSE_CANNOT_BE_NULL_MSG =
       "orElse 'other' parameter cannot be null, though it's unused for Valid.";
   static String OR_ELSE_GET_CANNOT_BE_NULL_MSG =
@@ -49,7 +50,6 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @throws NullPointerException if {@code value} is null.
    */
   public Valid {
-
     Objects.requireNonNull(value, VALID_VALUE_CANNOT_BE_NULL_MSG);
   }
 
@@ -223,29 +223,20 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    *
    * @param fnValidated A {@code Validated} instance expected to contain a function from {@code A}
    *     to {@code B}. Must not be null.
+   * @param semigroup The {@link Semigroup} for combining errors (unused in this case).
    * @param <B> The value type of the resulting {@code Validated} instance.
-   * @return a new {@code Validated<E, B>} instance. If {@code fnValidated} is {@code Valid}, the
-   *     result is the application of its function to this instance's value (wrapped in {@code
-   *     Valid}). If {@code fnValidated} is {@code Invalid}, its error is propagated.
-   * @throws NullPointerException if {@code fnValidated} is null. Also, if {@code fnValidated} is
-   *     {@code Valid} and its function application via {@code map} results in a null value or the
-   *     function itself is null (as per {@code map}'s contract).
+   * @return a new {@code Validated<E, B>} instance.
    */
   @Override
   public @NonNull <B> Validated<E, B> ap(
-      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated) {
+      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated,
+      @NonNull Semigroup<E> semigroup) {
     Objects.requireNonNull(fnValidated, AP_FN_CANNOT_BE_NULL);
-    if (fnValidated.isValid()) {
-      Function<? super A, ? extends B> f =
-          fnValidated.get(); // Assuming get() on Valid FunctionValidated returns non-null function
-      // map will handle if 'f' is null (though get() on Valid should not return null if fnValidated
-      // was Valid(nonNullFunction))
-      // and if f.apply(value) returns null.
-      return this.map(f);
-    } else {
-      // Propagate the error from fnValidated
-      return Validated.invalid(fnValidated.getError()); // getError() is safe here
-    }
+    Objects.requireNonNull(semigroup, SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG);
+    return fnValidated.fold(
+        Validated::invalid, // Propagate the error from the function
+        this::map // Apply the function to this value
+        );
   }
 
   /**

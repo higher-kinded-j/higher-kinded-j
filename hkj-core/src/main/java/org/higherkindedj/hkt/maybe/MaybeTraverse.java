@@ -7,18 +7,18 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
 
 /**
- * The Traverse instance for {@link Maybe}. Traversal is performed on the 'Just' value. If the
- * instance is 'Nothing', the operation short-circuits.
+ * The Traverse and Foldable instance for {@link Maybe}.
+ *
+ * <p>Traversal and folding are performed on the 'Just' value. If the instance is 'Nothing', these
+ * operations short-circuit or return an empty/identity value.
  */
-public final class MaybeTraverse implements Traverse<MaybeKind.Witness> {
-
-  public static final MaybeTraverse INSTANCE = new MaybeTraverse();
-
-  private MaybeTraverse() {}
+public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
+  INSTANCE;
 
   @Override
   public <A, B> @NonNull Kind<MaybeKind.Witness, B> map(
@@ -27,7 +27,7 @@ public final class MaybeTraverse implements Traverse<MaybeKind.Witness> {
   }
 
   @Override
-  public <G, A, B> Kind<G, Kind<MaybeKind.Witness, B>> traverse(
+  public <G, A, B> @NonNull Kind<G, Kind<MaybeKind.Witness, B>> traverse(
       @NonNull Applicative<G> applicative,
       @NonNull Kind<MaybeKind.Witness, A> ta,
       @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
@@ -35,17 +35,25 @@ public final class MaybeTraverse implements Traverse<MaybeKind.Witness> {
     final Maybe<A> maybe = MAYBE.narrow(ta);
 
     if (maybe.isJust()) {
-      final A value = maybe.get();
-      final Kind<G, ? extends B> g_of_b = f.apply(value);
-
-      @SuppressWarnings("unchecked")
-      final Kind<G, B> g_of_b_casted = (Kind<G, B>) g_of_b;
-
-      // Map the result into a new Just and widen to a Kind
-      return applicative.map(b -> MAYBE.widen(Maybe.just(b)), g_of_b_casted);
+      // Just case: Apply the effectful function and map the result back into a Just.
+      return applicative.map(b -> MAYBE.widen(Maybe.just(b)), f.apply(maybe.get()));
     } else {
-      // If Nothing, do nothing. Just lift the Nothing instance into the applicative.
+      // Nothing case: Lift the Nothing instance directly into the applicative context.
       return applicative.of(MAYBE.widen(Maybe.nothing()));
+    }
+  }
+
+  @Override
+  public <A, M> M foldMap(
+      @NonNull Monoid<M> monoid,
+      @NonNull Function<? super A, ? extends M> f,
+      @NonNull Kind<MaybeKind.Witness, A> fa) {
+    final Maybe<A> maybe = MAYBE.narrow(fa);
+    // If Just, map the value. If Nothing, return the monoid's empty value.
+    if (maybe.isJust()) {
+      return f.apply(maybe.get());
+    } else {
+      return monoid.empty();
     }
   }
 }

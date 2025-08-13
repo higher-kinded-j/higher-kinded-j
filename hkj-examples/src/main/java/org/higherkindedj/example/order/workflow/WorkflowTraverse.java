@@ -13,6 +13,7 @@ import org.higherkindedj.example.order.model.WorkflowModels;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either_t.EitherT;
 import org.higherkindedj.hkt.either_t.EitherTKind;
@@ -72,7 +73,19 @@ public class WorkflowTraverse {
     this.steps = steps;
     this.futureMonad = futureMonad;
     this.eitherTMonad = eitherTMonad;
-    this.validatedApplicative = ValidatedMonad.instance();
+
+    // Define the Semigroup for combining DomainErrors.
+    // This allows the Applicative to accumulate errors.
+    final Semigroup<DomainError> errorSemigroup =
+        (e1, e2) -> {
+          if (e1 instanceof DomainError.ValidationError(String message1)
+              && e2 instanceof DomainError.ValidationError(String message2)) {
+            return new DomainError.ValidationError(message1 + ", " + message2);
+          }
+          // Default behavior: return the first error if types don't match.
+          return e1;
+        };
+    this.validatedApplicative = ValidatedMonad.instance(errorSemigroup);
   }
 
   /**
@@ -93,7 +106,7 @@ public class WorkflowTraverse {
       WorkflowModels.OrderData orderData) {
 
     dependencies.log(
-        "Starting Order Workflow [Workflow3 with flatMap] for Order: " + orderData.orderId());
+        "Starting Order Workflow [WorkflowTraverse] for Order: " + orderData.orderId());
 
     var initialContext = WorkflowModels.WorkflowContext.start(orderData);
     var initialT = eitherTMonad.of(initialContext);
@@ -120,11 +133,10 @@ public class WorkflowTraverse {
               //
               // - `listTraverse`: The Traverse instance for List, providing the `traverse` method.
               // - `validatedApplicative`: The Applicative for Validated. This tells `traverse` HOW
-              //   to combine the results. Because we are using the `ValidatedMonad` instance,
-              //   it will have "fail-fast" behavior, stopping at the first Invalid code.
-              //   A different Applicative could be used to accumulate errors.
+              // to combine the results. Because our Semigroup for DomainError concatenates
+              // validation reasons, it will accumulate all errors from invalid promo codes.
               // - `this::validatePromoCode`: The effectful function (`String -> Validated<...>`)
-              //   to apply to each element in the list.
+              // to apply to each element in the list.
               //
               // The call effectively turns a `List<Validated<Error, String>>` inside-out
               // into a single `Validated<Error, List<String>>`.
