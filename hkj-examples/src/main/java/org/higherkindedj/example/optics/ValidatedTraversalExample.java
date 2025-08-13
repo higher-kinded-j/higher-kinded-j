@@ -13,8 +13,6 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -64,52 +62,40 @@ public class ValidatedTraversalExample {
     Applicative<ValidatedKind.Witness<String>> validatedApplicative =
         ValidatedMonad.instance(stringSemigroup);
 
-    // --- 3. Compose optics to create a "deep" traversal ---
-    Lens<Form, Principal> formPrincipalLens = FormLenses.principal();
-    Prism<Principal, User> principalUserPrism = PrincipalPrisms.user();
-    Traversal<User, Permission> userPermissionsTraversal = UserTraversals.permissions();
-    Lens<Permission, String> permissionNameLens = PermissionLenses.name();
-
-    // We explicitly convert each Lens and Prism to a Traversal to ensure
-    // the final result is correctly typed as a Traversal.
-    Traversal<Form, String> formToPermissionNameTraversal =
-        formPrincipalLens
-            .asTraversal()
-            .andThen(principalUserPrism.asTraversal())
-            .andThen(userPermissionsTraversal)
-            .andThen(permissionNameLens.asTraversal());
-
-    System.out.println("--- Running Traversal Scenarios for Deep Validation ---");
-
-    // --- Scenario 1: A completely valid form with a User principal ---
-    var validForm =
+    // --- Create a sample form to work with ---
+    var originalForm =
         new Form(
             1,
             new User("Alice", List.of(new Permission("PERM_READ"), new Permission("PERM_WRITE"))));
-    System.out.println("\nInput: " + validForm);
+    System.out.println("Original Form: " + originalForm);
+    System.out.println("------------------------------------------");
 
-    Kind<ValidatedKind.Witness<String>, Form> result1 =
-        formToPermissionNameTraversal.modifyF(
-            ValidatedTraversalExample::validatePermissionName, validForm, validatedApplicative);
+    // =======================================================================
+    // SCENARIO 1: Using the new `with*` helper method for a shallow update
+    // =======================================================================
+    System.out.println("--- Scenario 1: Using `with*` Helper ---");
 
-    System.out.println("Result: " + VALIDATED.narrow(result1));
+    // Use the generated helper to replace the principal of the form.
+    var formWithGuest = FormLenses.withPrincipal(originalForm, new Guest());
 
-    // --- Scenario 2: A form with an invalid permission and a User principal ---
-    var invalidPermissionForm =
-        new Form(
-            2, new User("Bob", List.of(new Permission("PERM_READ"), new Permission("PERM_ADMIN"))));
-    System.out.println("\nInput: " + invalidPermissionForm);
+    System.out.println("After `withPrincipal`: " + formWithGuest);
+    System.out.println("------------------------------------------");
 
-    Kind<ValidatedKind.Witness<String>, Form> result2 =
-        formToPermissionNameTraversal.modifyF(
-            ValidatedTraversalExample::validatePermissionName,
-            invalidPermissionForm,
-            validatedApplicative);
+    // =======================================================================
+    // SCENARIO 2: Using a composed Traversal for deep validation
+    // =======================================================================
+    System.out.println("--- Scenario 2: Using Composed Traversal for Deep Validation ---");
 
-    System.out.println("Result: " + VALIDATED.narrow(result2));
+    // 3. Compose optics to create a "deep" traversal into the permission names.
+    Traversal<Form, String> formToPermissionNameTraversal =
+        FormLenses.principal()
+            .asTraversal()
+            .andThen(PrincipalPrisms.user().asTraversal())
+            .andThen(UserTraversals.permissions())
+            .andThen(PermissionLenses.name().asTraversal());
 
-    // --- Scenario 3: A form with multiple invalid permissions ---
-    var multipleInvalidForm =
+    // --- Run validation on a form with multiple invalid permissions ---
+    var formWithInvalidPerms =
         new Form(
             3,
             new User(
@@ -118,24 +104,22 @@ public class ValidatedTraversalExample {
                     new Permission("PERM_EXECUTE"),
                     new Permission("PERM_WRITE"),
                     new Permission("PERM_SUDO"))));
-    System.out.println("\nInput: " + multipleInvalidForm);
+    System.out.println("\nInput: " + formWithInvalidPerms);
 
-    Kind<ValidatedKind.Witness<String>, Form> result3 =
+    Kind<ValidatedKind.Witness<String>, Form> validationResult =
         formToPermissionNameTraversal.modifyF(
             ValidatedTraversalExample::validatePermissionName,
-            multipleInvalidForm,
+            formWithInvalidPerms,
             validatedApplicative);
 
-    System.out.println("Result (errors accumulated): " + VALIDATED.narrow(result3));
+    System.out.println("Result (errors accumulated): " + VALIDATED.narrow(validationResult));
 
-    // --- Scenario 4: A form with a Guest principal ---
-    var guestForm = new Form(4, new Guest());
-    System.out.println("\nInput: " + guestForm);
-
-    Kind<ValidatedKind.Witness<String>, Form> result4 =
+    // --- Run validation on a form where the path does not match (Guest) ---
+    System.out.println("\nInput: " + formWithGuest);
+    Kind<ValidatedKind.Witness<String>, Form> guestResult =
         formToPermissionNameTraversal.modifyF(
-            ValidatedTraversalExample::validatePermissionName, guestForm, validatedApplicative);
-
-    System.out.println("Result: " + VALIDATED.narrow(result4));
+            ValidatedTraversalExample::validatePermissionName, formWithGuest, validatedApplicative);
+    // The traversal does nothing, so the result is Valid.
+    System.out.println("Result (path does not match): " + VALIDATED.narrow(guestResult));
   }
 }

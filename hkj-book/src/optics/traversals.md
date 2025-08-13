@@ -1,7 +1,8 @@
 # Traversals: Practical Guide
+
 ## _Handling Bulk Updates_
 
-~~~ admonish example title="See Example Code:"
+~~~admonish
 [TraversalUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
 ~~~
 
@@ -50,7 +51,11 @@ This code is deeply nested and mixes the *what* (add 5 to a score) with the *how
 
 ### Step 1: Generating Traversals
 
-You can automatically generate `Traversal` implementations for any `Iterable` field (like `List` or `Set`) by adding the **`@GenerateTraversals`** annotation to your records.
+The library provides a rich set of tools for creating `Traversal` instances, found in the **`Traversals`** utility class and through annotations.
+
+* **`@GenerateTraversals`**: Annotating a record will automatically generate a `Traversal` for any `Iterable` field (like `List` or `Set`).
+* **`Traversals.forList()`**: A static helper that creates a traversal for the elements of a `List`.
+* **`Traversals.forMap(key)`**: A static helper that creates a traversal focusing on the value for a specific key in a `Map`.
 
 ```java
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -71,9 +76,7 @@ public record League(String name, List<Team> teams) {}
 
 ### Step 2: Composing a Deep Traversal
 
-Just like other optics, `Traversal`s can be composed with `andThen`. We can compose a `Traversal` into the list of teams with another `Traversal` into the list of players, and finally with a `Lens` to the specific `score` field.
-
-To ensure type-safety during composition, we convert the final `Lens` into a `Traversal` using `.asTraversal()`.
+Just like other optics, `Traversal`s can be composed with `andThen`. We can chain them together to create a single, deep traversal from the `League` all the way down to each player's `score`.
 
 ```java
 // Get generated optics
@@ -90,23 +93,41 @@ Traversal<League, Integer> leagueToAllPlayerScores =
 
 The result is a single `Traversal<League, Integer>` that declaratively represents the path to all player scores.
 
+### Step 3: Using the Traversal with Helper Methods
+
+The `Traversals` utility class provides convenient helper methods to perform the most common operations.
+
+* **`Traversals.modify(traversal, function, source)`**: Applies a pure function to all targets of a traversal.
+
+```java
+  // Use the composed traversal to add 5 bonus points to every score.
+  League updatedLeague = Traversals.modify(leagueToAllPlayerScores, score -> score + 5, league);
+```
+
+* **`Traversals.getAll(traversal, source)`**: Extracts all targets of a traversal into a `List`.
+
+```java
+  // Get a flat list of all player scores in the league.
+  List<Integer> allScores = Traversals.getAll(leagueToAllPlayerScores, league);
+  // Result: [100, 90, 110, 120]
+```
+
 ---
 
 ## Complete, Runnable Example
 
-This example puts all the concepts together. Note how the complex nested loop is replaced by a single call to `modifyF` on our composed traversal.
+This example demonstrates how to use the `with*` helpers for a targeted update and how to use a composed `Traversal` with the new utility methods for bulk operations.
 
 ```java
-package org.higherkindedj.example.traversal;
+package org.higherkindedj.example.optics;
 
-import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdentityMonad;
+import java.util.ArrayList;
+import java.util.List;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
-import java.util.List;
+import org.higherkindedj.optics.util.Traversals;
 
 public class TraversalUsageExample {
 
@@ -118,30 +139,36 @@ public class TraversalUsageExample {
     @GenerateLenses
     @GenerateTraversals
     public record League(String name, List<Team> teams) {}
-
+  
     public static void main(String[] args) {
         var team1 = new Team("Team Alpha", List.of(new Player("Alice", 100), new Player("Bob", 90)));
         var team2 = new Team("Team Bravo", List.of(new Player("Charlie", 110), new Player("Diana", 120)));
         var league = new League("Pro League", List.of(team1, team2));
-
+  
         System.out.println("Original League: " + league);
         System.out.println("------------------------------------------");
-
-        // 1. Compose Traversals and Lenses to focus on every player's score
+  
+        // --- SCENARIO 1: Using `with*` helpers for a targeted, shallow update ---
+        var teamToUpdate = league.teams().get(0);
+        var updatedTeam = TeamLenses.withName(teamToUpdate, "Team Omega");
+        var newTeamsList = new ArrayList<>(league.teams());
+        newTeamsList.set(0, updatedTeam);
+        var leagueWithUpdatedTeam = LeagueLenses.withTeams(league, newTeamsList);
+  
+        System.out.println("After updating one team's name with `with*` helpers:");
+        System.out.println(leagueWithUpdatedTeam);
+        System.out.println("------------------------------------------");
+  
+        // --- SCENARIO 2: Using composed Traversals for deep, bulk updates ---
         Traversal<League, Integer> leagueToAllPlayerScores =
             LeagueTraversals.teams()
                 .andThen(TeamTraversals.players())
                 .andThen(PlayerLenses.score().asTraversal());
-
-        // 2. Use the composed traversal to add 5 bonus points to every score.
-        // We use the Id monad as a simple "wrapper" to satisfy the type system for a pure update.
-        var updatedLeague = IdKindHelper.ID.narrow(leagueToAllPlayerScores.modifyF(
-            score -> Id.of(score + 5),
-            league,
-            IdentityMonad.instance()
-        )).value();
-
-        System.out.println("After `modifyF` (adding 5 points to each score):");
+  
+        // Use the `modify` helper to add 5 bonus points to every score.
+        League updatedLeague = Traversals.modify(leagueToAllPlayerScores, score -> score + 5, league);
+  
+        System.out.println("After `modify` (adding 5 points to each score):");
         System.out.println(updatedLeague);
     }
 }
@@ -166,4 +193,4 @@ A `Traversal` is the most general of the core optics. In fact, all other optics 
 * A `Prism` is just a `Traversal` that focuses on **zero or one** item.
 * An `Iso` is just a `Traversal` that focuses on **exactly one** item and is reversible.
 
-This is the reason they can all be composed together so seamlessly. By mastering `Traversal`, you complete your understanding of the core optics family, enabling you to build powerful, declarative, and safe data transformations for any immutable data structure.
+This is the reason they can all be composed together so seamlessly. By mastering `Traversal`, you complete your understanding of the core optics family, enabling you to build powerful, declarative, and safe data transformations.

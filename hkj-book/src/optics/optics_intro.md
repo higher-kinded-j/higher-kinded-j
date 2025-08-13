@@ -1,4 +1,5 @@
 # An Introduction to Optics
+
 ![optics.jpg](../images/optics.jpg)
 
 As Java developers, we love the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data can be a verbose and error-prone nightmare.
@@ -51,28 +52,34 @@ The `higher-kinded-j` library provides the foundation for a rich optics library,
 
 A **Lens** is the most common optic. It focuses on a single, required piece of data within a larger "product type" (a `record` or class with fields). It's for data that is guaranteed to exist.
 
-* **Problem it solves**: Getting and setting a field within an object, especially a deeply nested one.
-* **Example**: To solve our initial problem of updating the user's street name:
-  * **Before (The "Copy Cascade")**
+* **Problem it solves**: Getting and setting a field within an object, especially a deeply nested one.**
+* **Generated Code**: Annotating a record with `@GenerateLenses` produces a companion class (e.g., `UserLenses`) that contains:
+
+  1. A **lens** for each field (e.g., `UserLenses.address()`).
+  2. Convenient **`with*` helper methods** for easy updates (e.g., `UserLenses.withAddress(...)`).
+* **Example (Deep Update with Lenses)**:
+
+  * To solve our initial problem of updating the user's street name, we compose lenses:
 
 ```java
-// Manually rebuilding the object tree
-User user = ...
-Address newAddress = new Address(new Street("New Street", user.address().street().number()), user.address().city());
-User updatedUser = new User(user.name(), newAddress);
-```
-
-* **After (Composed Lenses)**: With an annotation processor, `higher-kinded-j` generates lenses for you. You compose them to create a direct path to the nested data.
-
-```java
-// Composing lenses to create a "shortcut"
-var userAddressLens = UserLenses.address();
-var addressStreetLens = AddressLenses.street();
-var streetNameLens = StreetLenses.name();
-var userToStreetName = userAddressLens.andThen(addressStreetLens).andThen(streetNameLens);
+// Compose lenses to create a direct path to the nested data
+var userToStreetName = UserLenses.address().andThen(AddressLenses.street()).andThen(StreetLenses.name());
 
 // Perform the deep update in a single, readable line
 User updatedUser = userToStreetName.set("New Street", user);
+
+```
+
+* **Example (Shallow Update with `with*` Helpers)**:
+
+  * For simple, top-level updates, the `with*` methods are more direct and discoverable.
+
+```java
+// Before: Using the lens directly
+User userWithNewName = UserLenses.name().set("Bob", user);
+
+// After: Using the generated helper method
+User userWithNewName = UserLenses.withName(user, "Bob");
 ```
 
 ### 2. Iso: For "Is-Equivalent-To" Relationships 🔄
@@ -106,20 +113,13 @@ A **Prism** is like a Lens, but for "sum types" (`sealed interface` or `enum`). 
 
 * **Problem it solves**: Safely operating on one variant of a sealed interface.
 * **Example**: Instead of using an `if-instanceof` chain to handle a specific `DomainError`:
-  * **Before (Manual instanceof check and cast)**:
 
     ```java
-    if (error instanceof DomainError.ShippingError se && se.isRecoverable()) {
-        // ... handle recoverable error
-    }
-    ```
-  * **After (Using a generated Prism)**: Annotating the sealed interface (`@GeneratePrisms`) generates a `shippingError()` prism, which you can use in a clean, functional pipeline:
-
-    ```java
-    DomainErrorPrisms.shippingError()
-        .getOptional(error) // Safely gets a ShippingError if it matches
-        .filter(ShippingError::isRecoverable)
-        .ifPresent(this::handleRecovery); // Perform action only if it's the right type
+// Using a generated Prism for a sealed interface
+DomainErrorPrisms.shippingError()
+    .getOptional(error) // Safely gets a ShippingError if it matches
+    .filter(ShippingError::isRecoverable)
+    .ifPresent(this::handleRecovery); // Perform action only if it's the right type
     ```
 
 ### 4. Traversal: For "Has-Many" Relationships 🗺️
@@ -132,23 +132,15 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
   ```java
   @GenerateTraversals
   public record OrderData(..., List<String> promoCodes) {}
-  ```
-
-  The generated `Traversal<OrderData, String>` for `promoCodes` can be used to apply a validation function to every code and get a single result back (either a list of valid codes or the first error).
-
-  ```
   var codesTraversal = OrderDataTraversals.promoCodes();
   var validationFunction = (String code) -> validate(code); // returns Validated<Error, Code>
-
+  
   // Use the traversal to apply the function to every code.
-  // The Applicative for Validated handles the "fail-fast" logic automatically.
+  // The Applicative for Validated handles the error accumulation automatically.
   Validated<Error, OrderData> result = codesTraversal.modifyF(
       validationFunction, orderData, validatedApplicative
   );
   ```
-
-  This powerful operation is made seamless because the `Traversal` optic leverages a `Traverse` typeclass instance, which provides the underlying "engine" for iterating over the `List`.
-
 
 ## How `higher-kinded-j` Provides Optics
 

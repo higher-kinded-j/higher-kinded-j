@@ -2,19 +2,26 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.HashMap;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+
 import java.util.Map;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdentityMonad;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
+import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
+import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A runnable example demonstrating how to use and compose Prisms to safely access and update data
@@ -23,46 +30,17 @@ import org.higherkindedj.optics.annotations.GeneratePrisms;
 public class PrismUsageExample {
 
   // 1. Define a nested data model with sum types.
-  // Here, `JsonValue` is a sum type representing different kinds of JSON values.
   @GeneratePrisms
   public sealed interface JsonValue {}
 
+  @GenerateLenses
   public record JsonString(String value) implements JsonValue {}
 
   public record JsonNumber(double value) implements JsonValue {}
 
   @GenerateLenses
+  @GenerateTraversals // Generates JsonObjectTraversals.fields()
   public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
-
-  /** Helper method to create a Traversal that focuses on a map value by its key. */
-  private static Traversal<Map<String, JsonValue>, JsonValue> mapValue(String key) {
-    return new Traversal<>() {
-      @Override
-      public <F> Kind<F, Map<String, JsonValue>> modifyF(
-          Function<JsonValue, Kind<F, JsonValue>> f,
-          Map<String, JsonValue> source,
-          Applicative<F> applicative) {
-
-        JsonValue currentValue = source.get(key);
-        if (currentValue == null) {
-          // If the key doesn't exist, do nothing.
-          return applicative.of(source);
-        }
-
-        // Apply the function to the existing value to get the new value in context.
-        Kind<F, JsonValue> newValueF = f.apply(currentValue);
-
-        // Map the result back into the map structure.
-        return applicative.map(
-            newValue -> {
-              Map<String, JsonValue> newMap = new HashMap<>(source);
-              newMap.put(key, newValue);
-              return newMap;
-            },
-            newValueF);
-      }
-    };
-  }
 
   public static void main(String[] args) {
 
@@ -71,37 +49,36 @@ public class PrismUsageExample {
         new JsonObject(
             Map.of(
                 "user",
-                new JsonObject(
-                    Map.of(
-                        "name", new JsonString("Alice"),
-                        "id", new JsonNumber(123))),
+                new JsonObject(Map.of("name", new JsonString("Alice"), "id", new JsonNumber(123))),
                 "status",
-                new JsonString("active")));
+                new JsonString("active"),
+                "empty_field",
+                new JsonString("")));
 
     System.out.println("Original Data: " + data);
     System.out.println("------------------------------------------");
 
-    // 3. Compose Prisms and Lenses to create a deep, safe focus.
+    // =======================================================================
+    // SCENARIO 1: Using composed Prisms and Lenses for deep, specific updates
+    // =======================================================================
+    System.out.println("--- Scenario 1: Using Composed Traversal for Deep Updates ---");
     Prism<JsonValue, JsonObject> jsonObjectPrism = JsonValuePrisms.jsonObject();
     Prism<JsonValue, JsonString> jsonStringPrism = JsonValuePrisms.jsonString();
     Lens<JsonObject, Map<String, JsonValue>> fieldsLens = JsonObjectLenses.fields();
+    Lens<JsonString, String> jsonStringValueLens = JsonStringLenses.value();
 
-    // The setter lambda now correctly takes two arguments, satisfying the BiFunction.
-    Lens<JsonString, String> jsonStringValueLens =
-        Lens.of(JsonString::value, (jsonString, s) -> new JsonString(s));
-
-    // Compose the optics to create the full path.
+    // Compose the optics to create the full path from the root to the user's name.
+    // The local `mapValue` helper has been replaced with the static `Traversal.forMap` method.
     Traversal<JsonObject, String> userToJsonName =
         fieldsLens
-            .asTraversal() // Start with a Traversal
-            .andThen(mapValue("user"))
-            .andThen(jsonObjectPrism.asTraversal()) // Convert Prism to Traversal
-            .andThen(fieldsLens.asTraversal()) // Convert Lens to Traversal
-            .andThen(mapValue("name"))
-            .andThen(jsonStringPrism.asTraversal()) // Convert Prism to Traversal
-            .andThen(jsonStringValueLens.asTraversal()); // Convert Lens to Traversal
+            .asTraversal()
+            .andThen(Traversals.forMap("user")) // Use the new static helper
+            .andThen(jsonObjectPrism.asTraversal())
+            .andThen(fieldsLens.asTraversal())
+            .andThen(Traversals.forMap("name")) // Use the new static helper again
+            .andThen(jsonStringPrism.asTraversal())
+            .andThen(jsonStringValueLens.asTraversal());
 
-    // 4. Use the composed traversal to perform an update.
     var updatedData =
         IdKindHelper.ID
             .narrow(
@@ -109,29 +86,31 @@ public class PrismUsageExample {
                     name -> Id.of(name.toUpperCase()), data, IdentityMonad.instance()))
             .value();
 
-    System.out.println("After `modify`:  " + updatedData);
-    System.out.println("Original is unchanged: " + data);
+    System.out.println("After deep `modify`:    " + updatedData);
     System.out.println("------------------------------------------");
 
-    // --- Scenario: Path does not match ---
-    Traversal<JsonObject, String> userToJsonIdString =
-        fieldsLens
-            .asTraversal()
-            .andThen(mapValue("user"))
-            .andThen(jsonObjectPrism.asTraversal())
-            .andThen(fieldsLens.asTraversal())
-            .andThen(mapValue("id"))
-            .andThen(jsonStringPrism.asTraversal()) // This will not match a JsonNumber
-            .andThen(jsonStringValueLens.asTraversal());
+    // =======================================================================
+    // SCENARIO 2: Using the generated Traversal to operate on all elements
+    // =======================================================================
+    System.out.println("--- Scenario 2: Using Generated Traversal to Validate All Fields ---");
 
-    // The operation does nothing because the `jsonStringPrism` fails to match.
-    var notUpdatedData =
-        IdKindHelper.ID
-            .narrow(
-                userToJsonIdString.modifyF(
-                    id -> Id.of("SHOULD_NOT_UPDATE"), data, IdentityMonad.instance()))
-            .value();
-    System.out.println("After trying to modify a non-matching path: " + notUpdatedData);
-    System.out.println("The data remains unchanged: " + (data.equals(notUpdatedData)));
+    Traversal<JsonObject, String> allTopLevelStringValues =
+        JsonObjectTraversals.fields() // Traverses all values in the `fields` map
+            .andThen(jsonStringPrism.asTraversal()) // Filters for strings
+            .andThen(jsonStringValueLens.asTraversal()); // Gets the string content
+
+    Function<String, Kind<ValidatedKind.Witness<String>, String>> checkNonEmpty =
+        s ->
+            s.isEmpty()
+                ? VALIDATED.widen(Validated.invalid("A string field was empty"))
+                : VALIDATED.widen(Validated.valid(s));
+
+    Applicative<ValidatedKind.Witness<String>> applicative =
+        ValidatedMonad.instance(Semigroups.string("; "));
+
+    Kind<ValidatedKind.Witness<String>, JsonObject> validationResult =
+        allTopLevelStringValues.modifyF(checkNonEmpty, data, applicative);
+
+    System.out.println("Validation Result: " + VALIDATED.narrow(validationResult));
   }
 }

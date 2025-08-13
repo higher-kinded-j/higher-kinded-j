@@ -6,17 +6,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListMonad;
-import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.hkt.tuple.Tuple2Lenses;
 import org.higherkindedj.optics.Traversal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,20 +26,93 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Traversals Utility Class Tests")
 class TraversalsTest {
 
-  @Test
-  @DisplayName("modify should apply a pure function to all parts of a Traversal")
-  void modify_shouldApplyFunctionToAllParts() {
-    // Given
-    final List<String> sourceList = List.of("one", "two", "three");
-    final Traversal<List<String>, String> listTraversal = listElements();
+  @Nested
+  @DisplayName("modify Tests")
+  class ModifyTests {
+    @Test
+    @DisplayName("should apply a pure function to all parts of a Traversal")
+    void modify_shouldApplyFunctionToAllParts() {
+      // Given
+      final List<String> sourceList = List.of("one", "two", "three");
+      final Traversal<List<String>, String> listTraversal = Traversals.forList();
 
-    // When
-    final List<String> resultList =
-        Traversals.modify(listTraversal, String::toUpperCase, sourceList);
+      // When
+      final List<String> resultList =
+          Traversals.modify(listTraversal, String::toUpperCase, sourceList);
 
-    // Then
-    assertThat(resultList).containsExactly("ONE", "TWO", "THREE");
-    assertThat(sourceList).containsExactly("one", "two", "three");
+      // Then
+      assertThat(resultList).containsExactly("ONE", "TWO", "THREE");
+      assertThat(sourceList).containsExactly("one", "two", "three"); // Original is unchanged
+    }
+  }
+
+  @Nested
+  @DisplayName("getAll Tests")
+  class GetAllTests {
+    @Test
+    @DisplayName("should extract all elements from a simple traversal")
+    void getAll_simpleTraversal() {
+      final List<String> source = List.of("a", "b", "c");
+      final Traversal<List<String>, String> traversal = Traversals.forList();
+      assertThat(Traversals.getAll(traversal, source)).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("should return an empty list for a traversal with no targets")
+    void getAll_noTargets() {
+      final List<String> source = Collections.emptyList();
+      final Traversal<List<String>, String> traversal = Traversals.forList();
+      assertThat(Traversals.getAll(traversal, source)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should extract all elements from a deep, composed traversal")
+    void getAll_deepTraversal() {
+      // Use Tuple2 and the generated Tuple2Lenses, which are available in the test classpath
+      final Traversal<List<Tuple2<Integer, String>>, String> deepTraversal =
+          Traversals.<Tuple2<Integer, String>>forList()
+              .andThen(Tuple2Lenses.<Integer, String>_2().asTraversal());
+
+      final List<Tuple2<Integer, String>> source =
+          List.of(new Tuple2<>(1, "Alice"), new Tuple2<>(2, "Bob"));
+
+      assertThat(Traversals.getAll(deepTraversal, source)).containsExactly("Alice", "Bob");
+    }
+  }
+
+  @Nested
+  @DisplayName("forList Tests")
+  class ForListTests {
+    @Test
+    @DisplayName("should create a traversal that targets every element in a list")
+    void forList_targetsEveryElement() {
+      final Traversal<List<Integer>, Integer> listTraversal = Traversals.forList();
+      final List<Integer> source = List.of(1, 2, 3);
+      final List<Integer> modified = Traversals.modify(listTraversal, i -> i + 1, source);
+      assertThat(modified).containsExactly(2, 3, 4);
+    }
+  }
+
+  @Nested
+  @DisplayName("forMap Tests")
+  class ForMapTests {
+    @Test
+    @DisplayName("should create a traversal that targets an existing map value")
+    void forMap_targetsExistingValue() {
+      final Traversal<Map<String, Integer>, Integer> mapTraversal = Traversals.forMap("key2");
+      final Map<String, Integer> source = Map.of("key1", 10, "key2", 20);
+      final Map<String, Integer> modified = Traversals.modify(mapTraversal, i -> i * 2, source);
+      assertThat(modified).containsEntry("key1", 10).containsEntry("key2", 40);
+    }
+
+    @Test
+    @DisplayName("should do nothing if the key does not exist")
+    void forMap_doesNothingForMissingKey() {
+      final Traversal<Map<String, Integer>, Integer> mapTraversal = Traversals.forMap("key3");
+      final Map<String, Integer> source = Map.of("key1", 10, "key2", 20);
+      final Map<String, Integer> modified = Traversals.modify(mapTraversal, i -> i * 2, source);
+      assertThat(modified).isEqualTo(source); // The map is unchanged
+    }
   }
 
   @Nested
@@ -94,8 +168,6 @@ class TraversalsTest {
           i -> ListKindHelper.LIST.widen(List.of(i, i * 10));
 
       // When
-      // The type here is Kind<List, List<Integer>> because traversing a List with a List effect
-      // produces the cartesian product of all possible lists.
       final Kind<ListKind.Witness, List<Integer>> result =
           Traversals.traverseList(source, f, ListMonad.INSTANCE);
 
@@ -122,20 +194,5 @@ class TraversalsTest {
       final Optional<List<String>> actual = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(actual).contains(Collections.emptyList());
     }
-  }
-
-  // Helper to create a Traversal for a list
-  private <T> Traversal<List<T>, T> listElements() {
-    return new Traversal<>() {
-      @Override
-      public <F> Kind<F, List<T>> modifyF(
-          Function<T, Kind<F, T>> f, List<T> source, Applicative<F> applicative) {
-
-        Kind<F, Kind<ListKind.Witness, T>> traversed =
-            ListTraverse.INSTANCE.traverse(applicative, ListKindHelper.LIST.widen(source), f);
-
-        return applicative.map(ListKindHelper.LIST::narrow, traversed);
-      }
-    };
   }
 }
