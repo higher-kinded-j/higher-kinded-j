@@ -93,7 +93,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    * @throws NullPointerException if value is null.
    */
   @Override
-  public <A> @NonNull Kind<ValidatedKind.Witness<E>, A> of(A value) {
+  public <A> @NonNull Kind<ValidatedKind.Witness<E>, A> of(@NonNull A value) {
     requireNonNull(value, OF_VALUE_NULL_MSG);
     Validated<E, A> validInstance = Validated.valid(value);
     return VALIDATED.widen(validInstance);

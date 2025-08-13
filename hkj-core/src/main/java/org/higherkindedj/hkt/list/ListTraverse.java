@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -65,9 +65,9 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * Traverses a list from left to right, applying an effectful function {@code f} to each element
    * and collecting the results within the context of the {@link Applicative} {@code G}.
    *
-   * <p>For example, if {@code ta} is a list of items and {@code f} is a function that validates
-   * each item into a {@code Validated}, this method will produce a single {@code Validated}
-   * containing a list of all validated items, or an aggregation of all errors.
+   * <p>This implementation uses a left-to-right fold and a {@link LinkedList} accumulator. By
+   * appending to the {@code LinkedList} in each step, the operation achieves an efficient O(N) time
+   * complexity while preserving the original order of the list.
    *
    * @param <G> The higher-kinded type witness for the {@link Applicative} context.
    * @param <A> The type of elements in the input list {@code ta}.
@@ -87,7 +87,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
       @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
 
     List<A> listA = LIST.narrow(ta);
-    Kind<G, List<B>> initial = applicative.of(new ArrayList<>());
+    Kind<G, List<B>> initial = applicative.of(new LinkedList<>());
 
     Kind<G, List<B>> result = initial;
     for (A a : listA) {
@@ -97,8 +97,9 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
               result,
               effectOfB,
               (listB, b) -> {
-                // Create a new list to avoid mutation issues
-                List<B> newList = new ArrayList<>(listB);
+                // Create a new list to avoid mutation issues and append the new element.
+                // Appending to a LinkedList is an efficient O(1) operation.
+                List<B> newList = new LinkedList<>(listB);
                 newList.add((B) b);
                 return newList;
               });
