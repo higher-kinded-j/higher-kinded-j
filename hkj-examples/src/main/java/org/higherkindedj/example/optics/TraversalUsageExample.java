@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
@@ -40,19 +41,42 @@ public class TraversalUsageExample {
     System.out.println("Original League: " + league);
     System.out.println("------------------------------------------");
 
+    // =======================================================================
+    // SCENARIO 1: Using `with*` helpers for a targeted, shallow update
+    // =======================================================================
+    System.out.println("--- Scenario 1: Using `with*` Helpers ---");
+
+    // To update a single team's name, we first get the team.
+    var teamToUpdate = league.teams().getFirst();
+    // Use the generated helper to create a new, updated team instance.
+    var updatedTeam = TeamLenses.withName(teamToUpdate, "Team Omega");
+
+    // Then, we create a new list of teams with the updated one.
+    var newTeamsList = new ArrayList<>(league.teams());
+    newTeamsList.set(0, updatedTeam);
+
+    // Finally, use another helper to create the new league instance.
+    var leagueWithUpdatedTeam = LeagueLenses.withTeams(league, newTeamsList);
+
+    System.out.println("After updating one team's name with `with*` helpers:");
+    System.out.println(leagueWithUpdatedTeam);
+    System.out.println("------------------------------------------");
+
+    // =======================================================================
+    // SCENARIO 2: Using composed Traversals for deep, bulk updates
+    // =======================================================================
+    System.out.println("--- Scenario 2: Using Composed Traversal for Bulk Updates ---");
+
     // 3. Compose Traversals and Lenses to create a deep focus.
     Traversal<League, Team> leagueToTeams = LeagueTraversals.teams();
     Traversal<Team, Player> teamToPlayers = TeamTraversals.players();
     Lens<Player, Integer> playerToScore = PlayerLenses.score();
 
-    // Compose them to create a single, deep traversal.
-    // Convert the Lens to a Traversal to maintain the specific return type.
+    // Compose them to create a single traversal from the league to every player's score.
     Traversal<League, Integer> leagueToAllPlayerScores =
-        leagueToTeams
-            .andThen(teamToPlayers)
-            .andThen(playerToScore.asTraversal()); // Convert Lens to Traversal
+        leagueToTeams.andThen(teamToPlayers).andThen(playerToScore.asTraversal());
 
-    // 4. Use the composed traversal to perform a bulk update.
+    // 4. Use the composed traversal to perform a bulk update on all scores.
     var updatedLeague =
         IdKindHelper.ID
             .narrow(
@@ -63,23 +87,5 @@ public class TraversalUsageExample {
     System.out.println("After `modifyF` (adding 5 points to each score):");
     System.out.println(updatedLeague);
     System.out.println("------------------------------------------");
-
-    // --- Another example: Composing to update all player names ---
-    Lens<Player, String> playerToName = PlayerLenses.name();
-
-    Traversal<League, String> leagueToAllPlayerNames =
-        leagueToTeams
-            .andThen(teamToPlayers)
-            .andThen(playerToName.asTraversal()); // Convert Lens to Traversal
-
-    var leagueWithUpperCasedNames =
-        IdKindHelper.ID
-            .narrow(
-                leagueToAllPlayerNames.modifyF(
-                    name -> Id.of(name.toUpperCase()), league, IdentityMonad.instance()))
-            .value();
-
-    System.out.println("After `modifyF` (uppercasing all player names):");
-    System.out.println(leagueWithUpperCasedNames);
   }
 }
