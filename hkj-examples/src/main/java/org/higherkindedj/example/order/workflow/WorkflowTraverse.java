@@ -144,7 +144,7 @@ public class WorkflowTraverse {
               Kind<ValidatedKind.Witness<DomainError>, Kind<ListKind.Witness, String>>
                   traverseResult =
                       listTraverse.traverse(
-                          validatedApplicative, codesAsKind, this::validatePromoCode);
+                          validatedApplicative, this::validatePromoCode, codesAsKind);
 
               Validated<DomainError, List<String>> validatedCodes =
                   VALIDATED.narrow(traverseResult).map(LIST::narrow);

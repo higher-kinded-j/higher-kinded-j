@@ -41,8 +41,8 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <G, A, B> @NonNull Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
       @NonNull Applicative<G> applicative,
-      @NonNull Kind<EitherKind.Witness<E>, A> ta,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
+      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
+      @NonNull Kind<EitherKind.Witness<E>, A> ta) {
 
     return EITHER
         .narrow(ta)

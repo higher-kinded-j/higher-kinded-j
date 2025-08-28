@@ -80,7 +80,7 @@ public class MaybeTraverseTest {
 
       // When we traverse it with a function that returns Valid
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> result =
-          traverse.traverse(validatedApplicative, input, validatePositive);
+          traverse.traverse(validatedApplicative, validatePositive, input);
 
       // Then the result is a Valid containing a Just of the new value
       Validated<String, Kind<MaybeKind.Witness, Integer>> validatedResult =
@@ -97,7 +97,7 @@ public class MaybeTraverseTest {
 
       // When we traverse it with a function that returns Invalid
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> result =
-          traverse.traverse(validatedApplicative, input, validatePositive);
+          traverse.traverse(validatedApplicative, validatePositive, input);
 
       // Then the result is an Invalid
       Validated<String, Kind<MaybeKind.Witness, Integer>> validatedResult =
@@ -114,7 +114,7 @@ public class MaybeTraverseTest {
 
       // When we traverse it
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> result =
-          traverse.traverse(validatedApplicative, input, validatePositive);
+          traverse.traverse(validatedApplicative, validatePositive, input);
 
       // Then the result is a Valid containing Nothing
       Validated<String, Kind<MaybeKind.Witness, Integer>> validatedResult =

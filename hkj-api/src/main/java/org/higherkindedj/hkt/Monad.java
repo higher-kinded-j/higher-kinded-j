@@ -4,6 +4,7 @@ package org.higherkindedj.hkt;
 
 import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Represents the Monad type class, extending Applicative. Inherits 'of', 'ap', 'map' and adds
@@ -11,6 +12,7 @@ import org.jspecify.annotations.NonNull;
  *
  * @param <M> The witness type for the Monad (e.g., ListKind.class, OptionalKind.class)
  */
+@NullMarked
 public interface Monad<M> extends Applicative<M> {
 
   // 'of' is  inherited from Applicative
@@ -29,7 +31,7 @@ public interface Monad<M> extends Applicative<M> {
    * @return The resulting monadic value (e.g., {@code ListKind<B>}). Guaranteed non-null.
    */
   <A, B> @NonNull Kind<M, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<M, B>> f, @NonNull Kind<M, A> ma);
+      final Function<? super A, ? extends Kind<M, B>> f, final Kind<M, A> ma);
 
   // flatMap can define ap: ap(ff, fa) = flatMap(f -> map(f, fa), ff)
   // You could provide a default implementation of ap here if desired,

@@ -30,8 +30,8 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   @Override
   public <G, A, B> @NonNull Kind<G, Kind<TryKind.Witness, B>> traverse(
       @NonNull Applicative<G> applicative,
-      @NonNull Kind<TryKind.Witness, A> ta,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
+      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
+      @NonNull Kind<TryKind.Witness, A> ta) {
 
     return TRY.narrow(ta)
         .fold(

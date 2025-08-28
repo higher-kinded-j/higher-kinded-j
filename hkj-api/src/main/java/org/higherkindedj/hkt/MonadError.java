@@ -4,6 +4,7 @@ package org.higherkindedj.hkt;
 
 import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -15,6 +16,7 @@ import org.jspecify.annotations.Nullable;
  *     {@code org.higherkindedj.hkt.unit.Unit} can be used as a non-nullable error type, with its
  *     single instance {@code Unit.INSTANCE} passed to {@link #raiseError(Object)}.
  */
+@NullMarked
 public interface MonadError<F, E> extends Monad<F> {
 
   /**
@@ -28,7 +30,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @param <A> The phantom type parameter of the value (since this represents an error state).
    * @return The error wrapped in the context F. Guaranteed non-null.
    */
-  <A> @NonNull Kind<F, A> raiseError(@Nullable E error);
+  <A> @NonNull Kind<F, A> raiseError(@Nullable final E error);
 
   /**
    * Handles an error within the monadic context. If 'ma' represents a success value, it's returned
@@ -44,7 +46,7 @@ public interface MonadError<F, E> extends Monad<F> {
    *     contained an error. Guaranteed non-null.
    */
   <A> @NonNull Kind<F, A> handleErrorWith(
-      @NonNull Kind<F, A> ma, @NonNull Function<? super E, ? extends Kind<F, A>> handler);
+      final Kind<F, A> ma, final Function<? super E, ? extends Kind<F, A>> handler);
 
   /**
    * A simpler version of handleErrorWith where the handler returns a pure value 'a' which is then
@@ -59,7 +61,7 @@ public interface MonadError<F, E> extends Monad<F> {
    *     monad if it contained an error. Guaranteed non-null.
    */
   default <A> @NonNull Kind<F, A> handleError(
-      @NonNull Kind<F, A> ma, @NonNull Function<? super E, ? extends A> handler) {
+      final Kind<F, A> ma, final Function<? super E, ? extends A> handler) {
     return handleErrorWith(ma, error -> of(handler.apply(error)));
   }
 
@@ -72,8 +74,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @param <A> The type of the value within the monad.
    * @return 'ma' if successful, 'fallback' otherwise. Guaranteed non-null.
    */
-  default <A> @NonNull Kind<F, A> recoverWith(
-      @NonNull Kind<F, A> ma, @NonNull Kind<F, A> fallback) {
+  default <A> @NonNull Kind<F, A> recoverWith(final Kind<F, A> ma, final Kind<F, A> fallback) {
     return handleErrorWith(ma, error -> fallback);
   }
 
@@ -86,7 +87,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @param <A> The type of the value within the monad.
    * @return 'ma' if successful, 'of(value)' otherwise. Guaranteed non-null.
    */
-  default <A> @NonNull Kind<F, A> recover(@NonNull Kind<F, A> ma, @Nullable A value) {
-    return handleError(ma, error -> value);
+  default <A> @NonNull Kind<F, A> recover(final Kind<F, A> ma, @Nullable A value) {
+    return handleError(ma, _ -> value);
   }
 }

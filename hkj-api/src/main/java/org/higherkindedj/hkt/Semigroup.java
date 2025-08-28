@@ -34,5 +34,5 @@ public interface Semigroup<A> {
    * @param a2 The second value (non-null).
    * @return The combined value (non-null).
    */
-  A combine(A a1, A a2);
+  A combine(final A a1, final A a2);
 }

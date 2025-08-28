@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -55,6 +56,7 @@ import org.jspecify.annotations.Nullable;
  * @see Monad
  * @see Kind
  */
+@NullMarked
 public interface Applicative<F> extends Functor<F> {
 
   /**
@@ -111,8 +113,7 @@ public interface Applicative<F> extends Functor<F> {
    *     "empty" or "failed" context (e.g., {@code Optional.empty()}), the result is typically also
    *     such a context.
    */
-  <A, B> @NonNull Kind<F, B> ap(
-      @NonNull Kind<F, ? extends Function<A, B>> ff, @NonNull Kind<F, A> fa);
+  <A, B> @NonNull Kind<F, B> ap(Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa);
 
   // --- mapN implementations ---
 
@@ -132,7 +133,7 @@ public interface Applicative<F> extends Functor<F> {
    * @return A non-null {@code Kind<F, C>} containing the result.
    */
   default <A, B, C> @NonNull Kind<F, C> map2(
-      @NonNull Kind<F, A> fa, @NonNull Kind<F, B> fb, @NonNull Function<A, Function<B, C>> f) {
+      final Kind<F, A> fa, Kind<F, B> fb, final Function<A, Function<B, C>> f) {
     // Delegate to the BiFunction version, which is now the base implementation
     return map2(fa, fb, (a, b) -> f.apply(a).apply(b));
   }
@@ -152,9 +153,9 @@ public interface Applicative<F> extends Functor<F> {
    * @return A non-null {@code Kind<F, C>} containing the result.
    */
   default <A, B, C> @NonNull Kind<F, C> map2(
-      @NonNull Kind<F, A> fa,
-      @NonNull Kind<F, B> fb,
-      @NonNull BiFunction<? super A, ? super B, ? extends C> f) {
+      final Kind<F, A> fa,
+      final Kind<F, B> fb,
+      final BiFunction<? super A, ? super B, ? extends C> f) {
     // The implementation is now based on map and ap, with a curried function.
     // The key is that the lambda `a -> b -> f.apply(a, b)` helps the compiler
     // resolve the wildcard types correctly before they are passed to map.
@@ -178,10 +179,10 @@ public interface Applicative<F> extends Functor<F> {
    *     from {@code fa}, {@code fb}, and {@code fc} within the context {@code F}.
    */
   default <A, B, C, R> @NonNull Kind<F, R> map3(
-      @NonNull Kind<F, A> fa,
-      @NonNull Kind<F, B> fb,
-      @NonNull Kind<F, C> fc,
-      @NonNull Function3<? super A, ? super B, ? super C, ? extends R> f) {
+      final Kind<F, A> fa,
+      final Kind<F, B> fb,
+      final Kind<F, C> fc,
+      final Function3<? super A, ? super B, ? super C, ? extends R> f) {
     return ap(map2(fa, fb, (a, b) -> c -> Objects.requireNonNull(f.apply(a, b, c))), fc);
   }
 
@@ -203,11 +204,11 @@ public interface Applicative<F> extends Functor<F> {
    *     from the four applicative arguments within the context {@code F}.
    */
   default <A, B, C, D, R> @NonNull Kind<F, R> map4(
-      @NonNull Kind<F, A> fa,
-      @NonNull Kind<F, B> fb,
-      @NonNull Kind<F, C> fc,
-      @NonNull Kind<F, D> fd,
-      @NonNull Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
+      final Kind<F, A> fa,
+      final Kind<F, B> fb,
+      final Kind<F, C> fc,
+      final Kind<F, D> fd,
+      final Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
     return ap(map3(fa, fb, fc, (a, b, c) -> d -> Objects.requireNonNull(f.apply(a, b, c, d))), fd);
   }
 
@@ -232,12 +233,12 @@ public interface Applicative<F> extends Functor<F> {
    *     from the five applicative arguments within the context {@code F}.
    */
   default <A, B, C, D, E, R> @NonNull Kind<F, R> map5(
-      @NonNull Kind<F, A> fa,
-      @NonNull Kind<F, B> fb,
-      @NonNull Kind<F, C> fc,
-      @NonNull Kind<F, D> fd,
-      @NonNull Kind<F, E> fe,
-      @NonNull Function5<? super A, ? super B, ? super C, ? super D, ? super E, ? extends R> f) {
+      final Kind<F, A> fa,
+      final Kind<F, B> fb,
+      final Kind<F, C> fc,
+      final Kind<F, D> fd,
+      final Kind<F, E> fe,
+      final Function5<? super A, ? super B, ? super C, ? super D, ? super E, ? extends R> f) {
     return ap(
         map4(fa, fb, fc, fd, (a, b, c, d) -> e -> Objects.requireNonNull(f.apply(a, b, c, d, e))),
         fe);

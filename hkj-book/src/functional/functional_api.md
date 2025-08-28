@@ -88,5 +88,5 @@ A **`Foldable`** is a type class for any data structure `F` that can be reduced 
 
 A **`Traverse`** is a powerful type class that extends both `Functor` and `Foldable`. It allows you to iterate over a data structure `F<A>` and apply an effectful function `A -> G<B>` at each step, collecting the results into a single effect `G<F<B>>`.
 
-* **Key Method**: `traverse(Applicative<G> applicative, Kind<F, A> fa, Function<A, Kind<G, B>> f)`
+* **Key Method**: `traverse(Applicative<G> applicative, Function<A, Kind<G, B>> f, Kind<F, A> fa)`
 * **Use Case**: This is incredibly useful for tasks like validating every item in a `List`, where the validation returns a `Validated`. The result is a single `Validated` containing either a `List` of all successful results or an accumulation of all errors.

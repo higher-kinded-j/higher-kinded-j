@@ -29,8 +29,8 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   @Override
   public <G, A, B> @NonNull Kind<G, Kind<MaybeKind.Witness, B>> traverse(
       @NonNull Applicative<G> applicative,
-      @NonNull Kind<MaybeKind.Witness, A> ta,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
+      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
+      @NonNull Kind<MaybeKind.Witness, A> ta) {
 
     final Maybe<A> maybe = MAYBE.narrow(ta);
 

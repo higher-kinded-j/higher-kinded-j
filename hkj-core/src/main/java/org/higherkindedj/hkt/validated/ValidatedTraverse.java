@@ -40,8 +40,8 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   @Override
   public <G, A, B> @NonNull Kind<G, Kind<ValidatedKind.Witness<E>, B>> traverse(
       @NonNull Applicative<G> applicative,
-      @NonNull Kind<ValidatedKind.Witness<E>, A> ta,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
+      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
+      @NonNull Kind<ValidatedKind.Witness<E>, A> ta) {
 
     return VALIDATED
         .narrow(ta)

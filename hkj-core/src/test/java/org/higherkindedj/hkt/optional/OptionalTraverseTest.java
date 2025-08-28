@@ -78,7 +78,7 @@ public class OptionalTraverseTest {
 
       // When we traverse it with a function that returns a Just
       Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is a Just containing a present Optional of the new value
       Maybe<Kind<OptionalKind.Witness, String>> maybeResult = MAYBE.narrow(result);
@@ -94,7 +94,7 @@ public class OptionalTraverseTest {
 
       // When we traverse it with a function that returns Nothing
       Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is Nothing
       assertThat(MAYBE.narrow(result).isNothing()).isTrue();
@@ -108,7 +108,7 @@ public class OptionalTraverseTest {
 
       // When we traverse it
       Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is a Just containing an empty Optional
       Maybe<Kind<OptionalKind.Witness, String>> maybeResult = MAYBE.narrow(result);

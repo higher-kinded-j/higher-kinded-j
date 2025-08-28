@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt;
 
 import java.util.function.Function;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * A typeclass for data structures that can be folded to a summary value.
@@ -13,6 +13,7 @@ import org.jspecify.annotations.NonNull;
  *
  * @param <F> The higher-kinded type witness for the data structure (e.g., ListKind.Witness).
  */
+@NullMarked
 public interface Foldable<F> {
 
   /**
@@ -27,7 +28,5 @@ public interface Foldable<F> {
    * @return The aggregated result of type {@code M}.
    */
   <A, M> M foldMap(
-      @NonNull Monoid<M> monoid,
-      @NonNull Function<? super A, ? extends M> f,
-      @NonNull Kind<F, A> fa);
+      final Monoid<M> monoid, final Function<? super A, ? extends M> f, final Kind<F, A> fa);
 }

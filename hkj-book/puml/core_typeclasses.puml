@@ -26,13 +26,16 @@ package "HKT Core - Type Classes" {
         ' Other recovery methods can be shown if desired
     }
 
-    interface "Monoid<A>" as Monoid {
-        + empty() : A
+    interface "Semigroup<A>" as Semigroup {
         + combine(x: A, y: A) : A
     }
 
+    interface "Monoid<A>" as Monoid {
+        + empty() : A
+    }
+
      interface "Traverse<A>" as Traverse {
-        + traverse(a: Applicative<G>, ta : Kind<T, A>, f : Function<? super A, ? extends Kind<G, ? extends B>>) : <G, A, B> Kind<G, Kind<T, B>>
+        + traverse(a: Applicative<G>, f : Function<? super A, ? extends Kind<G, ? extends B>>, ta : Kind<T, A>) : <G, A, B> Kind<G, Kind<T, B>>
         + sequence(a: Applicative<G>, tga : Kind<T, Kind<G, A>>) : <G, A> Kind<G, Kind<T, A>>
      }
 
@@ -40,10 +43,8 @@ package "HKT Core - Type Classes" {
     Applicative --|> Functor
     Monad --|> Applicative
     MonadError --|> Monad
+    Monoid --|> Semigroup
     Traverse --|> Functor
-
-
-}
 
 }
 @enduml

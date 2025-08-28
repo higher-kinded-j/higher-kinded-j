@@ -4,6 +4,7 @@ package org.higherkindedj.hkt;
 
 import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Represents the Functor type class. A Functor is a type constructor F supporting a 'map' operation
@@ -16,6 +17,7 @@ import org.jspecify.annotations.NonNull;
  *     OptionalKind.class). This 'F' corresponds to the 'F' in the simulated higher-kinded type
  *     {@code F<A>}.
  */
+@NullMarked
 public interface Functor<F> {
 
   /**
@@ -36,6 +38,5 @@ public interface Functor<F> {
    * @return A new Functor structure containing the result(s) of applying the function {@code f},
    *     maintaining the original structure F. Guaranteed non-null.
    */
-  <A, B> @NonNull Kind<F, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<F, A> fa);
+  <A, B> @NonNull Kind<F, B> map(final Function<? super A, ? extends B> f, final Kind<F, A> fa);
 }

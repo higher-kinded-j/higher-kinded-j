@@ -30,8 +30,8 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   @Override
   public <G, A, B> @NonNull Kind<G, Kind<OptionalKind.Witness, B>> traverse(
       @NonNull Applicative<G> applicative,
-      @NonNull Kind<OptionalKind.Witness, A> ta,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
+      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
+      @NonNull Kind<OptionalKind.Witness, A> ta) {
 
     return OPTIONAL
         .narrow(ta)

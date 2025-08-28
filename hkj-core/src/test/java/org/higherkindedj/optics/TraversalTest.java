@@ -35,7 +35,7 @@ class TraversalTest {
       public <F> Kind<F, List<T>> modifyF(
           Function<T, Kind<F, T>> f, List<T> source, Applicative<F> applicative) {
         Kind<F, Kind<ListKind.Witness, T>> traversed =
-            ListTraverse.INSTANCE.traverse(applicative, ListKindHelper.LIST.widen(source), f);
+            ListTraverse.INSTANCE.traverse(applicative, f, ListKindHelper.LIST.widen(source));
         return applicative.map(ListKindHelper.LIST::narrow, traversed);
       }
     };
