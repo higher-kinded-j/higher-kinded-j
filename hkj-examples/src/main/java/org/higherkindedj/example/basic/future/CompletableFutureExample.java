@@ -21,6 +21,7 @@ public class CompletableFutureExample {
     example.createExample();
     example.monadExample();
     example.errorHandlingExample();
+    example.monadUtilityMethodsExample();
   }
 
   public void errorHandlingExample() {
@@ -179,5 +180,32 @@ public class CompletableFutureExample {
     BiFunction<Integer, String, String> combine = (i, s) -> s + i;
     Kind<CompletableFutureKind.Witness, String> map2Result = futureMonad.map2(f1, f2, combine);
     System.out.println("Map2 Result: " + FUTURE.join(map2Result)); // Output: abc5
+  }
+
+  public void monadUtilityMethodsExample() {
+    CompletableFutureMonad futureMonad = CompletableFutureMonad.INSTANCE;
+    Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);
+    Function<String, Kind<CompletableFutureKind.Witness, String>> asyncStep2 =
+        input -> FUTURE.widen(CompletableFuture.supplyAsync(() -> input + " -> Step2 Done"));
+
+    // Chain of operations
+    Kind<CompletableFutureKind.Witness, String> mappedKind =
+        futureMonad.map(value -> "Result: " + value, initialValueKind);
+
+    // ✨ Use `peek` to log the intermediate result of the async chain.
+    Kind<CompletableFutureKind.Witness, String> peekedKind =
+        futureMonad.peek(
+            result -> System.out.println("DEBUG: Intermediate result is '" + result + "'"),
+            mappedKind);
+
+    Kind<CompletableFutureKind.Witness, String> flatMappedKind =
+        futureMonad.flatMap(asyncStep2, peekedKind);
+
+    // ✨ Use `as` to transform the successful result into a simple boolean signal.
+    // This is useful when you only care that the pipeline succeeded, not what the value was.
+    Kind<CompletableFutureKind.Witness, Boolean> completionSignal =
+        futureMonad.as(true, flatMappedKind);
+
+    System.out.println("Pipeline completed successfully: " + FUTURE.join(completionSignal));
   }
 }

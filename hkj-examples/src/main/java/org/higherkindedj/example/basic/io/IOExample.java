@@ -13,6 +13,8 @@ import org.higherkindedj.hkt.unit.Unit;
 
 /** see {<a href="https://higher-kinded-j.github.io/io_monad.html">IO Monad</a>} */
 public class IOExample {
+
+  static Scanner scanner = new Scanner(System.in);
   // Get the IOMonad instance
   IOMonad ioMonad = IOMonad.INSTANCE;
 
@@ -30,9 +32,7 @@ public class IOExample {
           () -> {
             System.out.print("Enter your name: ");
             // Scanner should ideally be managed more robustly in real apps
-            try (Scanner scanner = new Scanner(System.in)) {
-              return scanner.nextLine();
-            }
+            return scanner.nextLine();
           });
 
   // IO action that returns a pure value (no side effect description here)
@@ -59,6 +59,8 @@ public class IOExample {
     System.out.println("\nComposing with map and flatMap Example!");
     ioExample.composingWithMapAndFlatMap();
     System.out.println("\nDone!");
+    System.out.println("\n--- Composition with Utility Methods Example ---");
+    ioExample.utilityMethodsCompositionExample();
   }
 
   public void executingIO() {
@@ -152,5 +154,56 @@ public class IOExample {
 
     System.out.println("\nComplete IO Program defined. Executing...");
     IO_OP.unsafeRunSync(program);
+  }
+
+  public void utilityMethodsCompositionExample() {
+    // A simulated input for repeatable demonstration
+    Kind<IOKind.Witness, String> getAdminName = ioMonad.of("admin");
+    Kind<IOKind.Witness, String> getAliceName = ioMonad.of("Alice");
+
+    // Action 2 (depends on name): Print greeting
+    Function<String, Kind<IOKind.Witness, Unit>> printGreeting =
+        name ->
+            IO_OP.delay(
+                () -> {
+                  System.out.println("Welcome, " + name + "!");
+                  return Unit.INSTANCE;
+                });
+
+    // Action to perform if the predicate is false (do nothing)
+    Function<String, Kind<IOKind.Witness, Unit>> doNothing = name -> ioMonad.of(Unit.INSTANCE);
+
+    // ✨ 1. Use `peek` to log the name without mixing logging into business logic.
+    Kind<IOKind.Witness, String> loggedGetAliceName =
+        ioMonad.peek(name -> System.out.println("LOG: Name obtained -> " + name), getAliceName);
+
+    // ✨ 2. Use `flatMapIfOrElse` for safe conditional execution.
+    // We explicitly define what to do in both the true and false cases.
+    Kind<IOKind.Witness, Unit> conditionalGreeting =
+        ioMonad.flatMapIfOrElse(
+            name -> !name.equalsIgnoreCase("admin"), // Predicate
+            printGreeting, // Action if true
+            doNothing, // Action if false
+            loggedGetAliceName // Monadic value to test
+            );
+
+    // ✨ 3. Use `as` to signal the program's end, replacing a final `map`.
+    Kind<IOKind.Witness, Unit> finalMessage =
+        ioMonad.as(
+            Unit.INSTANCE,
+            ioMonad.peek(_ -> System.out.println("Program finished."), conditionalGreeting));
+
+    System.out.println("\nExecuting conditional program for 'Alice':");
+    IO_OP.unsafeRunSync(finalMessage);
+
+    System.out.println("\nExecuting conditional program for 'admin' (greeting should be skipped):");
+    Kind<IOKind.Witness, Unit> adminFlow =
+        ioMonad.flatMapIfOrElse(
+            name -> !name.equalsIgnoreCase("admin"), // Predicate
+            printGreeting, // Action if true
+            doNothing, // Action if false
+            getAdminName // Monadic value
+            );
+    IO_OP.unsafeRunSync(adminFlow);
   }
 }

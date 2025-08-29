@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 
@@ -33,11 +35,56 @@ public interface Monad<M> extends Applicative<M> {
   <A, B> @NonNull Kind<M, B> flatMap(
       final Function<? super A, ? extends Kind<M, B>> f, final Kind<M, A> ma);
 
-  // flatMap can define ap: ap(ff, fa) = flatMap(f -> map(f, fa), ff)
-  // You could provide a default implementation of ap here if desired,
-  // but typically specific implementations are more efficient.
-  // @Override
-  // default <A, B> Kind<M, B> ap(Kind<M, Function<A, B>> ff, Kind<M, A> fa) {
-  //     return flatMap(f -> map(f, fa), ff);
-  // }
+  /**
+   * Conditionally sequences a monadic operation. If the predicate is true, it applies {@code
+   * flatMap} with the given function; otherwise, it returns the original monadic value lifted into
+   * the new type.
+   *
+   * @param predicate The condition to test on the monad's value.
+   * @param ifTrue The function to apply if the predicate is true.
+   * @param ifFalse The function to apply if the predicate is false.
+   * @param ma The input monadic value.
+   * @param <A> The input type within the monad.
+   * @param <B> The result type within the monad.
+   * @return A new monadic value.
+   */
+  default <A, B> @NonNull Kind<M, B> flatMapIfOrElse(
+      final Predicate<? super A> predicate,
+      final Function<? super A, ? extends Kind<M, B>> ifTrue,
+      final Function<? super A, ? extends Kind<M, B>> ifFalse,
+      final Kind<M, A> ma) {
+    // Both branches are guaranteed by the compiler to return a Kind<M, B>.
+    return flatMap(a -> predicate.test(a) ? ifTrue.apply(a) : ifFalse.apply(a), ma);
+  }
+
+  /**
+   * Keeps the effect of this Monad, but replaces the result with the given value.
+   *
+   * @param b The new value to replace the result with.
+   * @param ma The input monadic value.
+   * @param <A> The original type of the value in the monad.
+   * @param <B> The type of the new value.
+   * @return A new monadic value with the result replaced by 'b'.
+   */
+  default <A, B> @NonNull Kind<M, B> as(final B b, final Kind<M, A> ma) {
+    return map(_ -> b, ma);
+  }
+
+  /**
+   * Allows "peeking" at the value inside the Monad without changing the flow. This is useful for
+   * logging or debugging.
+   *
+   * @param action The consumer to execute on the value inside the monad.
+   * @param ma The input monadic value.
+   * @param <A> The type of the value in the monad.
+   * @return The original monadic value.
+   */
+  default <A> @NonNull Kind<M, A> peek(final Consumer<? super A> action, final Kind<M, A> ma) {
+    return map(
+        a -> {
+          action.accept(a);
+          return a;
+        },
+        ma);
+  }
 }
