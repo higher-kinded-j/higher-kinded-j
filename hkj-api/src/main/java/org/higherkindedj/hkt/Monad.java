@@ -49,10 +49,10 @@ public interface Monad<M> extends Applicative<M> {
    * @return A new monadic value.
    */
   default <A, B> @NonNull Kind<M, B> flatMapIfOrElse(
-          final Predicate<? super A> predicate,
-          final Function<? super A, ? extends Kind<M, B>> ifTrue,
-          final Function<? super A, ? extends Kind<M, B>> ifFalse,
-          final Kind<M, A> ma) {
+      final Predicate<? super A> predicate,
+      final Function<? super A, ? extends Kind<M, B>> ifTrue,
+      final Function<? super A, ? extends Kind<M, B>> ifFalse,
+      final Kind<M, A> ma) {
     // Both branches are guaranteed by the compiler to return a Kind<M, B>.
     return flatMap(a -> predicate.test(a) ? ifTrue.apply(a) : ifFalse.apply(a), ma);
   }
