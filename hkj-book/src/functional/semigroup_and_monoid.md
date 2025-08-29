@@ -3,7 +3,7 @@
 
 In functional programming, we often use **type classes** to define common behaviors that can be applied to a wide range of data types. These act as interfaces that allow us to write more abstract and reusable code. In `higher-kinded-j`, we provide a number of these type classes to enable powerful functional patterns.
 
-This document will cover two foundational type classes: `Semigroup` and `Monoid`. Understanding these will give you a solid foundation for many of the more advanced concepts in the library.
+Here we will cover two foundational type classes: `Semigroup` and `Monoid`. Understanding these will give you a solid foundation for many of the more advanced concepts in the library.
 
 ---
 
@@ -32,9 +32,8 @@ public interface Semigroup<A> {
 
 To make working with `Semigroup` easier, `higher-kinded-j` provides a `Semigroups` utility interface with static factory methods for common instances.
 
-**Java**
 
-```
+``` java
 // Get a Semigroup for concatenating Strings
 Semigroup<String> stringConcat = Semigroups.string();
 
@@ -103,9 +102,8 @@ public interface Monoid<A> extends Semigroup<A> {
 
 Similar to `Semigroups`, the library provides a `Monoids` utility interface for creating common instances.
 
-**Java**
 
-```
+``` java
 // Get a Monoid for integer addition (empty = 0)
 Monoid<Integer> intAddition = Monoids.integerAddition();
 
