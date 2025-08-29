@@ -133,7 +133,7 @@ public interface Applicative<F> extends Functor<F> {
    * @return A non-null {@code Kind<F, C>} containing the result.
    */
   default <A, B, C> @NonNull Kind<F, C> map2(
-      final Kind<F, A> fa, Kind<F, B> fb, final Function<A, Function<B, C>> f) {
+      final Kind<F, A> fa, final Kind<F, B> fb, final Function<A, Function<B, C>> f) {
     // Delegate to the BiFunction version, which is now the base implementation
     return map2(fa, fb, (a, b) -> f.apply(a).apply(b));
   }
