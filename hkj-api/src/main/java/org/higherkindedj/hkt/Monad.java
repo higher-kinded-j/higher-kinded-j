@@ -41,17 +41,20 @@ public interface Monad<M> extends Applicative<M> {
    * the new type.
    *
    * @param predicate The condition to test on the monad's value.
-   * @param f The function to apply if the predicate is true.
+   * @param ifTrue The function to apply if the predicate is true.
+   * @param ifFalse The function to apply if the predicate is false.
    * @param ma The input monadic value.
    * @param <A> The input type within the monad.
    * @param <B> The result type within the monad.
    * @return A new monadic value.
    */
-  default <A, B> @NonNull Kind<M, B> flatMapIf(
-      final Predicate<? super A> predicate,
-      final Function<? super A, ? extends Kind<M, B>> f,
-      final Kind<M, A> ma) {
-    return flatMap(a -> predicate.test(a) ? f.apply(a) : of((B) a), ma);
+  default <A, B> @NonNull Kind<M, B> flatMapIfOrElse(
+          final Predicate<? super A> predicate,
+          final Function<? super A, ? extends Kind<M, B>> ifTrue,
+          final Function<? super A, ? extends Kind<M, B>> ifFalse,
+          final Kind<M, A> ma) {
+    // Both branches are guaranteed by the compiler to return a Kind<M, B>.
+    return flatMap(a -> predicate.test(a) ? ifTrue.apply(a) : ifFalse.apply(a), ma);
   }
 
   /**
