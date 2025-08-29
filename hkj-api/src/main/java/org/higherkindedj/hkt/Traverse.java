@@ -41,27 +41,27 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
    * fails (e.g., if {@code G} is {@code EitherT<IO, Error, ?>}), the entire traversal might
    * short-circuit, depending on the {@code Applicative<G>} behavior.
    *
-   * @param applicative The {@link Applicative} instance for the effect type {@code G}.
-   * @param ta The traversable structure {@code Kind<T, A>} (e.g., a list of {@code A}s).
-   * @param f A function from {@code A} to {@code Kind<G, B>}, producing an effectful value.
    * @param <G> The type constructor of the applicative effect (e.g., {@code IO.Witness}, {@code
    *     Option.Witness}).
    * @param <A> The type of elements in the input structure.
    * @param <B> The type of elements in the output structure, wrapped in the effect {@code G}.
+   * @param applicative The {@link Applicative} instance for the effect type {@code G}.
+   * @param f A function from {@code A} to {@code Kind<G, B>}, producing an effectful value.
+   * @param ta The traversable structure {@code Kind<T, A>} (e.g., a list of {@code A}s).
    * @return An applicative effect {@code Kind<G, Kind<T, B>>}, which is the structure {@code T} of
    *     results {@code B}, all wrapped in the effect {@code G}. (e.g. {@code IO<List<B>>}, {@code
    *     Option<List<B>>})
    */
   <G, A, B> Kind<G, Kind<T, B>> traverse(
       @NonNull Applicative<G> applicative,
-      @NonNull Kind<T, A> ta,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f);
+      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
+      @NonNull Kind<T, A> ta);
 
   /**
    * Sequences a structure of applicative effects {@code Kind<T, Kind<G, A>>} into an applicative
    * effect of a structure {@code Kind<G, Kind<T, A>>}.
    *
-   * <p>This is a specialized version of {@link #traverse(Applicative, Kind, Function)}, where the
+   * <p>This is a specialized version of {@link #traverse(Applicative, Function, Kind)}, where the
    * function {@code f} is the identity function.
    *
    * <p>Example: Given a {@code List<IO<A>>}, {@code sequenceA} can turn it into an {@code
@@ -85,6 +85,6 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
     // So f is (Kind<G, A_val> element) -> (Kind<G, A_val> element)
     // B becomes A_val.
     // The result of traverse is Kind<G, Kind<T, A_val>>
-    return traverse(applicative, tga, (Kind<G, A> ga) -> ga);
+    return traverse(applicative, (Kind<G, A> ga) -> ga, tga);
   }
 }

@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link java.util.List},
@@ -36,6 +37,7 @@ import org.jspecify.annotations.NonNull;
  * @see Applicative
  * @see Monoid
  */
+@NullMarked
 public enum ListTraverse implements Traverse<ListKind.Witness> {
   /**
    * Singleton instance of {@code ListTraverse}. This instance can be used to access {@code
@@ -56,7 +58,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    */
   @Override
   public <A, B> @NonNull Kind<ListKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ListKind.Witness, A> fa) {
+      Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
     // For lists, mapping is equivalent to the Functor implementation.
     return ListFunctor.INSTANCE.map(f, fa);
   }
@@ -73,23 +75,21 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * @param <A> The type of elements in the input list {@code ta}.
    * @param <B> The type of elements in the resulting list, wrapped within the context {@code G}.
    * @param applicative The non-null {@link Applicative} instance for the context {@code G}.
-   * @param ta The non-null {@code Kind<ListKind.Witness, A>} (a list of {@code A}s) to traverse.
    * @param f A non-null function from {@code A} to {@code Kind<G, ? extends B>}, producing an
    *     effectful value for each element.
+   * @param ta The non-null {@code Kind<ListKind.Witness, A>} (a list of {@code A}s) to traverse.
    * @return A {@code Kind<G, Kind<ListKind.Witness, B>>}. This represents the list of results (each
    *     of type {@code B}), with the entire resulting list structure itself wrapped in the
    *     applicative context {@code G}.
    */
   @Override
   public <G, A, B> @NonNull Kind<G, Kind<ListKind.Witness, B>> traverse(
-      @NonNull Applicative<G> applicative,
-      @NonNull Kind<ListKind.Witness, A> ta,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f) {
+      Applicative<G> applicative,
+      Function<? super A, ? extends Kind<G, ? extends B>> f,
+      Kind<ListKind.Witness, A> ta) {
 
     List<A> listA = LIST.narrow(ta);
-    Kind<G, List<B>> initial = applicative.of(new LinkedList<>());
-
-    Kind<G, List<B>> result = initial;
+    Kind<G, List<B>> result = applicative.of(new LinkedList<>());
     for (A a : listA) {
       Kind<G, ? extends B> effectOfB = f.apply(a);
       result =
@@ -123,9 +123,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    */
   @Override
   public <A, M> M foldMap(
-      @NonNull Monoid<M> monoid,
-      @NonNull Function<? super A, ? extends M> f,
-      @NonNull Kind<ListKind.Witness, A> fa) {
+      Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ListKind.Witness, A> fa) {
     M accumulator = monoid.empty();
     for (A a : LIST.narrow(fa)) {
       accumulator = monoid.combine(accumulator, f.apply(a));

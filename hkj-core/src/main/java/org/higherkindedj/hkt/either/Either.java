@@ -27,17 +27,17 @@ import org.jspecify.annotations.Nullable; // Assuming Right can hold null, Left 
  *
  * <pre>{@code
  * public Either<String, Integer> parseInteger(String s) {
- * try {
- * return Either.right(Integer.parseInt(s));
- * } catch (NumberFormatException e) {
- * return Either.left("Invalid number format: " + s);
- * }
+ *  try {
+ *    return Either.right(Integer.parseInt(s));
+ *  } catch (NumberFormatException e) {
+ *    return Either.left("Invalid number format: " + s);
+ *  }
  * }
  *
  * Either<String, Integer> result = parseInteger("123");
  * result.fold(
- * error -> System.out.println("Error: " + error),
- * value -> System.out.println("Parsed value: " + value)
+ *  error -> System.out.println("Error: " + error),
+ *  value -> System.out.println("Parsed value: " + value)
  * );
  *
  * Either<String, Integer> length = result.map(v -> v * 2); // Only maps if result was Right

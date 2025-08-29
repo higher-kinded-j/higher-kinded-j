@@ -80,7 +80,7 @@ public class TryTraverseTest {
 
       // When we traverse it with a function that succeeds
       Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is a Just containing a Success of the new value
       Maybe<Kind<TryKind.Witness, String>> maybeResult = MAYBE.narrow(result);
@@ -96,7 +96,7 @@ public class TryTraverseTest {
 
       // When we traverse it with a function that returns Nothing
       Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is Nothing
       assertThat(MAYBE.narrow(result).isNothing()).isTrue();
@@ -111,7 +111,7 @@ public class TryTraverseTest {
 
       // When we traverse it
       Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is a Just containing the original Failure
       Maybe<Kind<TryKind.Witness, String>> maybeResult = MAYBE.narrow(result);

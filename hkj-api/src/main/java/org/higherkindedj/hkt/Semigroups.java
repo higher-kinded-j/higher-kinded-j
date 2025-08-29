@@ -59,7 +59,7 @@ public interface Semigroups {
    * @param delimiter The string to place between the two concatenated strings.
    * @return A non-null {@code Semigroup} for delimited string concatenation.
    */
-  static Semigroup<String> string(String delimiter) {
+  static Semigroup<String> string(final String delimiter) {
     return (s1, s2) -> s1 + delimiter + s2;
   }
 

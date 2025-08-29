@@ -146,7 +146,7 @@ class ListTraverseTest {
       Kind<ListKind.Witness, Integer> emptyListKind = LIST.widen(Collections.emptyList());
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, String>> resultKind =
-          listTraverse.traverse(optionalApplicative, emptyListKind, intToOptionalStringKind);
+          listTraverse.traverse(optionalApplicative, intToOptionalStringKind, emptyListKind);
 
       Optional<Kind<ListKind.Witness, String>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();
@@ -159,7 +159,7 @@ class ListTraverseTest {
       Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 2, 3));
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, String>> resultKind =
-          listTraverse.traverse(optionalApplicative, inputList, intToOptionalStringKind);
+          listTraverse.traverse(optionalApplicative, intToOptionalStringKind, inputList);
 
       Optional<Kind<ListKind.Witness, String>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();
@@ -172,7 +172,7 @@ class ListTraverseTest {
       Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 2, 3));
 
       Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
-          listTraverse.traverse(optionalApplicative, inputList, intToOptionalIntSometimesNoneKind);
+          listTraverse.traverse(optionalApplicative, intToOptionalIntSometimesNoneKind, inputList);
 
       Optional<Kind<ListKind.Witness, Integer>> resultOptional =
           TestOptional.narrow(resultKind).getOptional();

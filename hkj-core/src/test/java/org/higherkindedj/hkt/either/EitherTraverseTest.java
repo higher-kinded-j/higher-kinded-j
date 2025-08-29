@@ -77,7 +77,7 @@ public class EitherTraverseTest {
 
       // When we traverse it with a function that succeeds
       Kind<MaybeKind.Witness, Kind<EitherKind.Witness<String>, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is a Just containing a Right of the new value
       Maybe<Kind<EitherKind.Witness<String>, String>> maybeResult = MAYBE.narrow(result);
@@ -94,7 +94,7 @@ public class EitherTraverseTest {
 
       // When we traverse it with a function that returns Nothing
       Kind<MaybeKind.Witness, Kind<EitherKind.Witness<String>, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is Nothing
       assertThat(MAYBE.narrow(result).isNothing()).isTrue();
@@ -108,7 +108,7 @@ public class EitherTraverseTest {
 
       // When we traverse it
       Kind<MaybeKind.Witness, Kind<EitherKind.Witness<String>, String>> result =
-          traverse.traverse(maybeApplicative, input, validatePositive);
+          traverse.traverse(maybeApplicative, validatePositive, input);
 
       // Then the result is a Just containing the original Left
       Maybe<Kind<EitherKind.Witness<String>, String>> maybeResult = MAYBE.narrow(result);

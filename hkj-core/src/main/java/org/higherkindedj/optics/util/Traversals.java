@@ -17,8 +17,11 @@ import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /** A final utility class providing static helper methods for working with {@link Traversal}s. */
+@NullMarked
 public final class Traversals {
   /** Private constructor to prevent instantiation. */
   private Traversals() {}
@@ -36,7 +39,8 @@ public final class Traversals {
    * @param <A> The type of the focused parts.
    * @return A new, updated source structure.
    */
-  public static <S, A> S modify(Traversal<S, A> traversal, Function<A, A> f, S source) {
+  public static <S, A> @Nullable S modify(
+      final Traversal<S, A> traversal, final Function<A, A> f, S source) {
     Function<A, Kind<Id.Witness, A>> fId = a -> Id.of(f.apply(a));
     Kind<Id.Witness, S> resultInId = traversal.modifyF(fId, source, IdentityMonad.instance());
     return IdKindHelper.ID.narrow(resultInId).value();
@@ -79,9 +83,9 @@ public final class Traversals {
     return new Traversal<>() {
       @Override
       public <F> Kind<F, List<A>> modifyF(
-          Function<A, Kind<F, A>> f, List<A> source, Applicative<F> applicative) {
+          final Function<A, Kind<F, A>> f, final List<A> source, final Applicative<F> applicative) {
         Kind<F, Kind<ListKind.Witness, A>> traversed =
-            ListTraverse.INSTANCE.traverse(applicative, ListKindHelper.LIST.widen(source), f);
+            ListTraverse.INSTANCE.traverse(applicative, f, ListKindHelper.LIST.widen(source));
         return applicative.map(ListKindHelper.LIST::narrow, traversed);
       }
     };
@@ -99,7 +103,7 @@ public final class Traversals {
    * @param <V> The type of the map's values.
    * @return A {@code Traversal} for a map value.
    */
-  public static <K, V> Traversal<Map<K, V>, V> forMap(K key) {
+  public static <K, V> Traversal<Map<K, V>, V> forMap(final K key) {
     return new Traversal<>() {
       @Override
       public <F> Kind<F, Map<K, V>> modifyF(

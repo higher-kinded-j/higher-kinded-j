@@ -115,8 +115,8 @@ The interface for `Traverse` in `hkj-api` extends `Functor` and `Foldable`:
 public interface Traverse<T> extends Functor<T>, Foldable<T> {
   <F, A, B> Kind<F, Kind<T, B>> traverse(
       Applicative<F> applicative,
-      Kind<T, A> ta,
-      Function<A, Kind<F, B>> f
+      Function<A, Kind<F, B>> f,
+      Kind<T, A> ta
   );
   //... sequenceA method also available
 }
@@ -157,8 +157,8 @@ Applicative<Validated.Witness<String>> validatedApplicative =
 Kind<Validated.Witness<String>, Kind<ListKind.Witness, String>> result =
     ListTraverse.INSTANCE.traverse(
         validatedApplicative,
-        codesKind,
-        this::validateCode
+        this::validateCode,
+        codesKind
     );
 
 // The result is a single Validated instance with accumulated errors.
