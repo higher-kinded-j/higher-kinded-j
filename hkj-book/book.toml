@@ -14,7 +14,7 @@ canonical-site-url = "https://higher-kinded-j.github.io"
 git-repository-url = "https://github.com/higher-kinded-j/higher-kinded-j"
 git-repository-icon = "fa-github"
 edit-url-template = "https://github.com/higher-kinded-j/higher-kinded-j/edit/main/hkj-book/{path}"
-input-404 = "home.md"
+input-404 = "404.md"
 [output.html.fold]
 enable = true
 level = 1
