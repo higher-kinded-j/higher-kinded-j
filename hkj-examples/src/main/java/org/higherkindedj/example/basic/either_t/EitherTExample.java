@@ -19,11 +19,6 @@ import org.higherkindedj.hkt.future.CompletableFutureMonad;
 public class EitherTExample {
 
   // --- Setup ---
-
-  // Assume DomainError is a sealed interface for specific errors
-  // Re-defining a local DomainError to avoid dependency on the full DomainError hierarchy for this
-  // isolated example.
-  // In a real scenario, you would use the shared DomainError.
   record DomainError(String message) {}
 
   record ValidatedData(String data) {}
@@ -35,11 +30,10 @@ public class EitherTExample {
   MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
       eitherTMonad = new EitherTMonad<>(futureMonad);
 
-  // --- Workflow Steps (returning Kinds) ---
+  // --- Workflow Steps (now purer, without logging) ---
 
   // Simulates a sync validation returning Either
   Kind<EitherKind.Witness<DomainError>, ValidatedData> validateSync(String input) {
-    System.out.println("Validating synchronously...");
     if (input.isEmpty()) {
       return EITHER.widen(Either.left(new DomainError("Input empty")));
     }
@@ -49,7 +43,6 @@ public class EitherTExample {
   // Simulates an async processing step returning Future<Either>
   Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> processAsync(
       ValidatedData vd) {
-    System.out.println("Processing asynchronously for: " + vd.data());
     CompletableFuture<Either<DomainError, ProcessedData>> future =
         CompletableFuture.supplyAsync(
             () -> {
@@ -66,77 +59,101 @@ public class EitherTExample {
     return FUTURE.widen(future);
   }
 
-  // Function to run the workflow for given input
+  // --- Original Workflow ---
   Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> runWorkflow(
       String initialInput) {
 
-    // Start with initial data lifted into EitherT
     Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, String> initialET =
         eitherTMonad.of(initialInput);
 
-    // Step 1: Validate (Sync Either lifted into EitherT)
     Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ValidatedData>
         validatedET =
             eitherTMonad.flatMap(
-                input -> {
-                  // Call sync step returning Kind<EitherKind.Witness,...>
-                  // Correction 1: Use EitherKind.Witness here
-                  Kind<EitherKind.Witness<DomainError>, ValidatedData> validationResult =
-                      validateSync(input);
-                  // Lift the Either result into EitherT using fromEither
-                  return EitherT.fromEither(futureMonad, EITHER.narrow(validationResult));
-                },
+                input -> EitherT.fromEither(futureMonad, EITHER.narrow(validateSync(input))),
                 initialET);
 
-    // Step 2: Process (Async Future<Either> lifted into EitherT)
     Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ProcessedData>
         processedET =
             eitherTMonad.flatMap(
-                validatedData -> {
-                  // Call async step returning Kind<CompletableFutureKind.Witness,...>
-                  // Correction 2: Use CompletableFutureKind.Witness here for the variable type
-                  Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>>
-                      processingResultKind = processAsync(validatedData);
-                  // Lift the F<Either> result directly using fromKind
-                  return EitherT.fromKind(processingResultKind);
-                },
-                validatedET);
+                validatedData -> EitherT.fromKind(processAsync(validatedData)), validatedET);
 
-    // Unwrap the final EitherT to get the underlying Future<Either>
     return ((EitherT<CompletableFutureKind.Witness, DomainError, ProcessedData>) processedET)
         .value();
   }
 
-  public void asyncWorkflowErrorHandlingExample() {
-    // --- Workflow Definition using EitherT ---
+  // --- Refactored Workflow using `peek` for logging ---
+  Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> runWorkflowAndLog(
+      String initialInput) {
 
-    // Input data
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, String> initialET =
+        eitherTMonad.of(initialInput);
+
+    //  Use `peek` to log the input without altering the flow.
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, String> loggedInitialET =
+        eitherTMonad.peek(
+            input -> System.out.println("LOG: Validating input -> " + input), initialET);
+
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ValidatedData>
+        validatedET =
+            eitherTMonad.flatMap(
+                input -> EitherT.fromEither(futureMonad, EITHER.narrow(validateSync(input))),
+                loggedInitialET);
+
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ValidatedData>
+        loggedValidatedET =
+            eitherTMonad.peek(v -> System.out.println("LOG: Processing data -> " + v), validatedET);
+
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ProcessedData>
+        processedET =
+            eitherTMonad.flatMap(
+                validatedData -> EitherT.fromKind(processAsync(validatedData)), loggedValidatedET);
+
+    return ((EitherT<CompletableFutureKind.Witness, DomainError, ProcessedData>) processedET)
+        .value();
+  }
+
+  // --- Refactored Workflow using `as` for a final status ---
+  Kind<CompletableFutureKind.Witness, Either<DomainError, String>> runWorkflowAndSignalCompletion(
+      String initialInput) {
+    // This workflow follows the original logic...
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, ProcessedData>
+        processedET = EitherT.fromKind(runWorkflow(initialInput));
+
+    // ✨ Use `as` to replace the successful `ProcessedData` with a simple String message.
+    // If the workflow failed, the original `Left` (error) is preserved.
+    Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, String> completionET =
+        eitherTMonad.as("Workflow Completed Successfully", processedET);
+
+    return ((EitherT<CompletableFutureKind.Witness, DomainError, String>) completionET).value();
+  }
+
+  public void asyncWorkflowErrorHandlingExample() {
     String inputData = "Data";
     String badInputData = "";
     String processingFailData = "Data-fail";
 
-    // --- Execution ---
-    System.out.println("--- Running Good Workflow ---");
-
+    System.out.println("--- 1. Running Original Good Workflow ---");
     Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultGoodKind =
         runWorkflow(inputData);
-    System.out.println("Good Result: " + FUTURE.join(resultGoodKind));
+    System.out.println("Result: " + FUTURE.join(resultGoodKind));
     // Expected: Right(ProcessedData[data=Processed:Validated:Data])
 
-    System.out.println("\n--- Running Bad Input Workflow ---");
+    System.out.println("\n--- 2. Running Good Workflow with `peek` Logging ---");
+    Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultLoggedKind =
+        runWorkflowAndLog(inputData);
+    System.out.println("Result: " + FUTURE.join(resultLoggedKind));
+    // Expected: (Logs will be printed) Right(ProcessedData[data=Processed:Validated:Data])
 
-    Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultBadInputKind =
-        runWorkflow(badInputData);
-    System.out.println("Bad Input Result: " + FUTURE.join(resultBadInputKind));
+    System.out.println("\n--- 3. Running Workflows with `as` Completion Signal ---");
+    Kind<CompletableFutureKind.Witness, Either<DomainError, String>> resultAsSuccess =
+        runWorkflowAndSignalCompletion(inputData);
+    System.out.println("Success Result: " + FUTURE.join(resultAsSuccess));
+    // Expected: Right(Workflow Completed Successfully)
+
+    Kind<CompletableFutureKind.Witness, Either<DomainError, String>> resultAsFailure =
+        runWorkflowAndSignalCompletion(badInputData);
+    System.out.println("Failure Result: " + FUTURE.join(resultAsFailure));
     // Expected: Left(DomainError[message=Input empty])
-
-    System.out.println("\n--- Running Processing Failure Workflow ---");
-
-    Kind<CompletableFutureKind.Witness, Either<DomainError, ProcessedData>> resultProcFailKind =
-        runWorkflow(processingFailData);
-    System.out.println("Processing Fail Result: " + FUTURE.join(resultProcFailKind));
-    // Expected: Left(DomainError[message=Processing failed])
-
   }
 
   public static void main(String[] args) {

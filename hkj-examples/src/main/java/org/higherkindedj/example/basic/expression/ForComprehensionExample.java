@@ -86,24 +86,26 @@ public class ForComprehensionExample {
     final StateTMonad<Integer, OptionalKind.Witness> stateTMonad =
         StateTMonad.instance(optionalMonad);
 
-    // Helper to create a StateT that modifies the state and returns Unit
     final Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Unit>> add =
         n ->
             StateT.create(
                 s -> optionalMonad.of(StateTuple.of(s + n, Unit.INSTANCE)), optionalMonad);
 
-    // Helper to create a StateT that gets the current state as its value
     final Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> get =
         StateT.create(s -> optionalMonad.of(StateTuple.of(s, s)), optionalMonad);
 
+    // ✨ Use `peek` to create a version of `get` that logs the state when it's read.
+    final Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> getAndLog =
+        stateTMonad.peek(
+            state -> System.out.println("DEBUG: State retrieved from context is " + state), get);
+
     final Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> statefulComputation =
-        For.from(stateTMonad, add.apply(10)) // State becomes 10, a = Unit
-            .from(a -> add.apply(5)) // State becomes 15, b = Unit
-            .from(b -> get) // State is 15, c = 15
-            .let(t -> "The state is " + t._3()) // d = "The state is 15"
+        For.from(stateTMonad, add.apply(10))
+            .from(a -> add.apply(5))
+            .from(b -> getAndLog) // Use the peek-wrapped action here
+            .let(t -> "The state is " + t._3())
             .yield((a, b, c, d) -> d + ", original value was " + c);
 
-    // Run the computation with an initial state of 0
     final Kind<OptionalKind.Witness, StateTuple<Integer, String>> resultOptional =
         STATE_T.runStateT(statefulComputation, 0);
 
