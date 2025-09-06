@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.func;
 
 import java.util.function.Function;
-
 import org.higherkindedj.hkt.Kind2;
 import org.jspecify.annotations.NullMarked;
 
@@ -22,17 +21,11 @@ public final class FunctionKind<A, B> implements Kind2<FunctionKind.Witness, A, 
 
   private final Function<A, B> function;
 
-  private FunctionKind(Function<A, B> function) {
+  FunctionKind(Function<A, B> function) {
     this.function = function;
   }
 
-  /** Wraps a {@link Function} in a {@link FunctionKind}. */
-  public static <A, B> FunctionKind<A, B> of(Function<A, B> function) {
-    return new FunctionKind<>(function);
-  }
-
-  /** Extracts the underlying {@link Function}. */
-  public Function<A, B> getFunction() {
+  Function<A, B> getFunction() {
     return function;
   }
 

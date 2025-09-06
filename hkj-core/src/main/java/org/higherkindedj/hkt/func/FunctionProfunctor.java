@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.func;
 
-import java.util.function.Function;
+import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Profunctor;
 import org.jspecify.annotations.NullMarked;
@@ -24,14 +25,11 @@ public class FunctionProfunctor implements Profunctor<FunctionKind.Witness> {
 
   @Override
   public <A, B, C, D> Kind2<FunctionKind.Witness, C, D> dimap(
-       Function<? super C, ? extends A> f,
-       Function<? super B, ? extends D> g,
-       Kind2<FunctionKind.Witness, A, B> pab) {
+      Function<? super C, ? extends A> f,
+      Function<? super B, ? extends D> g,
+      Kind2<FunctionKind.Witness, A, B> pab) {
 
-    @SuppressWarnings("unchecked")
-    FunctionKind<A, B> functionKind = (FunctionKind<A, B>) pab;
-
-    Function<A, B> originalFunction = functionKind.getFunction();
+    Function<A, B> originalFunction = FUNCTION.getFunction(pab);
 
     // dimap for functions: (c -> a) -> (b -> d) -> (a -> b) -> (c -> d)
     // This is function composition: g ∘ originalFunction ∘ f
@@ -43,6 +41,6 @@ public class FunctionProfunctor implements Profunctor<FunctionKind.Witness> {
           return g.apply(b);
         };
 
-    return FunctionKind.of(newFunction);
+    return FUNCTION.widen(newFunction);
   }
 }
