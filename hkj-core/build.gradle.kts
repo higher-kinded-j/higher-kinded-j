@@ -64,6 +64,7 @@ tasks.jacocoTestReport {
               exclude(
                   "**/StateTupleLenses.class", // Exclude the example package
                   "**/*Kind.class",
+                  "**/FunctionKind.Witness.class",
                   "**/*Holder*.class"
                   )
             }
