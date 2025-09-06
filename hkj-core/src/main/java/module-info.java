@@ -12,6 +12,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.exception;
   exports org.higherkindedj.hkt.expression;
   exports org.higherkindedj.hkt.future;
+  exports org.higherkindedj.hkt.func;
   exports org.higherkindedj.hkt.id;
   exports org.higherkindedj.hkt.io;
   exports org.higherkindedj.hkt.lazy;
