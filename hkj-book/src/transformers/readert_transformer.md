@@ -1,6 +1,14 @@
 # The ReaderT Transformer: 
 ## _Combining Monadic Effects with a Read-Only Environment_
 
+~~~admonish info title="What You'll Learn"
+- How to combine dependency injection (Reader) with other effects like async operations
+- Building configuration-dependent workflows that are also async or failable
+- Using `ask`, `reader`, and `lift` to work with environment-dependent computations
+- Creating testable microservice clients with injected configuration
+- Managing database connections, API keys, and other contextual dependencies
+~~~
+
 ~~~ admonish example title="See Example Code:"
 - [ReaderTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTExample.java)
 

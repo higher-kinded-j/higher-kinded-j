@@ -49,7 +49,7 @@ A `Lens` provides focused access to a field within a product type (like a Java `
 
 An `Iso` (Isomorphism) defines a lossless, two-way conversion between two types. It's perfect for handling different representations of the same data.
 
-* `DeploymentTarget <-> String`: We model our deployment target as a structured record but recognize it's isomorphic to a raw string like `"gcp|live"`. An `Iso` lets us switch between these representations.
+* `DeploymentTarget <-> String`: We model our deployment target as a structured record but recognise it's isomorphic to a raw string like `"gcp|live"`. An `Iso` lets us switch between these representations.
 * `String <-> byte[]`: Base64 is just an encoded representation of a byte array. An `Iso` is the perfect tool for handling this encoding and decoding.
 
 ### 3. **Prism**: The Safe Filter 🔬
@@ -109,7 +109,7 @@ When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, 
 * **Declarative & Readable**: The optic chain describes *what* data to get, not *how* to loop and check for it. The logic reads like a path, making it self-documenting.
 * **Composable & Reusable**: Every optic, and every composition, is a reusable component. We could reuse `gcpLiveOnlyPrism` for other tasks, or swap out the final `base64` Iso to perform a different transformation.
 * **Type-Safe**: The entire operation is checked by the Java compiler. It's impossible to, for example, try to decode a `StringValue` as if it were encrypted. A mismatch in the optic chain results in a compile-time error, not a runtime `ClassCastException`.
-* **Architectural Purity**: By having all optics share a common abstract parent (`Optic`), the library provides universal, lawful composition while allowing for specialized, efficient implementations.
+* **Architectural Purity**: By having all optics share a common abstract parent (`Optic`), the library provides universal, lawful composition while allowing for specialised, efficient implementations.
 
 ---
 

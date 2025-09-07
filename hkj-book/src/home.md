@@ -17,12 +17,12 @@
 
 Higher-Kinded-J brings two powerful functional programming toolsets to Java, enabling developers to write more abstract, composable, and robust code.
 
-Higher-Kinded-J provides:
+Higher-Kinded-J brings two powerful functional programming toolsets to Java:
 
 1. A **Higher-Kinded Types (HKT) Simulation** to abstract over computational contexts like `Optional`, `List`, or `CompletableFuture`.
 2. A powerful **Optics Library** to abstract over immutable data structures, with boilerplate-free code generation.
 
-These two pillars work together to solve common problems in a functional, type-safe way.
+These work together to solve common Java pain points in a functional, type-safe way.
 
 ## _Two Pillars of Functional Programming_
 

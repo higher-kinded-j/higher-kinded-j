@@ -2,6 +2,14 @@
 
 ![oa-movements.png](../images/oa-movements.png)
 
+~~~admonish info title="What You'll Learn"
+- The five-step workflow for using Higher-Kinded-J effectively
+- How to identify the right context (witness type) for your use case
+- Using widen() and narrow() to convert between Java types and Kind representations
+- When and how to handle KindUnwrapException safely
+- Writing generic functions that work with any Functor or Monad
+~~~
+
 This guide explains the step-by-step process of using Higher-Kinded-J's simulated Higher-Kinded Types (HKTs) and associated type classes like `Functor`, `Applicative`, `Monad`, and `MonadError`.
 
 - [GenericExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/GenericExample.java)

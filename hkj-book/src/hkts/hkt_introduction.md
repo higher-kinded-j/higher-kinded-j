@@ -2,6 +2,14 @@
 
 ![rubiks1932.jpg](../images/rubiks1932.jpg)
 
+~~~admonish info title="What You'll Learn"
+- The analogy between higher-order functions and higher-kinded types
+- Why Java's type system limitations necessitate HKT simulation
+- How abstractions over "container" types enable more reusable code
+- The difference between first-order types, generic types, and higher-kinded types
+- Real-world benefits: less boilerplate, more abstraction, better composition
+~~~
+
 We can think about Higher-Kinded Types (HKT) by making an analogy with Higher-Order Functions (HOF).
 
 _higher-kinded types are to types what higher-order functions are to functions._ 
@@ -60,7 +68,7 @@ for (int i : numbers) {
 
 _With Higher-Order Functions:_
 
-We abstract the behavior into a function and pass it in. This is much more flexible.
+We abstract the behaviour into a function and pass it in. This is much more flexible.
 
 ```java
 
@@ -87,7 +95,7 @@ With Higher-Kinded-J we can abstract over the container `F` itself. This allows 
 public static <F, A, B> Kind<F, B> map(
     Functor<F> functorInstance, // The implementation for F
     Kind<F, A> kindBox,         // The container with a value
-    Function<A, B> f) {         // The behavior to apply
+    Function<A, B> f) {         // The behaviour to apply
     return functorInstance.map(f, kindBox);
 }
 
@@ -96,7 +104,7 @@ public static <F, A, B> Kind<F, B> map(
 Here, `Kind<F, A>` is the higher-kinded type that represents "some container F holding a value of type A."
 
 
-Both concepts allow you to write more generic and reusable code by parametrising things that are normally fixed. **Higher-order functions parametrise behavior, while higher-kinded types parametrise the structure that contains the behavior.**
+Both concepts allow you to write more generic and reusable code by parametrising things that are normally fixed. **Higher-order functions parametrise behaviour, while higher-kinded types parametrise the structure that contains the behaviour.**
 
 We will discuss the `GenericExample.java` in detail later, but you can take a peek at the code here
 

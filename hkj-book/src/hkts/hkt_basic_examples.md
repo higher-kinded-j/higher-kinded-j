@@ -286,7 +286,7 @@ Try<Double> result = input.flatMap(safeDivide);
 
 ### [ValidatedMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedMonadExample.java)
 
-This example showcases the **Validated applicative functor**. While it has a `Monad` instance, it's often used as an `Applicative` to accumulate errors. This example, however, focuses on its monadic (fail-fast) behavior.
+This example showcases the **Validated applicative functor**. While it has a `Monad` instance, it's often used as an `Applicative` to accumulate errors. This example, however, focuses on its monadic (fail-fast) behaviour.
 
 * **Key Concept**: `Validated` is used for validation scenarios where you want to either get a valid result or a collection of validation errors.
 * **Demonstrates**:

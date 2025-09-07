@@ -1,6 +1,14 @@
 # The StateT Transformer:  
 ## _Monad Transformer_
 
+~~~admonish info title="What You'll Learn"
+- How to add stateful computation to any existing monad
+- Building stack operations that can fail (StateT with Optional)
+- Understanding the relationship between State and StateT<S, Identity, A>
+- Creating complex workflows that manage both state and other effects
+- Using `get`, `set`, `modify` operations within transformer contexts
+~~~
+
 ~~~ admonish example title="See Example Code:"
 - [StateTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state_t/StateTExample.java)
 
@@ -336,7 +344,7 @@ public class StateTStackExample {
 
 ## Relationship to State Monad
 
-The [State Monad](../monads/state_monad.md) (`State<S, A>`) can be seen as a specialized version of `StateT`. Specifically, `State<S, A>` is equivalent to `StateT<S, Id, A>`, where `Id` is the Identity monad (a monad that doesn't add any effects, simply `Id<A> = A`). `higher-kinded-j` provides an `Id` monad. `State<S, A>` can be seen as an equivalent to `StateT<S, Id.Witness, A>`.
+The [State Monad](../monads/state_monad.md) (`State<S, A>`) can be seen as a specialised version of `StateT`. Specifically, `State<S, A>` is equivalent to `StateT<S, Id, A>`, where `Id` is the Identity monad (a monad that doesn't add any effects, simply `Id<A> = A`). `higher-kinded-j` provides an `Id` monad. `State<S, A>` can be seen as an equivalent to `StateT<S, Id.Witness, A>`.
 
 ## Further Reading
 

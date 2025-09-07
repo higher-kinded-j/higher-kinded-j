@@ -1,6 +1,14 @@
 # The State Monad:
 ## _Managing State Functionally_
 
+~~~admonish info title="What You'll Learn"
+- How to manage state functionally without mutable variables
+- Using `get`, `set`, `modify`, and `inspect` for state operations
+- Building complex stateful workflows with automatic state threading
+- Creating a bank account simulation with transaction history
+- Why pure state management leads to more testable and maintainable code
+~~~
+
 ~~~ admonish example title="See Example Code:"
 - [StateExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/StateExample.java)
 

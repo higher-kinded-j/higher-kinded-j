@@ -2,6 +2,14 @@
 
 ![concepts.png](../images/concepts.png)
 
+~~~admonish info title="What You'll Learn"
+- How the Kind<F, A> interface simulates higher-kinded types in Java
+- The role of witness types in representing type constructors
+- Understanding defunctionalisation and how it enables HKT simulation
+- The difference between internal library types and external Java types
+- How type classes provide generic operations across different container types
+~~~
+
 Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (HKTs) and associated functional type classes in Java. Understanding these is crucial for using and extending the library.
 
 [Feel free to skip ahead to the examples and come back later for the theory](hkt_basic_examples.md)

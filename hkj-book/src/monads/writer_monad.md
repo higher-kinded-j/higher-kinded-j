@@ -1,6 +1,14 @@
 # The WriterMonad:
 ## _Accumulating Output Alongside Computations_
 
+~~~admonish info title="What You'll Learn"
+- How to accumulate logs or output alongside your main computation
+- Understanding the role of Monoid in combining accumulated values
+- Building detailed audit trails and debugging information
+- Using `tell` for pure logging and `listen` for capturing output
+- Creating calculations that produce both results and comprehensive logs
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [WriterExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/writer/WriterExample.java)
 ~~~

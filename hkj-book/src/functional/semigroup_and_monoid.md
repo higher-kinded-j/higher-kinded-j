@@ -1,7 +1,15 @@
 # Semigroup and Monoid: 
 ## Foundational Type Classes 🧮
 
-In functional programming, we often use **type classes** to define common behaviors that can be applied to a wide range of data types. These act as interfaces that allow us to write more abstract and reusable code. In `higher-kinded-j`, we provide a number of these type classes to enable powerful functional patterns.
+~~~admonish info title="What You'll Learn"
+- The fundamental building blocks for combining data: Semigroup and Monoid
+- How associative operations enable parallel and sequential data processing
+- Using Monoids for error accumulation in validation scenarios
+- Practical applications with String concatenation, integer addition, and boolean operations
+- How these abstractions power Foldable operations and validation workflows
+~~~
+
+In functional programming, we often use **type classes** to define common behaviours that can be applied to a wide range of data types. These act as interfaces that allow us to write more abstract and reusable code. In `higher-kinded-j`, we provide a number of these type classes to enable powerful functional patterns.
 
 Here we will cover two foundational type classes: `Semigroup` and `Monoid`. Understanding these will give you a solid foundation for many of the more advanced concepts in the library.
 

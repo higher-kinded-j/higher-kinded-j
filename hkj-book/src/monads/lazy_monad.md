@@ -1,6 +1,14 @@
 #The Lazy Monad: 
 ## _Lazy Evaluation with `Lazy`_
 
+~~~admonish info title="What You'll Learn"
+- How to defer expensive computations until their results are actually needed
+- Understanding memoisation and how results are cached after first evaluation
+- Handling exceptions in lazy computations with ThrowableSupplier
+- Composing lazy operations while preserving laziness
+- Building efficient pipelines that avoid unnecessary work
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 ~~~

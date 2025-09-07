@@ -1,6 +1,14 @@
 # The Reader Monad:
 ## _Managed Dependencies and Configuration_
 
+~~~admonish info title="What You'll Learn"
+- How to inject dependencies functionally without passing them everywhere
+- Building computations that depend on shared configuration or context
+- Using `ask` to access the environment and `local` to modify it
+- Creating testable code with explicit dependency management
+- Real-world examples with database connections and API configurations
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [ReaderExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader/ReaderExample.java)
 ~~~

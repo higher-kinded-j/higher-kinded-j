@@ -37,7 +37,7 @@ A monad transformer `T` takes a monad `M` and produces a new monad `T<M>` that c
 * `StateT s m a` wraps a monad `m` and adds state-handling capability
 * `ReaderT r m a` adds dependency injection (read-only environment)
 
-They allow you to **stack** monadic behaviors.
+They allow you to **stack** monadic behaviours.
 
 Key characteristics:
 
@@ -93,7 +93,7 @@ Key characteristics:
 
 ### 4. `ReaderT<F, R, A>` (Monad Transformer)
 
-* **Definition:** A monad transformer ([`ReaderT`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt//reader_t/ReaderT.java)) that combines an outer monad `F` with an inner `Reader<R, A>`-like behavior (dependency on environment `R`). Implemented as a record wrapping a function `R -> Kind<F, A>`.
+* **Definition:** A monad transformer ([`ReaderT`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt//reader_t/ReaderT.java)) that combines an outer monad `F` with an inner `Reader<R, A>`-like behaviour (dependency on environment `R`). Implemented as a record wrapping a function `R -> Kind<F, A>`.
 * **Kind Interface:** [`ReaderTKind<F, R, A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt//reader_t/ReaderTKind.java)
 * **Witness Type `G`:** `ReaderTKind.Witness<F, R>` (where `F` and `R` are fixed for a given type class instance)
 * **Helper:** `ReaderTKindHelper` (`wrap`, `unwrap`). Instances are primarily created via `ReaderT` static factories (`of`, `lift`, `reader`, `ask`).

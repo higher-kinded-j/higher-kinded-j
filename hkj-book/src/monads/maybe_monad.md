@@ -1,6 +1,14 @@
 #The MaybeMonad:
 ## _Handling Optional Values with Non-Null Guarantee_
 
+~~~admonish info title="What You'll Learn"
+- How Maybe provides null-safe optional values with guaranteed non-null contents
+- The difference between Maybe and Optional (non-null guarantee in Just)
+- Using Maybe as a MonadError with Unit as the error type
+- Chaining operations with automatic Nothing propagation
+- Building robust pipelines that handle absence gracefully
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [MaybeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/maybe/MaybeExample.java)
 ~~~
@@ -114,7 +122,7 @@ The `Maybe` interface itself provides useful methods:
 * `get()`: Returns the value if `Just`, otherwise throws `NoSuchElementException`. **Use with caution.**
 * `orElse(@NonNull T other)`: Returns the value if `Just`, otherwise returns `other`.
 * `orElseGet(@NonNull Supplier<? extends @NonNull T> other)`: Returns the value if `Just`, otherwise invokes `other.get()`.
-* The `Maybe` interface also has its own `map` and `flatMap` methods, which are similar in behavior to those on `MaybeMonad` but operate directly on `Maybe` instances.
+* The `Maybe` interface also has its own `map` and `flatMap` methods, which are similar in behaviour to those on `MaybeMonad` but operate directly on `Maybe` instances.
 
 ### Key Operations (via `MaybeMonad`)
 

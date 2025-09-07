@@ -1,5 +1,13 @@
-#The ValidatedMonad:
+# The ValidatedMonad:
 ## _Handling Valid or Invalid Operations_
+
+~~~admonish info title="What You'll Learn"
+- How to distinguish between valid and invalid data with explicit types
+- Building form validation that collects all errors, not just the first one
+- Using Validated as a MonadError for standardised error handling
+- The difference between fail-fast (Monad) and error-accumulating (Applicative) validation
+- Real-world input validation scenarios with detailed error reporting
+~~~
 
 ~~~ admonish example title="See Example Code:"
 [ValidatedMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedMonadExample.java)
@@ -184,7 +192,7 @@ System.out.println("FlatMap (Invalid input): " + VALIDATED.narrow(flatMappedFrom
 - If either `ff` or `fa` is `Invalid`, the result is `Invalid`. Specifically, if `ff` is `Invalid`, its error is returned. 
 - If `ff` is `Valid` but `fa` is `Invalid`, then `fa`'s error is returned. If both are `Invalid`, `ff`'s error takes precedence. 
 
-Note: This `ap` behavior is right-biased and does not accumulate errors in the way some applicative validations might; it propagates the first encountered `Invalid` or the `Invalid` function.
+Note: This `ap` behaviour is right-biased and does not accumulate errors in the way some applicative validations might; it propagates the first encountered `Invalid` or the `Invalid` function.
 
 
 ```java

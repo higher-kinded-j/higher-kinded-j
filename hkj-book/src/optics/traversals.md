@@ -187,7 +187,7 @@ League[name=Pro League, teams=[Team[name=Team Alpha, players=[Player[name=Alice,
 
 ### Unifying the Concepts
 
-A `Traversal` is the most general of the core optics. In fact, all other optics can be seen as specialized `Traversal`s:
+A `Traversal` is the most general of the core optics. In fact, all other optics can be seen as specialised `Traversal`s:
 
 * A `Lens` is just a `Traversal` that always focuses on **exactly one** item.
 * A `Prism` is just a `Traversal` that focuses on **zero or one** item.

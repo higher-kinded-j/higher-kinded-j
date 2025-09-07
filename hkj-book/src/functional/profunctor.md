@@ -1,5 +1,13 @@
 # Profunctor: Building Adaptable Data Pipelines 🔄
 
+~~~admonish info title="What You'll Learn"
+- How to build adaptable data transformation pipelines
+- The dual nature of Profunctors: contravariant inputs and covariant outputs
+- Using `lmap`, `rmap`, and `dimap` to adapt functions for different contexts
+- Creating flexible API adapters and validation pipelines
+- Real-world applications in data format transformation and system integration
+~~~
+
 ```admonish
 [ProfunctorExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/profunctor/ProfunctorExample.java)
 ```

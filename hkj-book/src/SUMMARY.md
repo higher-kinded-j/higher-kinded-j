@@ -1,11 +1,15 @@
 # Summary
 [Introduction to Higher-Kinded-J](home.md) 
 
-# Higher-Kinded Types
+# Getting Started
 - [HKT Introduction](hkts/hkt_introduction.md)
   - [Concepts](hkts/core-concepts.md)
   - [Usage Guide](hkts/usage-guide.md)
+  - [Basic HKT Examples](hkts/hkt_basic_examples.md)
+  - [Quick Reference](hkts/quick_reference.md)
   - [Extending](hkts/extending-simulation.md)
+
+# Type Classes
 - [Functional Api](functional/functional_api.md)
   - [Functor](functional/functor.md)
   - [Applicative](functional/applicative.md)
@@ -16,7 +20,8 @@
   - [MonadZero](functional/monad_zero.md)
   - [Profunctor](functional/profunctor.md)
   - [For Comprehension](functional/for_comprehension.md)
-- [Monads](monads/supported-types.md)
+# Monads in Practice
+- [Supported Types](monads/supported-types.md)
   - [CompletableFuture](monads/cf_monad.md)
   - [Either](monads/either_monad.md)
   - [Identity](monads/identity.md)
@@ -30,29 +35,29 @@
   - [Try](monads/try_monad.md)
   - [Validated](monads/validated_monad.md)
   - [Writer](monads/writer_monad.md)
+# Advanced Topics
 - [Monad Transformers](transformers/transformers.md)
   - [EitherT](transformers/eithert_transformer.md)
   - [OptionalT](transformers/optionalt_transformer.md)
   - [MaybeT](transformers/maybet_transformer.md)
   - [ReaderT](transformers/readert_transformer.md)
   - [StateT](transformers/statet_transformer.md)
-# HKT Examples
-  - [How to use HKTs](hkts/hkt_basic_examples.md)
+# Complete HKT Examples
   - [An Order Workflow](hkts/order-walkthrough.md)
   - [Draughts Game](hkts/draughts.md)
 
-
 # Optics
 - [Optics Introduction](optics/optics_intro.md)
-- [Lenses](optics/lenses.md)
-- [Prisms](optics/prisms.md)
-- [Isomorphisms](optics/iso.md)
-- [Traversals](optics/traversals.md)
-- [Profunctor Optics](optics/profunctor_optics.md)
-- [Combining Optics - Validation](optics/composing_optics.md)
-# Optics Examples
-- [How to use Optics](optics/optics_examples.md)
-- [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md) 
+  - [Lenses](optics/lenses.md)
+  - [Prisms](optics/prisms.md)
+  - [Isomorphisms](optics/iso.md)
+  - [Traversals](optics/traversals.md)
+  - [Profunctor Optics](optics/profunctor_optics.md)
+  - [How to use Optics](optics/optics_examples.md)
+  
+# Complete Optics Examples
+  - [Combining Optics - Validation](optics/composing_optics.md)
+  - [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md) 
 
 # More Functional Thinking
 - [Blog series](reading.md)

@@ -1,6 +1,14 @@
 #The EitherMonad: 
 ## _Typed Error Handling_
 
+~~~admonish info title="What You'll Learn"
+- How to represent computations that can succeed (Right) or fail (Left) with specific error types
+- Building type-safe error handling without exceptions
+- Chaining operations with automatic Left propagation
+- Using fold to handle both success and failure cases
+- Integration with EitherT for combining with other effects
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
 ~~~
