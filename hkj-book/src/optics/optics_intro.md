@@ -40,7 +40,7 @@ Think of an optic as a "zoom lens" for your data. It's a first-class object that
 Every optic provides two basic capabilities:
 
 1. **`get`**: Focus on a structure `S` and retrieve a part `A`.
-2. **`set`**: Focus on a structure `S`, provide a new part `A`, and receive a new `S` with the part updated. This is always an immutable operation—a new copy of `S` is returned.
+2. **`set`**: Focus on a structure `S`, provide a new part `A`, and receive a new `S` with the part updated. This is always an immutable operation —> a new copy of `S` is returned.
 
 The real power comes from their **composability**. You can chain optics together to peer deeply into nested structures and perform targeted updates with ease.
 
@@ -52,7 +52,7 @@ The `higher-kinded-j` library provides the foundation for a rich optics library,
 
 A **Lens** is the most common optic. It focuses on a single, required piece of data within a larger "product type" (a `record` or class with fields). It's for data that is guaranteed to exist.
 
-* **Problem it solves**: Getting and setting a field within an object, especially a deeply nested one.**
+* **Problem it solves**: Getting and setting a field within an object, especially a deeply nested one.
 * **Generated Code**: Annotating a record with `@GenerateLenses` produces a companion class (e.g., `UserLenses`) that contains:
 
   1. A **lens** for each field (e.g., `UserLenses.address()`).
@@ -114,13 +114,13 @@ A **Prism** is like a Lens, but for "sum types" (`sealed interface` or `enum`). 
 * **Problem it solves**: Safely operating on one variant of a sealed interface.
 * **Example**: Instead of using an `if-instanceof` chain to handle a specific `DomainError`:
 
-    ```java
+```java
 // Using a generated Prism for a sealed interface
 DomainErrorPrisms.shippingError()
-    .getOptional(error) // Safely gets a ShippingError if it matches
-    .filter(ShippingError::isRecoverable)
-    .ifPresent(this::handleRecovery); // Perform action only if it's the right type
-    ```
+   .getOptional(error) // Safely gets a ShippingError if it matches
+   .filter(ShippingError::isRecoverable)
+   .ifPresent(this::handleRecovery); // Perform action only if it's the right type
+```
 
 ### 4. Traversal: For "Has-Many" Relationships 🗺️
 
@@ -134,13 +134,23 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
   public record OrderData(..., List<String> promoCodes) {}
   var codesTraversal = OrderDataTraversals.promoCodes();
   var validationFunction = (String code) -> validate(code); // returns Validated<Error, Code>
-  
+
   // Use the traversal to apply the function to every code.
   // The Applicative for Validated handles the error accumulation automatically.
   Validated<Error, OrderData> result = codesTraversal.modifyF(
       validationFunction, orderData, validatedApplicative
   );
   ```
+
+## Advanced Capabilities: Profunctor Adaptations
+
+One of the most powerful features of higher-kinded-j optics is their **profunctor** nature. Every optic can be adapted to work with different source and target types using three key operations:
+
+* **`contramap`**: Adapt an optic to work with a different source type
+* **`map`**: Transform the result type of an optic
+* **`dimap`**: Adapt both source and target types simultaneously
+
+This makes optics incredibly flexible for real-world scenarios like API integration, legacy system support, and working with different data representations. For a detailed exploration of these capabilities, see the [Profunctor Optics Guide](profunctor_optics.md).
 
 ## How `higher-kinded-j` Provides Optics
 
@@ -151,5 +161,6 @@ This brings us to the unique advantages `higher-kinded-j` offers for optics in J
    * Want to perform an update that might fail? Use `Optional` or `Either` as your `F`.
    * Want to perform an asynchronous update? Use `CompletableFuture` as your `F`.
    * Want to accumulate validation errors? Use `Validated` as your `F`.
+3. **Profunctor Adaptability**: Every optic is fundamentally a profunctor, meaning it can be adapted to work with different data types and structures. This provides incredible flexibility for integrating with external systems, handling legacy data formats, and working with strongly-typed wrappers.
 
 This level of abstraction allows you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling—a core benefit of functional programming brought to Java by the foundation `higher-kinded-j` provides.

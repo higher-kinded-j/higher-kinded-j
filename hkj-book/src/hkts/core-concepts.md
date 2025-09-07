@@ -17,6 +17,12 @@ You will often see Higher-Kinded Types represented with an underscore, like `F<_
 
 ## 2. The `Kind<F, A>` Bridge
 
+At the very centre of the library are the `Kind` interfaces, which make higher-kinded types possible in Java.
+
+* **`Kind<F, A>`**: This is the foundational interface that emulates a higher-kinded type. It represents a type `F` that is generic over a type `A`. For example, `Kind<ListKind.Witness, String>` represents a `List<String>`. You will see this interface used everywhere as the common currency for all our functional abstractions.
+
+* **`Kind2<F, A, B>`**: This interface extends the concept to types that take two type parameters, such as `Function<A, B>` or `Either<L, R>`. For example, `Kind2<FunctionKind.Witness, String, Integer>` represents a `Function<String, Integer>`. This is essential for working with profunctors and other dual-parameter abstractions.
+
 ![defunctionalisation_internal.svg](../images/puml/defunctionalisation_internal.svg)
 
 * **Purpose:** To simulate the application of a type constructor `F` (like `List`, `Optional`, `IO`) to a type argument `A` (like `String`, `Integer`), representing the concept of `F<A>`.
@@ -25,7 +31,7 @@ You will often see Higher-Kinded Types represented with an underscore, like `F<_
   * `OptionalKind<OptionalKind.Witness>` represents the `Optional` type constructor.
   * `EitherKind.Witness<L>` represents the `Either<L, _>` type constructor (where `L` is fixed).
   * `IOKind<IOKind.Witness>` represents the `IO` type constructor.
-* **`A` (Type Argument):** The concrete type contained within or parameterised by the constructor (e.g., `Integer` in `List<Integer>`).
+* **`A` (Type Argument):** The concrete type contained within or parametrised by the constructor (e.g., `Integer` in `List<Integer>`).
 * **How it Works:** The library provides a seamless bridge between a standard java type, like a `java.util.List<Integer>`and its `Kind` representation `Kind<ListKind.Witness, Integer>`. Instead of requiring you to manually wrap objects, this conversion is handled by static helper methods, typically `widen` and `narrow`.
   * To treat a `List<Integer>` as a `Kind`, you use a helper function like `LIST.widen()`.
   * This `Kind` object can then be passed to generic functions (such as `map` or `flatMap` from a `Functor` or `Monad` instance) that expect `Kind<F, A>`.

@@ -1,6 +1,6 @@
 # Optics - Basic Usage Examples
 
-~~~ admonish info
+~~~admonish
 
 This document provides a brief summary of the example classes found in the  `org.higherkindedj.example.optics` package in the [HKJ-Examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics).
 ~~~
@@ -86,6 +86,32 @@ This example demonstrates a more advanced use case for **Traversals** where the 
   * Using `@GenerateTraversals` with a custom `name` parameter to create a single `Traversal` that groups multiple fields (`name`, `email`, `password`).
   * Using this traversal with `Validated` to run a validation function on each field.
   * Because `Validated` has an `Applicative` that accumulates errors, the end result is a `Validated` object containing either the original form or a list of all validation failures.
+
+
+## [OpticProfunctorExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/profunctor/OpticProfunctorExample.java)
+
+This comprehensive example demonstrates the **profunctor** capabilities of optics, showing how to adapt existing optics to work with different data types and structures.
+
+* **Key Concept**: Every optic is a profunctor, meaning it can be adapted using `contramap`, `map`, and `dimap` operations to work with different source and target types.
+* **Demonstrates**:
+
+  * **Contramap-style adaptation**: Using an existing `Person` lens with `Employee` objects by providing a conversion function.
+  * **Map-style adaptation**: Transforming the target type of a lens (e.g., `LocalDate` to formatted `String`).
+  * **Dimap-style adaptation**: Converting between completely different data representations (e.g., internal models vs external DTOs).
+  * **API Integration**: Creating adapters for external API formats whilst reusing internal optics.
+  * **Type-safe wrappers**: Working with strongly-typed wrapper classes efficiently.
+
+  ```java
+  // Adapt a Person lens to work with Employee objects
+  Lens<Person, String> firstNameLens = PersonLenses.firstName();
+  Lens<Employee, String> employeeFirstNameLens = 
+      firstNameLens.contramap(employee -> employee.personalInfo());
+
+  // Adapt a lens to work with different target types
+  Lens<Person, LocalDate> birthDateLens = PersonLenses.birthDate();
+  Lens<Person, String> birthDateStringLens = 
+      birthDateLens.map(date -> date.format(DateTimeFormatter.ISO_LOCAL_DATE));
+  ```
 
 ## Traversal Examples
 

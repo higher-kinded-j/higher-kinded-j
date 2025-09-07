@@ -1,11 +1,12 @@
 # Auditing Complex Data with Optics
+
 ## _A Real-World Deep Dive_: The Power of Optics
 
 In modern software, we often work with complex, nested data structures. Performing a seemingly simple task—like "find and decode all production database passwords"—can lead to messy, error-prone code with nested loops, `if` statements, and manual type casting.
 
 This tutorial demonstrates how to solve a sophisticated, real-world problem elegantly using the full power of **higher-kinded-j optics**. We'll build a single, declarative, type-safe optic that performs a deep, conditional data transformation.
 
-~~~ admonish info
+~~~admonish
 
 All the example code for this tutorial can be found in the  `org.higherkindedj.example package in the [Config Audit example](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/configaudit).
 
@@ -99,7 +100,6 @@ Traversal<AppConfig, byte[]> finalAuditor = gcpLiveOnlyPrism.asTraversal().andTh
 List<byte[]> passwords = Traversals.getAll(finalAuditor, someConfig);
 ```
 
-
 When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, complex operation and returns a simple `List<byte[]>` containing only the data we care about.
 
 ---
@@ -117,8 +117,9 @@ When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, 
 
 This example is just the beginning. Here are some ideas for extending this solution into a real-world application:
 
-1. **Safe Decoding with `Validated`**: The `Base64.getDecoder().decode()` can throw an `IllegalArgumentException`. Instead of an `Iso`, create an `AffineTraversal` (an optional `Prism`) that returns a `Validated<String, byte[]>`, separating successes from failures gracefully.
-2. **Data Migration with `modify`**: What if you need to re-encrypt all passwords with a new algorithm? The same `finalAuditor` optic can be used with a modify function from the `Traversals` utility class. You'd write a function `byte[] -> byte[]` and apply it:
+### 1. **Safe Decoding with `Validated`**: The `Base64.getDecoder().decode()` can throw an `IllegalArgumentException`. Instead of an `Iso`, create an `AffineTraversal` (an optional `Prism`) that returns a `Validated<String, byte[]>`, separating successes from failures gracefully.
+### 2. **Data Migration with `modify`**: What if you need to re-encrypt all passwords with a new algorithm? The same `finalAuditor` optic can be used with a modify function from the `Traversals` utility class. You'd write a function `byte[] -> byte[]` and apply it:
+
 ```java
 // A function that re-encrypts the raw password bytes
 Function<byte[], byte[]> reEncryptFunction = (oldBytes) -> newCipher.encrypt(oldBytes);
@@ -127,5 +128,32 @@ Function<byte[], byte[]> reEncryptFunction = (oldBytes) -> newCipher.encrypt(old
 AppConfig updatedConfig = Traversals.modify(finalAuditor, reEncryptFunction, originalConfig);
 ```
 
-3.  **More Complex Filters**: Create an optic that filters for deployments on *either*`gcp` or `aws` but *only* in the `live` environment. The composable nature of optics makes building up these complex predicate queries straightforward.
-4.  **Configuration Validation**: Use the same optics to validate your configuration. You could compose a traversal that finds all `IntValue` settings with the key `"server.port"` and use `.getAll()` to check if their values are within a valid range (e.g., > 1024).
+
+### 3. **Profunctor Adaptations for Legacy Systems**
+
+Suppose your audit service expects a different data format—perhaps it works with `ConfigDto` objects instead of `AppConfig`. Rather than rewriting your carefully crafted optic, you can adapt it using profunctor operations:
+
+java
+
+```java
+// Adapt the auditor to work with legacy DTO format
+Traversal<ConfigDto, byte[]> legacyAuditor = finalAuditor.contramap(dto -> convertToAppConfig(dto));
+
+// Or adapt both input and output formats simultaneously
+Traversal<ConfigDto, AuditRecord> fullyAdaptedAuditor = finalAuditor.dimap(
+    dto -> convertToAppConfig(dto),           // Convert input format
+    bytes -> new AuditRecord(bytes, timestamp()) // Convert output format
+);
+```
+
+This profunctor capability means your core business logic (the auditing path) remains unchanged whilst adapting to different system interfaces—a powerful example of the [Profunctor Optics](profunctor_optics.md) capabilities.
+
+### 4. **More Complex Filters**
+
+Create an optic that filters for deployments on *either*`gcp` or `aws` but *only* in the `live` environment. The composable nature of optics makes building up these complex predicate queries straightforward.
+
+### 5. **Configuration Validation**
+
+Use the same optics to validate your configuration. You could compose a traversal that finds all `IntValue` settings with the key `"server.port"` and use `.getAll()` to check if their values are within a valid range (e.g., > 1024).
+
+This combination of composability, type safety, and profunctor adaptability makes higher-kinded-j optics incredibly powerful for real-world data processing scenarios.

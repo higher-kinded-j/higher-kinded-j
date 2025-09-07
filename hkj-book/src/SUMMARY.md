@@ -14,6 +14,7 @@
   - [Semigroup and Monoid](functional/semigroup_and_monoid.md) 
   - [Foldable and Traverse](functional/foldable_and_traverse.md)
   - [MonadZero](functional/monad_zero.md)
+  - [Profunctor](functional/profunctor.md)
   - [For Comprehension](functional/for_comprehension.md)
 - [Monads](monads/supported-types.md)
   - [CompletableFuture](monads/cf_monad.md)
@@ -47,6 +48,7 @@
 - [Prisms](optics/prisms.md)
 - [Isomorphisms](optics/iso.md)
 - [Traversals](optics/traversals.md)
+- [Profunctor Optics](optics/profunctor_optics.md)
 - [Combining Optics - Validation](optics/composing_optics.md)
 # Optics Examples
 - [How to use Optics](optics/optics_examples.md)

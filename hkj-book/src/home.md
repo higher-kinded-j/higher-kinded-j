@@ -5,8 +5,8 @@
 |  _  | |/ _` | '_ \ / _ \ '__|______|    \| | '_ \ / _` |/ _ \/ _` |______| | |
 | | | | | (_| | | | |  __/ |         | |\  \ | | | | (_| |  __/ (_| |    /\__/ /
 \_| |_/_|\__, |_| |_|\___|_|         \_| \_/_|_| |_|\__,_|\___|\__,_|    \____/ 
-          __/ |                                                             
-         |___/                                                              
+          __/ |                                                           
+         |___/                                                            
 ```
 
 ## [_Bringing Higher-Kinded Types and Optics to Java functional patterns_](https://github.com/higher-kinded-j/higher-kinded-j)
@@ -17,7 +17,7 @@
 
 Higher-Kinded-J brings two powerful functional programming toolsets to Java, enabling developers to write more abstract, composable, and robust code.
 
- Higher-Kinded-J provides:
+Higher-Kinded-J provides:
 
 1. A **Higher-Kinded Types (HKT) Simulation** to abstract over computational contexts like `Optional`, `List`, or `CompletableFuture`.
 2. A powerful **Optics Library** to abstract over immutable data structures, with boilerplate-free code generation.
@@ -36,6 +36,7 @@ Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunct
 
 * **Abstract Over Context:** Write logic that works polymorphically over different computational contexts (optionality, asynchrony, error handling, collections).
 * **Leverage Typeclasses:** Consistently apply powerful patterns like `map`, `flatMap`, `sequence`, and `traverse` across diverse data types.
+* **Build Adaptable Pipelines:** Use profunctors to create flexible data transformation pipelines that adapt to different input and output formats.
 * **Manage Effects:** Use provided monads like `IO`, `Either`, `Validated`, and `State` to build robust, composable workflows.
 
 ## 2: A Powerful [Optics](optics/optics_intro.md) Library 🔎
@@ -50,8 +51,7 @@ Higher-Kinded-J provides a full-featured **Optics library** that treats data acc
 * **Perform Deep Updates Effortlessly:** Compose optics to create a path deep into a nested structure and perform immutable updates in a single, readable line.
 * **Decouple Data and Operations:** Model your data cleanly as immutable records, while defining complex, reusable operations separately as optics.
 * **Perform Effectful Updates:** The Optics library is built on top of the HKT simulation, allowing you to perform failable, asynchronous, or stateful updates using the powerful `modifyF` method.
-
-
+* **Adapt to Different Data Types:** Every optic is a profunctor, meaning it can be adapted to work with different source and target types using `contramap`, `map`, and `dimap` operations. This provides incredible flexibility for API integration, legacy system support, and data format transformations.
 
 ## Getting Started
 
@@ -76,6 +76,7 @@ The project is modular. To use it, add the relevant dependencies to your `build.
     annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
 ```
+
 **For SNAPSHOTS:**
 
 ```gradle
@@ -91,7 +92,7 @@ repositories {
 
 We recommend following the documentation in order to get a full understanding of the library's capabilities.
 
-#### Optics Guides 
+#### Optics Guides
 
 This series provides a practical, step-by-step introduction to solving real-world problems with optics.
 
@@ -100,7 +101,8 @@ This series provides a practical, step-by-step introduction to solving real-worl
 3. **[Practical Guide: Prisms](optics/prisms.md):** Learn how to use `Prism` to safely work with `sealed interface` (sum types).
 4. **[Practical Guide: Isos](optics/iso.md):** Understand how `Iso` provides a bridge between equivalent data types.
 5. **[Practical Guide: Traversals](optics/traversals.md):** Master the `Traversal` for performing bulk updates on collections.
-6. **[Capstone Example: Deep Validation](optics/composing_optics.md):** A complete example that composes multiple optics to solve a complex problem.
+6. **[Profunctor Optics](optics/profunctor_optics.md):** Discover how to adapt optics to work with different data types and structures.
+7. **[Capstone Example: Deep Validation](optics/composing_optics.md):** A complete example that composes multiple optics to solve a complex problem.
 
 #### HKT Core Concepts
 
@@ -115,4 +117,5 @@ For users who want to understand the underlying HKT simulation that powers the o
 7. **[Extending Higher-Kinded-J](hkts/extending-simulation.md):** Learn how to add HKT support for your own custom types.
 
 #### History
+
 **Higher-Kinded-J evolved from a simulation** that was originally created for the blog post [Higher Kinded Types with Java and Scala](https://blog.scottlogic.com/2025/04/11/higher-kinded-types-with-java-and-scala.html) that explored Higher-Kinded types and their lack of support in Java. The blog post discussed a process called defuctionalisation that could be used to simulate Higher-Kinded types in Java. Since then Higher-Kinded-J has grown into something altogether more useful supporting more functional patterns.

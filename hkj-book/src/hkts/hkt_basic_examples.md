@@ -356,6 +356,35 @@ Kind<ListKind.Witness, Integer> doubledList = mapWithFunctor(listMonad, doubleFn
 // Calling it with an Optional
 Kind<OptionalKind.Witness, Integer> doubledOpt = mapWithFunctor(optionalMonad, doubleFn, optKind);
 ```
+### [ProfunctorExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/profunctor/ProfunctorExample.java)
+
+This example demonstrates the **Profunctor** type class using `FunctionProfunctor`. It shows how to build flexible, adaptable data transformation pipelines.
+
+* **Key Concept**: A `Profunctor` is contravariant in its first parameter and covariant in its second, making it perfect for adapting both the input and output of functions.
+* **Demonstrates**:
+    * Using `lmap` to adapt function inputs (contravariant mapping)
+    * Using `rmap` to adapt function outputs (covariant mapping)
+    * Using `dimap` to adapt both input and output simultaneously
+    * Building real-world API adapters and validation pipelines
+    * Creating reusable transformation chains
+
+```java
+// Original function: String length calculator
+Function<String, Integer> stringLength = String::length;
+
+// Adapt the input: now works with integers!
+Kind2<FunctionKind.Witness, Integer, Integer> intToLength =
+    profunctor.lmap(Object::toString, lengthFunction);
+
+// Adapt the output: now returns formatted strings!
+Kind2<FunctionKind.Witness, String, String> lengthToString =
+    profunctor.rmap(len -> "Length: " + len, lengthFunction);
+
+// Adapt both input and output in one operation
+Kind2<FunctionKind.Witness, Integer, String> fullTransform =
+    profunctor.dimap(Object::toString, len -> "Result: " + len, lengthFunction);
+```
+
 
 ---
 
