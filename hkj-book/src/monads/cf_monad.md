@@ -1,6 +1,14 @@
 # The CompletableFutureMonad: 
 ## _Asynchronous Computations with `CompletableFuture`_
 
+~~~admonish info title="What You'll Learn"
+- How to compose asynchronous operations functionally
+- Using MonadError capabilities for async error handling and recovery
+- Building non-blocking workflows with `map`, `flatMap`, and `handleErrorWith`
+- Integration with EitherT for combining async operations with typed errors
+- Real-world patterns for resilient microservice communication
+~~~
+
 ~~~ admonish example title="See Example Code:"
  [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 ~~~

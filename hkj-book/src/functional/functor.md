@@ -1,5 +1,13 @@
 # Functor: The "Mappable" Type Class 🎁
 
+~~~admonish info title="What You'll Learn"
+- How to transform values inside containers without changing the container structure
+- The difference between regular functions and functorial mapping
+- Functor laws (identity and composition) and why they matter
+- How to use Functor instances with List, Optional, and other containers
+- When to choose Functor over direct method calls
+~~~
+
 At the heart of functional programming is the ability to transform data within a container without having to open it. The **`Functor`** type class provides exactly this capability. It's the simplest and most common abstraction for any data structure that can be "mapped over."
 
 If you've ever used `Optional.map()` or `Stream.map()`, you've already been using the Functor pattern! `higher-kinded-j` simply formalizes this concept so you can apply it to any data structure.

@@ -44,7 +44,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Type Class Instances**:
   * `ListFunctor` (`Functor<ListKind.Witness>`)
   * [`ListMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/list/ListMonad.java) (`Monad<ListKind.Witness>`)
-* **Notes**: Standard list monad behavior. `of(a)` creates a singleton list `List.of(a)`; `of(null)` results in an empty list.
+* **Notes**: Standard list monad behaviour. `of(a)` creates a singleton list `List.of(a)`; `of(null)` results in an empty list.
 * **Usage**: [How to use the List Monad](./list_monad.md)
 
 ---
@@ -202,7 +202,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Witness Type `F_WITNESS`**: `ValidatedKind.Witness<E>` (Error type `E` is fixed for the HKT witness).
 * **`ValidatedKindHelper` Class**: ([`ValidatedKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/ValidatedKindHelper.java)). `widen` casts `Validated<E,A>` (specifically `Valid` or `Invalid` instances) to `Kind<ValidatedKind.Witness<E>, A>`. `narrow` casts `Kind` back to `Validated<E,A>`. Provides static factory methods `valid(value)` and `invalid(error)` that return the Kind-wrapped type.
 * **Type Class Instances**: (Error type `E` is fixed for the monad instance)
-  * [`ValidatedMonad<E>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/ValidatedMonad.java) (`MonadError<ValidatedKind.Witness<E>, E>`). This also provides `Monad`, `Functor`, and `Applicative` behavior.
+  * [`ValidatedMonad<E>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/ValidatedMonad.java) (`MonadError<ValidatedKind.Witness<E>, E>`). This also provides `Monad`, `Functor`, and `Applicative` behaviour.
 * **Notes**: `Validated` is right-biased, meaning operations like `map` and `flatMap` apply to the `Valid` case and propagate `Invalid` untouched. `ValidatedMonad.of(a)` creates a `Valid(a)`. As a `MonadError`, `ValidatedMonad` provides `raiseError(error)` to create an `Invalid(error)` and `handleErrorWith(kind, handler)` for standardized error recovery. The `ap` method is also right-biased and does not accumulate errors from multiple `Invalid`s in the typical applicative sense; it propagates the first `Invalid` encountered or an `Invalid` function.
 * **Usage**: [How to use the Validated Monad](./validated_monad.md)
 

@@ -90,3 +90,23 @@ A **`Traverse`** is a powerful type class that extends both `Functor` and `Folda
 
 * **Key Method**: `traverse(Applicative<G> applicative, Function<A, Kind<G, B>> f, Kind<F, A> fa)`
 * **Use Case**: This is incredibly useful for tasks like validating every item in a `List`, where the validation returns a `Validated`. The result is a single `Validated` containing either a `List` of all successful results or an accumulation of all errors.
+
+---
+
+## Dual-Parameter Type Classes
+
+These type classes work with types that take two type parameters, such as functions, profunctors, and bifunctors.
+
+### **`Profunctor<P>`**
+
+A **`Profunctor`** is a type class for any type constructor `P<A, B>` that is contravariant in its first parameter and covariant in its second. This is the abstraction behind functions and many data transformation patterns.
+
+* **Key Methods**:
+  * `lmap(Function<C, A> f, Kind2<P, A, B> pab)`: Pre-process the input (contravariant mapping)
+  * `rmap(Function<B, C> g, Kind2<P, A, B> pab)`: Post-process the output (covariant mapping)
+  * `dimap(Function<C, A> f, Function<B, D> g, Kind2<P, A, B> pab)`: Transform both input and output simultaneously
+* **Use Case**: Essential for building flexible data transformation pipelines, API adapters, and validation frameworks that can adapt to different input and output formats without changing core business logic.
+
+### **Profunctors in Optics**
+
+Importantly, every optic in higher-kinded-j is fundamentally a profunctor. This means that `Lens`, `Prism`, `Iso`, and `Traversal` all support profunctor operations through their `contramap`, `map`, and `dimap` methods. This provides incredible flexibility for adapting optics to work with different data types and structures, making them highly reusable across different contexts and API boundaries.

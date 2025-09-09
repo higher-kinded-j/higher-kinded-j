@@ -1,5 +1,13 @@
 # Applicative: Applying Wrapped Functions ✨
 
+~~~admonish info title="What You'll Learn"
+- How to apply wrapped functions to wrapped values using `ap`
+- The difference between independent computations (Applicative) and dependent ones (Monad)
+- How to combine multiple validation results and accumulate all errors
+- Using `map2`, `map3` and other convenience methods for combining values
+- Real-world validation scenarios with the Validated type
+~~~
+
 While a `Functor` is great for applying a *simple* function to a value inside a context, what happens when the function you want to apply is *also* wrapped in a context? This is where the **`Applicative`** type class comes in. It's the next step up in power from a `Functor` and allows you to combine multiple computations within a context in a very powerful way.
 
 ---

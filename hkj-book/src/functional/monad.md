@@ -1,5 +1,13 @@
 # Monad: Sequencing Computations 🔗
 
+~~~admonish info title="What You'll Learn"
+- How to sequence computations where each step depends on previous results
+- The power of `flatMap` for chaining operations that return wrapped values
+- When to use Monad vs Applicative (dependent vs independent computations)
+- Essential utility methods: `as`, `peek`, and `flatMapIfOrElse`
+- How monadic short-circuiting works in practice
+~~~
+
 You've seen how `Functor` lets you `map` over a value in a context and how `Applicative` lets you combine independent computations within a context. Now, we'll introduce the most powerful of the trio: **`Monad`**.
 
 A `Monad` builds on `Applicative` by adding one crucial ability: sequencing computations that **depend on each other**. If the result of the first operation is needed to determine the second operation, you need a `Monad`.

@@ -1,6 +1,14 @@
 # The TryMonad:
 ## _Typed Error Handling_
 
+~~~admonish info title="What You'll Learn"
+- How to handle exceptions functionally with Success and Failure cases
+- Converting exception-throwing code into composable, safe operations
+- Using `recover` and `recoverWith` for graceful error recovery
+- Building robust parsing and processing pipelines
+- When to choose Try vs Either for error handling
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [TryExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/trymonad/TryExample.java)
 ~~~

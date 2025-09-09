@@ -1,6 +1,14 @@
 # The MaybeT Transformer:
 ## _Combining Monadic Effects with Optionality_
 
+~~~admonish info title="What You'll Learn"
+- How to add stateful computation to any existing monad
+- Building stack operations that can fail (StateT with Optional)
+- Understanding the relationship between State and StateT<S, Identity, A>
+- Creating complex workflows that manage both state and other effects
+- Using `get`, `set`, `modify` operations within transformer contexts
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [MaybeTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/maybe_t/MaybeTExample.java)
 ~~~

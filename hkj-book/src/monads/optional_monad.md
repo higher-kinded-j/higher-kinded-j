@@ -1,6 +1,14 @@
 # The OptionalMonad:
 ## _Monadic Operations for Java Optional_
 
+~~~admonish info title="What You'll Learn"
+- How to integrate Java's Optional with Higher-Kinded-J's type class system
+- Using MonadError with Unit to represent absence as an error state
+- Chaining optional operations with automatic empty propagation
+- Building safe database and service call pipelines
+- When to choose Optional vs Maybe for your use case
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
 ~~~

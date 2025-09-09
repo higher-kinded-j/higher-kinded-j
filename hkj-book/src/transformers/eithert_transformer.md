@@ -1,6 +1,14 @@
 # The EitherT Transformer: 
 ## _Combining Monadic Effects_
 
+~~~admonish info title="What You'll Learn"
+- How to combine async operations (CompletableFuture) with typed error handling (Either)
+- Building workflows that can fail with specific domain errors while remaining async
+- Using `fromKind`, `fromEither`, and `liftF` to construct EitherT values
+- Real-world order processing with validation, inventory checks, and payment processing
+- Why EitherT eliminates "callback hell" in complex async workflows
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [EitherTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either_t/EitherTExample.java)
 ~~~
@@ -404,7 +412,7 @@ The `Higher-Kinded-J` library simplifies the implementation and usage of concept
 
 * You only need **one**`EitherTMonad` implementation.
 * It works **generically** for any outer monad `F`*for which you have a `Monad<F>` instance* (like `OptionalMonad`, `CompletableFutureMonad`, `IOMonad`, etc.).
-* The complex logic of combining the two monads' behaviors (e.g., how `flatMap` should work on `F<Either<L, R>>`) is encapsulated *within*`EitherTMonad`, leveraging the simulated HKTs and the provided `outerMonad` instance.
+* The complex logic of combining the two monads' behaviours (e.g., how `flatMap` should work on `F<Either<L, R>>`) is encapsulated *within*`EitherTMonad`, leveraging the simulated HKTs and the provided `outerMonad` instance.
 * As a user, you just instantiate `EitherTMonad` with the appropriate outer monad instance and then use its standard methods (`map`, `flatMap`, etc.) on your `EitherT` values, as seen in the `OrderWorkflowRunner` example. You don't need to manually handle the nesting.
 
 In essence, the HKT simulation provided by `Higher-Kinded-J` allows defining the structure (`EitherT`) and the operations (`EitherTMonad`) generically over the outer monad `F`, overcoming Java's native limitations and making monad transformers feasible and much less boilerplate-heavy than they would otherwise be.

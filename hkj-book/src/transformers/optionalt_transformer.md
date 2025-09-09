@@ -1,6 +1,13 @@
 # The OptionalT Transformer: 
 ## _Combining Monadic Effects with `java.util.Optional`_
 
+~~~admonish info title="What You'll Learn"
+- How to integrate Java's Optional with other monadic contexts
+- Building async workflows where each step might return empty results
+- Using `some`, `none`, and `fromOptional` to construct OptionalT values
+- Creating multi-step data retrieval with graceful failure handling
+- Providing default values when optional chains result in empty
+~~~
 
 ~~~ admonish example title="See Example Code:"
 [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional_t/OptionalTExample.java)

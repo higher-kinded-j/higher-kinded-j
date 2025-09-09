@@ -1,6 +1,14 @@
 #The ListMonad:
 ## _Monadic Operations on Java Lists_
 
+~~~admonish info title="What You'll Learn"
+- How to work with Lists as contexts representing multiple possible values
+- Using `flatMap` for non-deterministic computations and combinations
+- Generating Cartesian products and filtering results
+- Understanding how List models choice and branching computations
+- Building search algorithms and combinatorial problems with monadic operations
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [ListMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/list/ListMonadExample.java)
 ~~~
@@ -13,7 +21,7 @@ Key benefits include:
 
 * **Functional Composition:** Easily chain operations on lists, where each operation might return a list itself.
 * **HKT Integration:** `ListKind` (the higher-kinded wrapper for `List`) and `ListMonad` allow `List` to be used with generic functions and type classes expecting `Kind<F, A>`, `Functor<F>`, `Applicative<F>`, or `Monad<F>`.
-* **Standard List Behavior:** Leverages the familiar behavior of Java lists, such as non-uniqueness of elements and order preservation. `flatMap` corresponds to applying a function that returns a list to each element and then concatenating the results.
+* **Standard List Behavior:** Leverages the familiar behaviour of Java lists, such as non-uniqueness of elements and order preservation. `flatMap` corresponds to applying a function that returns a list to each element and then concatenating the results.
 
 It implements `Monad<ListKind<A>>`, inheriting from `Functor<ListKind<A>>` and `Applicative<ListKind<A>>`.
 

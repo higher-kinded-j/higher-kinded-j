@@ -1,5 +1,13 @@
 # For-Comprehensions
 
+~~~admonish info title="What You'll Learn"
+- How to transform nested `flatMap` chains into readable, sequential code
+- The four types of operations: generators (`.from()`), bindings (`.let()`), guards (`.when()`), and projections (`.yield()`)
+- Building complex workflows with StateT and other monad transformers
+- Converting "pyramid of doom" code into clean, imperative-style scripts
+- Real-world examples from simple Maybe operations to complex state management
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [ForComprehensionExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/ForComprehensionExample.java)
 ~~~

@@ -7,7 +7,7 @@ The Identity Monad, often referred to as `Id`, is the simplest possible monad. I
 
 While it might seem trivial on its own, the Identity Monad plays a crucial role in a higher-kinded type library for several reasons:
 
-1. **Base Case for Monad Transformers**: Many monad transformers (like `StateT`, `ReaderT`, `MaybeT`, etc.) can be specialized to their simpler, non-transformed monad counterparts by using `Id` as the underlying monad. For example:
+1. **Base Case for Monad Transformers**: Many monad transformers (like `StateT`, `ReaderT`, `MaybeT`, etc.) can be specialised to their simpler, non-transformed monad counterparts by using `Id` as the underlying monad. For example:
 
    * `StateT<S, Id.Witness, A>` is conceptually equivalent to `State<S, A>`.
    * `MaybeT<Id.Witness, A>` is conceptually equivalent to `Maybe<A>`.

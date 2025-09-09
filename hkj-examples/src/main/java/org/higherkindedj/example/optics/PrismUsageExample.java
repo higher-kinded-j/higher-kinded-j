@@ -72,10 +72,10 @@ public class PrismUsageExample {
     Traversal<JsonObject, String> userToJsonName =
         fieldsLens
             .asTraversal()
-            .andThen(Traversals.forMap("user")) // Use the new static helper
+            .andThen(Traversals.forMap("user"))
             .andThen(jsonObjectPrism.asTraversal())
             .andThen(fieldsLens.asTraversal())
-            .andThen(Traversals.forMap("name")) // Use the new static helper again
+            .andThen(Traversals.forMap("name"))
             .andThen(jsonStringPrism.asTraversal())
             .andThen(jsonStringValueLens.asTraversal());
 

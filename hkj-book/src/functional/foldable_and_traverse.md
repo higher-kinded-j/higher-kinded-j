@@ -1,6 +1,14 @@
 # Foldable & Traverse: 
 ## Reducing a Structure to a Summary
 
+~~~admonish info title="What You'll Learn"
+- How to reduce any data structure to a summary value using `foldMap`
+- The power of swapping Monoids to get different aggregations from the same data
+- Turning effects "inside-out" with `traverse` operations
+- Validating entire collections and collecting all errors at once
+- The relationship between `sequence` and `traverse` for effectful operations
+~~~
+
 The **`Foldable`** typeclass represents one of the most common and powerful patterns in functional programming: **reducing a data structure to a single summary value**. If you've ever calculated the sum of a list of numbers or concatenated a list of strings, you've performed a fold.
 
 `Foldable` abstracts this pattern, allowing you to write generic code that can aggregate any data structure that knows how to be folded.
@@ -168,4 +176,4 @@ System.out.println(VALIDATED.narrow(result));
 
 ### `sequenceA`
 
-`Traverse` also provides `sequenceA`, which is a specialized version of `traverse`. It's used when you already have a data structure containing effects (e.g., a `List<Optional<A>>`) and you want to flip it into a single effect containing the data structure (`Optional<List<A>>`).
+`Traverse` also provides `sequenceA`, which is a specialised version of `traverse`. It's used when you already have a data structure containing effects (e.g., a `List<Optional<A>>`) and you want to flip it into a single effect containing the data structure (`Optional<List<A>>`).

@@ -1,6 +1,14 @@
 #The IOMonad: 
 ## _Managing Side Effects with `IO`_
 
+~~~admonish info title="What You'll Learn"
+- How to describe side effects without performing them immediately
+- Building pure functional programs with deferred execution
+- Composing complex side-effecting operations using `map` and `flatMap`
+- The difference between describing effects and running them with `unsafeRunSync`
+- Creating testable, composable programs that separate logic from execution
+~~~
+
 ~~~ admonish example title="See Example Code:"
 [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 ~~~
