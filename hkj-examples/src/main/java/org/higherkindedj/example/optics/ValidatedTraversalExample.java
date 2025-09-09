@@ -17,6 +17,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.jspecify.annotations.NonNull;
 
 /**
  * A runnable example demonstrating composition of optics (Lens, Prism, and Traversal) to perform a
@@ -24,102 +25,140 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
  */
 public class ValidatedTraversalExample {
 
-  // --- 1. A Data Model with a Sum Type ---
-  @GenerateLenses
-  public record Permission(String name) {}
+    // --- Data Model ---
+    @GenerateLenses
+    public record Permission(String name) {}
 
-  @GeneratePrisms
-  public sealed interface Principal {}
+    @GeneratePrisms
+    public sealed interface Principal {}
 
-  @GenerateLenses
-  @GenerateTraversals
-  public record User(String username, List<Permission> permissions) implements Principal {}
+    @GenerateLenses
+    @GenerateTraversals
+    public record User(String username, List<Permission> permissions) implements Principal {}
 
-  public record Guest() implements Principal {}
+    public record Guest() implements Principal {}
 
-  @GenerateLenses
-  public record Form(int formId, Principal principal) {}
+    @GenerateLenses
+    public record Form(int formId, Principal principal) {}
 
-  // --- 2. An "effectful" validation function ---
-  private static final Set<String> VALID_PERMISSIONS =
-      Set.of("PERM_READ", "PERM_WRITE", "PERM_DELETE");
+    // --- Validation Logic ---
+    private static final Set<String> VALID_PERMISSIONS = Set.of("PERM_READ", "PERM_WRITE", "PERM_DELETE");
 
-  public static Kind<ValidatedKind.Witness<String>, String> validatePermissionName(String name) {
-    System.out.println("  -> Validating permission: '" + name + "'...");
-    if (VALID_PERMISSIONS.contains(name)) {
-      System.out.println("     ...OK");
-      return VALIDATED.widen(Validated.valid(name));
-    } else {
-      System.out.println("     ...FAILED!");
-      return VALIDATED.widen(Validated.invalid("Invalid permission: " + name));
+    public static Kind<ValidatedKind.Witness<String>, String> validatePermissionName(String name) {
+        if (VALID_PERMISSIONS.contains(name)) {
+            return VALIDATED.widen(Validated.valid(name));
+        } else {
+            return VALIDATED.widen(Validated.invalid("Invalid permission: " + name));
+        }
     }
-  }
 
-  public static void main(String[] args) {
-    // Define a Semigroup for combining String errors.
-    final Semigroup<String> stringSemigroup = Semigroups.string("; ");
-    // Create the Applicative instance with the error-combining logic.
-    Applicative<ValidatedKind.Witness<String>> validatedApplicative =
-        ValidatedMonad.instance(stringSemigroup);
+    // --- Reusable Optic Compositions ---
+    public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
+            FormLenses.principal().asTraversal()
+                    .andThen(PrincipalPrisms.user().asTraversal())
+                    .andThen(UserTraversals.permissions())
+                    .andThen(PermissionLenses.name().asTraversal());
 
-    // --- Create a sample form to work with ---
-    var originalForm =
-        new Form(
-            1,
-            new User("Alice", List.of(new Permission("PERM_READ"), new Permission("PERM_WRITE"))));
-    System.out.println("Original Form: " + originalForm);
-    System.out.println("------------------------------------------");
+    // --- Helper Methods ---
+    private static Applicative<ValidatedKind.Witness<String>> getValidatedApplicative() {
+        return ValidatedMonad.instance(Semigroups.string("; "));
+    }
 
-    // =======================================================================
-    // SCENARIO 1: Using the new `with*` helper method for a shallow update
-    // =======================================================================
-    System.out.println("--- Scenario 1: Using `with*` Helper ---");
+    public static Validated<String, Form> validateFormPermissions(Form form) {
+        Kind<ValidatedKind.Witness<String>, Form> result =
+                FORM_TO_PERMISSION_NAMES.modifyF(
+                        ValidatedTraversalExample::validatePermissionName,
+                        form,
+                        getValidatedApplicative()
+                );
+        return VALIDATED.narrow(result);
+    }
 
-    // Use the generated helper to replace the principal of the form.
-    var formWithGuest = FormLenses.withPrincipal(originalForm, new Guest());
+    public static void main(String[] args) {
+        System.out.println("=== OPTIC COMPOSITION VALIDATION EXAMPLE ===");
+        System.out.println();
 
-    System.out.println("After `withPrincipal`: " + formWithGuest);
-    System.out.println("------------------------------------------");
+        // --- SCENARIO 1: Form with valid permissions ---
+        System.out.println("--- Scenario 1: Valid Permissions ---");
+        var validUser = new User("alice", List.of(
+                new Permission("PERM_READ"),
+                new Permission("PERM_WRITE")
+        ));
+        var validForm = new Form(1, validUser);
 
-    // =======================================================================
-    // SCENARIO 2: Using a composed Traversal for deep validation
-    // =======================================================================
-    System.out.println("--- Scenario 2: Using Composed Traversal for Deep Validation ---");
+        System.out.println("Input: " + validForm);
+        Validated<String, Form> validResult = validateFormPermissions(validForm);
+        System.out.println("Result: " + validResult);
+        System.out.println();
 
-    // 3. Compose optics to create a "deep" traversal into the permission names.
-    Traversal<Form, String> formToPermissionNameTraversal =
-        FormLenses.principal()
-            .asTraversal()
-            .andThen(PrincipalPrisms.user().asTraversal())
-            .andThen(UserTraversals.permissions())
-            .andThen(PermissionLenses.name().asTraversal());
+        // --- SCENARIO 2: Form with multiple invalid permissions ---
+        System.out.println("--- Scenario 2: Multiple Invalid Permissions ---");
+        var invalidUser = new User("charlie", List.of(
+                new Permission("PERM_EXECUTE"),  // Invalid
+                new Permission("PERM_WRITE"),    // Valid
+                new Permission("PERM_SUDO"),     // Invalid
+                new Permission("PERM_READ")      // Valid
+        ));
+        var multipleInvalidForm = new Form(3, invalidUser);
 
-    // --- Run validation on a form with multiple invalid permissions ---
-    var formWithInvalidPerms =
-        new Form(
-            3,
-            new User(
-                "Charlie",
-                List.of(
-                    new Permission("PERM_EXECUTE"),
-                    new Permission("PERM_WRITE"),
-                    new Permission("PERM_SUDO"))));
-    System.out.println("\nInput: " + formWithInvalidPerms);
+        System.out.println("Input: " + multipleInvalidForm);
+        Validated<String, Form> invalidResult = validateFormPermissions(multipleInvalidForm);
+        System.out.println("Result (errors accumulated): " + invalidResult);
+        System.out.println();
 
-    Kind<ValidatedKind.Witness<String>, Form> validationResult =
-        formToPermissionNameTraversal.modifyF(
-            ValidatedTraversalExample::validatePermissionName,
-            formWithInvalidPerms,
-            validatedApplicative);
+        // --- SCENARIO 3: Form with Guest principal (no targets for traversal) ---
+        System.out.println("--- Scenario 3: Guest Principal (No Validation Targets) ---");
+        var guestForm = new Form(4, new Guest());
 
-    System.out.println("Result (errors accumulated): " + VALIDATED.narrow(validationResult));
+        System.out.println("Input: " + guestForm);
+        Validated<String, Form> guestResult = validateFormPermissions(guestForm);
+        System.out.println("Result (path does not match): " + guestResult);
+        System.out.println();
 
-    // --- Run validation on a form where the path does not match (Guest) ---
-    System.out.println("\nInput: " + formWithGuest);
-    Kind<ValidatedKind.Witness<String>, Form> guestResult =
-        formToPermissionNameTraversal.modifyF(
-            ValidatedTraversalExample::validatePermissionName, formWithGuest, validatedApplicative);
-    // The traversal does nothing, so the result is Valid.
-    System.out.println("Result (path does not match): " + VALIDATED.narrow(guestResult));
-  }
+        // --- SCENARIO 4: Form with empty permissions list ---
+        System.out.println("--- Scenario 4: Empty Permissions List ---");
+        var emptyPermissionsUser = new User("diana", List.of());
+        var emptyPermissionsForm = new Form(5, emptyPermissionsUser);
+
+        System.out.println("Input: " + emptyPermissionsForm);
+        Validated<String, Form> emptyResult = validateFormPermissions(emptyPermissionsForm);
+        System.out.println("Result (empty list): " + emptyResult);
+        System.out.println();
+
+        // --- SCENARIO 5: Demonstrating optic reusability ---
+        System.out.println("--- Scenario 5: Optic Reusability ---");
+
+        List<Form> formsToValidate = List.of(validForm, multipleInvalidForm, guestForm);
+
+        System.out.println("Batch validation results:");
+        formsToValidate.forEach(form -> {
+            Validated<String, Form> result = validateFormPermissions(form);
+            String status = result.isValid() ? "✓ VALID" : "✗ INVALID";
+            System.out.println("  Form " + form.formId() + ": " + status);
+            if (result.isInvalid()) {
+                // Fix: Use getError() instead of getInvalid()
+                System.out.println("    Errors: " + result.getError());
+            }
+        });
+        System.out.println();
+
+        // --- SCENARIO 6: Alternative validation with different error accumulation ---
+        System.out.println("--- Scenario 6: Different Error Accumulation Strategy ---");
+
+        // Use list-based error accumulation instead of string concatenation
+        Applicative<ValidatedKind.Witness<List<String>>> listApplicative =
+                ValidatedMonad.instance(Semigroups.list());
+
+        // Fix: Create a proper function for list validation
+        java.util.function.Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> listValidation =
+                name -> VALID_PERMISSIONS.contains(name)
+                        ? VALIDATED.widen(Validated.valid(name))
+                        : VALIDATED.widen(Validated.invalid(List.of("Invalid permission: " + name)));
+
+        Kind<ValidatedKind.Witness<List<String>>, Form> listResult =
+                FORM_TO_PERMISSION_NAMES.modifyF(listValidation, multipleInvalidForm, listApplicative);
+
+        System.out.println("Input: " + multipleInvalidForm);
+        System.out.println("Result with list accumulation: " + VALIDATED.narrow(listResult));
+    }
 }

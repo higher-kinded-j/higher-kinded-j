@@ -1,7 +1,16 @@
 # Optics - Basic Usage Examples
 
-~~~admonish
+~~~admonish info title="What You'll Learn"
+- Practical application patterns for optics across diverse problem domains
+- Building configuration processors, data validators, and API adapters with optics
+- Creating reusable optic libraries tailored to your specific business needs
+- Performance optimization techniques and benchmarking for complex optic compositions
+- Testing strategies for optic-based data processing pipelines
+- Decision frameworks for choosing the right optic combinations for real-world scenarios
+- Common anti-patterns to avoid and best practices for maintainable optic code
+~~~
 
+~~~admonish title="Example Code"
 This document provides a brief summary of the example classes found in the  `org.higherkindedj.example.optics` package in the [HKJ-Examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics).
 ~~~
 
@@ -156,3 +165,6 @@ These examples focus on using generated traversals for specific collection and c
 
 * **Demonstrates**: Traversing a `Try<Integer>` field.
 * **Scenario**: A `NetworkRequest` record holds the result of an operation that could have thrown an exception, wrapped in a `Try`. The traversal allows modification of the value only if the `Try` is a `Success`, leaving a `Failure` (containing an exception) unchanged.
+
+**Previous:**[Profunctor Optics: Advanced Data Transformation](composing_optics.md)
+**Next:**[Auditing Complex Data: The Power of Optics](auditing_complex_data_example.md)

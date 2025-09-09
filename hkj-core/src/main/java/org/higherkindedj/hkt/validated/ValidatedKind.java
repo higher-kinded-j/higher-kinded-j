@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Kind interface marker for the {@link Validated Validated&lt;E, A&gt;} type in Higher-Kinded-J.

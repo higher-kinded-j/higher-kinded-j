@@ -53,10 +53,8 @@
   - [Isomorphisms](optics/iso.md)
   - [Traversals](optics/traversals.md)
   - [Profunctor Optics](optics/profunctor_optics.md)
-  - [How to use Optics](optics/optics_examples.md)
-  
-# Complete Optics Examples
   - [Combining Optics - Validation](optics/composing_optics.md)
+  - [Practical Examples](optics/optics_examples.md)
   - [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md) 
 
 # More Functional Thinking

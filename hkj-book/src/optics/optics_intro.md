@@ -15,16 +15,14 @@ record User(String name, Address address) {}e
 How do you update the user's street name? In standard Java, you're forced into a "copy-and-update" cascade:
 
 ```java
-// The "classic" approach
-User user = new User("Magnus", new Address(new Street("Main St", 123), "London"));
-
-Street oldStreet = user.address().street();
-Street newStreet = new Street("Broadway", oldStreet.number()); // Create new street
-
-Address oldAddress = user.address();
-Address newAddress = new Address(newStreet, oldAddress.city()); // Create new address
-
-User updatedUser = new User(user.name(), newAddress); // Create new user
+// What most Java developers actually write
+public User updateStreetName(User user, String newStreetName) {
+    var address = user.address();
+    var street = address.street();
+    var newStreet = new Street(newStreetName, street.number());
+    var newAddress = new Address(newStreet, address.city());
+    return new User(user.name(), newAddress);
+}
 ```
 
 This is tedious, hard to read, and gets exponentially worse with deeper nesting. What if there was a way to "zoom in" on the data you want to change, update it, and get a new copy of the top-level object back, all in one clean operation?
@@ -36,6 +34,13 @@ This is the problem that **Optics** solve.
 At their core, optics are simply **composable, functional getters and setters** for immutable data structures.
 
 Think of an optic as a "zoom lens" for your data. It's a first-class object that represents a path from a whole structure (like `User`) to a specific part (like the street `name`). Because it's an object, you can pass it around, compose it with other optics, and use it to perform functional updates.
+
+## Think of Optics Like...
+
+* **Lens**: A magnifying glass that focuses on one specific part 🔎
+* **Prism**: A tool that splits light, but only works with certain types of light 🔬
+* **Iso**: A universal translator between equivalent languages 🔄
+* **Traversal**: A spotlight that can illuminate many targets at once 🗺️
 
 Every optic provides two basic capabilities:
 
@@ -62,12 +67,13 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
   * To solve our initial problem of updating the user's street name, we compose lenses:
 
 ```java
-// Compose lenses to create a direct path to the nested data
-var userToStreetName = UserLenses.address().andThen(AddressLenses.street()).andThen(StreetLenses.name());
-
-// Perform the deep update in a single, readable line
-User updatedUser = userToStreetName.set("New Street", user);
-
+    // Compose lenses to create a direct path to the nested data
+    var userToStreetName = UserLenses.address()
+        .andThen(AddressLenses.street())
+        .andThen(StreetLenses.name());
+  
+    // Perform the deep update in a single, readable line
+    User updatedUser = userToStreetName.set("New Street", user);
 ```
 
 * **Example (Shallow Update with `with*` Helpers)**:
@@ -133,7 +139,8 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
   @GenerateTraversals
   public record OrderData(..., List<String> promoCodes) {}
   var codesTraversal = OrderDataTraversals.promoCodes();
-  var validationFunction = (String code) -> validate(code); // returns Validated<Error, Code>
+  // returns Validated<Error, Code>
+  var validationFunction = (String code) -> validate(code); 
 
   // Use the traversal to apply the function to every code.
   // The Applicative for Validated handles the error accumulation automatically.
@@ -144,7 +151,7 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
 
 ## Advanced Capabilities: Profunctor Adaptations
 
-One of the most powerful features of higher-kinded-j optics is their **profunctor** nature. Every optic can be adapted to work with different source and target types using three key operations:
+One of the most powerful features of `higher-kinded-j` optics is their **profunctor** nature. Every optic can be adapted to work with different source and target types using three key operations:
 
 * **`contramap`**: Adapt an optic to work with a different source type
 * **`map`**: Transform the result type of an optic
@@ -157,10 +164,53 @@ This makes optics incredibly flexible for real-world scenarios like API integrat
 This brings us to the unique advantages `higher-kinded-j` offers for optics in Java.
 
 1. **An Annotation-Driven Workflow**: Manually writing optics is boilerplate. The `higher-kinded-j` approach automates this. By simply adding an annotation (`@GenerateLenses`, `@GeneratePrisms`, etc.) to your data classes, you get fully-functional, type-safe optics for free. This is a massive productivity boost and eliminates a major barrier to using optics in Java.
-2. **Higher-Kinded Types for Effectful Updates**: This is the most powerful feature. Because `higher-kinded-j` provides an HKT abstraction (`Kind<F, A>`) and typeclasses like `Functor` and `Applicative`, the optics can perform *effectful* modifications. The `modifyF` method is generic over an `Applicative` effect `F`. This means you can perform an update within the context of any data type that has an `Applicative` instance:
+2. **Higher-Kinded Types for Effectful Updates**: This is the most powerful feature. Because `higher-kinded-j` provides an HKT abstraction (`Kind<F, A>`) and type classes like `Functor` and `Applicative`, the optics can perform *effectful* modifications. The `modifyF` method is generic over an `Applicative` effect `F`. This means you can perform an update within the context of any data type that has an `Applicative` instance:
    * Want to perform an update that might fail? Use `Optional` or `Either` as your `F`.
    * Want to perform an asynchronous update? Use `CompletableFuture` as your `F`.
    * Want to accumulate validation errors? Use `Validated` as your `F`.
 3. **Profunctor Adaptability**: Every optic is fundamentally a profunctor, meaning it can be adapted to work with different data types and structures. This provides incredible flexibility for integrating with external systems, handling legacy data formats, and working with strongly-typed wrappers.
 
+## Common Patterns
+
+### When to Use `with*` Helpers vs Manual Lenses
+
+* **Use `with*` helpers** for simple, top-level field updates
+* **Use composed lenses** for deep updates or when you need to reuse the path
+* **Use manual lens creation** for computed properties or complex transformations
+
+### Decision Guide
+
+* **Need to focus on a required field?** → **Lens**
+* **Need to work with optional variants?** → **Prism**
+* **Need to convert between equivalent types?** → **Iso**
+* **Need to operate on collections?** → **Traversal**
+* **Need to adapt existing optics?** → **Profunctor operations**
+
+## Common Pitfalls
+
+**❌ Don't do this:**
+
+java
+
+```java
+// Calling get() multiple times is inefficient
+var street = employeeToStreet.get(employee);
+var newEmployee = employeeToStreet.set(street.toUpperCase(), employee);
+```
+
+**✅ Do this instead:**
+
+java
+
+```java
+// Use modify() for transformations
+var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
+```
+
 This level of abstraction allows you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling—a core benefit of functional programming brought to Java by the foundation `higher-kinded-j` provides.
+
+---
+
+**Next:**[Lenses: Working with Product Types](lenses.md)
+
+

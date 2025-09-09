@@ -11,6 +11,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A runnable example demonstrating how to use and compose Traversals to perform bulk updates on
@@ -18,74 +19,108 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
  */
 public class TraversalUsageExample {
 
-  // 1. Define a nested, immutable data model with collections.
-  @GenerateLenses
-  public record Player(String name, int score) {}
+    @GenerateLenses
+    public record Player(String name, int score) {}
 
-  @GenerateLenses
-  @GenerateTraversals // Generates a Traversal for the List<Player>
-  public record Team(String name, List<Player> players) {}
+    @GenerateLenses
+    @GenerateTraversals
+    public record Team(String name, List<Player> players) {}
 
-  @GenerateLenses
-  @GenerateTraversals // Generates a Traversal for the List<Team>
-  public record League(String name, List<Team> teams) {}
+    @GenerateLenses
+    @GenerateTraversals
+    public record League(String name, List<Team> teams) {}
 
-  public static void main(String[] args) {
+    public static void main(String[] args) {
+        var team1 = new Team("Team Alpha", List.of(
+                new Player("Alice", 100),
+                new Player("Bob", 90)
+        ));
+        var team2 = new Team("Team Bravo", List.of(
+                new Player("Charlie", 110),
+                new Player("Diana", 120)
+        ));
+        var league = new League("Pro League", List.of(team1, team2));
 
-    // 2. Create an initial, nested data structure.
-    var team1 = new Team("Team Alpha", List.of(new Player("Alice", 100), new Player("Bob", 90)));
-    var team2 =
-        new Team("Team Bravo", List.of(new Player("Charlie", 110), new Player("Diana", 120)));
-    var league = new League("Pro League", List.of(team1, team2));
+        System.out.println("=== TRAVERSAL USAGE EXAMPLE ===");
+        System.out.println("Original League: " + league);
+        System.out.println("------------------------------------------");
 
-    System.out.println("Original League: " + league);
-    System.out.println("------------------------------------------");
+        // --- SCENARIO 1: Using `with*` helpers for a targeted, shallow update ---
+        System.out.println("--- Scenario 1: Shallow Update with `with*` Helpers ---");
+        var teamToUpdate = league.teams().get(0);
+        var updatedTeam = TeamLenses.withName(teamToUpdate, "Team Omega");
+        var newTeamsList = new ArrayList<>(league.teams());
+        newTeamsList.set(0, updatedTeam);
+        var leagueWithUpdatedTeam = LeagueLenses.withTeams(league, newTeamsList);
 
-    // =======================================================================
-    // SCENARIO 1: Using `with*` helpers for a targeted, shallow update
-    // =======================================================================
-    System.out.println("--- Scenario 1: Using `with*` Helpers ---");
+        System.out.println("After updating one team's name:");
+        System.out.println(leagueWithUpdatedTeam);
+        System.out.println("------------------------------------------");
 
-    // To update a single team's name, we first get the team.
-    var teamToUpdate = league.teams().getFirst();
-    // Use the generated helper to create a new, updated team instance.
-    var updatedTeam = TeamLenses.withName(teamToUpdate, "Team Omega");
+        // --- SCENARIO 2: Using composed Traversals for deep, bulk updates ---
+        System.out.println("--- Scenario 2: Bulk Updates with Composed Traversals ---");
 
-    // Then, we create a new list of teams with the updated one.
-    var newTeamsList = new ArrayList<>(league.teams());
-    newTeamsList.set(0, updatedTeam);
+        // Create the composed traversal
+        Traversal<League, Integer> leagueToAllPlayerScores =
+                LeagueTraversals.teams()
+                        .andThen(TeamTraversals.players())
+                        .andThen(PlayerLenses.score().asTraversal());
 
-    // Finally, use another helper to create the new league instance.
-    var leagueWithUpdatedTeam = LeagueLenses.withTeams(league, newTeamsList);
+        // Use the `modify` helper to add 5 bonus points to every score.
+        League updatedLeague = Traversals.modify(leagueToAllPlayerScores, score -> score + 5, league);
+        System.out.println("After adding 5 bonus points to all players:");
+        System.out.println(updatedLeague);
+        System.out.println();
 
-    System.out.println("After updating one team's name with `with*` helpers:");
-    System.out.println(leagueWithUpdatedTeam);
-    System.out.println("------------------------------------------");
+        // --- SCENARIO 3: Extracting data with `getAll` ---
+        System.out.println("--- Scenario 3: Data Extraction ---");
 
-    // =======================================================================
-    // SCENARIO 2: Using composed Traversals for deep, bulk updates
-    // =======================================================================
-    System.out.println("--- Scenario 2: Using Composed Traversal for Bulk Updates ---");
+        List<Integer> allScores = Traversals.getAll(leagueToAllPlayerScores, league);
+        System.out.println("All player scores: " + allScores);
+        System.out.println("Total players: " + allScores.size());
+        System.out.println("Average score: " + allScores.stream().mapToInt(Integer::intValue).average().orElse(0.0));
+        System.out.println();
 
-    // 3. Compose Traversals and Lenses to create a deep focus.
-    Traversal<League, Team> leagueToTeams = LeagueTraversals.teams();
-    Traversal<Team, Player> teamToPlayers = TeamTraversals.players();
-    Lens<Player, Integer> playerToScore = PlayerLenses.score();
+        // --- SCENARIO 4: Conditional updates ---
+        System.out.println("--- Scenario 4: Conditional Updates ---");
 
-    // Compose them to create a single traversal from the league to every player's score.
-    Traversal<League, Integer> leagueToAllPlayerScores =
-        leagueToTeams.andThen(teamToPlayers).andThen(playerToScore.asTraversal());
+        // Give bonus points only to players with scores >= 100
+        League bonusLeague = Traversals.modify(
+                leagueToAllPlayerScores,
+                score -> score >= 100 ? score + 20 : score,
+                league
+        );
+        System.out.println("After conditional bonus (20 points for scores >= 100):");
+        System.out.println(bonusLeague);
+        System.out.println();
 
-    // 4. Use the composed traversal to perform a bulk update on all scores.
-    var updatedLeague =
-        IdKindHelper.ID
-            .narrow(
-                leagueToAllPlayerScores.modifyF(
-                    score -> Id.of(score + 5), league, IdentityMonad.instance()))
-            .value();
+        // --- SCENARIO 5: Multiple traversals ---
+        System.out.println("--- Scenario 5: Multiple Traversals ---");
 
-    System.out.println("After `modifyF` (adding 5 points to each score):");
-    System.out.println(updatedLeague);
-    System.out.println("------------------------------------------");
-  }
+        // Create a traversal for player names
+        Traversal<League, String> leagueToAllPlayerNames =
+                LeagueTraversals.teams()
+                        .andThen(TeamTraversals.players())
+                        .andThen(PlayerLenses.name().asTraversal());
+
+        // Normalise all names to uppercase
+        League upperCaseLeague = Traversals.modify(leagueToAllPlayerNames, String::toUpperCase, league);
+        System.out.println("After converting all names to uppercase:");
+        System.out.println(upperCaseLeague);
+        System.out.println();
+
+        // --- SCENARIO 6: Working with empty collections ---
+        System.out.println("--- Scenario 6: Empty Collections ---");
+
+        League emptyLeague = new League("Empty League", List.of());
+        List<Integer> emptyScores = Traversals.getAll(leagueToAllPlayerScores, emptyLeague);
+        League emptyAfterUpdate = Traversals.modify(leagueToAllPlayerScores, score -> score + 100, emptyLeague);
+
+        System.out.println("Empty league: " + emptyLeague);
+        System.out.println("Scores from empty league: " + emptyScores);
+        System.out.println("Empty league after update: " + emptyAfterUpdate);
+
+        System.out.println("------------------------------------------");
+        System.out.println("Original league unchanged: " + league);
+    }
 }
