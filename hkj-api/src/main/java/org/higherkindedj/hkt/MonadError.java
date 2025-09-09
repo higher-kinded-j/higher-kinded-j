@@ -30,7 +30,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @param <A> The phantom type parameter of the value (since this represents an error state).
    * @return The error wrapped in the context F. Guaranteed non-null.
    */
-  <A> @NonNull Kind<F, A> raiseError(@Nullable final E error);
+  <A> Kind<F, A> raiseError(@Nullable final E error);
 
   /**
    * Handles an error within the monadic context. If 'ma' represents a success value, it's returned
@@ -45,7 +45,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @return The original monadic value if it was successful, or the result of the handler if it
    *     contained an error. Guaranteed non-null.
    */
-  <A> @NonNull Kind<F, A> handleErrorWith(
+  <A> Kind<F, A> handleErrorWith(
       final Kind<F, A> ma, final Function<? super E, ? extends Kind<F, A>> handler);
 
   /**
@@ -60,7 +60,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @return The original monadic value if successful, or the result of the handler lifted into the
    *     monad if it contained an error. Guaranteed non-null.
    */
-  default <A> @NonNull Kind<F, A> handleError(
+  default <A> Kind<F, A> handleError(
       final Kind<F, A> ma, final Function<? super E, ? extends A> handler) {
     return handleErrorWith(ma, error -> of(handler.apply(error)));
   }
@@ -74,7 +74,7 @@ public interface MonadError<F, E> extends Monad<F> {
    * @param <A> The type of the value within the monad.
    * @return 'ma' if successful, 'fallback' otherwise. Guaranteed non-null.
    */
-  default <A> @NonNull Kind<F, A> recoverWith(final Kind<F, A> ma, final Kind<F, A> fallback) {
+  default <A> Kind<F, A> recoverWith(final Kind<F, A> ma, final Kind<F, A> fallback) {
     return handleErrorWith(ma, error -> fallback);
   }
 

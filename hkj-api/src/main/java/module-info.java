@@ -1,5 +1,5 @@
 module org.higherkindedj.api {
-  requires transitive org.jspecify;
+  requires static org.jspecify;
   requires transitive org.higherkindedj.annotations;
 
   exports org.higherkindedj.hkt;

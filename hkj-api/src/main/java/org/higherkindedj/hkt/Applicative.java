@@ -8,7 +8,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -79,7 +78,7 @@ public interface Applicative<F> extends Functor<F> {
    * @return A non-null {@link Kind Kind&lt;F, A&gt;} representing the value {@code A} wrapped in
    *     the applicative context {@code F}.
    */
-  <A> @NonNull Kind<F, A> of(@Nullable A value);
+  <A> Kind<F, A> of(@Nullable A value);
 
   /**
    * Applies a function wrapped in an applicative context {@code ff} to a value wrapped in the same
@@ -113,7 +112,7 @@ public interface Applicative<F> extends Functor<F> {
    *     "empty" or "failed" context (e.g., {@code Optional.empty()}), the result is typically also
    *     such a context.
    */
-  <A, B> @NonNull Kind<F, B> ap(Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa);
+  <A, B> Kind<F, B> ap(Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa);
 
   // --- mapN implementations ---
 
@@ -132,7 +131,7 @@ public interface Applicative<F> extends Functor<F> {
    * @param <C> The type of the result of the combined computation.
    * @return A non-null {@code Kind<F, C>} containing the result.
    */
-  default <A, B, C> @NonNull Kind<F, C> map2(
+  default <A, B, C> Kind<F, C> map2(
       final Kind<F, A> fa, final Kind<F, B> fb, final Function<A, Function<B, C>> f) {
     // Delegate to the BiFunction version, which is now the base implementation
     return map2(fa, fb, (a, b) -> f.apply(a).apply(b));
@@ -152,7 +151,7 @@ public interface Applicative<F> extends Functor<F> {
    * @param <C> The type of the result of applying {@code f}.
    * @return A non-null {@code Kind<F, C>} containing the result.
    */
-  default <A, B, C> @NonNull Kind<F, C> map2(
+  default <A, B, C> Kind<F, C> map2(
       final Kind<F, A> fa,
       final Kind<F, B> fb,
       final BiFunction<? super A, ? super B, ? extends C> f) {
@@ -178,7 +177,7 @@ public interface Applicative<F> extends Functor<F> {
    * @return A non-null {@code Kind<F, R>} containing the result of applying {@code f} to the values
    *     from {@code fa}, {@code fb}, and {@code fc} within the context {@code F}.
    */
-  default <A, B, C, R> @NonNull Kind<F, R> map3(
+  default <A, B, C, R> Kind<F, R> map3(
       final Kind<F, A> fa,
       final Kind<F, B> fb,
       final Kind<F, C> fc,
@@ -203,7 +202,7 @@ public interface Applicative<F> extends Functor<F> {
    * @return A non-null {@code Kind<F, R>} containing the result of applying {@code f} to the values
    *     from the four applicative arguments within the context {@code F}.
    */
-  default <A, B, C, D, R> @NonNull Kind<F, R> map4(
+  default <A, B, C, D, R> Kind<F, R> map4(
       final Kind<F, A> fa,
       final Kind<F, B> fb,
       final Kind<F, C> fc,
@@ -232,7 +231,7 @@ public interface Applicative<F> extends Functor<F> {
    * @return A non-null {@code Kind<F, R>} containing the result of applying {@code f} to the values
    *     from the five applicative arguments within the context {@code F}.
    */
-  default <A, B, C, D, E, R> @NonNull Kind<F, R> map5(
+  default <A, B, C, D, E, R> Kind<F, R> map5(
       final Kind<F, A> fa,
       final Kind<F, B> fb,
       final Kind<F, C> fc,
