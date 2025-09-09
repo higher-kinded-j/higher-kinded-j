@@ -65,8 +65,6 @@ The most intuitive example of a profunctor is the humble `Function<A, B>`. Funct
 
 Let's see this in action with `FunctionProfunctor`:
 
-```admonish
-
 ```java
 import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 import org.higherkindedj.hkt.func.FunctionProfunctor;
@@ -102,8 +100,6 @@ Function<Integer, String> fullFunc = FUNCTION.getFunction(fullTransform);
 System.out.println(fullFunc.apply(42)); // Output: "Result: 2"
 ```
 
-```
-
 ---
 
 ## Why Profunctors Matter
@@ -114,7 +110,6 @@ Profunctors excel at creating **adaptable data transformation pipelines**. They'
 
 When you need to integrate with external systems that expect different data formats:
 
-```admonish
 
 ```java
 // Core business logic: validate a user
@@ -137,13 +132,10 @@ Kind2<FunctionKind.Witness, UserDto, ApiResponse<ValidationResult>> apiValidator
 Function<UserDto, ApiResponse<ValidationResult>> apiFunc = FUNCTION.getFunction(apiValidator);
 ```
 
-```
-
 ### 2. **Validation Pipelines** ✅
 
 Build reusable validation logic that adapts to different input and output formats:
 
-```admonish
 
 ```java
 // Core validation: check if a number is positive
@@ -169,13 +161,10 @@ System.out.println(validator.apply("42.5"));  // "✓ Valid positive number"
 System.out.println(validator.apply("-10"));   // "✗ Not a positive number"
 ```
 
-```
 
 ### 3. **Data Transformation Chains** 🔗
 
 Chain multiple adaptations to build complex data processing pipelines:
-
-```admonish
 
 ```java
 // Core transformation: User -> UserDto  
@@ -202,8 +191,6 @@ Kind2<FunctionKind.Witness, String, ApiResponse<String>> safeTransform =
         csvToJsonTransform);
 ```
 
-```
-
 ---
 
 ## Profunctor Laws
@@ -228,4 +215,4 @@ Profunctors are ideal when you need to:
 * **Handle both sides of a computation** (input preprocessing and output postprocessing)
 
 The next time you find yourself writing similar functions that differ only in their input parsing or output formatting, consider whether a profunctor could help you write the logic once and adapt it as needed!
-```
+

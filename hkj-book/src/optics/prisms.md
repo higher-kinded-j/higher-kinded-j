@@ -115,7 +115,7 @@ Traversal<JsonObject, String> userNameTraversal =
         .andThen(mapValue("user"))                // -> JsonValue (if "user" key exists)
         .andThen(jsonObjectPrism.asTraversal())   // -> JsonObject (if it's an object)
         .andThen(fieldsLens.asTraversal())        // -> Map<String, JsonValue>
-         .andThen(Traversals.forMap("name")) /    // -> JsonValue (if "name" key exists)
+         .andThen(Traversals.forMap("name"))     // -> JsonValue (if "name" key exists)
         .andThen(jsonStringPrism.asTraversal())   // -> JsonString (if it's a string)
         .andThen(JsonStringLenses.value().asTraversal()); // -> String
 ```

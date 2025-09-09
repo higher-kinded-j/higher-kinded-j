@@ -339,9 +339,6 @@ While `set` and `modify` are for simple, pure updates, the `Lens` interface also
 
 This means you can use the same `employeeToStreet` lens to perform a street name update that involves failable validation or an asynchronous API call, making your business logic incredibly reusable and robust.
 
-
-java
-
 ```java
 // Example: Street validation that might fail
 Function<String, Kind<ValidatedKind.Witness<String>, String>> validateStreet = 
