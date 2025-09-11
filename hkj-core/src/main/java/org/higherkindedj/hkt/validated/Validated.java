@@ -9,7 +9,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.either.Either;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents a value that is either Valid (correct) or Invalid (erroneous). This is a sealed
@@ -67,7 +66,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @param other The value to return if this is {@code Invalid}.
    * @return The value if {@code Valid}, or {@code other}.
    */
-  A orElse(@NonNull A other);
+  A orElse(A other);
 
   /**
    * Returns the value if {@code Valid}, otherwise returns the result of {@code
@@ -77,7 +76,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    *     null and must produce a non-null value.
    * @return The value if {@code Valid}, or the result of the supplier.
    */
-  A orElseGet(@NonNull Supplier<? extends @NonNull A> otherSupplier);
+  A orElseGet(Supplier<? extends A> otherSupplier);
 
   /**
    * Returns the value if {@code Valid}, otherwise throws the exception supplied by {@code
@@ -88,21 +87,21 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @return The value if {@code Valid}.
    * @throws X if this is {@code Invalid}.
    */
-  <X extends Throwable> A orElseThrow(@NonNull Supplier<? extends X> exceptionSupplier) throws X;
+  <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X;
 
   /**
    * Performs the given action with the value if it is {@code Valid}.
    *
    * @param consumer The action to perform. Must not be null.
    */
-  void ifValid(@NonNull Consumer<? super A> consumer);
+  void ifValid(Consumer<? super A> consumer);
 
   /**
    * Performs the given action with the error if it is {@code Invalid}.
    *
    * @param consumer The action to perform. Must not be null.
    */
-  void ifInvalid(@NonNull Consumer<? super E> consumer);
+  void ifInvalid(Consumer<? super E> consumer);
 
   /**
    * Maps the value {@code A} to {@code B} if this is {@code Valid}, otherwise returns the {@code
@@ -112,7 +111,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @param <B> The new value type.
    * @return A {@code Validated<E, B>} instance.
    */
-  @NonNull <B> Validated<E, B> map(@NonNull Function<? super A, ? extends B> fn);
+  <B> Validated<E, B> map(Function<? super A, ? extends B> fn);
 
   /**
    * Applies the function {@code fn} if this is {@code Valid}, otherwise returns the {@code Invalid}
@@ -123,8 +122,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @param <B> The new value type of the resulting {@code Validated}.
    * @return A {@code Validated<E, B>} instance.
    */
-  @NonNull <B> Validated<E, B> flatMap(
-      @NonNull Function<? super A, ? extends @NonNull Validated<E, ? extends B>> fn);
+  <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn);
 
   /**
    * Applies a function contained within a {@code Validated} to this {@code Validated}'s value.
@@ -143,9 +141,8 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @param <B> The new value type.
    * @return A {@code Validated<E, B>} instance.
    */
-  @NonNull <B> Validated<E, B> ap(
-      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated,
-      @NonNull Semigroup<E> semigroup);
+  <B> Validated<E, B> ap(
+      Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup);
 
   /**
    * Applies one of two functions depending on whether this instance is {@link Invalid} or {@link
@@ -157,8 +154,8 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @return The result of applying the appropriate mapping function.
    */
   default <T> T fold(
-      @NonNull Function<? super E, ? extends T> invalidMapper,
-      @NonNull Function<? super A, ? extends T> validMapper) {
+      Function<? super E, ? extends T> invalidMapper,
+      Function<? super A, ? extends T> validMapper) {
     Objects.requireNonNull(invalidMapper, FOLD_INVALID_MAPPER_CANNOT_BE_NULL_MSG);
     Objects.requireNonNull(validMapper, FOLD_VALID_MAPPER_CANNOT_BE_NULL_MSG);
     if (isInvalid()) {
@@ -176,7 +173,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    *
    * @return An {@code Either<E, A>} representing the state of this {@code Validated}.
    */
-  default @NonNull Either<E, A> toEither() {
+  default Either<E, A> toEither() {
     return fold(Either::left, Either::right);
   }
 
@@ -189,7 +186,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @return A {@code Valid<E, A>} instance.
    * @throws NullPointerException if value is null.
    */
-  static <E, A> @NonNull Validated<E, A> valid(@NonNull A value) {
+  static <E, A> Validated<E, A> valid(A value) {
     Objects.requireNonNull(value, VALID_VALUE_CANNOT_BE_NULL_MSG);
     return new Valid<>(value);
   }
@@ -203,7 +200,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @return An {@code Invalid<E, A>} instance.
    * @throws NullPointerException if error is null.
    */
-  static <E, A> @NonNull Validated<E, A> invalid(@NonNull E error) {
+  static <E, A> Validated<E, A> invalid(E error) {
     Objects.requireNonNull(error, INVALID_ERROR_CANNOT_BE_NULL_MSG);
     return new Invalid<>(error);
   }

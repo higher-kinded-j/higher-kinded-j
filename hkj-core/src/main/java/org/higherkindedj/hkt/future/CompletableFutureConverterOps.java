@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.future;
 import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +26,7 @@ public interface CompletableFutureConverterOps {
    *     future.
    * @throws NullPointerException if {@code future} is {@code null}.
    */
-  <A> @NonNull Kind<CompletableFutureKind.Witness, A> widen(@NonNull CompletableFuture<A> future);
+  <A> Kind<CompletableFutureKind.Witness, A> widen(CompletableFuture<A> future);
 
   /**
    * Narrows a {@code Kind<CompletableFutureKind.Witness, A>} back to its concrete {@link
@@ -41,5 +40,5 @@ public interface CompletableFutureConverterOps {
    *     expected underlying holder type, or if the holder internally contains a {@code null}
    *     future.
    */
-  <A> @NonNull CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind);
+  <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind);
 }

@@ -9,7 +9,6 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -76,11 +75,9 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code Kind}.
    */
   @Override
-  public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> flatMap(
-      @NonNull
-          Function<? super @Nullable A, ? extends @NonNull Kind<CompletableFutureKind.Witness, B>>
-          f,
-      @NonNull Kind<CompletableFutureKind.Witness, A> ma) {
+  public <A, B> Kind<CompletableFutureKind.Witness, B> flatMap(
+      Function<? super @Nullable A, ? extends Kind<CompletableFutureKind.Witness, B>> f,
+      Kind<CompletableFutureKind.Witness, A> ma) {
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
     CompletableFuture<B> futureB =
         futureA.thenCompose(
@@ -101,7 +98,7 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    *     CompletableFuture.failedFuture(error)}.
    */
   @Override
-  public <A> @NonNull Kind<CompletableFutureKind.Witness, A> raiseError(@NonNull Throwable error) {
+  public <A> Kind<CompletableFutureKind.Witness, A> raiseError(Throwable error) {
     return FUTURE.widen(CompletableFuture.failedFuture(error));
   }
 
@@ -125,10 +122,9 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    *     successful, or the result from the {@code handler}.
    */
   @Override
-  public <A> @NonNull Kind<CompletableFutureKind.Witness, A> handleErrorWith(
-      @NonNull Kind<CompletableFutureKind.Witness, A> ma,
-      @NonNull Function<? super Throwable, ? extends Kind<CompletableFutureKind.Witness, A>>
-          handler) {
+  public <A> Kind<CompletableFutureKind.Witness, A> handleErrorWith(
+      Kind<CompletableFutureKind.Witness, A> ma,
+      Function<? super Throwable, ? extends Kind<CompletableFutureKind.Witness, A>> handler) {
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
 
     // Optimization: If already successfully completed, no need to attach handler.

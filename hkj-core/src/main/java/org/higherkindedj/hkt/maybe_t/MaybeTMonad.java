@@ -11,7 +11,6 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  * @param <F> The witness type of the outer monad (e.g., {@code OptionalKind.Witness}).
  */
 public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
-  private final @NonNull Monad<F> outerMonad;
+  private final Monad<F> outerMonad;
 
   /**
    * Constructs a {@code MaybeTMonad} instance.
@@ -35,7 +34,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    * @param outerMonad The {@link Monad} instance for the outer monad {@code F}. Must not be null.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public MaybeTMonad(@NonNull Monad<F> outerMonad) {
+  public MaybeTMonad(Monad<F> outerMonad) {
     this.outerMonad =
         Objects.requireNonNull(outerMonad, "Outer Monad instance cannot be null for MaybeTMonad");
   }
@@ -50,7 +49,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    * @return A {@code Kind<MaybeTKind.Witness<F>, A>} representing the lifted value.
    */
   @Override
-  public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> of(@Nullable A value) {
+  public <A> Kind<MaybeTKind.Witness<F>, A> of(@Nullable A value) {
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.fromNullable(value));
     return MAYBE_T.widen(MaybeT.fromKind(lifted));
   }
@@ -69,8 +68,8 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    * @return A new {@code Kind<MaybeTKind.Witness<F>, B>} with the function applied.
    */
   @Override
-  public <A, B> @NonNull Kind<MaybeTKind.Witness<F>, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<MaybeTKind.Witness<F>, A> fa) {
+  public <A, B> Kind<MaybeTKind.Witness<F>, B> map(
+      Function<? super A, ? extends B> f, Kind<MaybeTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(f, "Function f cannot be null for map");
     Objects.requireNonNull(fa, "Kind fa cannot be null for map");
     MaybeT<F, A> maybeT = MAYBE_T.narrow(fa);
@@ -100,9 +99,8 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    * @return A new {@code Kind<MaybeTKind.Witness<F>, B>} representing the application.
    */
   @Override
-  public <A, B> @NonNull Kind<MaybeTKind.Witness<F>, B> ap(
-      @NonNull Kind<MaybeTKind.Witness<F>, ? extends Function<A, B>> ff,
-      @NonNull Kind<MaybeTKind.Witness<F>, A> fa) {
+  public <A, B> Kind<MaybeTKind.Witness<F>, B> ap(
+      Kind<MaybeTKind.Witness<F>, ? extends Function<A, B>> ff, Kind<MaybeTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
     Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
     MaybeT<F, ? extends Function<A, B>> funcT = MAYBE_T.narrow(ff);
@@ -131,9 +129,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    * @return A new {@code Kind<MaybeTKind.Witness<F>, B>}.
    */
   @Override
-  public <A, B> @NonNull Kind<MaybeTKind.Witness<F>, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<MaybeTKind.Witness<F>, B>> f,
-      @NonNull Kind<MaybeTKind.Witness<F>, A> ma) {
+  public <A, B> Kind<MaybeTKind.Witness<F>, B> flatMap(
+      Function<? super A, ? extends Kind<MaybeTKind.Witness<F>, B>> f,
+      Kind<MaybeTKind.Witness<F>, A> ma) {
     Objects.requireNonNull(f, "Function f cannot be null for flatMap");
     Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
     MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
@@ -168,7 +166,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    * @return A {@code Kind<MaybeTKind.Witness<F>, A>} representing {@code F<Nothing>}.
    */
   @Override
-  public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> raiseError(@NonNull Unit error) {
+  public <A> Kind<MaybeTKind.Witness<F>, A> raiseError(@Nullable Unit error) {
     return MAYBE_T.widen(MaybeT.nothing(outerMonad));
   }
 
@@ -188,9 +186,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    *     handler.
    */
   @Override
-  public <A> @NonNull Kind<MaybeTKind.Witness<F>, A> handleErrorWith(
-      @NonNull Kind<MaybeTKind.Witness<F>, A> ma,
-      @NonNull Function<? super Unit, ? extends Kind<MaybeTKind.Witness<F>, A>> handler) {
+  public <A> Kind<MaybeTKind.Witness<F>, A> handleErrorWith(
+      Kind<MaybeTKind.Witness<F>, A> ma,
+      Function<? super Unit, ? extends Kind<MaybeTKind.Witness<F>, A>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
     MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);

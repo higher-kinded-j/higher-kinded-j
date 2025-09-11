@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.io;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -26,7 +25,7 @@ public interface IOConverterOps {
    *     computation.
    * @throws NullPointerException if {@code io} is {@code null}.
    */
-  <A> @NonNull Kind<IOKind.Witness, A> widen(@NonNull IO<A> io);
+  <A> Kind<IOKind.Witness, A> widen(IO<A> io);
 
   /**
    * Narrows a {@code Kind<IOKind.Witness, A>} back to its concrete {@link IO<A>} type.
@@ -37,5 +36,5 @@ public interface IOConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is {@code null}, or not an instance of
    *     the expected underlying holder type for IO.
    */
-  <A> @NonNull IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind);
+  <A> IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind);
 }

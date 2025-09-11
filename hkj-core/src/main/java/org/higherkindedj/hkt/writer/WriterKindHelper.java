@@ -7,7 +7,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -45,7 +44,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @param <A> The value type.
    * @param writer The non-null {@link Writer Writer&lt;W, A&gt;} instance.
    */
-  record WriterHolder<W, A>(@NonNull Writer<W, A> writer) implements WriterKind<W, A> {}
+  record WriterHolder<W, A>(Writer<W, A> writer) implements WriterKind<W, A> {}
 
   /**
    * Widens a concrete {@link Writer Writer&lt;W, A&gt;} instance into its higher-kinded
@@ -61,7 +60,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @throws NullPointerException if {@code writer} is null.
    */
   @Override
-  public <W, A> @NonNull Kind<WriterKind.Witness<W>, A> widen(@NonNull Writer<W, A> writer) {
+  public <W, A> Kind<WriterKind.Witness<W>, A> widen(Writer<W, A> writer) {
     Objects.requireNonNull(writer, "Input Writer cannot be null for widen");
     return new WriterHolder<>(writer);
   }
@@ -80,7 +79,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <W, A> @NonNull Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
+  public <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case WriterKindHelper.WriterHolder<?, ?> holder -> (Writer<W, A>) holder.writer();
@@ -100,8 +99,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @param value The computed value. Can be {@code @Nullable}.
    * @return A {@code Kind<WriterKind.Witness<W>, A>} representing the value with an empty log.
    */
-  public <W, A> @NonNull Kind<WriterKind.Witness<W>, A> value(
-      @NonNull Monoid<W> monoidW, @Nullable A value) {
+  public <W, A> Kind<WriterKind.Witness<W>, A> value(Monoid<W> monoidW, @Nullable A value) {
     return this.widen(Writer.value(monoidW, value));
   }
 
@@ -110,11 +108,11 @@ public enum WriterKindHelper implements WriterConverterOps {
    * Unit#INSTANCE} value.
    *
    * @param <W> The type of the accumulated log/output.
-   * @param log The log message to accumulate. Must be {@code @NonNull}.
+   * @param log The log message to accumulate. Must be {@code }.
    * @return A {@code Kind<WriterKind.Witness<W>, Unit>} representing only the log action.
    * @throws NullPointerException if {@code log} is null (delegated to Writer.tell).
    */
-  public <W> @NonNull Kind<WriterKind.Witness<W>, Unit> tell(@NonNull W log) {
+  public <W> Kind<WriterKind.Witness<W>, Unit> tell(W log) {
     Objects.requireNonNull(log, "Log message for tell cannot be null");
     return this.widen(Writer.tell(log));
   }
@@ -130,7 +128,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @return The {@link Writer Writer&lt;W, A&gt;} record containing the final value and log.
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    */
-  public <W, A> @NonNull Writer<W, A> runWriter(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
+  public <W, A> Writer<W, A> runWriter(Kind<WriterKind.Witness<W>, A> kind) {
     return this.narrow(kind);
   }
 
@@ -145,7 +143,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @return The computed value {@code A}.
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    */
-  public <W, A> @Nullable A run(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
+  public <W, A> @Nullable A run(Kind<WriterKind.Witness<W>, A> kind) {
     return this.narrow(kind).run();
   }
 
@@ -160,7 +158,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @return The accumulated log {@code W}.
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    */
-  public <W, A> @NonNull W exec(@NonNull Kind<WriterKind.Witness<W>, A> kind) {
+  public <W, A> W exec(Kind<WriterKind.Witness<W>, A> kind) {
     return this.narrow(kind).exec();
   }
 }

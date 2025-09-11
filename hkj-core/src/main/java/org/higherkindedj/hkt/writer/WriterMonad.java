@@ -8,7 +8,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Monad} interface for the {@link Writer} type. This provides the full
@@ -35,7 +34,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
    * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must not be null. This
    *     is essential for combining logs in {@code flatMap}.
    */
-  public WriterMonad(@NonNull Monoid<W> monoidW) {
+  public WriterMonad(Monoid<W> monoidW) {
     super(monoidW);
   }
 
@@ -58,9 +57,9 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
    *     B>}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<WriterKind.Witness<W>, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
-      @NonNull Kind<WriterKind.Witness<W>, A> ma) {
+  public <A, B> Kind<WriterKind.Witness<W>, B> flatMap(
+      Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
+      Kind<WriterKind.Witness<W>, A> ma) {
 
     Writer<W, A> writerA = WRITER.narrow(ma);
 

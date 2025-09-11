@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.optional;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,7 +27,7 @@ public interface OptionalConverterOps {
    *     Optional}.
    * @throws NullPointerException if {@code optional} is {@code null}.
    */
-  <A> @NonNull Kind<OptionalKind.Witness, A> widen(@NonNull Optional<A> optional);
+  <A> Kind<OptionalKind.Witness, A> widen(Optional<A> optional);
 
   /**
    * Narrows a {@code Kind<OptionalKind.Witness, A>} back to its concrete {@link Optional}{@code
@@ -40,5 +39,5 @@ public interface OptionalConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is {@code null}, or not an instance of
    *     the expected underlying holder type for Optional.
    */
-  <A> @NonNull Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind);
+  <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind);
 }

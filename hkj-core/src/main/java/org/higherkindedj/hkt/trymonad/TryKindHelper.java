@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -54,7 +53,7 @@ public enum TryKindHelper implements TryConverterOps {
    * @throws NullPointerException if {@code tryInstance} is {@code null}.
    */
   @Override
-  public <A> @NonNull Kind<TryKind.Witness, A> widen(@NonNull Try<A> tryInstance) {
+  public <A> Kind<TryKind.Witness, A> widen(Try<A> tryInstance) {
     Objects.requireNonNull(tryInstance, "Input Try cannot be null for widen");
     return new TryHolder<>(tryInstance);
   }
@@ -73,7 +72,7 @@ public enum TryKindHelper implements TryConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <A> @NonNull Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
+  public <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case TryKindHelper.TryHolder<?> holder -> {
@@ -95,7 +94,7 @@ public enum TryKindHelper implements TryConverterOps {
    * @param value The successful value.
    * @return A non-null {@code Kind<TryKind.Witness, A>} representing the successful computation.
    */
-  public <A> @NonNull Kind<TryKind.Witness, A> success(@Nullable A value) {
+  public <A> Kind<TryKind.Witness, A> success(@Nullable A value) {
     return this.widen(Try.success(value));
   }
 
@@ -107,7 +106,7 @@ public enum TryKindHelper implements TryConverterOps {
    * @param throwable The non-null {@link Throwable} representing the failure.
    * @return A non-null {@code Kind<TryKind.Witness, A>} representing the failed computation.
    */
-  public <A> @NonNull Kind<TryKind.Witness, A> failure(@NonNull Throwable throwable) {
+  public <A> Kind<TryKind.Witness, A> failure(Throwable throwable) {
     return this.widen(Try.failure(throwable));
   }
 
@@ -119,7 +118,7 @@ public enum TryKindHelper implements TryConverterOps {
    * @param supplier The non-null {@link Supplier} to execute.
    * @return A non-null {@code Kind<TryKind.Witness, A>} representing the outcome.
    */
-  public <A> @NonNull Kind<TryKind.Witness, A> tryOf(@NonNull Supplier<? extends A> supplier) {
+  public <A> Kind<TryKind.Witness, A> tryOf(Supplier<? extends A> supplier) {
     return this.widen(Try.of(supplier));
   }
 }

@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link MonadError} interface for the {@link Try} data type.
@@ -61,9 +60,8 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * @return A new {@code Kind<TryKind.Witness, B>} representing the composed operation. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<TryKind.Witness, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<TryKind.Witness, B>> f,
-      @NonNull Kind<TryKind.Witness, A> ma) {
+  public <A, B> Kind<TryKind.Witness, B> flatMap(
+      Function<? super A, ? extends Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma) {
     Try<A> tryA = TRY.narrow(ma);
 
     Try<B> resultTry =
@@ -88,7 +86,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.failure(error)}.
    */
   @Override
-  public <A> @NonNull Kind<TryKind.Witness, A> raiseError(@NonNull Throwable error) {
+  public <A> Kind<TryKind.Witness, A> raiseError(Throwable error) {
     return TRY.widen(Try.failure(error));
   }
 
@@ -105,9 +103,9 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    *     result of the error handler.
    */
   @Override
-  public <A> @NonNull Kind<TryKind.Witness, A> handleErrorWith(
-      @NonNull Kind<TryKind.Witness, A> ma,
-      @NonNull Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
+  public <A> Kind<TryKind.Witness, A> handleErrorWith(
+      Kind<TryKind.Witness, A> ma,
+      Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
     Try<A> tryA = TRY.narrow(ma);
 
     Try<A> resultTry =

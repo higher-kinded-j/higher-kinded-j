@@ -7,7 +7,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -78,7 +77,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
+      Function<? super A, ? extends B> f, Kind<StateTKind.Witness<S, F>, A> fa) {
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s ->
@@ -126,8 +125,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
-      @NonNull Kind<StateTKind.Witness<S, F>, ? extends Function<A, B>> ff,
-      @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
+      Kind<StateTKind.Witness<S, F>, ? extends Function<A, B>> ff,
+      Kind<StateTKind.Witness<S, F>, A> fa) {
     StateT<S, F, ? extends Function<A, B>> stateTf = StateTKind.narrow(ff);
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
@@ -195,9 +194,9 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    *     StateTKind.narrow(fa).runStateT(s0))}.
    */
   @Override
-  public <A, B> @NonNull Kind<StateTKind.Witness<S, F>, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
-      @NonNull Kind<StateTKind.Witness<S, F>, A> fa) {
+  public <A, B> Kind<StateTKind.Witness<S, F>, B> flatMap(
+      Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
+      Kind<StateTKind.Witness<S, F>, A> fa) {
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =

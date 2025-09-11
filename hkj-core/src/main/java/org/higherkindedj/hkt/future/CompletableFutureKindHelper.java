@@ -7,7 +7,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -59,8 +58,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    * @throws NullPointerException if {@code future} is {@code null}.
    */
   @Override
-  public <A> @NonNull Kind<CompletableFutureKind.Witness, A> widen(
-      @NonNull CompletableFuture<A> future) {
+  public <A> Kind<CompletableFutureKind.Witness, A> widen(CompletableFuture<A> future) {
     Objects.requireNonNull(future, INVALID_KIND_TYPE_NULL_MSG);
     return new CompletableFutureHolder<>(future);
   }
@@ -79,8 +77,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <A> @NonNull CompletableFuture<A> narrow(
-      @Nullable Kind<CompletableFutureKind.Witness, A> kind) {
+  public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case CompletableFutureKindHelper.CompletableFutureHolder<?> holder -> {
@@ -107,7 +104,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    * @throws CompletionException if the future completed exceptionally.
    * @throws java.util.concurrent.CancellationException if the future was cancelled.
    */
-  public <A> @NonNull A join(@NonNull Kind<CompletableFutureKind.Witness, A> kind) {
+  public <A> A join(Kind<CompletableFutureKind.Witness, A> kind) {
     CompletableFuture<A> future = this.narrow(kind); // Uses instance method narrow
     try {
       return future.join();

@@ -9,7 +9,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -29,14 +28,13 @@ public final class MaybeMonad extends MaybeFunctor
   }
 
   @Override
-  public <A> @NonNull Kind<MaybeKind.Witness, A> of(@Nullable A value) {
+  public <A> Kind<MaybeKind.Witness, A> of(@Nullable A value) {
     return MAYBE.widen(Maybe.fromNullable(value));
   }
 
   @Override
-  public <A, B> @NonNull Kind<MaybeKind.Witness, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<MaybeKind.Witness, B>> f,
-      @NonNull Kind<MaybeKind.Witness, A> ma) {
+  public <A, B> Kind<MaybeKind.Witness, B> flatMap(
+      Function<? super A, ? extends Kind<MaybeKind.Witness, B>> f, Kind<MaybeKind.Witness, A> ma) {
     Maybe<A> maybeA = MAYBE.narrow(ma);
 
     Maybe<B> resultMaybe =
@@ -50,9 +48,8 @@ public final class MaybeMonad extends MaybeFunctor
   }
 
   @Override
-  public <A, B> @NonNull Kind<MaybeKind.Witness, B> ap(
-      @NonNull Kind<MaybeKind.Witness, ? extends Function<A, B>> ff,
-      @NonNull Kind<MaybeKind.Witness, A> fa) {
+  public <A, B> Kind<MaybeKind.Witness, B> ap(
+      Kind<MaybeKind.Witness, ? extends Function<A, B>> ff, Kind<MaybeKind.Witness, A> fa) {
     Maybe<? extends Function<A, B>> maybeF = MAYBE.narrow(ff);
     Maybe<A> maybeA = MAYBE.narrow(fa);
 
@@ -72,7 +69,7 @@ public final class MaybeMonad extends MaybeFunctor
    * @return A MaybeKind representing Nothing. (NonNull)
    */
   @Override
-  public <A> @NonNull Kind<MaybeKind.Witness, A> raiseError(@NonNull Unit error) {
+  public <A> Kind<MaybeKind.Witness, A> raiseError(Unit error) {
     return MAYBE.nothing();
   }
 
@@ -88,9 +85,9 @@ public final class MaybeMonad extends MaybeFunctor
    * @return Original Kind if Just, or result of handler if Nothing. (NonNull)
    */
   @Override
-  public <A> @NonNull Kind<MaybeKind.Witness, A> handleErrorWith(
-      @NonNull Kind<MaybeKind.Witness, A> ma,
-      @NonNull Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler) {
+  public <A> Kind<MaybeKind.Witness, A> handleErrorWith(
+      Kind<MaybeKind.Witness, A> ma,
+      Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler) {
     return MAYBE.narrow(ma).isNothing() ? handler.apply(Unit.INSTANCE) : ma;
   }
 

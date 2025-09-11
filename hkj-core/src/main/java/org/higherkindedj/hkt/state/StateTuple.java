@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.state;
 import java.util.Objects;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -38,7 +37,7 @@ import org.jspecify.annotations.Nullable;
  * @see Unit
  */
 @GenerateLenses
-public record StateTuple<S, A>(@Nullable A value, @NonNull S state) {
+public record StateTuple<S, A>(@Nullable A value, S state) {
 
   /**
    * Compact constructor for {@link StateTuple}. Ensures that the {@code state} component is never
@@ -68,7 +67,7 @@ public record StateTuple<S, A>(@Nullable A value, @NonNull S state) {
    * @return A new, non-null {@link StateTuple} instance.
    * @throws NullPointerException if {@code state} is {@code null}.
    */
-  public static <S, A> @NonNull StateTuple<S, A> of(@NonNull S state, @Nullable A value) {
+  public static <S, A> StateTuple<S, A> of(S state, @Nullable A value) {
     return new StateTuple<>(value, state);
   }
 }

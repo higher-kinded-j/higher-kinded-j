@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Functor} interface for the {@link Writer} type. This allows mapping a
@@ -38,8 +37,8 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
    *     Writer<W, B>}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<WriterKind.Witness<W>, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<WriterKind.Witness<W>, A> fa) {
+  public <A, B> Kind<WriterKind.Witness<W>, B> map(
+      Function<? super A, ? extends B> f, Kind<WriterKind.Witness<W>, A> fa) {
     Writer<W, A> writerA = WRITER.narrow(fa);
     Writer<W, B> writerB = writerA.map(f);
     return WRITER.widen(writerB);

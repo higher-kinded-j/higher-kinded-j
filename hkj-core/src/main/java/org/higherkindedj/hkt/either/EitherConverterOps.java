@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +26,7 @@ public interface EitherConverterOps {
    *     Either}.
    * @throws NullPointerException if {@code either} is {@code null}.
    */
-  <L, R> @NonNull Kind<EitherKind.Witness<L>, R> widen(@NonNull Either<L, R> either);
+  <L, R> Kind<EitherKind.Witness<L>, R> widen(Either<L, R> either);
 
   /**
    * Narrows a {@code Kind<EitherKind.Witness<L>, R>} back to its concrete {@code Either<L, R>}
@@ -40,5 +39,5 @@ public interface EitherConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not a representation
    *     of an {@code Either<L,R>}.
    */
-  <L, R> @NonNull Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind);
+  <L, R> Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind);
 }

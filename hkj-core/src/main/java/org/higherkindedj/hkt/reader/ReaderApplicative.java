@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -43,7 +42,7 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    *     run, yields the given {@code value}. Never null.
    */
   @Override
-  public <A> @NonNull Kind<ReaderKind.Witness<R>, A> of(@Nullable A value) {
+  public <A> Kind<ReaderKind.Witness<R>, A> of(@Nullable A value) {
     // Reader.constant(value) creates a Reader that ignores the environment and returns the value.
     return READER.constant(value);
   }
@@ -67,9 +66,8 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    *     results from applying the function. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> ap(
-      @NonNull Kind<ReaderKind.Witness<R>, ? extends Function<A, B>> ff,
-      @NonNull Kind<ReaderKind.Witness<R>, A> fa) {
+  public <A, B> Kind<ReaderKind.Witness<R>, B> ap(
+      Kind<ReaderKind.Witness<R>, ? extends Function<A, B>> ff, Kind<ReaderKind.Witness<R>, A> fa) {
 
     Reader<R, ? extends Function<A, B>> readerF = READER.narrow(ff);
     Reader<R, A> readerA = READER.narrow(fa);

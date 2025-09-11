@@ -8,7 +8,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -47,8 +46,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @throws NullPointerException if {@code stateT} is {@code null}.
    */
   @Override
-  public <S, F, A> @NonNull Kind<StateTKind.Witness<S, F>, A> widen(
-      @NonNull StateT<S, F, A> stateT) {
+  public <S, F, A> Kind<StateTKind.Witness<S, F>, A> widen(StateT<S, F, A> stateT) {
     Objects.requireNonNull(stateT, INVALID_KIND_TYPE_NULL_MSG);
     return stateT;
   }
@@ -66,8 +64,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    *     instance.
    */
   @Override
-  public <S, F, A> @NonNull StateT<S, F, A> narrow(
-      @Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
+  public <S, F, A> StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
     if (kind == null) {
       throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
     }
@@ -84,8 +81,8 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @param monadF The non-null {@link Monad} instance for the underlying monad {@code F}.
    * @return A new, non-null {@link StateT} instance.
    */
-  public <S, F, A> @NonNull StateT<S, F, A> stateT(
-      @NonNull Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, @NonNull Monad<F> monadF) {
+  public <S, F, A> StateT<S, F, A> stateT(
+      Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
     return StateT.create(runStateTFn, monadF);
   }
 
@@ -97,7 +94,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @param fa The non-null computation {@code Kind<F, A>}.
    * @return A new, non-null {@link StateT} instance wrapping the lifted computation.
    */
-  public <S, F, A> @NonNull StateT<S, F, A> lift(@NonNull Monad<F> monadF, @NonNull Kind<F, A> fa) {
+  public <S, F, A> StateT<S, F, A> lift(Monad<F> monadF, Kind<F, A> fa) {
     Objects.requireNonNull(monadF, "Monad<F> for lift cannot be null.");
     Objects.requireNonNull(fa, "Kind<F, A> to lift cannot be null.");
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.map(a -> StateTuple.of(s, a), fa);
@@ -113,8 +110,8 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @param initialState The initial state.
    * @return A {@code Kind<F, StateTuple<S, A>>}.
    */
-  public <S, F, A> @NonNull Kind<F, StateTuple<S, A>> runStateT(
-      @NonNull Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
+  public <S, F, A> Kind<F, StateTuple<S, A>> runStateT(
+      Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     return this.narrow(kind).runStateT(initialState);
   }
 
@@ -125,8 +122,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @param initialState The initial state.
    * @return A {@code Kind<F, A>} representing the final value.
    */
-  public <S, F, A> @NonNull Kind<F, A> evalStateT(
-      @NonNull Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
+  public <S, F, A> Kind<F, A> evalStateT(Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     return this.narrow(kind).evalStateT(initialState);
   }
 
@@ -137,8 +133,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @param initialState The initial state.
    * @return A {@code Kind<F, S>} representing the final state.
    */
-  public <S, F, A> @NonNull Kind<F, S> execStateT(
-      @NonNull Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
+  public <S, F, A> Kind<F, S> execStateT(Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
     return this.narrow(kind).execStateT(initialState);
   }
 }

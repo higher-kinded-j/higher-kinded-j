@@ -9,7 +9,6 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.jspecify.annotations.NonNull;
 
 /**
  * The Traverse and Foldable instance for {@link Try}.
@@ -21,17 +20,17 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   INSTANCE;
 
   @Override
-  public <A, B> @NonNull Kind<TryKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<TryKind.Witness, A> fa) {
+  public <A, B> Kind<TryKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
     // Delegate to Try's own map method and widen the result.
     return TRY.widen(TRY.narrow(fa).map(f));
   }
 
   @Override
-  public <G, A, B> @NonNull Kind<G, Kind<TryKind.Witness, B>> traverse(
-      @NonNull Applicative<G> applicative,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
-      @NonNull Kind<TryKind.Witness, A> ta) {
+  public <G, A, B> Kind<G, Kind<TryKind.Witness, B>> traverse(
+      Applicative<G> applicative,
+      Function<? super A, ? extends Kind<G, ? extends B>> f,
+      Kind<TryKind.Witness, A> ta) {
 
     return TRY.narrow(ta)
         .fold(
@@ -44,9 +43,7 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
 
   @Override
   public <A, M> M foldMap(
-      @NonNull Monoid<M> monoid,
-      @NonNull Function<? super A, ? extends M> f,
-      @NonNull Kind<TryKind.Witness, A> fa) {
+      Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<TryKind.Witness, A> fa) {
 
     // If the Try is a Success, apply the function `f` to the value.
     // If it's a Failure, return the identity element of the Monoid.

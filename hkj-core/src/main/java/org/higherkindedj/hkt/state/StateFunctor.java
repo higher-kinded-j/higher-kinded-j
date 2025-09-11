@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -60,9 +59,8 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   @Override
-  public <A, B> @NonNull Kind<StateKind.Witness<S>, B> map(
-      @NonNull Function<? super A, ? extends @Nullable B> f,
-      @NonNull Kind<StateKind.Witness<S>, A> fa) {
+  public <A, B> Kind<StateKind.Witness<S>, B> map(
+      Function<? super A, ? extends @Nullable B> f, Kind<StateKind.Witness<S>, A> fa) {
     requireNonNull(f, "Mapping function cannot be null");
 
     // 1. Unwrap the Kind to get the concrete State<S, A>.

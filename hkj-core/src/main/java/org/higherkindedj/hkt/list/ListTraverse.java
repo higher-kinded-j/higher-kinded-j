@@ -13,7 +13,6 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -57,7 +56,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    *     applying the function {@code f}.
    */
   @Override
-  public <A, B> @NonNull Kind<ListKind.Witness, B> map(
+  public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
     // For lists, mapping is equivalent to the Functor implementation.
     return ListFunctor.INSTANCE.map(f, fa);
@@ -83,7 +82,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    *     applicative context {@code G}.
    */
   @Override
-  public <G, A, B> @NonNull Kind<G, Kind<ListKind.Witness, B>> traverse(
+  public <G, A, B> Kind<G, Kind<ListKind.Witness, B>> traverse(
       Applicative<G> applicative,
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ListKind.Witness, A> ta) {

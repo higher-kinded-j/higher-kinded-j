@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -46,7 +45,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @param <A> The value type of the {@code Reader}.
    * @param reader The non-null, actual {@link Reader Reader&lt;R, A&gt;} instance.
    */
-  record ReaderHolder<R, A>(@NonNull Reader<R, A> reader) implements ReaderKind<R, A> {}
+  record ReaderHolder<R, A>(Reader<R, A> reader) implements ReaderKind<R, A> {}
 
   /**
    * Widens a concrete {@link Reader Reader&lt;R, A&gt;} instance into its higher-kinded
@@ -62,7 +61,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws NullPointerException if {@code reader} is {@code null}.
    */
   @Override
-  public <R, A> @NonNull Kind<ReaderKind.Witness<R>, A> widen(@NonNull Reader<R, A> reader) {
+  public <R, A> Kind<ReaderKind.Witness<R>, A> widen(Reader<R, A> reader) {
     Objects.requireNonNull(reader, INVALID_KIND_TYPE_NULL_MSG);
     return new ReaderHolder<>(reader);
   }
@@ -81,10 +80,10 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <R, A> @NonNull Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
+  public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(ReaderKindHelper.INVALID_KIND_NULL_MSG);
-      // ReaderHolder's record component 'reader' is @NonNull.
+      // ReaderHolder's record component 'reader' is .
       case ReaderKindHelper.ReaderHolder<?, ?> holder -> (Reader<R, A>) holder.reader();
       default ->
           throw new KindUnwrapException(
@@ -101,8 +100,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @param runFunction The non-null function {@code (R -> A)} defining the reader's computation.
    * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the {@code Reader}.
    */
-  public <R, A> @NonNull Kind<ReaderKind.Witness<R>, A> reader(
-      @NonNull Function<R, A> runFunction) {
+  public <R, A> Kind<ReaderKind.Witness<R>, A> reader(Function<R, A> runFunction) {
     return this.widen(Reader.of(runFunction));
   }
 
@@ -116,7 +114,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the constant {@code
    *     Reader}.
    */
-  public <R, A> @NonNull Kind<ReaderKind.Witness<R>, A> constant(@Nullable A value) {
+  public <R, A> Kind<ReaderKind.Witness<R>, A> constant(@Nullable A value) {
     return this.widen(Reader.constant(value));
   }
 
@@ -128,7 +126,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, R>} representing the "ask" {@code
    *     Reader}.
    */
-  public <R> @NonNull Kind<ReaderKind.Witness<R>, R> ask() {
+  public <R> Kind<ReaderKind.Witness<R>, R> ask() {
     return this.widen(Reader.ask());
   }
 
@@ -145,8 +143,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    * @throws NullPointerException if {@code environment} is {@code null}.
    */
-  public <R, A> @Nullable A runReader(
-      @NonNull Kind<ReaderKind.Witness<R>, A> kind, @NonNull R environment) {
+  public <R, A> @Nullable A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment) {
     return this.narrow(kind).run(environment);
   }
 }

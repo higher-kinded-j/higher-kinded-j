@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Functor} interface for {@link Try}, using {@link TryKind.Witness}.
@@ -27,8 +26,8 @@ public class TryFunctor implements Functor<TryKind.Witness> {
    * @return A new {@code Kind<TryKind.Witness, B>} representing the result of the map operation.
    */
   @Override
-  public <A, B> @NonNull Kind<TryKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<TryKind.Witness, A> fa) {
+  public <A, B> Kind<TryKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
     Try<A> tryA = TRY.narrow(fa);
     Try<B> resultTry = tryA.map(f);
     return TRY.widen(resultTry);

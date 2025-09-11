@@ -5,12 +5,11 @@ package org.higherkindedj.hkt.maybe;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /** Concrete implementation of Maybe representing the presence of a value. */
 // Value must be NonNull because Maybe.just requires it
-record Just<T extends @NonNull Object>(@NonNull T value) implements Maybe<T> {
+record Just<T extends Object>(T value) implements Maybe<T> {
   // Constructor implicitly checks value is non-null via Maybe.just factory
 
   @Override
@@ -24,30 +23,29 @@ record Just<T extends @NonNull Object>(@NonNull T value) implements Maybe<T> {
   }
 
   @Override
-  public @NonNull T get() {
+  public T get() {
     return value;
   } // Value is guaranteed non-null
 
   @Override
-  public @NonNull T orElse(@NonNull T other) {
+  public T orElse(T other) {
     return value;
   }
 
   @Override
-  public @NonNull T orElseGet(@NonNull Supplier<? extends @NonNull T> other) {
+  public T orElseGet(Supplier<? extends T> other) {
     return value;
   }
 
   @Override
-  public @NonNull <U> Maybe<U> map(@NonNull Function<? super T, ? extends @Nullable U> mapper) {
+  public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
     Objects.requireNonNull(mapper, "mapper function cannot be null");
     // Use fromNullable to handle cases where the mapper might return null
     return Maybe.fromNullable(mapper.apply(value)); // Result of apply is Nullable
   }
 
   @Override
-  public @NonNull <U> Maybe<U> flatMap(
-      @NonNull Function<? super T, ? extends @NonNull Maybe<? extends U>> mapper) {
+  public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
     Objects.requireNonNull(mapper, "mapper function cannot be null");
     Maybe<? extends U> result =
         mapper.apply(value); // apply expects NonNull T, returns NonNull Maybe
@@ -60,7 +58,7 @@ record Just<T extends @NonNull Object>(@NonNull T value) implements Maybe<T> {
   }
 
   @Override
-  public @NonNull String toString() {
+  public String toString() {
     return "Just(" + value + ")";
   }
 }

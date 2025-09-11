@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.writer;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,7 +27,7 @@ public interface WriterConverterOps {
    *     Writer}.
    * @throws NullPointerException if {@code writer} is {@code null}.
    */
-  <W, A> @NonNull Kind<WriterKind.Witness<W>, A> widen(@NonNull Writer<W, A> writer);
+  <W, A> Kind<WriterKind.Witness<W>, A> widen(Writer<W, A> writer);
 
   /**
    * Narrows a {@code Kind<WriterKind.Witness<W>, A>} back to its concrete {@link Writer
@@ -42,5 +41,5 @@ public interface WriterConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is null or not an instance of the
    *     expected underlying holder type for Writer.
    */
-  <W, A> @NonNull Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind);
+  <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind);
 }

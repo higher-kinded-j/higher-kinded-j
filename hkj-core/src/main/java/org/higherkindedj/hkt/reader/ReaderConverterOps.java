@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.reader;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,7 +27,7 @@ public interface ReaderConverterOps {
    *     Reader}.
    * @throws NullPointerException if {@code reader} is {@code null}.
    */
-  <R, A> @NonNull Kind<ReaderKind.Witness<R>, A> widen(@NonNull Reader<R, A> reader);
+  <R, A> Kind<ReaderKind.Witness<R>, A> widen(Reader<R, A> reader);
 
   /**
    * Narrows a {@code Kind<ReaderKind.Witness<R>, A>} back to its concrete {@link Reader
@@ -41,5 +40,5 @@ public interface ReaderConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not an instance of the
    *     expected underlying holder type for Reader.
    */
-  <R, A> @NonNull Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind);
+  <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind);
 }

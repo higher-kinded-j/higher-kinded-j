@@ -7,7 +7,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -47,7 +46,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    * @param <A> The type of the value potentially held by the {@code Optional}.
    * @param optional The concrete {@link Optional} instance. Must not be {@code null} itself.
    */
-  record OptionalHolder<A>(@NonNull Optional<A> optional) implements OptionalKind<A> {
+  record OptionalHolder<A>(Optional<A> optional) implements OptionalKind<A> {
     /**
      * Constructs an {@code OptionalHolder}.
      *
@@ -71,7 +70,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    * @throws NullPointerException if {@code optional} is {@code null}.
    */
   @Override
-  public <A> @NonNull Kind<OptionalKind.Witness, A> widen(@NonNull Optional<A> optional) {
+  public <A> Kind<OptionalKind.Witness, A> widen(Optional<A> optional) {
     requireNonNull(optional, INVALID_KIND_TYPE_NULL_MSG);
     return new OptionalHolder<>(optional);
   }
@@ -88,7 +87,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <A> @NonNull Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
+  public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case OptionalKindHelper.OptionalHolder<?> holder -> (Optional<A>) holder.optional();

@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +33,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    *     empty list; otherwise, a list containing the single value.
    */
   @Override
-  public <A> @NonNull Kind<ListKind.Witness, A> of(@Nullable A value) {
+  public <A> Kind<ListKind.Witness, A> of(@Nullable A value) {
     if (value == null) {
       return ListKind.of(Collections.emptyList()); // Create an empty list for null input
     }
@@ -55,9 +54,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    *     {@code ff} to each value in {@code fa}.
    */
   @Override
-  public <A, B> @NonNull Kind<ListKind.Witness, B> ap(
-      @NonNull Kind<ListKind.Witness, ? extends Function<A, B>> ff,
-      @NonNull Kind<ListKind.Witness, A> fa) {
+  public <A, B> Kind<ListKind.Witness, B> ap(
+      Kind<ListKind.Witness, ? extends Function<A, B>> ff, Kind<ListKind.Witness, A> fa) {
 
     List<? extends Function<A, B>> functions = ListKind.narrow(ff).unwrap();
     List<A> values = ListKind.narrow(fa).unwrap();
@@ -87,8 +85,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    *     each element.
    */
   @Override
-  public <A, B> @NonNull Kind<ListKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ListKind.Witness, A> fa) {
+  public <A, B> Kind<ListKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
     return ListFunctor.INSTANCE.map(f, fa);
   }
 
@@ -104,9 +102,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    * @return A {@code Kind<ListKind.Witness, B>} which is the flattened list of all results.
    */
   @Override
-  public <A, B> @NonNull Kind<ListKind.Witness, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<ListKind.Witness, B>> f,
-      @NonNull Kind<ListKind.Witness, A> ma) {
+  public <A, B> Kind<ListKind.Witness, B> flatMap(
+      Function<? super A, ? extends Kind<ListKind.Witness, B>> f, Kind<ListKind.Witness, A> ma) {
 
     List<A> inputList = ListKind.narrow(ma).unwrap();
     List<B> resultList = new ArrayList<>();

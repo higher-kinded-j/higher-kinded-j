@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Enum implementing {@link ValidatedConverterOps} for widen/narrow operations, and providing
@@ -25,8 +24,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> widen(
-      @NonNull Validated<E, A> validated) {
+  public <E, A> Kind<ValidatedKind.Witness<E>, A> widen(Validated<E, A> validated) {
     return (Kind<ValidatedKind.Witness<E>, A>) validated;
   }
 
@@ -38,7 +36,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <E, A> @NonNull Validated<E, A> narrow(@NonNull Kind<ValidatedKind.Witness<E>, A> kind) {
+  public <E, A> Validated<E, A> narrow(Kind<ValidatedKind.Witness<E>, A> kind) {
     return (Validated<E, A>) kind;
   }
 
@@ -51,7 +49,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    * @param <A> The value type.
    * @return A {@code Kind} representing a valid instance.
    */
-  public <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> valid(@NonNull A value) {
+  public <E, A> Kind<ValidatedKind.Witness<E>, A> valid(A value) {
     return this.widen(Validated.valid(value));
   }
 
@@ -64,7 +62,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    * @param <A> The value type (associated with the Witness).
    * @return A {@code Kind} representing an invalid instance.
    */
-  public <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> invalid(@NonNull E error) {
+  public <E, A> Kind<ValidatedKind.Witness<E>, A> invalid(E error) {
     return this.widen(Validated.invalid(error));
   }
 }

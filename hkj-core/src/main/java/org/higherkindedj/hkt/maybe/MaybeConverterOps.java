@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.maybe;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -25,7 +24,7 @@ public interface MaybeConverterOps {
    * @return A non-null {@link Kind<MaybeKind.Witness, A>} representing the wrapped {@code Maybe}.
    * @throws NullPointerException if {@code maybe} is {@code null}.
    */
-  <A> @NonNull Kind<MaybeKind.Witness, A> widen(@NonNull Maybe<A> maybe);
+  <A> Kind<MaybeKind.Witness, A> widen(Maybe<A> maybe);
 
   /**
    * Narrows a {@code Kind<MaybeKind.Witness, A>} back to its concrete {@link Maybe}&lt;A&gt; type.
@@ -36,5 +35,5 @@ public interface MaybeConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of the
    *     expected underlying holder type, or if the holder contains a null Maybe instance.
    */
-  <A> @NonNull Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind);
+  <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind);
 }

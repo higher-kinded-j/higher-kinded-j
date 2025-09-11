@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Functor} interface for the {@link Reader} type, using {@link
@@ -43,8 +42,8 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
    *     Reader<R, B>}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ReaderKind.Witness<R>, A> fa) {
+  public <A, B> Kind<ReaderKind.Witness<R>, B> map(
+      Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
     Reader<R, A> readerA = READER.narrow(fa);
     Reader<R, B> readerB = readerA.map(f); // Delegates to Reader's own map method
     return READER.widen(readerB);

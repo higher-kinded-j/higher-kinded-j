@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,7 +29,7 @@ public enum IOKindHelper implements IOConverterOps {
   /**
    * Error message for when the internal holder in {@link #narrow(Kind)} contains a {@code null} IO
    * instance. This should ideally not occur if {@link #widen(IO)} enforces non-null IO instances
-   * and IOHolder guarantees its content via @NonNull.
+   * and IOHolder guarantees its content via .
    */
   public static final String INVALID_HOLDER_STATE_MSG = "IOHolder contained null IO instance";
 
@@ -41,7 +40,7 @@ public enum IOKindHelper implements IOConverterOps {
    * @param <A> The result type of the IO computation.
    * @param ioInstance The non-null, actual {@link IO} instance.
    */
-  record IOHolder<A>(@NonNull IO<A> ioInstance) implements IOKind<A> {}
+  record IOHolder<A>(IO<A> ioInstance) implements IOKind<A> {}
 
   /**
    * Widens a concrete {@link IO<A>} instance into its higher-kinded representation, {@code
@@ -54,7 +53,7 @@ public enum IOKindHelper implements IOConverterOps {
    * @throws NullPointerException if {@code io} is {@code null}.
    */
   @Override
-  public <A> @NonNull Kind<IOKind.Witness, A> widen(@NonNull IO<A> io) {
+  public <A> Kind<IOKind.Witness, A> widen(IO<A> io) {
     Objects.requireNonNull(io, "Input IO cannot be null for widen");
     return new IOHolder<>(io);
   }
@@ -72,10 +71,10 @@ public enum IOKindHelper implements IOConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked") // For casting holder.ioInstance()
-  public <A> @NonNull IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind) {
+  public <A> IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-      // IOHolder's record component ioInstance is @NonNull, so no further null check needed here.
+      // IOHolder's record component ioInstance is , so no further null check needed here.
       case IOKindHelper.IOHolder<?> holder -> (IO<A>) holder.ioInstance();
       default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
     };
@@ -91,7 +90,7 @@ public enum IOKindHelper implements IOConverterOps {
    *     computation.
    * @throws NullPointerException if {@code thunk} is {@code null}.
    */
-  public <A> @NonNull Kind<IOKind.Witness, A> delay(@NonNull Supplier<A> thunk) {
+  public <A> Kind<IOKind.Witness, A> delay(Supplier<A> thunk) {
     return this.widen(IO.delay(thunk));
   }
 
@@ -105,7 +104,7 @@ public enum IOKindHelper implements IOConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is invalid. Any exceptions from the
    *     {@code IO} computation propagate.
    */
-  public <A> @NonNull A unsafeRunSync(@NonNull Kind<IOKind.Witness, A> kind) {
+  public <A> A unsafeRunSync(Kind<IOKind.Witness, A> kind) {
     return this.narrow(kind).unsafeRunSync();
   }
 }

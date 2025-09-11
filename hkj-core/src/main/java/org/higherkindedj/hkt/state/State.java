@@ -6,7 +6,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -25,7 +24,7 @@ public interface State<S, A> {
    * @param initialState The non-null initial state.
    * @return A non-null {@link StateTuple} containing the computed value and the final state.
    */
-  @NonNull StateTuple<S, A> run(@NonNull S initialState);
+  StateTuple<S, A> run(S initialState);
 
   /**
    * Creates a {@code State} instance from a function that performs the state transition. The
@@ -39,8 +38,7 @@ public interface State<S, A> {
    * @return A non-null {@code State<S, A>} instance.
    * @throws NullPointerException if {@code runFunction} is null.
    */
-  static <S, A> @NonNull State<S, A> of(
-      @NonNull Function<@NonNull S, @NonNull StateTuple<S, A>> runFunction) {
+  static <S, A> State<S, A> of(Function<S, StateTuple<S, A>> runFunction) {
     requireNonNull(runFunction, "runFunction cannot be null");
     return runFunction::apply;
   }
@@ -64,7 +62,7 @@ public interface State<S, A> {
    *     transition.
    * @throws NullPointerException if {@code f} is null.
    */
-  default <B> @NonNull State<S, B> map(@NonNull Function<? super A, ? extends B> f) {
+  default <B> State<S, B> map(Function<? super A, ? extends B> f) {
     requireNonNull(f, "mapper function cannot be null");
     return State.of(
         initialState -> {
@@ -96,8 +94,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null or if the {@code State} returned by {@code f}
    *     is null.
    */
-  default <B> @NonNull State<S, B> flatMap(
-      @NonNull Function<? super A, ? extends State<S, ? extends B>> f) {
+  default <B> State<S, B> flatMap(Function<? super A, ? extends State<S, ? extends B>> f) {
     requireNonNull(f, "flatMap mapper function cannot be null");
     return State.of(
         initialState -> {
@@ -133,7 +130,7 @@ public interface State<S, A> {
    * @param value The value to be returned by the State computation. Can be {@code null}.
    * @return A non-null {@code State<S, A>} that always returns the given value and original state.
    */
-  static <S, A> @NonNull State<S, A> pure(@Nullable A value) {
+  static <S, A> State<S, A> pure(@Nullable A value) {
     return State.of(s -> new StateTuple<>(value, s));
   }
 
@@ -146,7 +143,7 @@ public interface State<S, A> {
    * @param <S> The type of the state.
    * @return A non-null {@code State<S, S>} that returns the current state as its value.
    */
-  static <S> @NonNull State<S, S> get() {
+  static <S> State<S, S> get() {
     return State.of(s -> new StateTuple<>(s, s));
   }
 
@@ -162,7 +159,7 @@ public interface State<S, A> {
    *     Unit#INSTANCE}.
    * @throws NullPointerException if {@code newState} is null.
    */
-  static <S> @NonNull State<S, Unit> set(@NonNull S newState) {
+  static <S> State<S, Unit> set(S newState) {
     requireNonNull(newState, "newState cannot be null");
     // The old state `s` is ignored here, as `newState` replaces it.
     return State.of(s -> new StateTuple<>(Unit.INSTANCE, newState));
@@ -181,7 +178,7 @@ public interface State<S, A> {
    *     Unit#INSTANCE}.
    * @throws NullPointerException if {@code f} is null.
    */
-  static <S> @NonNull State<S, Unit> modify(@NonNull Function<@NonNull S, @NonNull S> f) {
+  static <S> State<S, Unit> modify(Function<S, S> f) {
     requireNonNull(f, "state modification function cannot be null");
     return State.of(s -> new StateTuple<>(Unit.INSTANCE, f.apply(s)));
   }
@@ -199,7 +196,7 @@ public interface State<S, A> {
    * @return A non-null {@code State<S, A>} that returns the result of inspecting the state.
    * @throws NullPointerException if {@code f} is null.
    */
-  static <S, A> @NonNull State<S, A> inspect(@NonNull Function<@NonNull S, @Nullable A> f) {
+  static <S, A> State<S, A> inspect(Function<S, @Nullable A> f) {
     requireNonNull(f, "state inspection function cannot be null");
     return State.of(s -> new StateTuple<>(f.apply(s), s));
   }

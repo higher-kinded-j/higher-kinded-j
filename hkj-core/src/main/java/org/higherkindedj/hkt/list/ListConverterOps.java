@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.list;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -24,7 +23,7 @@ public interface ListConverterOps {
    * @param <A> The element type of the list.
    * @return The higher-kinded representation of the list.
    */
-  <A> @NonNull Kind<ListKind.Witness, A> widen(@NonNull List<A> list);
+  <A> Kind<ListKind.Witness, A> widen(List<A> list);
 
   /**
    * Narrows a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
@@ -36,5 +35,5 @@ public interface ListConverterOps {
    * @throws ClassCastException if the provided {@code kind} is not actually a representation of a
    *     List.
    */
-  <A> @NonNull List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind);
+  <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind);
 }

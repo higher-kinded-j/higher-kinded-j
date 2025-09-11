@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the concrete implementation of the Optional Transformer Monad (OptionalT). It wraps a
@@ -27,7 +26,7 @@ import org.jspecify.annotations.NonNull;
  * @see OptionalTKindHelper
  * @see OptionalTMonad
  */
-public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements OptionalTKind<F, A> {
+public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKind<F, A> {
 
   /**
    * Canonical constructor for {@code OptionalT}.
@@ -48,7 +47,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements Op
    * @return A new {@code OptionalT} instance.
    * @throws NullPointerException if {@code value} is null.
    */
-  public static <F, A> @NonNull OptionalT<F, A> fromKind(@NonNull Kind<F, Optional<A>> value) {
+  public static <F, A> OptionalT<F, A> fromKind(Kind<F, Optional<A>> value) {
     return new OptionalT<>(value);
   }
 
@@ -63,8 +62,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements Op
    * @return A new {@code OptionalT} instance representing {@code outerMonad.of(Optional.of(a))}.
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
-  public static <F, A extends @NonNull Object> @NonNull OptionalT<F, A> some(
-      @NonNull Monad<F> outerMonad, @NonNull A a) {
+  public static <F, A extends Object> OptionalT<F, A> some(Monad<F> outerMonad, A a) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for some");
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.of(a));
     return new OptionalT<>(lifted);
@@ -80,7 +78,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements Op
    * @return A new {@code OptionalT} instance representing {@code outerMonad.of(Optional.empty())}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, A> @NonNull OptionalT<F, A> none(@NonNull Monad<F> outerMonad) {
+  public static <F, A> OptionalT<F, A> none(Monad<F> outerMonad) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for none");
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.empty());
     return new OptionalT<>(lifted);
@@ -97,8 +95,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements Op
    * @return A new {@code OptionalT} instance representing {@code outerMonad.of(optional)}.
    * @throws NullPointerException if {@code outerMonad} or {@code optional} is null.
    */
-  public static <F, A> @NonNull OptionalT<F, A> fromOptional(
-      @NonNull Monad<F> outerMonad, @NonNull Optional<A> optional) {
+  public static <F, A> OptionalT<F, A> fromOptional(Monad<F> outerMonad, Optional<A> optional) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for fromOptional");
     Objects.requireNonNull(optional, "Input Optional cannot be null for fromOptional");
     Kind<F, Optional<A>> lifted = outerMonad.of(optional);
@@ -118,8 +115,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements Op
    *     outerMonad.map(Optional::ofNullable, fa)}.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
-  public static <F, A> @NonNull OptionalT<F, A> liftF(
-      @NonNull Monad<F> outerMonad, @NonNull Kind<F, A> fa) {
+  public static <F, A> OptionalT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for liftF");
     Objects.requireNonNull(fa, "Input Kind<F, A> cannot be null for liftF");
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);
@@ -129,10 +125,10 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value) implements Op
   /**
    * Accessor for the underlying monadic value.
    *
-   * @return The {@code @NonNull Kind<F, Optional<A>>} wrapped by this {@code OptionalT}.
+   * @return The {@code Kind<F, Optional<A>>} wrapped by this {@code OptionalT}.
    */
   @Override
-  public @NonNull Kind<F, Optional<A>> value() {
+  public Kind<F, Optional<A>> value() {
     return value;
   }
 }

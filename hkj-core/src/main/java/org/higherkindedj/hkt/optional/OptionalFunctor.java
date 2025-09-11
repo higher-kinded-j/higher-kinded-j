@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -72,9 +71,8 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
    * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
-  public <A, B> @NonNull Kind<OptionalKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends @Nullable B> f,
-      @NonNull Kind<OptionalKind.Witness, A> fa) {
+  public <A, B> Kind<OptionalKind.Witness, B> map(
+      Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()
     Optional<B> resultOptional = optionalA.map(f);

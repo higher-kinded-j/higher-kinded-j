@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.reader_t;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,8 +27,7 @@ public interface ReaderTConverterOps {
    * @return The {@code Kind} representation.
    * @throws NullPointerException if {@code readerT} is {@code null}.
    */
-  <F, R_ENV, A> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(
-      @NonNull ReaderT<F, R_ENV, A> readerT);
+  <F, R_ENV, A> Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(ReaderT<F, R_ENV, A> readerT);
 
   /**
    * Narrows a {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} back to its concrete {@link ReaderT
@@ -42,6 +40,5 @@ public interface ReaderTConverterOps {
    * @return The unwrapped, non-null {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance.
    * @throws KindUnwrapException if {@code kind} is null or not a valid {@link ReaderT} instance.
    */
-  <F, R_ENV, A> @NonNull ReaderT<F, R_ENV, A> narrow(
-      @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> kind);
+  <F, R_ENV, A> ReaderT<F, R_ENV, A> narrow(@Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> kind);
 }
