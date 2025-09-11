@@ -15,9 +15,7 @@
 ](https://github.com/higher-kinded-j/higher-kinded-j)
 [![Codecov](https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j) [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/hkj-core)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core) [![GitHub Discussions](https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j)](https://github.com/higher-kinded-j/higher-kinded-j/discussions) [![Mastodon Follow](https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto)](https://techhub.social/@ultramagnetic)
 
-Higher-Kinded-J brings two powerful functional programming toolsets to Java, enabling developers to write more abstract, composable, and robust code.
-
-Higher-Kinded-J brings two powerful functional programming toolsets to Java:
+Higher-Kinded-J brings two powerful functional programming toolsets to Java, enabling developers to write more abstract, composable, and robust code:
 
 1. A **Higher-Kinded Types (HKT) Simulation** to abstract over computational contexts like `Optional`, `List`, or `CompletableFuture`.
 2. A powerful **Optics Library** to abstract over immutable data structures, with boilerplate-free code generation.
@@ -26,7 +24,7 @@ These work together to solve common Java pain points in a functional, type-safe 
 
 ## _Two Pillars of Functional Programming_
 
-## 1: A [Higher-Kinded Types](hkts/hkt_introduction.md) Simulation ⚙️
+## 1: [Higher-Kinded Types](hkts/hkt_introduction.md) Simulation ⚙️
 
 Java's type system lacks native support for Higher-Kinded Types, making it difficult to write code that abstracts over "container" types. We can't easily define a generic function that works identically for `List<A>`, `Optional<A>`, and `CompletableFuture<A>`.
 
@@ -90,7 +88,20 @@ repositories {
 
 ## Documentation
 
-We recommend following the documentation in order to get a full understanding of the library's capabilities.
+We recommend following the documentation to get a full understanding of the library's capabilities.
+
+#### HKT Core Concepts
+
+For users who want to understand the underlying HKT simulation that powers the optics library or use monads directly.
+
+1. **[An Introduction to HKTs](hkts/hkt_introduction.md):** Learn what HKTs are and the problems they solve.
+2. **[Core Concepts](hkts/core-concepts.md):** Understand `Kind`, Witness Types, and Type Classes (`Functor`, `Monad`).
+3. **[Supported Types](monads/supported-types.md):** See which types are simulated and have typeclass instances.
+4. **[Usage Guide](hkts/usage-guide.md):** Learn the practical steps for using the HKT simulation directly.
+5. **[Examples of how to use HKTs](hkts/hkt_basic_examples.md)**: Practical Examples of how to use the Monads.
+6. **[Order Example Walkthrough](hkts/order-walkthrough.md):** A detailed example of building a robust workflow with monad transformers.
+7. **[Extending Higher-Kinded-J](hkts/extending-simulation.md):** Learn how to add HKT support for your own custom types.
+
 
 #### Optics Guides
 
@@ -104,17 +115,6 @@ This series provides a practical, step-by-step introduction to solving real-worl
 6. **[Profunctor Optics](optics/profunctor_optics.md):** Discover how to adapt optics to work with different data types and structures.
 7. **[Capstone Example: Deep Validation](optics/composing_optics.md):** A complete example that composes multiple optics to solve a complex problem.
 
-#### HKT Core Concepts
-
-For users who want to understand the underlying HKT simulation that powers the optics library or use monads directly.
-
-1. **[An Introduction to HKTs](hkts/hkt_introduction.md):** Learn what HKTs are and the problems they solve.
-2. **[Core Concepts](hkts/core-concepts.md):** Understand `Kind`, Witness Types, and Type Classes (`Functor`, `Monad`).
-3. **[Supported Types](monads/supported-types.md):** See which types are simulated and have typeclass instances.
-4. **[Usage Guide](hkts/usage-guide.md):** Learn the practical steps for using the HKT simulation directly.
-5. **[Examples of how to use HKTs](hkts/hkt_basic_examples.md)**: Practical Examples of how to use the Monads.
-6. **[Order Example Walkthrough](hkts/order-walkthrough.md):** A detailed example of building a robust workflow with monad transformers.
-7. **[Extending Higher-Kinded-J](hkts/extending-simulation.md):** Learn how to add HKT support for your own custom types.
 
 #### History
 
