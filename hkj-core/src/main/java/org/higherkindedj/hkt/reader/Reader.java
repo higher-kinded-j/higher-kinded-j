@@ -75,7 +75,7 @@ public interface Reader<R, A> {
    * Executes the computation encapsulated by this {@code Reader} using the provided environment.
    * This is the method that "runs" the reader, supplying the necessary context or dependencies.
    *
-   * @param r The environment of type {@code R}. While annotated as {@code @NonNull}, the specific
+   * @param r The environment of type {@code R}. While annotated as {@code }, the specific
    *     nullability contract for {@code r} depends on the design of the environment type {@code R}
    *     and how it's intended to be used. It's generally good practice for {@code R} to be
    *     non-null.
@@ -95,10 +95,10 @@ public interface Reader<R, A> {
    *     null.
    * @param <R> The type of the environment.
    * @param <A> The type of the value produced.
-   * @return A new {@code @NonNull Reader<R, A>} instance.
+   * @return A new {@code Reader<R, A>} instance.
    * @throws NullPointerException if {@code runFunction} is null.
    */
-  static <R, A> @NonNull Reader<R, A> of(@NonNull Function<R, A> runFunction) {
+  static <R, A> Reader<R, A> of(Function<R, A> runFunction) {
     Objects.requireNonNull(runFunction, "runFunction cannot be null");
     return runFunction::apply;
   }
@@ -117,11 +117,11 @@ public interface Reader<R, A> {
    *     of type {@code A} and returns a value of type {@code B}.
    * @param <B> The type of the value produced by the mapping function and thus by the new {@code
    *     Reader}.
-   * @return A new {@code @NonNull Reader<R, B>} that, when run, will execute this {@code Reader}
-   *     and then apply the mapping function {@code f} to its result.
+   * @return A new {@code Reader<R, B>} that, when run, will execute this {@code Reader} and then
+   *     apply the mapping function {@code f} to its result.
    * @throws NullPointerException if {@code f} is null.
    */
-  default <B> @NonNull Reader<R, B> map(@NonNull Function<? super A, ? extends B> f) {
+  default <B> Reader<R, B> map(Function<? super A, ? extends B> f) {
     Objects.requireNonNull(f, "mapper function cannot be null");
     return (R r) -> f.apply(this.run(r));
   }
@@ -141,17 +141,16 @@ public interface Reader<R, A> {
    *     of type {@code A} and returns a {@code Reader<R, ? extends B>}. The returned {@code Reader}
    *     must not be null.
    * @param <B> The type of the value produced by the {@code Reader} returned by function {@code f}.
-   * @return A new {@code @NonNull Reader<R, B>} that, when run, will execute this {@code Reader},
-   *     apply function {@code f} to its result to get a new {@code Reader}, and then run that new
-   *     {@code Reader} with the original environment.
+   * @return A new {@code Reader<R, B>} that, when run, will execute this {@code Reader}, apply
+   *     function {@code f} to its result to get a new {@code Reader}, and then run that new {@code
+   *     Reader} with the original environment.
    * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code
    *     Reader}.
    */
-  default <B> @NonNull Reader<R, B> flatMap(
-      @NonNull Function<? super A, ? extends Reader<R, ? extends B>> f) {
+  default <B> Reader<R, B> flatMap(Function<? super A, ? extends Reader<R, ? extends B>> f) {
     Objects.requireNonNull(f, "flatMap mapper function cannot be null");
     return (R r) -> {
-      @Nullable A a = this.run(r);
+      A a = this.run(r);
       Reader<R, ? extends B> readerB = f.apply(a);
       Objects.requireNonNull(readerB, "flatMap function returned null Reader");
       return readerB.run(r);
@@ -167,10 +166,10 @@ public interface Reader<R, A> {
    *     be {@code null} if {@code A} is a nullable type.
    * @param <R> The type of the environment (which will be ignored).
    * @param <A> The type of the constant value.
-   * @return A new {@code @NonNull Reader<R, A>} that always produces the given {@code value}
-   *     regardless of the environment it is run with.
+   * @return A new {@code Reader<R, A>} that always produces the given {@code value} regardless of
+   *     the environment it is run with.
    */
-  static <R, A> @NonNull Reader<R, A> constant(@Nullable A value) {
+  static <R, A> Reader<R, A> constant(@Nullable A value) {
     return r -> value;
   }
 
@@ -183,9 +182,9 @@ public interface Reader<R, A> {
    * <p>In Category Theory terms, this is often called {@code ask} (from the Reader Monad).
    *
    * @param <R> The type of the environment, which is also the type of the value produced.
-   * @return A new {@code @NonNull Reader<R, R>} that yields the environment it is run with.
+   * @return A new {@code Reader<R, R>} that yields the environment it is run with.
    */
-  static <R> @NonNull Reader<R, R> ask() {
+  static <R> Reader<R, R> ask() {
     return r -> r;
   }
 }

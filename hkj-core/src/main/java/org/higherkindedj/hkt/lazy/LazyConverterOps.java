@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.lazy;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -26,7 +25,7 @@ public interface LazyConverterOps {
    *     computation.
    * @throws NullPointerException if {@code lazy} is {@code null}.
    */
-  <A> @NonNull Kind<LazyKind.Witness, A> widen(@NonNull Lazy<A> lazy);
+  <A> Kind<LazyKind.Witness, A> widen(Lazy<A> lazy);
 
   /**
    * Narrows a {@code Kind<LazyKind.Witness, A>} back to its concrete {@link Lazy<A>} type.
@@ -37,5 +36,5 @@ public interface LazyConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is {@code null}, or not an instance of
    *     the expected underlying holder type for Lazy.
    */
-  <A> @NonNull Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind);
+  <A> Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind);
 }

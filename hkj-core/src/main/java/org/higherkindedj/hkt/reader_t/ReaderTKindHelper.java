@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.reader_t;
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -40,14 +39,13 @@ public enum ReaderTKindHelper implements ReaderTConverterOps {
    * @param <R_ENV> The type of the environment required by the {@code ReaderT}.
    * @param <A> The type of the value produced by the {@code ReaderT}.
    * @param readerT The concrete {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance to widen. Must
-   *     be {@code @NonNull}.
+   *     be {@code }.
    * @return A non-null {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} representing the wrapped
    *     {@code readerT}.
    * @throws NullPointerException if {@code readerT} is {@code null}.
    */
   @Override
-  public <F, R_ENV, A> @NonNull Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(
-      @NonNull ReaderT<F, R_ENV, A> readerT) {
+  public <F, R_ENV, A> Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(ReaderT<F, R_ENV, A> readerT) {
     Objects.requireNonNull(readerT, INVALID_KIND_TYPE_NULL_MSG);
     // ReaderT<F,R_ENV,A> is already a ReaderTKind<F,R_ENV,A>,
     // which is a Kind<ReaderTKind.Witness<F,R_ENV>,A>.
@@ -68,7 +66,7 @@ public enum ReaderTKindHelper implements ReaderTConverterOps {
    *     {@link ReaderT}.
    */
   @Override
-  public <F, R_ENV, A> @NonNull ReaderT<F, R_ENV, A> narrow(
+  public <F, R_ENV, A> ReaderT<F, R_ENV, A> narrow(
       @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(ReaderTKindHelper.INVALID_KIND_NULL_MSG);

@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.list; // Assuming a package structure
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents {@link java.util.List} as a Higher-Kinded Type. This interface, {@code ListKind<A>},
@@ -28,7 +27,7 @@ public interface ListKind<A> extends Kind<ListKind.Witness, A> {
    *
    * @return The underlying {@link java.util.List<A>}.
    */
-  @NonNull List<A> unwrap();
+  List<A> unwrap();
 
   /**
    * Narrows a {@code Kind<ListKind.Witness, A>} to a {@code ListKind<A>}. This is a safe cast when
@@ -38,7 +37,7 @@ public interface ListKind<A> extends Kind<ListKind.Witness, A> {
    * @param <A> The element type.
    * @return The {@code ListKind<A>} instance.
    */
-  static <A> @NonNull ListKind<A> narrow(@NonNull Kind<Witness, A> kind) {
+  static <A> ListKind<A> narrow(Kind<Witness, A> kind) {
     return (ListKind<A>) kind;
   }
 
@@ -50,7 +49,7 @@ public interface ListKind<A> extends Kind<ListKind.Witness, A> {
    * @param <A> The element type.
    * @return A new {@code ListKind<A>} instance.
    */
-  static <A> @NonNull ListKind<A> of(@NonNull List<A> list) {
+  static <A> ListKind<A> of(List<A> list) {
     return new ListView<>(list);
   }
 
@@ -61,9 +60,9 @@ public interface ListKind<A> extends Kind<ListKind.Witness, A> {
    * @param <A> The element type of the list.
    * @param list The list.
    */
-  record ListView<A>(@NonNull List<A> list) implements ListKind<A> {
+  record ListView<A>(List<A> list) implements ListKind<A> {
     @Override
-    public @NonNull List<A> unwrap() {
+    public List<A> unwrap() {
       return list;
     }
   }

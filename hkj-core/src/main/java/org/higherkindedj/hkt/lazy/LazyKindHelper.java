@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.lazy;
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +33,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    * Internal record implementing {@link LazyKind} to hold the concrete {@link Lazy} instance.
    * Changed to package-private for potential test access.
    */
-  record LazyHolder<A>(@NonNull Lazy<A> lazyInstance) implements LazyKind<A> {}
+  record LazyHolder<A>(Lazy<A> lazyInstance) implements LazyKind<A> {}
 
   /**
    * Widens a concrete {@link Lazy<A>} instance into its higher-kinded representation, {@code
@@ -47,7 +46,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    * @throws NullPointerException if {@code lazy} is {@code null}.
    */
   @Override
-  public <A> @NonNull Kind<LazyKind.Witness, A> widen(@NonNull Lazy<A> lazy) {
+  public <A> Kind<LazyKind.Witness, A> widen(Lazy<A> lazy) {
     Objects.requireNonNull(lazy, "Input Lazy cannot be null for widen");
     return new LazyHolder<>(lazy);
   }
@@ -64,7 +63,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <A> @NonNull Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind) {
+  public <A> Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case LazyKindHelper.LazyHolder<?> holder -> (Lazy<A>) holder.lazyInstance();
@@ -82,7 +81,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    * @return A new, non-null {@code Kind<LazyKind.Witness, A>} representing the deferred {@code
    *     Lazy} computation.
    */
-  public <A> @NonNull Kind<LazyKind.Witness, A> defer(@NonNull ThrowableSupplier<A> computation) {
+  public <A> Kind<LazyKind.Witness, A> defer(ThrowableSupplier<A> computation) {
     return this.widen(Lazy.defer(computation));
   }
 
@@ -94,7 +93,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    * @return A new, non-null {@code Kind<LazyKind.Witness, A>} representing an already evaluated
    *     {@code Lazy} computation.
    */
-  public <A> @NonNull Kind<LazyKind.Witness, A> now(@Nullable A value) {
+  public <A> Kind<LazyKind.Witness, A> now(@Nullable A value) {
     return this.widen(Lazy.now(value));
   }
 
@@ -109,7 +108,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is invalid.
    * @throws Throwable if the underlying {@link ThrowableSupplier} throws an exception.
    */
-  public <A> @Nullable A force(@NonNull Kind<LazyKind.Witness, A> kind) throws Throwable {
+  public <A> @Nullable A force(Kind<LazyKind.Witness, A> kind) throws Throwable {
     return this.narrow(kind).force();
   }
 }

@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Functor} interface for the {@link Either} type, biased towards the "Right"
@@ -39,8 +38,8 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
    *     Either<L, B>}. Never null.
    */
   @Override
-  public <A, B> @NonNull Kind<EitherKind.Witness<L>, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<EitherKind.Witness<L>, A> ma) {
+  public <A, B> Kind<EitherKind.Witness<L>, B> map(
+      Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> ma) {
     Either<L, A> eitherA = EITHER.narrow(ma);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map
     return EITHER.widen(resultEither);

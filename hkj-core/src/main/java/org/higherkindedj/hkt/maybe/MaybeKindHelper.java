@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.maybe;
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -47,7 +46,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * @throws NullPointerException if {@code maybe} is {@code null}.
    */
   @Override
-  public <A> @NonNull Kind<MaybeKind.Witness, A> widen(@NonNull Maybe<A> maybe) {
+  public <A> Kind<MaybeKind.Witness, A> widen(Maybe<A> maybe) {
     Objects.requireNonNull(maybe, "Input Maybe cannot be null for widen");
     return new MaybeHolder<>(maybe);
   }
@@ -65,7 +64,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <A> @NonNull Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
+  public <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case MaybeKindHelper.MaybeHolder<?> holder -> {
@@ -91,7 +90,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * @return A {@link Kind}&lt;{@link MaybeKind.Witness}, A&gt; representing {@code Just(value)}.
    * @throws NullPointerException if {@code value} is {@code null}.
    */
-  public <A> @NonNull Kind<MaybeKind.Witness, A> just(@NonNull A value) {
+  public <A> Kind<MaybeKind.Witness, A> just(A value) {
     return this.widen(Maybe.just(value));
   }
 
@@ -102,7 +101,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * @param <A> The phantom element type for the {@code Nothing} state.
    * @return A {@link Kind}&lt;{@link MaybeKind.Witness}, A&gt; representing {@code Nothing}.
    */
-  public <A> @NonNull Kind<MaybeKind.Witness, A> nothing() {
+  public <A> Kind<MaybeKind.Witness, A> nothing() {
     return this.widen(Maybe.nothing());
   }
 }

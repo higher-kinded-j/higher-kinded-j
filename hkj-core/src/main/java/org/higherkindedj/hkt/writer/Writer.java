@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,7 +47,7 @@ import org.jspecify.annotations.Nullable;
  * @see WriterMonad
  * @see WriterKindHelper
  */
-public record Writer<W, A>(@NonNull W log, @Nullable A value) {
+public record Writer<W, A>(W log, @Nullable A value) {
 
   /**
    * Compact constructor for {@link Writer}. Ensures that the log component {@code W} is never
@@ -75,7 +74,7 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
    * @return A new {@code Writer<W, A>} with the given value and an empty log.
    * @throws NullPointerException if {@code monoidW} is {@code null}.
    */
-  public static <W, A> @NonNull Writer<W, A> value(@NonNull Monoid<W> monoidW, @Nullable A value) {
+  public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
     Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.value");
     return new Writer<>(monoidW.empty(), value);
   }
@@ -91,7 +90,7 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
    *     value.
    * @throws NullPointerException if {@code log} is {@code null}.
    */
-  public static <W> @NonNull Writer<W, Unit> tell(@NonNull W log) {
+  public static <W> Writer<W, Unit> tell(W log) {
     Objects.requireNonNull(log, "Log message for Writer.tell cannot be null");
     return new Writer<>(log, Unit.INSTANCE);
   }
@@ -107,7 +106,7 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
    * @return A new {@code Writer<W, B>} with the original log and the transformed value.
    * @throws NullPointerException if {@code f} is {@code null}.
    */
-  public <B> @NonNull Writer<W, B> map(@NonNull Function<? super A, ? extends B> f) {
+  public <B> Writer<W, B> map(Function<? super A, ? extends B> f) {
     Objects.requireNonNull(f, "Mapper function cannot be null for Writer.map");
     return new Writer<>(this.log, f.apply(this.value));
   }
@@ -133,9 +132,8 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
    * @throws NullPointerException if {@code monoidW} or {@code f} is {@code null}, or if {@code f}
    *     returns a {@code null} {@code Writer}.
    */
-  public <B> @NonNull Writer<W, B> flatMap(
-      @NonNull Monoid<W> monoidW,
-      @NonNull Function<? super A, ? extends Writer<W, ? extends B>> f) {
+  public <B> Writer<W, B> flatMap(
+      Monoid<W> monoidW, Function<? super A, ? extends Writer<W, ? extends B>> f) {
     Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.flatMap");
     Objects.requireNonNull(f, "flatMap mapper function cannot be null");
 
@@ -164,7 +162,7 @@ public record Writer<W, A>(@NonNull W log, @Nullable A value) {
    *
    * @return The non-null accumulated log {@code W}.
    */
-  public @NonNull W exec() {
+  public W exec() {
     return log;
   }
 }

@@ -9,7 +9,6 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -46,8 +45,8 @@ public class LazyMonad
    * @return A new {@code Kind<LazyKind.Witness, B>} containing the result of applying the function.
    */
   @Override
-  public <A, B> @NonNull Kind<LazyKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<LazyKind.Witness, A> fa) {
+  public <A, B> Kind<LazyKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<LazyKind.Witness, A> fa) {
     Lazy<A> lazyA = LAZY.narrow(fa);
     Lazy<B> lazyB = lazyA.map(f); // Use Lazy's map
     return LAZY.widen(lazyB);
@@ -62,7 +61,7 @@ public class LazyMonad
    * @return A {@code Kind<LazyKind.Witness, A>} containing the value.
    */
   @Override
-  public <A> @NonNull Kind<LazyKind.Witness, A> of(@Nullable A value) {
+  public <A> Kind<LazyKind.Witness, A> of(@Nullable A value) {
     // 'of'/'pure' creates a Lazy that is already evaluated
     return LAZY.widen(Lazy.now(value));
   }
@@ -78,9 +77,8 @@ public class LazyMonad
    * @return A new {@code Kind<LazyKind.Witness, B>} containing the result.
    */
   @Override
-  public <A, B> @NonNull Kind<LazyKind.Witness, B> ap(
-      @NonNull Kind<LazyKind.Witness, ? extends Function<A, B>> ff,
-      @NonNull Kind<LazyKind.Witness, A> fa) {
+  public <A, B> Kind<LazyKind.Witness, B> ap(
+      Kind<LazyKind.Witness, ? extends Function<A, B>> ff, Kind<LazyKind.Witness, A> fa) {
     Lazy<? extends Function<A, B>> lazyF = LAZY.narrow(ff);
     Lazy<A> lazyA = LAZY.narrow(fa);
 
@@ -101,9 +99,8 @@ public class LazyMonad
    * @return A new {@code Kind<LazyKind.Witness, B>} representing the composed action.
    */
   @Override
-  public <A, B> @NonNull Kind<LazyKind.Witness, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<LazyKind.Witness, B>> f,
-      @NonNull Kind<LazyKind.Witness, A> ma) {
+  public <A, B> Kind<LazyKind.Witness, B> flatMap(
+      Function<? super A, ? extends Kind<LazyKind.Witness, B>> f, Kind<LazyKind.Witness, A> ma) {
     Lazy<A> lazyA = LAZY.narrow(ma);
 
     // Adapt the function for Lazy's flatMap

@@ -7,7 +7,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the Reader Transformer Monad, {@code ReaderT<F, R, A>}. It wraps a computation that
@@ -35,7 +34,7 @@ import org.jspecify.annotations.NonNull;
  * @see Monad
  * @see Kind
  */
-public record ReaderT<F, R_ENV, A>(@NonNull Function<R_ENV, Kind<F, A>> run)
+public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
     implements ReaderTKind<F, R_ENV, A> {
 
   /**
@@ -60,8 +59,7 @@ public record ReaderT<F, R_ENV, A>(@NonNull Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} instance. Never null.
    * @throws NullPointerException if {@code runFunction} is null.
    */
-  public static <F, R_ENV, A> @NonNull ReaderT<F, R_ENV, A> of(
-      @NonNull Function<R_ENV, Kind<F, A>> runFunction) {
+  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> of(Function<R_ENV, Kind<F, A>> runFunction) {
     return new ReaderT<>(runFunction);
   }
 
@@ -79,8 +77,7 @@ public record ReaderT<F, R_ENV, A>(@NonNull Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} that wraps {@code fa}. Never null.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
-  public static <F, R_ENV, A> @NonNull ReaderT<F, R_ENV, A> lift(
-      @NonNull Monad<F> outerMonad, @NonNull Kind<F, A> fa) {
+  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> lift(Monad<F> outerMonad, Kind<F, A> fa) {
     requireNonNull(outerMonad, "Outer Monad cannot be null for lift");
     requireNonNull(fa, "Input Kind<F, A> cannot be null for lift");
     return new ReaderT<>(r -> fa);
@@ -99,8 +96,8 @@ public record ReaderT<F, R_ENV, A>(@NonNull Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} instance. Never null.
    * @throws NullPointerException if {@code outerMonad} or {@code f} is null.
    */
-  public static <F, R_ENV, A> @NonNull ReaderT<F, R_ENV, A> reader(
-      @NonNull Monad<F> outerMonad, @NonNull Function<R_ENV, A> f) {
+  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> reader(
+      Monad<F> outerMonad, Function<R_ENV, A> f) {
     requireNonNull(outerMonad, "Outer Monad cannot be null for reader");
     requireNonNull(f, "Function cannot be null for reader");
     return new ReaderT<>(r -> outerMonad.of(f.apply(r)));
@@ -116,7 +113,7 @@ public record ReaderT<F, R_ENV, A>(@NonNull Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} that, when run, yields {@code outerMonad.of(r)}. Never null.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, R_ENV> @NonNull ReaderT<F, R_ENV, R_ENV> ask(@NonNull Monad<F> outerMonad) {
+  public static <F, R_ENV> ReaderT<F, R_ENV, R_ENV> ask(Monad<F> outerMonad) {
     requireNonNull(outerMonad, "Outer Monad cannot be null for ask");
     return new ReaderT<>(r -> outerMonad.of(r));
   }
@@ -127,7 +124,7 @@ public record ReaderT<F, R_ENV, A>(@NonNull Function<R_ENV, Kind<F, A>> run)
    * @return The function {@code R_ENV -> Kind<F, A>}. Never null.
    */
   @Override
-  public @NonNull Function<R_ENV, Kind<F, A>> run() {
+  public Function<R_ENV, Kind<F, A>> run() {
     return run;
   }
 }

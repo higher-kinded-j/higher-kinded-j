@@ -6,7 +6,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -36,7 +35,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    *     null}.
    * @throws NullPointerException if {@code value} is {@code null}.
    */
-  static <T> @NonNull Maybe<T> just(@NonNull T value) {
+  static <T> Maybe<T> just(T value) {
     Objects.requireNonNull(value, "Value for Just cannot be null");
     return new Just<>(value);
   }
@@ -47,7 +46,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * @param <T> The type of the non-existent value. This is a phantom type parameter.
    * @return an empty {@code Maybe} instance. Will not be {@code null}.
    */
-  static <T> @NonNull Maybe<T> nothing() {
+  static <T> Maybe<T> nothing() {
     return Nothing.instance();
   }
 
@@ -60,7 +59,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * @return a {@code Maybe} with the value present if the specified {@code value} is non-null,
    *     otherwise an empty {@code Maybe} (Nothing). Will not be {@code null}.
    */
-  static <T> @NonNull Maybe<T> fromNullable(@Nullable T value) {
+  static <T> Maybe<T> fromNullable(@Nullable T value) {
     return value == null ? nothing() : just(value);
   }
 
@@ -88,7 +87,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * @return the non-null value held by this {@code Maybe}.
    * @throws NoSuchElementException if there is no value present (i.e., this is {@link Nothing}).
    */
-  @NonNull T get() throws NoSuchElementException;
+  T get() throws NoSuchElementException;
 
   /**
    * Returns the value if present (i.e., this is a {@link Just}), otherwise returns {@code other}.
@@ -98,7 +97,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * @return the value, if present, otherwise {@code other}. The result is guaranteed to be
    *     non-null.
    */
-  @NonNull T orElse(@NonNull T other);
+  T orElse(T other);
 
   /**
    * Returns the value if present (i.e., this is a {@link Just}), otherwise invokes {@code
@@ -106,12 +105,12 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * and must produce a non-null value.
    *
    * @param otherSupplier a {@link Supplier} whose result is returned if no value is present. Must
-   *     not be {@code null}. The supplier itself is {@code @NonNull}, and it's expected to produce
-   *     a {@code @NonNull T}.
+   *     not be {@code null}. The supplier itself is {@code }, and it's expected to produce a {@code
+   *     T}.
    * @return the value if present, otherwise the non-null result of {@code otherSupplier.get()}.
    * @throws NullPointerException if no value is present and {@code otherSupplier} is {@code null}.
    */
-  @NonNull T orElseGet(@NonNull Supplier<? extends @NonNull T> otherSupplier);
+  T orElseGet(Supplier<? extends T> otherSupplier);
 
   /**
    * If a value is present (i.e., this is a {@link Just}), returns a {@code Maybe} describing the
@@ -129,7 +128,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    *     this {@code Maybe}, if a value is present; otherwise, an empty {@code Maybe} (Nothing). The
    *     returned {@code Maybe} itself will not be {@code null}.
    */
-  @NonNull <U> Maybe<U> map(@NonNull Function<? super T, ? extends @Nullable U> mapper);
+  <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper);
 
   /**
    * If a value is present (i.e., this is a {@link Just}), returns the result of applying the given
@@ -143,14 +142,13 @@ public sealed interface Maybe<T> permits Just, Nothing {
    *
    * @param <U> The type parameter of the {@code Maybe} returned by the mapping function.
    * @param mapper the mapping function to apply to a value, if present. Must not be {@code null}.
-   *     The function takes the non-null value of type {@code T} and must return a {@code @NonNull
-   *     Maybe<? extends U>}.
+   *     The function takes the non-null value of type {@code T} and must return a {@code Maybe<?
+   *     extends U>}.
    * @return the result of applying a {@code Maybe}-bearing mapping function to the value of this
    *     {@code Maybe}, if a value is present; otherwise, an empty {@code Maybe} (Nothing). The
    *     returned {@code Maybe} itself will not be {@code null}.
    * @throws NullPointerException if {@code mapper} is {@code null}, or if a value is present and
    *     {@code mapper} returns a {@code null} {@code Maybe} instance.
    */
-  @NonNull <U> Maybe<U> flatMap(
-      @NonNull Function<? super T, ? extends @NonNull Maybe<? extends U>> mapper);
+  <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper);
 }

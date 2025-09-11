@@ -9,7 +9,6 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.jspecify.annotations.NonNull;
 
 /**
  * The Traverse and Foldable instance for {@link Maybe}.
@@ -21,16 +20,16 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   INSTANCE;
 
   @Override
-  public <A, B> @NonNull Kind<MaybeKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<MaybeKind.Witness, A> fa) {
+  public <A, B> Kind<MaybeKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {
     return MAYBE.widen(MAYBE.narrow(fa).map(f));
   }
 
   @Override
-  public <G, A, B> @NonNull Kind<G, Kind<MaybeKind.Witness, B>> traverse(
-      @NonNull Applicative<G> applicative,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
-      @NonNull Kind<MaybeKind.Witness, A> ta) {
+  public <G, A, B> Kind<G, Kind<MaybeKind.Witness, B>> traverse(
+      Applicative<G> applicative,
+      Function<? super A, ? extends Kind<G, ? extends B>> f,
+      Kind<MaybeKind.Witness, A> ta) {
 
     final Maybe<A> maybe = MAYBE.narrow(ta);
 
@@ -45,9 +44,7 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
 
   @Override
   public <A, M> M foldMap(
-      @NonNull Monoid<M> monoid,
-      @NonNull Function<? super A, ? extends M> f,
-      @NonNull Kind<MaybeKind.Witness, A> fa) {
+      Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<MaybeKind.Witness, A> fa) {
     final Maybe<A> maybe = MAYBE.narrow(fa);
     // If Just, map the value. If Nothing, return the monoid's empty value.
     if (maybe.isJust()) {

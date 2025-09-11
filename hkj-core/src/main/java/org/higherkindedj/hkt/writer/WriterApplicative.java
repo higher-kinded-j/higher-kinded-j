@@ -9,7 +9,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,7 +31,7 @@ import org.jspecify.annotations.Nullable;
 public class WriterApplicative<W> extends WriterFunctor<W>
     implements Applicative<WriterKind.Witness<W>> {
 
-  protected final @NonNull Monoid<W> monoidW;
+  protected final Monoid<W> monoidW;
 
   /**
    * Constructs a {@code WriterApplicative}.
@@ -40,7 +39,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must not be null. This
    *     is used for combining logs in operations like {@code ap}.
    */
-  public WriterApplicative(@NonNull Monoid<W> monoidW) {
+  public WriterApplicative(Monoid<W> monoidW) {
     this.monoidW = requireNonNull(monoidW, "Monoid<W> cannot be null for WriterApplicative");
   }
 
@@ -55,7 +54,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    *     empty log and the given {@code value}. Never null.
    */
   @Override
-  public <A> @NonNull Kind<WriterKind.Witness<W>, A> of(@Nullable A value) {
+  public <A> Kind<WriterKind.Witness<W>, A> of(@Nullable A value) {
     return WRITER.value(monoidW, value);
   }
 
@@ -78,10 +77,9 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    *     generally not expected for a valid {@code ap} operation.
    */
   @Override
-  public <A, B> @NonNull Kind<WriterKind.Witness<W>, B> ap(
+  public <A, B> Kind<WriterKind.Witness<W>, B> ap(
       // 1. Update the signature to match the Applicative interface
-      @NonNull Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff,
-      @NonNull Kind<WriterKind.Witness<W>, A> fa) {
+      Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff, Kind<WriterKind.Witness<W>, A> fa) {
 
     Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);

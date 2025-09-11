@@ -11,7 +11,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,7 +27,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, Unit> {
 
-  private final @NonNull Monad<F> outerMonad;
+  private final Monad<F> outerMonad;
 
   /**
    * Constructs an {@code OptionalTMonad} instance.
@@ -36,7 +35,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @param outerMonad The {@link Monad} instance for the outer monad {@code F}. Must not be null.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public OptionalTMonad(@NonNull Monad<F> outerMonad) {
+  public OptionalTMonad(Monad<F> outerMonad) {
     this.outerMonad =
         Objects.requireNonNull(
             outerMonad, "Outer Monad instance cannot be null for OptionalTMonad");
@@ -52,7 +51,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @return A {@code Kind<OptionalTKind.Witness<F>, A>} representing the lifted value.
    */
   @Override
-  public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> of(@Nullable A value) {
+  public <A> Kind<OptionalTKind.Witness<F>, A> of(@Nullable A value) {
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.ofNullable(value));
     return OPTIONAL_T.widen(OptionalT.fromKind(lifted));
   }
@@ -71,9 +70,8 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @return A new {@code Kind<OptionalTKind.Witness<F>, B>} with the function applied.
    */
   @Override
-  public <A, B> @NonNull Kind<OptionalTKind.Witness<F>, B> map(
-      @NonNull Function<? super A, ? extends @Nullable B> f,
-      @NonNull Kind<OptionalTKind.Witness<F>, A> fa) {
+  public <A, B> Kind<OptionalTKind.Witness<F>, B> map(
+      Function<? super A, ? extends @Nullable B> f, Kind<OptionalTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(f, "Function f cannot be null for map");
     Objects.requireNonNull(fa, "Kind fa cannot be null for map");
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(fa);
@@ -102,9 +100,9 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @return A new {@code Kind<OptionalTKind.Witness<F>, B>} representing the application.
    */
   @Override
-  public <A, B> @NonNull Kind<OptionalTKind.Witness<F>, B> ap(
-      @NonNull Kind<OptionalTKind.Witness<F>, ? extends Function<A, @Nullable B>> ff,
-      @NonNull Kind<OptionalTKind.Witness<F>, A> fa) {
+  public <A, B> Kind<OptionalTKind.Witness<F>, B> ap(
+      Kind<OptionalTKind.Witness<F>, ? extends Function<A, @Nullable B>> ff,
+      Kind<OptionalTKind.Witness<F>, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
     Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
     OptionalT<F, ? extends Function<A, @Nullable B>> funcT = OPTIONAL_T.narrow(ff);
@@ -132,9 +130,9 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @return A new {@code Kind<OptionalTKind.Witness<F>, B>}.
    */
   @Override
-  public <A, B> @NonNull Kind<OptionalTKind.Witness<F>, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<OptionalTKind.Witness<F>, B>> f,
-      @NonNull Kind<OptionalTKind.Witness<F>, A> ma) {
+  public <A, B> Kind<OptionalTKind.Witness<F>, B> flatMap(
+      Function<? super A, ? extends Kind<OptionalTKind.Witness<F>, B>> f,
+      Kind<OptionalTKind.Witness<F>, A> ma) {
     Objects.requireNonNull(f, "Function f cannot be null for flatMap");
     Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
@@ -166,7 +164,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @return A {@code Kind<OptionalTKind.Witness<F>, A>} representing {@code F<Optional.empty()>}.
    */
   @Override
-  public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> raiseError(@NonNull Unit error) {
+  public <A> Kind<OptionalTKind.Witness<F>, A> raiseError(Unit error) {
     return OPTIONAL_T.widen(OptionalT.none(outerMonad));
   }
 
@@ -186,9 +184,9 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    *     handler.
    */
   @Override
-  public <A> @NonNull Kind<OptionalTKind.Witness<F>, A> handleErrorWith(
-      @NonNull Kind<OptionalTKind.Witness<F>, A> ma,
-      @NonNull Function<? super Unit, ? extends Kind<OptionalTKind.Witness<F>, A>> handler) {
+  public <A> Kind<OptionalTKind.Witness<F>, A> handleErrorWith(
+      Kind<OptionalTKind.Witness<F>, A> ma,
+      Function<? super Unit, ? extends Kind<OptionalTKind.Witness<F>, A>> handler) {
     Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
     Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);

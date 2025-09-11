@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.maybe_t;
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -42,7 +41,7 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    * @throws NullPointerException if {@code maybeT} is null.
    */
   @Override
-  public <F, A> @NonNull Kind<MaybeTKind.Witness<F>, A> widen(@NonNull MaybeT<F, A> maybeT) {
+  public <F, A> Kind<MaybeTKind.Witness<F>, A> widen(MaybeT<F, A> maybeT) {
     Objects.requireNonNull(maybeT, INVALID_KIND_TYPE_NULL_MSG);
     // maybeT is already a MaybeTKind<F, A>, which is a Kind<MaybeTKind.Witness<F>, A>.
     return maybeT;
@@ -59,7 +58,7 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    * @throws KindUnwrapException if {@code kind} is null or not a valid {@link MaybeT} instance.
    */
   @Override
-  public <F, A> @NonNull MaybeT<F, A> narrow(@Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
+  public <F, A> MaybeT<F, A> narrow(@Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
     if (kind == null) {
       throw new KindUnwrapException(MaybeTKindHelper.INVALID_KIND_NULL_MSG);
     }

@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.lazy;
 
 import java.util.Objects;
 import java.util.function.Function;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,9 +17,9 @@ public final class Lazy<A> {
   private transient volatile boolean evaluated = false;
   private @Nullable A value;
   private @Nullable Throwable exception;
-  private final @NonNull ThrowableSupplier<? extends A> computation;
+  private final ThrowableSupplier<? extends A> computation;
 
-  private Lazy(@NonNull ThrowableSupplier<? extends A> computation) {
+  private Lazy(ThrowableSupplier<? extends A> computation) {
     this.computation = Objects.requireNonNull(computation, "Lazy computation cannot be null");
   }
 
@@ -31,7 +30,7 @@ public final class Lazy<A> {
    * @param <A> The value type.
    * @return A new Lazy instance. (NonNull)
    */
-  public static <A> @NonNull Lazy<A> defer(@NonNull ThrowableSupplier<? extends A> computation) {
+  public static <A> Lazy<A> defer(ThrowableSupplier<? extends A> computation) {
     return new Lazy<>(computation);
   }
 
@@ -42,7 +41,7 @@ public final class Lazy<A> {
    * @param <A> The value type.
    * @return A new Lazy instance holding the pre-computed value. (NonNull)
    */
-  public static <A> @NonNull Lazy<A> now(@Nullable A value) {
+  public static <A> Lazy<A> now(@Nullable A value) {
     Lazy<A> lazy = new Lazy<>(() -> value);
     lazy.value = value;
     lazy.exception = null;
@@ -89,7 +88,7 @@ public final class Lazy<A> {
    * @param <B> The result type of the mapping function.
    * @return A new Lazy computation for the mapped value. (NonNull)
    */
-  public <B> @NonNull Lazy<B> map(@NonNull Function<? super A, ? extends B> f) {
+  public <B> Lazy<B> map(Function<? super A, ? extends B> f) {
     Objects.requireNonNull(f, "mapper function cannot be null");
     return Lazy.defer(() -> f.apply(this.force()));
   }
@@ -103,8 +102,7 @@ public final class Lazy<A> {
    * @param <B> The value type of the returned Lazy computation.
    * @return A new Lazy computation representing the sequenced operation. (NonNull)
    */
-  public <B> @NonNull Lazy<B> flatMap(
-      @NonNull Function<? super A, ? extends @NonNull Lazy<? extends B>> f) {
+  public <B> Lazy<B> flatMap(Function<? super A, ? extends Lazy<? extends B>> f) {
     Objects.requireNonNull(f, "flatMap mapper function cannot be null");
     return Lazy.defer(
         () -> {

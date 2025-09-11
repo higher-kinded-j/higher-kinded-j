@@ -10,7 +10,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -60,7 +59,7 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
    *     {@code CompletableFuture.completedFuture(value)}.
    */
   @Override
-  public <A> @NonNull Kind<CompletableFutureKind.Witness, A> of(@Nullable A value) {
+  public <A> Kind<CompletableFutureKind.Witness, A> of(@Nullable A value) {
     return FUTURE.widen(CompletableFuture.completedFuture(value));
   }
 
@@ -95,9 +94,9 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
    *     be unwrapped.
    */
   @Override
-  public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> ap(
-      @NonNull Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
-      @NonNull Kind<CompletableFutureKind.Witness, A> fa) {
+  public <A, B> Kind<CompletableFutureKind.Witness, B> ap(
+      Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
+      Kind<CompletableFutureKind.Witness, A> fa) {
     CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
 

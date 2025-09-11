@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -31,7 +30,7 @@ public class StateApplicative<S> extends StateFunctor<S>
    * @return A {@code Kind<StateKind.Witness, A>} representing {@code State.pure(value)}.
    */
   @Override
-  public <A> @NonNull Kind<StateKind.Witness<S>, A> of(@Nullable A value) {
+  public <A> Kind<StateKind.Witness<S>, A> of(@Nullable A value) {
     return STATE.pure(value);
   }
 
@@ -47,9 +46,8 @@ public class StateApplicative<S> extends StateFunctor<S>
    * @return A new {@code Kind<StateKind.Witness, B>} resulting from the application.
    */
   @Override
-  public <A, B> @NonNull Kind<StateKind.Witness<S>, B> ap(
-      @NonNull Kind<StateKind.Witness<S>, ? extends Function<A, B>> ff,
-      @NonNull Kind<StateKind.Witness<S>, A> fa) {
+  public <A, B> Kind<StateKind.Witness<S>, B> ap(
+      Kind<StateKind.Witness<S>, ? extends Function<A, B>> ff, Kind<StateKind.Witness<S>, A> fa) {
 
     State<S, ? extends Function<A, B>> stateF = STATE.narrow(ff);
     State<S, A> stateA = STATE.narrow(fa);

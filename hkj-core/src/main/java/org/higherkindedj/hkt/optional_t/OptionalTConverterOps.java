@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.optional_t;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -26,7 +25,7 @@ public interface OptionalTConverterOps {
    * @return The {@code Kind} representation.
    * @throws NullPointerException if {@code optionalT} is {@code null}.
    */
-  <F, A> @NonNull Kind<OptionalTKind.Witness<F>, A> widen(@NonNull OptionalT<F, A> optionalT);
+  <F, A> Kind<OptionalTKind.Witness<F>, A> widen(OptionalT<F, A> optionalT);
 
   /**
    * Narrows a {@code Kind<OptionalTKind.Witness<F>, A>} back to its concrete {@link OptionalT
@@ -38,5 +37,5 @@ public interface OptionalTConverterOps {
    * @return The unwrapped, non-null {@link OptionalT OptionalT&lt;F, A&gt;} instance.
    * @throws KindUnwrapException if {@code kind} is null or not a valid {@link OptionalT} instance.
    */
-  <F, A> @NonNull OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind);
+  <F, A> OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind);
 }

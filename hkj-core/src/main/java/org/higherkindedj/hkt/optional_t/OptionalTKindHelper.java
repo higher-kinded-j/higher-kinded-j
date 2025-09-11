@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.optional_t;
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -42,8 +41,7 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    * @throws NullPointerException if {@code optionalT} is null.
    */
   @Override
-  public <F, A> @NonNull Kind<OptionalTKind.Witness<F>, A> widen(
-      @NonNull OptionalT<F, A> optionalT) {
+  public <F, A> Kind<OptionalTKind.Witness<F>, A> widen(OptionalT<F, A> optionalT) {
     Objects.requireNonNull(optionalT, INVALID_KIND_TYPE_NULL_MSG);
     // optionalT is already an OptionalTKind<F, A>, which is a Kind<OptionalTKind.Witness<F>, A>.
     return optionalT;
@@ -60,7 +58,7 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    * @throws KindUnwrapException if {@code kind} is null or not a valid {@link OptionalT} instance.
    */
   @Override
-  public <F, A> @NonNull OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
+  public <F, A> OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(OptionalTKindHelper.INVALID_KIND_NULL_MSG);
       // Since OptionalT<F,A> implements OptionalTKind<F,A>,

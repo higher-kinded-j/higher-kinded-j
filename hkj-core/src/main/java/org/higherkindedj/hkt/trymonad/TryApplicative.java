@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -29,7 +28,7 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
    * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.success(value)}.
    */
   @Override
-  public <A> @NonNull Kind<TryKind.Witness, A> of(@Nullable A value) {
+  public <A> Kind<TryKind.Witness, A> of(@Nullable A value) {
     return TRY.widen(Try.success(value));
   }
 
@@ -47,9 +46,8 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
    *     Try.Failure} is returned.
    */
   @Override
-  public <A, B> @NonNull Kind<TryKind.Witness, B> ap(
-      @NonNull Kind<TryKind.Witness, ? extends Function<A, B>> ff,
-      @NonNull Kind<TryKind.Witness, A> fa) {
+  public <A, B> Kind<TryKind.Witness, B> ap(
+      Kind<TryKind.Witness, ? extends Function<A, B>> ff, Kind<TryKind.Witness, A> fa) {
     Try<? extends Function<A, B>> tryF = TRY.narrow(ff);
     Try<A> tryA = TRY.narrow(fa);
 

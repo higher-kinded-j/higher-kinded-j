@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Functor} type class for {@link java.util.List}, using {@link
@@ -66,8 +65,8 @@ class ListFunctor implements Functor<ListKind.Witness> {
    * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
-  public <A, B> @NonNull Kind<ListKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ListKind.Witness, A> fa) {
+  public <A, B> Kind<ListKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
     // Narrow to ListKind<A> to call unwrap, or directly to ListView<A>
     // ListKind.narrow ensures fa is not null and is of the correct type.
     List<A> listA = ListKind.narrow(fa).unwrap();

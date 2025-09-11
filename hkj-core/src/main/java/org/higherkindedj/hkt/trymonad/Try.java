@@ -8,7 +8,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -79,7 +78,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    *     exception occurs.
    * @throws NullPointerException if {@code supplier} is null.
    */
-  static <T> @NonNull Try<T> of(@NonNull Supplier<? extends T> supplier) {
+  static <T> Try<T> of(Supplier<? extends T> supplier) {
     requireNonNull(supplier, "Supplier cannot be null");
     try {
       // The result from supplier.get() can be null, and Success can hold a null value.
@@ -98,7 +97,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @param <T> The type of the value.
    * @return A non-null {@link Success} instance holding the provided value.
    */
-  static <T> @NonNull Try<T> success(@Nullable T value) {
+  static <T> Try<T> success(@Nullable T value) {
     return new Success<>(value);
   }
 
@@ -110,7 +109,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @return A non-null {@link Failure} instance holding the {@link Throwable}.
    * @throws NullPointerException if {@code throwable} is null.
    */
-  static <T> @NonNull Try<T> failure(@NonNull Throwable throwable) {
+  static <T> Try<T> failure(Throwable throwable) {
     requireNonNull(throwable, "Throwable for Failure cannot be null");
     return new Failure<>(throwable);
   }
@@ -178,7 +177,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code supplier} is null (but only if this is a {@link Failure}
    *     and the supplier needs to be invoked by the concrete implementation).
    */
-  @Nullable T orElseGet(@NonNull Supplier<? extends T> supplier);
+  @Nullable T orElseGet(Supplier<? extends T> supplier);
 
   /**
    * Applies one of two functions depending on whether this is a {@link Success} or a {@link
@@ -206,8 +205,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if either {@code successMapper} or {@code failureMapper} is null.
    */
   default <U> U fold(
-      @NonNull Function<? super T, ? extends U> successMapper,
-      @NonNull Function<? super Throwable, ? extends U> failureMapper) {
+      Function<? super T, ? extends U> successMapper,
+      Function<? super Throwable, ? extends U> failureMapper) {
     requireNonNull(successMapper, "successMapper cannot be null");
     requireNonNull(failureMapper, "failureMapper cannot be null");
 
@@ -244,8 +243,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @return An {@code Either<L, T>} representing the outcome of this {@code Try}.
    * @throws NullPointerException if {@code failureToLeftMapper} is null.
    */
-  default <L> @NonNull Either<L, T> toEither(
-      @NonNull Function<? super Throwable, ? extends L> failureToLeftMapper) {
+  default <L> Either<L, T> toEither(Function<? super Throwable, ? extends L> failureToLeftMapper) {
     requireNonNull(failureToLeftMapper, "failureToLeftMapper cannot be null");
     return switch (this) {
       case Success<T>(var value) -> Either.<L, T>right(value);
@@ -279,7 +277,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @return A new non-null {@code Try<U>} resulting from applying the mapper, or a {@link Failure}.
    * @throws NullPointerException if {@code mapper} is null (checked by implementations).
    */
-  @NonNull <U> Try<U> map(@NonNull Function<? super T, ? extends U> mapper);
+  <U> Try<U> map(Function<? super T, ? extends U> mapper);
 
   /**
    * If this is a {@link Success}, applies the given {@code Try}-bearing function to its value and
@@ -296,8 +294,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code mapper} is null, or if {@code mapper} returns null
    *     (checked by implementations).
    */
-  @NonNull <U> Try<U> flatMap(
-      @NonNull Function<? super T, ? extends @NonNull Try<? extends U>> mapper);
+  <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper);
 
   /**
    * If this is a {@link Failure}, applies the given recovery function to the {@link Throwable}. If
@@ -320,7 +317,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    *     Success} from recovery, or a new {@link Failure} if recovery also failed.
    * @throws NullPointerException if {@code recoveryFunction} is null (checked by implementations).
    */
-  @NonNull Try<T> recover(@NonNull Function<? super Throwable, ? extends T> recoveryFunction);
+  Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction);
 
   /**
    * If this is a {@link Failure}, applies the given {@code Try}-bearing recovery function to the
@@ -337,8 +334,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code recoveryFunction} is null, or if it returns null
    *     (checked by implementations).
    */
-  @NonNull Try<T> recoverWith(
-      @NonNull Function<? super Throwable, ? extends @NonNull Try<? extends T>> recoveryFunction);
+  Try<T> recoverWith(Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction);
 
   /**
    * Performs one of two actions depending on whether this is a {@link Success} or a {@link
@@ -352,9 +348,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @param failureAction The non-null action to perform if this is a {@link Failure}.
    * @throws NullPointerException if either {@code successAction} or {@code failureAction} is null.
    */
-  default void match(
-      @NonNull Consumer<? super T> successAction,
-      @NonNull Consumer<? super Throwable> failureAction) {
+  default void match(Consumer<? super T> successAction, Consumer<? super Throwable> failureAction) {
     requireNonNull(successAction, "successAction cannot be null");
     requireNonNull(failureAction, "failureAction cannot be null");
 
@@ -411,13 +405,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     }
 
     @Override
-    public @Nullable T orElseGet(@NonNull Supplier<? extends T> supplier) {
+    public @Nullable T orElseGet(Supplier<? extends T> supplier) {
       requireNonNull(supplier, "supplier cannot be null");
       return value;
     }
 
     @Override
-    public @NonNull <U> Try<U> map(@NonNull Function<? super T, ? extends U> mapper) {
+    public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper cannot be null");
       try {
         return new Success<>(mapper.apply(value));
@@ -427,8 +421,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     }
 
     @Override
-    public @NonNull <U> Try<U> flatMap(
-        @NonNull Function<? super T, ? extends @NonNull Try<? extends U>> mapper) {
+    public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
       requireNonNull(mapper, "mapper cannot be null");
       Try<? extends U> result;
       try {
@@ -444,16 +437,14 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     }
 
     @Override
-    public @NonNull Try<T> recover(
-        @NonNull Function<? super Throwable, ? extends T> recoveryFunction) {
+    public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
       requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
       return this;
     }
 
     @Override
-    public @NonNull Try<T> recoverWith(
-        @NonNull Function<? super Throwable, ? extends @NonNull Try<? extends T>>
-            recoveryFunction) {
+    public Try<T> recoverWith(
+        Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
       requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
       return this;
     }
@@ -466,7 +457,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @param <T> The phantom type of the value (as there is no successful value).
    * @param cause The non-null {@link Throwable} that caused the failure.
    */
-  record Failure<T>(@NonNull Throwable cause) implements Try<T> {
+  record Failure<T>(Throwable cause) implements Try<T> {
 
     @Override
     public boolean isSuccess() {
@@ -494,13 +485,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     }
 
     @Override
-    public @Nullable T orElseGet(@NonNull Supplier<? extends T> supplier) {
+    public @Nullable T orElseGet(Supplier<? extends T> supplier) {
       requireNonNull(supplier, "supplier cannot be null for orElseGet");
       return supplier.get();
     }
 
     @Override
-    public @NonNull <U> Try<U> map(@NonNull Function<? super T, ? extends U> mapper) {
+    public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper cannot be null");
       // Map does nothing on Failure, just propagates the Failure with the new type U.
       @SuppressWarnings(
@@ -510,8 +501,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     }
 
     @Override
-    public @NonNull <U> Try<U> flatMap(
-        @NonNull Function<? super T, ? extends @NonNull Try<? extends U>> mapper) {
+    public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
       requireNonNull(mapper, "mapper cannot be null");
       @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
@@ -519,8 +509,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     }
 
     @Override
-    public @NonNull Try<T> recover(
-        @NonNull Function<? super Throwable, ? extends T> recoveryFunction) {
+    public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
       requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
       try {
         // The result of recoveryFunction.apply(cause) can be null; Success<T> can hold null.
@@ -531,9 +520,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     }
 
     @Override
-    public @NonNull Try<T> recoverWith(
-        @NonNull Function<? super Throwable, ? extends @NonNull Try<? extends T>>
-            recoveryFunction) {
+    public Try<T> recoverWith(
+        Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
       requireNonNull(recoveryFunction, "recoveryFunction cannot be null");
       Try<? extends T> result;
       try {

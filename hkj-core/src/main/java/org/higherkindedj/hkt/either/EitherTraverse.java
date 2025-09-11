@@ -10,7 +10,6 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link Either}, using {@link
@@ -33,16 +32,16 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   }
 
   @Override
-  public <A, B> @NonNull Kind<EitherKind.Witness<E>, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<EitherKind.Witness<E>, A> fa) {
+  public <A, B> Kind<EitherKind.Witness<E>, B> map(
+      Function<? super A, ? extends B> f, Kind<EitherKind.Witness<E>, A> fa) {
     return EITHER.widen(EITHER.narrow(fa).map(f));
   }
 
   @Override
-  public <G, A, B> @NonNull Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
-      @NonNull Applicative<G> applicative,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
-      @NonNull Kind<EitherKind.Witness<E>, A> ta) {
+  public <G, A, B> Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
+      Applicative<G> applicative,
+      Function<? super A, ? extends Kind<G, ? extends B>> f,
+      Kind<EitherKind.Witness<E>, A> ta) {
 
     return EITHER
         .narrow(ta)
@@ -58,9 +57,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
 
   @Override
   public <A, M> M foldMap(
-      @NonNull Monoid<M> monoid,
-      @NonNull Function<? super A, ? extends M> f,
-      @NonNull Kind<EitherKind.Witness<E>, A> fa) {
+      Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<EitherKind.Witness<E>, A> fa) {
     return EITHER.narrow(fa).fold(left -> monoid.empty(), f);
   }
 }

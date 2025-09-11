@@ -2,8 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.unit;
 
-import org.jspecify.annotations.NonNull;
-
 /**
  * Represents a type with a single value, {@link Unit#INSTANCE}. It is used to signify the absence
  * of a specific, meaningful value or the completion of an operation that produces no specific
@@ -19,7 +17,7 @@ public enum Unit {
    * @return "()"
    */
   @Override
-  public @NonNull String toString() {
+  public String toString() {
     return "()";
   }
 }

@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Monad} interface for the {@link Reader} monad.
@@ -74,9 +73,9 @@ public final class ReaderMonad<R> extends ReaderApplicative<R>
    *     {@code r}.
    */
   @Override
-  public <A, B> @NonNull Kind<ReaderKind.Witness<R>, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
-      @NonNull Kind<ReaderKind.Witness<R>, A> ma) {
+  public <A, B> Kind<ReaderKind.Witness<R>, B> flatMap(
+      Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
+      Kind<ReaderKind.Witness<R>, A> ma) {
 
     Reader<R, A> readerA = READER.narrow(ma); // Convert Kind back to concrete Reader
 

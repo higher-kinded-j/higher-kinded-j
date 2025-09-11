@@ -6,7 +6,6 @@ import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the concrete implementation of the Maybe Transformer Monad (MaybeT). It wraps a
@@ -24,7 +23,7 @@ import org.jspecify.annotations.NonNull;
  * @see MaybeTMonad
  * @see MaybeTKindHelper
  */
-public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> {
+public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> {
 
   /**
    * Canonical constructor for {@code MaybeT}.
@@ -45,7 +44,7 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKi
    * @return A new {@code MaybeT} instance.
    * @throws NullPointerException if {@code value} is null.
    */
-  public static <F, A> @NonNull MaybeT<F, A> fromKind(@NonNull Kind<F, Maybe<A>> value) {
+  public static <F, A> MaybeT<F, A> fromKind(Kind<F, Maybe<A>> value) {
     return new MaybeT<>(value);
   }
 
@@ -59,8 +58,7 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKi
    * @return A new {@code MaybeT} instance representing {@code outerMonad.of(Maybe.just(a))}.
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
-  public static <F, A extends @NonNull Object> @NonNull MaybeT<F, A> just(
-      @NonNull Monad<F> outerMonad, @NonNull A a) {
+  public static <F, A extends Object> MaybeT<F, A> just(Monad<F> outerMonad, A a) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for just");
     // Maybe.just itself will throw if 'a' is null.
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.just(a));
@@ -77,7 +75,7 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKi
    * @return A new {@code MaybeT} instance representing {@code outerMonad.of(Maybe.nothing())}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, A> @NonNull MaybeT<F, A> nothing(@NonNull Monad<F> outerMonad) {
+  public static <F, A> MaybeT<F, A> nothing(Monad<F> outerMonad) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for nothing");
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.nothing());
     return new MaybeT<>(lifted);
@@ -93,8 +91,7 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKi
    * @return A new {@code MaybeT} instance representing {@code outerMonad.of(maybe)}.
    * @throws NullPointerException if {@code outerMonad} or {@code maybe} is null.
    */
-  public static <F, A> @NonNull MaybeT<F, A> fromMaybe(
-      @NonNull Monad<F> outerMonad, @NonNull Maybe<A> maybe) {
+  public static <F, A> MaybeT<F, A> fromMaybe(Monad<F> outerMonad, Maybe<A> maybe) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for fromMaybe");
     Objects.requireNonNull(maybe, "Input Maybe cannot be null for fromMaybe");
     Kind<F, Maybe<A>> lifted = outerMonad.of(maybe);
@@ -114,8 +111,7 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKi
    *     fa)}.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
-  public static <F, A> @NonNull MaybeT<F, A> liftF(
-      @NonNull Monad<F> outerMonad, @NonNull Kind<F, A> fa) {
+  public static <F, A> MaybeT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for liftF");
     Objects.requireNonNull(fa, "Input Kind<F, A> cannot be null for liftF");
     // Use Maybe.fromNullable for safety when mapping the value inside F
@@ -126,10 +122,10 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) implements MaybeTKi
   /**
    * Accessor for the underlying monadic value.
    *
-   * @return The {@code @NonNull Kind<F, Maybe<A>>} wrapped by this {@code MaybeT}.
+   * @return The {@code Kind<F, Maybe<A>>} wrapped by this {@code MaybeT}.
    */
   @Override
-  public @NonNull Kind<F, Maybe<A>> value() {
+  public Kind<F, Maybe<A>> value() {
     return value;
   }
 }

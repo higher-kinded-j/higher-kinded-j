@@ -8,7 +8,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -67,9 +66,9 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
    * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
-  public <A, B> @NonNull Kind<CompletableFutureKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends @Nullable B> f, // Function A -> B, where B can be null
-      @NonNull Kind<CompletableFutureKind.Witness, A> fa) {
+  public <A, B> Kind<CompletableFutureKind.Witness, B> map(
+      Function<? super A, ? extends @Nullable B> f, // Function A -> B, where B can be null
+      Kind<CompletableFutureKind.Witness, A> fa) {
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);
     return FUTURE.widen(futureB);

@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.id;
 
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,7 +29,7 @@ public enum IdKindHelper implements IdConverterOps {
    * @throws NullPointerException if id is null.
    */
   @Override
-  public <A> @NonNull Kind<Id.Witness, A> widen(@NonNull Id<A> id) {
+  public <A> Kind<Id.Witness, A> widen(Id<A> id) {
     Objects.requireNonNull(id, "Id cannot be null");
     return id;
   }
@@ -45,7 +44,7 @@ public enum IdKindHelper implements IdConverterOps {
    * @throws NullPointerException if kind is null.
    */
   @Override
-  public <A> @NonNull Id<A> narrow(@NonNull Kind<Id.Witness, A> kind) {
+  public <A> Id<A> narrow(Kind<Id.Witness, A> kind) {
     Objects.requireNonNull(kind, "Kind cannot be null");
     return (Id<A>) kind;
   }
@@ -58,7 +57,7 @@ public enum IdKindHelper implements IdConverterOps {
    * @param <A> The type of the value.
    * @return The underlying value. Can be null if the {@link Id} wrapped a null.
    */
-  public <A> @Nullable A unwrap(@NonNull Kind<Id.Witness, A> kind) {
+  public <A> @Nullable A unwrap(Kind<Id.Witness, A> kind) {
     return this.narrow(kind).value();
   }
 }

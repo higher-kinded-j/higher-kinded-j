@@ -10,7 +10,6 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link Validated}.
@@ -32,16 +31,16 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   }
 
   @Override
-  public <A, B> @NonNull Kind<ValidatedKind.Witness<E>, B> map(
-      @NonNull Function<? super A, ? extends B> f, @NonNull Kind<ValidatedKind.Witness<E>, A> fa) {
+  public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
+      Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
     return VALIDATED.widen(VALIDATED.narrow(fa).map(f));
   }
 
   @Override
-  public <G, A, B> @NonNull Kind<G, Kind<ValidatedKind.Witness<E>, B>> traverse(
-      @NonNull Applicative<G> applicative,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
-      @NonNull Kind<ValidatedKind.Witness<E>, A> ta) {
+  public <G, A, B> Kind<G, Kind<ValidatedKind.Witness<E>, B>> traverse(
+      Applicative<G> applicative,
+      Function<? super A, ? extends Kind<G, ? extends B>> f,
+      Kind<ValidatedKind.Witness<E>, A> ta) {
 
     return VALIDATED
         .narrow(ta)
@@ -55,9 +54,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
 
   @Override
   public <A, M> M foldMap(
-      @NonNull Monoid<M> monoid,
-      @NonNull Function<? super A, ? extends M> f,
-      @NonNull Kind<ValidatedKind.Witness<E>, A> fa) {
+      Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
     // If Valid, map the value. If Invalid, return the monoid's empty value.
     return VALIDATED.narrow(fa).fold(error -> monoid.empty(), f);

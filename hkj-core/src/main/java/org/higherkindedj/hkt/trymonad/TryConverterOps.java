@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.trymonad;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -26,7 +25,7 @@ public interface TryConverterOps {
    *     {@code Try} computation.
    * @throws NullPointerException if {@code tryInstance} is {@code null}.
    */
-  <A> @NonNull Kind<TryKind.Witness, A> widen(@NonNull Try<A> tryInstance);
+  <A> Kind<TryKind.Witness, A> widen(Try<A> tryInstance);
 
   /**
    * Narrows a {@link Kind}&lt;{@link TryKind.Witness}, A&gt; back to its concrete {@link
@@ -39,5 +38,5 @@ public interface TryConverterOps {
    *     cannot be properly converted to a {@link Try} instance (e.g., wrong type or invalid
    *     internal state).
    */
-  <A> @NonNull Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind);
+  <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind);
 }

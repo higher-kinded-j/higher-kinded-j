@@ -10,7 +10,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -75,7 +74,7 @@ public final class OptionalMonad extends OptionalFunctor
    *     Optional.ofNullable(value)}.
    */
   @Override
-  public <A> @NonNull Kind<OptionalKind.Witness, A> of(@Nullable A value) {
+  public <A> Kind<OptionalKind.Witness, A> of(@Nullable A value) {
     return OPTIONAL.widen(Optional.ofNullable(value));
   }
 
@@ -95,9 +94,9 @@ public final class OptionalMonad extends OptionalFunctor
    *     operation.
    */
   @Override
-  public <A, B> @NonNull Kind<OptionalKind.Witness, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<OptionalKind.Witness, B>> f,
-      @NonNull Kind<OptionalKind.Witness, A> ma) {
+  public <A, B> Kind<OptionalKind.Witness, B> flatMap(
+      Function<? super A, ? extends Kind<OptionalKind.Witness, B>> f,
+      Kind<OptionalKind.Witness, A> ma) {
     Optional<A> optA = OPTIONAL.narrow(ma);
     Optional<B> resultOpt =
         optA.flatMap(
@@ -123,9 +122,8 @@ public final class OptionalMonad extends OptionalFunctor
    *     application.
    */
   @Override
-  public <A, B> @NonNull Kind<OptionalKind.Witness, B> ap(
-      @NonNull Kind<OptionalKind.Witness, ? extends Function<A, B>> ff,
-      @NonNull Kind<OptionalKind.Witness, A> fa) {
+  public <A, B> Kind<OptionalKind.Witness, B> ap(
+      Kind<OptionalKind.Witness, ? extends Function<A, B>> ff, Kind<OptionalKind.Witness, A> fa) {
     Optional<? extends Function<A, B>> optF = OPTIONAL.narrow(ff);
     Optional<A> optA = OPTIONAL.narrow(fa);
     Optional<B> resultOpt = optF.flatMap(optA::map);
@@ -141,7 +139,7 @@ public final class OptionalMonad extends OptionalFunctor
    * @return A non-null {@code Kind<OptionalKind.Witness, A>} representing {@code Optional.empty()}.
    */
   @Override
-  public <A> @NonNull Kind<OptionalKind.Witness, A> raiseError(@NonNull Unit error) {
+  public <A> Kind<OptionalKind.Witness, A> raiseError(Unit error) {
     return OPTIONAL.widen(Optional.empty());
   }
 
@@ -159,9 +157,9 @@ public final class OptionalMonad extends OptionalFunctor
    *     the result of the handler if empty.
    */
   @Override
-  public <A> @NonNull Kind<OptionalKind.Witness, A> handleErrorWith(
-      @NonNull Kind<OptionalKind.Witness, A> ma,
-      @NonNull Function<? super Unit, ? extends Kind<OptionalKind.Witness, A>> handler) {
+  public <A> Kind<OptionalKind.Witness, A> handleErrorWith(
+      Kind<OptionalKind.Witness, A> ma,
+      Function<? super Unit, ? extends Kind<OptionalKind.Witness, A>> handler) {
     Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
       return handler.apply(Unit.INSTANCE);

@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Monad implementation for {@link State}, using {@link StateKind.Witness} as the HKT marker. An
@@ -37,9 +36,9 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
    *     operation.
    */
   @Override
-  public @NonNull <A, B> Kind<StateKind.Witness<S>, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<StateKind.Witness<S>, B>> f,
-      @NonNull Kind<StateKind.Witness<S>, A> ma) {
+  public <A, B> Kind<StateKind.Witness<S>, B> flatMap(
+      Function<? super A, ? extends Kind<StateKind.Witness<S>, B>> f,
+      Kind<StateKind.Witness<S>, A> ma) {
 
     State<S, A> stateA = STATE.narrow(ma);
 

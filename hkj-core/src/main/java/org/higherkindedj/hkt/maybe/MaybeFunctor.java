@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -42,16 +41,15 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
    *     {@code A} and may return a {@code @Nullable B}. Must not be {@code null}.
    * @param ma The input {@code MaybeKind<A>} instance, which is a {@link Kind} representing a
    *     {@link Maybe}. Must not be {@code null}.
-   * @return A new {@code @NonNull MaybeKind<B>} containing the result of applying the function
-   *     {@code f} if {@code ma} contained a value and {@code f} produced a non-null result. Returns
-   *     a {@code MaybeKind} representing {@code Nothing} if {@code ma} was {@code Nothing} or if
-   *     {@code f} returned {@code null}.
+   * @return A new {@code MaybeKind<B>} containing the result of applying the function {@code f} if
+   *     {@code ma} contained a value and {@code f} produced a non-null result. Returns a {@code
+   *     MaybeKind} representing {@code Nothing} if {@code ma} was {@code Nothing} or if {@code f}
+   *     returned {@code null}.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped.
    */
   @Override
-  public <A, B> @NonNull Kind<MaybeKind.Witness, B> map(
-      @NonNull Function<? super A, ? extends @Nullable B> f,
-      @NonNull Kind<MaybeKind.Witness, A> ma) {
+  public <A, B> Kind<MaybeKind.Witness, B> map(
+      Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> ma) {
     // 1. Unwrap the Kind<MaybeKind.Witness, A> to get the concrete Maybe<A>.
     Maybe<A> maybeA = MAYBE.narrow(ma);
     // 2. Apply the function using Maybe's own map method.

@@ -8,7 +8,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the correct (Valid) case of a {@link Validated}. It holds a non-null value of type
@@ -22,7 +21,7 @@ import org.jspecify.annotations.NonNull;
  * @param <A> The type of the encapsulated value.
  * @param value The non-null value held by this {@code Valid} instance.
  */
-public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, ValidatedKind<E, A> {
+public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, A> {
 
   static String CANNOT_GET_ERROR_FROM_VALID_INSTANCE_MSG =
       "Cannot getError() from a Valid instance.";
@@ -79,7 +78,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @return The non-null encapsulated value.
    */
   @Override
-  public @NonNull A get() {
+  public A get() {
     return value;
   }
 
@@ -103,7 +102,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @return The non-null encapsulated value.
    */
   @Override
-  public @NonNull A orElse(@NonNull A other) {
+  public A orElse(A other) {
     Objects.requireNonNull(other, OR_ELSE_CANNOT_BE_NULL_MSG);
     return value;
   }
@@ -118,7 +117,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @throws NullPointerException if {@code otherSupplier} is null (due to eager null check).
    */
   @Override
-  public @NonNull A orElseGet(@NonNull Supplier<? extends @NonNull A> otherSupplier) {
+  public A orElseGet(Supplier<? extends A> otherSupplier) {
     Objects.requireNonNull(otherSupplier, OR_ELSE_GET_CANNOT_BE_NULL_MSG);
     return value;
   }
@@ -135,8 +134,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @throws NullPointerException if {@code exceptionSupplier} is null (due to eager null check).
    */
   @Override
-  public <X extends Throwable> @NonNull A orElseThrow(
-      @NonNull Supplier<? extends X> exceptionSupplier) throws X {
+  public <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
     Objects.requireNonNull(exceptionSupplier, OR_ELSE_THROW_CANNOT_BE_NULL_MSG);
     return value;
   }
@@ -148,7 +146,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @throws NullPointerException if {@code consumer} is null.
    */
   @Override
-  public void ifValid(@NonNull Consumer<? super A> consumer) {
+  public void ifValid(Consumer<? super A> consumer) {
     Objects.requireNonNull(consumer, IF_VALID_CANNOT_BE_NULL_MSG).accept(value);
   }
 
@@ -161,7 +159,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @throws NullPointerException if {@code consumer} is null.
    */
   @Override
-  public void ifInvalid(@NonNull Consumer<? super E> consumer) {
+  public void ifInvalid(Consumer<? super E> consumer) {
     Objects.requireNonNull(consumer, IF_INVALID_CANNOT_BE_NULL_MSG);
   }
 
@@ -177,7 +175,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    *     results in a null value.
    */
   @Override
-  public @NonNull <B> Validated<E, B> map(@NonNull Function<? super A, ? extends B> fn) {
+  public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
     Objects.requireNonNull(fn, MAP_FN_CANNOT_BE_NULL_MSG);
     B newValue = fn.apply(value);
     Objects.requireNonNull(newValue, MAP_FN_RETURNED_NULL_MSG);
@@ -198,8 +196,7 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    *     Validated} instance.
    */
   @Override
-  public @NonNull <B> Validated<E, B> flatMap(
-      @NonNull Function<? super A, ? extends @NonNull Validated<E, ? extends B>> fn) {
+  public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
     Objects.requireNonNull(fn, FLATMAP_FN_CANNOT_BE_NULL_MSG);
     Validated<E, ? extends B> result = fn.apply(value);
     Objects.requireNonNull(result, FLATMAP_FN_RETURNED_NULL_MSG);
@@ -228,9 +225,8 @@ public record Valid<E, A>(@NonNull A value) implements Validated<E, A>, Validate
    * @return a new {@code Validated<E, B>} instance.
    */
   @Override
-  public @NonNull <B> Validated<E, B> ap(
-      @NonNull Validated<E, Function<? super A, ? extends B>> fnValidated,
-      @NonNull Semigroup<E> semigroup) {
+  public <B> Validated<E, B> ap(
+      Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
     Objects.requireNonNull(fnValidated, AP_FN_CANNOT_BE_NULL);
     Objects.requireNonNull(semigroup, SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG);
     return fnValidated.fold(

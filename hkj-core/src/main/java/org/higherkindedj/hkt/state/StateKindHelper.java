@@ -7,7 +7,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -44,7 +43,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @param <A> The type of the computed value.
    * @param stateInstance The non-null, actual {@link State}{@code <S, A>} instance being wrapped.
    */
-  record StateHolder<S, A>(@NonNull State<S, A> stateInstance) implements StateKind<S, A> {}
+  record StateHolder<S, A>(State<S, A> stateInstance) implements StateKind<S, A> {}
 
   /**
    * Widens a concrete {@link State}{@code <S, A>} instance into its higher-kinded representation,
@@ -58,7 +57,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code state} is {@code null}.
    */
   @Override
-  public <S, A> @NonNull Kind<StateKind.Witness<S>, A> widen(@NonNull State<S, A> state) {
+  public <S, A> Kind<StateKind.Witness<S>, A> widen(State<S, A> state) {
     Objects.requireNonNull(state, "Input State cannot be null for widen");
     return new StateHolder<>(state);
   }
@@ -78,7 +77,7 @@ public enum StateKindHelper implements StateConverterOps {
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <S, A> @NonNull State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
+  public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
     return switch (kind) {
       case null -> throw new KindUnwrapException(StateKindHelper.INVALID_KIND_NULL_MSG);
       case StateKindHelper.StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
@@ -96,7 +95,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @param value The value to lift.
    * @return A non-null {@link Kind<StateKind.Witness<S>, A>} representing the pure computation.
    */
-  public <S, A> @NonNull Kind<StateKind.Witness<S>, A> pure(@Nullable A value) {
+  public <S, A> Kind<StateKind.Witness<S>, A> pure(@Nullable A value) {
     return this.widen(State.pure(value));
   }
 
@@ -106,7 +105,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @param <S> The type of the state.
    * @return A non-null {@link Kind<StateKind.Witness<S>, S>} that yields the current state.
    */
-  public <S> @NonNull Kind<StateKind.Witness<S>, S> get() {
+  public <S> Kind<StateKind.Witness<S>, S> get() {
     return this.widen(State.get());
   }
 
@@ -117,7 +116,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @param newState The non-null new state to be set.
    * @return A non-null {@link Kind<StateKind.Witness<S>, Unit>} that performs the state update.
    */
-  public <S> @NonNull Kind<StateKind.Witness<S>, Unit> set(@NonNull S newState) {
+  public <S> Kind<StateKind.Witness<S>, Unit> set(S newState) {
     return this.widen(State.set(newState));
   }
 
@@ -129,8 +128,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @return A non-null {@link Kind<StateKind.Witness<S>, Unit>} that performs the state
    *     modification.
    */
-  public <S> @NonNull Kind<StateKind.Witness<S>, Unit> modify(
-      @NonNull Function<@NonNull S, @NonNull S> f) {
+  public <S> Kind<StateKind.Witness<S>, Unit> modify(Function<S, S> f) {
     return this.widen(State.modify(f));
   }
 
@@ -143,8 +141,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @return A non-null {@link Kind<StateKind.Witness<S>, A>} that returns the result of inspecting
    *     the state.
    */
-  public <S, A> @NonNull Kind<StateKind.Witness<S>, A> inspect(
-      @NonNull Function<@NonNull S, @Nullable A> f) {
+  public <S, A> Kind<StateKind.Witness<S>, A> inspect(Function<S, @Nullable A> f) {
     return this.widen(State.inspect(f));
   }
 
@@ -159,8 +156,8 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
-  public <S, A> @NonNull StateTuple<S, A> runState(
-      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
+  public <S, A> StateTuple<S, A> runState(
+      @Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
     Objects.requireNonNull(initialState, "Initial state cannot be null for runState");
     return this.narrow(kind).run(initialState);
   }
@@ -177,7 +174,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public <S, A> @Nullable A evalState(
-      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
+      @Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
     return this.runState(kind, initialState).value();
   }
 
@@ -192,8 +189,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
-  public <S, A> @NonNull S execState(
-      @Nullable Kind<StateKind.Witness<S>, A> kind, @NonNull S initialState) {
+  public <S, A> S execState(@Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
     return this.runState(kind, initialState).state();
   }
 }

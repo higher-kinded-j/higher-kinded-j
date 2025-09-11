@@ -6,7 +6,6 @@ import static java.util.Objects.requireNonNull;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -43,8 +42,7 @@ public enum EitherTKindHelper implements EitherTConverterOps {
    * @throws NullPointerException if {@code eitherT} is null.
    */
   @Override
-  public <F, L, R> @NonNull Kind<EitherTKind.Witness<F, L>, R> widen(
-      @NonNull EitherT<F, L, R> eitherT) {
+  public <F, L, R> Kind<EitherTKind.Witness<F, L>, R> widen(EitherT<F, L, R> eitherT) {
     requireNonNull(eitherT, INVALID_KIND_TYPE_NULL_MSG);
     return (EitherTKind<F, L, R>) eitherT;
   }
@@ -61,8 +59,7 @@ public enum EitherTKindHelper implements EitherTConverterOps {
    * @throws KindUnwrapException if {@code kind} is null or not an {@link EitherT} instance.
    */
   @Override
-  public <F, L, R> @NonNull EitherT<F, L, R> narrow(
-      @Nullable Kind<EitherTKind.Witness<F, L>, R> kind) {
+  public <F, L, R> EitherT<F, L, R> narrow(@Nullable Kind<EitherTKind.Witness<F, L>, R> kind) {
     if (kind == null) {
       throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
     }

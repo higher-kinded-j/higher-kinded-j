@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.state_t;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,7 +27,7 @@ public interface StateTConverterOps {
    * @return The {@code Kind} representation.
    * @throws NullPointerException if {@code stateT} is {@code null}.
    */
-  <S, F, A> @NonNull Kind<StateTKind.Witness<S, F>, A> widen(@NonNull StateT<S, F, A> stateT);
+  <S, F, A> Kind<StateTKind.Witness<S, F>, A> widen(StateT<S, F, A> stateT);
 
   /**
    * Narrows a {@code Kind<StateTKind.Witness<S, F>, A>} back to its concrete {@link StateT
@@ -41,5 +40,5 @@ public interface StateTConverterOps {
    * @return The unwrapped, non-null {@link StateT StateT&lt;S, F, A&gt;} instance.
    * @throws KindUnwrapException if {@code kind} is null or not a valid {@link StateT} instance.
    */
-  <S, F, A> @NonNull StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind);
+  <S, F, A> StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind);
 }

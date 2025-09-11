@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -44,7 +43,7 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    *
    * @return The singleton {@code IdentityMonad} instance.
    */
-  public static @NonNull IdentityMonad instance() {
+  public static IdentityMonad instance() {
     return INSTANCE;
   }
 
@@ -58,7 +57,7 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    *     {@link Kind} is guaranteed non-null, even if {@code a} is null.
    */
   @Override
-  public <A> @NonNull Kind<Id.Witness, A> of(@Nullable A a) {
+  public <A> Kind<Id.Witness, A> of(@Nullable A a) {
     return Id.of(a);
   }
 
@@ -83,8 +82,8 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    * @throws NullPointerException if {@code fn} or {@code fa} is null.
    */
   @Override
-  public <A, B> @NonNull Kind<Id.Witness, B> map(
-      @NonNull Function<? super A, ? extends B> fn, @NonNull Kind<Id.Witness, A> fa) {
+  public <A, B> Kind<Id.Witness, B> map(
+      Function<? super A, ? extends B> fn, Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(fn, "Function cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
     // Delegate to Id.map for directness. Id.map handles null values wrapped in Id correctly.
@@ -111,8 +110,8 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    *     is null.
    */
   @Override
-  public <A, B> @NonNull Kind<Id.Witness, B> ap(
-      @NonNull Kind<Id.Witness, ? extends Function<A, B>> ff, @NonNull Kind<Id.Witness, A> fa) {
+  public <A, B> Kind<Id.Witness, B> ap(
+      Kind<Id.Witness, ? extends Function<A, B>> ff, Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(ff, "Kind ff cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
     Function<A, B> function = ID.narrow(ff).value();
@@ -147,9 +146,8 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    *     {@link Kind}.
    */
   @Override
-  public <A, B> @NonNull Kind<Id.Witness, B> flatMap(
-      @NonNull Function<? super A, ? extends Kind<Id.Witness, B>> fn,
-      @NonNull Kind<Id.Witness, A> fa) {
+  public <A, B> Kind<Id.Witness, B> flatMap(
+      Function<? super A, ? extends Kind<Id.Witness, B>> fn, Kind<Id.Witness, A> fa) {
     Objects.requireNonNull(fn, "Function cannot be null");
     Objects.requireNonNull(fa, "Kind fa cannot be null");
     A valueInA = ID.narrow(fa).value();

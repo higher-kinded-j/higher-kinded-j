@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Defines conversion operations (widen and narrow) specific to Validated types and their Kind
@@ -22,7 +21,7 @@ public interface ValidatedConverterOps {
    * @param <A> The value type.
    * @return The {@link Kind} representation.
    */
-  <E, A> @NonNull Kind<ValidatedKind.Witness<E>, A> widen(@NonNull Validated<E, A> validated);
+  <E, A> Kind<ValidatedKind.Witness<E>, A> widen(Validated<E, A> validated);
 
   /**
    * Narrows a {@link Kind} representation to a {@link Validated}.
@@ -34,5 +33,5 @@ public interface ValidatedConverterOps {
    * @return The {@link Validated} instance.
    * @throws ClassCastException if the kind is not a Validated instance of the expected types.
    */
-  <E, A> @NonNull Validated<E, A> narrow(@NonNull Kind<ValidatedKind.Witness<E>, A> kind);
+  <E, A> Validated<E, A> narrow(Kind<ValidatedKind.Witness<E>, A> kind);
 }

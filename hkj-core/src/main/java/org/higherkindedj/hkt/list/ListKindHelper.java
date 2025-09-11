@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -33,7 +32,7 @@ public enum ListKindHelper implements ListConverterOps {
    * @return The higher-kinded representation of the list.
    */
   @Override
-  public <A> @NonNull Kind<ListKind.Witness, A> widen(@NonNull List<A> list) {
+  public <A> Kind<ListKind.Witness, A> widen(List<A> list) {
     Objects.requireNonNull(list, INVALID_KIND_TYPE_NULL_MSG);
     return ListKind.of(list);
   }
@@ -50,7 +49,7 @@ public enum ListKindHelper implements ListConverterOps {
    * @throws ClassCastException if the provided {@code kind} is not actually a {@code ListKind}.
    */
   @Override
-  public <A> @NonNull List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
+  public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
     if (kind == null) {
       return Collections.emptyList();
     }
@@ -69,8 +68,7 @@ public enum ListKindHelper implements ListConverterOps {
    * @return The unwrapped list, or {@code defaultValue} if {@code kind} is null.
    * @throws ClassCastException if the provided {@code kind} is not actually a {@code ListKind}.
    */
-  public <A> @NonNull List<A> unwrapOr(
-      @Nullable Kind<ListKind.Witness, A> kind, @NonNull List<A> defaultValue) {
+  public <A> List<A> unwrapOr(@Nullable Kind<ListKind.Witness, A> kind, List<A> defaultValue) {
     Objects.requireNonNull(defaultValue, "defaultValue cannot be null");
     if (kind == null) {
       return defaultValue;

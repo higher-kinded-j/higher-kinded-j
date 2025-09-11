@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.state;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +26,7 @@ public interface StateConverterOps {
    *     State}.
    * @throws NullPointerException if {@code state} is {@code null}.
    */
-  <S, A> @NonNull Kind<StateKind.Witness<S>, A> widen(@NonNull State<S, A> state);
+  <S, A> Kind<StateKind.Witness<S>, A> widen(State<S, A> state);
 
   /**
    * Narrows a {@code Kind<StateKind.Witness<S>, A>} back to its concrete {@link State}{@code <S,
@@ -40,5 +39,5 @@ public interface StateConverterOps {
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not an instance of the
    *     expected underlying holder type for State.
    */
-  <S, A> @NonNull State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind);
+  <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind);
 }
