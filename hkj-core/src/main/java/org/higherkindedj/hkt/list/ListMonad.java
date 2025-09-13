@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,6 +59,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   @Override
   public <A, B> Kind<ListKind.Witness, B> ap(
       Kind<ListKind.Witness, ? extends Function<A, B>> ff, Kind<ListKind.Witness, A> fa) {
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
 
     List<? extends Function<A, B>> functions = ListKind.narrow(ff).unwrap();
     List<A> values = ListKind.narrow(fa).unwrap();
@@ -87,6 +92,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   @Override
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
     return ListFunctor.INSTANCE.map(f, fa);
   }
 
@@ -104,6 +111,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   @Override
   public <A, B> Kind<ListKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<ListKind.Witness, B>> f, Kind<ListKind.Witness, A> ma) {
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
 
     List<A> inputList = ListKind.narrow(ma).unwrap();
     List<B> resultList = new ArrayList<>();

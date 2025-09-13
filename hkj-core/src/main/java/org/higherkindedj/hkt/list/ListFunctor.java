@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -67,6 +70,8 @@ class ListFunctor implements Functor<ListKind.Witness> {
   @Override
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
     // Narrow to ListKind<A> to call unwrap, or directly to ListView<A>
     // ListKind.narrow ensures fa is not null and is of the correct type.
     List<A> listA = ListKind.narrow(fa).unwrap();

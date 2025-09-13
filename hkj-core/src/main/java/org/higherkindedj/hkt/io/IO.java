@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.io;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents a computation that, when executed, can perform side effects and produce a value of
@@ -103,10 +104,8 @@ public interface IO<A> {
    * @return A new {@code @NonNull IO<A>} instance representing the deferred computation.
    * @throws NullPointerException if {@code thunk} is null.
    */
-  static <A> @NonNull IO<A> delay(@NonNull Supplier<A> thunk) {
-    Objects.requireNonNull(thunk, "Supplier (thunk) cannot be null for IO.delay");
-    // The lambda () -> thunk.get() becomes the implementation of unsafeRunSync
-    // for the returned IO instance.
+  static <A> IO<A> delay(Supplier<A> thunk) {
+    requireNonNullFunction(thunk, "Supplier (thunk)");
     return thunk::get;
   }
 
@@ -129,8 +128,8 @@ public interface IO<A> {
    *     and then apply the mapping function {@code f} to its result.
    * @throws NullPointerException if {@code f} is null.
    */
-  default <B> @NonNull IO<B> map(@NonNull Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "mapper function cannot be null");
+  default <B> IO<B> map(Function<? super A, ? extends B> f) {
+    requireNonNullFunction(f, "mapper function");
     return IO.delay(() -> f.apply(this.unsafeRunSync()));
   }
 
@@ -156,16 +155,13 @@ public interface IO<A> {
    *     execute that new {@code IO}.
    * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
    */
-  default <B> @NonNull IO<B> flatMap(@NonNull Function<? super A, ? extends IO<B>> f) {
-    Objects.requireNonNull(f, "flatMap mapper function cannot be null");
+  default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
+    requireNonNullFunction(f, "flatMap mapper function");
     return IO.delay(
         () -> {
-          // When the resulting IO is run, this.unsafeRunSync() is called first.
           A a = this.unsafeRunSync();
-          // Then, f is applied to its result to get the next IO action.
           IO<B> nextIO = f.apply(a);
           Objects.requireNonNull(nextIO, "flatMap function returned a null IO instance");
-          // Finally, the next IO action is run.
           return nextIO.unsafeRunSync();
         });
   }

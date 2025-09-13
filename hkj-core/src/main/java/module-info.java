@@ -1,3 +1,4 @@
+@org.jspecify.annotations.NullMarked
 module org.higherkindedj.core {
   // This module requires jspecify and makes it available to its users.
   requires transitive org.jspecify;

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -40,10 +41,16 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
    * @param <B> The new result type after applying the function {@code f}.
    * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the transformed {@code
    *     Reader<R, B>}. Never null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
+   *     to a valid {@code Reader} representation.
    */
   @Override
   public <A, B> Kind<ReaderKind.Witness<R>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
+
     Reader<R, A> readerA = READER.narrow(fa);
     Reader<R, B> readerB = readerA.map(f); // Delegates to Reader's own map method
     return READER.widen(readerB);

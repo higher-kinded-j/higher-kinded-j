@@ -3,8 +3,8 @@
 package org.higherkindedj.hkt.either_t;
 
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
-import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -40,8 +40,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public EitherTMonad(Monad<F> outerMonad) {
-    this.outerMonad =
-        Objects.requireNonNull(outerMonad, "Outer Monad instance cannot be null for EitherTMonad");
+    this.outerMonad = requireValidOuterMonad(outerMonad, "EitherTMonad");
   }
 
   /**
@@ -51,6 +50,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    * @param <R> The type of the 'right' value.
    * @param r The 'right' value to lift. Can be null if {@code R} is nullable.
    * @return A {@code Kind<EitherTKind.Witness<F, L>, R>} representing the lifted 'right' value.
+   *     Never null.
    */
   @Override
   public <R> Kind<EitherTKind.Witness<F, L>, R> of(@Nullable R r) {
@@ -67,13 +67,17 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    * @param <R_OUT> The new type of the 'right' value after applying the function.
    * @param f The function to apply to the 'right' value. Must not be null.
    * @param fa The {@code Kind<EitherTKind.Witness<F, L>, R_IN>} to map over. Must not be null.
-   * @return A new {@code Kind<EitherTKind.Witness<F, L>, R_OUT>} with the function applied.
+   * @return A new {@code Kind<EitherTKind.Witness<F, L>, R_OUT>} with the function applied. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
    */
   @Override
   public <R_IN, R_OUT> Kind<EitherTKind.Witness<F, L>, R_OUT> map(
       Function<? super R_IN, ? extends R_OUT> f, Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
-    Objects.requireNonNull(f, "Function f cannot be null for map");
-    Objects.requireNonNull(fa, "Kind fa cannot be null for map");
+
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
 
     EitherT<F, L, R_IN> eitherT = EITHER_T.narrow(fa);
     Kind<F, Either<L, R_OUT>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());
@@ -90,13 +94,18 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    * @param ff The wrapped function. Must not be null.
    * @param fa The wrapped 'right' value. Must not be null.
    * @return A new {@code Kind<EitherTKind.Witness<F, L>, R_OUT>} representing the application.
+   *     Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped.
    */
   @Override
   public <R_IN, R_OUT> Kind<EitherTKind.Witness<F, L>, R_OUT> ap(
       Kind<EitherTKind.Witness<F, L>, ? extends Function<R_IN, R_OUT>> ff,
       Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
-    Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
-    Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
+
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
 
     EitherT<F, L, ? extends Function<R_IN, R_OUT>> funcT = EITHER_T.narrow(ff);
     EitherT<F, L, R_IN> valT = EITHER_T.narrow(fa);
@@ -123,14 +132,18 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    * @param <R_OUT> The type of the 'right' value in the resulting {@code Kind}.
    * @param f The function to apply, returning a new {@code Kind}. Must not be null.
    * @param ma The {@code Kind<EitherTKind.Witness<F, L>, R_IN>} to transform. Must not be null.
-   * @return A new {@code Kind<EitherTKind.Witness<F, L>, R_OUT>}.
+   * @return A new {@code Kind<EitherTKind.Witness<F, L>, R_OUT>}. Never null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} cannot be unwrapped.
    */
   @Override
   public <R_IN, R_OUT> Kind<EitherTKind.Witness<F, L>, R_OUT> flatMap(
       Function<? super R_IN, ? extends Kind<EitherTKind.Witness<F, L>, R_OUT>> f,
       Kind<EitherTKind.Witness<F, L>, R_IN> ma) {
-    Objects.requireNonNull(f, "Function f cannot be null for flatMap");
-    Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
+
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
 
     EitherT<F, L, R_IN> eitherT_ma = EITHER_T.narrow(ma);
 
@@ -161,7 +174,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    *
    * @param <R> The type parameter for the 'right' side (will be absent).
    * @param error The 'left' (error) value. Can be null if {@code L} is nullable.
-   * @return A {@code Kind<EitherTKind.Witness<F, L>, R>} representing {@code F<Left(error)>}.
+   * @return A {@code Kind<EitherTKind.Witness<F, L>, R>} representing {@code F<Left(error)>}. Never
+   *     null.
    */
   @Override
   public <R> Kind<EitherTKind.Witness<F, L>, R> raiseError(@Nullable L error) {
@@ -181,14 +195,18 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    * @param handler The function to apply if {@code ma} represents {@code F<Left(l)>}. Must not be
    *     null.
    * @return A {@code Kind<EitherTKind.Witness<F, L>, R>}, either the original or the result of the
-   *     handler.
+   *     handler. Never null.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code handler} cannot be unwrapped.
    */
   @Override
   public <R> Kind<EitherTKind.Witness<F, L>, R> handleErrorWith(
       Kind<EitherTKind.Witness<F, L>, R> ma,
       Function<? super L, ? extends Kind<EitherTKind.Witness<F, L>, R>> handler) {
-    Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
-    Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
+
+    requireNonNullKind(ma, "source Kind for handleErrorWith");
+    requireNonNullFunction(handler, "handler function for handleErrorWith");
 
     EitherT<F, L, R> eitherT_ma = EITHER_T.narrow(ma);
 

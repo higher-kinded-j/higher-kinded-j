@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -38,16 +39,23 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
    *
    * @param <A> The input type of the function.
    * @param <B> The output type of the function.
-   * @param ff The {@code Kind<TryKind.Witness, Function<A, B>>} containing the function.
-   * @param fa The {@code Kind<TryKind.Witness, A>} containing the value.
+   * @param ff The {@code Kind<TryKind.Witness, Function<A, B>>} containing the function. Must not
+   *     be null.
+   * @param fa The {@code Kind<TryKind.Witness, A>} containing the value. Must not be null.
    * @return A new {@code Kind<TryKind.Witness, B>} resulting from the application. If {@code ff} or
    *     {@code fa} is a {@link Try.Failure}, or if applying the function in {@code ff} to the value
    *     in {@code fa} (if both are {@link Try.Success}) results in an exception, then a {@link
    *     Try.Failure} is returned.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid {@code Try} representations.
    */
   @Override
   public <A, B> Kind<TryKind.Witness, B> ap(
       Kind<TryKind.Witness, ? extends Function<A, B>> ff, Kind<TryKind.Witness, A> fa) {
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
+
     Try<? extends Function<A, B>> tryF = TRY.narrow(ff);
     Try<A> tryA = TRY.narrow(fa);
 

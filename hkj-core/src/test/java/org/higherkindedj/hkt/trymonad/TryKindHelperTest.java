@@ -4,6 +4,9 @@ package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_HOLDER_STATE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import java.io.IOException;
 import org.higherkindedj.hkt.Kind;
@@ -68,7 +71,7 @@ class TryKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> TRY.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(String.format(NULL_KIND_TEMPLATE, "Try"));
     }
 
     @Test
@@ -76,19 +79,15 @@ class TryKindHelperTest {
       Kind<TryKind.Witness, Integer> unknownKind = new DummyOtherKind<>(); // Use DummyOtherKind
       assertThatThrownBy(() -> TRY.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOtherKind.class.getName());
+          .hasMessageContaining(
+              String.format(INVALID_KIND_TYPE_TEMPLATE, "Try", DummyOtherKind.class.getName()));
     }
 
     @Test
-    void narrow_shouldThrowForHolderWithNullTry() {
-      TryKindHelper.TryHolder<Double> holderWithNull = new TryKindHelper.TryHolder<>(null);
-      @SuppressWarnings("unchecked") // Cast needed for test setup
-      Kind<TryKind.Witness, Double> kind =
-          (Kind<TryKind.Witness, Double>) (Object) holderWithNull; // Adjusted cast for clarity
-
-      assertThatThrownBy(() -> TRY.narrow(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
+    void shouldThrowForHolderWithNullTry() {
+      assertThatThrownBy(() -> new TryKindHelper.TryHolder<>(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining(NULL_HOLDER_STATE_TEMPLATE.formatted("TryHolder", "Try"));
     }
   }
 

@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -32,7 +34,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
 
   // Private constructor, use factory method
   private StateTMonad(Monad<F> monadF) {
-    this.monadF = Objects.requireNonNull(monadF, "Underlying Monad<F> cannot be null");
+    this.monadF = requireValidOuterMonad(monadF, "StateTMonad");
   }
 
   /**
@@ -43,6 +45,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    * @param <S> The type of the state.
    * @param <F> The higher-kinded type witness for the underlying monad {@code F}.
    * @return A {@code Monad<StateTKind.Witness<S, F>>} instance.
+   * @throws NullPointerException if {@code monadF} is null.
    */
   public static <S, F> StateTMonad<S, F> instance(Monad<F> monadF) {
     return new StateTMonad<>(monadF);
@@ -74,10 +77,16 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    * @param <A> The original value type.
    * @param <B> The new value type.
    * @return A new {@code StateT<S, F, B>} instance.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     StateT} representation.
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
       Function<? super A, ? extends B> f, Kind<StateTKind.Witness<S, F>, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "Kind fa for map");
+
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s ->
@@ -122,11 +131,16 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    *     and sequencing the state transformations.
    * @throws NullPointerException if {@code ff}, {@code fa}, or the function wrapped within {@code
    *     ff} is {@code null}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} is not
+   *     a valid {@code StateT} representation.
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
       Kind<StateTKind.Witness<S, F>, ? extends Function<A, B>> ff,
       Kind<StateTKind.Witness<S, F>, A> fa) {
+    requireNonNullKind(ff, "Kind ff for ap");
+    requireNonNullKind(fa, "Kind fa for ap");
+
     StateT<S, F, ? extends Function<A, B>> stateTf = StateTKind.narrow(ff);
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
@@ -139,8 +153,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
                   S s1 = tupleF.state();
 
                   // 2. Enforce that the wrapped function is non-null.
-                  Objects.requireNonNull(
-                      function, "Function wrapped in StateT for 'ap' cannot be null.");
+                  requireNonNull(function, "Function wrapped in StateT for 'ap' cannot be null.");
 
                   // 3. Run the second state computation (which yields the value)
                   //    with the intermediate state (s1).
@@ -192,11 +205,17 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
    *     is effectively {@code s0 -> monadF.flatMap(tupleA ->
    *     StateTKind.narrow(f.apply(tupleA.value())).runStateT(tupleA.state()),
    *     StateTKind.narrow(fa).runStateT(s0))}.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     StateT} representation.
    */
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> flatMap(
       Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
       Kind<StateTKind.Witness<S, F>, A> fa) {
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(fa, "Kind fa for flatMap");
+
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =

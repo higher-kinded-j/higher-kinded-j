@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
@@ -33,6 +34,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
    *
    * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must not be null. This
    *     is essential for combining logs in {@code flatMap}.
+   * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterMonad(Monoid<W> monoidW) {
     super(monoidW);
@@ -55,11 +57,17 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
    * @param <B> The value type of the {@code Writer} produced by the function {@code f}.
    * @return A {@code Kind<WriterKind.Witness<W>, B>} representing the composed {@code Writer<W,
    *     B>}. Never null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
+   *     to a valid {@code Writer} representation.
    */
   @Override
   public <A, B> Kind<WriterKind.Witness<W>, B> flatMap(
       Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
       Kind<WriterKind.Witness<W>, A> ma) {
+
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
 
     Writer<W, A> writerA = WRITER.narrow(ma);
 

@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -56,7 +58,7 @@ class ReaderKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> READER.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted(Reader.class.getSimpleName()));
     }
 
     @Test
@@ -64,7 +66,9 @@ class ReaderKindHelperTest {
       ReaderKind<Env, String> unknownKind = new DummyReaderKind<>();
       assertThatThrownBy(() -> READER.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyReaderKind.class.getName());
+          .hasMessageContaining(
+              INVALID_KIND_TYPE_TEMPLATE.formatted(
+                  Reader.class.getSimpleName(), DummyReaderKind.class.getName()));
     }
   }
 
@@ -102,9 +106,9 @@ class ReaderKindHelperTest {
     }
 
     @Test
-    void runReader_shouldThrowIfKindIsInvalid() {
+    void runReader_shouldThrowIfKindIsINull() {
       assertThatThrownBy(() -> READER.runReader(null, testEnv))
-          .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
+          .isInstanceOf(NullPointerException.class); // Propagates unwrap exception
     }
   }
 }

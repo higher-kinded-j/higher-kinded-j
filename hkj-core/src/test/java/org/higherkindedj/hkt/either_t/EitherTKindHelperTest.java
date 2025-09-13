@@ -5,6 +5,9 @@ package org.higherkindedj.hkt.either_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -19,6 +22,8 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherTKindHelper Tests (F=OptionalKind.Witness)")
 class EitherTKindHelperTest {
+
+  private static final String TYPE_NAME = "EitherT";
 
   private Monad<OptionalKind.Witness> outerMonad;
 
@@ -52,7 +57,7 @@ class EitherTKindHelperTest {
     void widen_nullEitherT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> EITHER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(EitherTKindHelper.INVALID_KIND_TYPE_NULL_MSG);
+          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted(TYPE_NAME));
     }
   }
 
@@ -77,7 +82,7 @@ class EitherTKindHelperTest {
     void narrow_nullKind_shouldThrowKindUnwrapException() {
       assertThatThrownBy(() -> EITHER_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(EitherTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessage(NULL_KIND_TEMPLATE.formatted(TYPE_NAME));
     }
 
     // Dummy Kind for testing invalid type unwrap
@@ -95,8 +100,8 @@ class EitherTKindHelperTest {
 
       assertThatThrownBy(() -> EITHER_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageStartingWith(EitherTKindHelper.INVALID_KIND_TYPE_MSG)
-          .hasMessageContaining(OtherKind.class.getName());
+          .hasMessage(
+              INVALID_KIND_TYPE_TEMPLATE.formatted(TYPE_NAME, incorrectKind.getClass().getName()));
     }
   }
 }

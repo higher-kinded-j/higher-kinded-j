@@ -33,7 +33,7 @@ class ReaderTest {
     void of_shouldThrowNPEForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> Reader.of(null))
-          .withMessageContaining("runFunction cannot be null");
+          .withMessageContaining("runFunction for Reader.of cannot be null");
     }
 
     @Test
@@ -78,7 +78,7 @@ class ReaderTest {
     void map_shouldThrowNPEForNullMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> getUrlReader.map(null))
-          .withMessageContaining("mapper function cannot be null");
+          .withMessageContaining("mapper function for Reader.map cannot be null");
     }
 
     @Test
@@ -105,7 +105,7 @@ class ReaderTest {
     void flatMap_shouldThrowNPEForNullMapperFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> getTimeoutReader.flatMap(null))
-          .withMessageContaining("flatMap mapper function cannot be null");
+          .withMessageContaining("flatMap mapper function for Reader.flatMap cannot be null");
     }
 
     @Test

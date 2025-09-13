@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.future;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.io.IOException;
 import java.util.concurrent.CancellationException;
@@ -47,7 +48,7 @@ class CompletableFutureKindHelperTest {
     void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> FUTURE.widen(null))
-          .withMessageContaining("Input CompletableFuture cannot be null");
+          .withMessageContaining(NULL_WIDEN_INPUT_TEMPLATE.formatted("CompletableFuture"));
     }
   }
 
@@ -79,7 +80,7 @@ class CompletableFutureKindHelperTest {
     void narrowShouldThrowForNullInput() {
       assertThatThrownBy(() -> FUTURE.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("CompletableFuture"));
     }
 
     @Test
@@ -87,107 +88,95 @@ class CompletableFutureKindHelperTest {
       Kind<CompletableFutureKind.Witness, Integer> unknownKind = new DummyFutureKind<>();
       assertThatThrownBy(() -> FUTURE.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyFutureKind.class.getName());
+          .hasMessageContaining(
+              INVALID_KIND_TYPE_TEMPLATE.formatted(
+                  "CompletableFuture", DummyFutureKind.class.getName()));
     }
 
     @Test
-    void narrowShouldThrowForHolderWithNullFuture() {
-      CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
-      Kind<CompletableFutureKind.Witness, Boolean> kind = holderWithNull;
-
-      assertThatThrownBy(() -> FUTURE.narrow(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
+    void shouldThrowForHolderWithNullFuture() {
+      assertThatThrownBy(() -> new CompletableFutureHolder<>(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining(
+              NULL_HOLDER_STATE_TEMPLATE.formatted("CompletableFutureHolder", "CompletableFuture"));
     }
   }
+}
 
-  @Nested
-  @DisplayName("join()")
-  class JoinTests {
+@Nested
+@DisplayName("join()")
+class JoinTests {
 
-    @Test
-    void join_shouldReturnResultOnSuccess() {
-      Kind<CompletableFutureKind.Witness, String> kind =
-          FUTURE.widen(CompletableFuture.completedFuture("Success"));
-      assertThat(FUTURE.join(kind)).isEqualTo("Success");
-    }
+  @Test
+  void join_shouldReturnResultOnSuccess() {
+    Kind<CompletableFutureKind.Witness, String> kind =
+        FUTURE.widen(CompletableFuture.completedFuture("Success"));
+    assertThat(FUTURE.join(kind)).isEqualTo("Success");
+  }
 
-    @Test
-    void join_shouldBlockAndWaitForCompletion() {
-      CompletableFuture<String> delayedFuture =
-          CompletableFuture.supplyAsync(
-              () -> {
-                try {
-                  TimeUnit.MILLISECONDS.sleep(50);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                  throw new CompletionException(e);
-                }
-                return "Delayed Result";
-              });
-      Kind<CompletableFutureKind.Witness, String> kind = FUTURE.widen(delayedFuture);
-      long startTime = System.nanoTime();
-      String result = FUTURE.join(kind);
-      long duration = System.nanoTime() - startTime;
-      assertThat(result).isEqualTo("Delayed Result");
-      assertThat(duration).isGreaterThan(TimeUnit.MILLISECONDS.toNanos(40));
-    }
+  @Test
+  void join_shouldBlockAndWaitForCompletion() {
+    CompletableFuture<String> delayedFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                TimeUnit.MILLISECONDS.sleep(50);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(e);
+              }
+              return "Delayed Result";
+            });
+    Kind<CompletableFutureKind.Witness, String> kind = FUTURE.widen(delayedFuture);
+    long startTime = System.nanoTime();
+    String result = FUTURE.join(kind);
+    long duration = System.nanoTime() - startTime;
+    assertThat(result).isEqualTo("Delayed Result");
+    assertThat(duration).isGreaterThan(TimeUnit.MILLISECONDS.toNanos(40));
+  }
 
-    @Test
-    void join_shouldThrowRuntimeExceptionDirectly() {
-      RuntimeException ex = new IllegalStateException("Fail State");
-      Kind<CompletableFutureKind.Witness, String> kind =
-          FUTURE.widen(CompletableFuture.failedFuture(ex));
-      assertThatThrownBy(() -> FUTURE.join(kind))
-          .isInstanceOf(IllegalStateException.class)
-          .isSameAs(ex);
-    }
+  @Test
+  void join_shouldThrowRuntimeExceptionDirectly() {
+    RuntimeException ex = new IllegalStateException("Fail State");
+    Kind<CompletableFutureKind.Witness, String> kind =
+        FUTURE.widen(CompletableFuture.failedFuture(ex));
+    assertThatThrownBy(() -> FUTURE.join(kind))
+        .isInstanceOf(IllegalStateException.class)
+        .isSameAs(ex);
+  }
 
-    @Test
-    void join_shouldThrowErrorDirectly() {
-      Error err = new StackOverflowError("Fail Error");
-      Kind<CompletableFutureKind.Witness, String> kind =
-          FUTURE.widen(CompletableFuture.failedFuture(err));
-      assertThatThrownBy(() -> FUTURE.join(kind))
-          .isInstanceOf(StackOverflowError.class)
-          .isSameAs(err);
-    }
+  @Test
+  void join_shouldThrowErrorDirectly() {
+    Error err = new StackOverflowError("Fail Error");
+    Kind<CompletableFutureKind.Witness, String> kind =
+        FUTURE.widen(CompletableFuture.failedFuture(err));
+    assertThatThrownBy(() -> FUTURE.join(kind))
+        .isInstanceOf(StackOverflowError.class)
+        .isSameAs(err);
+  }
 
-    @Test
-    void join_shouldKeepCheckedExceptionWrappedInCompletionException() {
-      IOException ex = new IOException("IO Fail");
-      Kind<CompletableFutureKind.Witness, String> kind =
-          FUTURE.widen(CompletableFuture.failedFuture(ex));
-      assertThatThrownBy(() -> FUTURE.join(kind))
-          .isInstanceOf(CompletionException.class)
-          .hasCause(ex);
-    }
+  @Test
+  void join_shouldKeepCheckedExceptionWrappedInCompletionException() {
+    IOException ex = new IOException("IO Fail");
+    Kind<CompletableFutureKind.Witness, String> kind =
+        FUTURE.widen(CompletableFuture.failedFuture(ex));
+    assertThatThrownBy(() -> FUTURE.join(kind))
+        .isInstanceOf(CompletionException.class)
+        .hasCause(ex);
+  }
 
-    @Test
-    void join_shouldThrowCancellationExceptionIfCancelled() {
-      CompletableFuture<String> cancelledFuture = new CompletableFuture<>();
-      cancelledFuture.cancel(true);
-      Kind<CompletableFutureKind.Witness, String> kind = FUTURE.widen(cancelledFuture);
-      assertThatThrownBy(() -> FUTURE.join(kind)).isInstanceOf(CancellationException.class);
-    }
+  @Test
+  void join_shouldThrowCancellationExceptionIfCancelled() {
+    CompletableFuture<String> cancelledFuture = new CompletableFuture<>();
+    cancelledFuture.cancel(true);
+    Kind<CompletableFutureKind.Witness, String> kind = FUTURE.widen(cancelledFuture);
+    assertThatThrownBy(() -> FUTURE.join(kind)).isInstanceOf(CancellationException.class);
+  }
 
-    @Test
-    void join_shouldPropagateKindUnwrapExceptionFromFailedUnwrap() {
-      assertThatThrownBy(() -> FUTURE.join(null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
-
-      Kind<CompletableFutureKind.Witness, Integer> unknownKind =
-          new UnwrapTests.DummyFutureKind<>();
-      assertThatThrownBy(() -> FUTURE.join(unknownKind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG);
-
-      CompletableFutureHolder<Boolean> holderWithNull = new CompletableFutureHolder<>(null);
-      Kind<CompletableFutureKind.Witness, Boolean> kindWithNullHolder = holderWithNull;
-      assertThatThrownBy(() -> FUTURE.join(kindWithNullHolder))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
-    }
+  @Test
+  void join_shouldPropagateKindUnwrapExceptionFromFailedUnwrap() {
+    assertThatThrownBy(() -> FUTURE.join(null))
+        .isInstanceOf(KindUnwrapException.class)
+        .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("CompletableFutureHolder"));
   }
 }

@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional_t;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -17,17 +17,10 @@ import org.jspecify.annotations.Nullable;
 public enum OptionalTKindHelper implements OptionalTConverterOps {
   OPTIONAL_T;
 
-  /** Error message for attempting to narrow a null Kind. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for OptionalT";
-
-  /** Error message for attempting to narrow a Kind of an unexpected type. */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an OptionalT: ";
-
-  public static final String INVALID_KIND_TYPE_NULL_MSG =
-      "Input OptionalT cannot be null for widen";
+  public static final String TYPE_NAME = "OptionalT";
 
   /**
-   * Widens a concrete {@link OptionalT OptionalT&lt;F, A&gt;} instance into its {@link Kind}
+   * Widens a concrete {@link OptionalT OptionalT&lt;F, A&gt;} instance into its higher-kinded
    * representation, {@code Kind<OptionalTKind.Witness<F>, A>}. Implements {@link
    * OptionalTConverterOps#widen}.
    *
@@ -37,12 +30,12 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    * @param <F> The witness type of the outer monad in {@code OptionalT}.
    * @param <A> The type of the value potentially held by the inner {@link java.util.Optional}.
    * @param optionalT The concrete {@link OptionalT} instance to widen. Must not be null.
-   * @return The {@code Kind} representation of the {@code optionalT}.
-   * @throws NullPointerException if {@code optionalT} is null.
+   * @return The {@code Kind} representation.
+   * @throws NullPointerException if {@code optionalT} is {@code null}.
    */
   @Override
   public <F, A> Kind<OptionalTKind.Witness<F>, A> widen(OptionalT<F, A> optionalT) {
-    Objects.requireNonNull(optionalT, INVALID_KIND_TYPE_NULL_MSG);
+    requireNonNullForWiden(optionalT, TYPE_NAME);
     // optionalT is already an OptionalTKind<F, A>, which is a Kind<OptionalTKind.Witness<F>, A>.
     return optionalT;
   }
@@ -55,18 +48,11 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    * @param <A> The type of the value potentially held by the inner {@link java.util.Optional}.
    * @param kind The {@code Kind<OptionalTKind.Witness<F>, A>} to narrow. Can be null.
    * @return The unwrapped, non-null {@link OptionalT OptionalT&lt;F, A&gt;} instance.
-   * @throws KindUnwrapException if {@code kind} is null or not a valid {@link OptionalT} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is null or not a
+   *     valid {@link OptionalT} instance.
    */
   @Override
   public <F, A> OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(OptionalTKindHelper.INVALID_KIND_NULL_MSG);
-      // Since OptionalT<F,A> implements OptionalTKind<F,A>,
-      // which extends Kind<OptionalTKind.Witness<F>,A>
-      case OptionalT<F, A> directOptionalT -> directOptionalT;
-      default ->
-          throw new KindUnwrapException(
-              OptionalTKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKindWithTypeCheck(kind, OptionalT.class, TYPE_NAME);
   }
 }

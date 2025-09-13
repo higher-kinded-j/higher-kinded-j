@@ -3,7 +3,7 @@
 ~~~ admonish example title="See Example Code:"
  [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 ~~~
-The Identity Monad, often referred to as `Id`, is the simplest possible monad. It represents a computation that doesn't add any additional context or effect beyond simply holding a value. It's a direct wrapper around a value.
+The Identity Monad, often referred to as `IdMonad`, is the simplest possible monad. It represents a computation that doesn't add any additional context or effect beyond simply holding a value. It's a direct wrapper around a value.
 
 While it might seem trivial on its own, the Identity Monad plays a crucial role in a higher-kinded type library for several reasons:
 
@@ -33,9 +33,9 @@ An `Id<A>` is simply a container that holds a value of type `A`.
   * `narrow(Kind<Id.Witness, A> kind)`: Safely casts a `Kind` back to a concrete `Id<A>`.
   * `widen(Id<A> id)`: widens an `Id<A>` to `Kind<Id.Witness, A>`. (Often an identity cast since `Id` implements `Kind`).
   * `narrows(Kind<Id.Witness, A> kind)`: A convenience to narrow and then get the value.
-* **`IdentityMonad`**: The singleton class that implements `Monad<Id.Witness>`, providing the monadic operations for `Id`.
+* **`IdMonad`**: The singleton class that implements `Monad<Id.Witness>`, providing the monadic operations for `Id`.
 
-## Using `Id` and `IdentityMonad`
+## Using `Id` and `IdMonad`
 
 ~~~admonish example title="Example 1: Creating Id Instances"
 
@@ -56,15 +56,15 @@ public void createExample(){
 ```
 ~~~
 
-~~~admonish example title="Example 2: Using with IdentityMonad"
+~~~admonish example title="Example 2: Using with IdMonad"
 
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
-The `IdentityMonad` provides the standard monadic operations.
+The `IdMonad` provides the standard monadic operations.
 
 ```java
 public void monadExample(){
-  IdentityMonad idMonad = IdentityMonad.instance();
+  IdMonad idMonad = IdMonad.instance();
 
   // 1. 'of' (lifting a value)
   Kind<Id.Witness, Integer> kindInt = idMonad.of(42);
@@ -106,14 +106,14 @@ public void monadExample(){
 
 As mentioned in the [StateT Monad Transformer](../transformers/statet_transformer.md) documentation, `State<S,A>` can be thought of as `StateT<S, Id.Witness, A>`.
 
-Let's illustrate how you might define a `State` monad type alias or use `StateT` with `IdentityMonad`:
+Let's illustrate how you might define a `State` monad type alias or use `StateT` with `IdMonad`:
 
 ```java
   public void transformerExample(){
   // Conceptually, State<S, A> is StateT<S, Id.Witness, A>
-  // We can create a StateTMonad instance using IdentityMonad as the underlying monad.
+  // We can create a StateTMonad instance using IdMonad as the underlying monad.
   StateTMonad<Integer, Id.Witness> stateMonadOverId =
-      StateTMonad.instance(IdentityMonad.instance());
+      StateTMonad.instance(IdMonad.instance());
 
   // Example: A "State" computation that increments the state and returns the old state
   Function<Integer, Kind<Id.Witness, StateTuple<Integer, Integer>>> runStateFn =
@@ -121,7 +121,7 @@ Let's illustrate how you might define a `State` monad type alias or use `StateT`
 
   // Create the StateT (acting as State)
   Kind<StateTKind.Witness<Integer, Id.Witness>, Integer> incrementAndGet =
-      StateTKindHelper.stateT(runStateFn, IdentityMonad.instance());
+      StateTKindHelper.stateT(runStateFn, IdMonad.instance());
 
   // Run it
   Integer initialState = 10;

@@ -2,11 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -20,28 +19,10 @@ import org.jspecify.annotations.Nullable;
 public enum OptionalKindHelper implements OptionalConverterOps {
   OPTIONAL;
 
-  /** Error message for attempting to narrow a {@code null} {@link Kind}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for Optional";
-
-  /** Error message for attempting to narrow a {@link Kind} of an unexpected type. */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an OptionalHolder: ";
-
-  public static final String INVALID_KIND_TYPE_NULL_MSG = "Input Optional cannot be null for widen";
-
-  // Note: INVALID_HOLDER_STATE_MSG from original is not directly used by narrow if OptionalHolder
-  // guarantees its internal 'optional' is non-null via constructor.
-  // The OptionalHolder's compact constructor already enforces this.
-  /**
-   * Error message for an invalid state where the internal holder contains a {@code null} Optional.
-   * This should not be reachable if {@link #widen(Optional)} ensures non-null inputs for the {@code
-   * Optional} instance itself and OptionalHolder constructor enforces it.
-   */
-  public static final String INVALID_HOLDER_STATE_MSG =
-      "OptionalHolder contained null Optional instance";
+  public static final String TYPE_NAME = "Optional";
 
   /**
-   * Internal record implementing the {@link OptionalKind} interface. Changed to package-private for
-   * potential test access.
+   * Internal record implementing the {@link OptionalKind} interface.
    *
    * @param <A> The type of the value potentially held by the {@code Optional}.
    * @param optional The concrete {@link Optional} instance. Must not be {@code null} itself.
@@ -54,7 +35,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
      * @throws NullPointerException if the provided {@code optional} instance is null.
      */
     OptionalHolder { // Compact constructor
-      requireNonNull(optional, "Wrapped Optional instance cannot be null in OptionalHolder");
+      requireNonNullForHolder(optional, TYPE_NAME);
     }
   }
 
@@ -71,7 +52,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    */
   @Override
   public <A> Kind<OptionalKind.Witness, A> widen(Optional<A> optional) {
-    requireNonNull(optional, INVALID_KIND_TYPE_NULL_MSG);
+    requireNonNullForWiden(optional, TYPE_NAME);
     return new OptionalHolder<>(optional);
   }
 
@@ -82,16 +63,20 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    * @param <A> The type of the value potentially held by the {@code Optional}.
    * @param kind The {@code Kind<OptionalKind.Witness, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Optional}{@code <A>} instance.
-   * @throws KindUnwrapException if the input {@code kind} is {@code null} or not an instance of
-   *     {@code OptionalHolder}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null} or not an instance of {@code OptionalHolder}.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
+    return narrowKind(kind, TYPE_NAME, this::narrowInternal);
+  }
+
+  /** Internal narrowing implementation that performs the actual type checking and extraction. */
+  @SuppressWarnings("unchecked")
+  private <A> Optional<A> narrowInternal(Kind<OptionalKind.Witness, A> kind) {
     return switch (kind) {
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
       case OptionalKindHelper.OptionalHolder<?> holder -> (Optional<A>) holder.optional();
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
     };
   }
 }

@@ -8,19 +8,20 @@ import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Identity Monad (Id) Tests")
-class IdentityMonadTest {
+class IdMonadTest {
 
-  private IdentityMonad idMonad;
+  private IdMonad idMonad;
 
   @BeforeEach
   void setUp() {
-    idMonad = IdentityMonad.instance();
+    idMonad = IdMonad.instance();
   }
 
   // Minimal imposter Kind for testing ClassCastException in ID.narrow
@@ -114,6 +115,15 @@ class IdentityMonadTest {
     }
 
     @Test
+    @DisplayName("instance map() should throw NPE for null function")
+    void instanceMap_throwsNPEForNullFunction() {
+      Id<Integer> idInt = Id.of(5);
+      assertThatThrownBy(() -> idInt.map(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function cannot be null");
+    }
+
+    @Test
     @DisplayName("instance flatMap() should apply function returning Id")
     void instanceFlatMap_appliesFunctionReturningId() {
       Id<Integer> idInt = Id.of(5);
@@ -128,6 +138,15 @@ class IdentityMonadTest {
       assertThatThrownBy(() -> idInt.flatMap(i -> null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Function returned by flatMap cannot be null");
+    }
+
+    @Test
+    @DisplayName("instance flatMap() should throw NPE for null function")
+    void instanceFlatMap_throwsNPEForNullFunction() {
+      Id<Integer> idInt = Id.of(5);
+      assertThatThrownBy(() -> idInt.flatMap(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function cannot be null");
     }
 
     @Test
@@ -153,11 +172,11 @@ class IdentityMonadTest {
 
     @Test
     @DisplayName(
-        "narrow() should throw ClassCastException for wrong Kind implementation but correct"
+        "narrow() should throw KindUnwrapException for wrong Kind implementation but correct"
             + " Witness")
-    void narrow_throwsClassCastExceptionForWrongKindImplementation() {
+    void narrow_throwsCKindImplementation() {
       Kind<Id.Witness, String> imposterKind = new ImposterKind<>("imposter");
-      assertThatThrownBy(() -> ID.narrow(imposterKind)).isInstanceOf(ClassCastException.class);
+      assertThatThrownBy(() -> ID.narrow(imposterKind)).isInstanceOf(KindUnwrapException.class);
     }
 
     @Test
@@ -165,11 +184,11 @@ class IdentityMonadTest {
     void narrow_throwsNullPointerExceptionIfKindIsNull() {
       assertThatThrownBy(() -> ID.narrow(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind cannot be null");
+          .hasMessageContaining("Id Kind for narrow cannot be null");
     }
 
     @Test
-    @DisplayName("wrap() should cast Id to Kind")
+    @DisplayName("widen() should cast Id to Kind")
     void widen_castsIdToKind() {
       Id<String> id = Id.of("test");
       Kind<Id.Witness, String> kind = ID.widen(id);
@@ -178,16 +197,16 @@ class IdentityMonadTest {
     }
 
     @Test
-    @DisplayName("wrap() should throw NullPointerException if id is null")
+    @DisplayName("widen() should throw NullPointerException if id is null")
     void widen_throwsNullPointerExceptionIfIdIsNull() {
       assertThatThrownBy(() -> ID.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Id cannot be null");
+          .hasMessageContaining("Input Id cannot be null");
     }
 
     @Test
     @DisplayName("unwrap() should return value from Kind")
-    void narrow_returnsValueFromKind() {
+    void unwrap_returnsValueFromKind() {
       Kind<Id.Witness, String> kind = Id.of("test");
       assertThat(ID.unwrap(kind)).isEqualTo("test");
 
@@ -197,28 +216,28 @@ class IdentityMonadTest {
 
     @Test
     @DisplayName("unwrap() should throw NullPointerException if kind is null")
-    void narrow_throwsNPEIfKindIsNull() {
+    void unwrap_throwsNPEIfKindIsNull() {
       assertThatThrownBy(() -> ID.unwrap(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind cannot be null");
+          .hasMessageContaining("Id Kind for narrow cannot be null");
     }
 
     @Test
     @DisplayName("unwrap() should throw ClassCastException for wrong Kind implementation")
-    void narrow_throwsCCEForWrongKindImplementation() {
+    void unwrap_throwsKindUnwrapExceptionForWrongKindImplementation() {
       Kind<Id.Witness, String> imposterKind = new ImposterKind<>("imposter");
-      assertThatThrownBy(() -> ID.unwrap(imposterKind)).isInstanceOf(ClassCastException.class);
+      assertThatThrownBy(() -> ID.unwrap(imposterKind)).isInstanceOf(KindUnwrapException.class);
     }
   }
 
   @Nested
   @DisplayName("IdentityMonad Instance Tests")
-  class IdentityMonadInstanceTests {
+  class IdMonadInstanceTests {
 
     @Test
     @DisplayName("instance() should return singleton")
     void instance_returnsSingleton() {
-      assertThat(IdentityMonad.instance()).isSameAs(IdentityMonad.instance());
+      assertThat(IdMonad.instance()).isSameAs(IdMonad.instance());
     }
 
     @Test
@@ -248,6 +267,23 @@ class IdentityMonadTest {
     }
 
     @Test
+    @DisplayName("map() should throw NPE for null function")
+    void map_throwsNPEForNullFunction() {
+      Kind<Id.Witness, Integer> kindInt = idMonad.of(10);
+      assertThatThrownBy(() -> idMonad.map(null, kindInt))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("function f for map cannot be null");
+    }
+
+    @Test
+    @DisplayName("map() should throw NPE for null Kind")
+    void map_throwsNPEForNullKind() {
+      assertThatThrownBy(() -> idMonad.map(i -> "test", null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("source Kind for map cannot be null");
+    }
+
+    @Test
     @DisplayName("ap() should apply wrapped function to wrapped value")
     void ap_appliesWrappedFunction() {
       Kind<Id.Witness, Function<Integer, String>> kindFn = idMonad.of(i -> "Res:" + (i * 2));
@@ -263,7 +299,25 @@ class IdentityMonadTest {
       Kind<Id.Witness, Integer> kindVal = idMonad.of(5);
       assertThatThrownBy(() -> idMonad.ap(kindFnNull, kindVal))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function wrapped in Id is null");
+          .hasMessageContaining("Function wrapped in Id cannot be null for ap");
+    }
+
+    @Test
+    @DisplayName("ap() should throw NPE for null function Kind")
+    void ap_throwsNPEForNullFunctionKind() {
+      Kind<Id.Witness, Integer> kindVal = idMonad.of(5);
+      assertThatThrownBy(() -> idMonad.ap(null, kindVal))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("function Kind for ap cannot be null");
+    }
+
+    @Test
+    @DisplayName("ap() should throw NPE for null value Kind")
+    void ap_throwsNPEForNullValueKind() {
+      Kind<Id.Witness, Function<Integer, String>> kindFn = idMonad.of(i -> "test");
+      assertThatThrownBy(() -> idMonad.ap(kindFn, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("argument Kind for ap cannot be null");
     }
 
     @Test
@@ -282,6 +336,24 @@ class IdentityMonadTest {
       assertThatThrownBy(() -> idMonad.flatMap(fnReturningNull, kindInt))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Function passed to flatMap returned null Kind");
+    }
+
+    @Test
+    @DisplayName("flatMap() should throw NPE for null function")
+    void flatMap_throwsNPEForNullFunction() {
+      Kind<Id.Witness, Integer> kindInt = idMonad.of(7);
+      assertThatThrownBy(() -> idMonad.flatMap(null, kindInt))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("function f for flatMap cannot be null");
+    }
+
+    @Test
+    @DisplayName("flatMap() should throw NPE for null Kind")
+    void flatMap_throwsNPEForNullKind() {
+      Function<Integer, Kind<Id.Witness, String>> fn = i -> Id.of("test");
+      assertThatThrownBy(() -> idMonad.flatMap(fn, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("source Kind for flatMap cannot be null");
     }
   }
 

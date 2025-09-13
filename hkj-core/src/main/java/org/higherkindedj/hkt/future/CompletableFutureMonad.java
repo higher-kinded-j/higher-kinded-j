@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -17,7 +18,7 @@ import org.jspecify.annotations.Nullable;
  * Throwable} as the error type. This class is a stateless singleton, accessible via {@link
  * #INSTANCE}.
  *
- * <p>This class extends {@link CompletableFutureMonad} and adds error handling capabilities:
+ * <p>This class extends {@link CompletableFutureApplicative} and adds error handling capabilities:
  *
  * <ul>
  *   <li>{@link #raiseError(Throwable)}: Creates a {@code CompletableFuture} that is already
@@ -27,7 +28,7 @@ import org.jspecify.annotations.Nullable;
  * </ul>
  *
  * @see MonadError
- * @see CompletableFutureMonad
+ * @see CompletableFutureApplicative
  * @see CompletableFuture
  * @see CompletableFutureKind.Witness
  */
@@ -61,23 +62,26 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    *
    * @param <A> The type of the result of the first computation {@code ma}.
    * @param <B> The type of the result of the second computation returned by function {@code f}.
-   * @param f A non-null function that takes a value of type {@code A} (the result of {@code ma})
-   *     and returns a {@code Kind<CompletableFutureKind.Witness, B>}, representing the next
-   *     asynchronous computation. The value {@code a} passed to this function can be {@code null}
-   *     if the preceding {@code CompletableFuture<A>} completed with {@code null}.
-   * @param ma A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing the first
-   *     asynchronous computation {@code CompletableFuture<A>}.
-   * @return A non-null {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@code
+   * @param f A function that takes a value of type {@code A} (the result of {@code ma}) and returns
+   *     a {@code Kind<CompletableFutureKind.Witness, B>}, representing the next asynchronous
+   *     computation. Must not be null.
+   * @param ma A {@code Kind<CompletableFutureKind.Witness, A>} representing the first asynchronous
+   *     computation {@code CompletableFuture<A>}. Must not be null.
+   * @return A {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@code
    *     CompletableFuture<B>} that will complete with the result of the composed asynchronous
-   *     operations.
+   *     operations. Never null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the {@code Kind}
    *     returned by {@code f} cannot be unwrapped.
-   * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code Kind}.
    */
   @Override
   public <A, B> Kind<CompletableFutureKind.Witness, B> flatMap(
       Function<? super @Nullable A, ? extends Kind<CompletableFutureKind.Witness, B>> f,
       Kind<CompletableFutureKind.Witness, A> ma) {
+
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
+
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
     CompletableFuture<B> futureB =
         futureA.thenCompose(
@@ -93,12 +97,18 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    * exceptionally completed {@link CompletableFuture} with the given {@code error}.
    *
    * @param <A> The phantom type of the value (since this future is failed).
-   * @param error The non-null {@link Throwable} with which the future should fail.
-   * @return A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing {@code
-   *     CompletableFuture.failedFuture(error)}.
+   * @param error The {@link Throwable} with which the future should fail. Must not be null.
+   * @return A {@code Kind<CompletableFutureKind.Witness, A>} representing {@code
+   *     CompletableFuture.failedFuture(error)}. Never null.
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <A> Kind<CompletableFutureKind.Witness, A> raiseError(Throwable error) {
+  public <A> Kind<CompletableFutureKind.Witness, A> raiseError(@Nullable Throwable error) {
+    // Validate that error is not null for better error messages
+    if (error == null) {
+      throw new NullPointerException(
+          "Error throwable cannot be null for CompletableFuture.raiseError");
+    }
     return FUTURE.widen(CompletableFuture.failedFuture(error));
   }
 
@@ -115,16 +125,24 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    * from {@link CompletionException} if necessary.
    *
    * @param <A> The type of the value.
-   * @param ma The non-null {@code Kind<CompletableFutureKind.Witness, A>} to handle.
-   * @param handler The non-null function to apply if {@code ma} completes exceptionally. It takes
-   *     the {@link Throwable} and returns a new {@code Kind<CompletableFutureKind.Witness, A>}.
-   * @return A non-null {@code Kind<CompletableFutureKind.Witness, A>}, either the original if
-   *     successful, or the result from the {@code handler}.
+   * @param ma The {@code Kind<CompletableFutureKind.Witness, A>} to handle. Must not be null.
+   * @param handler The function to apply if {@code ma} completes exceptionally. It takes the {@link
+   *     Throwable} and returns a new {@code Kind<CompletableFutureKind.Witness, A>}. Must not be
+   *     null.
+   * @return A {@code Kind<CompletableFutureKind.Witness, A>}, either the original if successful, or
+   *     the result from the {@code handler}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code handler} cannot be unwrapped.
    */
   @Override
   public <A> Kind<CompletableFutureKind.Witness, A> handleErrorWith(
       Kind<CompletableFutureKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<CompletableFutureKind.Witness, A>> handler) {
+
+    requireNonNullKind(ma, "source Kind for handleErrorWith");
+    requireNonNullFunction(handler, "handler function for handleErrorWith");
+
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
 
     // Optimization: If already successfully completed, no need to attach handler.

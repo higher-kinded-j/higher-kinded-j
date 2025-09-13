@@ -60,7 +60,7 @@ class ReaderTTest {
     void of_throwsOnNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> ReaderT.of(null))
-          .withMessageContaining("run function cannot be null");
+          .withMessageContaining("ReaderTHolder contained null ReaderT instance");
     }
 
     @Test
@@ -90,7 +90,7 @@ class ReaderTTest {
           .withMessageContaining("Outer Monad cannot be null");
       assertThatNullPointerException()
           .isThrownBy(() -> ReaderT.lift(outerMonad, null))
-          .withMessageContaining("Input Kind<F, A> cannot be null");
+          .withMessageContaining("fa for lift cannot be null");
     }
 
     @Test
@@ -121,7 +121,7 @@ class ReaderTTest {
           .withMessageContaining("Outer Monad cannot be null");
       assertThatNullPointerException()
           .isThrownBy(() -> ReaderT.reader(outerMonad, null))
-          .withMessageContaining("Function cannot be null");
+          .withMessageContaining("function f for reader cannot be null");
     }
 
     @Test

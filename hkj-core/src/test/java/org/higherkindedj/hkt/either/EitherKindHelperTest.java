@@ -5,6 +5,8 @@ package org.higherkindedj.hkt.either;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either.EitherKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -90,7 +92,7 @@ class EitherKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> EITHER.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted(Either.class.getSimpleName()));
     }
 
     @Test
@@ -98,7 +100,8 @@ class EitherKindHelperTest {
       DummyEitherKind<String, Boolean> unknownKind = new DummyEitherKind<>();
       assertThatThrownBy(() -> EITHER.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyEitherKind.class.getName());
+          .hasMessageContaining(
+              INVALID_KIND_TYPE_TEMPLATE.formatted("Either", DummyEitherKind.class.getName()));
     }
   }
 }

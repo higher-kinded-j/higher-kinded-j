@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,7 +50,7 @@ class LazyKindHelperTest {
     void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> LAZY.widen(null))
-          .withMessageContaining("Input Lazy cannot be null");
+          .withMessageContaining(NULL_WIDEN_INPUT_TEMPLATE.formatted("Lazy"));
     }
   }
 
@@ -68,7 +69,7 @@ class LazyKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> LAZY.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("LazyHolder"));
     }
 
     @Test
@@ -76,7 +77,8 @@ class LazyKindHelperTest {
       Kind<LazyKind.Witness, String> unknownKind = new DummyOtherKind<>();
       assertThatThrownBy(() -> LAZY.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOtherKind.class.getName());
+          .hasMessageContaining(
+              INVALID_KIND_TYPE_TEMPLATE.formatted("LazyHolder", DummyOtherKind.class.getName()));
     }
   }
 

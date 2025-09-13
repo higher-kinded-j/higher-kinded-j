@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -47,6 +49,9 @@ public class LazyMonad
   @Override
   public <A, B> Kind<LazyKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<LazyKind.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
+
     Lazy<A> lazyA = LAZY.narrow(fa);
     Lazy<B> lazyB = lazyA.map(f); // Use Lazy's map
     return LAZY.widen(lazyB);
@@ -79,6 +84,8 @@ public class LazyMonad
   @Override
   public <A, B> Kind<LazyKind.Witness, B> ap(
       Kind<LazyKind.Witness, ? extends Function<A, B>> ff, Kind<LazyKind.Witness, A> fa) {
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
     Lazy<? extends Function<A, B>> lazyF = LAZY.narrow(ff);
     Lazy<A> lazyA = LAZY.narrow(fa);
 
@@ -101,6 +108,8 @@ public class LazyMonad
   @Override
   public <A, B> Kind<LazyKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<LazyKind.Witness, B>> f, Kind<LazyKind.Witness, A> ma) {
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
     Lazy<A> lazyA = LAZY.narrow(ma);
 
     // Adapt the function for Lazy's flatMap

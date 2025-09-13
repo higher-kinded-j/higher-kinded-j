@@ -173,10 +173,10 @@ class EitherTest {
     void map_shouldThrowIfMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> rightInstance.map(null))
-          .withMessageContaining("mapper function cannot be null");
+          .withMessageContaining("mapper cannot be null");
       assertThatNullPointerException()
           .isThrownBy(() -> leftInstance.map(null))
-          .withMessageContaining("mapper function cannot be null");
+          .withMessageContaining("mapper cannot be null");
     }
   }
 
@@ -232,10 +232,10 @@ class EitherTest {
     void flatMap_shouldThrowIfMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> rightInstance.flatMap(null))
-          .withMessageContaining("mapper function cannot be null");
+          .withMessageContaining("mapper cannot be null");
       assertThatNullPointerException()
           .isThrownBy(() -> leftInstance.flatMap(null))
-          .withMessageContaining("mapper function cannot be null");
+          .withMessageContaining("mapper cannot be null");
     }
 
     @Test

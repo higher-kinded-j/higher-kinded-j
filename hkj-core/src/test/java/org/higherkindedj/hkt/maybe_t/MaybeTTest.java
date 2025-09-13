@@ -77,7 +77,7 @@ class MaybeTTest {
     void fromKind_throwsOnNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> MaybeT.fromKind(null))
-          .withMessageContaining("Wrapped value cannot be null for MaybeT");
+          .withMessageContaining("MaybeTHolder contained null MaybeT instance");
     }
 
     @Test

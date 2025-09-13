@@ -317,7 +317,7 @@ class TryMonadTest {
 
       assertThatThrownBy(resultTry::get)
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Cannot unwrap null Kind for Try");
+          .hasMessageContaining("Cannot narrow null Kind for Try");
     }
 
     @Test

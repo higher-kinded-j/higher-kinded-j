@@ -86,7 +86,7 @@ var userRoles = For.from(listMonad, LIST.widen(List.of("user-1", "user-2"))) // 
 A `.let()` binding allows you to compute a pure, simple value from the results you've gathered so far and add it to the scope. It does *not* involve a monad. This is equivalent to a **`map`** operation that carries the new value forward.
 
 ```java
-var idMonad = IdentityMonad.instance();
+var idMonad = IdMonad.instance();
 
 var result = For.from(idMonad, Id.of(10))        // a = 10
     .let(a -> a * 2)                          // b = 20 (a pure calculation)

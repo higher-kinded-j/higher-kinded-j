@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.Nullable;
 
@@ -34,10 +36,6 @@ import org.jspecify.annotations.Nullable;
  *   <li>The "value type" (often denoted as {@code A}) is {@code A}, representing the primary result
  *       type of the computation encapsulated by the {@code StateT}.
  * </ul>
- *
- * <p>An instance of {@code Kind<StateTKind.Witness<S, F>, A>} can be safely narrowed (cast) back to
- * a concrete {@code StateT<S, F, A>} using the static {@link #narrow(Kind)} method provided by this
- * interface.
  *
  * <p>The nested {@code WitnessS} and {@code WitnessF} classes are alternative, less commonly used
  * witness types that fix only one of the {@code S} or {@code F} parameters, respectively. The
@@ -101,38 +99,24 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
 
   /**
    * Safely converts (narrows) a {@link Kind} representation of a {@code StateT} back to its
-   * concrete {@link StateT} type.
+   * concrete {@link StateT} type using standardized error handling.
    *
-   * <p>This method should be used when it's known that the given {@code Kind} instance indeed
-   * represents a {@code StateT<S, F, A>}.
+   * <p>This method provides a safe, validated approach to narrowing Kind representations to
+   * concrete StateT instances. It uses the standardized error handling utilities to ensure
+   * consistent error messages and behavior across the library.
    *
-   * @param kind The higher-kinded {@code StateT} representation. This parameter is {@link
-   *     Nullable}; if {@code null} is passed, a {@code ClassCastException} will be thrown.
+   * @param kind The higher-kinded {@code StateT} representation. Must not be null.
    * @param <S> The state type of the target {@code StateT}.
    * @param <F> The higher-kinded type witness for the underlying monad of the target {@code
    *     StateT}.
    * @param <A> The value type of the target {@code StateT}.
    * @return The concrete {@link StateT} instance, guaranteed to be non-null if the input `kind` was
    *     a valid, non-null {@code StateT} representation.
-   * @throws ClassCastException if {@code kind} is {@code null} or not actually an instance of
-   *     {@link StateT} (or a compatible subtype).
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
+   *     not actually an instance of {@link StateT} (or a compatible subtype).
    */
   static <S, F, A> StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
-    // The null check here is important.
-    // A ClassCastException is appropriate if kind is null, as null cannot be cast to StateT.
-    if (kind == null) {
-      throw new ClassCastException("Cannot narrow a null Kind to StateT");
-    }
-    // This cast is generally safe if the HKT framework is used correctly,
-    // as StateT<S,F,A> is expected to implement Kind<StateTKind.Witness<S,F>, A>.
-    try {
-      return (StateT<S, F, A>) kind;
-    } catch (ClassCastException cce) {
-      // Re-throw with a more informative message if desired, or just let it propagate.
-      // For example: throw new ClassCastException("Kind is not a StateT: " +
-      // kind.getClass().getName(), cce);
-      throw cce;
-    }
+    return narrowKindWithTypeCheck(kind, StateT.class, "StateT");
   }
 
   /**
@@ -150,25 +134,18 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    * #narrow(Kind)} whenever possible.
    *
    * @param kind The higher-kinded representation, typed broadly as {@code Kind<?, A>}. It is
-   *     assumed to be a {@code StateT} instance. This parameter is {@link Nullable}; if {@code
-   *     null} is passed, a {@code ClassCastException} will be thrown.
+   *     assumed to be a {@code StateT} instance. Must not be null.
    * @param <S> The target state type for the resulting {@code StateT}.
    * @param <F> The target higher-kinded type witness for the underlying monad of the resulting
    *     {@code StateT}.
    * @param <A> The target value type for the resulting {@code StateT}.
    * @return The concrete {@link StateT} instance, guaranteed to be non-null if the input `kind` was
    *     a valid, non-null {@code StateT} representation.
-   * @throws ClassCastException if {@code kind} is {@code null} or not actually an instance of
-   *     {@link StateT}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
+   *     not actually an instance of {@link StateT}.
    */
   @SuppressWarnings("unchecked") // This method is explicitly for unsafe, unchecked casting.
   static <S, F, A> StateT<S, F, A> narrowK(@Nullable Kind<?, A> kind) {
-    if (kind == null) {
-      throw new ClassCastException("Cannot narrowK a null Kind to StateT");
-    }
-    // This is an unsafe cast. The caller is responsible for ensuring that 'kind'
-    // is indeed a StateT<SomeS, SomeF, A> where SomeS and SomeF are compatible
-    // with the S and F expected by the call site.
-    return (StateT<S, F, A>) kind;
+    return narrowKindWithTypeCheck(kind, StateT.class, "StateT");
   }
 }

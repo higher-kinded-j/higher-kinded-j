@@ -1,3 +1,4 @@
+@org.jspecify.annotations.NullMarked
 module org.higherkindedj.api {
   requires static org.jspecify;
   requires transitive org.higherkindedj.annotations;

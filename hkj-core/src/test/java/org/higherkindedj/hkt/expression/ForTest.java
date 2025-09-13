@@ -11,7 +11,7 @@ import java.util.Collections;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdentityMonad;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -29,7 +29,7 @@ class ForTest {
   @Nested
   @DisplayName("With Identity Monad (Non-Filterable)")
   class ForIdTest {
-    private final IdentityMonad idMonad = IdentityMonad.instance();
+    private final IdMonad idMonad = IdMonad.instance();
 
     @Test
     @DisplayName("Arity 1: should yield value")

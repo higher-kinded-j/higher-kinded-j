@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -34,11 +35,17 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
    *     computation.
    * @return A new {@code Kind<StateKind.Witness<S>, B>} representing the composed and flattened
    *     operation.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     State} representation.
    */
   @Override
   public <A, B> Kind<StateKind.Witness<S>, B> flatMap(
       Function<? super A, ? extends Kind<StateKind.Witness<S>, B>> f,
       Kind<StateKind.Witness<S>, A> ma) {
+
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
 
     State<S, A> stateA = STATE.narrow(ma);
 

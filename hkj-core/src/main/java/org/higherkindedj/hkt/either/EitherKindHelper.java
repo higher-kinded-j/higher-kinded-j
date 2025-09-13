@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.narrowKind;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullForWiden;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,31 +20,16 @@ import org.jspecify.annotations.Nullable;
 public enum EitherKindHelper implements EitherConverterOps {
   EITHER;
 
-  /** Error message for when a {@code null} {@link Kind} is passed to {@link #narrow(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for Either";
-
-  /**
-   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #narrow(Kind)}.
-   */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not an EitherHolder: ";
-
-  /**
-   * Error message for when the internal holder in {@link #narrow(Kind)} contains a {@code null}
-   * Either instance. This should ideally not occur if {@link #widen(Either)} enforces non-null
-   * Either instances and EitherHolder guarantees its content.
-   */
-  public static final String INVALID_HOLDER_STATE_MSG =
-      "EitherHolder contained null Either instance";
+  private static final String TYPE_NAME = "Either";
 
   /**
    * Internal record implementing {@link EitherKind} to hold the concrete {@link Either} instance.
-   * Changed to package-private for potential test access.
    *
    * @param <L> The type of the {@code Left} value.
    * @param <R> The type of the {@code Right} value.
    * @param either The non-null, actual {@link Either} instance.
    */
-  record EitherHolder<L, R>(@NonNull Either<L, R> either) implements EitherKind<L, R> {}
+  record EitherHolder<L, R>(Either<L, R> either) implements EitherKind<L, R> {}
 
   /**
    * Widens a concrete {@code Either<L, R>} instance into its higher-kinded representation, {@code
@@ -51,14 +37,14 @@ public enum EitherKindHelper implements EitherConverterOps {
    *
    * @param <L> The type of the "Left" value of the {@code Either}.
    * @param <R> The type of the "Right" value of the {@code Either}.
-   * @param either The non-null, concrete {@code Either<L, R>} instance to widen.
-   * @return A non-null {@code Kind<EitherKind.Witness<L>, R>} representing the wrapped {@code
-   *     Either}.
+   * @param either The concrete {@code Either<L, R>} instance to widen. Must not be null.
+   * @return A {@code Kind<EitherKind.Witness<L>, R>} representing the wrapped {@code Either}. Never
+   *     null.
    * @throws NullPointerException if {@code either} is {@code null}.
    */
   @Override
-  public <L, R> @NonNull Kind<EitherKind.Witness<L>, R> widen(@NonNull Either<L, R> either) {
-    Objects.requireNonNull(either, "Input Either cannot be null for widen");
+  public <L, R> Kind<EitherKind.Witness<L>, R> widen(Either<L, R> either) {
+    requireNonNullForWiden(either, TYPE_NAME);
     return new EitherHolder<>(either);
   }
 
@@ -69,16 +55,19 @@ public enum EitherKindHelper implements EitherConverterOps {
    * @param <L> The type of the "Left" value of the target {@code Either}.
    * @param <R> The type of the "Right" value of the target {@code Either}.
    * @param kind The {@code Kind<EitherKind.Witness<L>, R>} instance to narrow. May be {@code null}.
-   * @return The underlying, non-null {@code Either<L, R>} instance.
+   * @return The underlying {@code Either<L, R>} instance. Never null.
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not a representation
    *     of an {@code Either<L,R>}.
    */
   @Override
-  public <L, R> @NonNull Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind) {
+  public <L, R> Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind) {
+    return narrowKind(kind, TYPE_NAME, this::extractEither);
+  }
+
+  private <L, R> Either<L, R> extractEither(Kind<EitherKind.Witness<L>, R> kind) {
     return switch (kind) {
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-      case EitherHolder<L, R> holder -> holder.either(); // Expect EitherHolder
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+      case EitherHolder<L, R> holder -> holder.either();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
     };
   }
 }

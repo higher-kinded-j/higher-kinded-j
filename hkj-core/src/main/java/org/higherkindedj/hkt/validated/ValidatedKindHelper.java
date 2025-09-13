@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import org.higherkindedj.hkt.Kind;
 
 /**
@@ -15,6 +17,8 @@ import org.higherkindedj.hkt.Kind;
 public enum ValidatedKindHelper implements ValidatedConverterOps {
   VALIDATED;
 
+  public static final String TYPE_NAME = "Validated";
+
   /**
    * Widens a {@link Validated} to its {@link Kind} representation. Implements {@link
    * ValidatedConverterOps#widen}. The {@code @SuppressWarnings("unchecked")} is necessary because
@@ -25,6 +29,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <E, A> Kind<ValidatedKind.Witness<E>, A> widen(Validated<E, A> validated) {
+    requireNonNullForWiden(validated, TYPE_NAME);
     return (Kind<ValidatedKind.Witness<E>, A>) validated;
   }
 
@@ -35,9 +40,8 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    * instance is indeed of the correct underlying Validated type.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <E, A> Validated<E, A> narrow(Kind<ValidatedKind.Witness<E>, A> kind) {
-    return (Validated<E, A>) kind;
+    return narrowKindWithTypeCheck(kind, Validated.class, TYPE_NAME);
   }
 
   /**
@@ -48,6 +52,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    * @param <E> The error type (associated with the Witness).
    * @param <A> The value type.
    * @return A {@code Kind} representing a valid instance.
+   * @throws NullPointerException if {@code value} is null.
    */
   public <E, A> Kind<ValidatedKind.Witness<E>, A> valid(A value) {
     return this.widen(Validated.valid(value));
@@ -61,6 +66,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    * @param <E> The error type.
    * @param <A> The value type (associated with the Witness).
    * @return A {@code Kind} representing an invalid instance.
+   * @throws NullPointerException if {@code error} is null.
    */
   public <E, A> Kind<ValidatedKind.Witness<E>, A> invalid(E error) {
     return this.widen(Validated.invalid(error));

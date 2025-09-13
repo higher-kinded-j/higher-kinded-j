@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import org.higherkindedj.hkt.Kind;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Kind interface marker for the Optional type in Higher-Kinded-J. Represents Optional as a type
@@ -10,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
  *
  * @param <A> The type of the value potentially held by the Optional.
  */
+@NullMarked
 public interface OptionalKind<A> extends Kind<OptionalKind.Witness, A> {
 
   /**

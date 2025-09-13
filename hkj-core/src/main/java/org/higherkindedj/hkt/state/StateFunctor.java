@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -55,13 +55,15 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
    *     <S, A>} computation. Must not be {@code null}.
    * @return A new non-null {@code Kind<StateKind.Witness, B>} representing the transformed {@link
    *     State}{@code <S, B>} computation.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
-   * @throws NullPointerException if {@code f} is {@code null}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
+   *     to a valid {@code State} representation.
+   * @throws NullPointerException if {@code f} or {@code fa} is {@code null}.
    */
   @Override
   public <A, B> Kind<StateKind.Witness<S>, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<StateKind.Witness<S>, A> fa) {
-    requireNonNull(f, "Mapping function cannot be null");
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
 
     // 1. Unwrap the Kind to get the concrete State<S, A>.
     //    The type S is bound to this StateFunctor instance.

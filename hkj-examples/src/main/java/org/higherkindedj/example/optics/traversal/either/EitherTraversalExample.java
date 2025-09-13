@@ -6,7 +6,7 @@ import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdentityMonad;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /** A runnable example demonstrating traversing the 'Right' side of an {@link Either}. */
@@ -31,9 +31,7 @@ public class EitherTraversalExample {
 
     // Use the traversal to modify the successful result. We use the Id monad for a simple update.
     var updatedSuccess =
-        ID.narrow(
-                resultTraversal.modifyF(
-                    value -> Id.of(value * 2), success, IdentityMonad.instance()))
+        ID.narrow(resultTraversal.modifyF(value -> Id.of(value * 2), success, IdMonad.instance()))
             .value();
 
     System.out.println("Result: " + updatedSuccess);
@@ -45,9 +43,7 @@ public class EitherTraversalExample {
 
     // The traversal does nothing because the Either is a Left.
     var updatedFailure =
-        ID.narrow(
-                resultTraversal.modifyF(
-                    value -> Id.of(value * 2), failure, IdentityMonad.instance()))
+        ID.narrow(resultTraversal.modifyF(value -> Id.of(value * 2), failure, IdMonad.instance()))
             .value();
 
     System.out.println("Result: " + updatedFailure);

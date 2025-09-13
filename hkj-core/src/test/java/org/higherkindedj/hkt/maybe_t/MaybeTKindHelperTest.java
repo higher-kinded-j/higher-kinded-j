@@ -5,9 +5,9 @@ package org.higherkindedj.hkt.maybe_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
-import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.INVALID_KIND_TYPE_NULL_MSG;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
@@ -87,7 +87,7 @@ class MaybeTKindHelperTest {
     void widen_nullMaybeT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> MAYBE_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(INVALID_KIND_TYPE_NULL_MSG);
+          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted(MaybeT.class.getSimpleName()));
     }
   }
 
@@ -137,7 +137,7 @@ class MaybeTKindHelperTest {
     void narrow_nullKind_shouldThrowKindUnwrapException() {
       assertThatThrownBy(() -> MAYBE_T.<OptionalKind.Witness, String>narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(MaybeTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessage(NULL_KIND_TEMPLATE.formatted("MaybeT"));
     }
 
     private static class OtherKindWitness<F_Witness> {}
@@ -155,8 +155,8 @@ class MaybeTKindHelperTest {
 
       assertThatThrownBy(() -> MAYBE_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageStartingWith(MaybeTKindHelper.INVALID_KIND_TYPE_MSG)
-          .hasMessageContaining(OtherKind.class.getName());
+          .hasMessageContaining(
+              INVALID_KIND_TYPE_TEMPLATE.formatted("MaybeT", OtherKind.class.getName()));
     }
 
     @Test

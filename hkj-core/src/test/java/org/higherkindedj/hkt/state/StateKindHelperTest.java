@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.state.StateKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -66,7 +68,7 @@ class StateKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> STATE.narrow(null)) // Pass null directly
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(String.format(NULL_KIND_TEMPLATE, "State"));
     }
 
     @Test
@@ -76,7 +78,9 @@ class StateKindHelperTest {
       Kind<StateKind.Witness<String>, String> unknownKind = new DummyNonStateHolderKind<>();
       assertThatThrownBy(() -> STATE.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyNonStateHolderKind.class.getName());
+          .hasMessageContaining(
+              String.format(
+                  INVALID_KIND_TYPE_TEMPLATE, "State", DummyNonStateHolderKind.class.getName()));
     }
   }
 
@@ -157,19 +161,19 @@ class StateKindHelperTest {
     @Test
     void runState_shouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> STATE.runState(null, initialState)) // Pass null directly
-          .isInstanceOf(KindUnwrapException.class); // Propagates STATE.narrow( exception
+          .isInstanceOf(NullPointerException.class); // Propagates STATE.narrow( exception
     }
 
     @Test
     void evalState_shouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> STATE.evalState(null, initialState)) // Pass null directly
-          .isInstanceOf(KindUnwrapException.class);
+          .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void execState_shouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> STATE.execState(null, initialState)) // Pass null directly
-          .isInstanceOf(KindUnwrapException.class);
+          .isInstanceOf(NullPointerException.class);
     }
   }
 }

@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader_t;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -45,7 +45,7 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code run} is null.
    */
   public ReaderT { // Canonical constructor
-    requireNonNull(run, "run function cannot be null for ReaderT");
+    requireNonNullForHolder(run, "ReaderT");
   }
 
   /**
@@ -60,6 +60,7 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code runFunction} is null.
    */
   public static <F, R_ENV, A> ReaderT<F, R_ENV, A> of(Function<R_ENV, Kind<F, A>> runFunction) {
+    // Validation will be handled by the constructor
     return new ReaderT<>(runFunction);
   }
 
@@ -71,15 +72,16 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @param <F> The witness type of the outer monad.
    * @param <R_ENV> The type of the environment (it will be ignored).
    * @param <A> The type of the value within the outer monad.
-   * @param outerMonad An instance of {@link Monad} for the outer type {@code F}. (Note: current
-   *     impl. doesn't use outerMonad.of but it's good for context). Must not be null.
+   * @param outerMonad An instance of {@link Monad} for the outer type {@code F}. Must not be null.
    * @param fa The monadic value {@code Kind<F, A>} to lift. Must not be null.
    * @return A new {@link ReaderT} that wraps {@code fa}. Never null.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, R_ENV, A> ReaderT<F, R_ENV, A> lift(Monad<F> outerMonad, Kind<F, A> fa) {
-    requireNonNull(outerMonad, "Outer Monad cannot be null for lift");
-    requireNonNull(fa, "Input Kind<F, A> cannot be null for lift");
+    requireValidOuterMonad(outerMonad, "lift");
+    requireNonNullKind(fa, "fa for lift");
+    // Note: We don't need to validate fa here as it will be used directly in the function
+    // and any issues will surface when the ReaderT is run
     return new ReaderT<>(r -> fa);
   }
 
@@ -98,8 +100,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    */
   public static <F, R_ENV, A> ReaderT<F, R_ENV, A> reader(
       Monad<F> outerMonad, Function<R_ENV, A> f) {
-    requireNonNull(outerMonad, "Outer Monad cannot be null for reader");
-    requireNonNull(f, "Function cannot be null for reader");
+    requireValidOuterMonad(outerMonad, "reader");
+    requireNonNullFunction(f, "function f for reader");
     return new ReaderT<>(r -> outerMonad.of(f.apply(r)));
   }
 
@@ -114,7 +116,7 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, R_ENV> ReaderT<F, R_ENV, R_ENV> ask(Monad<F> outerMonad) {
-    requireNonNull(outerMonad, "Outer Monad cannot be null for ask");
+    requireValidOuterMonad(outerMonad, "ask");
     return new ReaderT<>(r -> outerMonad.of(r));
   }
 

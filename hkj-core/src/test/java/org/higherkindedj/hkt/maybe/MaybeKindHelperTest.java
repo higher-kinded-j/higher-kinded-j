@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -106,7 +107,7 @@ class MaybeKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> MAYBE.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted(Maybe.class.getSimpleName()));
     }
 
     @Test
@@ -114,17 +115,16 @@ class MaybeKindHelperTest {
       Kind<MaybeKind.Witness, Integer> unknownKind = new DummyMaybeKind<>();
       assertThatThrownBy(() -> MAYBE.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyMaybeKind.class.getName());
+          .hasMessageContaining(
+              INVALID_KIND_TYPE_TEMPLATE.formatted(
+                  Maybe.class.getSimpleName(), DummyMaybeKind.class.getName()));
     }
 
     @Test
-    void narrow_shouldThrowForHolderWithNullMaybe() {
-
-      Kind<MaybeKind.Witness, Double> kind = new MaybeHolder<>(null);
-
-      assertThatThrownBy(() -> MAYBE.narrow(kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_HOLDER_STATE_MSG);
+    void shouldThrowForHolderWithNullMaybe() {
+      assertThatThrownBy(() -> new MaybeHolder<>(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining(NULL_HOLDER_STATE_TEMPLATE.formatted("MaybeHolder", "Maybe"));
     }
   }
 }

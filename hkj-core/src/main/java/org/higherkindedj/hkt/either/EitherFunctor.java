@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -28,7 +30,7 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
    * Either.Right}. If it represents a {@link Either.Left}, the "Left" value is propagated
    * unchanged.
    *
-   * @param f The non-null function to apply to the "Right" value.
+   * @param f The function to apply to the "Right" value. Must not be null.
    * @param ma The input {@code Kind<EitherKind.Witness<L>, A>}, representing an {@code Either<L,
    *     A>}. Must not be null.
    * @param <A> The type of the "Right" value in the input {@code Either}.
@@ -36,10 +38,16 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
    *     application.
    * @return A new {@code Kind<EitherKind.Witness<L>, B>} representing the transformed {@code
    *     Either<L, B>}. Never null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
+   *     to a valid {@code Either} representation.
    */
   @Override
   public <A, B> Kind<EitherKind.Witness<L>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> ma) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(ma, "source Kind for map");
+
     Either<L, A> eitherA = EITHER.narrow(ma);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map
     return EITHER.widen(resultEither);

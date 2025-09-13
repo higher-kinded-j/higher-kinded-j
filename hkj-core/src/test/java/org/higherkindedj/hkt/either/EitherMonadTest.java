@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.util.ErrorHandling;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -268,8 +269,8 @@ class EitherMonadTest {
       assertThatThrownBy(() -> eitherMonad.flatMap(nullReturningMapper, rightInput))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              EitherKindHelper
-                  .INVALID_KIND_NULL_MSG); // Exception originates from unwrap(null) call
+              ErrorHandling.NULL_KIND_TEMPLATE.formatted(
+                  Either.class.getSimpleName())); // Exception originates from unwrap(null) call
     }
   }
 
@@ -709,7 +710,8 @@ class EitherMonadTest {
       // Assert that attempting to unwrap this null result throws KindUnwrapException
       assertThatThrownBy(() -> EITHER.narrow(resultKind)) // Pass the null resultKind to unwrap
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(EitherKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(
+              ErrorHandling.NULL_KIND_TEMPLATE.formatted(Either.class.getSimpleName()));
     }
   }
 }

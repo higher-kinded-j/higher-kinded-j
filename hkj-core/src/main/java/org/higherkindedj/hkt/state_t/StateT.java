@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -37,8 +37,8 @@ public record StateT<S, F, A>(Function<S, Kind<F, StateTuple<S, A>>> runStateTFn
    * @throws NullPointerException if runStateTFn or monadF is null.
    */
   public StateT {
-    requireNonNull(runStateTFn, "runStateTFn cannot be null");
-    requireNonNull(monadF, "monadF cannot be null");
+    requireNonNullFunction(runStateTFn, "runStateTFn for StateT");
+    requireValidOuterMonad(monadF, "StateT");
   }
 
   /**
@@ -52,9 +52,11 @@ public record StateT<S, F, A>(Function<S, Kind<F, StateTuple<S, A>>> runStateTFn
    * @param <F> The higher-kinded type witness for F.
    * @param <A> The value type.
    * @return A new StateT instance.
+   * @throws NullPointerException if {@code runStateTFn} or {@code monadF} is null.
    */
   public static <S, F, A> StateT<S, F, A> create(
       Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
+    // Validation will be handled by the constructor
     return new StateT<>(runStateTFn, monadF);
   }
 
