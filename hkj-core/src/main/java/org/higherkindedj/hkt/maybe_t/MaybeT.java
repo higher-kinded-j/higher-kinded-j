@@ -2,12 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe_t;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.maybe.Maybe;
-
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 /**
  * Represents the concrete implementation of the Maybe Transformer Monad (MaybeT). It wraps a
