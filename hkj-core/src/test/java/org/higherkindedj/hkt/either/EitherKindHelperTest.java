@@ -14,7 +14,8 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherKindHelper Tests")
 class EitherKindHelperTest {
-    private static final String EITHER_TYPE = "Either";
+  private static final String EITHER_TYPE = "Either";
+
   // Define a simple error type for testing
   record TestError(String code) {}
 
@@ -141,7 +142,7 @@ class EitherKindHelperTest {
       // Run standard operations test with complex type
       testStandardKindHelperOperations(
           complexEither,
-              EITHER_TYPE,
+          EITHER_TYPE,
           createDummyKind("invalid_complex"),
           EITHER::widen,
           EITHER::narrow);
@@ -164,14 +165,14 @@ class EitherKindHelperTest {
       // Test both types work with the same helper methods
       testStandardKindHelperOperations(
           stringLeftEither,
-              EITHER_TYPE,
+          EITHER_TYPE,
           createDummyKind("invalid_string"),
           EITHER::widen,
           EITHER::narrow);
 
       testStandardKindHelperOperations(
           testErrorLeftEither,
-              EITHER_TYPE,
+          EITHER_TYPE,
           createDummyKind("invalid_test_error"),
           EITHER::widen,
           EITHER::narrow);
@@ -296,13 +297,17 @@ class EitherKindHelperTest {
       // Both should work correctly with the standard operations
       testStandardKindHelperOperations(
           complexRight,
-              EITHER_TYPE,
+          EITHER_TYPE,
           createDummyKind("invalid_complex"),
           EITHER::widen,
           EITHER::narrow);
 
       testStandardKindHelperOperations(
-          complexLeft, EITHER_TYPE, createDummyKind("invalid_complex"), EITHER::widen, EITHER::narrow);
+          complexLeft,
+          EITHER_TYPE,
+          createDummyKind("invalid_complex"),
+          EITHER::widen,
+          EITHER::narrow);
 
       // Verify nested structure is preserved
       Kind<EitherKind.Witness<TestError>, java.util.List<String>> rightKind =
@@ -359,7 +364,11 @@ class EitherKindHelperTest {
 
       // Finally, test individual operations
       testStandardKindHelperOperations(
-          instance, EITHER_TYPE, createDummyKind("combined_invalid"), EITHER::widen, EITHER::narrow);
+          instance,
+          EITHER_TYPE,
+          createDummyKind("combined_invalid"),
+          EITHER::widen,
+          EITHER::narrow);
 
       // All should pass without conflicts
       assertThat(instance.getRight()).isEqualTo("combined");

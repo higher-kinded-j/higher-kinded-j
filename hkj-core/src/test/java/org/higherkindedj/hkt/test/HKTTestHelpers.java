@@ -455,8 +455,7 @@ public final class HKTTestHelpers {
     // Test monad laws
     testLeftIdentityLaw(monad, testValue, testFunction, equalityChecker::test);
     testRightIdentityLaw(monad, validKind, equalityChecker::test);
-    testAssociativityLaw(
-        monad, validKind, testFunction, chainFunction, equalityChecker::test);
+    testAssociativityLaw(monad, validKind, testFunction, chainFunction, equalityChecker::test);
   }
 
   /**
