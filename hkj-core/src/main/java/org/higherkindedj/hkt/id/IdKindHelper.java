@@ -49,12 +49,7 @@ public enum IdKindHelper implements IdConverterOps {
    */
   @Override
   public <A> Id<A> narrow(Kind<Id.Witness, A> kind) {
-    requireNonNullKind(kind, TYPE_NAME + " Kind for narrow");
-    if (!(kind instanceof Id)) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
-          String.format("Kind instance is not a %s: %s", TYPE_NAME, kind.getClass().getName()));
-    }
-    return (Id<A>) kind;
+    return narrowKindWithTypeCheck(kind, Id.class, TYPE_NAME);
   }
 
   /**

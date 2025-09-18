@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
 
-import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;

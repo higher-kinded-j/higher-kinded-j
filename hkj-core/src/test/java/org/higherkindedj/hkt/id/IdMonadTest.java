@@ -120,7 +120,7 @@ class IdMonadTest {
       Id<Integer> idInt = Id.of(5);
       assertThatThrownBy(() -> idInt.map(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function cannot be null");
+          .hasMessageContaining("fn cannot be null");
     }
 
     @Test
@@ -180,11 +180,11 @@ class IdMonadTest {
     }
 
     @Test
-    @DisplayName("narrow() should throw NullPointerException if kind is null")
-    void narrow_throwsNullPointerExceptionIfKindIsNull() {
+    @DisplayName("narrow() should throw KindUnwrapException if kind is null")
+    void narrow_throwsKUEIfKindIsNull() {
       assertThatThrownBy(() -> ID.narrow(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Id Kind for narrow cannot be null");
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind for Id");
     }
 
     @Test
@@ -215,11 +215,11 @@ class IdMonadTest {
     }
 
     @Test
-    @DisplayName("unwrap() should throw NullPointerException if kind is null")
-    void unwrap_throwsNPEIfKindIsNull() {
+    @DisplayName("unwrap() should throw KindUnwrapExceptionif kind is null")
+    void unwrap_throwsKUEIfKindIsNull() {
       assertThatThrownBy(() -> ID.unwrap(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Id Kind for narrow cannot be null");
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind for Id");
     }
 
     @Test

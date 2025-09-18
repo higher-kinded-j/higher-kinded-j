@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either_t;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireValidOuterMonad;
+
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
