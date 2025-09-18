@@ -69,7 +69,7 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, L, R> EitherT<F, L, R> right(Monad<F> outerMonad, @Nullable R r) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for right");
+    requireValidOuterMonad(outerMonad, "EitherT.right");
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.right(r));
     return new EitherT<>(lifted);
   }
