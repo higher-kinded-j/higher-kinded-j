@@ -312,7 +312,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
 
     @Override
     public void ifRight(Consumer<? super R> action) {
-      requireNonNullFunction(action, "action cannot be null");
+      requireNonNullFunction(action, "action");
     }
 
     /**
@@ -373,12 +373,12 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
 
     @Override
     public void ifLeft(Consumer<? super L> action) {
-      requireNonNullFunction(action, "action cannot be null");
+      requireNonNullFunction(action, "action");
     }
 
     @Override
     public void ifRight(Consumer<? super R> action) {
-      requireNonNullFunction(action, "action cannot be null");
+      requireNonNullFunction(action, "action");
       action.accept(value);
     }
 
