@@ -46,6 +46,7 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @return A new {@link Id} containing the result of applying the function.
    */
   public <B> Id<B> map(Function<? super A, ? extends B> fn) {
+    requireNonNullFunction(fn, "fn");
     requireNonNullFunction(fn);
     return new Id<>(fn.apply(value()));
   }
