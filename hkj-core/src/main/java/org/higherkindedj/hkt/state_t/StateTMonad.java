@@ -153,7 +153,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
                   S s1 = tupleF.state();
 
                   // 2. Enforce that the wrapped function is non-null.
-                  requireNonNull(function, "Function wrapped in StateT for 'ap' cannot be null.");
+                  requireNonNullFunction(function, "Function wrapped in StateT for 'ap'");
 
                   // 3. Run the second state computation (which yields the value)
                   //    with the intermediate state (s1).
