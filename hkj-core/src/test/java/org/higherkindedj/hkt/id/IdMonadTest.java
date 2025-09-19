@@ -137,7 +137,7 @@ class IdMonadTest {
       Id<Integer> idInt = Id.of(5);
       assertThatThrownBy(() -> idInt.flatMap(i -> null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function returned by flatMap cannot be null");
+          .hasMessageContaining("function returned by flatMap cannot be null");
     }
 
     @Test
@@ -146,7 +146,7 @@ class IdMonadTest {
       Id<Integer> idInt = Id.of(5);
       assertThatThrownBy(() -> idInt.flatMap(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function cannot be null");
+          .hasMessageContaining("fn for flatMap cannot be null");
     }
 
     @Test

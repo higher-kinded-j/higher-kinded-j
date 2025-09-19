@@ -103,12 +103,9 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <A> Kind<CompletableFutureKind.Witness, A> raiseError(@Nullable Throwable error) {
+  public <A> Kind<CompletableFutureKind.Witness, A> raiseError(Throwable error) {
     // Validate that error is not null for better error messages
-    if (error == null) {
-      throw new NullPointerException(
-          "Error throwable cannot be null for CompletableFuture.raiseError");
-    }
+    requireNonNullFunction(error, "error throwable for CompletableFuture.raiseError");
     return FUTURE.widen(CompletableFuture.failedFuture(error));
   }
 

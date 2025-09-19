@@ -1098,7 +1098,7 @@ class CompletableFutureMonadTest {
     void raiseError_shouldThrowNullPointerExceptionForNullError() {
       assertThatThrownBy(() -> futureMonad.raiseError(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage("Error throwable cannot be null for CompletableFuture.raiseError");
+          .hasMessage("error throwable for CompletableFuture.raiseError cannot be null");
     }
 
     @Test

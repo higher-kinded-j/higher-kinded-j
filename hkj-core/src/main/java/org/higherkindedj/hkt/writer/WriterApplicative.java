@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.writer;
 import static org.higherkindedj.hkt.util.ErrorHandling.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
-import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -42,8 +41,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterApplicative(Monoid<W> monoidW) {
-    this.monoidW =
-        Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for WriterApplicative");
+    this.monoidW = requireNonNullFunction(monoidW, "Monoid<W> for WriterApplicative");
   }
 
   /**

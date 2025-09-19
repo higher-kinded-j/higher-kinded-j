@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.maybe_t;
 
 import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
-import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -96,7 +95,7 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    */
   public static <F, A> MaybeT<F, A> fromMaybe(Monad<F> outerMonad, Maybe<A> maybe) {
     requireValidOuterMonad(outerMonad, "MaybeT.fromMaybe");
-    Objects.requireNonNull(maybe, "Input Maybe cannot be null for fromMaybe");
+    requireNonNullForWiden(maybe, "Maybe");
     Kind<F, Maybe<A>> lifted = outerMonad.of(maybe);
     return new MaybeT<>(lifted);
   }

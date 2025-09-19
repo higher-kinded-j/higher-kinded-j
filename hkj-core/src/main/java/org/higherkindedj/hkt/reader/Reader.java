@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -153,9 +154,7 @@ public interface Reader<R, A> {
     return (R r) -> {
       A a = this.run(r);
       Reader<R, ? extends B> readerB = f.apply(a);
-      if (readerB == null) {
-        throw new NullPointerException("flatMap function returned null Reader");
-      }
+      Objects.requireNonNull(readerB, "flatMap function returned null Reader");
       return readerB.run(r);
     };
   }

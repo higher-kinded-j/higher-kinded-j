@@ -285,7 +285,7 @@ class ValidatedMonadTest {
       Kind<ValidatedKind.Witness<TestError>, Integer> validInput = validKind(200);
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.flatMap(fReturnsNullKind, validInput))
-          .withMessage("flatMap function returned null Kind");
+          .withMessage("flatMap function returned Kind cannot be null");
     }
 
     @Test
@@ -498,7 +498,7 @@ class ValidatedMonadTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.handleErrorWith(invalidKindInput, handler))
-          .withMessage("handler function returned null Kind");
+          .withMessage("handler function returned Kind cannot be null");
     }
 
     // --- Default MonadError methods ---

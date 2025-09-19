@@ -61,10 +61,10 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @throws NullPointerException if fn is null or if fn returns a null Id.
    */
   public <B> Id<B> flatMap(Function<? super A, ? extends Id<? extends B>> fn) {
-    requireNonNullFunction(fn);
+    requireNonNullFunction(fn, "fn for flatMap");
     // The cast is safe because fn returns Id<? extends B> which is Id<B>
     @SuppressWarnings("unchecked")
     Id<B> result = (Id<B>) fn.apply(value());
-    return Objects.requireNonNull(result, "Function returned by flatMap cannot be null");
+    return Objects.requireNonNull(result, "function returned by flatMap cannot be null");
   }
 }

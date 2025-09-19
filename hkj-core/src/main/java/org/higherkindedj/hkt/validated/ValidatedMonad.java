@@ -72,7 +72,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    */
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> of(A value) {
-    Objects.requireNonNull(value, "value for of cannot be null");
+    requireNonNullFunction(value, "value for of");
     Validated<E, A> validInstance = Validated.valid(value);
     return VALIDATED.widen(validInstance);
   }
@@ -121,7 +121,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
         validatedValue.flatMap(
             a -> {
               Kind<ValidatedKind.Witness<E>, B> kindResult = f.apply(a);
-              Objects.requireNonNull(kindResult, "flatMap function returned null Kind");
+              requireNonNullKind(kindResult, "flatMap function returned Kind");
               return VALIDATED.narrow(kindResult);
             });
     return VALIDATED.widen(result);
@@ -140,7 +140,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    */
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> raiseError(E error) {
-    Objects.requireNonNull(error, "error for raiseError cannot be null");
+    requireNonNullFunction(error, "error for raiseError");
     return VALIDATED.invalid(error);
   }
 
@@ -173,7 +173,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     if (validated.isInvalid()) {
       E errorValue = validated.getError();
       Kind<ValidatedKind.Witness<E>, A> resultFromHandler = handler.apply(errorValue);
-      Objects.requireNonNull(resultFromHandler, "handler function returned null Kind");
+      requireNonNullKind(resultFromHandler, "handler function returned Kind");
       return resultFromHandler;
     } else {
       return ma;
