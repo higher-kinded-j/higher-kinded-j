@@ -498,4 +498,313 @@ public final class HKTTestHelpers {
         .as("Multiple round-trips should preserve identity")
         .isSameAs(validInstance);
   }
+
+  // =============================================================================
+  // Traverse and Foldable Testing Helpers
+  // =============================================================================
+
+  /**
+   * Test all standard Traverse null parameter validations in a single call.
+   *
+   * <p>This method validates that Traverse operations (map, traverse, foldMap) properly throw
+   * NullPointerException with standardized error messages when passed null parameters.
+   *
+   * @param traverse The Traverse instance to test
+   * @param validKind A valid Kind instance for testing
+   * @param validMapper A valid mapping function (A -> B)
+   * @param validApplicative A valid Applicative instance
+   * @param validTraverseFunction A valid traverse function (A -> Kind<G, B>)
+   * @param validMonoid A valid Monoid instance
+   * @param validFoldMapFunction A valid foldMap function (A -> M)
+   * @param <F> The traverse source type witness
+   * @param <G> The applicative target type witness
+   * @param <A> The source element type
+   * @param <B> The target element type
+   * @param <M> The monoid type
+   */
+  public static <F, G, A, B, M> void testAllTraverseNullValidations(
+      org.higherkindedj.hkt.Traverse<F> traverse,
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      org.higherkindedj.hkt.Applicative<G> validApplicative,
+      Function<A, Kind<G, B>> validTraverseFunction,
+      org.higherkindedj.hkt.Monoid<M> validMonoid,
+      Function<A, M> validFoldMapFunction) {
+
+    ValidationTestBuilder.create()
+        // Map validations
+        .assertNullFunction(() -> traverse.map(null, validKind), "function f for map")
+        .assertNullKind(() -> traverse.map(validMapper, null), "source Kind for map")
+        // Traverse validations
+        .assertNullFunction(
+            () -> traverse.traverse(null, validTraverseFunction, validKind),
+            "applicative instance for traverse")
+        .assertNullFunction(
+            () -> traverse.traverse(validApplicative, null, validKind), "function f for traverse")
+        .assertNullKind(
+            () -> traverse.traverse(validApplicative, validTraverseFunction, null),
+            "source Kind for traverse")
+        // FoldMap validations
+        .assertNullFunction(
+            () -> traverse.foldMap(null, validFoldMapFunction, validKind), "monoid for foldMap")
+        .assertNullFunction(
+            () -> traverse.foldMap(validMonoid, null, validKind), "function f for foldMap")
+        .assertNullKind(
+            () -> traverse.foldMap(validMonoid, validFoldMapFunction, null),
+            "source Kind for foldMap")
+        .execute();
+  }
+
+  /**
+   * Test all standard Foldable null parameter validations in a single call.
+   *
+   * <p>This method validates that Foldable operations (foldMap) properly throw NullPointerException
+   * with standardized error messages when passed null parameters.
+   *
+   * @param foldable The Foldable instance to test
+   * @param validKind A valid Kind instance for testing
+   * @param validMonoid A valid Monoid instance
+   * @param validFoldMapFunction A valid foldMap function (A -> M)
+   * @param <F> The foldable type witness
+   * @param <A> The source element type
+   * @param <M> The monoid type
+   */
+  public static <F, A, M> void testAllFoldableNullValidations(
+      org.higherkindedj.hkt.Foldable<F> foldable,
+      Kind<F, A> validKind,
+      org.higherkindedj.hkt.Monoid<M> validMonoid,
+      Function<A, M> validFoldMapFunction) {
+
+    ValidationTestBuilder.create()
+        .assertNullFunction(
+            () -> foldable.foldMap(null, validFoldMapFunction, validKind), "monoid for foldMap")
+        .assertNullFunction(
+            () -> foldable.foldMap(validMonoid, null, validKind), "function f for foldMap")
+        .assertNullKind(
+            () -> foldable.foldMap(validMonoid, validFoldMapFunction, null),
+            "source Kind for foldMap")
+        .execute();
+  }
+
+  /**
+   * Test basic Traverse operations work correctly (without null parameter testing).
+   *
+   * <p>This method verifies that the basic Traverse operations execute successfully and return
+   * non-null results when given valid inputs.
+   *
+   * @param traverse The Traverse instance to test
+   * @param validInput A valid input Kind for testing
+   * @param validMapper A valid mapping function
+   * @param validApplicative A valid Applicative instance
+   * @param validTraverseFunction A valid traverse function
+   * @param validMonoid A valid Monoid instance
+   * @param validFoldMapFunction A valid foldMap function
+   * @param <F> The traverse source type witness
+   * @param <G> The applicative target type witness
+   * @param <A> The source element type
+   * @param <B> The target element type
+   * @param <M> The monoid type
+   */
+  public static <F, G, A, B, M> void testBasicTraverseOperations(
+      org.higherkindedj.hkt.Traverse<F> traverse,
+      Kind<F, A> validInput,
+      Function<A, B> validMapper,
+      org.higherkindedj.hkt.Applicative<G> validApplicative,
+      Function<A, Kind<G, B>> validTraverseFunction,
+      org.higherkindedj.hkt.Monoid<M> validMonoid,
+      Function<A, M> validFoldMapFunction) {
+
+    // Test that operations return non-null results
+    org.assertj.core.api.Assertions.assertThat(traverse.map(validMapper, validInput))
+        .as("map should return non-null result")
+        .isNotNull();
+    org.assertj.core.api.Assertions.assertThat(
+            traverse.traverse(validApplicative, validTraverseFunction, validInput))
+        .as("traverse should return non-null result")
+        .isNotNull();
+    org.assertj.core.api.Assertions.assertThat(
+            traverse.foldMap(validMonoid, validFoldMapFunction, validInput))
+        .as("foldMap should return non-null result")
+        .isNotNull();
+
+    // Test sequenceA (derived operation)
+    // For this test, we need a Kind<F, Kind<G, A>>, which is complex to construct generically
+    // Individual test classes should test sequenceA specifically
+  }
+
+  /**
+   * Test exception propagation for Traverse operations.
+   *
+   * <p>This method verifies that exceptions thrown by functions are properly propagated through
+   * Traverse operations (map, traverse, foldMap).
+   *
+   * @param traverse The Traverse instance to test
+   * @param validInput A valid input Kind for testing
+   * @param validApplicative A valid Applicative instance
+   * @param validMonoid A valid Monoid instance
+   * @param testException The exception to test propagation with
+   * @param <F> The traverse source type witness
+   * @param <G> The applicative target type witness
+   * @param <A> The source element type
+   */
+  public static <F, G, A> void testTraverseExceptionPropagation(
+      org.higherkindedj.hkt.Traverse<F> traverse,
+      Kind<F, A> validInput,
+      org.higherkindedj.hkt.Applicative<G> validApplicative,
+      org.higherkindedj.hkt.Monoid<String> validMonoid,
+      RuntimeException testException) {
+
+    // Test map exception propagation
+    Function<A, String> throwingMapper = CommonTestFunctions.throwingFunction(testException);
+    assertThatThrownBy(() -> traverse.map(throwingMapper, validInput))
+        .as("map should propagate function exceptions")
+        .isSameAs(testException);
+
+    // Test traverse exception propagation
+    Function<A, Kind<G, String>> throwingTraverseFunction =
+        CommonTestFunctions.throwingFunction(testException);
+    assertThatThrownBy(
+            () -> traverse.traverse(validApplicative, throwingTraverseFunction, validInput))
+        .as("traverse should propagate function exceptions")
+        .isSameAs(testException);
+
+    // Test foldMap exception propagation
+    Function<A, String> throwingFoldMapFunction =
+        CommonTestFunctions.throwingFunction(testException);
+    assertThatThrownBy(() -> traverse.foldMap(validMonoid, throwingFoldMapFunction, validInput))
+        .as("foldMap should propagate function exceptions")
+        .isSameAs(testException);
+  }
+
+  /**
+   * Runs a comprehensive test suite for a Traverse implementation.
+   *
+   * <p>This method executes a complete test suite including:
+   *
+   * <ul>
+   *   <li>Basic operation validation
+   *   <li>Null parameter validation
+   *   <li>Exception propagation testing
+   * </ul>
+   *
+   * @param traverse The Traverse instance to test
+   * @param traverseName The name of the traverse implementation for documentation
+   * @param validKind A valid Kind instance for testing
+   * @param validMapper A valid mapping function
+   * @param validApplicative A valid Applicative instance
+   * @param validTraverseFunction A valid traverse function
+   * @param validMonoid A valid Monoid instance
+   * @param validFoldMapFunction A valid foldMap function
+   * @param <F> The traverse source type witness
+   * @param <G> The applicative target type witness
+   * @param <A> The source element type
+   * @param <B> The target element type
+   * @param <M> The monoid type
+   */
+  public static <F, G, A, B, M> void runCompleteTraverseTestSuite(
+      org.higherkindedj.hkt.Traverse<F> traverse,
+      String traverseName,
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      org.higherkindedj.hkt.Applicative<G> validApplicative,
+      Function<A, Kind<G, B>> validTraverseFunction,
+      org.higherkindedj.hkt.Monoid<M> validMonoid,
+      Function<A, M> validFoldMapFunction) {
+
+    // Test basic operations
+    testBasicTraverseOperations(
+        traverse,
+        validKind,
+        validMapper,
+        validApplicative,
+        validTraverseFunction,
+        validMonoid,
+        validFoldMapFunction);
+
+    // Test null parameter validations
+    testAllTraverseNullValidations(
+        traverse,
+        validKind,
+        validMapper,
+        validApplicative,
+        validTraverseFunction,
+        validMonoid,
+        validFoldMapFunction);
+
+    // Test exception propagation
+    RuntimeException testException = createTestException(traverseName + " test");
+    testTraverseExceptionPropagation(
+        traverse,
+        validKind,
+        validApplicative,
+        org.higherkindedj.hkt.Monoids.string(),
+        testException);
+  }
+
+  // =============================================================================
+  // Common Test Data Generators for Traverse Testing
+  // =============================================================================
+
+  /**
+   * Common test functions for Traverse testing.
+   *
+   * <p>Provides standard functions that are commonly needed in Traverse tests.
+   */
+  public static class CommonTraverseFunctions {
+
+    /**
+     * Creates a traverse function that wraps values in a Maybe Just.
+     *
+     * @param <A> The input type
+     * @return A function that creates Maybe.just(toString(input))
+     */
+    public static <A>
+        Function<
+                A,
+                org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.maybe.MaybeKind.Witness, String>>
+            wrapInMaybeJust() {
+      return a ->
+          org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE.widen(
+              org.higherkindedj.hkt.maybe.Maybe.just(a.toString()));
+    }
+
+    /**
+     * Creates a traverse function that conditionally wraps values in Maybe.
+     *
+     * @param condition The condition to test values against
+     * @param <A> The input type
+     * @return A function that creates Maybe.just if condition is true, Maybe.nothing otherwise
+     */
+    public static <A>
+        Function<
+                A,
+                org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.maybe.MaybeKind.Witness, String>>
+            conditionalMaybe(java.util.function.Predicate<A> condition) {
+      return a -> {
+        if (condition.test(a)) {
+          return org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE.widen(
+              org.higherkindedj.hkt.maybe.Maybe.just(a.toString()));
+        } else {
+          return org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE.widen(
+              org.higherkindedj.hkt.maybe.Maybe.nothing());
+        }
+      };
+    }
+
+    /**
+     * Creates a function that always returns Maybe.nothing (for testing failure cases).
+     *
+     * @param <A> The input type
+     * @return A function that always returns Maybe.nothing
+     */
+    public static <A>
+        Function<
+                A,
+                org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.maybe.MaybeKind.Witness, String>>
+            alwaysNothing() {
+      return a ->
+          org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE.widen(
+              org.higherkindedj.hkt.maybe.Maybe.nothing());
+    }
+  }
 }

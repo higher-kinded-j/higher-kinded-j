@@ -191,16 +191,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @throws NullPointerException if {@code mapper} is null, or if {@code mapper} returns null when
    *     applied (the implementation in {@code Right#flatMap} checks this).
    */
-  default <R2> Either<L, R2> flatMap(
-      Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-    requireNonNullFunction(mapper, "mapper");
-    // This default implementation is only for the interface.
-    // The actual logic is in Left.flatMap (which does nothing) and Right.flatMap.
-    // For Left, this cast is safe as L does not change and R becomes R2.
-    @SuppressWarnings("unchecked")
-    Either<L, R2> self = (Either<L, R2>) this;
-    return self; // Default for Left; Right overrides this.
-  }
+  <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, ? extends R2>> mapper);
 
   /**
    * Performs the given action on the value if this is a {@link Left}. No action is performed if

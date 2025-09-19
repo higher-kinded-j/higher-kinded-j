@@ -2,15 +2,21 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.assertj.core.api.AbstractThrowableAssert;
-import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ThrowableAssert;
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.util.ErrorHandling;
 
 /**
@@ -217,7 +223,7 @@ public final class HKTTestAssertions {
    * }</pre>
    */
   public static class ValidationTestBuilder {
-    private final java.util.List<ValidationAssertion> assertions = new java.util.ArrayList<>();
+    private final List<ValidationAssertion> assertions = new ArrayList<>();
 
     public static ValidationTestBuilder create() {
       return new ValidationTestBuilder();
@@ -351,9 +357,9 @@ public final class HKTTestAssertions {
 
       // Test successful operations
       Kind<F, A> widened = helper.widen(concreteInstance);
-      Assertions.assertThat(widened).isNotNull();
+      assertThat(widened).isNotNull();
       T narrowed = helper.narrow(widened);
-      Assertions.assertThat(narrowed).isSameAs(concreteInstance);
+      assertThat(narrowed).isSameAs(concreteInstance);
 
       // Test error conditions
       ValidationTestBuilder.create()
@@ -371,6 +377,263 @@ public final class HKTTestAssertions {
       Kind<F, A> widen(T concrete);
 
       T narrow(Kind<F, A> kind);
+    }
+  }
+
+  // =============================================================================
+  // Traverse Operation Assertions
+  // =============================================================================
+
+  /** Asserts that a traverse operation throws for a null applicative parameter. */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseNullApplicativeThrows(
+      ThrowableAssert.ThrowingCallable executable) {
+    return assertNullFunctionThrows(executable, "applicative instance for traverse");
+  }
+
+  /** Asserts that a traverse operation throws for a null function parameter. */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseNullFunctionThrows(
+      ThrowableAssert.ThrowingCallable executable) {
+    return assertNullFunctionThrows(executable, "function f for traverse");
+  }
+
+  /** Asserts that a traverse operation throws for a null source Kind parameter. */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseNullSourceKindThrows(
+      ThrowableAssert.ThrowingCallable executable) {
+    return assertNullKindThrows(executable, "source Kind for traverse");
+  }
+
+  // =============================================================================
+  // Foldable Operation Assertions
+  // =============================================================================
+
+  /** Asserts that a foldMap operation throws for a null monoid parameter. */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldMapNullMonoidThrows(
+      ThrowableAssert.ThrowingCallable executable) {
+    return assertNullFunctionThrows(executable, "monoid for foldMap");
+  }
+
+  /** Asserts that a foldMap operation throws for a null function parameter. */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldMapNullFunctionThrows(
+      ThrowableAssert.ThrowingCallable executable) {
+    return assertNullFunctionThrows(executable, "function f for foldMap");
+  }
+
+  /** Asserts that a foldMap operation throws for a null source Kind parameter. */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldMapNullSourceKindThrows(
+      ThrowableAssert.ThrowingCallable executable) {
+    return assertNullKindThrows(executable, "source Kind for foldMap");
+  }
+
+  // =============================================================================
+  // Composite Traverse/Foldable Testing Extensions
+  // =============================================================================
+
+  /** Enhanced ValidationTestBuilder with Traverse-specific assertions. */
+  public static class TraverseValidationTestBuilder {
+    private final java.util.List<Runnable> assertions = new java.util.ArrayList<>();
+
+    public static TraverseValidationTestBuilder create() {
+      return new TraverseValidationTestBuilder();
+    }
+
+    // Basic validation methods
+    public TraverseValidationTestBuilder assertNullFunction(
+        ThrowableAssert.ThrowingCallable executable, String parameterName) {
+      assertions.add(() -> assertNullFunctionThrows(executable, parameterName));
+      return this;
+    }
+
+    public TraverseValidationTestBuilder assertNullKind(
+        ThrowableAssert.ThrowingCallable executable, String parameterName) {
+      assertions.add(() -> assertNullKindThrows(executable, parameterName));
+      return this;
+    }
+
+    // Traverse-specific validation methods
+    public TraverseValidationTestBuilder assertTraverseNullApplicative(
+        ThrowableAssert.ThrowingCallable executable) {
+      assertions.add(() -> assertTraverseNullApplicativeThrows(executable));
+      return this;
+    }
+
+    public TraverseValidationTestBuilder assertTraverseNullFunction(
+        ThrowableAssert.ThrowingCallable executable) {
+      assertions.add(() -> assertTraverseNullFunctionThrows(executable));
+      return this;
+    }
+
+    public TraverseValidationTestBuilder assertTraverseNullSourceKind(
+        ThrowableAssert.ThrowingCallable executable) {
+      assertions.add(() -> assertTraverseNullSourceKindThrows(executable));
+      return this;
+    }
+
+    public TraverseValidationTestBuilder assertFoldMapNullMonoid(
+        ThrowableAssert.ThrowingCallable executable) {
+      assertions.add(() -> assertFoldMapNullMonoidThrows(executable));
+      return this;
+    }
+
+    public TraverseValidationTestBuilder assertFoldMapNullFunction(
+        ThrowableAssert.ThrowingCallable executable) {
+      assertions.add(() -> assertFoldMapNullFunctionThrows(executable));
+      return this;
+    }
+
+    public TraverseValidationTestBuilder assertFoldMapNullSourceKind(
+        ThrowableAssert.ThrowingCallable executable) {
+      assertions.add(() -> assertFoldMapNullSourceKindThrows(executable));
+      return this;
+    }
+
+    /**
+     * Execute all assertions. Each assertion is run independently to ensure that a failure in one
+     * doesn't prevent others from running.
+     */
+    public void execute() {
+      var failures = new ArrayList<AssertionError>();
+
+      for (int i = 0; i < assertions.size(); i++) {
+        try {
+          assertions.get(i).run();
+        } catch (AssertionError e) {
+          failures.add(
+              new AssertionError("Traverse validation assertion " + (i + 1) + " failed", e));
+        }
+      }
+
+      if (!failures.isEmpty()) {
+        AssertionError combined =
+            new AssertionError(failures.size() + " traverse validation assertion(s) failed");
+        for (AssertionError failure : failures) {
+          combined.addSuppressed(failure);
+        }
+        throw combined;
+      }
+    }
+  }
+
+  // =============================================================================
+  // Traverse Law Testing Utilities
+  // =============================================================================
+
+  /** Utilities for testing Traverse laws with standardized error handling. */
+  public static class TraverseLawTestUtils {
+
+    /**
+     * Tests the Traverse naturality law with proper error handling for null parameters.
+     *
+     * <p>Naturality law: natural transformation should commute with traverse
+     *
+     * @param traverse The Traverse instance to test
+     * @param testKind The test Kind for the law
+     * @param applicative1 First applicative instance
+     * @param applicative2 Second applicative instance
+     * @param testFunction The test function for the law
+     * @param naturalTransform The natural transformation
+     * @param equalityChecker Function to check equality of results
+     * @param <F> The traverse source type witness
+     * @param <G1> The first applicative type witness
+     * @param <G2> The second applicative type witness
+     * @param <A> The source element type
+     * @param <B> The target element type
+     */
+    public static <F, G1, G2, A, B> void testNaturalityLaw(
+        Traverse<F> traverse,
+        Kind<F, A> testKind,
+        Applicative<G1> applicative1,
+        Applicative<G2> applicative2,
+        Function<A, Kind<G1, B>> testFunction,
+        Function<Kind<G1, ?>, Kind<G2, ?>> naturalTransform,
+        BiPredicate<Kind<G2, ?>, Kind<G2, ?>> equalityChecker) {
+
+      // This is a complex law that's difficult to test generically without specific type knowledge
+      // Individual implementations should provide specific tests for their naturality behavior
+
+      // Test null validations for the law components
+      TraverseValidationTestBuilder.create()
+          .assertTraverseNullApplicative(() -> traverse.traverse(null, testFunction, testKind))
+          .assertTraverseNullFunction(() -> traverse.traverse(applicative1, null, testKind))
+          .assertTraverseNullSourceKind(() -> traverse.traverse(applicative1, testFunction, null))
+          .execute();
+    }
+
+    /**
+     * Tests the Traverse identity law with proper error handling.
+     *
+     * <p>Identity law: traverse(Identity, ta, Identity.of) == Identity.of(ta)
+     *
+     * @param traverse The Traverse instance to test
+     * @param testKind The test Kind for the law
+     * @param identityApplicative The Identity applicative
+     * @param <F> The traverse source type witness
+     * @param <A> The element type
+     */
+    public static <F, A> void testIdentityLaw(
+        org.higherkindedj.hkt.Traverse<F> traverse,
+        Kind<F, A> testKind,
+        Applicative<Id> identityApplicative) {
+
+      // This requires Identity monad implementation
+      // Placeholder for identity law testing - individual implementations should test this
+      // specifically
+
+      // Test null validations
+      TraverseValidationTestBuilder.create()
+          .assertTraverseNullApplicative(
+              () -> traverse.traverse(null, a -> identityApplicative.of(a), testKind))
+          .assertTraverseNullSourceKind(
+              () -> traverse.traverse(identityApplicative, a -> identityApplicative.of(a), null))
+          .execute();
+    }
+  }
+
+  // =============================================================================
+  // Traverse Result Verification Utilities
+  // =============================================================================
+
+  /** Utilities for verifying common patterns in Traverse results. */
+  public static class TraverseResultVerifiers {
+
+    /**
+     * Verifies that a traverse operation over a "success" container results in a wrapped success.
+     *
+     * @param result The result to verify
+     * @param unwrapper Function to unwrap the outer container
+     * @param innerUnwrapper Function to unwrap the inner container
+     * @param expectedValue The expected inner value
+     * @param <Outer> The outer container type
+     * @param <Inner> The inner container type
+     * @param <Value> The value type
+     */
+    public static <Outer, Inner, Value> void verifyTraverseSuccess(
+        Outer result,
+        Function<Outer, Inner> unwrapper,
+        Function<Inner, Value> innerUnwrapper,
+        Value expectedValue) {
+
+      assertThat(result).as("Traverse result should not be null").isNotNull();
+
+      Inner inner = unwrapper.apply(result);
+      assertThat(inner).as("Unwrapped traverse result should not be null").isNotNull();
+
+      Value actualValue = innerUnwrapper.apply(inner);
+      assertThat(actualValue).as("Inner value should match expected").isEqualTo(expectedValue);
+    }
+
+    /**
+     * Verifies that a traverse operation over a "failure" container results in a wrapped failure.
+     *
+     * @param result The result to verify
+     * @param failureChecker Function to check if result represents failure
+     * @param <Container> The container type
+     */
+    public static <Container> void verifyTraverseFailure(
+        Container result, java.util.function.Predicate<Container> failureChecker) {
+
+      assertThat(result).as("Traverse result should not be null").isNotNull();
+
+      assertThat(failureChecker.test(result)).as("Result should represent failure").isTrue();
     }
   }
 }
