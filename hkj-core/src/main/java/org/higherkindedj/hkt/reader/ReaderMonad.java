@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -71,11 +72,17 @@ public final class ReaderMonad<R> extends ReaderApplicative<R>
    *     first run {@code ma} with {@code r} to get {@code a}, then apply {@code f} to {@code a} to
    *     get a new {@code Reader}, and then run that new {@code Reader} with the same environment
    *     {@code r}.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     Reader} representation.
    */
   @Override
   public <A, B> Kind<ReaderKind.Witness<R>, B> flatMap(
       Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
       Kind<ReaderKind.Witness<R>, A> ma) {
+
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
 
     Reader<R, A> readerA = READER.narrow(ma); // Convert Kind back to concrete Reader
 

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -73,6 +74,9 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
   @Override
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
+
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()
     Optional<B> resultOptional = optionalA.map(f);

@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
@@ -38,9 +38,10 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    *
    * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must not be null. This
    *     is used for combining logs in operations like {@code ap}.
+   * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterApplicative(Monoid<W> monoidW) {
-    this.monoidW = requireNonNull(monoidW, "Monoid<W> cannot be null for WriterApplicative");
+    this.monoidW = requireNonNullFunction(monoidW, "Monoid<W> for WriterApplicative");
   }
 
   /**
@@ -73,13 +74,17 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @param <B> The result type of the function application.
    * @return A new {@code Kind<WriterKind.Witness<W>, B>} representing the {@code Writer<W, B>} that
    *     results from applying the function and combining logs. Never null.
-   * @throws NullPointerException if the function extracted from {@code ff} is null, which is
-   *     generally not expected for a valid {@code ap} operation.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function extracted
+   *     from {@code ff} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid {@code Writer} representations.
    */
   @Override
   public <A, B> Kind<WriterKind.Witness<W>, B> ap(
-      // 1. Update the signature to match the Applicative interface
       Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff, Kind<WriterKind.Witness<W>, A> fa) {
+
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
 
     Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);
@@ -89,10 +94,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
     Function<A, B> func = writerF.value();
     A val = writerA.value();
 
-    requireNonNull(
-        func,
-        "Function wrapped in Writer for 'ap' was null. "
-            + "This may indicate an issue with how the Writer<W, Function<A,B>> was constructed.");
+    requireNonNullFunction(func, "Function wrapped in Writer for ap");
     B resultValue = func.apply(val);
 
     return WRITER.widen(new Writer<>(combinedLog, resultValue));

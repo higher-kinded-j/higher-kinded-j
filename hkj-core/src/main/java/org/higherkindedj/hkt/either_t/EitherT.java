@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either_t;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireValidOuterMonad;
+
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +28,7 @@ import org.jspecify.annotations.Nullable;
  * @see EitherTMonad
  * @see EitherTKindHelper
  */
-public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
+public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
     implements EitherTKind<F, L, R> { // Implements the updated EitherTKind
 
   /**
@@ -53,7 +54,7 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * @return A new {@code EitherT} instance.
    * @throws NullPointerException if {@code value} is null.
    */
-  public static <F, L, R> @NonNull EitherT<F, L, R> fromKind(@NonNull Kind<F, Either<L, R>> value) {
+  public static <F, L, R> EitherT<F, L, R> fromKind(Kind<F, Either<L, R>> value) {
     return new EitherT<>(value);
   }
 
@@ -69,9 +70,8 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * @return A new {@code EitherT} instance representing {@code outerMonad.of(Either.right(r))}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, L, R> @NonNull EitherT<F, L, R> right(
-      @NonNull Monad<F> outerMonad, @Nullable R r) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for right");
+  public static <F, L, R> EitherT<F, L, R> right(Monad<F> outerMonad, @Nullable R r) {
+    requireValidOuterMonad(outerMonad, "EitherT.right");
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.right(r));
     return new EitherT<>(lifted);
   }
@@ -87,8 +87,7 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * @return A new {@code EitherT} instance representing {@code outerMonad.of(Either.left(l))}.
    * @throws NullPointerException if {@code outerMonad} is null.
    */
-  public static <F, L, R> @NonNull EitherT<F, L, R> left(
-      @NonNull Monad<F> outerMonad, @Nullable L l) {
+  public static <F, L, R> EitherT<F, L, R> left(Monad<F> outerMonad, @Nullable L l) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for left");
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.left(l));
     return new EitherT<>(lifted);
@@ -106,8 +105,7 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * @return A new {@code EitherT} instance representing {@code outerMonad.of(either)}.
    * @throws NullPointerException if {@code outerMonad} or {@code either} is null.
    */
-  public static <F, L, R> @NonNull EitherT<F, L, R> fromEither(
-      @NonNull Monad<F> outerMonad, @NonNull Either<L, R> either) {
+  public static <F, L, R> EitherT<F, L, R> fromEither(Monad<F> outerMonad, Either<L, R> either) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for fromEither");
     Objects.requireNonNull(either, "Input Either cannot be null for fromEither");
     Kind<F, Either<L, R>> lifted = outerMonad.of(either);
@@ -127,8 +125,7 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
    * @return A new {@code EitherT} instance.
    * @throws NullPointerException if {@code outerMonad} or {@code fr} is null.
    */
-  public static <F, L, R> @NonNull EitherT<F, L, R> liftF(
-      @NonNull Monad<F> outerMonad, @NonNull Kind<F, R> fr) {
+  public static <F, L, R> EitherT<F, L, R> liftF(Monad<F> outerMonad, Kind<F, R> fr) {
     Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for liftF");
     Objects.requireNonNull(fr, "Input Kind<F, R> cannot be null for liftF");
     Kind<F, Either<L, R>> mapped = outerMonad.map(Either::right, fr);
@@ -138,10 +135,10 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value)
   /**
    * Accessor for the underlying monadic value.
    *
-   * @return The {@code @NonNull Kind<F, Either<L, R>>} wrapped by this {@code EitherT}.
+   * @return The {@code Kind<F, Either<L, R>>} wrapped by this {@code EitherT}.
    */
   @Override
-  public @NonNull Kind<F, Either<L, R>> value() {
+  public Kind<F, Either<L, R>> value() {
     return value;
   }
 }

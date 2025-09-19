@@ -2,7 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.narrowKindWithTypeCheck;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullForHolder;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullForWiden;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
@@ -18,14 +21,7 @@ import org.jspecify.annotations.Nullable;
 public enum MaybeKindHelper implements MaybeConverterOps {
   MAYBE; // Singleton instance named MAYBE
 
-  /** Error message for when a null Kind is passed to narrow. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for Maybe";
-
-  /** Error message prefix for when the Kind instance is not the expected MaybeHolder type. */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a MaybeHolder: ";
-
-  /** Error message for when a MaybeHolder internally contains a null Maybe, which is invalid. */
-  public static final String INVALID_HOLDER_STATE_MSG = "MaybeHolder contained null Maybe instance";
+  private static final String TYPE_NAME = "Maybe";
 
   /**
    * Internal record implementing {@link MaybeKind} to hold the concrete {@link Maybe} instance.
@@ -34,7 +30,11 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * @param <A> The type of the value potentially held by the {@code maybe}.
    * @param maybe The {@link Maybe} instance being wrapped.
    */
-  record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> {}
+  record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> {
+    MaybeHolder {
+      requireNonNullForHolder(maybe, TYPE_NAME);
+    }
+  }
 
   /**
    * Widens a concrete {@link Maybe}&lt;A&gt; instance into its HKT representation, {@link
@@ -47,7 +47,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    */
   @Override
   public <A> Kind<MaybeKind.Witness, A> widen(Maybe<A> maybe) {
-    Objects.requireNonNull(maybe, "Input Maybe cannot be null for widen");
+    requireNonNullForWiden(maybe, "Maybe");
     return new MaybeHolder<>(maybe);
   }
 
@@ -63,22 +63,8 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    *     {@link Maybe} instance.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-      case MaybeKindHelper.MaybeHolder<?> holder -> {
-        Maybe<?> maybe = holder.maybe();
-        if (maybe == null) {
-          // This state implies incorrect construction of MaybeHolder if it bypassed 'widen'
-          // or if MaybeHolder's contract regarding non-null 'maybe' was violated.
-          throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
-        }
-        // The cast is safe if Kind<MaybeKind.Witness, A> correctly corresponds to Maybe<A>.
-        yield (Maybe<A>) maybe;
-      }
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKindWithTypeCheck(kind, MaybeHolder.class, TYPE_NAME).maybe();
   }
 
   /**

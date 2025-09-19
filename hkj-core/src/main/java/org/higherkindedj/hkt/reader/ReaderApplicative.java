@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -64,10 +65,17 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    * @param <B> The result type of the function application.
    * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the {@code Reader<R, B>} that
    *     results from applying the function. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function extracted
+   *     from the Reader is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid {@code Reader} representations.
    */
   @Override
   public <A, B> Kind<ReaderKind.Witness<R>, B> ap(
       Kind<ReaderKind.Witness<R>, ? extends Function<A, B>> ff, Kind<ReaderKind.Witness<R>, A> fa) {
+
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
 
     Reader<R, ? extends Function<A, B>> readerF = READER.narrow(ff);
     Reader<R, A> readerA = READER.narrow(fa);
@@ -76,6 +84,11 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
         (R r) -> {
           Function<A, B> func = readerF.run(r);
           A val = readerA.run(r);
+
+          if (func == null) {
+            throw new NullPointerException("Function extracted from Reader for 'ap' was null");
+          }
+
           return func.apply(val);
         };
 

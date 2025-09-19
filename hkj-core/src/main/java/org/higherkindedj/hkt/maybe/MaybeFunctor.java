@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
@@ -39,7 +41,7 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
    *     function.
    * @param f The function to apply to the value if present. This function takes a value of type
    *     {@code A} and may return a {@code @Nullable B}. Must not be {@code null}.
-   * @param ma The input {@code MaybeKind<A>} instance, which is a {@link Kind} representing a
+   * @param fa The input {@code MaybeKind<A>} instance, which is a {@link Kind} representing a
    *     {@link Maybe}. Must not be {@code null}.
    * @return A new {@code MaybeKind<B>} containing the result of applying the function {@code f} if
    *     {@code ma} contained a value and {@code f} produced a non-null result. Returns a {@code
@@ -49,9 +51,11 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
    */
   @Override
   public <A, B> Kind<MaybeKind.Witness, B> map(
-      Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> ma) {
+      Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
     // 1. Unwrap the Kind<MaybeKind.Witness, A> to get the concrete Maybe<A>.
-    Maybe<A> maybeA = MAYBE.narrow(ma);
+    Maybe<A> maybeA = MAYBE.narrow(fa);
     // 2. Apply the function using Maybe's own map method.
     //    Maybe.map handles the case where 'f' might return null by producing a Nothing.
     Maybe<B> resultMaybe = maybeA.map(f);

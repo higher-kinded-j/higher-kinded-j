@@ -357,9 +357,10 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleErrorWith_shouldFailWhenHandlerIsNull() {
-      Kind<CompletableFutureKind.Witness, Integer> result =
-          futureMonad.handleErrorWith(failedKind, null);
-      assertThatThrownBy(() -> joinFuture(result)).isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(() -> futureMonad.handleErrorWith(failedKind, null))
+          .isInstanceOf(NullPointerException.class)
+          .message()
+          .isEqualTo("handler function for handleErrorWith cannot be null");
     }
 
     @Test
@@ -1078,6 +1079,47 @@ class CompletableFutureMonadTest {
       BiFunction<Integer, String, String> f2_func = (i, s) -> s + i; // Renamed
       Kind<CompletableFutureKind.Witness, String> result = futureMonad.map2(dFut1, dFut2, f2_func);
       assertThat(joinFuture(result)).isEqualTo("world5");
+    }
+  }
+
+  @Nested
+  @DisplayName("Additional Edge Case Tests")
+  class EdgeCaseTests {
+
+    @Test
+    void flatMap_shouldThrowNullPointerExceptionForNullFunction() {
+      Kind<CompletableFutureKind.Witness, Integer> input = futureMonad.of(1);
+      assertThatThrownBy(() -> futureMonad.flatMap(null, input))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("function f for flatMap cannot be null");
+    }
+
+    @Test
+    void raiseError_shouldThrowNullPointerExceptionForNullError() {
+      assertThatThrownBy(() -> futureMonad.raiseError(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("error throwable for CompletableFuture.raiseError cannot be null");
+    }
+
+    @Test
+    void handleErrorWith_shouldHandleAlreadyExceptionallyCompletedFuture() {
+      CompletableFuture<Integer> alreadyFailed = new CompletableFuture<>();
+      RuntimeException testException = new RuntimeException("Already Failed");
+      alreadyFailed.completeExceptionally(testException);
+
+      Kind<CompletableFutureKind.Witness, Integer> failedKind = FUTURE.widen(alreadyFailed);
+      AtomicReference<Throwable> caught = new AtomicReference<>();
+      Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
+          err -> {
+            caught.set(err);
+            return futureMonad.of(0);
+          };
+
+      Kind<CompletableFutureKind.Witness, Integer> result =
+          futureMonad.handleErrorWith(failedKind, handler);
+
+      assertThat(joinFuture(result)).isEqualTo(0);
+      assertThat(caught.get()).isSameAs(testException);
     }
   }
 }

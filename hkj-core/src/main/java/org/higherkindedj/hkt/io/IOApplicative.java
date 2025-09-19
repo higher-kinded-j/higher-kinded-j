@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -19,6 +20,9 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
   @Override
   public <A, B> Kind<IOKind.Witness, B> ap(
       Kind<IOKind.Witness, ? extends Function<A, B>> ff, Kind<IOKind.Witness, A> fa) {
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
+
     IO<? extends Function<A, B>> ioF = IO_OP.narrow(ff);
     IO<A> ioA = IO_OP.narrow(fa);
     // IO<B> ioB = IO { ioF.unsafeRunSync().apply(ioA.unsafeRunSync()) }

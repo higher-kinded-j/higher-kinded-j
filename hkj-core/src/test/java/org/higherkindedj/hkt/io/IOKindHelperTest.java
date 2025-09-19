@@ -60,7 +60,7 @@ class IOKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> IO_OP.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining("Cannot narrow null Kind for IO");
     }
 
     @Test
@@ -68,7 +68,7 @@ class IOKindHelperTest {
       IOKind<String> unknownKind = new DummyIOKind<>();
       assertThatThrownBy(() -> IO_OP.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyIOKind.class.getName());
+          .hasMessageContaining("Kind instance is not a IO: " + DummyIOKind.class.getName());
     }
   }
 

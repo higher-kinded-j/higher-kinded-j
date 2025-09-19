@@ -3,8 +3,8 @@
 package org.higherkindedj.hkt.optional_t;
 
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -36,9 +36,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public OptionalTMonad(Monad<F> outerMonad) {
-    this.outerMonad =
-        Objects.requireNonNull(
-            outerMonad, "Outer Monad instance cannot be null for OptionalTMonad");
+    this.outerMonad = requireValidOuterMonad(outerMonad, "OptionalTMonad");
   }
 
   /**
@@ -68,12 +66,16 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @param f The function to apply. Must not be null.
    * @param fa The {@code Kind<OptionalTKind.Witness<F>, A>} to map over. Must not be null.
    * @return A new {@code Kind<OptionalTKind.Witness<F>, B>} with the function applied.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     OptionalT} representation.
    */
   @Override
   public <A, B> Kind<OptionalTKind.Witness<F>, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalTKind.Witness<F>, A> fa) {
-    Objects.requireNonNull(f, "Function f cannot be null for map");
-    Objects.requireNonNull(fa, "Kind fa cannot be null for map");
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
+
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(fa);
     Kind<F, Optional<B>> newValue = outerMonad.map(opt -> opt.map(f), optionalT.value());
     return OPTIONAL_T.widen(OptionalT.fromKind(newValue));
@@ -98,13 +100,17 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @param ff The wrapped function. Must not be null.
    * @param fa The wrapped value. Must not be null.
    * @return A new {@code Kind<OptionalTKind.Witness<F>, B>} representing the application.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} is not
+   *     a valid {@code OptionalT} representation.
    */
   @Override
   public <A, B> Kind<OptionalTKind.Witness<F>, B> ap(
       Kind<OptionalTKind.Witness<F>, ? extends Function<A, @Nullable B>> ff,
       Kind<OptionalTKind.Witness<F>, A> fa) {
-    Objects.requireNonNull(ff, "Kind ff cannot be null for ap");
-    Objects.requireNonNull(fa, "Kind fa cannot be null for ap");
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
+
     OptionalT<F, ? extends Function<A, @Nullable B>> funcT = OPTIONAL_T.narrow(ff);
     OptionalT<F, A> valT = OPTIONAL_T.narrow(fa);
 
@@ -128,13 +134,17 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * @param f The function to apply, returning a new {@code Kind}. Must not be null.
    * @param ma The {@code Kind<OptionalTKind.Witness<F>, A>} to transform. Must not be null.
    * @return A new {@code Kind<OptionalTKind.Witness<F>, B>}.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     OptionalT} representation.
    */
   @Override
   public <A, B> Kind<OptionalTKind.Witness<F>, B> flatMap(
       Function<? super A, ? extends Kind<OptionalTKind.Witness<F>, B>> f,
       Kind<OptionalTKind.Witness<F>, A> ma) {
-    Objects.requireNonNull(f, "Function f cannot be null for flatMap");
-    Objects.requireNonNull(ma, "Kind ma cannot be null for flatMap");
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
+
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 
     Kind<F, Optional<B>> newValue =
@@ -165,6 +175,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    */
   @Override
   public <A> Kind<OptionalTKind.Witness<F>, A> raiseError(Unit error) {
+    // No need to validate the Unit parameter as it's a marker type
     return OPTIONAL_T.widen(OptionalT.none(outerMonad));
   }
 
@@ -182,13 +193,17 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    *     Kind<OptionalTKind.Witness<F>, A>}. Must not be null.
    * @return A {@code Kind<OptionalTKind.Witness<F>, A>}, either the original or the result of the
    *     handler.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     OptionalT} representation.
    */
   @Override
   public <A> Kind<OptionalTKind.Witness<F>, A> handleErrorWith(
       Kind<OptionalTKind.Witness<F>, A> ma,
       Function<? super Unit, ? extends Kind<OptionalTKind.Witness<F>, A>> handler) {
-    Objects.requireNonNull(ma, "Kind ma cannot be null for handleErrorWith");
-    Objects.requireNonNull(handler, "Function handler cannot be null for handleErrorWith");
+    requireNonNullKind(ma, "Kind ma for handleErrorWith");
+    requireNonNullFunction(handler, "handler function for handleErrorWith");
+
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 
     Kind<F, Optional<A>> handledValue =

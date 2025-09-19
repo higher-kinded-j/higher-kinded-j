@@ -2,6 +2,7 @@
  * Contains example usage of the Higher-Kinded-J library. This module is not intended for use as a
  * library dependency.
  */
+@org.jspecify.annotations.NullMarked
 module org.higherkindedj.examples {
   // Depends on the main library to use its features
   requires org.higherkindedj.core;

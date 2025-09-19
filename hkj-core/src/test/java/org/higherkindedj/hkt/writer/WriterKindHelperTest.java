@@ -35,7 +35,7 @@ class WriterKindHelperTest {
     @Test
     void widen_shouldReturnHolderForWriter() {
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(baseWriter);
-      assertThat(kind).isInstanceOf(WriterHolder.class);
+      assertThat(kind).isInstanceOf(WriterKindHelper.WriterHolder.class);
       // Unwrap to verify
       assertThat(WRITER.narrow(kind)).isSameAs(baseWriter);
     }
@@ -44,7 +44,7 @@ class WriterKindHelperTest {
     void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> WRITER.widen(null))
-          .withMessageContaining("Input Writer cannot be null");
+          .withMessageContaining("Input Writer cannot be null for widen");
     }
   }
 
@@ -64,7 +64,7 @@ class WriterKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> WRITER.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining("Cannot narrow null Kind for Writer");
     }
 
     @Test
@@ -72,7 +72,8 @@ class WriterKindHelperTest {
       Kind<WriterKind.Witness<String>, Integer> unknownKind = new DummyWriterKind<>();
       assertThatThrownBy(() -> WRITER.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyWriterKind.class.getName());
+          .hasMessageContaining(
+              "Kind instance is not a Writer: " + DummyWriterKind.class.getName());
     }
   }
 
@@ -88,11 +89,25 @@ class WriterKindHelperTest {
     }
 
     @Test
-    void tell_shouldWrapLogWithNullValue() {
+    void tell_shouldWrapLogWithUnitValue() {
       Kind<WriterKind.Witness<String>, Unit> kind = WRITER.tell("LogMsg");
       Writer<String, Unit> w = WRITER.narrow(kind);
       assertThat(w.log()).isEqualTo("LogMsg");
       assertThat(w.value()).isEqualTo(Unit.INSTANCE);
+    }
+
+    @Test
+    void tell_shouldThrowForNullLog() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> WRITER.tell(null))
+          .withMessageContaining("Log message for tell cannot be null");
+    }
+
+    @Test
+    void value_shouldThrowForNullMonoid() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> WRITER.value(null, 42))
+          .withMessageContaining("Monoid");
     }
   }
 
@@ -121,6 +136,27 @@ class WriterKindHelperTest {
 
       var tellKind = WRITER.widen(tellWriter);
       assertThat(WRITER.exec(tellKind)).isEqualTo("Tell;");
+    }
+
+    @Test
+    void runWriter_shouldThrowForNullKind() {
+      assertThatThrownBy(() -> WRITER.runWriter(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind for Writer");
+    }
+
+    @Test
+    void run_shouldThrowForNullKind() {
+      assertThatThrownBy(() -> WRITER.run(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind for Writer");
+    }
+
+    @Test
+    void exec_shouldThrowForNullKind() {
+      assertThatThrownBy(() -> WRITER.exec(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind for Writer");
     }
   }
 }

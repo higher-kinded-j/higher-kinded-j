@@ -29,7 +29,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Witness Type `F_WITNESS`**: `Id.Witness`
 * **`IdKindHelper`**: [`IdKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdKindHelper.java) (`wrap` casts `Id` to `Kind`, `unwrap` casts `Kind` to `Id`; `narrow` is a convenience for unwrap).
 * **Type Class Instances**:
-  * [`IdentityMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdentityMonad.java) (`Monad<Id.Witness>`)
+  * [`IdMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdMonad.java) (`Monad<Id.Witness>`)
 * **Notes**: `Id.of(a)` creates `Id(a)`. `map` and `flatMap` operate directly. Useful as a base for monad transformers and generic programming with no extra effects. `Id<A>` directly implements `IdKind<A>`.
 * **Usage**: [How to use the Identity Monad](./identity.md)
 

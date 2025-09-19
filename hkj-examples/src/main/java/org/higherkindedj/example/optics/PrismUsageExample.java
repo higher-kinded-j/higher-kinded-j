@@ -11,7 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
-import org.higherkindedj.hkt.id.IdentityMonad;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -82,8 +82,7 @@ public class PrismUsageExample {
     var updatedData =
         IdKindHelper.ID
             .narrow(
-                userToJsonName.modifyF(
-                    name -> Id.of(name.toUpperCase()), data, IdentityMonad.instance()))
+                userToJsonName.modifyF(name -> Id.of(name.toUpperCase()), data, IdMonad.instance()))
             .value();
 
     System.out.println("After deep `modify`:    " + updatedData);

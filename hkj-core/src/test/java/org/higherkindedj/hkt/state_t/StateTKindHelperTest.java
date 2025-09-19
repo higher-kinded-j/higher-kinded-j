@@ -7,6 +7,9 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -62,7 +65,7 @@ class StateTKindHelperTest {
     void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> STATE_T.widen(null))
-          .withMessageContaining(StateTKindHelper.INVALID_KIND_TYPE_NULL_MSG);
+          .withMessageContaining(NULL_WIDEN_INPUT_TEMPLATE.formatted("StateT"));
     }
   }
 
@@ -81,7 +84,7 @@ class StateTKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> STATE_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(StateTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessage(String.format(NULL_KIND_TEMPLATE, "StateT"));
     }
 
     @Test
@@ -89,7 +92,7 @@ class StateTKindHelperTest {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> unknownKind =
           new DummyKind<>();
       String expectedMessage =
-          StateTKindHelper.INVALID_KIND_TYPE_MSG + unknownKind.getClass().getName();
+          String.format(INVALID_KIND_TYPE_TEMPLATE, "StateT", unknownKind.getClass().getName());
       assertThatThrownBy(() -> STATE_T.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessage(expectedMessage);
@@ -202,7 +205,7 @@ class StateTKindHelperTest {
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> invalidKind =
           new narrowTests.DummyKind<>();
       String expectedMessage =
-          StateTKindHelper.INVALID_KIND_TYPE_MSG + invalidKind.getClass().getName();
+          String.format(INVALID_KIND_TYPE_TEMPLATE, "StateT", invalidKind.getClass().getName());
       assertThatThrownBy(() -> STATE_T.runStateT(invalidKind, initialState))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessage(expectedMessage);

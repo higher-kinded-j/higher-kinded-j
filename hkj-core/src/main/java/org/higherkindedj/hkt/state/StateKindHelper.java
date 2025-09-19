@@ -2,10 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.Nullable;
 
@@ -19,21 +19,7 @@ import org.jspecify.annotations.Nullable;
 public enum StateKindHelper implements StateConverterOps {
   STATE;
 
-  // Error Messages
-  /** Error message for when a null {@link Kind} is passed to {@link #narrow(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for State";
-
-  /**
-   * Error message prefix for when the {@link Kind} instance is not the expected {@link StateHolder}
-   * type.
-   */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a StateHolder: ";
-
-  /**
-   * Error message for when a {@link StateHolder} internally contains a null {@link State} instance.
-   * This should not be reachable if widen ensures non-null State instances are wrapped.
-   */
-  public static final String INVALID_HOLDER_STATE_MSG = "StateHolder contained null State instance";
+  public static final String TYPE_NAME = "State";
 
   /**
    * An internal record that implements {@link StateKind}{@code <S, A>} to hold the concrete {@link
@@ -43,7 +29,17 @@ public enum StateKindHelper implements StateConverterOps {
    * @param <A> The type of the computed value.
    * @param stateInstance The non-null, actual {@link State}{@code <S, A>} instance being wrapped.
    */
-  record StateHolder<S, A>(State<S, A> stateInstance) implements StateKind<S, A> {}
+  record StateHolder<S, A>(State<S, A> stateInstance) implements StateKind<S, A> {
+    /**
+     * Constructs a {@code StateHolder}.
+     *
+     * @param stateInstance The {@link State} to hold. Must not be null.
+     * @throws NullPointerException if the provided {@code stateInstance} is null.
+     */
+    StateHolder {
+      requireNonNullForHolder(stateInstance, TYPE_NAME);
+    }
+  }
 
   /**
    * Widens a concrete {@link State}{@code <S, A>} instance into its higher-kinded representation,
@@ -58,7 +54,7 @@ public enum StateKindHelper implements StateConverterOps {
    */
   @Override
   public <S, A> Kind<StateKind.Witness<S>, A> widen(State<S, A> state) {
-    Objects.requireNonNull(state, "Input State cannot be null for widen");
+    requireNonNullForWiden(state, TYPE_NAME);
     return new StateHolder<>(state);
   }
 
@@ -71,20 +67,14 @@ public enum StateKindHelper implements StateConverterOps {
    * @param <A> The type of the computed value associated with the {@code Kind}.
    * @param kind The {@code Kind<StateKind.Witness<S>, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link State}{@code <S, A>} instance.
-   * @throws KindUnwrapException if the input {@code kind} is {@code null}, or not an instance of
-   *     {@link StateHolder}. The {@code StateHolder} guarantees its internal {@code stateInstance}
-   *     is non-null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null}, or not an instance of {@link StateHolder}. The {@code StateHolder} guarantees its
+   *     internal {@code stateInstance} is non-null.
    */
   @Override
   @SuppressWarnings("unchecked")
   public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(StateKindHelper.INVALID_KIND_NULL_MSG);
-      case StateKindHelper.StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
-      default ->
-          throw new KindUnwrapException(
-              StateKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKind(kind, TYPE_NAME, this::narrowInternal);
   }
 
   /**
@@ -115,8 +105,10 @@ public enum StateKindHelper implements StateConverterOps {
    * @param <S> The type of the state.
    * @param newState The non-null new state to be set.
    * @return A non-null {@link Kind<StateKind.Witness<S>, Unit>} that performs the state update.
+   * @throws NullPointerException if {@code newState} is null.
    */
   public <S> Kind<StateKind.Witness<S>, Unit> set(S newState) {
+    // State.set already validates newState is non-null, but we can add validation here too
     return this.widen(State.set(newState));
   }
 
@@ -127,8 +119,10 @@ public enum StateKindHelper implements StateConverterOps {
    * @param f The non-null function to transform the current state.
    * @return A non-null {@link Kind<StateKind.Witness<S>, Unit>} that performs the state
    *     modification.
+   * @throws NullPointerException if {@code f} is null.
    */
   public <S> Kind<StateKind.Witness<S>, Unit> modify(Function<S, S> f) {
+    requireNonNullFunction(f, "state modification function");
     return this.widen(State.modify(f));
   }
 
@@ -140,8 +134,10 @@ public enum StateKindHelper implements StateConverterOps {
    * @param f The non-null function to apply to the current state.
    * @return A non-null {@link Kind<StateKind.Witness<S>, A>} that returns the result of inspecting
    *     the state.
+   * @throws NullPointerException if {@code f} is null.
    */
   public <S, A> Kind<StateKind.Witness<S>, A> inspect(Function<S, @Nullable A> f) {
+    requireNonNullFunction(f, "state inspection function");
     return this.widen(State.inspect(f));
   }
 
@@ -153,12 +149,13 @@ public enum StateKindHelper implements StateConverterOps {
    * @param kind The {@code Kind<StateKind.Witness<S>, A>} holding the {@code State} computation.
    * @param initialState The non-null initial state.
    * @return A non-null {@link StateTuple}{@code <S, A>}.
-   * @throws KindUnwrapException if {@code kind} is invalid.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public <S, A> StateTuple<S, A> runState(
       @Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
-    Objects.requireNonNull(initialState, "Initial state cannot be null for runState");
+    requireNonNullKind(kind, "Kind for runState");
+    // Note: initialState validation is handled by StateTuple constructor
     return this.narrow(kind).run(initialState);
   }
 
@@ -170,7 +167,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @param kind The {@code Kind<StateKind.Witness<S>, A>} holding the {@code State} computation.
    * @param initialState The non-null initial state.
    * @return The final computed value.
-   * @throws KindUnwrapException if {@code kind} is invalid.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public <S, A> @Nullable A evalState(
@@ -186,10 +183,19 @@ public enum StateKindHelper implements StateConverterOps {
    * @param kind The {@code Kind<StateKind.Witness<S>, A>} holding the {@code State} computation.
    * @param initialState The non-null initial state.
    * @return The non-null final state.
-   * @throws KindUnwrapException if {@code kind} is invalid.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
   public <S, A> S execState(@Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
     return this.runState(kind, initialState).state();
+  }
+
+  /** Internal narrowing implementation that performs the actual type checking and extraction. */
+  @SuppressWarnings("unchecked")
+  private <S, A> State<S, A> narrowInternal(Kind<StateKind.Witness<S>, A> kind) {
+    return switch (kind) {
+      case StateKindHelper.StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+    };
   }
 }

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -54,9 +55,9 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
    *
    * @param <A> The type of the value.
    * @param value The value to lift. Can be {@code null}.
-   * @return A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing an already
-   *     completed {@link CompletableFuture} holding the given {@code value}. This corresponds to
-   *     {@code CompletableFuture.completedFuture(value)}.
+   * @return A {@code Kind<CompletableFutureKind.Witness, A>} representing an already completed
+   *     {@link CompletableFuture} holding the given {@code value}. This corresponds to {@code
+   *     CompletableFuture.completedFuture(value)}. Never null.
    */
   @Override
   public <A> Kind<CompletableFutureKind.Witness, A> of(@Nullable A value) {
@@ -83,13 +84,14 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
    * @param <B> The output type of the function and the type of the value in the resulting {@code
    *     CompletableFuture}. The result of {@code func.apply(val)} can be {@code null} if type
    *     {@code B} is nullable.
-   * @param ff A non-null {@code Kind<CompletableFutureKind.Witness, Function<A, B>>} representing
-   *     the asynchronously available function.
-   * @param fa A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing the
-   *     asynchronously available value.
-   * @return A non-null {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@link
+   * @param ff A {@code Kind<CompletableFutureKind.Witness, Function<A, B>>} representing the
+   *     asynchronously available function. Must not be null.
+   * @param fa A {@code Kind<CompletableFutureKind.Witness, A>} representing the asynchronously
+   *     available value. Must not be null.
+   * @return A {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@link
    *     CompletableFuture} that will complete with the result of applying the function to the
-   *     value, or complete exceptionally if any of the preceding stages fail.
+   *     value, or complete exceptionally if any of the preceding stages fail. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
    *     be unwrapped.
    */
@@ -97,6 +99,10 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
   public <A, B> Kind<CompletableFutureKind.Witness, B> ap(
       Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
       Kind<CompletableFutureKind.Witness, A> fa) {
+
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
+
     CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
 

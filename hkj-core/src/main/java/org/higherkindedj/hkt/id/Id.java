@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.id;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,7 +33,7 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @param <A> The type of the value.
    * @return An {@link Id} instance.
    */
-  public static <A> @NonNull Id<A> of(@Nullable A value) {
+  public static <A> Id<A> of(@Nullable A value) {
     return new Id<>(value);
   }
 
@@ -44,8 +45,9 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @param <B> The type of the result of the function.
    * @return A new {@link Id} containing the result of applying the function.
    */
-  public <B> @NonNull Id<B> map(@NonNull Function<? super A, ? extends B> fn) {
-    Objects.requireNonNull(fn, "Function cannot be null");
+  public <B> Id<B> map(Function<? super A, ? extends B> fn) {
+    requireNonNullFunction(fn, "fn");
+    requireNonNullFunction(fn);
     return new Id<>(fn.apply(value()));
   }
 
@@ -58,11 +60,11 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @return The {@link Id} instance returned by the function.
    * @throws NullPointerException if fn is null or if fn returns a null Id.
    */
-  public <B> @NonNull Id<B> flatMap(@NonNull Function<? super A, ? extends Id<? extends B>> fn) {
-    Objects.requireNonNull(fn, "Function cannot be null");
+  public <B> Id<B> flatMap(Function<? super A, ? extends Id<? extends B>> fn) {
+    requireNonNullFunction(fn, "fn for flatMap");
     // The cast is safe because fn returns Id<? extends B> which is Id<B>
     @SuppressWarnings("unchecked")
     Id<B> result = (Id<B>) fn.apply(value());
-    return Objects.requireNonNull(result, "Function returned by flatMap cannot be null");
+    return Objects.requireNonNull(result, "function returned by flatMap cannot be null");
   }
 }

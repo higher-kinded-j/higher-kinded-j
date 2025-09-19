@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -56,12 +57,19 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * @param <B> The value type of the {@code Try} produced by the function {@code f}.
    * @param f The non-null function that takes the successful result of {@code ma} and returns a new
    *     {@code Kind<TryKind.Witness, B>}.
-   * @param ma The first {@code Kind<TryKind.Witness, A>} to be flat-mapped over.
+   * @param ma The first {@code Kind<TryKind.Witness, A>} to be flat-mapped over. Must not be null.
    * @return A new {@code Kind<TryKind.Witness, B>} representing the composed operation. Never null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     Try} representation.
    */
   @Override
   public <A, B> Kind<TryKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma) {
+
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
+
     Try<A> tryA = TRY.narrow(ma);
 
     Try<B> resultTry =
@@ -84,6 +92,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * @param <A> The phantom type of the value (since this is an error state).
    * @param error The non-null {@link Throwable} to raise.
    * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.failure(error)}.
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
   public <A> Kind<TryKind.Witness, A> raiseError(Throwable error) {
@@ -96,16 +105,23 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * Kind<TryKind.Witness, A>}. If {@code ma} is a {@link Try.Success}, it is returned unchanged.
    *
    * @param <A> The type of the value.
-   * @param ma The {@code Kind<TryKind.Witness, A>} that might have failed.
+   * @param ma The {@code Kind<TryKind.Witness, A>} that might have failed. Must not be null.
    * @param handler The non-null function that takes a {@link Throwable} and returns a new {@code
    *     Kind<TryKind.Witness, A>}, providing a chance to recover.
    * @return A {@code Kind<TryKind.Witness, A>} representing either the original success, or the
    *     result of the error handler.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     Try} representation.
    */
   @Override
   public <A> Kind<TryKind.Witness, A> handleErrorWith(
       Kind<TryKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
+
+    requireNonNullKind(ma, "Kind ma for handleErrorWith");
+    requireNonNullFunction(handler, "handler function for handleErrorWith");
+
     Try<A> tryA = TRY.narrow(ma);
 
     Try<A> resultTry =

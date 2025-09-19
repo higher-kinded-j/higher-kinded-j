@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
-import java.util.Collections;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.List;
-import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.jspecify.annotations.Nullable;
 
@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 public enum ListKindHelper implements ListConverterOps {
   LIST;
 
-  public static final String INVALID_KIND_TYPE_NULL_MSG = "list cannot be null for widen";
+  private static final String TYPE_NAME = "List";
 
   /**
    * Widens a standard {@link java.util.List} into its higher-kinded representation, {@code
@@ -33,7 +33,7 @@ public enum ListKindHelper implements ListConverterOps {
    */
   @Override
   public <A> Kind<ListKind.Witness, A> widen(List<A> list) {
-    Objects.requireNonNull(list, INVALID_KIND_TYPE_NULL_MSG);
+    requireNonNullForWiden(list, TYPE_NAME);
     return ListKind.of(list);
   }
 
@@ -50,12 +50,7 @@ public enum ListKindHelper implements ListConverterOps {
    */
   @Override
   public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
-    if (kind == null) {
-      return Collections.emptyList();
-    }
-    // ListKind.narrow performs the cast to ListKind<A>
-    // and then unwrap() is called on the ListKind<A> interface.
-    return ListKind.narrow(kind).unwrap();
+    return narrowKind(kind, TYPE_NAME, k -> ListKind.narrow(k).unwrap());
   }
 
   /**
@@ -69,7 +64,7 @@ public enum ListKindHelper implements ListConverterOps {
    * @throws ClassCastException if the provided {@code kind} is not actually a {@code ListKind}.
    */
   public <A> List<A> unwrapOr(@Nullable Kind<ListKind.Witness, A> kind, List<A> defaultValue) {
-    Objects.requireNonNull(defaultValue, "defaultValue cannot be null");
+    requireNonNullForWiden(defaultValue, "defaultValue");
     if (kind == null) {
       return defaultValue;
     }

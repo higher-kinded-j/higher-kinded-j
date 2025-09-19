@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -54,21 +56,25 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
    * @param <A> The type of the value in the input {@code CompletableFuture}.
    * @param <B> The type of the value in the output {@code CompletableFuture} after applying the
    *     function.
-   * @param f The non-null function to apply to the value inside the {@code CompletableFuture}. This
-   *     function takes a value of type {@code A} and can return a {@code @Nullable} value of type
-   *     {@code B}.
-   * @param fa A non-null {@code Kind<CompletableFutureKind.Witness, A>} representing the {@code
-   *     CompletableFuture<A>} whose successfully completed value will be transformed.
-   * @return A non-null {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@code
+   * @param f The function to apply to the value inside the {@code CompletableFuture}. This function
+   *     takes a value of type {@code A} and can return a {@code @Nullable} value of type {@code B}.
+   *     Must not be null.
+   * @param fa A {@code Kind<CompletableFutureKind.Witness, A>} representing the {@code
+   *     CompletableFuture<A>} whose successfully completed value will be transformed. Must not be
+   *     null.
+   * @return A {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@code
    *     CompletableFuture<B>} that will complete with the transformed value, or complete
-   *     exceptionally if {@code fa} or the application of {@code f} fails.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
+   *     exceptionally if {@code fa} or the application of {@code f} fails. Never null.
    * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
    */
   @Override
   public <A, B> Kind<CompletableFutureKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, // Function A -> B, where B can be null
       Kind<CompletableFutureKind.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
+
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);
     return FUTURE.widen(futureB);

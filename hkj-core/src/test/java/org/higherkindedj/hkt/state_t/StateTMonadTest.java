@@ -282,7 +282,7 @@ class StateTMonadTest {
 
       assertThatThrownBy(() -> runOptStateT(resultKind, 5))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage("Function wrapped in StateT for 'ap' cannot be null.");
+          .hasMessage("Function wrapped in StateT for 'ap' cannot be null");
     }
   }
 

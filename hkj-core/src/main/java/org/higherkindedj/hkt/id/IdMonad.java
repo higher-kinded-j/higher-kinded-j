@@ -3,6 +3,8 @@
 package org.higherkindedj.hkt.id;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.Objects;
 import java.util.function.Function;
@@ -31,19 +33,19 @@ import org.jspecify.annotations.Nullable;
  *
  * This class is a singleton, accessible via {@link #instance()}.
  */
-public final class IdentityMonad implements Monad<Id.Witness> {
+public final class IdMonad implements Monad<Id.Witness> {
 
-  private static final IdentityMonad INSTANCE = new IdentityMonad();
+  private static final IdMonad INSTANCE = new IdMonad();
 
   // Private constructor to enforce singleton pattern.
-  private IdentityMonad() {}
+  private IdMonad() {}
 
   /**
-   * Returns the singleton instance of {@link IdentityMonad}.
+   * Returns the singleton instance of {@link IdMonad}.
    *
-   * @return The singleton {@code IdentityMonad} instance.
+   * @return The singleton {@code IdMonad} instance.
    */
-  public static IdentityMonad instance() {
+  public static IdMonad instance() {
     return INSTANCE;
   }
 
@@ -72,22 +74,22 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    *   <li>Composition: {@code map(g.compose(f), fa)} is equivalent to {@code map(g, map(f, fa))}.
    * </ol>
    *
-   * @param fn The function to apply to the wrapped value. Must not be null.
+   * @param f The function to apply to the wrapped value. Must not be null.
    * @param fa The {@code Kind<Id.Witness, A>} (which is an {@code Id<A>}) containing the input
    *     value. Must not be null.
    * @param <A> The type of the input value.
    * @param <B> The type of the result of the function.
    * @return A new {@code Id<B>} containing the result of applying the function, cast to {@code
    *     Kind<Id.Witness, B>}. Guaranteed non-null.
-   * @throws NullPointerException if {@code fn} or {@code fa} is null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
   public <A, B> Kind<Id.Witness, B> map(
-      Function<? super A, ? extends B> fn, Kind<Id.Witness, A> fa) {
-    Objects.requireNonNull(fn, "Function cannot be null");
-    Objects.requireNonNull(fa, "Kind fa cannot be null");
+      Function<? super A, ? extends B> f, Kind<Id.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
     // Delegate to Id.map for directness. Id.map handles null values wrapped in Id correctly.
-    return ID.narrow(fa).map(fn);
+    return ID.narrow(fa).map(f);
   }
 
   /**
@@ -112,13 +114,14 @@ public final class IdentityMonad implements Monad<Id.Witness> {
   @Override
   public <A, B> Kind<Id.Witness, B> ap(
       Kind<Id.Witness, ? extends Function<A, B>> ff, Kind<Id.Witness, A> fa) {
-    Objects.requireNonNull(ff, "Kind ff cannot be null");
-    Objects.requireNonNull(fa, "Kind fa cannot be null");
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
+
     Function<A, B> function = ID.narrow(ff).value();
     A value = ID.narrow(fa).value();
 
     if (function == null) {
-      throw new NullPointerException("Function wrapped in Id is null");
+      throw new NullPointerException("Function wrapped in Id cannot be null for ap");
     }
     return Id.of(function.apply(value));
   }
@@ -128,31 +131,32 @@ public final class IdentityMonad implements Monad<Id.Witness> {
    * wrapped in an {@code Id} context.
    *
    * <p>This is the core monadic bind operation. If {@code fa} is {@code Id(x)}, the result is
-   * {@code fn.apply(x)}. Since {@code fn} itself returns an {@code Id}, this effectively "flattens"
+   * {@code f.apply(x)}. Since {@code f} itself returns an {@code Id}, this effectively "flattens"
    * the computation (avoiding {@code Id<Id<B>>}).
    *
    * <p>This operation adheres to the Monad laws (Left Identity, Right Identity, Associativity).
    *
-   * @param fn The function to apply. It takes a plain {@code A} and returns a {@code
+   * @param f The function to apply. It takes a plain {@code A} and returns a {@code
    *     Kind<Id.Witness, B>} (which must be an {@code Id<B>}). Must not be null, and must not
    *     return a null {@link Kind}.
-   * @param fa The {@code Kind<Id.Witness, A>} (an {@code Id<A>}) containing the input value. Must
+   * @param ma The {@code Kind<Id.Witness, A>} (an {@code Id<A>}) containing the input value. Must
    *     not be null.
    * @param <A> The type of the input value.
-   * @param <B> The type of the value within the {@code Id} returned by the function {@code fn}.
-   * @return The {@code Kind<Id.Witness, B>} returned by the function {@code fn}. Guaranteed
-   *     non-null if {@code fn} adheres to its contract of returning a non-null {@link Kind}.
-   * @throws NullPointerException if {@code fn}, {@code fa} is null, or if {@code fn} returns a null
+   * @param <B> The type of the value within the {@code Id} returned by the function {@code f}.
+   * @return The {@code Kind<Id.Witness, B>} returned by the function {@code f}. Guaranteed non-null
+   *     if {@code f} adheres to its contract of returning a non-null {@link Kind}.
+   * @throws NullPointerException if {@code f}, {@code ma} is null, or if {@code f} returns a null
    *     {@link Kind}.
    */
   @Override
   public <A, B> Kind<Id.Witness, B> flatMap(
-      Function<? super A, ? extends Kind<Id.Witness, B>> fn, Kind<Id.Witness, A> fa) {
-    Objects.requireNonNull(fn, "Function cannot be null");
-    Objects.requireNonNull(fa, "Kind fa cannot be null");
-    A valueInA = ID.narrow(fa).value();
-    Kind<Id.Witness, B> resultKind = fn.apply(valueInA);
-    // The function fn is expected to return a non-null Kind (which will be an Id instance).
+      Function<? super A, ? extends Kind<Id.Witness, B>> f, Kind<Id.Witness, A> ma) {
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
+
+    A valueInA = ID.narrow(ma).value();
+    Kind<Id.Witness, B> resultKind = f.apply(valueInA);
+    // The function f is expected to return a non-null Kind (which will be an Id instance).
     return Objects.requireNonNull(resultKind, "Function passed to flatMap returned null Kind");
   }
 }

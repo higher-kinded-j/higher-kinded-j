@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -59,7 +60,7 @@ class ReaderTMonadTest {
   void constructor_nullOuterMonad_throwsNPE() {
     assertThatThrownBy(() -> new ReaderTMonad<>(null))
         .isInstanceOf(NullPointerException.class)
-        .hasMessageContaining("Outer Monad instance cannot be null");
+        .hasMessageContaining("Outer Monad cannot be null for ReaderTMonad");
   }
 
   @Nested
@@ -310,7 +311,7 @@ class ReaderTMonadTest {
 
       assertThatThrownBy(() -> runOptReaderT(resultKind, testConfig))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("ReaderT"));
     }
   }
 }

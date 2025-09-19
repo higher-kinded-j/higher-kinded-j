@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 /** Concrete implementation of Maybe representing the presence of a value. */
 // Value must be NonNull because Maybe.just requires it
-record Just<T extends Object>(T value) implements Maybe<T> {
+record Just<T>(T value) implements Maybe<T> {
   // Constructor implicitly checks value is non-null via Maybe.just factory
 
   @Override

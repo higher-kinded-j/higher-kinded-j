@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -44,10 +45,17 @@ public class StateApplicative<S> extends StateFunctor<S>
    * @param ff The {@code Kind<StateKind.Witness, Function<A, B>>} containing the function.
    * @param fa The {@code Kind<StateKind.Witness, A>} containing the value.
    * @return A new {@code Kind<StateKind.Witness, B>} resulting from the application.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function wrapped in
+   *     the State is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid {@code State} representations.
    */
   @Override
   public <A, B> Kind<StateKind.Witness<S>, B> ap(
       Kind<StateKind.Witness<S>, ? extends Function<A, B>> ff, Kind<StateKind.Witness<S>, A> fa) {
+
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
 
     State<S, ? extends Function<A, B>> stateF = STATE.narrow(ff);
     State<S, A> stateA = STATE.narrow(fa);

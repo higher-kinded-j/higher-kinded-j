@@ -2,10 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trymonad;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,27 +19,18 @@ import org.jspecify.annotations.Nullable;
 public enum TryKindHelper implements TryConverterOps {
   TRY; // Singleton instance named TRY
 
-  /** Error message for when a null {@link Kind} is passed to {@link #narrow(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot unwrap null Kind for Try";
-
-  /**
-   * Error message prefix for when the {@link Kind} instance is not the expected {@link TryHolder}
-   * type.
-   */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a TryHolder: ";
-
-  /**
-   * Error message for when a {@link TryHolder} internally contains a null {@link Try} instance,
-   * which is invalid.
-   */
-  public static final String INVALID_HOLDER_STATE_MSG = "TryHolder contained null Try instance";
+  public static final String TYPE_NAME = "Try";
 
   /**
    * An internal record that implements {@link TryKind}&lt;A&gt; to hold the concrete {@link
    * Try}&lt;A&gt; instance. This serves as the carrier for {@code Try} objects within the HKT
    * simulation.
    */
-  record TryHolder<A>(Try<A> tryInstance) implements TryKind<A> {}
+  record TryHolder<A>(Try<A> tryInstance) implements TryKind<A> {
+    TryHolder {
+      requireNonNullForHolder(tryInstance, TYPE_NAME);
+    }
+  }
 
   /**
    * Widens a concrete {@link Try}&lt;A&gt; instance into its HKT representation, {@link
@@ -54,7 +45,7 @@ public enum TryKindHelper implements TryConverterOps {
    */
   @Override
   public <A> Kind<TryKind.Witness, A> widen(Try<A> tryInstance) {
-    Objects.requireNonNull(tryInstance, "Input Try cannot be null for widen");
+    requireNonNullForWiden(tryInstance, TYPE_NAME);
     return new TryHolder<>(tryInstance);
   }
 
@@ -66,24 +57,13 @@ public enum TryKindHelper implements TryConverterOps {
    * @param <A> The result type of the {@code Try} computation.
    * @param kind The {@code Kind<TryKind.Witness, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Try}&lt;A&gt; instance.
-   * @throws KindUnwrapException if {@code kind} is {@code null}, if {@code kind} is not an instance
-   *     of {@link TryHolder}, or if the {@code TryHolder} internally contains a {@code null} {@link
-   *     Try} instance (which indicates an invalid state).
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null}, if
+   *     {@code kind} is not an instance of {@link TryHolder}, or if the {@code TryHolder}
+   *     internally contains a {@code null} {@link Try} instance (which indicates an invalid state).
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-      case TryKindHelper.TryHolder<?> holder -> {
-        Try<?> internalTry = holder.tryInstance();
-        if (internalTry == null) {
-          throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
-        }
-        yield (Try<A>) internalTry;
-      }
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKind(kind, TYPE_NAME, this::narrowInternal);
   }
 
   /**
@@ -105,6 +85,7 @@ public enum TryKindHelper implements TryConverterOps {
    * @param <A> The phantom type parameter representing the value type of the {@code Try}.
    * @param throwable The non-null {@link Throwable} representing the failure.
    * @return A non-null {@code Kind<TryKind.Witness, A>} representing the failed computation.
+   * @throws NullPointerException if {@code throwable} is null.
    */
   public <A> Kind<TryKind.Witness, A> failure(Throwable throwable) {
     return this.widen(Try.failure(throwable));
@@ -117,8 +98,18 @@ public enum TryKindHelper implements TryConverterOps {
    * @param <A> The type of the value supplied by the {@code supplier}.
    * @param supplier The non-null {@link Supplier} to execute.
    * @return A non-null {@code Kind<TryKind.Witness, A>} representing the outcome.
+   * @throws NullPointerException if {@code supplier} is null.
    */
   public <A> Kind<TryKind.Witness, A> tryOf(Supplier<? extends A> supplier) {
     return this.widen(Try.of(supplier));
+  }
+
+  /** Internal narrowing implementation that performs the actual type checking and extraction. */
+  private <A> Try<A> narrowInternal(Kind<TryKind.Witness, A> kind) {
+    return switch (kind) {
+      // TryHolder's record component 'tryInstance' is non-null.
+      case TryKindHelper.TryHolder<A> holder -> holder.tryInstance();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+    };
   }
 }

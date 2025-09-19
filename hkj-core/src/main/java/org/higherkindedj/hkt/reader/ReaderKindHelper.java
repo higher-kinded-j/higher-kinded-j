@@ -2,10 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,34 +18,27 @@ import org.jspecify.annotations.Nullable;
 public enum ReaderKindHelper implements ReaderConverterOps {
   READER;
 
-  /** Error message for when a {@code null} {@link Kind} is passed to {@link #narrow(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for Reader";
-
-  /**
-   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #narrow(Kind)}.
-   */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a ReaderHolder: ";
-
-  public static final String INVALID_KIND_TYPE_NULL_MSG = "Input Reader cannot be null for widen";
-
-  /**
-   * Error message for when the internal holder in {@link #narrow(Kind)} contains a {@code null}
-   * Reader instance. This should ideally not occur if {@link #widen(Reader)} enforces non-null
-   * Reader instances and ReaderHolder guarantees its content.
-   */
-  public static final String INVALID_HOLDER_STATE_MSG =
-      "ReaderHolder contained null Reader instance";
+  public static final String TYPE_NAME = "Reader";
 
   /**
    * Internal record implementing {@link ReaderKind ReaderKind&lt;R, A&gt;} to hold the concrete
-   * {@link Reader Reader&lt;R, A&gt;} instance. Changed to package-private for potential test
-   * access.
+   * {@link Reader Reader&lt;R, A&gt;} instance.
    *
    * @param <R> The environment type of the {@code Reader}.
    * @param <A> The value type of the {@code Reader}.
    * @param reader The non-null, actual {@link Reader Reader&lt;R, A&gt;} instance.
    */
-  record ReaderHolder<R, A>(Reader<R, A> reader) implements ReaderKind<R, A> {}
+  record ReaderHolder<R, A>(Reader<R, A> reader) implements ReaderKind<R, A> {
+    /**
+     * Constructs a {@code ReaderHolder}.
+     *
+     * @param reader The {@link Reader} to hold. Must not be null.
+     * @throws NullPointerException if the provided {@code reader} instance is null.
+     */
+    ReaderHolder {
+      requireNonNullForHolder(reader, TYPE_NAME);
+    }
+  }
 
   /**
    * Widens a concrete {@link Reader Reader&lt;R, A&gt;} instance into its higher-kinded
@@ -62,7 +55,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    */
   @Override
   public <R, A> Kind<ReaderKind.Witness<R>, A> widen(Reader<R, A> reader) {
-    Objects.requireNonNull(reader, INVALID_KIND_TYPE_NULL_MSG);
+    requireNonNullForWiden(reader, TYPE_NAME);
     return new ReaderHolder<>(reader);
   }
 
@@ -74,21 +67,13 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @param <A> The type of the value produced by the {@code Reader}.
    * @param kind The {@code Kind<ReaderKind.Witness<R>, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Reader Reader&lt;R, A&gt;} instance.
-   * @throws KindUnwrapException if the input {@code kind} is {@code null}, or not an instance of
-   *     {@code ReaderHolder}. The {@code ReaderHolder} guarantees its internal {@code reader} is
-   *     non-null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null}, or not an instance of {@code ReaderHolder}. The {@code ReaderHolder} guarantees its
+   *     internal {@code reader} is non-null.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(ReaderKindHelper.INVALID_KIND_NULL_MSG);
-      // ReaderHolder's record component 'reader' is .
-      case ReaderKindHelper.ReaderHolder<?, ?> holder -> (Reader<R, A>) holder.reader();
-      default ->
-          throw new KindUnwrapException(
-              ReaderKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKind(kind, TYPE_NAME, this::extractReader);
   }
 
   /**
@@ -99,8 +84,10 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @param <A> The type of the value produced by the {@code Reader}.
    * @param runFunction The non-null function {@code (R -> A)} defining the reader's computation.
    * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the {@code Reader}.
+   * @throws NullPointerException if {@code runFunction} is null.
    */
   public <R, A> Kind<ReaderKind.Witness<R>, A> reader(Function<R, A> runFunction) {
+    requireNonNullFunction(runFunction, "runFunction for reader");
     return this.widen(Reader.of(runFunction));
   }
 
@@ -140,10 +127,24 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    *     computation.
    * @param environment The non-null environment {@code R} to provide to the {@code Reader}.
    * @return The result of the {@code Reader} computation.
-   * @throws KindUnwrapException if the input {@code kind} is invalid.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is
+   *     invalid.
    * @throws NullPointerException if {@code environment} is {@code null}.
    */
   public <R, A> @Nullable A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment) {
+    requireNonNullKind(kind, "Kind for runReader");
+    // Note: We don't validate environment as null here since Reader interface allows @NonNull R
+    // but the specific nullability contract depends on the design of the environment type R
     return this.narrow(kind).run(environment);
+  }
+
+  /** Internal narrowing implementation that performs the actual type checking and extraction. */
+  @SuppressWarnings("unchecked")
+  private <R, A> Reader<R, A> extractReader(Kind<ReaderKind.Witness<R>, A> kind) {
+    return switch (kind) {
+      // ReaderHolder's record component 'reader' is non-null.
+      case ReaderKindHelper.ReaderHolder<?, ?> holder -> (Reader<R, A>) holder.reader();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+    };
   }
 }

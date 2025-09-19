@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -92,11 +93,17 @@ public final class OptionalMonad extends OptionalFunctor
    * @param ma The non-null {@code Kind<OptionalKind.Witness, A>} to transform.
    * @return A non-null {@code Kind<OptionalKind.Witness, B>} representing the result of the flatMap
    *     operation.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     OptionalKind} representation.
    */
   @Override
   public <A, B> Kind<OptionalKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<OptionalKind.Witness, B>> f,
       Kind<OptionalKind.Witness, A> ma) {
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
+
     Optional<A> optA = OPTIONAL.narrow(ma);
     Optional<B> resultOpt =
         optA.flatMap(
@@ -120,10 +127,16 @@ public final class OptionalMonad extends OptionalFunctor
    * @param fa The non-null {@code Kind<OptionalKind.Witness, A>} containing the value.
    * @return A non-null {@code Kind<OptionalKind.Witness, B>} representing the result of the
    *     application.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} is not
+   *     a valid {@code OptionalKind} representation.
    */
   @Override
   public <A, B> Kind<OptionalKind.Witness, B> ap(
       Kind<OptionalKind.Witness, ? extends Function<A, B>> ff, Kind<OptionalKind.Witness, A> fa) {
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
+
     Optional<? extends Function<A, B>> optF = OPTIONAL.narrow(ff);
     Optional<A> optA = OPTIONAL.narrow(fa);
     Optional<B> resultOpt = optF.flatMap(optA::map);
@@ -140,6 +153,7 @@ public final class OptionalMonad extends OptionalFunctor
    */
   @Override
   public <A> Kind<OptionalKind.Witness, A> raiseError(Unit error) {
+    // No need to validate the Unit parameter as it's a marker type
     return OPTIONAL.widen(Optional.empty());
   }
 
@@ -155,11 +169,17 @@ public final class OptionalMonad extends OptionalFunctor
    *     Unit#INSTANCE} and returns a new {@code Kind<OptionalKind.Witness, A>}.
    * @return A non-null {@code Kind<OptionalKind.Witness, A>}, either the original if present, or
    *     the result of the handler if empty.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     OptionalKind} representation.
    */
   @Override
   public <A> Kind<OptionalKind.Witness, A> handleErrorWith(
       Kind<OptionalKind.Witness, A> ma,
       Function<? super Unit, ? extends Kind<OptionalKind.Witness, A>> handler) {
+    requireNonNullKind(ma, "Kind ma for handleErrorWith");
+    requireNonNullFunction(handler, "handler function for handleErrorWith");
+
     Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
       return handler.apply(Unit.INSTANCE);

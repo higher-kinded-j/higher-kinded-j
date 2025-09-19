@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional_t;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -35,7 +36,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code value} is null.
    */
   public OptionalT { // Canonical constructor
-    Objects.requireNonNull(value, "Wrapped value cannot be null for OptionalT");
+    requireNonNullKind(value, "wrapped value for OptionalT");
   }
 
   /**
@@ -48,6 +49,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code value} is null.
    */
   public static <F, A> OptionalT<F, A> fromKind(Kind<F, Optional<A>> value) {
+    requireNonNullKind(value, "Kind value for fromKind");
     return new OptionalT<>(value);
   }
 
@@ -63,7 +65,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
   public static <F, A extends Object> OptionalT<F, A> some(Monad<F> outerMonad, A a) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for some");
+    requireValidOuterMonad(outerMonad, "some");
+    // Note: Optional.of(a) will throw NullPointerException if a is null, which is desired behavior
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.of(a));
     return new OptionalT<>(lifted);
   }
@@ -79,7 +82,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, A> OptionalT<F, A> none(Monad<F> outerMonad) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for none");
+    requireValidOuterMonad(outerMonad, "none");
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.empty());
     return new OptionalT<>(lifted);
   }
@@ -96,8 +99,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code optional} is null.
    */
   public static <F, A> OptionalT<F, A> fromOptional(Monad<F> outerMonad, Optional<A> optional) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for fromOptional");
-    Objects.requireNonNull(optional, "Input Optional cannot be null for fromOptional");
+    requireValidOuterMonad(outerMonad, "fromOptional");
+    requireNonNullForWiden(optional, "Optional");
     Kind<F, Optional<A>> lifted = outerMonad.of(optional);
     return new OptionalT<>(lifted);
   }
@@ -116,8 +119,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, A> OptionalT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for liftF");
-    Objects.requireNonNull(fa, "Input Kind<F, A> cannot be null for liftF");
+    requireValidOuterMonad(outerMonad, "liftF");
+    // Note: We don't need to validate fa here as outerMonad.map will handle null checking
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);
     return new OptionalT<>(mapped);
   }

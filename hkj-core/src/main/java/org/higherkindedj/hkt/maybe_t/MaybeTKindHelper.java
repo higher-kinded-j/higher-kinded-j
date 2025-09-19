@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe_t;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
@@ -17,14 +18,7 @@ import org.jspecify.annotations.Nullable;
 public enum MaybeTKindHelper implements MaybeTConverterOps {
   MAYBE_T;
 
-  // Error Messages
-  /** Error message for attempting to narrow a null Kind. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for MaybeT";
-
-  /** Error message for attempting to narrow a Kind of an unexpected type. */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a MaybeT: ";
-
-  public static final String INVALID_KIND_TYPE_NULL_MSG = "Input MaybeT cannot be null for widen";
+  public static final String TYPE_NAME = "MaybeT";
 
   /**
    * Widens a concrete {@link MaybeT MaybeT&lt;F, A&gt;} instance into its {@link Kind}
@@ -42,7 +36,7 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    */
   @Override
   public <F, A> Kind<MaybeTKind.Witness<F>, A> widen(MaybeT<F, A> maybeT) {
-    Objects.requireNonNull(maybeT, INVALID_KIND_TYPE_NULL_MSG);
+    requireNonNullForWiden(maybeT, TYPE_NAME);
     // maybeT is already a MaybeTKind<F, A>, which is a Kind<MaybeTKind.Witness<F>, A>.
     return maybeT;
   }
@@ -59,14 +53,6 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    */
   @Override
   public <F, A> MaybeT<F, A> narrow(@Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException(MaybeTKindHelper.INVALID_KIND_NULL_MSG);
-    }
-    // Since MaybeT<F,A> implements MaybeTKind<F,A>, which extends Kind<MaybeTKind.Witness<F>,A>
-    if (kind instanceof MaybeT) {
-      return (MaybeT<F, A>) kind;
-    }
-    throw new KindUnwrapException(
-        MaybeTKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
+    return narrowKindWithTypeCheck(kind, MaybeT.class, TYPE_NAME);
   }
 }

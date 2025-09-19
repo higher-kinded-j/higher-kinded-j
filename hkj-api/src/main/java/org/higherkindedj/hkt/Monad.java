@@ -5,7 +5,6 @@ package org.higherkindedj.hkt;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -32,8 +31,7 @@ public interface Monad<M> extends Applicative<M> {
    * @param <B> The result type within the monad.
    * @return The resulting monadic value (e.g., {@code ListKind<B>}). Guaranteed non-null.
    */
-  <A, B> @NonNull Kind<M, B> flatMap(
-      final Function<? super A, ? extends Kind<M, B>> f, final Kind<M, A> ma);
+  <A, B> Kind<M, B> flatMap(final Function<? super A, ? extends Kind<M, B>> f, final Kind<M, A> ma);
 
   /**
    * Conditionally sequences a monadic operation. If the predicate is true, it applies {@code
@@ -48,7 +46,7 @@ public interface Monad<M> extends Applicative<M> {
    * @param <B> The result type within the monad.
    * @return A new monadic value.
    */
-  default <A, B> @NonNull Kind<M, B> flatMapIfOrElse(
+  default <A, B> Kind<M, B> flatMapIfOrElse(
       final Predicate<? super A> predicate,
       final Function<? super A, ? extends Kind<M, B>> ifTrue,
       final Function<? super A, ? extends Kind<M, B>> ifFalse,
@@ -66,7 +64,7 @@ public interface Monad<M> extends Applicative<M> {
    * @param <B> The type of the new value.
    * @return A new monadic value with the result replaced by 'b'.
    */
-  default <A, B> @NonNull Kind<M, B> as(final B b, final Kind<M, A> ma) {
+  default <A, B> Kind<M, B> as(final B b, final Kind<M, A> ma) {
     return map(_ -> b, ma);
   }
 
@@ -79,7 +77,7 @@ public interface Monad<M> extends Applicative<M> {
    * @param <A> The type of the value in the monad.
    * @return The original monadic value.
    */
-  default <A> @NonNull Kind<M, A> peek(final Consumer<? super A> action, final Kind<M, A> ma) {
+  default <A> Kind<M, A> peek(final Consumer<? super A> action, final Kind<M, A> ma) {
     return map(
         a -> {
           action.accept(a);

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.validated;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_FUNCTION_MSG;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
@@ -63,7 +64,7 @@ class ValidatedMonadTest {
     void ofShouldThrowIfInputToOfIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.of(null))
-          .withMessage(ValidatedMonad.OF_VALUE_NULL_MSG);
+          .withMessage("value for of cannot be null");
     }
   }
 
@@ -105,7 +106,7 @@ class ValidatedMonadTest {
       Function<Integer, String> nullReturningFunc = i -> null;
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.map(nullReturningFunc, valid))
-          .withMessage(Valid.MAP_FN_RETURNED_NULL_MSG);
+          .withMessage("Mapping function returned null in Valid.map");
     }
 
     @Test
@@ -123,7 +124,7 @@ class ValidatedMonadTest {
       Kind<ValidatedKind.Witness<TestError>, Integer> valid = validKind(123);
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.map(null, valid))
-          .withMessage(ValidatedMonad.MAP_FN_NULL_MSG);
+          .withMessage("function f for map cannot be null");
     }
 
     @Test
@@ -131,7 +132,7 @@ class ValidatedMonadTest {
     void mapShouldThrowNullPointerExceptionIfKindIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.map(toStringFunc, null))
-          .withMessage(ValidatedMonad.MAP_VALUE_KIND_NULL_MSG);
+          .withMessage("source Kind for map cannot be null");
     }
   }
 
@@ -210,7 +211,7 @@ class ValidatedMonadTest {
       Kind<ValidatedKind.Witness<TestError>, Integer> validValueKind = validKind(100);
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.ap(null, validValueKind))
-          .withMessage(ValidatedMonad.AP_FN_KIND_NULL_MSG);
+          .withMessage("function Kind for ap cannot be null");
     }
 
     @Test
@@ -218,7 +219,7 @@ class ValidatedMonadTest {
     void apShouldThrowIfValueKindIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.ap(validFnKind, null))
-          .withMessage(ValidatedMonad.AP_VALUE_KIND_NULL_MSG);
+          .withMessage("argument Kind for ap cannot be null");
     }
   }
 
@@ -284,7 +285,7 @@ class ValidatedMonadTest {
       Kind<ValidatedKind.Witness<TestError>, Integer> validInput = validKind(200);
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.flatMap(fReturnsNullKind, validInput))
-          .withMessage(ValidatedMonad.FLATMAP_FN_RETURNED_NULL_KIND_MSG);
+          .withMessage("flatMap function returned Kind cannot be null");
     }
 
     @Test
@@ -293,7 +294,7 @@ class ValidatedMonadTest {
       Kind<ValidatedKind.Witness<TestError>, Integer> validInput = validKind(200);
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.flatMap(null, validInput))
-          .withMessage(ValidatedMonad.FLATMAP_FN_NULL_MSG);
+          .withMessage("function f for flatMap cannot be null");
     }
 
     @Test
@@ -301,7 +302,7 @@ class ValidatedMonadTest {
     void flatMapShouldThrowIfValueKindIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.flatMap(fValid, null))
-          .withMessage(ValidatedMonad.FLATMAP_VALUE_KIND_NULL_MSG);
+          .withMessage("source Kind for flatMap cannot be null");
     }
   }
 
@@ -408,7 +409,7 @@ class ValidatedMonadTest {
     void raiseError_shouldThrowNpeIfErrorIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.raiseError(null))
-          .withMessage(ValidatedMonad.RAISE_ERROR_ERROR_NULL_MSG);
+          .withMessage("error for raiseError cannot be null");
     }
 
     // --- handleErrorWith ---
@@ -477,7 +478,7 @@ class ValidatedMonadTest {
           e -> validKind("Doesn't matter");
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.handleErrorWith(null, handler))
-          .withMessage(ValidatedMonad.HANDLE_ERROR_WITH_MA_NULL_MSG);
+          .withMessage("Kind ma for handleErrorWith cannot be null");
     }
 
     @Test
@@ -486,7 +487,7 @@ class ValidatedMonadTest {
       Kind<ValidatedKind.Witness<TestError>, String> invalidKindInput = invalidKind(error1);
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.handleErrorWith(invalidKindInput, null))
-          .withMessage(ValidatedMonad.HANDLE_ERROR_WITH_HANDLER_NULL_MSG);
+          .withMessage(NULL_FUNCTION_MSG.formatted("handler function for handleErrorWith"));
     }
 
     @Test
@@ -497,7 +498,7 @@ class ValidatedMonadTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.handleErrorWith(invalidKindInput, handler))
-          .withMessage(ValidatedMonad.HANDLE_ERROR_WITH_HANDLER_RETURNED_NULL_KIND_MSG);
+          .withMessage("handler function returned Kind cannot be null");
     }
 
     // --- Default MonadError methods ---
@@ -555,7 +556,7 @@ class ValidatedMonadTest {
       Kind<ValidatedKind.Witness<TestError>, String> invalid = invalidKind(error1);
       assertThatNullPointerException()
           .isThrownBy(() -> validatedMonad.recover(invalid, null))
-          .withMessage(ValidatedMonad.OF_VALUE_NULL_MSG);
+          .withMessage("value for of cannot be null");
     }
 
     // recoverWith

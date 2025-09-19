@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.jspecify.annotations.NonNull;
@@ -75,7 +77,7 @@ public interface Reader<R, A> {
    * Executes the computation encapsulated by this {@code Reader} using the provided environment.
    * This is the method that "runs" the reader, supplying the necessary context or dependencies.
    *
-   * @param r The environment of type {@code R}. While annotated as {@code }, the specific
+   * @param r The environment of type {@code R}. While annotated as {@code @NonNull}, the specific
    *     nullability contract for {@code r} depends on the design of the environment type {@code R}
    *     and how it's intended to be used. It's generally good practice for {@code R} to be
    *     non-null.
@@ -99,7 +101,7 @@ public interface Reader<R, A> {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   static <R, A> Reader<R, A> of(Function<R, A> runFunction) {
-    Objects.requireNonNull(runFunction, "runFunction cannot be null");
+    requireNonNullFunction(runFunction, "runFunction for Reader.of");
     return runFunction::apply;
   }
 
@@ -122,7 +124,7 @@ public interface Reader<R, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> Reader<R, B> map(Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "mapper function cannot be null");
+    requireNonNullFunction(f, "mapper function for Reader.map");
     return (R r) -> f.apply(this.run(r));
   }
 
@@ -148,7 +150,7 @@ public interface Reader<R, A> {
    *     Reader}.
    */
   default <B> Reader<R, B> flatMap(Function<? super A, ? extends Reader<R, ? extends B>> f) {
-    Objects.requireNonNull(f, "flatMap mapper function cannot be null");
+    requireNonNullFunction(f, "flatMap mapper function for Reader.flatMap");
     return (R r) -> {
       A a = this.run(r);
       Reader<R, ? extends B> readerB = f.apply(a);

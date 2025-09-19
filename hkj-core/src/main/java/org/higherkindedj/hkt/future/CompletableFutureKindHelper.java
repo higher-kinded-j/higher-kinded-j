@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.future;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.higherkindedj.hkt.Kind;
@@ -19,32 +20,21 @@ import org.jspecify.annotations.Nullable;
 public enum CompletableFutureKindHelper implements CompletableFutureConverterOps {
   FUTURE;
 
-  /** Error message for when a null {@link Kind} is passed to {@link #narrow(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG =
-      "Cannot narrow null Kind for CompletableFuture";
-
-  /**
-   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #narrow(Kind)}.
-   */
-  public static final String INVALID_KIND_TYPE_MSG =
-      "Kind instance is not a CompletableFutureHolder: ";
-
-  public static final String INVALID_KIND_TYPE_NULL_MSG =
-      "Input CompletableFuture cannot be null for widen";
-
-  /** Error message for when the internal holder in {@link #narrow(Kind)} contains a null future. */
-  public static final String INVALID_HOLDER_STATE_MSG =
-      "CompletableFutureHolder contained null Future instance";
+  private static final String TYPE_NAME = "CompletableFuture";
 
   /**
    * Internal record implementing {@link CompletableFutureKind} to hold the concrete {@link
    * CompletableFuture} instance. Made package-private for potential test access.
    *
    * @param <A> The result type of the CompletableFuture.
-   * @param future The actual {@link CompletableFuture} instance.
+   * @param future The actual {@link CompletableFuture} instance. Must not be null.
    */
   record CompletableFutureHolder<A>(CompletableFuture<A> future)
-      implements CompletableFutureKind<A> {}
+      implements CompletableFutureKind<A> {
+    CompletableFutureHolder {
+      requireNonNullForHolder(future, TYPE_NAME);
+    }
+  }
 
   /**
    * Widens a concrete {@link CompletableFuture<A>} instance into its higher-kinded representation,
@@ -52,14 +42,14 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    * CompletableFutureConverterOps#widen}.
    *
    * @param <A> The result type of the {@code CompletableFuture}.
-   * @param future The non-null, concrete {@link CompletableFuture<A>} instance to widen.
-   * @return A non-null {@link Kind<CompletableFutureKind.Witness, A>} representing the wrapped
-   *     future.
+   * @param future The concrete {@link CompletableFuture<A>} instance to widen. Must not be null.
+   * @return A {@link Kind<CompletableFutureKind.Witness, A>} representing the wrapped future. Never
+   *     null.
    * @throws NullPointerException if {@code future} is {@code null}.
    */
   @Override
   public <A> Kind<CompletableFutureKind.Witness, A> widen(CompletableFuture<A> future) {
-    Objects.requireNonNull(future, INVALID_KIND_TYPE_NULL_MSG);
+    requireNonNullForWiden(future, TYPE_NAME);
     return new CompletableFutureHolder<>(future);
   }
 
@@ -70,25 +60,14 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    * @param <A> The result type of the {@code CompletableFuture}.
    * @param kind The {@code Kind<CompletableFutureKind.Witness, A>} instance to narrow. May be
    *     {@code null}.
-   * @return The underlying, non-null {@link CompletableFuture<A>}.
+   * @return The underlying {@link CompletableFuture<A>}. Never null.
    * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
    *     {@code CompletableFutureHolder}, or if the holder internally contains a {@code null}
    *     future.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-      case CompletableFutureKindHelper.CompletableFutureHolder<?> holder -> {
-        CompletableFuture<?> rawFuture = holder.future();
-        if (rawFuture == null) {
-          throw new KindUnwrapException(INVALID_HOLDER_STATE_MSG);
-        }
-        yield (CompletableFuture<A>) rawFuture;
-      }
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKind(kind, TYPE_NAME, this::extractFuture);
   }
 
   /**
@@ -96,8 +75,8 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    * the current thread if necessary until the future completes.
    *
    * @param <A> The result type of the {@code CompletableFuture}.
-   * @param kind The non-null {@code Kind<CompletableFutureKind.Witness, A>} holding the {@code
-   *     CompletableFuture} computation.
+   * @param kind The {@code Kind<CompletableFutureKind.Witness, A>} holding the {@code
+   *     CompletableFuture} computation. Must not be null.
    * @return The result of the {@code CompletableFuture} computation. Can be {@code null} if the
    *     future completes with a {@code null} value.
    * @throws KindUnwrapException if the input {@code kind} is invalid (e.g., null or wrong type).
@@ -119,5 +98,12 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
       }
       throw e; // otherwise, throw the original CompletionException
     }
+  }
+
+  private <A> CompletableFuture<A> extractFuture(Kind<CompletableFutureKind.Witness, A> kind) {
+    return switch (kind) {
+      case CompletableFutureHolder<A> holder -> holder.future();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+    };
   }
 }

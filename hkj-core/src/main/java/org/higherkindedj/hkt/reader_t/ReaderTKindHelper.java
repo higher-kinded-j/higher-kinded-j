@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader_t;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -17,15 +17,7 @@ import org.jspecify.annotations.Nullable;
 public enum ReaderTKindHelper implements ReaderTConverterOps {
   READER_T;
 
-  /** Error message for when a {@code null} {@link Kind} is passed to {@link #narrow(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for ReaderT";
-
-  /**
-   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #narrow(Kind)}.
-   */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a ReaderT: ";
-
-  public static final String INVALID_KIND_TYPE_NULL_MSG = "Input ReaderT cannot be null for widen";
+  public static final String TYPE_NAME = "ReaderT";
 
   /**
    * Widens a concrete {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance into its higher-kinded
@@ -39,16 +31,16 @@ public enum ReaderTKindHelper implements ReaderTConverterOps {
    * @param <R_ENV> The type of the environment required by the {@code ReaderT}.
    * @param <A> The type of the value produced by the {@code ReaderT}.
    * @param readerT The concrete {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance to widen. Must
-   *     be {@code }.
+   *     not be null.
    * @return A non-null {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} representing the wrapped
    *     {@code readerT}.
    * @throws NullPointerException if {@code readerT} is {@code null}.
    */
   @Override
   public <F, R_ENV, A> Kind<ReaderTKind.Witness<F, R_ENV>, A> widen(ReaderT<F, R_ENV, A> readerT) {
-    Objects.requireNonNull(readerT, INVALID_KIND_TYPE_NULL_MSG);
-    // ReaderT<F,R_ENV,A> is already a ReaderTKind<F,R_ENV,A>,
-    // which is a Kind<ReaderTKind.Witness<F,R_ENV>,A>.
+    requireNonNullForWiden(readerT, TYPE_NAME);
+    // readerT is already an ReaderTKind<F, R_ENV, A>, which is a Kind<ReaderTKind.Witness<F,
+    // R_ENV>, A>.
     return readerT;
   }
 
@@ -58,22 +50,15 @@ public enum ReaderTKindHelper implements ReaderTConverterOps {
    *
    * @param <F> The witness type of the outer monad in {@code ReaderT}.
    * @param <R_ENV> The type of the environment required by the {@code ReaderT}.
-   * @param <A> The type of the value produced by the {@code ReaderT} within its outer monad.
-   * @param kind The {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} instance to narrow. May be
-   *     {@code null}.
-   * @return The underlying, non-null {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance.
-   * @throws KindUnwrapException if the input {@code kind} is {@code null} or not an instance of
-   *     {@link ReaderT}.
+   * @param <A> The type of the value produced by the {@code ReaderT}.
+   * @param kind The {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} to narrow. Can be null.
+   * @return The unwrapped, non-null {@link ReaderT ReaderT&lt;F, R_ENV, A&gt;} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is null or not a
+   *     valid {@link ReaderT} instance.
    */
   @Override
   public <F, R_ENV, A> ReaderT<F, R_ENV, A> narrow(
       @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
-      case ReaderT<F, R_ENV, A> directReaderT -> directReaderT;
-      default ->
-          throw new KindUnwrapException(
-              ReaderTKindHelper.INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKindWithTypeCheck(kind, ReaderT.class, TYPE_NAME);
   }
 }

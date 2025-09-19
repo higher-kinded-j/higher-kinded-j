@@ -78,7 +78,7 @@ class StateTTest {
     void create_shouldThrowNPEForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> StateT.create(null, optMonad))
-          .withMessageContaining("runStateTFn cannot be null");
+          .withMessageContaining("runStateTFn for StateT cannot be null");
     }
 
     @Test
@@ -87,7 +87,7 @@ class StateTTest {
           s -> optMonad.of(StateTuple.of(s, "val"));
       assertThatNullPointerException()
           .isThrownBy(() -> StateT.create(runFn, null))
-          .withMessageContaining("monadF cannot be null");
+          .withMessageContaining("Outer Monad cannot be null for StateT");
     }
   }
 

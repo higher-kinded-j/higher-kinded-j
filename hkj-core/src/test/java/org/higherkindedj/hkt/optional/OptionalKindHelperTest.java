@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
@@ -72,7 +73,7 @@ class OptionalKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> OPTIONAL.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_NULL_MSG);
+          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted(Optional.class.getSimpleName()));
     }
 
     @Test
@@ -80,14 +81,18 @@ class OptionalKindHelperTest {
       Kind<OptionalKind.Witness, Integer> unknownKind = new DummyOptionalKind<>();
       assertThatThrownBy(() -> OPTIONAL.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(INVALID_KIND_TYPE_MSG + DummyOptionalKind.class.getName());
+          .hasMessageContaining(
+              INVALID_KIND_TYPE_TEMPLATE.formatted(
+                  Optional.class.getSimpleName(), DummyOptionalKind.class.getName()));
     }
 
     @Test
     void narrow_shouldThrowForHolderWithNullOptional() {
       assertThatNullPointerException()
           .isThrownBy(() -> new OptionalHolder<>(null))
-          .withMessageContaining("Wrapped Optional instance cannot be null in OptionalHolder");
+          .isInstanceOf(NullPointerException.class)
+          .withMessageContaining(
+              NULL_HOLDER_STATE_TEMPLATE.formatted("OptionalHolder", "Optional"));
     }
   }
 }

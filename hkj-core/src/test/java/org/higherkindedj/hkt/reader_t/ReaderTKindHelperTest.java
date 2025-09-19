@@ -6,15 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.higherkindedj.hkt.optional.OptionalMonad;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,14 +22,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ReaderTKindHelper Tests (Outer: OptionalKind.Witness, Env: String)")
 class ReaderTKindHelperTest {
 
-  private Monad<OptionalKind.Witness> outerMonad;
   // Environment type R_ENV is String for these tests
   private final String testEnv = "testEnvironment";
-
-  @BeforeEach
-  void setUp() {
-    outerMonad = OptionalMonad.INSTANCE;
-  }
 
   // Helper to create a ReaderT for testing
   // F = OptionalKind.Witness, R_ENV = String
@@ -59,7 +53,7 @@ class ReaderTKindHelperTest {
     void widen_nullReaderT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> READER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(ReaderTKindHelper.INVALID_KIND_TYPE_NULL_MSG);
+          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted("ReaderT"));
     }
   }
 
@@ -85,7 +79,7 @@ class ReaderTKindHelperTest {
     void narrow_nullKind_shouldThrowKindUnwrapException() {
       assertThatThrownBy(() -> READER_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(ReaderTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessage(NULL_KIND_TEMPLATE.formatted("ReaderT"));
     }
 
     // Dummy Kind for testing invalid type unwrap
@@ -106,7 +100,7 @@ class ReaderTKindHelperTest {
 
       assertThatThrownBy(() -> READER_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageStartingWith(ReaderTKindHelper.INVALID_KIND_TYPE_MSG)
+          .hasMessageStartingWith(INVALID_KIND_TYPE_TEMPLATE.formatted("ReaderT", ""))
           .hasMessageContaining(SimpleIncorrectKind.class.getName());
     }
   }

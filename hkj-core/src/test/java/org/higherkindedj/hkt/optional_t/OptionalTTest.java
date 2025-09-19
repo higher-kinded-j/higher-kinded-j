@@ -84,7 +84,7 @@ class OptionalTTest {
     void fromKind_throwsOnNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> OptionalT.fromKind(null))
-          .withMessageContaining("Wrapped value cannot be null");
+          .withMessageContaining("Kind value for fromKind cannot be null");
     }
 
     @Test

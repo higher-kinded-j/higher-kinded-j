@@ -4,13 +4,13 @@ package org.higherkindedj.hkt.list;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.list.ListKindHelper.INVALID_KIND_TYPE_NULL_MSG;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test;
 class ListKindHelperTest {
 
   @Nested
-  @DisplayName("wrap()")
-  class WrapTests {
+  @DisplayName("widen()")
+  class WidenTests {
 
     @Test
     void widen_shouldReturnListViewForValidList() {
@@ -43,44 +43,32 @@ class ListKindHelperTest {
     @Test
     void widen_shouldThrowForNullInput() {
       assertThatThrownBy(() -> LIST.widen(null))
-          .isInstanceOf(
-              NullPointerException.class) // Or specific exception from Objects.requireNonNull
-          .hasMessageContaining(INVALID_KIND_TYPE_NULL_MSG);
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Input List cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("unwrap()")
-  class UnwrapTests {
+  @DisplayName("narrow()")
+  class NarrowTests {
 
     @Test
     void narrow_shouldReturnOriginalList() {
       List<Double> originalList = Arrays.asList(1.0, 2.5);
       Kind<ListKind.Witness, Double> kind = LIST.widen(originalList);
-      assertThat(LIST.narrow(kind)).isSameAs(originalList); // It's List.copyOf in wrap, so not same
-      // but content should be equal
+      assertThat(LIST.narrow(kind)).isSameAs(originalList);
       assertThat(LIST.narrow(kind)).isEqualTo(originalList);
-    }
-
-    @Test
-    void narrow_shouldReturnEmptyListForNullKind() {
-      // This is specific behavior of LIST.narrow(null)
-      assertThat(LIST.narrow(null)).isEqualTo(Collections.emptyList());
     }
 
     // Dummy Kind for testing invalid type unwrap
     record DummyListKind<A>() implements Kind<ListKind.Witness, A> {}
 
     @Test
-    void narrow_shouldThrowClassCastExceptionForUnknownKindType() {
-      // If the Kind passed is not a ListView (or whatever ListKind.narrow expects),
-      // ClassCastException can occur in narrow.
-      // If ListKind.narrow checks type, then KindUnwrapException might be thrown by unwrap itself.
-      // The current test setup relies on ClassCastException from ListKind.narrow if not ListKind
+    void narrow_shouldThrowForUnknownKindType() {
       Kind<ListKind.Witness, String> unknownKind = new DummyListKind<>();
       assertThatThrownBy(() -> LIST.narrow(unknownKind))
-          .isInstanceOf(ClassCastException.class) // This comes from ListKind.narrow
-          .hasMessageContaining("DummyListKind cannot be cast");
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind instance is not a List:");
     }
   }
 
@@ -107,7 +95,7 @@ class ListKindHelperTest {
       Kind<ListKind.Witness, String> kind = LIST.widen(list);
       assertThatThrownBy(() -> LIST.unwrapOr(kind, null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("defaultValue cannot be null");
+          .hasMessageContaining("Input defaultValue cannot be null");
     }
   }
 }

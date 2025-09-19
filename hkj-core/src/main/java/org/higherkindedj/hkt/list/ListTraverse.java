@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -18,23 +19,6 @@ import org.jspecify.annotations.NullMarked;
 /**
  * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link java.util.List},
  * using {@link ListKind.Witness} as the higher-kinded type witness.
- *
- * <p>The {@code Traverse} typeclass allows for traversing a data structure (in this case, a List)
- * from left to right, applying an {@link Applicative} effect for each element and collecting the
- * results.
- *
- * <p>The {@code Foldable} typeclass provides the ability to reduce the structure to a summary value
- * using a {@link Monoid}.
- *
- * <p>As {@code Traverse} extends {@link Functor}, this class also provides a {@code map} operation.
- *
- * @see Traverse
- * @see Foldable
- * @see Functor
- * @see List
- * @see ListKind
- * @see Applicative
- * @see Monoid
  */
 @NullMarked
 public enum ListTraverse implements Traverse<ListKind.Witness> {
@@ -54,10 +38,13 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * @param fa The non-null {@code Kind<ListKind.Witness, A>} representing the input list.
    * @return A new non-null {@code Kind<ListKind.Witness, B>} containing a list with the results of
    *     applying the function {@code f}.
+   * @throws NullPointerException if f or fa is null.
    */
   @Override
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
     // For lists, mapping is equivalent to the Functor implementation.
     return ListFunctor.INSTANCE.map(f, fa);
   }
@@ -65,10 +52,6 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   /**
    * Traverses a list from left to right, applying an effectful function {@code f} to each element
    * and collecting the results within the context of the {@link Applicative} {@code G}.
-   *
-   * <p>This implementation uses a left-to-right fold and a {@link LinkedList} accumulator. By
-   * appending to the {@code LinkedList} in each step, the operation achieves an efficient O(N) time
-   * complexity while preserving the original order of the list.
    *
    * @param <G> The higher-kinded type witness for the {@link Applicative} context.
    * @param <A> The type of elements in the input list {@code ta}.
@@ -80,12 +63,17 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * @return A {@code Kind<G, Kind<ListKind.Witness, B>>}. This represents the list of results (each
    *     of type {@code B}), with the entire resulting list structure itself wrapped in the
    *     applicative context {@code G}.
+   * @throws NullPointerException if applicative, f, or ta is null.
    */
   @Override
   public <G, A, B> Kind<G, Kind<ListKind.Witness, B>> traverse(
       Applicative<G> applicative,
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ListKind.Witness, A> ta) {
+
+    requireNonNullForWiden(applicative, "Applicative");
+    requireNonNullFunction(f, "traverse function");
+    requireNonNullKind(ta, "source Kind for traverse");
 
     List<A> listA = LIST.narrow(ta);
     Kind<G, List<B>> result = applicative.of(new LinkedList<>());
@@ -109,20 +97,23 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   /**
    * Maps each element of the list to a {@link Monoid} {@code M} and combines the results.
    *
-   * <p>This is a powerful way to aggregate the contents of a list. For example, by providing an
-   * integer addition monoid, you can sum the elements. By providing a string concatenation monoid,
-   * you can join them.
-   *
    * @param <A> The type of elements in the list.
    * @param <M> The Monoidal type to which elements are mapped and combined.
-   * @param monoid The {@code Monoid} used to combine the results.
-   * @param f A function to map each element of type {@code A} to the Monoidal type {@code M}.
-   * @param fa The {@code Kind<ListKind.Witness, A>} representing the list to fold.
+   * @param monoid The {@code Monoid} used to combine the results. Must not be null.
+   * @param f A function to map each element of type {@code A} to the Monoidal type {@code M}. Must
+   *     not be null.
+   * @param fa The {@code Kind<ListKind.Witness, A>} representing the list to fold. Must not be
+   *     null.
    * @return The aggregated result of type {@code M}.
+   * @throws NullPointerException if monoid, f, or fa is null.
    */
   @Override
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ListKind.Witness, A> fa) {
+    requireNonNullForWiden(monoid, "Monoid");
+    requireNonNullFunction(f, "foldMap function");
+    requireNonNullKind(fa, "source Kind for foldMap");
+
     M accumulator = monoid.empty();
     for (A a : LIST.narrow(fa)) {
       accumulator = monoid.combine(accumulator, f.apply(a));

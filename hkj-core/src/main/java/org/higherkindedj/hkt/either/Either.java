@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable; // Assuming Right can hold null, Left typically can.
 
 /**
@@ -113,10 +114,9 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @throws NullPointerException if either {@code leftMapper} or {@code rightMapper} is null.
    */
   default <T> T fold(
-      @NonNull Function<? super L, ? extends T> leftMapper,
-      @NonNull Function<? super R, ? extends T> rightMapper) {
-    Objects.requireNonNull(leftMapper, "leftMapper cannot be null");
-    Objects.requireNonNull(rightMapper, "rightMapper cannot be null");
+      Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
+    requireNonNullFunction(leftMapper, "leftMapper");
+    requireNonNullFunction(rightMapper, "rightMapper");
 
     return switch (this) {
       case Left<L, R>(var leftValue) -> leftMapper.apply(leftValue);
@@ -149,8 +149,8 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @throws NullPointerException if {@code mapper} is null.
    */
   @SuppressWarnings("unchecked")
-  default <R2> @NonNull Either<L, R2> map(@NonNull Function<? super R, ? extends R2> mapper) {
-    Objects.requireNonNull(mapper, "mapper function cannot be null");
+  default <R2> Either<L, R2> map(Function<? super R, ? extends R2> mapper) {
+    requireNonNullFunction(mapper, "mapper");
     return switch (this) {
       case Left<L, R> l -> (Either<L, R2>) l; // Return self, cast is safe.
       case Right<L, R>(var rValue) -> Either.right(mapper.apply(rValue)); // Create new Right
@@ -191,16 +191,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @throws NullPointerException if {@code mapper} is null, or if {@code mapper} returns null when
    *     applied (the implementation in {@code Right#flatMap} checks this).
    */
-  default <R2> Either<L, R2> flatMap(
-      @NonNull Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-    Objects.requireNonNull(mapper, "mapper function cannot be null");
-    // This default implementation is only for the interface.
-    // The actual logic is in Left.flatMap (which does nothing) and Right.flatMap.
-    // For Left, this cast is safe as L does not change and R becomes R2.
-    @SuppressWarnings("unchecked")
-    Either<L, R2> self = (Either<L, R2>) this;
-    return self; // Default for Left; Right overrides this.
-  }
+  <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, ? extends R2>> mapper);
 
   /**
    * Performs the given action on the value if this is a {@link Left}. No action is performed if
@@ -216,7 +207,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @param action The non-null {@link Consumer} to execute with the {@link Left} value.
    * @throws NullPointerException if {@code action} is null (checked by implementations).
    */
-  void ifLeft(@NonNull Consumer<? super L> action);
+  void ifLeft(Consumer<? super L> action);
 
   /**
    * Performs the given action on the value if this is a {@link Right}. No action is performed if
@@ -232,7 +223,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @param action The non-null {@link Consumer} to execute with the {@link Right} value.
    * @throws NullPointerException if {@code action} is null (checked by implementations).
    */
-  void ifRight(@NonNull Consumer<? super R> action);
+  void ifRight(Consumer<? super R> action);
 
   // --- Static Factory Methods ---
 
@@ -247,7 +238,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @param <R> The type of the (absent) {@link Right} value.
    * @return A new non-null {@link Left} instance containing the given value.
    */
-  static <L, R> @NonNull Either<L, R> left(@Nullable L value) {
+  static <L, R> Either<L, R> left(@Nullable L value) {
     return new Left<>(value);
   }
 
@@ -262,7 +253,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @param <R> The type of the {@link Right} value.
    * @return A new non-null {@link Right} instance containing the given value.
    */
-  static <L, R> @NonNull Either<L, R> right(@Nullable R value) {
+  static <L, R> Either<L, R> right(@Nullable R value) {
     return new Right<>(value);
   }
 
@@ -298,21 +289,21 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     // flatMap is overridden from default for clarity, it does nothing on Left.
     @Override
     @SuppressWarnings("unchecked")
-    public <R2> @NonNull Either<L, R2> flatMap(
-        @NonNull Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      Objects.requireNonNull(mapper, "mapper function cannot be null");
+    public <R2> Either<L, R2> flatMap(
+        Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
+      requireNonNullFunction(mapper, "mapper");
       return (Either<L, R2>) this; // Left remains Left, type L is unchanged.
     }
 
     @Override
-    public void ifLeft(@NonNull Consumer<? super L> action) {
-      Objects.requireNonNull(action, "action cannot be null");
+    public void ifLeft(Consumer<? super L> action) {
+      requireNonNullFunction(action, "action");
       action.accept(value);
     }
 
     @Override
-    public void ifRight(@NonNull Consumer<? super R> action) {
-      Objects.requireNonNull(action, "action cannot be null");
+    public void ifRight(Consumer<? super R> action) {
+      requireNonNullFunction(action, "action");
     }
 
     /**
@@ -322,7 +313,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
      * @return A string representation.
      */
     @Override
-    public @NonNull String toString() {
+    public String toString() {
       return "Left(" + value + ")";
     }
   }
@@ -357,9 +348,9 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     }
 
     @Override
-    public <R2> @NonNull Either<L, R2> flatMap(
-        @NonNull Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      Objects.requireNonNull(mapper, "mapper function cannot be null");
+    public <R2> Either<L, R2> flatMap(
+        Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
+      requireNonNullFunction(mapper, "mapper");
       // Apply the mapper, which itself returns an Either.
       Either<L, ? extends R2> result = mapper.apply(value);
       Objects.requireNonNull(
@@ -372,13 +363,13 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     }
 
     @Override
-    public void ifLeft(@NonNull Consumer<? super L> action) {
-      Objects.requireNonNull(action, "action cannot be null");
+    public void ifLeft(Consumer<? super L> action) {
+      requireNonNullFunction(action, "action");
     }
 
     @Override
-    public void ifRight(@NonNull Consumer<? super R> action) {
-      Objects.requireNonNull(action, "action cannot be null");
+    public void ifRight(Consumer<? super R> action) {
+      requireNonNullFunction(action, "action");
       action.accept(value);
     }
 
@@ -388,7 +379,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
      * @return A string representation.
      */
     @Override
-    public @NonNull String toString() {
+    public String toString() {
       return "Right(" + value + ")";
     }
   }

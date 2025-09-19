@@ -11,7 +11,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdentityMonad;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Optic;
 import org.higherkindedj.optics.Traversal;
@@ -194,9 +194,7 @@ public class OpticProfunctorExample {
     PersonDto updatedDto =
         ID.narrow(
                 interestsTraversal.modifyF(
-                    interest -> Id.of(interest.toUpperCase()),
-                    originalDto,
-                    IdentityMonad.instance()))
+                    interest -> Id.of(interest.toUpperCase()), originalDto, IdMonad.instance()))
             .value();
 
     System.out.println("After dimap-style modification: " + updatedDto);

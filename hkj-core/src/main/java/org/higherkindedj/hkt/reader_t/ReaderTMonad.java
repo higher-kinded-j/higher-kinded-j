@@ -3,8 +3,8 @@
 package org.higherkindedj.hkt.reader_t;
 
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
-import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -44,8 +44,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public ReaderTMonad(Monad<F> outerMonad) {
-    this.outerMonad =
-        Objects.requireNonNull(outerMonad, "Outer Monad instance cannot be null for ReaderTMonad");
+    this.outerMonad = requireValidOuterMonad(outerMonad, "ReaderTMonad");
   }
 
   /**
@@ -80,11 +79,17 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    * @param <B> The output type of the function.
    * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, B>} representing the resulting {@code
    *     ReaderT}. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} is not
+   *     a valid {@code ReaderT} representation.
    */
   @Override
   public <A, B> Kind<ReaderTKind.Witness<F, R_ENV>, B> ap(
       Kind<ReaderTKind.Witness<F, R_ENV>, ? extends Function<A, B>> ff,
       Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
+
+    requireNonNullKind(ff, "function Kind for ap");
+    requireNonNullKind(fa, "argument Kind for ap");
 
     ReaderT<F, R_ENV, ? extends Function<A, B>> ffT = READER_T.narrow(ff);
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
@@ -115,10 +120,16 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    * @param <B> The new value type after applying the function {@code f}.
    * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, B>} representing the resulting {@code
    *     ReaderT}. Never null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     ReaderT} representation.
    */
   @Override
   public <A, B> Kind<ReaderTKind.Witness<F, R_ENV>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
+
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
 
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
 
@@ -151,11 +162,17 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    * @param <B> The value type of the {@code ReaderT} produced by the function {@code f}.
    * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, B>} representing the resulting composed
    *     {@code ReaderT}. Never null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+   *     ReaderT} representation.
    */
   @Override
   public <A, B> Kind<ReaderTKind.Witness<F, R_ENV>, B> flatMap(
       Function<? super A, ? extends Kind<ReaderTKind.Witness<F, R_ENV>, B>> f,
       Kind<ReaderTKind.Witness<F, R_ENV>, A> ma) {
+
+    requireNonNullFunction(f, "function f for flatMap");
+    requireNonNullKind(ma, "source Kind for flatMap");
 
     ReaderT<F, R_ENV, A> maT = READER_T.narrow(ma);
 

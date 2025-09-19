@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
+
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
@@ -19,21 +21,7 @@ import org.jspecify.annotations.Nullable;
 public enum WriterKindHelper implements WriterConverterOps {
   WRITER;
 
-  /** Error message for when a {@code null} {@link Kind} is passed to {@link #narrow(Kind)}. */
-  public static final String INVALID_KIND_NULL_MSG = "Cannot narrow null Kind for Writer";
-
-  /**
-   * Error message for when a {@link Kind} of an unexpected type is passed to {@link #narrow(Kind)}.
-   */
-  public static final String INVALID_KIND_TYPE_MSG = "Kind instance is not a WriterHolder: ";
-
-  /**
-   * Error message for when the internal holder in {@link #narrow(Kind)} contains a {@code null}
-   * Writer instance. This should ideally not occur if {@link #widen(Writer)} enforces non-null
-   * Writer instances and WriterHolder guarantees its content.
-   */
-  public static final String INVALID_HOLDER_STATE_MSG =
-      "WriterHolder contained null Writer instance";
+  private static final String TYPE_NAME = "Writer";
 
   /**
    * Internal record implementing {@link WriterKind WriterKind&lt;W, A&gt;} to hold the concrete
@@ -44,7 +32,11 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @param <A> The value type.
    * @param writer The non-null {@link Writer Writer&lt;W, A&gt;} instance.
    */
-  record WriterHolder<W, A>(Writer<W, A> writer) implements WriterKind<W, A> {}
+  record WriterHolder<W, A>(Writer<W, A> writer) implements WriterKind<W, A> {
+    WriterHolder {
+      requireNonNullForHolder(writer, TYPE_NAME);
+    }
+  }
 
   /**
    * Widens a concrete {@link Writer Writer&lt;W, A&gt;} instance into its higher-kinded
@@ -61,7 +53,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   @Override
   public <W, A> Kind<WriterKind.Witness<W>, A> widen(Writer<W, A> writer) {
-    Objects.requireNonNull(writer, "Input Writer cannot be null for widen");
+    requireNonNullForWiden(writer, TYPE_NAME);
     return new WriterHolder<>(writer);
   }
 
@@ -78,13 +70,8 @@ public enum WriterKindHelper implements WriterConverterOps {
    *     WriterHolder}. The {@code WriterHolder} guarantees its internal {@code writer} is non-null.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(INVALID_KIND_NULL_MSG);
-      case WriterKindHelper.WriterHolder<?, ?> holder -> (Writer<W, A>) holder.writer();
-      default -> throw new KindUnwrapException(INVALID_KIND_TYPE_MSG + kind.getClass().getName());
-    };
+    return narrowKind(kind, TYPE_NAME, this::extractWriter);
   }
 
   // --- Additional Writer-specific methods directly on the enum ---
@@ -108,7 +95,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * Unit#INSTANCE} value.
    *
    * @param <W> The type of the accumulated log/output.
-   * @param log The log message to accumulate. Must be {@code }.
+   * @param log The log message to accumulate. Must not be null.
    * @return A {@code Kind<WriterKind.Witness<W>, Unit>} representing only the log action.
    * @throws NullPointerException if {@code log} is null (delegated to Writer.tell).
    */
@@ -160,5 +147,13 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   public <W, A> W exec(Kind<WriterKind.Witness<W>, A> kind) {
     return this.narrow(kind).exec();
+  }
+
+  /** Internal extraction method for narrowing operations. */
+  private <W, A> Writer<W, A> extractWriter(Kind<WriterKind.Witness<W>, A> kind) {
+    return switch (kind) {
+      case WriterKindHelper.WriterHolder<W, A> holder -> holder.writer();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+    };
   }
 }

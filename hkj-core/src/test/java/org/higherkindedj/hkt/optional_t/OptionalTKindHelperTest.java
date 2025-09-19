@@ -5,8 +5,10 @@ package org.higherkindedj.hkt.optional_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
-import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.INVALID_KIND_TYPE_NULL_MSG;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
+import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
@@ -81,7 +83,7 @@ class OptionalTKindHelperTest {
     void widen_nullOptionalT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> OPTIONAL_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(INVALID_KIND_TYPE_NULL_MSG);
+          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted("OptionalT"));
     }
   }
 
@@ -132,7 +134,7 @@ class OptionalTKindHelperTest {
     void narrow_nullKind_shouldThrowKindUnwrapException() {
       assertThatThrownBy(() -> OPTIONAL_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(OptionalTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessage(NULL_KIND_TEMPLATE.formatted("OptionalT"));
     }
 
     // Dummy Kind for testing invalid type unwrap
@@ -151,7 +153,7 @@ class OptionalTKindHelperTest {
 
       assertThatThrownBy(() -> OPTIONAL_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageStartingWith(OptionalTKindHelper.INVALID_KIND_TYPE_MSG)
+          .hasMessageStartingWith(INVALID_KIND_TYPE_TEMPLATE.formatted("OptionalT", ""))
           .hasMessageContaining(OtherKind.class.getName());
     }
 

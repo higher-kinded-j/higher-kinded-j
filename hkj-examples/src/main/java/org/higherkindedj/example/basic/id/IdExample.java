@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
-import org.higherkindedj.hkt.id.IdentityMonad;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.state_t.StateTMonad;
@@ -35,7 +35,7 @@ public class IdExample {
   }
 
   public void monadExample() {
-    IdentityMonad idMonad = IdentityMonad.instance();
+    IdMonad idMonad = IdMonad.instance();
 
     // 1. 'of' (lifting a value)
     Kind<Id.Witness, Integer> kindInt = idMonad.of(42);
@@ -69,8 +69,7 @@ public class IdExample {
   public void transformerExample() {
     // Conceptually, State<S, A> is StateT<S, Id.Witness, A>
     // We can create a StateTMonad instance using IdentityMonad as the underlying monad.
-    StateTMonad<Integer, Id.Witness> stateMonadOverId =
-        StateTMonad.instance(IdentityMonad.instance());
+    StateTMonad<Integer, Id.Witness> stateMonadOverId = StateTMonad.instance(IdMonad.instance());
 
     // Example: A "State" computation that increments the state and returns the old state
     Function<Integer, Kind<Id.Witness, StateTuple<Integer, Integer>>> runStateFn =
@@ -78,7 +77,7 @@ public class IdExample {
 
     // Create the StateT (acting as State)
     Kind<StateTKind.Witness<Integer, Id.Witness>, Integer> incrementAndGet =
-        STATE_T.stateT(runStateFn, IdentityMonad.instance());
+        STATE_T.stateT(runStateFn, IdMonad.instance());
 
     // Run it
     Integer initialState = 10;

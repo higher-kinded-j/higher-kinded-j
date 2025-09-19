@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
@@ -35,10 +36,16 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
    * @param <B> The new result type after applying the function {@code f}.
    * @return A new {@code Kind<WriterKind.Witness<W>, B>} representing the transformed {@code
    *     Writer<W, B>}. Never null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
+   *     to a valid {@code Writer} representation.
    */
   @Override
   public <A, B> Kind<WriterKind.Witness<W>, B> map(
       Function<? super A, ? extends B> f, Kind<WriterKind.Witness<W>, A> fa) {
+    requireNonNullFunction(f, "function f for map");
+    requireNonNullKind(fa, "source Kind for map");
+
     Writer<W, A> writerA = WRITER.narrow(fa);
     Writer<W, B> writerB = writerA.map(f);
     return WRITER.widen(writerB);

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -16,6 +17,7 @@ import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.ErrorHandling;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -213,8 +215,7 @@ class EitherTMonadTest {
       // This happens inside the `eitherTMonad.ap` call.
       assertThatThrownBy(() -> eitherTMonad.ap(ff, fa))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(
-              "mapper function cannot be null"); // From Objects.requireNonNull in Either.map
+          .hasMessage(ErrorHandling.NULL_FUNCTION_MSG.formatted("mapper"));
     }
 
     // Test 2 from user's failing stack traces - Corrected Assertion
@@ -545,7 +546,7 @@ class EitherTMonadTest {
 
       assertThatThrownBy(() -> eitherTMonad.flatMap(funcReturnsNullKind, initialRight))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(EitherTKindHelper.INVALID_KIND_NULL_MSG);
+          .hasMessage(NULL_KIND_TEMPLATE.formatted("EitherT"));
     }
   }
 }

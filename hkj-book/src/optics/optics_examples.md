@@ -80,7 +80,7 @@ This example showcases the power of composing **Traversals** and **Lenses** to p
   // Use the composed traversal to add 5 to every player's score
   var updatedLeague = IdKindHelper.ID.narrow(
       leagueToAllPlayerScores.modifyF(
-          score -> Id.of(score + 5), league, IdentityMonad.instance()
+          score -> Id.of(score + 5), league, IdMonad.instance()
       )
   ).value();
 ```

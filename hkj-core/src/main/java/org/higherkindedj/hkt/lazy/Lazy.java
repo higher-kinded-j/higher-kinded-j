@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.lazy;
 
+import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
@@ -29,6 +31,7 @@ public final class Lazy<A> {
    * @param computation The ThrowableSupplier to evaluate lazily. (NonNull)
    * @param <A> The value type.
    * @return A new Lazy instance. (NonNull)
+   * @throws NullPointerException if computation is null.
    */
   public static <A> Lazy<A> defer(ThrowableSupplier<? extends A> computation) {
     return new Lazy<>(computation);
@@ -87,9 +90,10 @@ public final class Lazy<A> {
    * @param f The mapping function. (NonNull)
    * @param <B> The result type of the mapping function.
    * @return A new Lazy computation for the mapped value. (NonNull)
+   * @throws NullPointerException if f is null.
    */
   public <B> Lazy<B> map(Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "mapper function cannot be null");
+    requireNonNullFunction(f, "mapper function");
     return Lazy.defer(() -> f.apply(this.force()));
   }
 
@@ -101,9 +105,10 @@ public final class Lazy<A> {
    * @param f The function returning a new Lazy computation. (NonNull, returns NonNull Lazy)
    * @param <B> The value type of the returned Lazy computation.
    * @return A new Lazy computation representing the sequenced operation. (NonNull)
+   * @throws NullPointerException if f is null or f returns null.
    */
   public <B> Lazy<B> flatMap(Function<? super A, ? extends Lazy<? extends B>> f) {
-    Objects.requireNonNull(f, "flatMap mapper function cannot be null");
+    requireNonNullFunction(f, "flatMap mapper function");
     return Lazy.defer(
         () -> {
           Lazy<? extends B> nextLazy = f.apply(this.force());

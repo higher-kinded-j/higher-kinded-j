@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
 
 import java.util.function.Function;
@@ -101,6 +102,31 @@ class ReaderMonadTest {
       var valKind = readerMonad.of(100);
       var resultKind = readerMonad.ap(funcKind, valKind);
       assertThat(run(resultKind)).isEqualTo("Num100");
+    }
+
+    @Test
+    void ap_shouldThrowExceptionWhenFunctionIsNull() {
+      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind = readerMonad.of(null);
+      var valKind = readerMonad.of(100);
+      var resultKind = readerMonad.ap(funcKind, valKind);
+
+      assertThatThrownBy(() -> run(resultKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("Function extracted from Reader for 'ap' was null");
+    }
+
+    @Test
+    void ap_shouldPropagateExceptionFromFunction() {
+      var exception = new RuntimeException("Test exception");
+      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind =
+          readerMonad.of(
+              i -> {
+                throw exception;
+              });
+      var valKind = readerMonad.of(100);
+      var resultKind = readerMonad.ap(funcKind, valKind);
+
+      assertThatThrownBy(() -> run(resultKind)).isSameAs(exception);
     }
   }
 
