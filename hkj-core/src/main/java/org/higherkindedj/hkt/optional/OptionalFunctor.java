@@ -3,12 +3,14 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,6 +29,8 @@ import org.jspecify.annotations.Nullable;
  * @see OptionalMonad
  */
 public class OptionalFunctor implements Functor<OptionalKind.Witness> {
+
+  private static final Class<OptionalFunctor> OPTIONAL_FUNCTOR_CLASS = OptionalFunctor.class;
 
   /**
    * Constructs a new {@code OptionalFunctor} instance. This constructor is public to allow
@@ -67,15 +71,16 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
    * @return A non-null {@code Kind<OptionalKind.Witness, B>} representing a new {@code Optional<B>}
    *     that will contain the transformed value if the input was present and the function returned
    *     non-null, or will be empty otherwise.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
    *     OptionalKind} representation.
-   * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+
+    FunctionValidator.requireMapper(f, OPTIONAL_FUNCTOR_CLASS, MAP);
+    KindValidator.requireNonNull(fa, OPTIONAL_FUNCTOR_CLASS, MAP);
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()

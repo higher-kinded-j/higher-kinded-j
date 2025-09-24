@@ -2,11 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.DomainValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Represents the concrete implementation of the Optional Transformer Monad (OptionalT). It wraps a
@@ -29,14 +31,16 @@ import org.higherkindedj.hkt.Monad;
  */
 public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKind<F, A> {
 
+  private static final Class<OptionalT> OPTIONAL_T_CLASS = OptionalT.class;
+
   /**
    * Canonical constructor for {@code OptionalT}.
    *
    * @param value The underlying monadic value {@code Kind<F, Optional<A>>}.
    * @throws NullPointerException if {@code value} is null.
    */
-  public OptionalT { // Canonical constructor
-    requireNonNullKind(value, "wrapped value for OptionalT");
+  public OptionalT {
+    KindValidator.requireNonNull(value, OPTIONAL_T_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -49,7 +53,6 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code value} is null.
    */
   public static <F, A> OptionalT<F, A> fromKind(Kind<F, Optional<A>> value) {
-    requireNonNullKind(value, "Kind value for fromKind");
     return new OptionalT<>(value);
   }
 
@@ -65,8 +68,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
   public static <F, A extends Object> OptionalT<F, A> some(Monad<F> outerMonad, A a) {
-    requireValidOuterMonad(outerMonad, "some");
-    // Note: Optional.of(a) will throw NullPointerException if a is null, which is desired behavior
+    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, SOME);
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.of(a));
     return new OptionalT<>(lifted);
   }
@@ -82,7 +84,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, A> OptionalT<F, A> none(Monad<F> outerMonad) {
-    requireValidOuterMonad(outerMonad, "none");
+    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, NONE);
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.empty());
     return new OptionalT<>(lifted);
   }
@@ -99,8 +101,9 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code optional} is null.
    */
   public static <F, A> OptionalT<F, A> fromOptional(Monad<F> outerMonad, Optional<A> optional) {
-    requireValidOuterMonad(outerMonad, "fromOptional");
-    requireNonNullForWiden(optional, "Optional");
+    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, FROM_OPTIONAL);
+    DomainValidator.requireTransformerComponent(
+        optional, "inner Optional", OPTIONAL_T_CLASS, FROM_OPTIONAL);
     Kind<F, Optional<A>> lifted = outerMonad.of(optional);
     return new OptionalT<>(lifted);
   }
@@ -119,8 +122,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, A> OptionalT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
-    requireValidOuterMonad(outerMonad, "liftF");
-    // Note: We don't need to validate fa here as outerMonad.map will handle null checking
+    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, LIFT_F);
+    KindValidator.requireNonNull(fa, OPTIONAL_T_CLASS, LIFT_F, "source Kind");
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);
     return new OptionalT<>(mapped);
   }

@@ -2,14 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.util.validation.*;
 
 /**
  * Monad instance for {@link Validated}. The error type {@code E} is fixed for this Monad instance.
@@ -29,11 +29,12 @@ import org.higherkindedj.hkt.Semigroup;
  */
 public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E> {
 
+  private Class<ValidatedMonad> VALIDATED_MONAD_CLASS = ValidatedMonad.class;
+
   private final Semigroup<E> semigroup;
 
   private ValidatedMonad(Semigroup<E> semigroup) {
-    this.semigroup =
-        Objects.requireNonNull(semigroup, "Semigroup for ValidatedMonad cannot be null");
+    this.semigroup = CoreTypeValidator.requireValue(semigroup, VALIDATED_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -52,8 +53,9 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   @Override
   public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+
+    FunctionValidator.requireMapper(f, VALIDATED_MONAD_CLASS, MAP);
+    KindValidator.requireNonNull(fa, VALIDATED_MONAD_CLASS, MAP);
 
     Validated<E, A> validated = VALIDATED.narrow(fa);
     Validated<E, B> result = validated.map(f);
@@ -72,7 +74,9 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    */
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> of(A value) {
-    requireNonNullFunction(value, "value for of");
+    // Valid requires non-null value, so validate here
+    CoreTypeValidator.requireValue(value, VALIDATED_MONAD_CLASS, OF);
+
     Validated<E, A> validInstance = Validated.valid(value);
     return VALIDATED.widen(validInstance);
   }
@@ -82,11 +86,12 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Kind<ValidatedKind.Witness<E>, ? extends Function<A, B>> ff,
       Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    KindValidator.requireNonNull(ff, VALIDATED_MONAD_CLASS, AP, "function");
+    KindValidator.requireNonNull(fa, VALIDATED_MONAD_CLASS, AP, "argument");
 
     Validated<E, ? extends Function<A, B>> fnValidated = VALIDATED.narrow(ff);
     Validated<E, A> valueValidated = VALIDATED.narrow(fa);
+
     // Ensure the function type matches what Validated.ap expects
     Validated<E, Function<? super A, ? extends B>> fnValidatedWithWildcards =
         fnValidated.map(f -> (Function<? super A, ? extends B>) f);
@@ -99,29 +104,30 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    * Applies a function that returns a {@code Kind<ValidatedKind.Witness<E>, B>} to the value
    * contained in a {@code Kind<ValidatedKind.Witness<E>, A>}, effectively chaining operations.
    *
-   * @param fn The function to apply. Must not be null and must not return a null {@code Kind}.
-   * @param valueKind The {@code Kind} instance containing the value to transform. Must not be null.
+   * @param f The function to apply. Must not be null and must not return a null {@code Kind}.
+   * @param ma The {@code Kind} instance containing the value to transform. Must not be null.
    * @param <A> The type of the value in the input {@code Kind}.
    * @param <B> The type of the value in the output {@code Kind}.
    * @return A {@code Kind} instance representing the result of the flatMap operation.
-   * @throws NullPointerException if {@code fn} is null, {@code valueKind} is null, or {@code fn}
-   *     returns a null {@code Kind}.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code valueKind} cannot be
-   *     unwrapped to a valid {@code Validated} representation.
+   * @throws NullPointerException if {@code f} is null, {@code ma} is null, or {@code f} returns a
+   *     null {@code Kind}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
+   *     to a valid {@code Validated} representation.
    */
   @Override
   public <A, B> Kind<ValidatedKind.Witness<E>, B> flatMap(
       Function<? super A, ? extends Kind<ValidatedKind.Witness<E>, B>> f,
       Kind<ValidatedKind.Witness<E>, A> ma) {
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+
+    FunctionValidator.requireFlatMapper(f, VALIDATED_MONAD_CLASS, FLAT_MAP);
+    KindValidator.requireNonNull(ma, VALIDATED_MONAD_CLASS, FLAT_MAP);
 
     Validated<E, A> validatedValue = VALIDATED.narrow(ma);
     Validated<E, B> result =
         validatedValue.flatMap(
             a -> {
               Kind<ValidatedKind.Witness<E>, B> kindResult = f.apply(a);
-              requireNonNullKind(kindResult, "flatMap function returned Kind");
+              FunctionValidator.requireNonNullResult(kindResult, FLAT_MAP, Validated.class);
               return VALIDATED.narrow(kindResult);
             });
     return VALIDATED.widen(result);
@@ -140,7 +146,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
    */
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> raiseError(E error) {
-    requireNonNullFunction(error, "error for raiseError");
+    // Validated.invalid already validates non-null, but be explicit
+    CoreTypeValidator.requireError(error, VALIDATED_MONAD_CLASS);
     return VALIDATED.invalid(error);
   }
 
@@ -165,15 +172,16 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   public <A> Kind<ValidatedKind.Witness<E>, A> handleErrorWith(
       Kind<ValidatedKind.Witness<E>, A> ma,
       Function<? super E, ? extends Kind<ValidatedKind.Witness<E>, A>> handler) {
-    requireNonNullKind(ma, "Kind ma for handleErrorWith");
-    requireNonNullFunction(handler, "handler function for handleErrorWith");
+
+    KindValidator.requireNonNull(ma, VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    FunctionValidator.requireFunction(handler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     Validated<E, A> validated = VALIDATED.narrow(ma);
 
     if (validated.isInvalid()) {
       E errorValue = validated.getError();
       Kind<ValidatedKind.Witness<E>, A> resultFromHandler = handler.apply(errorValue);
-      requireNonNullKind(resultFromHandler, "handler function returned Kind");
+      FunctionValidator.requireNonNullResult(resultFromHandler, HANDLE_ERROR_WITH, Validated.class);
       return resultFromHandler;
     } else {
       return ma;

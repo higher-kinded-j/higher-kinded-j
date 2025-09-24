@@ -117,7 +117,7 @@ class StateTKindHelperTest {
     @Test
     void lift_shouldCreateStateTIgnoringState() {
       Kind<OptionalKind.Witness, String> outerValue = OPTIONAL.widen(Optional.of("Lifted"));
-      StateT<Integer, OptionalKind.Witness, String> stateT = STATE_T.lift(optMonad, outerValue);
+      StateT<Integer, OptionalKind.Witness, String> stateT = STATE_T.liftF(optMonad, outerValue);
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> kind = STATE_T.widen(stateT);
       assertThat(runOptStateT(kind, initialState))
           .isPresent()
@@ -128,7 +128,7 @@ class StateTKindHelperTest {
     @Test
     void lift_shouldCreateStateTWithEmptyOuter() {
       Kind<OptionalKind.Witness, String> outerEmpty = OPTIONAL.widen(Optional.empty());
-      StateT<Integer, OptionalKind.Witness, String> stateT = STATE_T.lift(optMonad, outerEmpty);
+      StateT<Integer, OptionalKind.Witness, String> stateT = STATE_T.liftF(optMonad, outerEmpty);
       Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> kind = STATE_T.widen(stateT);
       assertThat(runOptStateT(kind, initialState)).isEmpty();
     }

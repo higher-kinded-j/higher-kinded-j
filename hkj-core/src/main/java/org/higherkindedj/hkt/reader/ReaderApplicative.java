@@ -3,11 +3,12 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -31,6 +32,8 @@ import org.jspecify.annotations.Nullable;
 public class ReaderApplicative<R> extends ReaderFunctor<R>
     implements Applicative<ReaderKind.Witness<R>> {
 
+  private static final Class<ReaderApplicative> READER_APPLICATIVE_CLASS = ReaderApplicative.class;
+
   /**
    * Lifts a pure value {@code value} into the {@link Reader} context. The resulting {@code
    * Reader<R, A>} will produce the given {@code value} regardless of the environment {@code R} it
@@ -44,7 +47,6 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    */
   @Override
   public <A> Kind<ReaderKind.Witness<R>, A> of(@Nullable A value) {
-    // Reader.constant(value) creates a Reader that ignores the environment and returns the value.
     return READER.constant(value);
   }
 
@@ -74,8 +76,8 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
   public <A, B> Kind<ReaderKind.Witness<R>, B> ap(
       Kind<ReaderKind.Witness<R>, ? extends Function<A, B>> ff, Kind<ReaderKind.Witness<R>, A> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    KindValidator.requireNonNull(ff, READER_APPLICATIVE_CLASS, AP, "function");
+    KindValidator.requireNonNull(fa, READER_APPLICATIVE_CLASS, AP, "argument");
 
     Reader<R, ? extends Function<A, B>> readerF = READER.narrow(ff);
     Reader<R, A> readerA = READER.narrow(fa);

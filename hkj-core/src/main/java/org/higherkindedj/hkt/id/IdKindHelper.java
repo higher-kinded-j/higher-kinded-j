@@ -2,9 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.id;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,13 +17,13 @@ import org.jspecify.annotations.Nullable;
 public enum IdKindHelper implements IdConverterOps {
   ID;
 
-  private static final String TYPE_NAME = "Id";
+  private static final Class<Id> ID_CLASS = Id.class;
 
   /**
    * Widens an {@code Id<A>} instance to a {@code Kind<Id.Witness, A>}.
    *
    * <p>This is essentially a type-safe cast, as {@link Id} already implements {@code
-   * Kind<Id.Witness, A>}. Implements {@link IdConverterOps#widen}.
+   * Kind<Id.Witness, A>}.
    *
    * @param id The {@link Id} instance to widen. Must not be null.
    * @param <A> The type of the value.
@@ -33,23 +32,22 @@ public enum IdKindHelper implements IdConverterOps {
    */
   @Override
   public <A> Kind<Id.Witness, A> widen(Id<A> id) {
-    requireNonNullForWiden(id, TYPE_NAME);
+    KindValidator.requireForWiden(id, ID_CLASS);
     return id;
   }
 
   /**
-   * Narrows a {@code Kind<Id.Witness, A>} to its concrete type {@code Id<A>}. Implements {@link
-   * IdConverterOps#narrow}.
+   * Narrows a {@code Kind<Id.Witness, A>} to its concrete type {@code Id<A>}.
    *
-   * @param kind The {@link Kind} to narrow. Must not be null.
+   * @param kind The {@link Kind} to narrow. May be null.
    * @param <A> The type of the value.
    * @return The narrowed {@link Id} instance. Never null.
-   * @throws NullPointerException if kind is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is not an Id instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is null or not an Id
+   *     instance.
    */
   @Override
-  public <A> Id<A> narrow(Kind<Id.Witness, A> kind) {
-    return narrowKindWithTypeCheck(kind, Id.class, TYPE_NAME);
+  public <A> Id<A> narrow(@Nullable Kind<Id.Witness, A> kind) {
+    return KindValidator.narrowWithTypeCheck(kind, ID_CLASS);
   }
 
   /**
@@ -59,8 +57,8 @@ public enum IdKindHelper implements IdConverterOps {
    * @param kind The {@link Kind} to unwrap. Must not be null.
    * @param <A> The type of the value.
    * @return The underlying value. Can be null if the {@link Id} wrapped a null.
-   * @throws NullPointerException if kind is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is not an Id instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is null or not an Id
+   *     instance.
    */
   public <A> @Nullable A unwrap(Kind<Id.Witness, A> kind) {
     return this.narrow(kind).value();

@@ -27,6 +27,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Lazy error message evaluation for performance
  * </ul>
  */
+@Deprecated
 public final class ErrorHandling {
 
   // Prevent instantiation
@@ -199,7 +200,7 @@ public final class ErrorHandling {
      * @return A new type matcher
      */
     public static <S, T> TypeMatcher<S, T> forClass(
-        Class<? extends T> targetClass, java.util.function.Function<S, T> extractor) {
+        Class<? extends T> targetClass, Function<S, T> extractor) {
       return new TypeMatcher<S, T>() {
         @Override
         public boolean matches(S source) {

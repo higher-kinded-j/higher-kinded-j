@@ -2,12 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.util.validation.DomainValidator;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -29,11 +32,12 @@ import org.jspecify.annotations.Nullable;
  */
 public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> {
 
+  private static final Class<StateTMonad> STATE_T_MONAD_CLASS = StateTMonad.class;
   private final Monad<F> monadF;
 
   // Private constructor, use factory method
   private StateTMonad(Monad<F> monadF) {
-    this.monadF = requireValidOuterMonad(monadF, "StateTMonad");
+    this.monadF = DomainValidator.requireOuterMonad(monadF, STATE_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -83,14 +87,13 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
       Function<? super A, ? extends B> f, Kind<StateTKind.Witness<S, F>, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "Kind fa for map");
+    FunctionValidator.requireMapper(f, STATE_T_MONAD_CLASS, MAP);
+    KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, MAP);
 
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s ->
             monadF.map(
-                // The lambda expression here helps the compiler infer types correctly
                 stateTuple -> StateTuple.of(stateTuple.state(), f.apply(stateTuple.value())),
                 stateT.runStateT(s));
     return StateT.<S, F, B>create(newRunFn, monadF);
@@ -137,28 +140,24 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
       Kind<StateTKind.Witness<S, F>, ? extends Function<A, B>> ff,
       Kind<StateTKind.Witness<S, F>, A> fa) {
-    requireNonNullKind(ff, "Kind ff for ap");
-    requireNonNullKind(fa, "Kind fa for ap");
+    KindValidator.requireNonNull(ff, STATE_T_MONAD_CLASS, AP, "function");
+    KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, AP, "argument");
 
     StateT<S, F, ? extends Function<A, B>> stateTf = StateTKind.narrow(ff);
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s0 ->
-            // 1. Run the first state computation (which yields the function)
             monadF.flatMap(
                 tupleF -> {
                   Function<A, B> function = tupleF.value();
                   S s1 = tupleF.state();
 
-                  // 2. Enforce that the wrapped function is non-null.
-                  requireNonNullFunction(function, "Function wrapped in StateT for 'ap'");
+                  FunctionValidator.requireFunction(
+                      function, "wrapped function", STATE_T_MONAD_CLASS, AP);
 
-                  // 3. Run the second state computation (which yields the value)
-                  //    with the intermediate state (s1).
                   Kind<F, StateTuple<S, A>> resultA = stateTa.runStateT(s1);
 
-                  // 4. Map over the result of the second computation to apply the function.
                   return monadF.map(
                       tupleA -> {
                         S s2 = tupleA.state();
@@ -212,29 +211,21 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   public <A, B> Kind<StateTKind.Witness<S, F>, B> flatMap(
       Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
       Kind<StateTKind.Witness<S, F>, A> fa) {
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(fa, "Kind fa for flatMap");
+    FunctionValidator.requireFlatMapper(f, STATE_T_MONAD_CLASS, FLAT_MAP);
+    KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, FLAT_MAP);
 
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s0 ->
             monadF.<StateTuple<S, A>, StateTuple<S, B>>flatMap(
-                // Argument 1: Function<A1, Kind<F, B1>>
-                // Input: tupleA is StateTuple<S, A>
-                // Output: Kind<F, StateTuple<S, B>> (which is Kind<F, B1>)
                 tupleA -> {
-                  // Apply the function f to the value from the first StateT
                   Kind<StateTKind.Witness<S, F>, B> kindB = f.apply(tupleA.value());
-                  // Narrow it back to a concrete StateT
+                  FunctionValidator.requireNonNullResult(kindB, STATE_T_MONAD_CLASS, FLAT_MAP);
                   StateT<S, F, B> stateTb = StateTKind.narrow(kindB);
-                  // Run the resulting StateT with the state from the first StateT
                   return stateTb.runStateT(tupleA.state());
                 },
-                // Argument 2: Kind<F, A1>
-                // Initial run of the first StateT
-                stateTa.runStateT(s0) // Kind<F, StateTuple<S, A>>
-                );
+                stateTa.runStateT(s0));
 
     return StateT.<S, F, B>create(newRunFn, monadF);
   }

@@ -2,12 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trymonad;
 
-import static org.higherkindedj.hkt.trymonad.TryKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link MonadError} interface for the {@link Try} data type.
@@ -36,6 +38,8 @@ import org.higherkindedj.hkt.MonadError;
  */
 public class TryMonad extends TryApplicative implements MonadError<TryKind.Witness, Throwable> {
 
+  public static final Class<TryMonad> TRY_MONAD_CLASS = TryMonad.class;
+
   /** Singleton instance of {@code TryMonad}. */
   public static final TryMonad INSTANCE = new TryMonad();
 
@@ -60,15 +64,15 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * @param ma The first {@code Kind<TryKind.Witness, A>} to be flat-mapped over. Must not be null.
    * @return A new {@code Kind<TryKind.Witness, B>} representing the composed operation. Never null.
    * @throws NullPointerException if {@code f} or {@code ma} is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
-   *     Try} representation.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} is not a valid {@code Try} representation.
    */
   @Override
   public <A, B> Kind<TryKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+    FunctionValidator.requireFlatMapper(f, TRY_MONAD_CLASS, FLAT_MAP);
+    KindValidator.requireNonNull(ma, TRY_MONAD_CLASS, FLAT_MAP);
 
     Try<A> tryA = TRY.narrow(ma);
 
@@ -77,6 +81,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             a -> {
               try {
                 Kind<TryKind.Witness, B> kindB = f.apply(a);
+                FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, Try.class);
                 return TRY.narrow(kindB);
               } catch (Throwable t) {
                 return Try.failure(t);
@@ -91,11 +96,12 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    *
    * @param <A> The phantom type of the value (since this is an error state).
    * @param error The non-null {@link Throwable} to raise.
-   * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.failure(error)}.
+   * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.failure(error)}. Never null.
    * @throws NullPointerException if {@code error} is null.
    */
   @Override
   public <A> Kind<TryKind.Witness, A> raiseError(Throwable error) {
+    FunctionValidator.requireFunction(error, "error", TRY_MONAD_CLASS, RAISE_ERROR);
     return TRY.widen(Try.failure(error));
   }
 
@@ -109,18 +115,18 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * @param handler The non-null function that takes a {@link Throwable} and returns a new {@code
    *     Kind<TryKind.Witness, A>}, providing a chance to recover.
    * @return A {@code Kind<TryKind.Witness, A>} representing either the original success, or the
-   *     result of the error handler.
+   *     result of the error handler. Never null.
    * @throws NullPointerException if {@code ma} or {@code handler} is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
-   *     Try} representation.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code handler} is not a valid {@code Try} representation.
    */
   @Override
   public <A> Kind<TryKind.Witness, A> handleErrorWith(
       Kind<TryKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
 
-    requireNonNullKind(ma, "Kind ma for handleErrorWith");
-    requireNonNullFunction(handler, "handler function for handleErrorWith");
+    KindValidator.requireNonNull(ma, TRY_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    FunctionValidator.requireFunction(handler, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     Try<A> tryA = TRY.narrow(ma);
 
@@ -129,6 +135,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             throwable -> {
               try {
                 Kind<TryKind.Witness, A> recoveryKind = handler.apply(throwable);
+                FunctionValidator.requireNonNullResult(recoveryKind, HANDLE_ERROR_WITH, Try.class);
                 return TRY.narrow(recoveryKind);
               } catch (Throwable t) {
                 return Try.failure(t);

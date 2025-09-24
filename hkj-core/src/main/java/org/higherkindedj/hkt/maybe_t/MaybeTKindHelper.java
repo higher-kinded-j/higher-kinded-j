@@ -2,10 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 public enum MaybeTKindHelper implements MaybeTConverterOps {
   MAYBE_T;
 
-  public static final String TYPE_NAME = "MaybeT";
+  private static final Class<MaybeT> MAYBE_T_CLASS = MaybeT.class;
 
   /**
    * Widens a concrete {@link MaybeT MaybeT&lt;F, A&gt;} instance into its {@link Kind}
@@ -36,8 +34,7 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    */
   @Override
   public <F, A> Kind<MaybeTKind.Witness<F>, A> widen(MaybeT<F, A> maybeT) {
-    requireNonNullForWiden(maybeT, TYPE_NAME);
-    // maybeT is already a MaybeTKind<F, A>, which is a Kind<MaybeTKind.Witness<F>, A>.
+    KindValidator.requireForWiden(maybeT, MAYBE_T_CLASS);
     return maybeT;
   }
 
@@ -49,10 +46,11 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    * @param <A> The type of the value potentially held by the inner {@code Maybe}.
    * @param kind The {@code Kind<MaybeTKind.Witness<F>, A>} to narrow. Can be null.
    * @return The unwrapped, non-null {@link MaybeT MaybeT&lt;F, A&gt;} instance.
-   * @throws KindUnwrapException if {@code kind} is null or not a valid {@link MaybeT} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is null or not a
+   *     valid {@link MaybeT} instance.
    */
   @Override
   public <F, A> MaybeT<F, A> narrow(@Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
-    return narrowKindWithTypeCheck(kind, MaybeT.class, TYPE_NAME);
+    return KindValidator.narrowWithTypeCheck(kind, MAYBE_T_CLASS);
   }
 }

@@ -2,11 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.narrowKindWithTypeCheck;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullForWiden;
-
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 public enum EitherTKindHelper implements EitherTConverterOps {
   EITHER_T;
 
-  private static final String TYPE_NAME = "EitherT";
+  private static final Class<EitherT> EITHER_T_CLASS = EitherT.class;
 
   /**
    * Widens a concrete {@link EitherT EitherT&lt;F, L, R&gt;} instance into its {@link Kind}
@@ -36,9 +33,10 @@ public enum EitherTKindHelper implements EitherTConverterOps {
    * @throws NullPointerException if {@code eitherT} is null.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <F, L, R> Kind<EitherTKind.Witness<F, L>, R> widen(EitherT<F, L, R> eitherT) {
-    requireNonNullForWiden(eitherT, TYPE_NAME);
-    return (EitherTKind<F, L, R>) eitherT;
+    KindValidator.requireForWiden(eitherT, EITHER_T_CLASS);
+    return (Kind<EitherTKind.Witness<F, L>, R>) eitherT;
   }
 
   /**
@@ -50,10 +48,11 @@ public enum EitherTKindHelper implements EitherTConverterOps {
    * @param <R> The type of the 'right' value.
    * @param kind The {@code Kind<EitherTKind.Witness<F, L>, R>} to narrow. Can be null.
    * @return The unwrapped {@link EitherT EitherT&lt;F, L, R&gt;} instance. Never null.
-   * @throws KindUnwrapException if {@code kind} is null or not an {@link EitherT} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is null or not an
+   *     {@link EitherT} instance.
    */
   @Override
   public <F, L, R> EitherT<F, L, R> narrow(@Nullable Kind<EitherTKind.Witness<F, L>, R> kind) {
-    return narrowKindWithTypeCheck(kind, EitherT.class, TYPE_NAME);
+    return KindValidator.narrowWithTypeCheck(kind, EITHER_T_CLASS);
   }
 }

@@ -2,12 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.io;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
+import static org.higherkindedj.hkt.util.validation.Operation.DELAY;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
 
 /**
  * Represents a computation that, when executed, can perform side effects and produce a value of
@@ -38,21 +40,21 @@ import org.higherkindedj.hkt.unit.Unit;
  * <pre>{@code
  * // Describes reading a line from the console
  * IO<String> readLine = IO.delay(() -> {
- * System.out.print("Enter your name: ");
- * return new java.util.Scanner(System.in).nextLine();
+ *     System.out.print("Enter your name: ");
+ *     return new java.util.Scanner(System.in).nextLine();
  * });
  *
  * // Describes printing a string to the console
  * IO<Unit> printLine(String message) {
- * return IO.delay(() -> {
- * System.out.println(message);
- * return Unit.INSTANCE;
- * });
+ *     return IO.delay(() -> {
+ *         System.out.println(message);
+ *         return Unit.INSTANCE;
+ *     });
  * }
  *
  * // Combine descriptions
  * IO<Unit> greetUser = readLine.flatMap(name ->
- * printLine("Hello, " + name + "!")
+ *     printLine("Hello, " + name + "!")
  * );
  *
  * // Nothing has happened yet.
@@ -101,11 +103,11 @@ public interface IO<A> {
    * @param thunk A {@link Supplier} that, when called, will execute the desired computation and
    *     produce a value of type {@code A}. Must not be null.
    * @param <A> The type of the value produced by the thunk.
-   * @return A new {@code @NonNull IO<A>} instance representing the deferred computation.
+   * @return A new {@code IO<A>} instance representing the deferred computation. Never null.
    * @throws NullPointerException if {@code thunk} is null.
    */
   static <A> IO<A> delay(Supplier<A> thunk) {
-    requireNonNullFunction(thunk, "Supplier (thunk)");
+    FunctionValidator.requireFunction(thunk, "thunk", IO.class, DELAY);
     return thunk::get;
   }
 
@@ -124,12 +126,12 @@ public interface IO<A> {
    *     value of type {@code A} and returns a value of type {@code B}.
    * @param <B> The type of the value produced by the mapping function and thus by the new {@code
    *     IO}.
-   * @return A new {@code @NonNull IO<B>} that, when run, will execute this {@code IO}'s computation
-   *     and then apply the mapping function {@code f} to its result.
+   * @return A new {@code IO<B>} that, when run, will execute this {@code IO}'s computation and then
+   *     apply the mapping function {@code f} to its result. Never null.
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> IO<B> map(Function<? super A, ? extends B> f) {
-    requireNonNullFunction(f, "mapper function");
+    FunctionValidator.requireMapper(f, IO.class, MAP);
     return IO.delay(() -> f.apply(this.unsafeRunSync()));
   }
 
@@ -150,13 +152,13 @@ public interface IO<A> {
    *     A}) and returns a new {@code IO<B>} representing the next computation. The {@code IO}
    *     returned by this function must not be null.
    * @param <B> The type of the value produced by the {@code IO} returned by function {@code f}.
-   * @return A new {@code @NonNull IO<B>} that, when run, will execute this {@code IO}'s
-   *     computation, apply function {@code f} to its result to get a new {@code IO}, and then
-   *     execute that new {@code IO}.
+   * @return A new {@code IO<B>} that, when run, will execute this {@code IO}'s computation, apply
+   *     function {@code f} to its result to get a new {@code IO}, and then execute that new {@code
+   *     IO}. Never null.
    * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
    */
   default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
-    requireNonNullFunction(f, "flatMap mapper function");
+    FunctionValidator.requireFlatMapper(f, "IO.flatMap");
     return IO.delay(
         () -> {
           A a = this.unsafeRunSync();

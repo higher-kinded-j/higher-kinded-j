@@ -2,11 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.DomainValidator;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Represents the Reader Transformer Monad, {@code ReaderT<F, R, A>}. It wraps a computation that
@@ -37,6 +40,8 @@ import org.higherkindedj.hkt.Monad;
 public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
     implements ReaderTKind<F, R_ENV, A> {
 
+  private static final Class<ReaderT> READER_T_CLASS = ReaderT.class;
+
   /**
    * Constructs a new {@link ReaderT}. The {@code run} function is the core of the {@code ReaderT},
    * defining how to produce a monadic value {@code Kind<F, A>} from an environment {@code R_ENV}.
@@ -44,8 +49,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @param run The function {@code R_ENV -> Kind<F, A>}. Must not be null.
    * @throws NullPointerException if {@code run} is null.
    */
-  public ReaderT { // Canonical constructor
-    requireNonNullForHolder(run, "ReaderT");
+  public ReaderT {
+    FunctionValidator.requireFunction(run, "run", READER_T_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -60,7 +65,6 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code runFunction} is null.
    */
   public static <F, R_ENV, A> ReaderT<F, R_ENV, A> of(Function<R_ENV, Kind<F, A>> runFunction) {
-    // Validation will be handled by the constructor
     return new ReaderT<>(runFunction);
   }
 
@@ -77,11 +81,9 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @return A new {@link ReaderT} that wraps {@code fa}. Never null.
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
-  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> lift(Monad<F> outerMonad, Kind<F, A> fa) {
-    requireValidOuterMonad(outerMonad, "lift");
-    requireNonNullKind(fa, "fa for lift");
-    // Note: We don't need to validate fa here as it will be used directly in the function
-    // and any issues will surface when the ReaderT is run
+  public static <F, R_ENV, A> ReaderT<F, R_ENV, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
+    DomainValidator.requireOuterMonad(outerMonad, READER_T_CLASS, LIFT_F);
+    KindValidator.requireNonNull(fa, READER_T_CLASS, LIFT_F, "source Kind");
     return new ReaderT<>(r -> fa);
   }
 
@@ -100,8 +102,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    */
   public static <F, R_ENV, A> ReaderT<F, R_ENV, A> reader(
       Monad<F> outerMonad, Function<R_ENV, A> f) {
-    requireValidOuterMonad(outerMonad, "reader");
-    requireNonNullFunction(f, "function f for reader");
+    DomainValidator.requireOuterMonad(outerMonad, READER_T_CLASS, READER);
+    FunctionValidator.requireFunction(f, "environment function", READER_T_CLASS, READER);
     return new ReaderT<>(r -> outerMonad.of(f.apply(r)));
   }
 
@@ -116,7 +118,7 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, R_ENV> ReaderT<F, R_ENV, R_ENV> ask(Monad<F> outerMonad) {
-    requireValidOuterMonad(outerMonad, "ask");
+    DomainValidator.requireOuterMonad(outerMonad, READER_T_CLASS, ASK);
     return new ReaderT<>(r -> outerMonad.of(r));
   }
 

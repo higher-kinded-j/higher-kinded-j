@@ -3,13 +3,16 @@
 package org.higherkindedj.hkt.either_t;
 
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.util.validation.DomainValidator;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -31,6 +34,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>, L> {
 
+  private static final Class<EitherTMonad> EITHER_T_MONAD_CLASS = EitherTMonad.class;
   private final Monad<F> outerMonad;
 
   /**
@@ -40,7 +44,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public EitherTMonad(Monad<F> outerMonad) {
-    this.outerMonad = requireValidOuterMonad(outerMonad, "EitherTMonad");
+    this.outerMonad =
+        DomainValidator.requireOuterMonad(outerMonad, EITHER_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -76,8 +81,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
   public <R_IN, R_OUT> Kind<EitherTKind.Witness<F, L>, R_OUT> map(
       Function<? super R_IN, ? extends R_OUT> f, Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
 
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+    FunctionValidator.requireMapper(f, EITHER_T_MONAD_CLASS, MAP);
+    KindValidator.requireNonNull(fa, EITHER_T_MONAD_CLASS, MAP);
 
     EitherT<F, L, R_IN> eitherT = EITHER_T.narrow(fa);
     Kind<F, Either<L, R_OUT>> newValue = outerMonad.map(either -> either.map(f), eitherT.value());
@@ -104,8 +109,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
       Kind<EitherTKind.Witness<F, L>, ? extends Function<R_IN, R_OUT>> ff,
       Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    KindValidator.requireNonNull(ff, EITHER_T_MONAD_CLASS, AP, "function");
+    KindValidator.requireNonNull(fa, EITHER_T_MONAD_CLASS, AP, "argument");
 
     EitherT<F, L, ? extends Function<R_IN, R_OUT>> funcT = EITHER_T.narrow(ff);
     EitherT<F, L, R_IN> valT = EITHER_T.narrow(fa);
@@ -142,8 +147,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
       Function<? super R_IN, ? extends Kind<EitherTKind.Witness<F, L>, R_OUT>> f,
       Kind<EitherTKind.Witness<F, L>, R_IN> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+    FunctionValidator.requireFlatMapper(f, EITHER_T_MONAD_CLASS, FLAT_MAP);
+    KindValidator.requireNonNull(ma, EITHER_T_MONAD_CLASS, FLAT_MAP);
 
     EitherT<F, L, R_IN> eitherT_ma = EITHER_T.narrow(ma);
 
@@ -153,6 +158,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
               if (innerEither.isRight()) {
                 R_IN r_in = innerEither.getRight();
                 Kind<EitherTKind.Witness<F, L>, R_OUT> resultKindT = f.apply(r_in);
+                FunctionValidator.requireNonNullResult(resultKindT, EITHER_T_MONAD_CLASS, FLAT_MAP);
                 EitherT<F, L, R_OUT> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R_OUT>>
               } else {
@@ -179,6 +185,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    */
   @Override
   public <R> Kind<EitherTKind.Witness<F, L>, R> raiseError(@Nullable L error) {
+    // Either allows null error values - no validation needed
     EitherT<F, L, R> concreteEitherT = EitherT.left(outerMonad, error);
     return EITHER_T.widen(concreteEitherT);
   }
@@ -205,8 +212,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
       Kind<EitherTKind.Witness<F, L>, R> ma,
       Function<? super L, ? extends Kind<EitherTKind.Witness<F, L>, R>> handler) {
 
-    requireNonNullKind(ma, "source Kind for handleErrorWith");
-    requireNonNullFunction(handler, "handler function for handleErrorWith");
+    KindValidator.requireNonNull(ma, EITHER_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    FunctionValidator.requireFunction(handler, "handler", EITHER_T_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     EitherT<F, L, R> eitherT_ma = EITHER_T.narrow(ma);
 
@@ -218,6 +225,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
               } else {
                 L leftVal = innerEither.getLeft();
                 Kind<EitherTKind.Witness<F, L>, R> resultKindT = handler.apply(leftVal);
+                FunctionValidator.requireNonNullResult(
+                    resultKindT, HANDLE_ERROR_WITH, EitherT.class);
                 EitherT<F, L, R> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R>>
               }

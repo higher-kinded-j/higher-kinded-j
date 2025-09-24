@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.validated.Validated.INVALID_ERROR_CANNOT_BE_NULL_MSG;
 
 import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
@@ -31,7 +30,7 @@ class ValidatedTest {
       // Assuming the NPE originates from the Valid constructor's check
       assertThatNullPointerException()
           .isThrownBy(() -> Validated.valid(null))
-          .withMessage(Validated.VALID_VALUE_CANNOT_BE_NULL_MSG);
+          .withMessage("Validated.VALID_VALUE_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -49,7 +48,7 @@ class ValidatedTest {
       // Assuming the NPE originates from the Invalid constructor's check
       assertThatNullPointerException()
           .isThrownBy(() -> Validated.invalid(null))
-          .withMessage(INVALID_ERROR_CANNOT_BE_NULL_MSG);
+          .withMessage("INVALID_ERROR_CANNOT_BE_NULL_MSG");
     }
   }
 

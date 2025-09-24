@@ -47,12 +47,13 @@ public class ReaderTExample {
     //    Lifts an existing monadic value `Kind<F, A>` into ReaderT.
     //    The resulting ReaderT ignores the environment R and always returns `fa`.
     Kind<OptionalKind.Witness, Integer> optionalValue = OPTIONAL.widen(Optional.of(123));
-    ReaderT<OptionalKind.Witness, Config, Integer> rt2 = ReaderT.lift(optMonad, optionalValue);
+    ReaderT<OptionalKind.Witness, Config, Integer> rt2 = ReaderT.liftF(optMonad, optionalValue);
     // To run: OPTIONAL.narrow(rt2.run().apply(testConfig)) is Optional.of(123)
     System.out.println(OPTIONAL.narrow(rt2.run().apply(testConfig)));
 
     Kind<OptionalKind.Witness, Integer> emptyOptional = OPTIONAL.widen(Optional.empty());
-    ReaderT<OptionalKind.Witness, Config, Integer> rt2Empty = ReaderT.lift(optMonad, emptyOptional);
+    ReaderT<OptionalKind.Witness, Config, Integer> rt2Empty =
+        ReaderT.liftF(optMonad, emptyOptional);
     // To run: OPTIONAL.narrow(rt2Empty.run().apply(testConfig)) is Optional.empty()
 
     // 3. `ReaderT.reader(Monad<F> outerMonad, Function<R, A> f)`

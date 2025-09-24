@@ -3,12 +3,13 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -24,6 +25,8 @@ import org.jspecify.annotations.Nullable;
  * @see MaybeKind.Witness
  */
 public class MaybeFunctor implements Functor<MaybeKind.Witness> {
+
+  private static final Class<MaybeFunctor> MAYBE_FUNCTOR_CLASS = MaybeFunctor.class;
 
   /**
    * Applies a function to the value contained within a {@link MaybeKind} if it is a {@link Just},
@@ -46,20 +49,20 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
    * @return A new {@code MaybeKind<B>} containing the result of applying the function {@code f} if
    *     {@code ma} contained a value and {@code f} produced a non-null result. Returns a {@code
    *     MaybeKind} representing {@code Nothing} if {@code ma} was {@code Nothing} or if {@code f}
-   *     returned {@code null}.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped.
+   *     returned {@code null}. Never null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
+   *     to a valid {@code Maybe} representation.
    */
   @Override
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
-    // 1. Unwrap the Kind<MaybeKind.Witness, A> to get the concrete Maybe<A>.
+
+    FunctionValidator.requireMapper(f, MAYBE_FUNCTOR_CLASS, MAP);
+    KindValidator.requireNonNull(fa, MAYBE_FUNCTOR_CLASS, MAP);
+
     Maybe<A> maybeA = MAYBE.narrow(fa);
-    // 2. Apply the function using Maybe's own map method.
-    //    Maybe.map handles the case where 'f' might return null by producing a Nothing.
     Maybe<B> resultMaybe = maybeA.map(f);
-    // 3. Wrap the resulting Maybe<B> back into MaybeKind<B>.
     return MAYBE.widen(resultMaybe);
   }
 }

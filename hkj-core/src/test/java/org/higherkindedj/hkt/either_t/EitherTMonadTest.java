@@ -17,7 +17,6 @@ import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.ErrorHandling;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -215,7 +214,7 @@ class EitherTMonadTest {
       // This happens inside the `eitherTMonad.ap` call.
       assertThatThrownBy(() -> eitherTMonad.ap(ff, fa))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(ErrorHandling.NULL_FUNCTION_MSG.formatted("mapper"));
+          .hasMessage("function f for map cannot be null");
     }
 
     // Test 2 from user's failing stack traces - Corrected Assertion

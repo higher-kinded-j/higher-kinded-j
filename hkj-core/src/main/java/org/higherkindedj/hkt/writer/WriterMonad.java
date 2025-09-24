@@ -2,13 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Monad} interface for the {@link Writer} type. This provides the full
@@ -28,6 +30,8 @@ import org.higherkindedj.hkt.Monoid;
  * @see WriterKindHelper
  */
 public class WriterMonad<W> extends WriterApplicative<W> implements Monad<WriterKind.Witness<W>> {
+
+  private static Class<WriterMonad> WRITER_MAONAD_CLASS = WriterMonad.class;
 
   /**
    * Constructs a {@code WriterMonad}.
@@ -58,16 +62,16 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
    * @return A {@code Kind<WriterKind.Witness<W>, B>} representing the composed {@code Writer<W,
    *     B>}. Never null.
    * @throws NullPointerException if {@code f} or {@code ma} is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
-   *     to a valid {@code Writer} representation.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} cannot be unwrapped to a valid {@code Writer} representation.
    */
   @Override
   public <A, B> Kind<WriterKind.Witness<W>, B> flatMap(
       Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
       Kind<WriterKind.Witness<W>, A> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+    FunctionValidator.requireFlatMapper(f, WRITER_MAONAD_CLASS, FLAT_MAP);
+    KindValidator.requireNonNull(ma, WRITER_MAONAD_CLASS, FLAT_MAP);
 
     Writer<W, A> writerA = WRITER.narrow(ma);
 
@@ -78,6 +82,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
             this.monoidW,
             a -> {
               Kind<WriterKind.Witness<W>, B> kindB = f.apply(a);
+              FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, Writer.class);
               return WRITER.narrow(kindB);
             });
 

@@ -2,12 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.util.validation.DomainValidator;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Operation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -20,11 +24,11 @@ import org.jspecify.annotations.Nullable;
 public enum StateTKindHelper implements StateTConverterOps {
   STATE_T;
 
-  public static final String TYPE_NAME = "StateT";
+  private static final Class<StateT> STATE_T_CLASS = StateT.class;
 
   /**
    * Widens a concrete {@link StateT} instance into its higher-kinded representation, {@code
-   * Kind<StateTKind.Witness<S, F>, A>}. Implements {@link StateTConverterOps#widen}.
+   * Kind<StateTKind.Witness<S, F>, A>}.
    *
    * <p>Since {@link StateT} already implements {@link StateTKind}, this method primarily serves as
    * a type-safe upcast.
@@ -38,13 +42,13 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   @Override
   public <S, F, A> Kind<StateTKind.Witness<S, F>, A> widen(StateT<S, F, A> stateT) {
-    requireNonNullForWiden(stateT, TYPE_NAME);
+    KindValidator.requireForWiden(stateT, STATE_T_CLASS);
     return stateT;
   }
 
   /**
    * Narrows a higher-kinded representation {@code Kind<StateTKind.Witness<S, F>, A>} back to a
-   * concrete {@link StateT} instance. Implements {@link StateTConverterOps#narrow}.
+   * concrete {@link StateT} instance.
    *
    * @param kind The {@link Kind} instance to narrow. Can be null.
    * @param <S> The state type.
@@ -56,7 +60,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   @Override
   public <S, F, A> StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
-    return narrowKindWithTypeCheck(kind, StateT.class, TYPE_NAME);
+    return KindValidator.narrowWithTypeCheck(kind, STATE_T_CLASS);
   }
 
   /**
@@ -72,8 +76,8 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   public <S, F, A> StateT<S, F, A> stateT(
       Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
-    requireNonNullFunction(runStateTFn, "runStateTFn for stateT");
-    requireValidOuterMonad(monadF, "stateT");
+    FunctionValidator.requireFunction(runStateTFn, "runStateTFn", STATE_T_CLASS, Operation.STATE_T);
+    DomainValidator.requireOuterMonad(monadF, STATE_T_CLASS, Operation.STATE_T);
     return StateT.create(runStateTFn, monadF);
   }
 
@@ -89,9 +93,9 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @return A new, non-null {@link StateT} instance wrapping the lifted computation.
    * @throws NullPointerException if {@code monadF} or {@code fa} is null.
    */
-  public <S, F, A> StateT<S, F, A> lift(Monad<F> monadF, Kind<F, A> fa) {
-    requireValidOuterMonad(monadF, "lift");
-    requireNonNullKind(fa, "Kind fa for lift");
+  public <S, F, A> StateT<S, F, A> liftF(Monad<F> monadF, Kind<F, A> fa) {
+    DomainValidator.requireOuterMonad(monadF, STATE_T_CLASS, LIFT_F);
+    KindValidator.requireNonNull(fa, STATE_T_CLASS, LIFT_F, "source Kind");
 
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.map(a -> StateTuple.of(s, a), fa);
     return stateT(runFn, monadF);
@@ -114,8 +118,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    */
   public <S, F, A> Kind<F, StateTuple<S, A>> runStateT(
       Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    requireNonNullKind(kind, "Kind for runStateT");
-    // Note: initialState validation is handled by StateTuple constructor if needed
+    KindValidator.requireNonNull(kind, STATE_T_CLASS, RUN_STATE_T);
     return this.narrow(kind).runStateT(initialState);
   }
 
@@ -133,7 +136,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @throws NullPointerException if {@code kind} is null.
    */
   public <S, F, A> Kind<F, A> evalStateT(Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    requireNonNullKind(kind, "Kind for evalStateT");
+    KindValidator.requireNonNull(kind, STATE_T_CLASS, EVAL_STATE_T);
     return this.narrow(kind).evalStateT(initialState);
   }
 
@@ -151,7 +154,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @throws NullPointerException if {@code kind} is null.
    */
   public <S, F, A> Kind<F, S> execStateT(Kind<StateTKind.Witness<S, F>, A> kind, S initialState) {
-    requireNonNullKind(kind, "Kind for execStateT");
+    KindValidator.requireNonNull(kind, STATE_T_CLASS, EXEC_STATE_T);
     return this.narrow(kind).execStateT(initialState);
   }
 }

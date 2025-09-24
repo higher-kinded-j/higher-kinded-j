@@ -69,8 +69,10 @@ class ReaderTTest {
       Kind<OptionalKind.Witness, Integer> outerValue = OPTIONAL.widen(Optional.of(123));
       Kind<OptionalKind.Witness, Integer> outerEmpty = OPTIONAL.widen(Optional.empty());
 
-      ReaderT<OptionalKind.Witness, Config, Integer> rtValue = ReaderT.lift(outerMonad, outerValue);
-      ReaderT<OptionalKind.Witness, Config, Integer> rtEmpty = ReaderT.lift(outerMonad, outerEmpty);
+      ReaderT<OptionalKind.Witness, Config, Integer> rtValue =
+          ReaderT.liftF(outerMonad, outerValue);
+      ReaderT<OptionalKind.Witness, Config, Integer> rtEmpty =
+          ReaderT.liftF(outerMonad, outerEmpty);
 
       assertThat(rtValue.run().apply(testConfig1)).isSameAs(outerValue);
       assertThat(rtValue.run().apply(testConfig2)).isSameAs(outerValue);
@@ -86,10 +88,10 @@ class ReaderTTest {
     void lift_throwsOnNulls() {
       Kind<OptionalKind.Witness, Integer> outerValue = OPTIONAL.widen(Optional.of(123));
       assertThatNullPointerException()
-          .isThrownBy(() -> ReaderT.lift(null, outerValue))
+          .isThrownBy(() -> ReaderT.liftF(null, outerValue))
           .withMessageContaining("Outer Monad cannot be null");
       assertThatNullPointerException()
-          .isThrownBy(() -> ReaderT.lift(outerMonad, null))
+          .isThrownBy(() -> ReaderT.liftF(outerMonad, null))
           .withMessageContaining("fa for lift cannot be null");
     }
 

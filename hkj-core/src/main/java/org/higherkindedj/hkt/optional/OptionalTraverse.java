@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Traverse} and Foldable type classes for {@link java.util.Optional}, using
@@ -40,8 +42,11 @@ import org.higherkindedj.hkt.Traverse;
  * @see org.higherkindedj.hkt.Foldable
  */
 public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
+
   /** Singleton instance of {@code OptionalTraverse}. */
   INSTANCE;
+
+  private static final Class<OptionalTraverse> OPTIONAL_TRAVERSE_CLASS = OptionalTraverse.class;
 
   /**
    * Maps a function over the value contained within an {@code OptionalKind} context, if a value is
@@ -70,8 +75,9 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   @Override
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<OptionalKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "Kind fa for map");
+
+    FunctionValidator.requireMapper(f, OPTIONAL_TRAVERSE_CLASS, MAP);
+    KindValidator.requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, MAP);
 
     return OPTIONAL.widen(OPTIONAL.narrow(fa).map(f));
   }
@@ -110,6 +116,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
    *     Kind<G, B>}. Must not be null.
    * @param ta The {@code Kind<OptionalKind.Witness, A>} to traverse. Must not be null.
    * @return A {@code Kind<G, Kind<OptionalKind.Witness, B>>} representing the traversed structure.
+   *     Never null.
    * @throws NullPointerException if {@code applicative}, {@code f}, or {@code ta} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ta} is not a valid {@code
    *     OptionalKind} representation.
@@ -120,9 +127,9 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<OptionalKind.Witness, A> ta) {
 
-    requireNonNullFunction(applicative, "applicative for traverse");
-    requireNonNullFunction(f, "function f for traverse");
-    requireNonNullKind(ta, "Kind ta for traverse");
+    FunctionValidator.requireApplicative(applicative, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireMapper(f, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    KindValidator.requireNonNull(ta, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
 
     return OPTIONAL
         .narrow(ta)
@@ -162,7 +169,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
    *     of type {@code M}. Must not be null.
    * @param fa The {@code Kind<OptionalKind.Witness, A>} to fold. Must not be null.
    * @return A value of type {@code M}: either {@code f(value)} if the optional contains a value, or
-   *     {@code monoid.empty()} if the optional is empty.
+   *     {@code monoid.empty()} if the optional is empty. Never null.
    * @throws NullPointerException if {@code monoid}, {@code f}, or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
    *     OptionalKind} representation.
@@ -170,9 +177,10 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   @Override
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<OptionalKind.Witness, A> fa) {
-    requireNonNullFunction(monoid, "monoid for foldMap");
-    requireNonNullFunction(f, "function f for foldMap");
-    requireNonNullKind(fa, "Kind fa for foldMap");
+
+    FunctionValidator.requireMonoid(monoid, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMapper(f, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    KindValidator.requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
 
     Optional<A> optional = OPTIONAL.narrow(fa);
     // If present, map the value. If empty, return the monoid's empty value.

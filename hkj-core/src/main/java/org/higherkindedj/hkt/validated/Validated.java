@@ -2,13 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.FOLD;
+
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
 
 /**
  * Represents a value that is either Valid (correct) or Invalid (erroneous). This is a sealed
@@ -24,11 +28,7 @@ import org.higherkindedj.hkt.either.Either;
  */
 public sealed interface Validated<E, A> permits Valid, Invalid {
 
-  // --- Message Constants ---
-  String VALID_VALUE_CANNOT_BE_NULL_MSG = "Valid value cannot be null";
-  String INVALID_ERROR_CANNOT_BE_NULL_MSG = "Invalid error cannot be null";
-  String FOLD_INVALID_MAPPER_CANNOT_BE_NULL_MSG = "invalidMapper cannot be null";
-  String FOLD_VALID_MAPPER_CANNOT_BE_NULL_MSG = "validMapper cannot be null";
+  Class<Validated> VALIDATED_CLASS = Validated.class;
 
   /**
    * Checks if this is a {@code Valid} instance.
@@ -156,8 +156,8 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
   default <T> T fold(
       Function<? super E, ? extends T> invalidMapper,
       Function<? super A, ? extends T> validMapper) {
-    Objects.requireNonNull(invalidMapper, FOLD_INVALID_MAPPER_CANNOT_BE_NULL_MSG);
-    Objects.requireNonNull(validMapper, FOLD_VALID_MAPPER_CANNOT_BE_NULL_MSG);
+    FunctionValidator.requireFunction(invalidMapper, "invalidMapper", VALIDATED_CLASS, FOLD);
+    FunctionValidator.requireFunction(validMapper, "validMapper", VALIDATED_CLASS, FOLD);
     if (isInvalid()) {
       return invalidMapper.apply(getError());
     } else {
@@ -187,7 +187,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @throws NullPointerException if value is null.
    */
   static <E, A> Validated<E, A> valid(A value) {
-    Objects.requireNonNull(value, VALID_VALUE_CANNOT_BE_NULL_MSG);
+    CoreTypeValidator.requireValue(value, VALIDATED_CLASS, CONSTRUCTION);
     return new Valid<>(value);
   }
 
@@ -201,7 +201,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @throws NullPointerException if error is null.
    */
   static <E, A> Validated<E, A> invalid(E error) {
-    Objects.requireNonNull(error, INVALID_ERROR_CANNOT_BE_NULL_MSG);
+    CoreTypeValidator.requireError(error, VALIDATED_CLASS);
     return new Invalid<>(error);
   }
 }

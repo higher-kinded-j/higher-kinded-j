@@ -2,11 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
+import org.higherkindedj.hkt.util.validation.DomainValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Represents the concrete implementation of the Maybe Transformer Monad (MaybeT). It wraps a
@@ -26,7 +29,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  */
 public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> {
 
-  public static final String TYPE_NAME = "MaybeT";
+  private static final Class<MaybeT> MAYBE_T_CLASS = MaybeT.class;
 
   /**
    * Canonical constructor for {@code MaybeT}.
@@ -34,8 +37,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @param value The underlying monadic value {@code Kind<F, Maybe<A>>}.
    * @throws NullPointerException if {@code value} is null.
    */
-  public MaybeT { // Canonical constructor
-    requireNonNullForHolder(value, TYPE_NAME);
+  public MaybeT {
+    CoreTypeValidator.requireValue(value, MAYBE_T_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -62,7 +65,7 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
   public static <F, A extends Object> MaybeT<F, A> just(Monad<F> outerMonad, A a) {
-    requireValidOuterMonad(outerMonad, "MaybeT.just");
+    DomainValidator.requireOuterMonad(outerMonad, MAYBE_T_CLASS, JUST);
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.just(a));
     return new MaybeT<>(lifted);
   }
@@ -78,7 +81,7 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, A> MaybeT<F, A> nothing(Monad<F> outerMonad) {
-    requireValidOuterMonad(outerMonad, "MaybeT.nothing");
+    DomainValidator.requireOuterMonad(outerMonad, MAYBE_T_CLASS, NONE);
     Kind<F, Maybe<A>> lifted = outerMonad.of(Maybe.nothing());
     return new MaybeT<>(lifted);
   }
@@ -94,8 +97,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @throws NullPointerException if {@code outerMonad} or {@code maybe} is null.
    */
   public static <F, A> MaybeT<F, A> fromMaybe(Monad<F> outerMonad, Maybe<A> maybe) {
-    requireValidOuterMonad(outerMonad, "MaybeT.fromMaybe");
-    requireNonNullForWiden(maybe, "Maybe");
+    DomainValidator.requireOuterMonad(outerMonad, MAYBE_T_CLASS, FROM_MAYBE);
+    DomainValidator.requireTransformerComponent(maybe, "inner Maybe", MAYBE_T_CLASS, FROM_MAYBE);
     Kind<F, Maybe<A>> lifted = outerMonad.of(maybe);
     return new MaybeT<>(lifted);
   }
@@ -114,8 +117,8 @@ public record MaybeT<F, A>(Kind<F, Maybe<A>> value) implements MaybeTKind<F, A> 
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, A> MaybeT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
-    requireValidOuterMonad(outerMonad, "MaybeT.liftF");
-    requireNonNullKind(fa, "Kind<F, A> for liftF");
+    DomainValidator.requireOuterMonad(outerMonad, MAYBE_T_CLASS, LIFT_F);
+    KindValidator.requireNonNull(fa, MAYBE_T_CLASS, LIFT_F, "source Kind");
     Kind<F, Maybe<A>> mapped = outerMonad.map(Maybe::fromNullable, fa);
     return new MaybeT<>(mapped);
   }

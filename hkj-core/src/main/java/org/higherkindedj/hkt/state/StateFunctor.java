@@ -3,12 +3,13 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.jspecify.annotations.Nullable;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Functor} type class for {@link StateKind}{@code <S, A>}, allowing the
@@ -29,6 +30,8 @@ import org.jspecify.annotations.Nullable;
  */
 public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
 
+  private static Class<StateFunctor> STATE_FUNCTOR_CLASS = StateFunctor.class;
+
   /**
    * Applies a function {@code f} to the computed value of a {@link State}{@code <S, A>}
    * computation, transforming it into a {@link State}{@code <S, B>} computation.
@@ -48,31 +51,24 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
    * @param <B> The type of the value in the resulting {@code State} computation (and its {@link
    *     Kind} representation) after applying the function {@code f}.
    * @param f The non-null function to apply to the computed value of the {@code State} computation.
-   *     It transforms a value of type {@code A} to a value of type {@code B}. If {@code B} can be
-   *     {@code null}, then the {@code Function<A, @Nullable B>} signature should reflect that.
-   *     Given {@code State.map(Function<A,B>)}, if {@code B} can be null, use {@code @Nullable B}.
-   * @param fa The {@code Kind<StateKind.Witness, A>} which represents the input {@link State}{@code
-   *     <S, A>} computation. Must not be {@code null}.
-   * @return A new non-null {@code Kind<StateKind.Witness, B>} representing the transformed {@link
-   *     State}{@code <S, B>} computation.
+   *     It transforms a value of type {@code A} to a value of type {@code B}.
+   * @param fa The {@code Kind<StateKind.Witness<S>, A>} which represents the input {@link
+   *     State}{@code <S, A>} computation. Must not be {@code null}.
+   * @return A new non-null {@code Kind<StateKind.Witness<S>, B>} representing the transformed
+   *     {@link State}{@code <S, B>} computation.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
    *     to a valid {@code State} representation.
    * @throws NullPointerException if {@code f} or {@code fa} is {@code null}.
    */
   @Override
   public <A, B> Kind<StateKind.Witness<S>, B> map(
-      Function<? super A, ? extends @Nullable B> f, Kind<StateKind.Witness<S>, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+      Function<? super A, ? extends B> f, Kind<StateKind.Witness<S>, A> fa) {
 
-    // 1. Unwrap the Kind to get the concrete State<S, A>.
-    //    The type S is bound to this StateFunctor instance.
+    FunctionValidator.requireMapper(f, STATE_FUNCTOR_CLASS, MAP);
+    KindValidator.requireNonNull(fa, STATE_FUNCTOR_CLASS, MAP);
+
     State<S, A> stateA = STATE.narrow(fa);
-
-    // 2. Apply the function using State's own map method.
     State<S, B> stateB = stateA.map(f);
-
-    // 3. Wrap the resulting State<S, B> back into a Kind.
     return STATE.widen(stateB);
   }
 }

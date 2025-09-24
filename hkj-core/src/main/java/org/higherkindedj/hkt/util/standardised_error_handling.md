@@ -1,467 +1,339 @@
-# Best Practices for Standardized Error Handling in Higher-Kinded-J
+# Standardized Validation Patterns for Higher-Kinded-J
 
 ## Overview
+This document describes the standardized approach for error handling and validation across Higher-Kinded-J. The pattern uses context objects and specialized validators to provide consistent, type-safe validation with clear error messages.
+Core Philosophy
 
-This document outlines best practices for using the standardized error handling utilities provided by `ErrorHandling.java` to ensure consistency, maintainability, and robustness across the Higher-Kinded-J library.
+Separation of Concerns: Validation logic is separated from business logic
+Context-Aware Messaging: Error messages include relevant context automatically
+Type Safety: Validators are type-safe and prevent common mistakes
+Scalability: Pattern scales easily to new typeclasses and operations
+Consistency: All typeclass implementations follow the same patterns
 
-## Core Principles
+## Architecture
+### Validation Contexts
+Context objects carry semantic information about what is being validated. They implement the ValidationContext interface and provide standardized error messages.
+Available Contexts
 
-### 1. Fail-Fast with Clear Messages
-Always validate inputs immediately and provide descriptive error messages that help developers understand what went wrong and how to fix it.
-
-### 2. Use Standardized Templates
-Prefer standardized error message templates over custom messages to ensure consistency across the library.
-
-### 3. Centralize Common Patterns
-Use the utility methods in `ErrorHandling` rather than implementing validation logic inline.
-
-## Common Patterns and Their Standardized Equivalents
-
-### Pattern 1: Null Parameter Validation
-
-**❌ Don't do this:**
 ```java
-public <A, B> Kind<F, B> map(Function<A, B> f, Kind<F, A> fa) {
-    Objects.requireNonNull(f, "Function f cannot be null for map");
-    Objects.requireNonNull(fa, "Kind fa cannot be null for map");
-    // ... rest of implementation
-}
+// For Kind operations (widen/narrow)
+KindContext.narrow(CompletableFuture.class)
+KindContext.widen(CompletableFuture.class)
+
+// For function parameters in monad operations
+FunctionContext.mapper("map")
+FunctionContext.flatMapper("flatMap")
+FunctionContext.applicative("traverse")
+
+// For collection validations
+CollectionContext.collection("parameterName")
+CollectionContext.array("parameterName")
+
+// For condition/range validations
+ConditionContext.range("parameterName")
+ConditionContext.custom("parameterName", "description")
+
+// For domain-specific validations
+DomainContext.transformer("transformerName")
+DomainContext.witness("operation")
 ```
+### Specialized Validators
+Each validator handles a specific category of validation with appropriate error messaging:
 
-**✅ Do this instead:**
+- KindValidator: Kind operations (widen/narrow/typecheck)
+- FunctionValidator: Function parameters in monad operations
+- CollectionValidator: Collection and array validations
+- ConditionValidator: Conditional logic and range checks
+- DomainValidator: Domain-specific validations (transformers, witnesses)
+- ExceptionValidator: Exception wrapping and context preservation
+- CompositeValidator: Complex multi-step validations
+- TextValidator: String and text-based validations
+- NumericValidator: Numeric constraint validations
+- CoreTypeValidator: Validate the core type's own operations and constructors
+
+## Standard Implementation Patterns
+### Pattern 1: KindHelper Implementation
+All KindHelper classes follow this standardised structure:
 ```java
-public <A, B> Kind<F, B> map(Function<A, B> f, Kind<F, A> fa) {
-    requireNonNullFunction(f, "function f");
-    requireNonNullKind(fa, "Kind fa");
-    // ... rest of implementation
-}
-```
+public enum TypeKindHelper implements TypeConverterOps {
+    INSTANCE; // or descriptive name like EITHER, FUTURE, MAYBE, LAZY
 
-### Pattern 2: Kind Narrowing
+    private static final Class<ConcreteType> TYPE = ConcreteType.class;
 
-**❌ Don't do this:**
-```java
-@Override
-public <A> ConcreteType<A> narrow(Kind<Witness, A> kind) {
-    if (kind == null) {
-        throw new KindUnwrapException("Cannot narrow null Kind for ConcreteType");
+    // Internal holder record (for types that need holders)
+    record TypeHolder<A>(ConcreteType<A> value) implements TypeKind<A> {
+        TypeHolder {
+            KindValidator.requireForWiden(value, TYPE);
+        }
     }
-    if (!(kind instanceof ConcreteType)) {
-        throw new KindUnwrapException("Kind instance is not a ConcreteType: " + kind.getClass().getName());
+
+    @Override
+    public <A> Kind<TypeKind.Witness, A> widen(ConcreteType<A> value) {
+        return new TypeHolder<>(value);
     }
-    return (ConcreteType<A>) kind;
-}
-```
 
-**✅ Do this instead:**
-```java
-@Override
-public <A> ConcreteType<A> narrow(Kind<Witness, A> kind) {
-    return narrowKindWithTypeCheck(kind, ConcreteType.class, "ConcreteType");
-}
-```
+    @Override
+    public <A> ConcreteType<A> narrow(@Nullable Kind<TypeKind.Witness, A> kind) {
+        return KindValidator.narrow(kind, TYPE, this::extractValue);
+    }
 
-### Pattern 3: Complex Narrowing with Switch
-
-**❌ Don't do this:**
-```java
-private <A> ConcreteType<A> extractFromKind(Kind<Witness, A> kind) {
-    return switch (kind) {
-        case ConcreteTypeHolder<A> holder -> holder.value();
-        default -> throw new ClassCastException("Unexpected Kind type: " + kind.getClass());
-    };
-}
-```
-
-**✅ Do this instead:**
-```java
-// Simple type check and cast
-return narrowKindWithTypeCheck(kind, ConcreteType.class, TYPE_NAME);
-
-// Complex extraction with switch/pattern matching
-return narrowKind(kind, TYPE_NAME, this::extractFromKind);
-
-private <A> ConcreteType<A> extractFromKind(Kind<Witness, A> kind) {
-    return switch (kind) {
-        case ConcreteTypeHolder<A> holder -> holder.value();
-        default -> throw new ClassCastException(); // Caught and wrapped
-    };
-}
-```
-
-### Pattern 4: Holder Record Validation
-
-**❌ Don't do this:**
-```java
-record ConcreteTypeHolder<A>(ConcreteType<A> value) implements ConcreteTypeKind<A> {
-    ConcreteTypeHolder {
-        Objects.requireNonNull(value, "ConcreteType value cannot be null in holder");
+    private <A> ConcreteType<A> extractValue(Kind<TypeKind.Witness, A> kind) {
+        return switch (kind) {
+            case TypeHolder<A> holder -> holder.value();
+            default -> throw new ClassCastException(); // Caught by KindValidator
+        };
     }
 }
 ```
+#### Special Case - Direct Implementation (Validated):
+For types where the concrete type already implements the Kind interface (e.g., Id, MaybeT, EitherT):
 
-**✅ Do this instead:**
 ```java
-record ConcreteTypeHolder<A>(ConcreteType<A> value) implements ConcreteTypeKind<A> {
-    ConcreteTypeHolder {
-        requireNonNullForHolder(value, "ConcreteType");
+@Override
+public <A> Kind<TypeKind.Witness, A> widen(ConcreteType<A> value) {
+    KindValidator.requireForWiden(value, TYPE);
+    return value; // Direct cast since type implements Kind
+}
+
+@Override
+public <A> ConcreteType<A> narrow(@Nullable Kind<TypeKind.Witness, A> kind) {
+    return KindValidator.narrowWithTypeCheck(kind, TYPE);
+}
+```
+
+
+### Pattern 2: Functor Implementation
+```java
+public class TypeFunctor implements Functor<TypeKind.Witness> {
+
+    @Override
+    public <A, B> Kind<TypeKind.Witness, B> map(
+            Function<? super A, ? extends B> f,
+            Kind<TypeKind.Witness, A> fa) {
+
+        FunctionValidator.requireMapper(f, "map");
+        KindValidator.requireNonNull(fa, "map");
+
+        ConcreteType<A> concrete = HELPER.narrow(fa);
+        ConcreteType<B> result = concrete.map(f);
+        return HELPER.widen(result);
     }
 }
 ```
-
-### Pattern 5: Widen Operation Validation
-
-**❌ Don't do this:**
+### Pattern 3: Applicative Implementation
 ```java
-@Override
-public <A> Kind<Witness, A> widen(ConcreteType<A> value) {
-    Objects.requireNonNull(value, "Input ConcreteType cannot be null for widen");
-    return new ConcreteTypeHolder<>(value);
-}
-```
+public class TypeApplicative extends TypeFunctor
+        implements Applicative<TypeKind.Witness> {
 
-**✅ Do this instead:**
-```java
-@Override
-public <A> Kind<Witness, A> widen(ConcreteType<A> value) {
-    requireNonNullForWiden(value, TYPE_NAME);
-    return new ConcreteTypeHolder<>(value);
-}
-```
+    @Override
+    public <A> Kind<TypeKind.Witness, A> of(@Nullable A value) {
+        return HELPER.widen(ConcreteType.of(value));
+    }
 
-## Advanced Patterns
+    @Override
+    public <A, B> Kind<TypeKind.Witness, B> ap(
+            Kind<TypeKind.Witness, ? extends Function<A, B>> ff,
+            Kind<TypeKind.Witness, A> fa) {
 
-### Multiple Type Matching
+        KindValidator.requireNonNull(ff, "ap", "function");
+        KindValidator.requireNonNull(fa, "ap", "argument");
 
-For complex narrowing scenarios where multiple concrete types might be valid:
-
-```java
-@Override
-public <A> ConcreteType<A> narrow(Kind<Witness, A> kind) {
-    return narrowKindWithMatchers(kind, "ConcreteType",
-        TypeMatchers.forClassWithCast(ConcreteTypeV1.class),
-        TypeMatchers.forClassWithCast(ConcreteTypeV2.class),
-        TypeMatchers.forClass(LegacyType.class, this::convertFromLegacy)
-    );
-}
-```
-
-### Batch Validation
-
-For methods with multiple validation requirements:
-
-```java
-public <A, B, C> Result<A, B, C> complexOperation(A a, B b, C c) {
-    validateAll(
-        Validation.requireNonNull(a, "Parameter a cannot be null"),
-        Validation.requireNonNull(b, "Parameter b cannot be null"),
-        Validation.require(c != null && isValid(c), "Parameter c must be non-null and valid")
-    );
-    // ... rest of implementation
-}
-```
-
-### Exception Wrapping with Context
-
-When catching exceptions and providing additional context:
-
-```java
-private <A> ConcreteType<A> performComplexOperation(Kind<Witness, A> kind) {
-    try {
-        return doComplexWork(kind);
-    } catch (Exception e) {
-        throw wrapAsKindUnwrapException(e, "Failed to perform complex operation on Kind");
+        ConcreteType<? extends Function<A, B>> funcType = HELPER.narrow(ff);
+        ConcreteType<A> argType = HELPER.narrow(fa);
+        
+        ConcreteType<B> result = funcType.flatMap(argType::map);
+        return HELPER.widen(result);
     }
 }
 ```
 
-## Error Message Guidelines
-
-### Be Specific and Actionable
-
-**❌ Vague:**
+#### Pattern 4: Monad Implementation
 ```java
-throw new IllegalArgumentException("Invalid input");
-```
+public class TypeMonad extends TypeApplicative
+        implements Monad<TypeKind.Witness> {
 
-**✅ Specific:**
-```java
-requireNonNullFunction(mapper, "mapper function for flatMap");
-```
+    public static final TypeMonad INSTANCE = new TypeMonad();
 
-### Use Consistent Terminology
+    private TypeMonad() {
+        // Singleton pattern
+    }
 
-- "Kind" not "kind" or "wrapper"
-- "function" not "fn" or "func"
-- "parameter" not "param" or "arg"
+    @Override
+    public <A, B> Kind<TypeKind.Witness, B> flatMap(
+            Function<? super A, ? extends Kind<TypeKind.Witness, B>> f,
+            Kind<TypeKind.Witness, A> ma) {
 
-### Include Context When Helpful
+        FunctionValidator.requireFlatMapper(f, "flatMap");
+        KindValidator.requireNonNull(ma, "flatMap");
 
-**❌ No context:**
-```java
-requireNonNullKind(ma);
-```
-
-**✅ With context:**
-```java
-requireNonNullKind(ma, "source Kind for flatMap");
-```
-
-## Performance Considerations
-
-### Use Lazy Message Evaluation for Expensive Messages
-
-**❌ Eager evaluation:**
-```java
-throw new KindUnwrapException("Complex error: " + expensiveDebugInfo());
-```
-
-**✅ Lazy evaluation:**
-```java
-throwKindUnwrapException(lazyMessage("Complex error: %s", expensiveDebugInfo()));
-```
-
-### Avoid Repeated Validation
-
-**❌ Redundant validation:**
-```java
-public void method1(Kind<F, A> kind) {
-    requireNonNullKind(kind);
-    method2(kind);
-}
-
-public void method2(Kind<F, A> kind) {
-    requireNonNullKind(kind); // Redundant if called from method1
-    // ... implementation
+        ConcreteType<A> concrete = HELPER.narrow(ma);
+        ConcreteType<B> result = concrete.flatMap(a -> {
+            Kind<TypeKind.Witness, B> kindB = f.apply(a);
+            FunctionValidator.requireNonNullResult(kindB, "flatMap", ConcreteType.class);
+            return HELPER.narrow(kindB);
+        });
+        return HELPER.widen(result);
+    }
 }
 ```
 
-**✅ Single point of validation:**
+#### Pattern 5: MonadError Implementation
 ```java
-public void method1(Kind<F, A> kind) {
-    requireNonNullKind(kind);
-    method2Internal(kind); // Internal method assumes valid input
-}
+public class TypeMonad extends TypeApplicative
+        implements MonadError<TypeKind.Witness, ErrorType> {
 
-private void method2Internal(Kind<F, A> kind) {
-    // No validation needed - input guaranteed valid
-    // ... implementation
-}
-```
+    @Override
+    public <A> Kind<TypeKind.Witness, A> raiseError(@Nullable ErrorType error) {
+        // Validation strategy by error type:
+        // - Throwable: Always validate non-null
+        // - Unit: Never validate (singleton)
+        // - Others: Context-dependent validation
+        
+        if (error instanceof Throwable) {
+            FunctionValidator.requireFunction(error, "error", TYPE, "raiseError");
+        }
+        // Unit types need no validation
+        // Domain types may allow null based on semantics
+        
+        return HELPER.widen(ConcreteType.error(error));
+    }
 
-## Testing Error Handling
+    @Override
+    public <A> Kind<TypeKind.Witness, A> handleErrorWith(
+            Kind<TypeKind.Witness, A> ma,
+            Function<? super ErrorType, ? extends Kind<TypeKind.Witness, A>> handler) {
 
-### Test Null Parameters
-```java
-@Test
-void testNullFunction() {
-    assertThrows(NullPointerException.class, 
-        () -> monad.map(null, validKind));
-}
+        KindValidator.requireNonNull(ma, "handleErrorWith", "source");
+        FunctionValidator.requireFunction(handler, "handler", "handleErrorWith");
 
-@Test
-void testNullKind() {
-    assertThrows(NullPointerException.class, 
-        () -> monad.map(validFunction, null));
-}
-```
-
-### Test Invalid Kind Types
-```java
-@Test
-void testInvalidKindType() {
-    Kind<WrongWitness, String> wrongKind = // ... create invalid kind
-    assertThrows(KindUnwrapException.class,
-        () -> helper.narrow(wrongKind));
+        ConcreteType<A> concrete = HELPER.narrow(ma);
+        // Implementation...
+        return HELPER.widen(result);
+    }
 }
 ```
 
-### Verify Error Messages
+
+### Pattern 6: Traverse Implementation
 ```java
-@Test
-void testErrorMessage() {
-    var exception = assertThrows(KindUnwrapException.class,
-        () -> helper.narrow(null));
-    assertTrue(exception.getMessage().contains("Cannot narrow null Kind"));
+public class TypeTraverse implements Traverse<TypeKind.Witness> {
+
+    public static final TypeTraverse INSTANCE = new TypeTraverse();
+
+    @Override
+    public <G, A, B> Kind<G, Kind<TypeKind.Witness, B>> traverse(
+            Applicative<G> applicative,
+            Function<? super A, ? extends Kind<G, ? extends B>> f,
+            Kind<TypeKind.Witness, A> ta) {
+
+        FunctionValidator.requireApplicative(applicative, "traverse");
+        FunctionValidator.requireMapper(f, "traverse");
+        KindValidator.requireNonNull(ta, "traverse");
+
+        // Implementation...
+    }
+
+    @Override
+    public <A, M> M foldMap(
+            Monoid<M> monoid,
+            Function<? super A, ? extends M> f,
+            Kind<TypeKind.Witness, A> fa) {
+
+        FunctionValidator.requireMonoid(monoid, "foldMap");
+        FunctionValidator.requireMapper(f, "foldMap");
+        KindValidator.requireNonNull(fa, "foldMap");
+
+        // Implementation...
+    }
 }
 ```
 
-## Migration Strategy
-
-### Phase 1: High-Impact Classes
-1. Update `KindHelper` and similar implementations
-2. Update `MonadError` and `Monad` implementations with inconsistent validation
-
-### Phase 2: Consistency Pass
-3. Ensure all KindHelper classes use standardized patterns
-4. Update error message formatting to use templates
-
-### Phase 3: Enhancement
-5. Add domain-specific validation utilities as needed
-6. Consider performance optimizations for hot paths
-7. Add comprehensive documentation and examples
-
-## Implementation Checklist
-
-### For KindHelper Classes
-- [ ] Use `requireNonNullForWiden` in `widen()` methods
-- [ ] Use `narrowKind` or `narrowKindWithTypeCheck` in `narrow()` methods
-- [ ] Use `requireNonNullForHolder` in record constructors
-- [ ] Replace custom error messages with standardized templates
-- [ ] Remove manual null checking in favor of utility methods
-
-### For Monad/Functor/Applicative Classes
-- [ ] Use `requireNonNullFunction` for function parameters
-- [ ] Use `requireNonNullKind` for Kind parameters
-- [ ] Replace `Objects.requireNonNull` with appropriate utility methods
-- [ ] Ensure consistent parameter naming in error messages
-
-### For Error Messages
-- [ ] Use standardized message templates from `ErrorHandling`
-- [ ] Ensure consistent terminology throughout
-- [ ] Include helpful context information
-- [ ] Use lazy evaluation for expensive debug information
-
-## Common Anti-Patterns to Avoid
-
-### 1. Inconsistent Null Checking
-**❌ Mixing validation styles:**
+### Pattern 7: Transformer Implementation
 ```java
-public void method(Function<A, B> f, Kind<F, A> fa, String name) {
-    Objects.requireNonNull(f, "Function cannot be null");
-    requireNonNullKind(fa);
-    if (name == null) throw new IllegalArgumentException("Name required");
+public class TransformerTMonad<F> implements MonadError<TransformerTKind.Witness<F>, ErrorType> {
+
+    private final Monad<F> outerMonad;
+
+    public TransformerTMonad(Monad<F> outerMonad) {
+        this.outerMonad = DomainValidator.requireOuterMonad(
+            outerMonad, TransformerT.class, "construction"
+        );
+    }
+
+    // Factory methods validate components
+    public static <F, A> TransformerT<F, A> fromInner(Monad<F> outerMonad, InnerType<A> inner) {
+        DomainValidator.requireOuterMonad(outerMonad, TransformerT.class, "fromInner");
+        DomainValidator.requireTransformerComponent(
+            inner, "inner value", TransformerT.class, "fromInner"
+        );
+        // Implementation...
+    }
 }
 ```
-
-**✅ Consistent validation:**
+### Pattern 8: Core Type Validation
 ```java
-public void method(Function<A, B> f, Kind<F, A> fa, String name) {
-    requireNonNullFunction(f, "function f");
-    requireNonNullKind(fa, "Kind fa");
-    Objects.requireNonNull(name, "name parameter");
-}
-```
+// In core type interfaces/classes (Either, Maybe, Lazy, etc.)
+public interface ConcreteType<A> {
 
-### 2. Reimplementing Existing Utilities
-**❌ Manual narrowing:**
-```java
-if (kind == null) throw new KindUnwrapException("Null kind");
-if (!(kind instanceof MyType)) throw new KindUnwrapException("Wrong type");
-return (MyType) kind;
-```
+    static <A> ConcreteType<A> of(A value) {
+        FunctionValidator.requireFunction(value, "value", "ConcreteType.of");
+        return new ConcreteImpl<>(value);
+    }
 
-**✅ Using utilities:**
-```java
-return narrowKindWithTypeCheck(kind, MyType.class, "MyType");
-```
+    default <B> ConcreteType<B> map(Function<? super A, ? extends B> f) {
+        FunctionValidator.requireMapper(f, "ConcreteType.map");
+        return /* implementation */;
+    }
 
-### 3. Inconsistent Error Message Format
-**❌ Mixed formats:**
-```java
-throw new KindUnwrapException("kind is null");
-throw new KindUnwrapException("Kind instance is not valid");
-throw new KindUnwrapException("Cannot process null Kind for MyType");
-```
-
-**✅ Consistent format:**
-```java
-throw new KindUnwrapException(String.format(NULL_KIND_TEMPLATE, "MyType"));
-```
-
-
-## Standard Validation Pattern
-Apply this pattern to ALL Monad implementations:
-```java
-// Standard flatMap validation
-@Override
-public <A, B> Kind<F, B> flatMap(
-Function<? super A, ? extends Kind<F, B>> f,
-Kind<F, A> ma) {
-
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
-    // ... implementation
+    default <B> ConcreteType<B> flatMap(
+            Function<? super A, ? extends ConcreteType<? extends B>> f) {
+        FunctionValidator.requireFlatMapper(f, "ConcreteType.flatMap");
+        
+        ConcreteType<? extends B> result = f.apply(value);
+        FunctionValidator.requireNonNullResult(result, "ConcreteType.flatMap", ConcreteType.class);
+        
+        return (ConcreteType<B>) result;
+    }
 }
 
-// Standard ap validation  
-@Override
-public <A, B> Kind<F, B> ap(
-Kind<F, ? extends Function<A, B>> ff,
-Kind<F, A> fa) {
-
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
-    // ... implementation
-}
-
-// Standard map validation
-@Override
-public <A, B> Kind<F, B> map(
-Function<? super A, ? extends B> f,
-Kind<F, A> fa) {
-
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
-    // ... implementation
-}
 ```
 
-## KindHelper Pattern
-All KindHelper implementations now follow:
+
+### Validation Order
+Always validate in this order:
+1. Applicative/Monoid instances (if present)
+2. Function parameters 
+3. Kind parameters
+
+This order ensures that the most fundamental requirements are checked first.
+Example:
 ```java
-@Override
-public <A> Kind<Witness, A> widen(ConcreteType<A> value) {
-    requireNonNullForWiden(value, TYPE_NAME);
-    return new ConcreteTypeHolder<>(value);
-}
+// ✅ Correct order
+FunctionValidator.requireApplicative(applicative, "traverse");
+FunctionValidator.requireMapper(f, "traverse");
+KindValidator.requireNonNull(ta, "traverse");
 
-@Override
-public <A> ConcreteType<A> narrow(Kind<Witness, A> kind) {
-    return narrowKind(kind, TYPE_NAME, this::extractFromKind);
-    // OR for simpler cases:
-    // return narrowKindWithTypeCheck(kind, ConcreteType.class, TYPE_NAME);
-}
+// ❌ Wrong order - validate core dependencies first
+KindValidator.requireNonNull(ta, "traverse");
+FunctionValidator.requireMapper(f, "traverse");
+FunctionValidator.requireApplicative(applicative, "traverse");
 ```
 
-## Documentation Standards
+### Error Type Validation Strategy
 
-### Method Documentation Template
-```java
-/**
- * Brief description of what the method does.
- *
- * <p>More detailed explanation if needed, including any important behavioral notes.
- *
- * @param <T> Generic type parameter description
- * @param paramName Parameter description, including constraints
- * @return Description of return value and any guarantees
- * @throws SpecificException Description of when this exception is thrown
- * @see RelatedClass Related classes or methods
- */
-```
 
-### Error Handling Documentation
-Always document the validation behavior:
 
-```java
-/**
- * Maps a function over the value in the Kind context.
- *
- * @param f The transformation function. Must not be null.
- * @param fa The Kind to transform. Must not be null.
- * @return A new Kind with the function applied
- * @throws NullPointerException if f or fa is null
- * @throws KindUnwrapException if fa cannot be unwrapped
- */
-```
+| Error Type | Validation Strategy        | Example                     |
+|------------|----------------------------|-----------------------------|
+| Throwable  | Always validate non-null   | CompletableFutureMonad      |
+| Unit       | Never validate (singleton) | MaybeMonad, MaybeTMonad     |
+| Domain types (L/E) | Context-dependent  | Either, EitherT allow null  |
 
-## Conclusion
+Key Points
 
-Standardized error handling provides:
-- **Consistency**: Predictable error messages and behavior
-- **Maintainability**: Centralized logic reduces code duplication
-- **Developer Experience**: Clear, actionable error messages
-- **Robustness**: Comprehensive validation reduces runtime failures
-- **Performance**: Optimized validation patterns and lazy evaluation
-
+- Use static `TYPE` constants for class references
+- Holder validation uses `KindValidator.requireForWiden()`
+- Narrowing uses `KindValidator.narrow()` with extraction or `narrowWithTypeCheck()`
+- Descriptors in parentheses clarify multi-parameter operations
+- Transformer classes use DomainValidator for outer monad validation
+- Core types validate their own operations with qualified names

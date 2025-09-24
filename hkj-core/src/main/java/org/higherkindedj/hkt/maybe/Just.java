@@ -2,9 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.jspecify.annotations.Nullable;
 
 /** Concrete implementation of Maybe representing the presence of a value. */
@@ -39,18 +42,18 @@ record Just<T>(T value) implements Maybe<T> {
 
   @Override
   public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
-    Objects.requireNonNull(mapper, "mapper function cannot be null");
+    FunctionValidator.requireMapper(mapper, Just.class, MAP);
     // Use fromNullable to handle cases where the mapper might return null
     return Maybe.fromNullable(mapper.apply(value)); // Result of apply is Nullable
   }
 
   @Override
   public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
-    Objects.requireNonNull(mapper, "mapper function cannot be null");
-    Maybe<? extends U> result =
-        mapper.apply(value); // apply expects NonNull T, returns NonNull Maybe
-    // The flatMap function itself must not return null
-    Objects.requireNonNull(result, "flatMap mapper returned null Maybe");
+    FunctionValidator.requireFlatMapper(mapper, Just.class, FLAT_MAP);
+
+    Maybe<? extends U> result = mapper.apply(value);
+    FunctionValidator.requireNonNullResult(result, Just.class, FLAT_MAP);
+
     // Cast needed because of <? extends U> - unavoidable Java type system limitation
     @SuppressWarnings("unchecked")
     Maybe<U> typedResult = (Maybe<U>) result;

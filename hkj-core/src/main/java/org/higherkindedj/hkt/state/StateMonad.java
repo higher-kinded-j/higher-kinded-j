@@ -3,11 +3,13 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Monad implementation for {@link State}, using {@link StateKind.Witness} as the HKT marker. An
@@ -20,6 +22,8 @@ import org.higherkindedj.hkt.Monad;
  * @see StateApplicative
  */
 public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKind.Witness<S>> {
+
+  private static final Class<StateMonad> STATE_MONAD_CLASS = StateMonad.class;
 
   /**
    * Sequentially composes two {@code State} actions, passing the result of the first into a
@@ -44,8 +48,8 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
       Function<? super A, ? extends Kind<StateKind.Witness<S>, B>> f,
       Kind<StateKind.Witness<S>, A> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+    FunctionValidator.requireFlatMapper(f, STATE_MONAD_CLASS, FLAT_MAP);
+    KindValidator.requireNonNull(ma, STATE_MONAD_CLASS, FLAT_MAP);
 
     State<S, A> stateA = STATE.narrow(ma);
 
@@ -53,7 +57,8 @@ public class StateMonad<S> extends StateApplicative<S> implements Monad<StateKin
         stateA.flatMap(
             a -> {
               Kind<StateKind.Witness<S>, B> kindB = f.apply(a);
-              return STATE.narrow(kindB); // narrow here expects Kind<StateKind.Witness<S>, B>
+              FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, State.class);
+              return STATE.narrow(kindB);
             });
 
     return STATE.widen(stateB);

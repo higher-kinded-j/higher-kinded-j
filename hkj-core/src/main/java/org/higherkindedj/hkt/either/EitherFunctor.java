@@ -3,12 +3,13 @@
 package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Functor} interface for the {@link Either} type, biased towards the "Right"
@@ -25,13 +26,15 @@ import org.higherkindedj.hkt.Kind;
  */
 public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
 
+  private static final Class<EitherFunctor> EITHER_FUNCTOR_CLASS = EitherFunctor.class;
+
   /**
    * Applies a function to the "Right" value if the provided {@link Kind} represents a {@link
    * Either.Right}. If it represents a {@link Either.Left}, the "Left" value is propagated
    * unchanged.
    *
    * @param f The function to apply to the "Right" value. Must not be null.
-   * @param ma The input {@code Kind<EitherKind.Witness<L>, A>}, representing an {@code Either<L,
+   * @param fa The input {@code Kind<EitherKind.Witness<L>, A>}, representing an {@code Either<L,
    *     A>}. Must not be null.
    * @param <A> The type of the "Right" value in the input {@code Either}.
    * @param <B> The type of the "Right" value in the resulting {@code Either} after function
@@ -44,11 +47,11 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
    */
   @Override
   public <A, B> Kind<EitherKind.Witness<L>, B> map(
-      Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> ma) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(ma, "source Kind for map");
+      Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> fa) {
+    FunctionValidator.requireMapper(f, EITHER_FUNCTOR_CLASS, MAP);
+    KindValidator.requireNonNull(fa, EITHER_FUNCTOR_CLASS, MAP);
 
-    Either<L, A> eitherA = EITHER.narrow(ma);
+    Either<L, A> eitherA = EITHER.narrow(fa);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map
     return EITHER.widen(resultEither);
   }

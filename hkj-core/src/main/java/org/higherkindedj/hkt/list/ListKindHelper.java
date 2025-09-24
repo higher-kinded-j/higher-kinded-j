@@ -2,10 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,55 +18,67 @@ import org.jspecify.annotations.Nullable;
 public enum ListKindHelper implements ListConverterOps {
   LIST;
 
-  private static final String TYPE_NAME = "List";
+  private static final Class<List> TYPE = List.class;
 
   /**
    * Widens a standard {@link java.util.List} into its higher-kinded representation, {@code
-   * Kind<ListKind.Witness, A>}. Implements {@link ListConverterOps#widen}.
-   *
-   * <p>This method uses the static {@code ListKind.of(list)} factory method.
+   * Kind<ListKind.Witness, A>}.
    *
    * @param list The {@link List} to widen. Must not be null.
    * @param <A> The element type of the list.
-   * @return The higher-kinded representation of the list.
+   * @return The higher-kinded representation of the list. Never null.
+   * @throws NullPointerException if list is null.
    */
   @Override
   public <A> Kind<ListKind.Witness, A> widen(List<A> list) {
-    requireNonNullForWiden(list, TYPE_NAME);
+    KindValidator.requireForWiden(list, TYPE);
     return ListKind.of(list);
   }
 
   /**
    * Narrows a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
-   * standard {@link java.util.List}. Implements {@link ListConverterOps#narrow}.
+   * standard {@link java.util.List}.
    *
-   * <p>This method uses the {@code ListKind.narrow(kind).unwrap()} pattern.
-   *
-   * @param kind The higher-kinded representation of the list. Can be null.
+   * @param kind The higher-kinded representation of the list. May be null.
    * @param <A> The element type of the list.
-   * @return The underlying {@link java.util.List}. Returns an empty list if {@code kind} is null.
-   * @throws ClassCastException if the provided {@code kind} is not actually a {@code ListKind}.
+   * @return The underlying {@link java.util.List}. Never null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is null or not a valid
+   *     ListKind representation.
    */
   @Override
   public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
-    return narrowKind(kind, TYPE_NAME, k -> ListKind.narrow(k).unwrap());
+    return KindValidator.narrow(kind, TYPE, this::extractList);
   }
 
   /**
-   * Narrows a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
-   * standard {@link java.util.List}, providing a default list if the kind is null.
+   * Narrows a higher-kinded representation of a list with a default value if the kind is null.
    *
-   * @param kind The higher-kinded representation of the list.
+   * @param kind The higher-kinded representation of the list. May be null.
    * @param defaultValue The list to return if {@code kind} is null. Must not be null.
    * @param <A> The element type of the list.
-   * @return The unwrapped list, or {@code defaultValue} if {@code kind} is null.
-   * @throws ClassCastException if the provided {@code kind} is not actually a {@code ListKind}.
+   * @return The unwrapped list, or {@code defaultValue} if {@code kind} is null. Never null.
+   * @throws NullPointerException if defaultValue is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is not a valid ListKind
+   *     representation.
    */
   public <A> List<A> unwrapOr(@Nullable Kind<ListKind.Witness, A> kind, List<A> defaultValue) {
-    requireNonNullForWiden(defaultValue, "defaultValue");
+    KindValidator.requireForWiden(defaultValue, TYPE);
     if (kind == null) {
       return defaultValue;
     }
     return ListKind.narrow(kind).unwrap();
+  }
+
+  /**
+   * Internal extraction method for narrowing operations.
+   *
+   * @throws ClassCastException if kind is not a ListKind (will be caught and wrapped by
+   *     KindValidator)
+   */
+  private <A> List<A> extractList(Kind<ListKind.Witness, A> kind) {
+    return switch (kind) {
+      case ListKind<A> listKind -> listKind.unwrap();
+      default -> throw new ClassCastException();
+    };
   }
 }

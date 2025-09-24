@@ -2,10 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.RUN_READER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Operation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 public enum ReaderKindHelper implements ReaderConverterOps {
   READER;
 
-  public static final String TYPE_NAME = "Reader";
+  private static final Class<Reader> READER_CLASS = Reader.class;
 
   /**
    * Internal record implementing {@link ReaderKind ReaderKind&lt;R, A&gt;} to hold the concrete
@@ -36,7 +39,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
      * @throws NullPointerException if the provided {@code reader} instance is null.
      */
     ReaderHolder {
-      requireNonNullForHolder(reader, TYPE_NAME);
+      KindValidator.requireForWiden(reader, READER_CLASS);
     }
   }
 
@@ -55,7 +58,6 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    */
   @Override
   public <R, A> Kind<ReaderKind.Witness<R>, A> widen(Reader<R, A> reader) {
-    requireNonNullForWiden(reader, TYPE_NAME);
     return new ReaderHolder<>(reader);
   }
 
@@ -73,7 +75,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    */
   @Override
   public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
-    return narrowKind(kind, TYPE_NAME, this::extractReader);
+    return KindValidator.narrow(kind, READER_CLASS, this::extractReader);
   }
 
   /**
@@ -87,7 +89,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   public <R, A> Kind<ReaderKind.Witness<R>, A> reader(Function<R, A> runFunction) {
-    requireNonNullFunction(runFunction, "runFunction for reader");
+    FunctionValidator.requireFunction(runFunction, "runFunction", READER_CLASS, Operation.READER);
     return this.widen(Reader.of(runFunction));
   }
 
@@ -132,7 +134,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws NullPointerException if {@code environment} is {@code null}.
    */
   public <R, A> @Nullable A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment) {
-    requireNonNullKind(kind, "Kind for runReader");
+    KindValidator.requireNonNull(kind, READER_CLASS, RUN_READER);
     // Note: We don't validate environment as null here since Reader interface allows @NonNull R
     // but the specific nullability contract depends on the design of the environment type R
     return this.narrow(kind).run(environment);
@@ -142,9 +144,8 @@ public enum ReaderKindHelper implements ReaderConverterOps {
   @SuppressWarnings("unchecked")
   private <R, A> Reader<R, A> extractReader(Kind<ReaderKind.Witness<R>, A> kind) {
     return switch (kind) {
-      // ReaderHolder's record component 'reader' is non-null.
       case ReaderKindHelper.ReaderHolder<?, ?> holder -> (Reader<R, A>) holder.reader();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
     };
   }
 }

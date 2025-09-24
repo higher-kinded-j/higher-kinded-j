@@ -2,12 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.future;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -20,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 public enum CompletableFutureKindHelper implements CompletableFutureConverterOps {
   FUTURE;
 
-  private static final String TYPE_NAME = "CompletableFuture";
+  private static final Class<CompletableFuture> COMPLETABLE_FUTURE_CLASS = CompletableFuture.class;
 
   /**
    * Internal record implementing {@link CompletableFutureKind} to hold the concrete {@link
@@ -32,7 +30,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
   record CompletableFutureHolder<A>(CompletableFuture<A> future)
       implements CompletableFutureKind<A> {
     CompletableFutureHolder {
-      requireNonNullForHolder(future, TYPE_NAME);
+      KindValidator.requireForWiden(future, COMPLETABLE_FUTURE_CLASS);
     }
   }
 
@@ -49,7 +47,6 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    */
   @Override
   public <A> Kind<CompletableFutureKind.Witness, A> widen(CompletableFuture<A> future) {
-    requireNonNullForWiden(future, TYPE_NAME);
     return new CompletableFutureHolder<>(future);
   }
 
@@ -61,13 +58,13 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    * @param kind The {@code Kind<CompletableFutureKind.Witness, A>} instance to narrow. May be
    *     {@code null}.
    * @return The underlying {@link CompletableFuture<A>}. Never null.
-   * @throws KindUnwrapException if the input {@code kind} is {@code null}, not an instance of
-   *     {@code CompletableFutureHolder}, or if the holder internally contains a {@code null}
-   *     future.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null}, not an instance of {@code CompletableFutureHolder}, or if the holder internally
+   *     contains a {@code null} future.
    */
   @Override
   public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
-    return narrowKind(kind, TYPE_NAME, this::extractFuture);
+    return KindValidator.narrow(kind, COMPLETABLE_FUTURE_CLASS, this::extractFuture);
   }
 
   /**
@@ -79,12 +76,13 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    *     CompletableFuture} computation. Must not be null.
    * @return The result of the {@code CompletableFuture} computation. Can be {@code null} if the
    *     future completes with a {@code null} value.
-   * @throws KindUnwrapException if the input {@code kind} is invalid (e.g., null or wrong type).
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is
+   *     invalid (e.g., null or wrong type).
    * @throws CompletionException if the future completed exceptionally.
    * @throws java.util.concurrent.CancellationException if the future was cancelled.
    */
   public <A> A join(Kind<CompletableFutureKind.Witness, A> kind) {
-    CompletableFuture<A> future = this.narrow(kind); // Uses instance method narrow
+    CompletableFuture<A> future = this.narrow(kind);
     try {
       return future.join();
     } catch (CompletionException e) {
@@ -103,7 +101,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
   private <A> CompletableFuture<A> extractFuture(Kind<CompletableFutureKind.Witness, A> kind) {
     return switch (kind) {
       case CompletableFutureHolder<A> holder -> holder.future();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
     };
   }
 }

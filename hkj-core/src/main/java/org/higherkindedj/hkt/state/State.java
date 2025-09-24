@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import static java.util.Objects.requireNonNull;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -17,6 +19,8 @@ import org.jspecify.annotations.Nullable;
  */
 @FunctionalInterface
 public interface State<S, A> {
+
+  Class<State> STATE_CLASS = State.class;
 
   /**
    * Runs the state computation with the given initial state.
@@ -39,7 +43,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   static <S, A> State<S, A> of(Function<S, StateTuple<S, A>> runFunction) {
-    requireNonNull(runFunction, "runFunction cannot be null");
+    FunctionValidator.requireFunction(runFunction, "runFunction", STATE_CLASS, OF);
     return runFunction::apply;
   }
 
@@ -63,11 +67,12 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> State<S, B> map(Function<? super A, ? extends B> f) {
-    requireNonNull(f, "mapper function cannot be null");
+    FunctionValidator.requireMapper(f, STATE_CLASS, MAP);
     return State.of(
         initialState -> {
           StateTuple<S, A> result = this.run(initialState);
-          // Apply f to the value, keep the resulting state
+          B newValue = f.apply(result.value());
+          CoreTypeValidator.requireSupplierResult(newValue, "map function", STATE_CLASS);
           return new StateTuple<>(f.apply(result.value()), result.state());
         });
   }
@@ -95,19 +100,16 @@ public interface State<S, A> {
    *     is null.
    */
   default <B> State<S, B> flatMap(Function<? super A, ? extends State<S, ? extends B>> f) {
-    requireNonNull(f, "flatMap mapper function cannot be null");
+    FunctionValidator.requireFlatMapper(f, STATE_CLASS, FLAT_MAP);
     return State.of(
         initialState -> {
-          // Run the first state computation
           StateTuple<S, A> result1 = this.run(initialState);
           A valueA = result1.value();
           S stateS1 = result1.state();
 
-          // Apply f to the value to get the next state computation
           State<S, ? extends B> nextState = f.apply(valueA);
-          requireNonNull(nextState, "flatMap function returned null State instance");
+          FunctionValidator.requireNonNullResult(nextState, FLAT_MAP, STATE_CLASS);
 
-          // Run the next state computation with the intermediate state S1
           StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
 
           B finalValue = (B) finalResultTuple.value();
@@ -160,7 +162,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code newState} is null.
    */
   static <S> State<S, Unit> set(S newState) {
-    requireNonNull(newState, "newState cannot be null");
+    CoreTypeValidator.requireValue(newState, STATE_CLASS, SET);
     // The old state `s` is ignored here, as `newState` replaces it.
     return State.of(s -> new StateTuple<>(Unit.INSTANCE, newState));
   }
@@ -179,7 +181,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   static <S> State<S, Unit> modify(Function<S, S> f) {
-    requireNonNull(f, "state modification function cannot be null");
+    FunctionValidator.requireFunction(f, "f", STATE_CLASS, MODIFY);
     return State.of(s -> new StateTuple<>(Unit.INSTANCE, f.apply(s)));
   }
 
@@ -197,7 +199,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   static <S, A> State<S, A> inspect(Function<S, @Nullable A> f) {
-    requireNonNull(f, "state inspection function cannot be null");
+    FunctionValidator.requireFunction(f, "f", STATE_CLASS, INSPECT);
     return State.of(s -> new StateTuple<>(f.apply(s), s));
   }
 }

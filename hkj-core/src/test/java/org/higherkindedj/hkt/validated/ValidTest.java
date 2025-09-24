@@ -44,7 +44,7 @@ class ValidTest {
     void shouldThrowIfValueIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> new Valid<>(null))
-          .withMessage(Validated.VALID_VALUE_CANNOT_BE_NULL_MSG);
+          .withMessage("Validated.VALID_VALUE_CANNOT_BE_NULL_MSG");
     }
   }
 
@@ -78,7 +78,7 @@ class ValidTest {
     void getErrorShouldThrowNoSuchElementException() {
       assertThatThrownBy(validInstance::getError)
           .isInstanceOf(NoSuchElementException.class)
-          .hasMessage(Valid.CANNOT_GET_ERROR_FROM_VALID_INSTANCE_MSG);
+          .hasMessage("Valid.CANNOT_GET_ERROR_FROM_VALID_INSTANCE_MSG");
     }
   }
 
@@ -96,7 +96,7 @@ class ValidTest {
     void orElseShouldThrowNullPointerExceptionIfOtherIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.orElse(null))
-          .withMessage(Valid.OR_ELSE_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.OR_ELSE_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -117,7 +117,7 @@ class ValidTest {
     void orElseGetShouldThrowNullPointerExceptionIfSupplierIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.orElseGet(null))
-          .withMessage(Valid.OR_ELSE_GET_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.OR_ELSE_GET_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -138,7 +138,7 @@ class ValidTest {
     void orElseThrowShouldThrowNullPointerExceptionIfSupplierIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.orElseThrow(null))
-          .withMessage(Valid.OR_ELSE_THROW_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.OR_ELSE_THROW_CANNOT_BE_NULL_MSG");
     }
   }
 
@@ -159,7 +159,7 @@ class ValidTest {
     void ifValidShouldThrowNullPointerExceptionIfConsumerIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.ifValid(null))
-          .withMessage(Valid.IF_VALID_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.IF_VALID_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -175,7 +175,7 @@ class ValidTest {
     void ifInvalidShouldThrowNullPointerExceptionIfConsumerIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.ifInvalid(null))
-          .withMessage(Valid.IF_INVALID_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.IF_INVALID_CANNOT_BE_NULL_MSG");
     }
   }
 
@@ -200,7 +200,7 @@ class ValidTest {
     void mapShouldThrowIfFunctionIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.map(null))
-          .withMessage(Valid.MAP_FN_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.MAP_FN_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -209,7 +209,7 @@ class ValidTest {
       Function<Integer, String> nullReturningFunc = val -> null;
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.map(nullReturningFunc))
-          .withMessage(Valid.MAP_FN_RETURNED_NULL_MSG);
+          .withMessage("Valid.MAP_FN_RETURNED_NULL_MSG");
     }
 
     // --- flatMap ---
@@ -236,7 +236,7 @@ class ValidTest {
     void flatMapShouldThrowIfFunctionIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.flatMap(null))
-          .withMessage(Valid.FLATMAP_FN_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.FLATMAP_FN_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -245,7 +245,7 @@ class ValidTest {
       Function<Integer, Validated<String, String>> nullReturningFunc = val -> null;
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.flatMap(nullReturningFunc))
-          .withMessage(Valid.FLATMAP_FN_RETURNED_NULL_MSG);
+          .withMessage("Valid.FLATMAP_FN_RETURNED_NULL_MSG");
     }
 
     // --- ap ---
@@ -276,7 +276,7 @@ class ValidTest {
     void apShouldThrowIfFnValidatedIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.ap(null, stringSemigroup))
-          .withMessage(Valid.AP_FN_CANNOT_BE_NULL);
+          .withMessage("Valid.AP_FN_CANNOT_BE_NULL");
     }
 
     @Test
@@ -286,7 +286,7 @@ class ValidTest {
           Validated.valid(toStringFunc);
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.ap(fnValidated, null))
-          .withMessage(Valid.SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG);
+          .withMessage("Valid.SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -299,7 +299,7 @@ class ValidTest {
       // This triggers the null check for the result of f.apply(value) within this.map(f) inside ap
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.ap(fnValidated, stringSemigroup))
-          .withMessage(Valid.MAP_FN_RETURNED_NULL_MSG);
+          .withMessage("Valid.MAP_FN_RETURNED_NULL_MSG");
     }
   }
 
@@ -328,7 +328,7 @@ class ValidTest {
     void foldShouldThrowIfValidMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.fold(err -> err, null))
-          .withMessage(Validated.FOLD_VALID_MAPPER_CANNOT_BE_NULL_MSG);
+          .withMessage("Validated.FOLD_VALID_MAPPER_CANNOT_BE_NULL_MSG");
     }
 
     @Test
@@ -336,7 +336,7 @@ class ValidTest {
     void foldShouldThrowIfInvalidMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> validInstance.fold(null, val -> val))
-          .withMessage(Validated.FOLD_INVALID_MAPPER_CANNOT_BE_NULL_MSG);
+          .withMessage("Validated.FOLD_INVALID_MAPPER_CANNOT_BE_NULL_MSG");
     }
   }
 
