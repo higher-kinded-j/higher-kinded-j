@@ -3,18 +3,20 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.either.EitherKindHelper.*;
-import static org.higherkindedj.hkt.test.HKTTestAssertions.*;
-import static org.higherkindedj.hkt.test.HKTTestHelpers.*;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
+import org.higherkindedj.hkt.test.data.TestData;
+import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherKindHelper Tests")
 class EitherKindHelperTest {
-  private static final String EITHER_TYPE = "Either";
 
   // Define a simple error type for testing
   record TestError(String code) {}
@@ -28,8 +30,12 @@ class EitherKindHelperTest {
     void completeKindHelperTestSuite() {
       Either<TestError, String> validInstance = Either.right("Success");
 
-      // Run the complete test suite in one call
-      runCompleteKindHelperTestSuite(validInstance, EITHER_TYPE, EITHER::widen, EITHER::narrow);
+      // Run the complete test suite using the pattern
+      KindHelperTestPattern.runComplete(
+          validInstance,
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
     }
 
     @Test
@@ -37,18 +43,34 @@ class EitherKindHelperTest {
     void completeTestSuiteWithMultipleTypes() {
       // Test with Right instance
       Either<TestError, String> rightInstance = Either.right("Success");
-      runCompleteKindHelperTestSuite(rightInstance, EITHER_TYPE, EITHER::widen, EITHER::narrow);
+      KindHelperTestPattern.runComplete(
+          rightInstance,
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
       // Test with Left instance
       Either<TestError, String> leftInstance = Either.left(new TestError("E404"));
-      runCompleteKindHelperTestSuite(leftInstance, EITHER_TYPE, EITHER::widen, EITHER::narrow);
+      KindHelperTestPattern.runComplete(
+          leftInstance,
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
       // Test with null values
       Either<TestError, String> rightNull = Either.right(null);
-      runCompleteKindHelperTestSuite(rightNull, EITHER_TYPE, EITHER::widen, EITHER::narrow);
+      KindHelperTestPattern.runComplete(
+          rightNull,
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
       Either<TestError, String> leftNull = Either.left(null);
-      runCompleteKindHelperTestSuite(leftNull, EITHER_TYPE, EITHER::widen, EITHER::narrow);
+      KindHelperTestPattern.runComplete(
+          leftNull,
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
     }
   }
 
@@ -57,14 +79,37 @@ class EitherKindHelperTest {
   class IndividualComponentTests {
 
     @Test
-    @DisplayName("Test standard KindHelper operations individually")
-    void testStandardOperations() {
+    @DisplayName("Test round-trip widen/narrow operations")
+    void testRoundTripOperations() {
       Either<TestError, String> validInstance = Either.right("test");
-      Kind<EitherKind.Witness<TestError>, String> invalidKind = createDummyKind("invalid");
 
-      // Test using individual helper method
-      testStandardKindHelperOperations(
-          validInstance, EITHER_TYPE, invalidKind, EITHER::widen, EITHER::narrow);
+      KindHelperTestPattern.testRoundTrip(validInstance, EITHER::widen, EITHER::narrow);
+    }
+
+    @Test
+    @DisplayName("Test null parameter validations")
+    void testNullParameterValidations() {
+      KindHelperTestPattern.testNullValidations(
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
+    }
+
+    @Test
+    @DisplayName("Test invalid Kind type handling")
+    void testInvalidKindType() {
+      KindHelperTestPattern.testInvalidType(
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
+    }
+
+    @Test
+    @DisplayName("Test idempotency of operations")
+    void testIdempotency() {
+      Either<TestError, String> validInstance = Either.right("idempotent");
+
+      KindHelperTestPattern.testIdempotency(validInstance, EITHER::widen, EITHER::narrow);
     }
 
     @Test
@@ -72,13 +117,12 @@ class EitherKindHelperTest {
     void testSpecificErrorConditions() {
       Either<TestError, String> validEither = Either.right("test");
       Kind<EitherKind.Witness<TestError>, String> validKind = EITHER.widen(validEither);
-      Kind<EitherKind.Witness<TestError>, String> invalidKind = createDummyKind("invalid");
+      Kind<EitherKind.Witness<TestError>, String> invalidKind = TestData.createDummyKind("invalid");
 
-      // Use ValidationTestBuilder for custom validation scenarios
       ValidationTestBuilder.create()
-          .assertNullWidenInput(() -> EITHER.widen(null), EITHER_TYPE)
-          .assertNullKindNarrow(() -> EITHER.narrow(null), EITHER_TYPE)
-          .assertInvalidKindType(() -> EITHER.narrow(invalidKind), EITHER_TYPE, invalidKind)
+          .assertWidenNull(() -> EITHER.widen(null), Either.class)
+          .assertNarrowNull(() -> EITHER.narrow(null), Either.class)
+          .assertInvalidKindType(() -> EITHER.narrow(invalidKind), Either.class, invalidKind)
           .execute();
     }
   }
@@ -97,7 +141,7 @@ class EitherKindHelperTest {
       Kind<EitherKind.Witness<TestError>, String> rightKind = EITHER.widen(right);
       assertThat(EITHER.narrow(rightKind)).isSameAs(right);
 
-      // Test round-trip for Left - Fixed: compare narrowed result with original Either
+      // Test round-trip for Left
       Kind<EitherKind.Witness<TestError>, String> leftKind = EITHER.widen(left);
       assertThat(EITHER.narrow(leftKind)).isSameAs(left);
     }
@@ -126,7 +170,6 @@ class EitherKindHelperTest {
     @Test
     @DisplayName("Test complex error types work correctly")
     void testComplexErrorTypes() {
-      // Test with a more complex error type
       record ComplexError(
           String code, String message, Throwable cause, java.time.Instant timestamp) {}
 
@@ -140,12 +183,11 @@ class EitherKindHelperTest {
       Either<ComplexError, String> complexEither = Either.left(complexError);
 
       // Run standard operations test with complex type
-      testStandardKindHelperOperations(
+      KindHelperTestPattern.runComplete(
           complexEither,
-          EITHER_TYPE,
-          createDummyKind("invalid_complex"),
-          EITHER::widen,
-          EITHER::narrow);
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
       // Verify the complex error is preserved
       Kind<EitherKind.Witness<ComplexError>, String> complexKind = EITHER.widen(complexEither);
@@ -162,20 +204,18 @@ class EitherKindHelperTest {
       Either<String, Integer> stringLeftEither = Either.left("StringError");
       Either<TestError, Integer> testErrorLeftEither = Either.left(new TestError("E1"));
 
-      // Test both types work with the same helper methods
-      testStandardKindHelperOperations(
+      // Test both types work with the helper methods
+      KindHelperTestPattern.runComplete(
           stringLeftEither,
-          EITHER_TYPE,
-          createDummyKind("invalid_string"),
-          EITHER::widen,
-          EITHER::narrow);
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
-      testStandardKindHelperOperations(
+      KindHelperTestPattern.runComplete(
           testErrorLeftEither,
-          EITHER_TYPE,
-          createDummyKind("invalid_test_error"),
-          EITHER::widen,
-          EITHER::narrow);
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
       // Verify types are maintained correctly
       Kind<EitherKind.Witness<String>, Integer> stringKind = EITHER.widen(stringLeftEither);
@@ -228,7 +268,7 @@ class EitherKindHelperTest {
     @Test
     @DisplayName("Test operations work with large numbers of instances")
     void testLargeNumberOfInstances() {
-      java.util.List<Either<TestError, String>> instances = new java.util.ArrayList<>();
+      List<Either<TestError, String>> instances = new ArrayList<>();
 
       // Create many instances of different types
       for (int i = 0; i < 100; i++) {
@@ -252,8 +292,8 @@ class EitherKindHelperTest {
     @Test
     @DisplayName("Test all combinations of null values")
     void testAllNullValueCombinations() {
-      java.util.List<Either<TestError, String>> nullInstances =
-          java.util.List.of(
+      List<Either<TestError, String>> nullInstances =
+          List.of(
               Either.right(null),
               Either.left(null),
               Either.left(new TestError(null)), // TestError with null code
@@ -262,61 +302,54 @@ class EitherKindHelperTest {
 
       // All should work with widen/narrow without validation errors
       for (Either<TestError, String> instance : nullInstances) {
-        // Use the complete test suite which includes all validations
-        runCompleteKindHelperTestSuite(instance, EITHER_TYPE, EITHER::widen, EITHER::narrow);
+        KindHelperTestPattern.runComplete(
+            instance,
+            Either.class,
+            either -> EITHER.widen(either),
+            (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
       }
     }
 
     @Test
     @DisplayName("Test error messages contain expected information")
     void testErrorMessageContents() {
-      Kind<EitherKind.Witness<TestError>, String> invalidKind = createDummyKind("test_invalid");
+      Kind<EitherKind.Witness<TestError>, String> invalidKind =
+          TestData.createDummyKind("test_invalid");
 
       // Test that error messages contain the type name and class information
       ValidationTestBuilder.create()
-          .assertNullWidenInput(() -> EITHER.widen(null), EITHER_TYPE)
-          .assertNullKindNarrow(() -> EITHER.narrow(null), EITHER_TYPE)
-          .assertInvalidKindType(() -> EITHER.narrow(invalidKind), EITHER_TYPE, invalidKind)
+          .assertWidenNull(() -> EITHER.widen(null), Either.class)
+          .assertNarrowNull(() -> EITHER.narrow(null), Either.class)
+          .assertInvalidKindType(() -> EITHER.narrow(invalidKind), Either.class, invalidKind)
           .execute();
-
-      // The ValidationTestBuilder.execute() will verify:
-      // - Null widen input message contains "Either"
-      // - Null Kind narrow message contains "Either"
-      // - Invalid Kind type message contains "Either" and the actual class name
     }
 
     @Test
     @DisplayName("Test with nested generic types")
     void testNestedGenericTypes() {
       // Test with complex nested types
-      Either<TestError, java.util.List<String>> complexRight =
-          Either.right(java.util.List.of("a", "b", "c"));
-      Either<TestError, java.util.List<String>> complexLeft =
-          Either.left(new TestError("ComplexError"));
+      Either<TestError, List<String>> complexRight = Either.right(List.of("a", "b", "c"));
+      Either<TestError, List<String>> complexLeft = Either.left(new TestError("ComplexError"));
 
       // Both should work correctly with the standard operations
-      testStandardKindHelperOperations(
+      KindHelperTestPattern.runComplete(
           complexRight,
-          EITHER_TYPE,
-          createDummyKind("invalid_complex"),
-          EITHER::widen,
-          EITHER::narrow);
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
-      testStandardKindHelperOperations(
+      KindHelperTestPattern.runComplete(
           complexLeft,
-          EITHER_TYPE,
-          createDummyKind("invalid_complex"),
-          EITHER::widen,
-          EITHER::narrow);
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
       // Verify nested structure is preserved
-      Kind<EitherKind.Witness<TestError>, java.util.List<String>> rightKind =
-          EITHER.widen(complexRight);
-      Kind<EitherKind.Witness<TestError>, java.util.List<String>> leftKind =
-          EITHER.widen(complexLeft);
+      Kind<EitherKind.Witness<TestError>, List<String>> rightKind = EITHER.widen(complexRight);
+      Kind<EitherKind.Witness<TestError>, List<String>> leftKind = EITHER.widen(complexLeft);
 
-      Either<TestError, java.util.List<String>> narrowedRight = EITHER.narrow(rightKind);
-      Either<TestError, java.util.List<String>> narrowedLeft = EITHER.narrow(leftKind);
+      Either<TestError, List<String>> narrowedRight = EITHER.narrow(rightKind);
+      Either<TestError, List<String>> narrowedLeft = EITHER.narrow(leftKind);
 
       assertThat(narrowedRight).isSameAs(complexRight);
       assertThat(narrowedLeft).isSameAs(complexLeft);
@@ -326,52 +359,84 @@ class EitherKindHelperTest {
   }
 
   @Nested
-  @DisplayName("Integration with Common Test Functions")
+  @DisplayName("Integration with Test Framework")
   class IntegrationTests {
 
     @Test
-    @DisplayName("Test using common test functions and data generators")
-    void testWithCommonFunctions() {
+    @DisplayName("Test using TestData utilities")
+    void testWithTestDataUtilities() {
       Either<TestError, String> testInstance = Either.right("integration_test");
 
-      // Use common test exception for error testing
-      RuntimeException testException = createTestException("EitherKindHelper integration test");
-
-      // This would test exception handling if we had functions that could throw
-      // For KindHelper, the main exceptions are from validation, which we test separately
-      assertThat(testException).hasMessage("Test exception: EitherKindHelper integration test");
-
-      // Test with dummy Kind from common utilities
-      Kind<EitherKind.Witness<TestError>, String> dummyKind = createDummyKind("integration_dummy");
+      // Use TestData for creating dummy kinds
+      Kind<EitherKind.Witness<TestError>, String> dummyKind =
+          TestData.createDummyKind("integration_dummy");
 
       ValidationTestBuilder.create()
-          .assertInvalidKindType(() -> EITHER.narrow(dummyKind), EITHER_TYPE, dummyKind)
+          .assertInvalidKindType(() -> EITHER.narrow(dummyKind), Either.class, dummyKind)
           .execute();
     }
 
     @Test
-    @DisplayName("Test combined with other test patterns")
+    @DisplayName("Test combined with pattern testing")
     void testCombinedPatterns() {
       Either<TestError, String> instance = Either.right("combined");
 
-      // First, run the complete suite
-      runCompleteKindHelperTestSuite(instance, EITHER_TYPE, EITHER::widen, EITHER::narrow);
+      // First, run the complete suite using pattern
+      KindHelperTestPattern.runComplete(
+          instance,
+          Either.class,
+          either -> EITHER.widen(either),
+          (Kind<EitherKind.Witness<TestError>, String> kind) -> EITHER.narrow(kind));
 
       // Then, add some specific custom validations
       ValidationTestBuilder.create()
-          .assertNullWidenInput(() -> EITHER.widen(null), EITHER_TYPE)
+          .assertWidenNull(() -> EITHER.widen(null), Either.class)
           .execute();
 
       // Finally, test individual operations
-      testStandardKindHelperOperations(
-          instance,
-          EITHER_TYPE,
-          createDummyKind("combined_invalid"),
-          EITHER::widen,
-          EITHER::narrow);
+      KindHelperTestPattern.testRoundTrip(instance, EITHER::widen, EITHER::narrow);
 
       // All should pass without conflicts
       assertThat(instance.getRight()).isEqualTo("combined");
+    }
+
+    @Test
+    @DisplayName("Test with various TestData generated values")
+    void testWithGeneratedValues() {
+      // Use TestData to generate test strings
+      List<String> testStrings = TestData.getTestStrings();
+
+      for (String testString : testStrings) {
+        Either<TestError, String> either = Either.right(testString);
+
+        Kind<EitherKind.Witness<TestError>, String> widened = EITHER.widen(either);
+        Either<TestError, String> narrowed = EITHER.narrow(widened);
+
+        assertThat(narrowed).isSameAs(either);
+        assertThat(narrowed.getRight()).isEqualTo(testString);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("Named Dummy Kind Tests")
+  class NamedDummyKindTests {
+
+    @Test
+    @DisplayName("Test with named dummy kinds for better error messages")
+    void testWithNamedDummyKinds() {
+      Kind<EitherKind.Witness<TestError>, String> namedDummy =
+          TestData.createNamedDummyKind("TestDummy", "EitherKind.Witness<TestError>", "String");
+
+      ValidationTestBuilder.create()
+          .assertInvalidKindType(() -> EITHER.narrow(namedDummy), Either.class, namedDummy)
+          .execute();
+
+      // Verify the dummy has descriptive toString
+      assertThat(namedDummy.toString())
+          .contains("TestDummy")
+          .contains("EitherKind.Witness<TestError>")
+          .contains("String");
     }
   }
 }

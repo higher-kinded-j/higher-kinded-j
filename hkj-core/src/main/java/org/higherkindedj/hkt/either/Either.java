@@ -2,13 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.jspecify.annotations.Nullable; // Assuming Right can hold null, Left typically can.
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a value of one of two possible types: {@link Left} or {@link Right}. {@code Either} is
@@ -115,8 +113,8 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    */
   default <T> T fold(
       Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
-    requireNonNullFunction(leftMapper, "leftMapper");
-    requireNonNullFunction(rightMapper, "rightMapper");
+    FunctionValidator.requireFunction(leftMapper, "leftMapper", "fold");
+    FunctionValidator.requireFunction(rightMapper, "rightMapper", "fold");
 
     return switch (this) {
       case Left<L, R>(var leftValue) -> leftMapper.apply(leftValue);
@@ -150,7 +148,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    */
   @SuppressWarnings("unchecked")
   default <R2> Either<L, R2> map(Function<? super R, ? extends R2> mapper) {
-    requireNonNullFunction(mapper, "mapper");
+    FunctionValidator.requireMapper(mapper, "map");
     return switch (this) {
       case Left<L, R> l -> (Either<L, R2>) l; // Return self, cast is safe.
       case Right<L, R>(var rValue) -> Either.right(mapper.apply(rValue)); // Create new Right
@@ -291,19 +289,19 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     @SuppressWarnings("unchecked")
     public <R2> Either<L, R2> flatMap(
         Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      requireNonNullFunction(mapper, "mapper");
+      FunctionValidator.requireFlatMapper(mapper, "flatMap");
       return (Either<L, R2>) this; // Left remains Left, type L is unchanged.
     }
 
     @Override
     public void ifLeft(Consumer<? super L> action) {
-      requireNonNullFunction(action, "action");
+      FunctionValidator.requireFunction(action, "action", "ifLeft");
       action.accept(value);
     }
 
     @Override
     public void ifRight(Consumer<? super R> action) {
-      requireNonNullFunction(action, "action");
+      FunctionValidator.requireFunction(action, "action", "ifRight");
     }
 
     /**
@@ -350,11 +348,10 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     @Override
     public <R2> Either<L, R2> flatMap(
         Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      requireNonNullFunction(mapper, "mapper");
+      FunctionValidator.requireFlatMapper(mapper, "flatMap");
       // Apply the mapper, which itself returns an Either.
       Either<L, ? extends R2> result = mapper.apply(value);
-      Objects.requireNonNull(
-          result, "flatMap mapper returned a null Either instance, which is not allowed.");
+      FunctionValidator.requireNonNullResult(result, "flatMap", Either.class);
       // The cast is necessary because mapper returns <? extends R2>
       // but the method signature requires <R2>.
       @SuppressWarnings("unchecked")
@@ -364,12 +361,12 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
 
     @Override
     public void ifLeft(Consumer<? super L> action) {
-      requireNonNullFunction(action, "action");
+      FunctionValidator.requireFunction(action, "action", "ifLeft");
     }
 
     @Override
     public void ifRight(Consumer<? super R> action) {
-      requireNonNullFunction(action, "action");
+      FunctionValidator.requireFunction(action, "action", "ifRight");
       action.accept(value);
     }
 

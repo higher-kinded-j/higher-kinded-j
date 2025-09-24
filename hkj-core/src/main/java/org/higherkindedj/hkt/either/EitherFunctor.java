@@ -3,12 +3,12 @@
 package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Functor} interface for the {@link Either} type, biased towards the "Right"
@@ -44,11 +44,11 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
    */
   @Override
   public <A, B> Kind<EitherKind.Witness<L>, B> map(
-      Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> ma) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(ma, "source Kind for map");
+      Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> fa) {
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
-    Either<L, A> eitherA = EITHER.narrow(ma);
+    Either<L, A> eitherA = EITHER.narrow(fa);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map
     return EITHER.widen(resultEither);
   }
