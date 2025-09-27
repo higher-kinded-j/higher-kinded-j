@@ -3,9 +3,9 @@
 package org.higherkindedj.hkt.maybe;
 
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -36,7 +36,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * @throws NullPointerException if {@code value} is {@code null}.
    */
   static <T> Maybe<T> just(T value) {
-    Objects.requireNonNull(value, "Value for Just cannot be null");
+    FunctionValidator.requireFunction(value, "value", "Maybe.just");
     return new Just<>(value);
   }
 
