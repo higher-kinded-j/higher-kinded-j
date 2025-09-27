@@ -70,98 +70,98 @@ import org.higherkindedj.hkt.util.validation.FunctionValidator;
 @FunctionalInterface
 public interface IO<A> {
 
-    /**
-     * Executes the described computation synchronously, potentially performing side effects and
-     * returning a result of type {@code A}.
-     *
-     * <p>This method is typically called at the "end of the world" in an application, where the
-     * declarative description of the program (built using {@code IO}) is finally interpreted and
-     * executed.
-     *
-     * <p><b>Warning:</b> As the name suggests, calling this method can be "unsafe" in a purely
-     * functional context because it triggers the actual side effects. If the computation involves
-     * blocking operations, this method will block the calling thread. Any exceptions thrown by the
-     * underlying computation will propagate out of this method.
-     *
-     * @return The result of the computation of type {@code A}. If {@code A} is {@link Unit}, this
-     *     typically returns {@link Unit#INSTANCE}.
-     */
-    A unsafeRunSync();
+  /**
+   * Executes the described computation synchronously, potentially performing side effects and
+   * returning a result of type {@code A}.
+   *
+   * <p>This method is typically called at the "end of the world" in an application, where the
+   * declarative description of the program (built using {@code IO}) is finally interpreted and
+   * executed.
+   *
+   * <p><b>Warning:</b> As the name suggests, calling this method can be "unsafe" in a purely
+   * functional context because it triggers the actual side effects. If the computation involves
+   * blocking operations, this method will block the calling thread. Any exceptions thrown by the
+   * underlying computation will propagate out of this method.
+   *
+   * @return The result of the computation of type {@code A}. If {@code A} is {@link Unit}, this
+   *     typically returns {@link Unit#INSTANCE}.
+   */
+  A unsafeRunSync();
 
-    /**
-     * Creates an {@code IO<A>} instance that defers a computation described by the given {@link
-     * Supplier}. The provided {@code Supplier} (often referred to as a "thunk") encapsulates the
-     * effectful operation. It will only be executed when {@link #unsafeRunSync()} is called on the
-     * resulting {@code IO} instance.
-     *
-     * <p>This is the primary way to lift an arbitrary block of code (especially one with side
-     * effects) into an {@code IO} context, making it lazy and composable.
-     *
-     * @param thunk A {@link Supplier} that, when called, will execute the desired computation and
-     *     produce a value of type {@code A}. Must not be null.
-     * @param <A> The type of the value produced by the thunk.
-     * @return A new {@code IO<A>} instance representing the deferred computation. Never null.
-     * @throws NullPointerException if {@code thunk} is null.
-     */
-    static <A> IO<A> delay(Supplier<A> thunk) {
-        FunctionValidator.requireFunction(thunk, "thunk", "IO.delay");
-        return thunk::get;
-    }
+  /**
+   * Creates an {@code IO<A>} instance that defers a computation described by the given {@link
+   * Supplier}. The provided {@code Supplier} (often referred to as a "thunk") encapsulates the
+   * effectful operation. It will only be executed when {@link #unsafeRunSync()} is called on the
+   * resulting {@code IO} instance.
+   *
+   * <p>This is the primary way to lift an arbitrary block of code (especially one with side
+   * effects) into an {@code IO} context, making it lazy and composable.
+   *
+   * @param thunk A {@link Supplier} that, when called, will execute the desired computation and
+   *     produce a value of type {@code A}. Must not be null.
+   * @param <A> The type of the value produced by the thunk.
+   * @return A new {@code IO<A>} instance representing the deferred computation. Never null.
+   * @throws NullPointerException if {@code thunk} is null.
+   */
+  static <A> IO<A> delay(Supplier<A> thunk) {
+    FunctionValidator.requireFunction(thunk, "thunk", "IO.delay");
+    return thunk::get;
+  }
 
-    /**
-     * Transforms the result of this {@code IO} computation using the provided mapping function {@code
-     * f}, without altering its effectful nature. The original {@code IO} action is performed, and its
-     * result is then passed to the function {@code f}. The entire operation remains deferred until
-     * {@link #unsafeRunSync()} is called.
-     *
-     * <p>This is the Functor {@code map} operation for {@code IO}.
-     *
-     * <p>If this {@code IO} instance represents the computation {@code effectfulGetA()}, then {@code
-     * map(f)} represents {@code effectfulGetA().thenApply(f)}.
-     *
-     * @param f A non-null function to apply to the result of this {@code IO} computation. It takes a
-     *     value of type {@code A} and returns a value of type {@code B}.
-     * @param <B> The type of the value produced by the mapping function and thus by the new {@code
-     *     IO}.
-     * @return A new {@code IO<B>} that, when run, will execute this {@code IO}'s computation and then
-     *     apply the mapping function {@code f} to its result. Never null.
-     * @throws NullPointerException if {@code f} is null.
-     */
-    default <B> IO<B> map(Function<? super A, ? extends B> f) {
-        FunctionValidator.requireMapper(f, "IO.map");
-        return IO.delay(() -> f.apply(this.unsafeRunSync()));
-    }
+  /**
+   * Transforms the result of this {@code IO} computation using the provided mapping function {@code
+   * f}, without altering its effectful nature. The original {@code IO} action is performed, and its
+   * result is then passed to the function {@code f}. The entire operation remains deferred until
+   * {@link #unsafeRunSync()} is called.
+   *
+   * <p>This is the Functor {@code map} operation for {@code IO}.
+   *
+   * <p>If this {@code IO} instance represents the computation {@code effectfulGetA()}, then {@code
+   * map(f)} represents {@code effectfulGetA().thenApply(f)}.
+   *
+   * @param f A non-null function to apply to the result of this {@code IO} computation. It takes a
+   *     value of type {@code A} and returns a value of type {@code B}.
+   * @param <B> The type of the value produced by the mapping function and thus by the new {@code
+   *     IO}.
+   * @return A new {@code IO<B>} that, when run, will execute this {@code IO}'s computation and then
+   *     apply the mapping function {@code f} to its result. Never null.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  default <B> IO<B> map(Function<? super A, ? extends B> f) {
+    FunctionValidator.requireMapper(f, "IO.map");
+    return IO.delay(() -> f.apply(this.unsafeRunSync()));
+  }
 
-    /**
-     * Composes this {@code IO} computation with another {@code IO}-producing function {@code f}. This
-     * method allows sequencing of {@code IO} operations, where the next operation depends on the
-     * result of the current one.
-     *
-     * <p>First, this {@code IO} computation is run (when the resulting {@code IO} is eventually run).
-     * Its result (of type {@code A}) is then passed to the function {@code f}, which produces a new
-     * {@code IO<B>}. This new {@code IO<B>} is then also run. The entire sequence is deferred.
-     *
-     * <p>This is the Monad {@code flatMap} (or {@code bind}) operation for {@code IO}. It is
-     * essential for chaining operations that themselves produce {@code IO} values, ensuring that
-     * effects are properly sequenced and encapsulated.
-     *
-     * @param f A non-null function that takes the result of this {@code IO} computation (type {@code
-     *     A}) and returns a new {@code IO<B>} representing the next computation. The {@code IO}
-     *     returned by this function must not be null.
-     * @param <B> The type of the value produced by the {@code IO} returned by function {@code f}.
-     * @return A new {@code IO<B>} that, when run, will execute this {@code IO}'s computation, apply
-     *     function {@code f} to its result to get a new {@code IO}, and then execute that new {@code
-     *     IO}. Never null.
-     * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
-     */
-    default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
-        FunctionValidator.requireFlatMapper(f, "IO.flatMap");
-        return IO.delay(
-                () -> {
-                    A a = this.unsafeRunSync();
-                    IO<B> nextIO = f.apply(a);
-                    Objects.requireNonNull(nextIO, "flatMap function returned a null IO instance");
-                    return nextIO.unsafeRunSync();
-                });
-    }
+  /**
+   * Composes this {@code IO} computation with another {@code IO}-producing function {@code f}. This
+   * method allows sequencing of {@code IO} operations, where the next operation depends on the
+   * result of the current one.
+   *
+   * <p>First, this {@code IO} computation is run (when the resulting {@code IO} is eventually run).
+   * Its result (of type {@code A}) is then passed to the function {@code f}, which produces a new
+   * {@code IO<B>}. This new {@code IO<B>} is then also run. The entire sequence is deferred.
+   *
+   * <p>This is the Monad {@code flatMap} (or {@code bind}) operation for {@code IO}. It is
+   * essential for chaining operations that themselves produce {@code IO} values, ensuring that
+   * effects are properly sequenced and encapsulated.
+   *
+   * @param f A non-null function that takes the result of this {@code IO} computation (type {@code
+   *     A}) and returns a new {@code IO<B>} representing the next computation. The {@code IO}
+   *     returned by this function must not be null.
+   * @param <B> The type of the value produced by the {@code IO} returned by function {@code f}.
+   * @return A new {@code IO<B>} that, when run, will execute this {@code IO}'s computation, apply
+   *     function {@code f} to its result to get a new {@code IO}, and then execute that new {@code
+   *     IO}. Never null.
+   * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
+   */
+  default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
+    FunctionValidator.requireFlatMapper(f, "IO.flatMap");
+    return IO.delay(
+        () -> {
+          A a = this.unsafeRunSync();
+          IO<B> nextIO = f.apply(a);
+          Objects.requireNonNull(nextIO, "flatMap function returned a null IO instance");
+          return nextIO.unsafeRunSync();
+        });
+  }
 }

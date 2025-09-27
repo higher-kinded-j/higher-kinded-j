@@ -2,13 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,7 +42,8 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterApplicative(Monoid<W> monoidW) {
-    this.monoidW = requireNonNullFunction(monoidW, "Monoid<W> for WriterApplicative");
+    FunctionValidator.requireMonoid(monoidW, "WriterApplicative");
+    this.monoidW = monoidW;
   }
 
   /**
@@ -83,8 +85,8 @@ public class WriterApplicative<W> extends WriterFunctor<W>
   public <A, B> Kind<WriterKind.Witness<W>, B> ap(
       Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff, Kind<WriterKind.Witness<W>, A> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    KindValidator.requireNonNull(ff, "ap", "function");
+    KindValidator.requireNonNull(fa, "ap", "argument");
 
     Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);
@@ -94,7 +96,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
     Function<A, B> func = writerF.value();
     A val = writerA.value();
 
-    requireNonNullFunction(func, "Function wrapped in Writer for ap");
+    FunctionValidator.requireFunction(func, "function", "Writer.ap");
     B resultValue = func.apply(val);
 
     return WRITER.widen(new Writer<>(combinedLog, resultValue));

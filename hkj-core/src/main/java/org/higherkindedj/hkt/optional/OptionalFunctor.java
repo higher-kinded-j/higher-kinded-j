@@ -29,59 +29,59 @@ import org.jspecify.annotations.Nullable;
  */
 public class OptionalFunctor implements Functor<OptionalKind.Witness> {
 
-    /**
-     * Constructs a new {@code OptionalFunctor} instance. This constructor is public to allow
-     * instantiation where needed, although typically functor operations are accessed via a {@link
-     * OptionalMonad} instance.
-     */
-    public OptionalFunctor() {
-        // Default constructor
-    }
+  /**
+   * Constructs a new {@code OptionalFunctor} instance. This constructor is public to allow
+   * instantiation where needed, although typically functor operations are accessed via a {@link
+   * OptionalMonad} instance.
+   */
+  public OptionalFunctor() {
+    // Default constructor
+  }
 
-    /**
-     * Applies a function to the value contained within an {@code OptionalKind} context, if a value is
-     * present.
-     *
-     * <p>If the input {@code OptionalKind} ({@code fa}) represents an {@code Optional.of(a)}, the
-     * function {@code f} is applied to {@code a}. If {@code f} returns a non-null value {@code b},
-     * the result is an {@code OptionalKind} representing {@code Optional.of(b)}. If {@code f} returns
-     * {@code null}, the result is an empty {@code OptionalKind} (representing {@code
-     * Optional.empty()}).
-     *
-     * <p>If {@code fa} represents {@code Optional.empty()}, an empty {@code OptionalKind} is
-     * returned, and the function {@code f} is not applied.
-     *
-     * <p>This operation adheres to the Functor laws:
-     *
-     * <ol>
-     *   <li>Identity: {@code map(x -> x, fa)} is equivalent to {@code fa}.
-     *   <li>Composition: {@code map(g.compose(f), fa)} is equivalent to {@code map(g, map(f, fa))}.
-     * </ol>
-     *
-     * @param <A> The type of the value in the input {@code OptionalKind}.
-     * @param <B> The type of the value in the output {@code OptionalKind} after applying the
-     *     function.
-     * @param f The non-null function to apply to the value inside the {@code OptionalKind} if
-     *     present. This function can return {@code @Nullable B}.
-     * @param fa The non-null {@code Kind<OptionalKind.Witness, A>} (which is an {@code
-     *     OptionalKind<A>}) representing the {@code Optional<A>} whose value is to be transformed.
-     * @return A non-null {@code Kind<OptionalKind.Witness, B>} representing a new {@code Optional<B>}
-     *     that will contain the transformed value if the input was present and the function returned
-     *     non-null, or will be empty otherwise.
-     * @throws NullPointerException if {@code f} or {@code fa} is null.
-     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
-     *     OptionalKind} representation.
-     */
-    @Override
-    public <A, B> Kind<OptionalKind.Witness, B> map(
-            Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
+  /**
+   * Applies a function to the value contained within an {@code OptionalKind} context, if a value is
+   * present.
+   *
+   * <p>If the input {@code OptionalKind} ({@code fa}) represents an {@code Optional.of(a)}, the
+   * function {@code f} is applied to {@code a}. If {@code f} returns a non-null value {@code b},
+   * the result is an {@code OptionalKind} representing {@code Optional.of(b)}. If {@code f} returns
+   * {@code null}, the result is an empty {@code OptionalKind} (representing {@code
+   * Optional.empty()}).
+   *
+   * <p>If {@code fa} represents {@code Optional.empty()}, an empty {@code OptionalKind} is
+   * returned, and the function {@code f} is not applied.
+   *
+   * <p>This operation adheres to the Functor laws:
+   *
+   * <ol>
+   *   <li>Identity: {@code map(x -> x, fa)} is equivalent to {@code fa}.
+   *   <li>Composition: {@code map(g.compose(f), fa)} is equivalent to {@code map(g, map(f, fa))}.
+   * </ol>
+   *
+   * @param <A> The type of the value in the input {@code OptionalKind}.
+   * @param <B> The type of the value in the output {@code OptionalKind} after applying the
+   *     function.
+   * @param f The non-null function to apply to the value inside the {@code OptionalKind} if
+   *     present. This function can return {@code @Nullable B}.
+   * @param fa The non-null {@code Kind<OptionalKind.Witness, A>} (which is an {@code
+   *     OptionalKind<A>}) representing the {@code Optional<A>} whose value is to be transformed.
+   * @return A non-null {@code Kind<OptionalKind.Witness, B>} representing a new {@code Optional<B>}
+   *     that will contain the transformed value if the input was present and the function returned
+   *     non-null, or will be empty otherwise.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     OptionalKind} representation.
+   */
+  @Override
+  public <A, B> Kind<OptionalKind.Witness, B> map(
+      Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
 
-        FunctionValidator.requireMapper(f, "map");
-        KindValidator.requireNonNull(fa, "map");
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
-        Optional<A> optionalA = OPTIONAL.narrow(fa);
-        // Optional.map correctly handles f returning null by creating Optional.empty()
-        Optional<B> resultOptional = optionalA.map(f);
-        return OPTIONAL.widen(resultOptional);
-    }
+    Optional<A> optionalA = OPTIONAL.narrow(fa);
+    // Optional.map correctly handles f returning null by creating Optional.empty()
+    Optional<B> resultOptional = optionalA.map(f);
+    return OPTIONAL.widen(resultOptional);
+  }
 }

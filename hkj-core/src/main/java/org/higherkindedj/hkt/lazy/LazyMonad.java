@@ -27,118 +27,124 @@ import org.jspecify.annotations.Nullable;
  * @see LazyKindHelper
  */
 public class LazyMonad
-        implements Monad<LazyKind.Witness>, Applicative<LazyKind.Witness>, Functor<LazyKind.Witness> {
+    implements Monad<LazyKind.Witness>, Applicative<LazyKind.Witness>, Functor<LazyKind.Witness> {
 
-    /** Singleton instance of {@code LazyMonad}. */
-    public static final LazyMonad INSTANCE = new LazyMonad();
+  /** Singleton instance of {@code LazyMonad}. */
+  public static final LazyMonad INSTANCE = new LazyMonad();
 
-    /** Private constructor to enforce the singleton pattern. */
-    private LazyMonad() {
-        // Private constructor
-    }
+  /** Private constructor to enforce the singleton pattern. */
+  private LazyMonad() {
+    // Private constructor
+  }
 
-    /**
-     * Applies a function to the result of a Lazy computation, creating a new Lazy computation that
-     * will apply the function when forced.
-     *
-     * <p>This operation maintains lazy evaluation - the function is not applied until the resulting
-     * Lazy is forced with {@code force()}.
-     *
-     * @param <A> The type of the result of the input Lazy computation.
-     * @param <B> The type of the result after applying the function.
-     * @param f The function to apply to the Lazy result. Must not be null.
-     * @param fa The {@code Kind<LazyKind.Witness, A>} to transform. Must not be null.
-     * @return A new {@code Kind<LazyKind.Witness, B>} containing the transformed computation. Never
-     *     null.
-     * @throws NullPointerException if {@code f} or {@code fa} is null.
-     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
-     */
-    @Override
-    public <A, B> Kind<LazyKind.Witness, B> map(
-            Function<? super A, ? extends B> f, Kind<LazyKind.Witness, A> fa) {
+  /**
+   * Applies a function to the result of a Lazy computation, creating a new Lazy computation that
+   * will apply the function when forced.
+   *
+   * <p>This operation maintains lazy evaluation - the function is not applied until the resulting
+   * Lazy is forced with {@code force()}.
+   *
+   * @param <A> The type of the result of the input Lazy computation.
+   * @param <B> The type of the result after applying the function.
+   * @param f The function to apply to the Lazy result. Must not be null.
+   * @param fa The {@code Kind<LazyKind.Witness, A>} to transform. Must not be null.
+   * @return A new {@code Kind<LazyKind.Witness, B>} containing the transformed computation. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
+   */
+  @Override
+  public <A, B> Kind<LazyKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<LazyKind.Witness, A> fa) {
 
-        FunctionValidator.requireMapper(f, "map");
-        KindValidator.requireNonNull(fa, "map");
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
-        Lazy<A> lazyA = LAZY.narrow(fa);
-        Lazy<B> lazyB = lazyA.map(f);
-        return LAZY.widen(lazyB);
-    }
+    Lazy<A> lazyA = LAZY.narrow(fa);
+    Lazy<B> lazyB = lazyA.map(f);
+    return LAZY.widen(lazyB);
+  }
 
-    /**
-     * Lifts a value into a {@code Kind<LazyKind.Witness, A>}. For {@link Lazy}, this creates an
-     * already evaluated {@code Lazy} instance.
-     *
-     * @param <A> The type of the value.
-     * @param value The value to lift. Can be {@code null}.
-     * @return A {@code Kind<LazyKind.Witness, A>} containing the value. Never null.
-     */
-    @Override
-    public <A> Kind<LazyKind.Witness, A> of(@Nullable A value) {
-        // 'of'/'pure' creates a Lazy that is already evaluated
-        return LAZY.widen(Lazy.now(value));
-    }
+  /**
+   * Lifts a value into a {@code Kind<LazyKind.Witness, A>}. For {@link Lazy}, this creates an
+   * already evaluated {@code Lazy} instance.
+   *
+   * @param <A> The type of the value.
+   * @param value The value to lift. Can be {@code null}.
+   * @return A {@code Kind<LazyKind.Witness, A>} containing the value. Never null.
+   */
+  @Override
+  public <A> Kind<LazyKind.Witness, A> of(@Nullable A value) {
+    // 'of'/'pure' creates a Lazy that is already evaluated
+    return LAZY.widen(Lazy.now(value));
+  }
 
-    /**
-     * Applies a function wrapped in a {@code Kind<LazyKind.Witness, Function<A, B>>} to a value
-     * wrapped in a {@code Kind<LazyKind.Witness, A>}.
-     *
-     * <p>When the resulting Lazy is forced, it forces both the function Lazy and the argument Lazy,
-     * then applies the function to the value.
-     *
-     * @param <A> The input type of the function.
-     * @param <B> The output type of the function.
-     * @param ff The {@code Kind<LazyKind.Witness, Function<A, B>>} containing the function. Must not
-     *     be null.
-     * @param fa The {@code Kind<LazyKind.Witness, A>} containing the value. Must not be null.
-     * @return A new {@code Kind<LazyKind.Witness, B>} containing the result. Never null.
-     * @throws NullPointerException if {@code ff} or {@code fa} is null.
-     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
-     *     be unwrapped.
-     */
-    @Override
-    public <A, B> Kind<LazyKind.Witness, B> ap(
-            Kind<LazyKind.Witness, ? extends Function<A, B>> ff, Kind<LazyKind.Witness, A> fa) {
+  /**
+   * Applies a function wrapped in a {@code Kind<LazyKind.Witness, Function<A, B>>} to a value
+   * wrapped in a {@code Kind<LazyKind.Witness, A>}.
+   *
+   * <p>When the resulting Lazy is forced, it forces both the function Lazy and the argument Lazy,
+   * then applies the function to the value.
+   *
+   * @param <A> The input type of the function.
+   * @param <B> The output type of the function.
+   * @param ff The {@code Kind<LazyKind.Witness, Function<A, B>>} containing the function. Must not
+   *     be null.
+   * @param fa The {@code Kind<LazyKind.Witness, A>} containing the value. Must not be null.
+   * @return A new {@code Kind<LazyKind.Witness, B>} containing the result. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped.
+   */
+  @Override
+  public <A, B> Kind<LazyKind.Witness, B> ap(
+      Kind<LazyKind.Witness, ? extends Function<A, B>> ff, Kind<LazyKind.Witness, A> fa) {
 
-        KindValidator.requireNonNull(ff, "ap (function)");
-        KindValidator.requireNonNull(fa, "ap (argument)");
+    KindValidator.requireNonNull(ff, "ap", "function");
+    KindValidator.requireNonNull(fa, "ap", "argument");
 
-        Lazy<? extends Function<A, B>> lazyF = LAZY.narrow(ff);
-        Lazy<A> lazyA = LAZY.narrow(fa);
+    Lazy<? extends Function<A, B>> lazyF = LAZY.narrow(ff);
+    Lazy<A> lazyA = LAZY.narrow(fa);
 
-        // Defer the application: force F, force A, then apply
-        Lazy<B> lazyB = Lazy.defer(() -> lazyF.force().apply(lazyA.force()));
-        return LAZY.widen(lazyB);
-    }
+    // Defer the application: force F, force A, then apply
+    Lazy<B> lazyB = Lazy.defer(() -> lazyF.force().apply(lazyA.force()));
+    return LAZY.widen(lazyB);
+  }
 
-    /**
-     * Sequentially composes two Lazy computations, where the second computation (produced by function
-     * {@code f}) depends on the result of the first computation ({@code ma}).
-     *
-     * <p>When the resulting Lazy is forced, it forces the first Lazy to get a value, applies the
-     * function {@code f} to get a new Lazy, then forces that new Lazy to get the final result.
-     *
-     * @param <A> The type of the result of the first computation {@code ma}.
-     * @param <B> The type of the result of the second computation returned by function {@code f}.
-     * @param f A function that takes the result of the first computation and returns a new {@code
-     *     Kind<LazyKind.Witness, B>}. Must not be null.
-     * @param ma The first Lazy computation as a {@code Kind<LazyKind.Witness, A>}. Must not be null.
-     * @return A new {@code Kind<LazyKind.Witness, B>} representing the composed computation. Never
-     *     null.
-     * @throws NullPointerException if {@code f} or {@code ma} is null.
-     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the {@code Kind}
-     *     returned by {@code f} cannot be unwrapped.
-     */
-    @Override
-    public <A, B> Kind<LazyKind.Witness, B> flatMap(
-            Function<? super A, ? extends Kind<LazyKind.Witness, B>> f, Kind<LazyKind.Witness, A> ma) {
+  /**
+   * Sequentially composes two Lazy computations, where the second computation (produced by function
+   * {@code f}) depends on the result of the first computation ({@code ma}).
+   *
+   * <p>When the resulting Lazy is forced, it forces the first Lazy to get a value, applies the
+   * function {@code f} to get a new Lazy, then forces that new Lazy to get the final result.
+   *
+   * @param <A> The type of the result of the first computation {@code ma}.
+   * @param <B> The type of the result of the second computation returned by function {@code f}.
+   * @param f A function that takes the result of the first computation and returns a new {@code
+   *     Kind<LazyKind.Witness, B>}. Must not be null.
+   * @param ma The first Lazy computation as a {@code Kind<LazyKind.Witness, A>}. Must not be null.
+   * @return A new {@code Kind<LazyKind.Witness, B>} representing the composed computation. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the {@code Kind}
+   *     returned by {@code f} cannot be unwrapped.
+   */
+  @Override
+  public <A, B> Kind<LazyKind.Witness, B> flatMap(
+      Function<? super A, ? extends Kind<LazyKind.Witness, B>> f, Kind<LazyKind.Witness, A> ma) {
 
-        FunctionValidator.requireFlatMapper(f, "flatMap");
-        KindValidator.requireNonNull(ma, "flatMap");
+    FunctionValidator.requireFlatMapper(f, "flatMap");
+    KindValidator.requireNonNull(ma, "flatMap");
 
-        Lazy<A> lazyA = LAZY.narrow(ma);
-        // Adapt the function for Lazy's flatMap
-        Lazy<B> lazyB = lazyA.flatMap(a -> LAZY.narrow(f.apply(a)));
-        return LAZY.widen(lazyB);
-    }
+    Lazy<A> lazyA = LAZY.narrow(ma);
+    // Adapt the function for Lazy's flatMap
+    Lazy<B> lazyB =
+        lazyA.flatMap(
+            a -> {
+              Kind<LazyKind.Witness, B> kindB = f.apply(a);
+              FunctionValidator.requireNonNullResult(kindB, "flatMap", Lazy.class);
+              return LAZY.narrow(kindB);
+            });
+    return LAZY.widen(lazyB);
+  }
 }

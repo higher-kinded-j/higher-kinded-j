@@ -40,74 +40,74 @@ import org.jspecify.annotations.Nullable;
  * @see java.util.concurrent.CompletableFuture
  */
 public class CompletableFutureApplicative extends CompletableFutureFunctor
-        implements Applicative<CompletableFutureKind.Witness> {
+    implements Applicative<CompletableFutureKind.Witness> {
 
-    /** Constructs a new {@code CompletableFutureApplicative} instance. */
-    public CompletableFutureApplicative() {
-        // Default constructor
-    }
+  /** Constructs a new {@code CompletableFutureApplicative} instance. */
+  public CompletableFutureApplicative() {
+    // Default constructor
+  }
 
-    /**
-     * Lifts a pure value into the {@link CompletableFuture} applicative context.
-     *
-     * <p>The provided value is wrapped in an immediately completed {@link CompletableFuture}. If the
-     * value is {@code null}, it results in a {@code CompletableFuture} completed with {@code null}.
-     *
-     * @param <A> The type of the value.
-     * @param value The value to lift. Can be {@code null}.
-     * @return A {@code Kind<CompletableFutureKind.Witness, A>} representing an already completed
-     *     {@link CompletableFuture} holding the given {@code value}. This corresponds to {@code
-     *     CompletableFuture.completedFuture(value)}. Never null.
-     */
-    @Override
-    public <A> Kind<CompletableFutureKind.Witness, A> of(@Nullable A value) {
-        return FUTURE.widen(CompletableFuture.completedFuture(value));
-    }
+  /**
+   * Lifts a pure value into the {@link CompletableFuture} applicative context.
+   *
+   * <p>The provided value is wrapped in an immediately completed {@link CompletableFuture}. If the
+   * value is {@code null}, it results in a {@code CompletableFuture} completed with {@code null}.
+   *
+   * @param <A> The type of the value.
+   * @param value The value to lift. Can be {@code null}.
+   * @return A {@code Kind<CompletableFutureKind.Witness, A>} representing an already completed
+   *     {@link CompletableFuture} holding the given {@code value}. This corresponds to {@code
+   *     CompletableFuture.completedFuture(value)}. Never null.
+   */
+  @Override
+  public <A> Kind<CompletableFutureKind.Witness, A> of(@Nullable A value) {
+    return FUTURE.widen(CompletableFuture.completedFuture(value));
+  }
 
-    /**
-     * Applies a function, wrapped in a {@link CompletableFuture}, to a value, also wrapped in a
-     * {@link CompletableFuture}.
-     *
-     * <p>This operation waits for both the {@code CompletableFuture} containing the function ({@code
-     * ff}) and the {@code CompletableFuture} containing the value ({@code fa}) to complete. Once both
-     * are complete, the function is applied to the value. The result of this application is then
-     * wrapped in a new {@code CompletableFuture}.
-     *
-     * <p>If either of the input {@code CompletableFuture}s completes exceptionally, the resulting
-     * {@code CompletableFuture} will also complete exceptionally with that throwable.
-     *
-     * <p>The implementation uses {@link
-     * CompletableFuture#thenCombine(java.util.concurrent.CompletionStage,
-     * java.util.function.BiFunction)} to achieve this asynchronous coordination.
-     *
-     * @param <A> The input type of the function and the type of the value in {@code fa}.
-     * @param <B> The output type of the function and the type of the value in the resulting {@code
-     *     CompletableFuture}. The result of {@code func.apply(val)} can be {@code null} if type
-     *     {@code B} is nullable.
-     * @param ff A {@code Kind<CompletableFutureKind.Witness, Function<A, B>>} representing the
-     *     asynchronously available function. Must not be null.
-     * @param fa A {@code Kind<CompletableFutureKind.Witness, A>} representing the asynchronously
-     *     available value. Must not be null.
-     * @return A {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@link
-     *     CompletableFuture} that will complete with the result of applying the function to the
-     *     value, or complete exceptionally if any of the preceding stages fail. Never null.
-     * @throws NullPointerException if {@code ff} or {@code fa} is null.
-     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
-     *     be unwrapped.
-     */
-    @Override
-    public <A, B> Kind<CompletableFutureKind.Witness, B> ap(
-            Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
-            Kind<CompletableFutureKind.Witness, A> fa) {
+  /**
+   * Applies a function, wrapped in a {@link CompletableFuture}, to a value, also wrapped in a
+   * {@link CompletableFuture}.
+   *
+   * <p>This operation waits for both the {@code CompletableFuture} containing the function ({@code
+   * ff}) and the {@code CompletableFuture} containing the value ({@code fa}) to complete. Once both
+   * are complete, the function is applied to the value. The result of this application is then
+   * wrapped in a new {@code CompletableFuture}.
+   *
+   * <p>If either of the input {@code CompletableFuture}s completes exceptionally, the resulting
+   * {@code CompletableFuture} will also complete exceptionally with that throwable.
+   *
+   * <p>The implementation uses {@link
+   * CompletableFuture#thenCombine(java.util.concurrent.CompletionStage,
+   * java.util.function.BiFunction)} to achieve this asynchronous coordination.
+   *
+   * @param <A> The input type of the function and the type of the value in {@code fa}.
+   * @param <B> The output type of the function and the type of the value in the resulting {@code
+   *     CompletableFuture}. The result of {@code func.apply(val)} can be {@code null} if type
+   *     {@code B} is nullable.
+   * @param ff A {@code Kind<CompletableFutureKind.Witness, Function<A, B>>} representing the
+   *     asynchronously available function. Must not be null.
+   * @param fa A {@code Kind<CompletableFutureKind.Witness, A>} representing the asynchronously
+   *     available value. Must not be null.
+   * @return A {@code Kind<CompletableFutureKind.Witness, B>} representing a new {@link
+   *     CompletableFuture} that will complete with the result of applying the function to the
+   *     value, or complete exceptionally if any of the preceding stages fail. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped.
+   */
+  @Override
+  public <A, B> Kind<CompletableFutureKind.Witness, B> ap(
+      Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
+      Kind<CompletableFutureKind.Witness, A> fa) {
 
-        // Enhanced validation with descriptive parameters
-        KindValidator.requireNonNull(ff, "ap", "function");
-        KindValidator.requireNonNull(fa, "ap", "argument");
+    // Enhanced validation with descriptive parameters
+    KindValidator.requireNonNull(ff, "ap", "function");
+    KindValidator.requireNonNull(fa, "ap", "argument");
 
-        CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
-        CompletableFuture<A> futureA = FUTURE.narrow(fa);
+    CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
+    CompletableFuture<A> futureA = FUTURE.narrow(fa);
 
-        CompletableFuture<B> futureB = futureF.thenCombine(futureA, (func, val) -> func.apply(val));
-        return FUTURE.widen(futureB);
-    }
+    CompletableFuture<B> futureB = futureF.thenCombine(futureA, (func, val) -> func.apply(val));
+    return FUTURE.widen(futureB);
+  }
 }

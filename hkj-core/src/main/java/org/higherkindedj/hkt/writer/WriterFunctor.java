@@ -2,12 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Functor} interface for the {@link Writer} type. This allows mapping a
@@ -43,8 +44,9 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
   @Override
   public <A, B> Kind<WriterKind.Witness<W>, B> map(
       Function<? super A, ? extends B> f, Kind<WriterKind.Witness<W>, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
     Writer<W, A> writerA = WRITER.narrow(fa);
     Writer<W, B> writerB = writerA.map(f);

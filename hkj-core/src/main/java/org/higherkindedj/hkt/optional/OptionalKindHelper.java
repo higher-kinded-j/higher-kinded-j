@@ -16,71 +16,71 @@ import org.jspecify.annotations.Nullable;
  * static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL; OPTIONAL.widen(...);}
  */
 public enum OptionalKindHelper implements OptionalConverterOps {
-    OPTIONAL;
+  OPTIONAL;
 
-    private static final Class<Optional> TYPE = Optional.class;
+  private static final Class<Optional> TYPE = Optional.class;
 
+  /**
+   * Internal record implementing the {@link OptionalKind} interface.
+   *
+   * @param <A> The type of the value potentially held by the {@code Optional}.
+   * @param optional The concrete {@link Optional} instance. Must not be {@code null} itself.
+   */
+  record OptionalHolder<A>(Optional<A> optional) implements OptionalKind<A> {
     /**
-     * Internal record implementing the {@link OptionalKind} interface.
+     * Constructs an {@code OptionalHolder}.
      *
-     * @param <A> The type of the value potentially held by the {@code Optional}.
-     * @param optional The concrete {@link Optional} instance. Must not be {@code null} itself.
+     * @param optional The {@link Optional} to hold. Must not be null.
+     * @throws NullPointerException if the provided {@code optional} instance is null.
      */
-    record OptionalHolder<A>(Optional<A> optional) implements OptionalKind<A> {
-        /**
-         * Constructs an {@code OptionalHolder}.
-         *
-         * @param optional The {@link Optional} to hold. Must not be null.
-         * @throws NullPointerException if the provided {@code optional} instance is null.
-         */
-        OptionalHolder {
-            KindValidator.requireForWiden(optional, TYPE);
-        }
+    OptionalHolder {
+      KindValidator.requireForWiden(optional, TYPE);
     }
+  }
 
-    /**
-     * Widens a concrete {@link Optional}{@code <A>} instance into its higher-kinded representation,
-     * {@code Kind<OptionalKind.Witness, A>}. Implements {@link OptionalConverterOps#widen}.
-     *
-     * @param <A> The type of the value potentially held by the {@code Optional}.
-     * @param optional The concrete {@link Optional}{@code <A>} instance to widen. Must not be {@code
-     *     null} (though it can be {@code Optional.empty()}).
-     * @return A non-null {@link Kind<OptionalKind.Witness,A>} representing the wrapped {@code
-     *     Optional}.
-     * @throws NullPointerException if {@code optional} is {@code null}.
-     */
-    @Override
-    public <A> Kind<OptionalKind.Witness, A> widen(Optional<A> optional) {
-        return new OptionalHolder<>(optional);
-    }
+  /**
+   * Widens a concrete {@link Optional}{@code <A>} instance into its higher-kinded representation,
+   * {@code Kind<OptionalKind.Witness, A>}. Implements {@link OptionalConverterOps#widen}.
+   *
+   * @param <A> The type of the value potentially held by the {@code Optional}.
+   * @param optional The concrete {@link Optional}{@code <A>} instance to widen. Must not be {@code
+   *     null} (though it can be {@code Optional.empty()}).
+   * @return A non-null {@link Kind<OptionalKind.Witness,A>} representing the wrapped {@code
+   *     Optional}.
+   * @throws NullPointerException if {@code optional} is {@code null}.
+   */
+  @Override
+  public <A> Kind<OptionalKind.Witness, A> widen(Optional<A> optional) {
+    return new OptionalHolder<>(optional);
+  }
 
-    /**
-     * Narrows a {@code Kind<OptionalKind.Witness, A>} back to its concrete {@link Optional}{@code<A>}
-     * type. Implements {@link OptionalConverterOps#narrow}.
-     *
-     * @param <A> The type of the value potentially held by the {@code Optional}.
-     * @param kind The {@code Kind<OptionalKind.Witness, A>} instance to narrow. May be {@code null}.
-     * @return The underlying, non-null {@link Optional}{@code <A>} instance.
-     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
-     *     null} or not an instance of {@code OptionalHolder}.
-     */
-    @Override
-    public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
-        return KindValidator.narrow(kind, TYPE, this::extractOptional);
-    }
+  /**
+   * Narrows a {@code Kind<OptionalKind.Witness, A>} back to its concrete {@link Optional}{@code<A>}
+   * type. Implements {@link OptionalConverterOps#narrow}.
+   *
+   * @param <A> The type of the value potentially held by the {@code Optional}.
+   * @param kind The {@code Kind<OptionalKind.Witness, A>} instance to narrow. May be {@code null}.
+   * @return The underlying, non-null {@link Optional}{@code <A>} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null} or not an instance of {@code OptionalHolder}.
+   */
+  @Override
+  public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
+    return KindValidator.narrow(kind, TYPE, this::extractOptional);
+  }
 
-    /**
-     * Internal extraction method that retrieves the Optional from the Kind.
-     *
-     * @param <A> The type of the value potentially held by the {@code Optional}.
-     * @param kind The {@code Kind} to extract from.
-     * @return The extracted {@code Optional}.
-     * @throws ClassCastException if the kind is not an {@code OptionalHolder}.
-     */
-    private <A> Optional<A> extractOptional(Kind<OptionalKind.Witness, A> kind) {
-        return switch (kind) {
-            case OptionalHolder<A> holder -> holder.optional();
-            default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
-        };
-    }
+  /**
+   * Internal extraction method that retrieves the Optional from the Kind.
+   *
+   * @param <A> The type of the value potentially held by the {@code Optional}.
+   * @param kind The {@code Kind} to extract from.
+   * @return The extracted {@code Optional}.
+   * @throws ClassCastException if the kind is not an {@code OptionalHolder}.
+   */
+  private <A> Optional<A> extractOptional(Kind<OptionalKind.Witness, A> kind) {
+    return switch (kind) {
+      case OptionalHolder<A> holder -> holder.optional();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
+    };
+  }
 }

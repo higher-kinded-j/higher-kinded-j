@@ -24,41 +24,41 @@ import org.higherkindedj.hkt.util.validation.KindValidator;
  */
 public class IOFunctor implements Functor<IOKind.Witness> {
 
-    /**
-     * Constructs a new {@code IOFunctor} instance. This constructor is public to allow instantiation
-     * where needed, although typically functor operations are accessed via an {@link IOMonad}
-     * instance.
-     */
-    public IOFunctor() {
-        // Default constructor
-    }
+  /**
+   * Constructs a new {@code IOFunctor} instance. This constructor is public to allow instantiation
+   * where needed, although typically functor operations are accessed via an {@link IOMonad}
+   * instance.
+   */
+  public IOFunctor() {
+    // Default constructor
+  }
 
-    /**
-     * Applies a function to the result of an IO computation, creating a new IO computation that will
-     * apply the function when executed.
-     *
-     * <p>This operation maintains the lazy evaluation semantics of IO - the function is not applied
-     * until the resulting IO is executed with {@code unsafeRunSync()}.
-     *
-     * @param <A> The type of the result of the input IO computation.
-     * @param <B> The type of the result after applying the function.
-     * @param f The function to apply to the IO result. Must not be null.
-     * @param fa The {@code Kind<IOKind.Witness, A>} representing the IO computation to transform.
-     *     Must not be null.
-     * @return A {@code Kind<IOKind.Witness, B>} representing the transformed IO computation. Never
-     *     null.
-     * @throws NullPointerException if {@code f} or {@code fa} is null.
-     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
-     */
-    @Override
-    public <A, B> Kind<IOKind.Witness, B> map(
-            Function<? super A, ? extends B> f, Kind<IOKind.Witness, A> fa) {
+  /**
+   * Applies a function to the result of an IO computation, creating a new IO computation that will
+   * apply the function when executed.
+   *
+   * <p>This operation maintains the lazy evaluation semantics of IO - the function is not applied
+   * until the resulting IO is executed with {@code unsafeRunSync()}.
+   *
+   * @param <A> The type of the result of the input IO computation.
+   * @param <B> The type of the result after applying the function.
+   * @param f The function to apply to the IO result. Must not be null.
+   * @param fa The {@code Kind<IOKind.Witness, A>} representing the IO computation to transform.
+   *     Must not be null.
+   * @return A {@code Kind<IOKind.Witness, B>} representing the transformed IO computation. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
+   */
+  @Override
+  public <A, B> Kind<IOKind.Witness, B> map(
+      Function<? super A, ? extends B> f, Kind<IOKind.Witness, A> fa) {
 
-        FunctionValidator.requireMapper(f, "map");
-        KindValidator.requireNonNull(fa, "map");
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
-        IO<A> ioA = IO_OP.narrow(fa);
-        IO<B> ioB = ioA.map(f);
-        return IO_OP.widen(ioB);
-    }
+    IO<A> ioA = IO_OP.narrow(fa);
+    IO<B> ioB = ioA.map(f);
+    return IO_OP.widen(ioB);
+  }
 }

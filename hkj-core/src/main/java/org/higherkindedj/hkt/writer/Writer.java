@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -59,7 +60,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code log} is {@code null}.
    */
   public Writer {
-    Objects.requireNonNull(log, "Log (W) in Writer cannot be null.");
+    Objects.requireNonNull(log, "Log (W) in Writer cannot be null");
   }
 
   /**
@@ -75,7 +76,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code monoidW} is {@code null}.
    */
   public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
-    Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.value");
+    FunctionValidator.requireMonoid(monoidW, "Writer.value");
     return new Writer<>(monoidW.empty(), value);
   }
 
@@ -107,7 +108,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   public <B> Writer<W, B> map(Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "Mapper function cannot be null for Writer.map");
+    FunctionValidator.requireMapper(f, "Writer.map");
     return new Writer<>(this.log, f.apply(this.value));
   }
 
@@ -134,11 +135,12 @@ public record Writer<W, A>(W log, @Nullable A value) {
    */
   public <B> Writer<W, B> flatMap(
       Monoid<W> monoidW, Function<? super A, ? extends Writer<W, ? extends B>> f) {
-    Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.flatMap");
-    Objects.requireNonNull(f, "flatMap mapper function cannot be null");
+
+    FunctionValidator.requireMonoid(monoidW, "Writer.flatMap");
+    FunctionValidator.requireFlatMapper(f, "Writer.flatMap");
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);
-    Objects.requireNonNull(nextWriter, "flatMap function returned a null Writer instance");
+    FunctionValidator.requireNonNullResult(nextWriter, "Writer.flatMap", Writer.class);
 
     W combinedLog = monoidW.combine(this.log, nextWriter.log());
     // The cast to B is safe due to the ? extends B in the function's return type.
