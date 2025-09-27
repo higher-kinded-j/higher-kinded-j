@@ -10,6 +10,8 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link Validated}.
@@ -21,42 +23,56 @@ import org.higherkindedj.hkt.Traverse;
  */
 public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witness<E>> {
 
-  private static final ValidatedTraverse<?> INSTANCE = new ValidatedTraverse<>();
+    private static final ValidatedTraverse<?> INSTANCE = new ValidatedTraverse<>();
 
-  private ValidatedTraverse() {}
+    private ValidatedTraverse() {}
 
-  @SuppressWarnings("unchecked")
-  public static <E> ValidatedTraverse<E> instance() {
-    return (ValidatedTraverse<E>) INSTANCE;
-  }
+    @SuppressWarnings("unchecked")
+    public static <E> ValidatedTraverse<E> instance() {
+        return (ValidatedTraverse<E>) INSTANCE;
+    }
 
-  @Override
-  public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
-      Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
-    return VALIDATED.widen(VALIDATED.narrow(fa).map(f));
-  }
+    @Override
+    public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
+            Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-  @Override
-  public <G, A, B> Kind<G, Kind<ValidatedKind.Witness<E>, B>> traverse(
-      Applicative<G> applicative,
-      Function<? super A, ? extends Kind<G, ? extends B>> f,
-      Kind<ValidatedKind.Witness<E>, A> ta) {
+        FunctionValidator.requireMapper(f, "map");
+        KindValidator.requireNonNull(fa, "map");
 
-    return VALIDATED
-        .narrow(ta)
-        .fold(
-            // Invalid case: Lift the Invalid instance directly into the applicative context.
-            error -> applicative.of(VALIDATED.widen(Validated.invalid(error))),
+        return VALIDATED.widen(VALIDATED.narrow(fa).map(f));
+    }
 
-            // Valid case: Apply the effectful function and map the result back into a Valid.
-            value -> applicative.map(b -> VALIDATED.widen(Validated.valid(b)), f.apply(value)));
-  }
+    @Override
+    public <G, A, B> Kind<G, Kind<ValidatedKind.Witness<E>, B>> traverse(
+            Applicative<G> applicative,
+            Function<? super A, ? extends Kind<G, ? extends B>> f,
+            Kind<ValidatedKind.Witness<E>, A> ta) {
 
-  @Override
-  public <A, M> M foldMap(
-      Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ValidatedKind.Witness<E>, A> fa) {
+        FunctionValidator.requireApplicative(applicative, "traverse");
+        FunctionValidator.requireMapper(f, "traverse");
+        KindValidator.requireNonNull(ta, "traverse");
 
-    // If Valid, map the value. If Invalid, return the monoid's empty value.
-    return VALIDATED.narrow(fa).fold(error -> monoid.empty(), f);
-  }
+        return VALIDATED
+                .narrow(ta)
+                .fold(
+                        // Invalid case: Lift the Invalid instance directly into the applicative context.
+                        error -> applicative.of(VALIDATED.widen(Validated.invalid(error))),
+
+                        // Valid case: Apply the effectful function and map the result back into a Valid.
+                        value -> applicative.map(b -> VALIDATED.widen(Validated.valid(b)), f.apply(value)));
+    }
+
+    @Override
+    public <A, M> M foldMap(
+            Monoid<M> monoid,
+            Function<? super A, ? extends M> f,
+            Kind<ValidatedKind.Witness<E>, A> fa) {
+
+        FunctionValidator.requireMonoid(monoid, "foldMap");
+        FunctionValidator.requireMapper(f, "foldMap");
+        KindValidator.requireNonNull(fa, "foldMap");
+
+        // If Valid, map the value. If Invalid, return the monoid's empty value.
+        return VALIDATED.narrow(fa).fold(error -> monoid.empty(), f);
+    }
 }
