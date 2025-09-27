@@ -3,8 +3,6 @@
 package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -12,7 +10,8 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.jspecify.annotations.NonNull;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link Either}, using {@link
@@ -64,8 +63,8 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, B> Kind<EitherKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<E>, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
     Either<E, A> either = EITHER.narrow(fa);
     Either<E, B> resultEither = either.map(f);
@@ -100,13 +99,13 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
    */
   @Override
   public <G, A, B> Kind<G, Kind<EitherKind.Witness<E>, B>> traverse(
-      @NonNull Applicative<G> applicative,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
-      @NonNull Kind<EitherKind.Witness<E>, A> ta) {
+      Applicative<G> applicative,
+      Function<? super A, ? extends Kind<G, ? extends B>> f,
+      Kind<EitherKind.Witness<E>, A> ta) {
 
-    requireNonNullFunction(applicative, "applicative instance for traverse");
-    requireNonNullFunction(f, "function f for traverse");
-    requireNonNullKind(ta, "source Kind for traverse");
+    FunctionValidator.requireApplicative(applicative, "traverse");
+    FunctionValidator.requireMapper(f, "traverse");
+    KindValidator.requireNonNull(ta, "traverse");
 
     Either<E, A> either = EITHER.narrow(ta);
 
@@ -143,9 +142,9 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<EitherKind.Witness<E>, A> fa) {
-    requireNonNullFunction(monoid, "monoid for foldMap");
-    requireNonNullFunction(f, "function f for foldMap");
-    requireNonNullKind(fa, "source Kind for foldMap");
+    FunctionValidator.requireMonoid(monoid, "foldMap");
+    FunctionValidator.requireMapper(f, "foldMap");
+    KindValidator.requireNonNull(fa, "foldMap");
 
     Either<E, A> either = EITHER.narrow(fa);
     return either.fold(left -> monoid.empty(), f);

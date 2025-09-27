@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -14,6 +13,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -39,13 +40,15 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * @return A new non-null {@code Kind<ListKind.Witness, B>} containing a list with the results of
    *     applying the function {@code f}.
    * @throws NullPointerException if f or fa is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped.
    */
   @Override
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
-    // For lists, mapping is equivalent to the Functor implementation.
+
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
+
     return ListFunctor.INSTANCE.map(f, fa);
   }
 
@@ -62,8 +65,9 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * @param ta The non-null {@code Kind<ListKind.Witness, A>} (a list of {@code A}s) to traverse.
    * @return A {@code Kind<G, Kind<ListKind.Witness, B>>}. This represents the list of results (each
    *     of type {@code B}), with the entire resulting list structure itself wrapped in the
-   *     applicative context {@code G}.
+   *     applicative context {@code G}. Never null.
    * @throws NullPointerException if applicative, f, or ta is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ta cannot be unwrapped.
    */
   @Override
   public <G, A, B> Kind<G, Kind<ListKind.Witness, B>> traverse(
@@ -71,12 +75,13 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ListKind.Witness, A> ta) {
 
-    requireNonNullForWiden(applicative, "Applicative");
-    requireNonNullFunction(f, "traverse function");
-    requireNonNullKind(ta, "source Kind for traverse");
+    FunctionValidator.requireApplicative(applicative, "traverse");
+    FunctionValidator.requireMapper(f, "traverse");
+    KindValidator.requireNonNull(ta, "traverse");
 
     List<A> listA = LIST.narrow(ta);
     Kind<G, List<B>> result = applicative.of(new LinkedList<>());
+
     for (A a : listA) {
       Kind<G, ? extends B> effectOfB = f.apply(a);
       result =
@@ -104,15 +109,17 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    *     not be null.
    * @param fa The {@code Kind<ListKind.Witness, A>} representing the list to fold. Must not be
    *     null.
-   * @return The aggregated result of type {@code M}.
+   * @return The aggregated result of type {@code M}. Never null.
    * @throws NullPointerException if monoid, f, or fa is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped.
    */
   @Override
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ListKind.Witness, A> fa) {
-    requireNonNullForWiden(monoid, "Monoid");
-    requireNonNullFunction(f, "foldMap function");
-    requireNonNullKind(fa, "source Kind for foldMap");
+
+    FunctionValidator.requireMonoid(monoid, "foldMap");
+    FunctionValidator.requireMapper(f, "foldMap");
+    KindValidator.requireNonNull(fa, "foldMap");
 
     M accumulator = monoid.empty();
     for (A a : LIST.narrow(fa)) {

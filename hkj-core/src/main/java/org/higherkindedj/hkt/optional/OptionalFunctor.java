@@ -3,12 +3,13 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -67,15 +68,16 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
    * @return A non-null {@code Kind<OptionalKind.Witness, B>} representing a new {@code Optional<B>}
    *     that will contain the transformed value if the input was present and the function returned
    *     non-null, or will be empty otherwise.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
    *     OptionalKind} representation.
-   * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()

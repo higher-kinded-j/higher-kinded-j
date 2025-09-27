@@ -3,13 +3,12 @@
 package org.higherkindedj.hkt.id;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
-import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,7 +36,7 @@ public final class IdMonad implements Monad<Id.Witness> {
 
   private static final IdMonad INSTANCE = new IdMonad();
 
-  // Private constructor to enforce singleton pattern.
+  /** Private constructor to enforce singleton pattern. */
   private IdMonad() {}
 
   /**
@@ -82,13 +81,16 @@ public final class IdMonad implements Monad<Id.Witness> {
    * @return A new {@code Id<B>} containing the result of applying the function, cast to {@code
    *     Kind<Id.Witness, B>}. Guaranteed non-null.
    * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
+   *     to a valid {@code Id} representation.
    */
   @Override
   public <A, B> Kind<Id.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<Id.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
-    // Delegate to Id.map for directness. Id.map handles null values wrapped in Id correctly.
+
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
+
     return ID.narrow(fa).map(f);
   }
 
@@ -110,19 +112,20 @@ public final class IdMonad implements Monad<Id.Witness> {
    *     Kind<Id.Witness, B>}. Guaranteed non-null.
    * @throws NullPointerException if {@code ff}, {@code fa}, or the function wrapped in {@code ff}
    *     is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid {@code Id} representations.
    */
   @Override
   public <A, B> Kind<Id.Witness, B> ap(
       Kind<Id.Witness, ? extends Function<A, B>> ff, Kind<Id.Witness, A> fa) {
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+
+    KindValidator.requireNonNull(ff, "ap", "function");
+    KindValidator.requireNonNull(fa, "ap", "argument");
 
     Function<A, B> function = ID.narrow(ff).value();
     A value = ID.narrow(fa).value();
 
-    if (function == null) {
-      throw new NullPointerException("Function wrapped in Id cannot be null for ap");
-    }
+    FunctionValidator.requireFunction(function, "function", "Id.ap");
     return Id.of(function.apply(value));
   }
 
@@ -145,18 +148,20 @@ public final class IdMonad implements Monad<Id.Witness> {
    * @param <B> The type of the value within the {@code Id} returned by the function {@code f}.
    * @return The {@code Kind<Id.Witness, B>} returned by the function {@code f}. Guaranteed non-null
    *     if {@code f} adheres to its contract of returning a non-null {@link Kind}.
-   * @throws NullPointerException if {@code f}, {@code ma} is null, or if {@code f} returns a null
-   *     {@link Kind}.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} cannot be unwrapped to valid {@code Id} representations.
    */
   @Override
   public <A, B> Kind<Id.Witness, B> flatMap(
       Function<? super A, ? extends Kind<Id.Witness, B>> f, Kind<Id.Witness, A> ma) {
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+
+    FunctionValidator.requireFlatMapper(f, "flatMap");
+    KindValidator.requireNonNull(ma, "flatMap");
 
     A valueInA = ID.narrow(ma).value();
     Kind<Id.Witness, B> resultKind = f.apply(valueInA);
-    // The function f is expected to return a non-null Kind (which will be an Id instance).
-    return Objects.requireNonNull(resultKind, "Function passed to flatMap returned null Kind");
+    FunctionValidator.requireNonNullResult(resultKind, "flatMap", Id.class);
+    return resultKind;
   }
 }

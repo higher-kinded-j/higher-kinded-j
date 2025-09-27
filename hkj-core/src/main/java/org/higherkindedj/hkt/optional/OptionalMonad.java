@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -11,6 +10,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -55,6 +56,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class OptionalMonad extends OptionalFunctor
     implements MonadError<OptionalKind.Witness, Unit>, MonadZero<OptionalKind.Witness> {
+
   /** Singleton instance of {@code OptionalMonad}. */
   public static final OptionalMonad INSTANCE = new OptionalMonad();
 
@@ -101,14 +103,16 @@ public final class OptionalMonad extends OptionalFunctor
   public <A, B> Kind<OptionalKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<OptionalKind.Witness, B>> f,
       Kind<OptionalKind.Witness, A> ma) {
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+
+    FunctionValidator.requireFlatMapper(f, "flatMap");
+    KindValidator.requireNonNull(ma, "flatMap");
 
     Optional<A> optA = OPTIONAL.narrow(ma);
     Optional<B> resultOpt =
         optA.flatMap(
             a -> {
               Kind<OptionalKind.Witness, B> kindB = f.apply(a);
+              FunctionValidator.requireNonNullResult(kindB, "flatMap", Optional.class);
               return OPTIONAL.narrow(kindB);
             });
     return OPTIONAL.widen(resultOpt);
@@ -134,8 +138,9 @@ public final class OptionalMonad extends OptionalFunctor
   @Override
   public <A, B> Kind<OptionalKind.Witness, B> ap(
       Kind<OptionalKind.Witness, ? extends Function<A, B>> ff, Kind<OptionalKind.Witness, A> fa) {
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+
+    KindValidator.requireNonNull(ff, "ap", "function");
+    KindValidator.requireNonNull(fa, "ap", "argument");
 
     Optional<? extends Function<A, B>> optF = OPTIONAL.narrow(ff);
     Optional<A> optA = OPTIONAL.narrow(fa);
@@ -177,17 +182,26 @@ public final class OptionalMonad extends OptionalFunctor
   public <A> Kind<OptionalKind.Witness, A> handleErrorWith(
       Kind<OptionalKind.Witness, A> ma,
       Function<? super Unit, ? extends Kind<OptionalKind.Witness, A>> handler) {
-    requireNonNullKind(ma, "Kind ma for handleErrorWith");
-    requireNonNullFunction(handler, "handler function for handleErrorWith");
+
+    KindValidator.requireNonNull(ma, "handleErrorWith", "source");
+    FunctionValidator.requireFunction(handler, "handler", "handleErrorWith");
 
     Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
-      return handler.apply(Unit.INSTANCE);
+      Kind<OptionalKind.Witness, A> recoveryKind = handler.apply(Unit.INSTANCE);
+      FunctionValidator.requireNonNullResult(recoveryKind, "handleErrorWith", Optional.class);
+      return recoveryKind;
     } else {
       return ma;
     }
   }
 
+  /**
+   * Returns the "zero" or "empty" value for this Monad, which is {@code Optional.empty()}.
+   *
+   * @param <T> The type parameter of the Kind.
+   * @return A non-null {@code Kind<OptionalKind.Witness, T>} representing {@code Optional.empty()}.
+   */
   @Override
   public <T> Kind<OptionalKind.Witness, T> zero() {
     return OPTIONAL.widen(Optional.empty());

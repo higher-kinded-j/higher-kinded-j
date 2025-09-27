@@ -3,13 +3,16 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.test.HKTTestAssertions.*;
-import static org.higherkindedj.hkt.test.HKTTestHelpers.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
+import org.higherkindedj.hkt.test.data.TestExceptions;
+import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -66,8 +69,8 @@ class EitherTest {
     @DisplayName("Factory methods comprehensive testing with various types")
     void factoryMethodsComprehensiveTesting() {
       // Test with different types
-      Either<RuntimeException, String> exceptionLeft = Either.left(new RuntimeException("test"));
-      Either<String, java.util.List<Integer>> listRight = Either.right(java.util.List.of(1, 2, 3));
+      Either<RuntimeException, String> exceptionLeft = Either.left(TestExceptions.runtime("test"));
+      Either<String, List<Integer>> listRight = Either.right(List.of(1, 2, 3));
       Either<Integer, Boolean> booleanEither = Either.right(true);
 
       assertThat(exceptionLeft.isLeft()).isTrue();
@@ -92,9 +95,9 @@ class EitherTest {
       assertThat(leftNullInstance.getLeft()).isNull();
 
       // Test with different Left types
-      Either<RuntimeException, String> exceptionLeft = Either.left(new RuntimeException("error"));
+      Either<RuntimeException, String> exceptionLeft = Either.left(TestExceptions.runtime("error"));
       assertThat(exceptionLeft.getLeft()).isInstanceOf(RuntimeException.class);
-      assertThat(exceptionLeft.getLeft().getMessage()).isEqualTo("error");
+      assertThat(exceptionLeft.getLeft().getMessage()).contains("Test exception: error");
     }
 
     @Test
@@ -120,7 +123,7 @@ class EitherTest {
       assertThat(rightNullInstance.getRight()).isNull();
 
       // Test with different Right types
-      Either<String, java.util.List<String>> listRight = Either.right(java.util.List.of("a", "b"));
+      Either<String, List<String>> listRight = Either.right(List.of("a", "b"));
       assertThat(listRight.getRight()).containsExactly("a", "b");
     }
 
@@ -134,7 +137,7 @@ class EitherTest {
       assertThatThrownBy(leftNullInstance::getRight).isInstanceOf(NoSuchElementException.class);
 
       // Test with different Left types
-      Either<RuntimeException, String> exceptionLeft = Either.left(new RuntimeException());
+      Either<RuntimeException, String> exceptionLeft = Either.left(TestExceptions.runtime("test"));
       assertThatThrownBy(exceptionLeft::getRight)
           .isInstanceOf(NoSuchElementException.class)
           .hasMessageContaining("Cannot invoke getRight() on a Left instance.");
@@ -169,20 +172,18 @@ class EitherTest {
     }
 
     @Test
-    @DisplayName("fold() should validate null mappers using standard assertions")
+    @DisplayName("fold() should validate null mappers using ValidationTestBuilder")
     void foldShouldValidateNullMappers() {
-      // Use ValidationTestBuilder for systematic null parameter testing
       ValidationTestBuilder.create()
-          .assertNullFunction(() -> leftInstance.fold(null, rightMapper), "leftMapper")
-          .assertNullFunction(() -> rightInstance.fold(leftMapper, null), "rightMapper")
+          .assertFunctionNull(() -> leftInstance.fold(null, rightMapper), "leftMapper", "fold")
+          .assertFunctionNull(() -> rightInstance.fold(leftMapper, null), "rightMapper", "fold")
           .execute();
     }
 
     @Test
     @DisplayName("fold() comprehensive testing with different types")
     void foldComprehensiveTesting() {
-      Either<RuntimeException, java.util.List<String>> complexEither =
-          Either.right(java.util.List.of("x", "y"));
+      Either<RuntimeException, List<String>> complexEither = Either.right(List.of("x", "y"));
 
       String result =
           complexEither.fold(
@@ -202,40 +203,39 @@ class EitherTest {
   @DisplayName("map() Method - Comprehensive Testing")
   class MapMethodTests {
 
-    private final Function<Integer, String> mapper = i -> "Mapped: " + i;
-
     @Test
-    @DisplayName("map() on Right instances should apply mapper")
+    @DisplayName("map() on Right should apply mapper")
     void mapOnRightShouldApplyMapper() {
-      Either<String, String> result = rightInstance.map(mapper);
+      Either<String, String> result = rightInstance.map(TestFunctions.INT_TO_STRING);
       assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isEqualTo("Mapped: " + rightValue);
+      assertThat(result.getRight()).isEqualTo("123");
 
-      Either<String, String> nullResult = rightNullInstance.map(mapper);
+      // Use a null-safe mapper for null values
+      Either<String, String> nullResult = rightNullInstance.map(i -> String.valueOf(i));
       assertThat(nullResult.isRight()).isTrue();
-      assertThat(nullResult.getRight()).isEqualTo("Mapped: null");
+      assertThat(nullResult.getRight()).isEqualTo("null");
     }
 
     @Test
     @DisplayName("map() on Left instances should return same instance")
     void mapOnLeftShouldReturnSameInstance() {
-      Either<String, String> result = leftInstance.map(mapper);
+      Either<String, String> result = leftInstance.map(TestFunctions.INT_TO_STRING);
       assertThat(result).isSameAs(leftInstance);
       assertThat(result.isLeft()).isTrue();
       assertThat(result.getLeft()).isEqualTo(leftValue);
 
-      Either<String, String> nullResult = leftNullInstance.map(mapper);
+      Either<String, String> nullResult = leftNullInstance.map(TestFunctions.INT_TO_STRING);
       assertThat(nullResult).isSameAs(leftNullInstance);
       assertThat(nullResult.isLeft()).isTrue();
       assertThat(nullResult.getLeft()).isNull();
     }
 
     @Test
-    @DisplayName("map() should validate null mapper using standard assertions")
+    @DisplayName("map() should validate null mapper using ValidationTestBuilder")
     void mapShouldValidateNullMapper() {
       ValidationTestBuilder.create()
-          .assertNullFunction(() -> rightInstance.map(null), "mapper")
-          .assertNullFunction(() -> leftInstance.map(null), "mapper")
+          .assertMapperNull(() -> rightInstance.map(null), "map")
+          .assertMapperNull(() -> leftInstance.map(null), "map")
           .execute();
     }
 
@@ -251,12 +251,12 @@ class EitherTest {
       Either<String, Boolean> booleanResult = numberEither.map(n -> n > 40);
       assertThat(booleanResult.getRight()).isTrue();
 
-      Either<String, java.util.List<Integer>> listResult =
-          numberEither.map(n -> java.util.List.of(n, n * 2));
+      Either<String, List<Integer>> listResult = numberEither.map(n -> List.of(n, n * 2));
       assertThat(listResult.getRight()).containsExactly(42, 84);
 
       // Test mapping that returns null
-      Either<String, String> nullMapResult = numberEither.map(n -> null);
+      Either<String, String> nullMapResult =
+          numberEither.map(TestFunctions.nullReturningFunction());
       assertThat(nullMapResult.isRight()).isTrue();
       assertThat(nullMapResult.getRight()).isNull();
     }
@@ -264,9 +264,8 @@ class EitherTest {
     @Test
     @DisplayName("map() should propagate exceptions from mapper function")
     void mapShouldPropagateExceptions() {
-      RuntimeException testException = createTestException("map test");
-      Function<Integer, String> throwingMapper =
-          CommonTestFunctions.throwingFunction(testException);
+      RuntimeException testException = TestExceptions.runtime("map test");
+      Function<Integer, String> throwingMapper = TestFunctions.throwingFunction(testException);
 
       assertThatThrownBy(() -> rightInstance.map(throwingMapper)).isSameAs(testException);
 
@@ -360,10 +359,10 @@ class EitherTest {
     @DisplayName("Side effect methods should validate null actions")
     void sideEffectMethodsShouldValidateNullActions() {
       ValidationTestBuilder.create()
-          .assertNullFunction(() -> leftInstance.ifLeft(null), "action")
-          .assertNullFunction(() -> rightInstance.ifLeft(null), "action")
-          .assertNullFunction(() -> rightInstance.ifRight(null), "action")
-          .assertNullFunction(() -> leftInstance.ifRight(null), "action")
+          .assertFunctionNull(() -> leftInstance.ifLeft(null), "action", "ifLeft")
+          .assertFunctionNull(() -> rightInstance.ifLeft(null), "action", "ifLeft")
+          .assertFunctionNull(() -> rightInstance.ifRight(null), "action", "ifRight")
+          .assertFunctionNull(() -> leftInstance.ifRight(null), "action", "ifRight")
           .execute();
     }
 
@@ -399,7 +398,7 @@ class EitherTest {
     @Test
     @DisplayName("Side effect methods should handle exceptions in actions")
     void sideEffectMethodsShouldHandleActionExceptions() {
-      RuntimeException testException = createTestException("side effect test");
+      RuntimeException testException = TestExceptions.runtime("side effect test");
       Consumer<String> throwingLeftAction =
           s -> {
             throw testException;
@@ -430,8 +429,11 @@ class EitherTest {
       assertThat(leftInstance.toString()).isEqualTo("Left(" + leftValue + ")");
       assertThat(leftNullInstance.toString()).isEqualTo("Left(null)");
 
-      Either<RuntimeException, String> exceptionLeft = Either.left(new RuntimeException("test"));
-      assertThat(exceptionLeft.toString()).contains("Left(java.lang.RuntimeException: test)");
+      Either<RuntimeException, String> exceptionLeft = Either.left(TestExceptions.runtime("test"));
+      assertThat(exceptionLeft.toString())
+          .contains("Left(")
+          .contains("RuntimeException")
+          .contains("Test exception: test");
     }
 
     @Test
@@ -440,7 +442,7 @@ class EitherTest {
       assertThat(rightInstance.toString()).isEqualTo("Right(" + rightValue + ")");
       assertThat(rightNullInstance.toString()).isEqualTo("Right(null)");
 
-      Either<String, java.util.List<String>> listRight = Either.right(java.util.List.of("a", "b"));
+      Either<String, List<String>> listRight = Either.right(List.of("a", "b"));
       assertThat(listRight.toString()).isEqualTo("Right([a, b])");
     }
 
@@ -448,8 +450,7 @@ class EitherTest {
     @DisplayName("toString() comprehensive testing with complex types")
     void toStringComprehensiveTesting() {
       // Test with nested structures
-      Either<String, java.util.Map<String, Integer>> mapRight =
-          Either.right(java.util.Map.of("key1", 1, "key2", 2));
+      Either<String, Map<String, Integer>> mapRight = Either.right(Map.of("key1", 1, "key2", 2));
       String mapToString = mapRight.toString();
       assertThat(mapToString).startsWith("Right(");
       assertThat(mapToString).contains("key1");
@@ -520,11 +521,11 @@ class EitherTest {
     @DisplayName("equals() and hashCode() comprehensive testing")
     void equalsHashCodeComprehensiveTesting() {
       // Test with complex objects
-      record ComplexRecord(String name, java.util.List<Integer> numbers) {}
+      record ComplexRecord(String name, List<Integer> numbers) {}
 
-      ComplexRecord record1 = new ComplexRecord("test", java.util.List.of(1, 2, 3));
-      ComplexRecord record2 = new ComplexRecord("test", java.util.List.of(1, 2, 3));
-      ComplexRecord record3 = new ComplexRecord("different", java.util.List.of(1, 2, 3));
+      ComplexRecord record1 = new ComplexRecord("test", List.of(1, 2, 3));
+      ComplexRecord record2 = new ComplexRecord("test", List.of(1, 2, 3));
+      ComplexRecord record3 = new ComplexRecord("different", List.of(1, 2, 3));
 
       Either<String, ComplexRecord> right1 = Either.right(record1);
       Either<String, ComplexRecord> right2 = Either.right(record2);

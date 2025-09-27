@@ -2,12 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Monad} interface for the {@link Reader} monad.
@@ -33,69 +34,67 @@ import org.higherkindedj.hkt.Monad;
  * @see ReaderApplicative
  */
 public final class ReaderMonad<R> extends ReaderApplicative<R>
-    implements Monad<ReaderKind.Witness<R>> {
+        implements Monad<ReaderKind.Witness<R>> {
 
-  private static final ReaderMonad<?> INSTANCE = new ReaderMonad<>();
+    private static final ReaderMonad<?> INSTANCE = new ReaderMonad<>();
 
-  private ReaderMonad() {
-    // Private constructor to enforce singleton-per-type pattern
-  }
+    private ReaderMonad() {
+        // Private constructor to enforce singleton-per-type pattern
+    }
 
-  /**
-   * Returns the singleton instance of {@code ReaderMonad} for a given environment type {@code R}.
-   *
-   * @param <R> The environment type.
-   * @return The singleton {@code ReaderMonad<R>} instance.
-   */
-  @SuppressWarnings("unchecked")
-  public static <R> ReaderMonad<R> instance() {
-    return (ReaderMonad<R>) INSTANCE;
-  }
+    /**
+     * Returns the singleton instance of {@code ReaderMonad} for a given environment type {@code R}.
+     *
+     * @param <R> The environment type.
+     * @return The singleton {@code ReaderMonad<R>} instance.
+     */
+    @SuppressWarnings("unchecked")
+    public static <R> ReaderMonad<R> instance() {
+        return (ReaderMonad<R>) INSTANCE;
+    }
 
-  /**
-   * Sequentially composes two {@link Reader} actions, passing the result of the first {@code
-   * Reader} ({@code ma}) into a function {@code f} that produces the second {@code Reader}.
-   *
-   * <p>The {@code flatMap} operation allows dependent computations: the computation of the second
-   * {@code Reader} can depend on the result of the first. Both {@code Reader}s will be evaluated
-   * with the same environment {@code R}.
-   *
-   * @param <A> The value type of the initial {@code Reader} (represented by {@code ma}).
-   * @param <B> The value type of the {@code Reader} produced by the function {@code f}.
-   * @param f A function that takes a value of type {@code A} (from the first {@code Reader}) and
-   *     returns a {@code Kind<ReaderKind.Witness<R>, B>} (which is a wrapped {@code Reader<R, B>}).
-   *     Must not be null.
-   * @param ma A {@code Kind<ReaderKind.Witness<R>, A>} representing the initial {@code Reader<R,
-   *     A>}. Must not be null.
-   * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the composed {@code Reader<R,
-   *     B>}. Never null. The resulting {@code Reader} when run with an environment {@code r}, will
-   *     first run {@code ma} with {@code r} to get {@code a}, then apply {@code f} to {@code a} to
-   *     get a new {@code Reader}, and then run that new {@code Reader} with the same environment
-   *     {@code r}.
-   * @throws NullPointerException if {@code f} or {@code ma} is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
-   *     Reader} representation.
-   */
-  @Override
-  public <A, B> Kind<ReaderKind.Witness<R>, B> flatMap(
-      Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
-      Kind<ReaderKind.Witness<R>, A> ma) {
+    /**
+     * Sequentially composes two {@link Reader} actions, passing the result of the first {@code
+     * Reader} ({@code ma}) into a function {@code f} that produces the second {@code Reader}.
+     *
+     * <p>The {@code flatMap} operation allows dependent computations: the computation of the second
+     * {@code Reader} can depend on the result of the first. Both {@code Reader}s will be evaluated
+     * with the same environment {@code R}.
+     *
+     * @param <A> The value type of the initial {@code Reader} (represented by {@code ma}).
+     * @param <B> The value type of the {@code Reader} produced by the function {@code f}.
+     * @param f A function that takes a value of type {@code A} (from the first {@code Reader}) and
+     *     returns a {@code Kind<ReaderKind.Witness<R>, B>} (which is a wrapped {@code Reader<R, B>}).
+     *     Must not be null.
+     * @param ma A {@code Kind<ReaderKind.Witness<R>, A>} representing the initial {@code Reader<R,
+     *     A>}. Must not be null.
+     * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the composed {@code Reader<R,
+     *     B>}. Never null. The resulting {@code Reader} when run with an environment {@code r}, will
+     *     first run {@code ma} with {@code r} to get {@code a}, then apply {@code f} to {@code a} to
+     *     get a new {@code Reader}, and then run that new {@code Reader} with the same environment
+     *     {@code r}.
+     * @throws NullPointerException if {@code f} or {@code ma} is null.
+     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} is not a valid {@code
+     *     Reader} representation.
+     */
+    @Override
+    public <A, B> Kind<ReaderKind.Witness<R>, B> flatMap(
+            Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
+            Kind<ReaderKind.Witness<R>, A> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+        FunctionValidator.requireFlatMapper(f, "flatMap");
+        KindValidator.requireNonNull(ma, "flatMap");
 
-    Reader<R, A> readerA = READER.narrow(ma); // Convert Kind back to concrete Reader
+        Reader<R, A> readerA = READER.narrow(ma);
 
-    // flatMap on the concrete Reader<R,A> takes a function A -> Reader<R,B>
-    // The input function f is A -> Kind<ReaderKind.Witness<R>, B>
-    // So, we need to adapt f by unwrapping its result.
-    Reader<R, B> readerB =
-        readerA.flatMap(
-            a -> {
-              Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
-              return READER.narrow(kindB); // unwrap Kind<ReaderKind.Witness<R>, B> to Reader<R,B>
-            });
+        Reader<R, B> readerB =
+                readerA.flatMap(
+                        a -> {
+                            Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
+                            FunctionValidator.requireNonNullResult(kindB, "flatMap", Reader.class);
+                            return READER.narrow(kindB);
+                        });
 
-    return READER.widen(readerB); // Wrap the resulting concrete Reader back into a Kind
-  }
+        return READER.widen(readerB);
+    }
 }

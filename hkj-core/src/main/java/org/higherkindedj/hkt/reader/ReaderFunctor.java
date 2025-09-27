@@ -3,11 +3,12 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Functor} interface for the {@link Reader} type, using {@link
@@ -27,32 +28,33 @@ import org.higherkindedj.hkt.Kind;
  */
 public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
 
-  /**
-   * Maps a function {@code f} over the value {@code A} contained within a {@code
-   * Kind<ReaderKind.Witness<R>, A>}.
-   *
-   * <p>This operation transforms a {@code Reader<R, A>} into a {@code Reader<R, B>} by applying the
-   * function {@code f} to the result of the original reader, without altering the required
-   * environment {@code R}.
-   *
-   * @param f The function to map over the reader's result. Must not be null.
-   * @param fa The higher-kinded representation of a {@code Reader<R, A>}. Must not be null.
-   * @param <A> The original result type of the {@code Reader}.
-   * @param <B> The new result type after applying the function {@code f}.
-   * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the transformed {@code
-   *     Reader<R, B>}. Never null.
-   * @throws NullPointerException if {@code f} or {@code fa} is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
-   *     to a valid {@code Reader} representation.
-   */
-  @Override
-  public <A, B> Kind<ReaderKind.Witness<R>, B> map(
-      Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+    /**
+     * Maps a function {@code f} over the value {@code A} contained within a {@code
+     * Kind<ReaderKind.Witness<R>, A>}.
+     *
+     * <p>This operation transforms a {@code Reader<R, A>} into a {@code Reader<R, B>} by applying the
+     * function {@code f} to the result of the original reader, without altering the required
+     * environment {@code R}.
+     *
+     * @param f The function to map over the reader's result. Must not be null.
+     * @param fa The higher-kinded representation of a {@code Reader<R, A>}. Must not be null.
+     * @param <A> The original result type of the {@code Reader}.
+     * @param <B> The new result type after applying the function {@code f}.
+     * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the transformed {@code
+     *     Reader<R, B>}. Never null.
+     * @throws NullPointerException if {@code f} or {@code fa} is null.
+     * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
+     *     to a valid {@code Reader} representation.
+     */
+    @Override
+    public <A, B> Kind<ReaderKind.Witness<R>, B> map(
+            Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
 
-    Reader<R, A> readerA = READER.narrow(fa);
-    Reader<R, B> readerB = readerA.map(f); // Delegates to Reader's own map method
-    return READER.widen(readerB);
-  }
+        FunctionValidator.requireMapper(f, "map");
+        KindValidator.requireNonNull(fa, "map");
+
+        Reader<R, A> readerA = READER.narrow(fa);
+        Reader<R, B> readerB = readerA.map(f);
+        return READER.widen(readerB);
+    }
 }

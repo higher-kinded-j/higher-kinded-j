@@ -2,13 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Monad} interface for the {@link Writer} type. This provides the full
@@ -58,16 +59,16 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
    * @return A {@code Kind<WriterKind.Witness<W>, B>} representing the composed {@code Writer<W,
    *     B>}. Never null.
    * @throws NullPointerException if {@code f} or {@code ma} is null.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
-   *     to a valid {@code Writer} representation.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} cannot be unwrapped to a valid {@code Writer} representation.
    */
   @Override
   public <A, B> Kind<WriterKind.Witness<W>, B> flatMap(
       Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
       Kind<WriterKind.Witness<W>, A> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+    FunctionValidator.requireFlatMapper(f, "flatMap");
+    KindValidator.requireNonNull(ma, "flatMap");
 
     Writer<W, A> writerA = WRITER.narrow(ma);
 
@@ -78,6 +79,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
             this.monoidW,
             a -> {
               Kind<WriterKind.Witness<W>, B> kindB = f.apply(a);
+              FunctionValidator.requireNonNullResult(kindB, "flatMap", Writer.class);
               return WRITER.narrow(kindB);
             });
 

@@ -3,11 +3,12 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 
 /**
  * Implements the {@link Functor} interface for {@link Try}, using {@link TryKind.Witness}.
@@ -25,6 +26,7 @@ public class TryFunctor implements Functor<TryKind.Witness> {
    * @param f The function to apply if the {@code Try} is a {@link Try.Success}. Must not be null.
    * @param fa The {@code Kind<TryKind.Witness, A>} to map over. Must not be null.
    * @return A new {@code Kind<TryKind.Witness, B>} representing the result of the map operation.
+   *     Never null.
    * @throws NullPointerException if {@code f} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped
    *     to a valid {@code Try} representation.
@@ -32,8 +34,9 @@ public class TryFunctor implements Functor<TryKind.Witness> {
   @Override
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+
+    FunctionValidator.requireMapper(f, "map");
+    KindValidator.requireNonNull(fa, "map");
 
     Try<A> tryA = TRY.narrow(fa);
     Try<B> resultTry = tryA.map(f);

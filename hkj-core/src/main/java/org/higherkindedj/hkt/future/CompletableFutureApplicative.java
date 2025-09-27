@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -11,6 +10,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -100,8 +100,9 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
       Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
       Kind<CompletableFutureKind.Witness, A> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    // Enhanced validation with descriptive parameters
+    KindValidator.requireNonNull(ff, "ap", "function");
+    KindValidator.requireNonNull(fa, "ap", "argument");
 
     CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
