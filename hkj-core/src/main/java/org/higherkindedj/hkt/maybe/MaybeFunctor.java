@@ -28,6 +28,9 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
 
   private static final Class<MaybeFunctor> MAYBE_FUNCTOR_CLASS = MaybeFunctor.class;
 
+    public static final MaybeFunctor INSTANCE = new MaybeFunctor();
+
+    protected MaybeFunctor() {}
   /**
    * Applies a function to the value contained within a {@link MaybeKind} if it is a {@link Just},
    * and returns a new {@code MaybeKind} containing the result. If the input {@code MaybeKind} is

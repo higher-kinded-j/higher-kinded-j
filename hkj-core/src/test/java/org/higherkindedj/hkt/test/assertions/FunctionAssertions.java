@@ -228,23 +228,6 @@ public final class FunctionAssertions {
         () -> FunctionValidator.requireFunction(null, functionName, contextClass, operation));
   }
 
-  // =============================================================================
-  // Specialized Assertions for Common Patterns
-  // =============================================================================
-
-  /**
-   * Asserts predicate validation (commonly used in MonadZero filtering).
-   *
-   * @param executable The code that should throw
-   * @param operation The operation name
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertPredicateNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
-    return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requirePredicate(null, operation));
-  }
-
   /**
    * Asserts handler function validation (commonly used in error handling).
    *
@@ -259,19 +242,6 @@ public final class FunctionAssertions {
         executable, () -> FunctionValidator.requireHandler(null, contextClass, operation));
   }
 
-  /**
-   * Asserts non-null result validation (for flatMap result checking).
-   *
-   * @param executable The code that should throw
-   * @param contextClass The class providing context
-   * @param operation The operation name
-   * @return Throwable assertion for further chaining
-   */
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertNonNullResult(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
-    return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireNonNullResult(null, contextClass, operation));
-  }
 
   // =============================================================================
   // Core Production Validator Integration

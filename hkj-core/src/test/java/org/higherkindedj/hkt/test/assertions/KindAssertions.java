@@ -163,10 +163,11 @@ public final class KindAssertions {
         executable,
         () -> {
           Kind<Object, Object> nullKind = null;
-          // Use Object.class as the target type for the generic method call
-          // The actual targetType validation happens inside the narrow method
+          // Cast targetType to Class<Object> for the generic method call
+          @SuppressWarnings("unchecked")
+          Class<Object> objectTargetType = (Class<Object>) targetType;
           KindValidator.<Object, Object, Object>narrow(
-              nullKind, Object.class, kind -> new Object());
+              nullKind, objectTargetType, kind -> new Object());
         });
   }
 
@@ -181,30 +182,11 @@ public final class KindAssertions {
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertInvalidKindType(
       ThrowableAssert.ThrowingCallable executable, Class<?> targetType, Kind<?, ?> invalidKind) {
-    return assertKindUnwrapException(
-        executable,
-        () -> {
-          try {
-            // Cast to the expected type for the validator
-            @SuppressWarnings("unchecked")
-            Kind<Object, Object> typedInvalidKind = (Kind<Object, Object>) invalidKind;
-            // Use Object.class as the target type for the generic method call
-            KindValidator.<Object, Object, Object>narrow(
-                typedInvalidKind,
-                Object.class,
-                kind -> {
-                  // This will throw ClassCastException which gets wrapped
-                  throw new ClassCastException("Invalid type");
-                });
-          } catch (ClassCastException e) {
-            throw new KindUnwrapException(
-                "Kind instance is not a "
-                    + targetType.getSimpleName()
-                    + ": "
-                    + invalidKind.getClass().getName(),
-                e);
-          }
-        });
+
+    // We expect the actual code to throw KindUnwrapException when narrowing an invalid Kind
+    return assertThatThrownBy(executable)
+        .isInstanceOf(org.higherkindedj.hkt.exception.KindUnwrapException.class)
+        .hasMessageContaining("Kind instance is not a " + targetType.getSimpleName());
   }
 
   /**

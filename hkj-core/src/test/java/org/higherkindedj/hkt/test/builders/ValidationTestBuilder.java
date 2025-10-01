@@ -7,8 +7,9 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.assertj.core.api.ThrowableAssert;
-import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.assertions.FunctionAssertions;
 import org.higherkindedj.hkt.test.assertions.KindAssertions;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
@@ -351,9 +352,9 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public <F, A, B> ValidationTestBuilder assertAllFunctorOperations(
-      org.higherkindedj.hkt.Functor<F> functor,
+      Functor<F> functor,
       Class<?> contextClass,
-      org.higherkindedj.hkt.Kind<F, A> validKind,
+      Kind<F, A> validKind,
       java.util.function.Function<A, B> validMapper) {
 
     assertMapperNull(() -> functor.map(null, validKind), contextClass, Operation.MAP);
@@ -377,13 +378,13 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public <F, A, B> ValidationTestBuilder assertAllApplicativeOperations(
-      org.higherkindedj.hkt.Applicative<F> applicative,
+      Applicative<F> applicative,
       Class<?> contextClass,
-      org.higherkindedj.hkt.Kind<F, A> validKind,
-      org.higherkindedj.hkt.Kind<F, A> validKind2,
-      java.util.function.Function<A, B> validMapper,
-      org.higherkindedj.hkt.Kind<F, java.util.function.Function<A, B>> validFunctionKind,
-      java.util.function.BiFunction<A, A, B> validCombiningFunction) {
+      Kind<F, A> validKind,
+      Kind<F, A> validKind2,
+      Function<A, B> validMapper,
+      Kind<F, Function<A, B>> validFunctionKind,
+      BiFunction<A, A, B> validCombiningFunction) {
 
     // Functor operations (inherited)
     assertAllFunctorOperations(applicative, contextClass, validKind, validMapper);
@@ -427,16 +428,15 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public <F, A, B> ValidationTestBuilder assertAllMonadOperations(
-      org.higherkindedj.hkt.Monad<F> monad,
+      Monad<F> monad,
       Class<?> contextClass,
-      org.higherkindedj.hkt.Kind<F, A> validKind,
-      java.util.function.Function<A, B> validMapper,
-      java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, B>> validFlatMapper,
-      org.higherkindedj.hkt.Kind<F, java.util.function.Function<A, B>> validFunctionKind) {
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      Function<A, Kind<F, B>> validFlatMapper,
+      Kind<F, Function<A, B>> validFunctionKind) {
 
     // Applicative operations (inherited) - using BiFunction for map2
-    java.util.function.BiFunction<A, A, B> validCombiningFunction =
-        (a1, a2) -> validMapper.apply(a1);
+    BiFunction<A, A, B> validCombiningFunction = (a1, a2) -> validMapper.apply(a1);
     assertAllApplicativeOperations(
         monad,
         contextClass,
@@ -471,14 +471,14 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public <F, E, A, B> ValidationTestBuilder assertAllMonadErrorOperations(
-      org.higherkindedj.hkt.MonadError<F, E> monadError,
+      MonadError<F, E> monadError,
       Class<?> contextClass,
-      org.higherkindedj.hkt.Kind<F, A> validKind,
-      java.util.function.Function<A, B> validMapper,
-      java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, B>> validFlatMapper,
-      org.higherkindedj.hkt.Kind<F, java.util.function.Function<A, B>> validFunctionKind,
-      java.util.function.Function<E, org.higherkindedj.hkt.Kind<F, A>> validHandler,
-      org.higherkindedj.hkt.Kind<F, A> validFallback) {
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      Function<A, Kind<F, B>> validFlatMapper,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Function<E, Kind<F, A>> validHandler,
+      Kind<F, A> validFallback) {
 
     // Monad operations (inherited)
     assertAllMonadOperations(
@@ -517,11 +517,11 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public <F, A, M> ValidationTestBuilder assertAllFoldableOperations(
-      org.higherkindedj.hkt.Foldable<F> foldable,
+      Foldable<F> foldable,
       Class<?> contextClass,
-      org.higherkindedj.hkt.Kind<F, A> validKind,
-      org.higherkindedj.hkt.Monoid<M> validMonoid,
-      java.util.function.Function<A, M> validFoldMapFunction) {
+      Kind<F, A> validKind,
+      Monoid<M> validMonoid,
+      Function<A, M> validFoldMapFunction) {
 
     assertMonoidNull(
         () -> foldable.foldMap(null, validFoldMapFunction, validKind), contextClass, FOLD_MAP);
@@ -551,14 +551,14 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public <F, G, A, B, M> ValidationTestBuilder assertAllTraverseOperations(
-      org.higherkindedj.hkt.Traverse<F> traverse,
+      Traverse<F> traverse,
       Class<?> contextClass,
-      org.higherkindedj.hkt.Kind<F, A> validKind,
-      java.util.function.Function<A, B> validMapper,
-      org.higherkindedj.hkt.Applicative<G> validApplicative,
-      java.util.function.Function<A, org.higherkindedj.hkt.Kind<G, B>> validTraverseFunction,
-      org.higherkindedj.hkt.Monoid<M> validMonoid,
-      java.util.function.Function<A, M> validFoldMapFunction) {
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      Applicative<G> validApplicative,
+      Function<A, Kind<G, B>> validTraverseFunction,
+      Monoid<M> validMonoid,
+      Function<A, M> validFoldMapFunction) {
 
     // Functor operations (inherited)
     assertAllFunctorOperations(traverse, contextClass, validKind, validMapper);

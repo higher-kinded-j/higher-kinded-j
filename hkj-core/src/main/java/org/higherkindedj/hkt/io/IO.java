@@ -2,14 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.io;
 
-import static org.higherkindedj.hkt.util.validation.Operation.DELAY;
-import static org.higherkindedj.hkt.util.validation.Operation.MAP;
-
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 /**
  * Represents a computation that, when executed, can perform side effects and produce a value of
@@ -158,12 +157,12 @@ public interface IO<A> {
    * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
    */
   default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
-    FunctionValidator.requireFlatMapper(f, "IO.flatMap");
+    FunctionValidator.requireFlatMapper(f, IO.class, FLAT_MAP);
     return IO.delay(
         () -> {
           A a = this.unsafeRunSync();
           IO<B> nextIO = f.apply(a);
-          Objects.requireNonNull(nextIO, "flatMap function returned a null IO instance");
+            FunctionValidator.requireNonNullResult(nextIO, FLAT_MAP, IO.class);
           return nextIO.unsafeRunSync();
         });
   }

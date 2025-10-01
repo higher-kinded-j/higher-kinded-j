@@ -10,7 +10,6 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
-import org.higherkindedj.hkt.test.data.TestData;
 
 /**
  * Enhanced comprehensive test patterns with better composability and reusability.
@@ -45,7 +44,7 @@ public final class TypeClassTestPattern {
       Functor<F> functor, Class<?> contextClass) {
     return new FunctorTestBuilder<>(functor, contextClass);
   }
-
+    @Deprecated
   public static class FunctorTestBuilder<F, A, B> {
     private final Functor<F> functor;
     private final Class<?> contextClass;
@@ -140,7 +139,7 @@ public final class TypeClassTestPattern {
       MonadError<F, E> monadError, Class<?> contextClass) {
     return new MonadErrorTestBuilder<>(monadError, contextClass);
   }
-
+    @Deprecated
   public static class MonadErrorTestBuilder<F, E, A, B> {
     private final MonadError<F, E> monadError;
     private final Class<?> contextClass;
@@ -345,7 +344,7 @@ public final class TypeClassTestPattern {
 
   public static <F, A> void testFunctorExceptionPropagation(
       Functor<F> functor, Kind<F, A> validKind) {
-    RuntimeException testException = TestData.createTestException("functor test");
+    RuntimeException testException = createTestException("functor test");
     Function<A, String> throwingMapper =
         a -> {
           throw testException;
@@ -461,7 +460,7 @@ public final class TypeClassTestPattern {
   }
 
   public static <F, A> void testMonadExceptionPropagation(Monad<F> monad, Kind<F, A> validKind) {
-    RuntimeException testException = TestData.createTestException("monad test");
+    RuntimeException testException = createTestException("monad test");
 
     Function<A, String> throwingMapper =
         a -> {
@@ -558,7 +557,7 @@ public final class TypeClassTestPattern {
   public static <F, A> void testApplicativeExceptionPropagation(
       Applicative<F> applicative, Kind<F, A> validKind) {
 
-    RuntimeException testException = TestData.createTestException("applicative test");
+    RuntimeException testException = createTestException("applicative test");
     Function<A, String> throwingMapper =
         a -> {
           throw testException;
@@ -618,7 +617,7 @@ public final class TypeClassTestPattern {
   public static <F, A, M> void testFoldableExceptionPropagation(
       Foldable<F> foldable, Kind<F, A> validKind, Monoid<M> validMonoid) {
 
-    RuntimeException testException = TestData.createTestException("foldable test");
+    RuntimeException testException = createTestException("foldable test");
     Function<A, M> throwingFunction =
         a -> {
           throw testException;
@@ -679,7 +678,7 @@ public final class TypeClassTestPattern {
       Applicative<G> validApplicative,
       Monoid<M> validMonoid) {
 
-    RuntimeException testException = TestData.createTestException("traverse test");
+    RuntimeException testException = createTestException("traverse test");
 
     Function<A, String> throwingMapper =
         a -> {
@@ -872,4 +871,8 @@ public final class TypeClassTestPattern {
     testTraverseExceptionPropagation(traverse, validKind, validApplicative, validMonoid);
     testTraverseLaws(traverse, validApplicative, validKind, validTraverseFunction, equalityChecker);
   }
+
+    private static RuntimeException createTestException(String message) {
+        return new RuntimeException("Test exception: " + message);
+    }
 }

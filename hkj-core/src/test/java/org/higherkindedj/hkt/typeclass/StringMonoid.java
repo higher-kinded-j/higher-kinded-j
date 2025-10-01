@@ -9,12 +9,12 @@ import org.jspecify.annotations.NonNull;
 public class StringMonoid implements Monoid<String> {
 
   @Override
-  public @NonNull String empty() {
+  public  String empty() {
     return "";
   }
 
   @Override
-  public @NonNull String combine(@NonNull String x, @NonNull String y) {
+  public  String combine( String x,  String y) {
     return x + y;
   }
 }

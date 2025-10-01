@@ -36,7 +36,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
   private static final Class<EitherMonad> EITHER_MONAD_CLASS = EitherMonad.class;
 
   private EitherMonad() {
-    // Private constructor
+    super();
   }
 
   @SuppressWarnings("unchecked")

@@ -14,60 +14,6 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 
-/**
- * Complete test patterns for algebraic laws (Functor, Applicative, Monad, Traverse).
- *
- * <p>Provides standardized testing patterns for verifying that implementations satisfy their
- * algebraic laws. These laws ensure mathematical correctness and predictable behavior.
- *
- * <h2>Supported Type Classes:</h2>
- *
- * <ul>
- *   <li>Functor Laws: Identity, Composition
- *   <li>Applicative Laws: Identity, Homomorphism, Interchange, Composition
- *   <li>Monad Laws: Left Identity, Right Identity, Associativity
- *   <li>Traverse Laws: Identity, Composition, Naturality (simplified)
- * </ul>
- *
- * <h2>Usage Examples:</h2>
- *
- * <h3>Functor Laws:</h3>
- *
- * <pre>{@code
- * LawTestPattern.testFunctorLaws(
- *     functor,
- *     validKind,
- *     f,
- *     g,
- *     equalityChecker
- * );
- * }</pre>
- *
- * <h3>Monad Laws:</h3>
- *
- * <pre>{@code
- * LawTestPattern.testMonadLaws(
- *     monad,
- *     validKind,
- *     testValue,
- *     testFunction,
- *     chainFunction,
- *     equalityChecker
- * );
- * }</pre>
- *
- * <h2>Design Notes:</h2>
- *
- * <ul>
- *   <li>All law tests include null parameter validation
- *   <li>Uses BiPredicate for equality checking (handles different equality semantics)
- *   <li>Clear assertion messages indicate which law failed
- *   <li>Can test laws individually or as complete suites
- * </ul>
- *
- * @see MonadTestPattern
- * @see TraverseTestPattern
- */
 public final class LawTestPattern {
 
   private LawTestPattern() {
@@ -78,36 +24,6 @@ public final class LawTestPattern {
   // Functor Laws
   // =============================================================================
 
-  /**
-   * Tests all Functor laws: Identity and Composition.
-   *
-   * <p>Functor Laws:
-   *
-   * <ul>
-   *   <li>Identity: {@code map(id, fa) == fa}
-   *   <li>Composition: {@code map(g ∘ f, fa) == map(g, map(f, fa))}
-   * </ul>
-   *
-   * @param functor The Functor instance to test
-   * @param validKind A valid Kind for testing
-   * @param f First function for composition
-   * @param g Second function for composition
-   * @param equalityChecker Equality checker for Kind instances
-   * @param <F> The Functor witness type
-   * @param <A> The input type
-   * @param <B> Intermediate type
-   * @param <C> Output type
-   */
-  public static <F, A, B, C> void testFunctorLaws(
-      Functor<F> functor,
-      Kind<F, A> validKind,
-      Function<A, B> f,
-      Function<B, C> g,
-      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
-
-    testFunctorIdentity(functor, validKind, equalityChecker);
-    testFunctorComposition(functor, validKind, f, g, equalityChecker);
-  }
 
   /** Tests Functor Identity Law: {@code map(id, fa) == fa} */
   public static <F, A> void testFunctorIdentity(
@@ -154,31 +70,6 @@ public final class LawTestPattern {
   // Applicative Laws
   // =============================================================================
 
-  /**
-   * Tests all Applicative laws: Identity, Homomorphism, Interchange, Composition.
-   *
-   * <p>Note: Full Applicative law testing is complex. This provides basic coverage.
-   *
-   * @param applicative The Applicative instance to test
-   * @param validKind A valid Kind for testing
-   * @param testValue A test value
-   * @param testFunction A test function
-   * @param equalityChecker Equality checker for Kind instances
-   * @param <F> The Applicative witness type
-   * @param <A> The input type
-   * @param <B> The output type
-   */
-  public static <F, A, B> void testApplicativeLaws(
-      Applicative<F> applicative,
-      Kind<F, A> validKind,
-      A testValue,
-      Function<A, B> testFunction,
-      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
-
-    testApplicativeIdentity(applicative, validKind, equalityChecker);
-    testApplicativeHomomorphism(applicative, testValue, testFunction, equalityChecker);
-    testApplicativeInterchange(applicative, testValue, testFunction, equalityChecker);
-  }
 
   /** Tests Applicative Identity Law: {@code ap(of(id), fa) == fa} */
   public static <F, A> void testApplicativeIdentity(
@@ -243,39 +134,6 @@ public final class LawTestPattern {
   // Monad Laws
   // =============================================================================
 
-  /**
-   * Tests all Monad laws: Left Identity, Right Identity, Associativity.
-   *
-   * <p>Monad Laws:
-   *
-   * <ul>
-   *   <li>Left Identity: {@code flatMap(of(a), f) == f(a)}
-   *   <li>Right Identity: {@code flatMap(m, of) == m}
-   *   <li>Associativity: {@code flatMap(flatMap(m, f), g) == flatMap(m, x -> flatMap(f(x), g))}
-   * </ul>
-   *
-   * @param monad The Monad instance to test
-   * @param validKind A valid Kind for testing
-   * @param testValue A test value for left identity
-   * @param testFunction Test function for laws
-   * @param chainFunction Chaining function for associativity
-   * @param equalityChecker Equality checker for Kind instances
-   * @param <F> The Monad witness type
-   * @param <A> The input type
-   * @param <B> Intermediate type
-   */
-  public static <F, A, B> void testMonadLaws(
-      Monad<F> monad,
-      Kind<F, A> validKind,
-      A testValue,
-      Function<A, Kind<F, B>> testFunction,
-      Function<B, Kind<F, B>> chainFunction,
-      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
-
-    testLeftIdentity(monad, testValue, testFunction, equalityChecker);
-    testRightIdentity(monad, validKind, equalityChecker);
-    testAssociativity(monad, validKind, testFunction, chainFunction, equalityChecker);
-  }
 
   /** Tests Left Identity Law: {@code flatMap(of(a), f) == f(a)} */
   public static <F, A, B> void testLeftIdentity(
@@ -336,36 +194,7 @@ public final class LawTestPattern {
         .isTrue();
   }
 
-  // =============================================================================
-  // Traverse Laws (Simplified)
-  // =============================================================================
 
-  /**
-   * Tests simplified Traverse laws.
-   *
-   * <p>Note: Full traverse law testing requires Identity and Compose applicatives. This provides
-   * basic structural testing.
-   *
-   * @param traverse The Traverse instance to test
-   * @param applicative An Applicative instance for testing
-   * @param validKind A valid Kind for testing
-   * @param testFunction A test traverse function
-   * @param equalityChecker Equality checker for Kind instances
-   * @param <T> The Traverse witness type
-   * @param <G> The Applicative witness type
-   * @param <A> The input type
-   * @param <B> The output type
-   */
-  public static <T, G, A, B> void testTraverseLaws(
-      Traverse<T> traverse,
-      Applicative<G> applicative,
-      Kind<T, A> validKind,
-      Function<A, Kind<G, B>> testFunction,
-      BiPredicate<Kind<G, ?>, Kind<G, ?>> equalityChecker) {
-
-    testTraverseStructurePreservation(traverse, applicative, validKind, testFunction);
-    // Additional traverse law tests would go here
-  }
 
   /** Tests that traverse preserves structure (basic property). */
   public static <T, G, A, B> void testTraverseStructurePreservation(
@@ -388,54 +217,4 @@ public final class LawTestPattern {
         .execute();
   }
 
-  // =============================================================================
-  // Equality Checker Helpers
-  // =============================================================================
-
-  /**
-   * Creates a simple reference equality checker.
-   *
-   * <p>Use this when Kind instances maintain referential equality.
-   *
-   * @param <F> The witness type
-   * @return A reference equality checker
-   */
-  public static <F> BiPredicate<Kind<F, ?>, Kind<F, ?>> referenceEquality() {
-    return (k1, k2) -> k1 == k2;
-  }
-
-  /**
-   * Creates an equality checker that narrows and compares using equals().
-   *
-   * @param narrowFunc Function to narrow Kind to concrete type
-   * @param <F> The witness type
-   * @param <T> The concrete type
-   * @return An equality checker using equals()
-   */
-  public static <F, T> BiPredicate<Kind<F, ?>, Kind<F, ?>> equalsBasedEquality(
-      Function<Kind<F, ?>, T> narrowFunc) {
-    return (k1, k2) -> {
-      T t1 = narrowFunc.apply(k1);
-      T t2 = narrowFunc.apply(k2);
-      return t1.equals(t2);
-    };
-  }
-
-  /**
-   * Creates an equality checker with custom comparison logic.
-   *
-   * @param narrowFunc Function to narrow Kind to concrete type
-   * @param comparator Custom comparison function
-   * @param <F> The witness type
-   * @param <T> The concrete type
-   * @return A custom equality checker
-   */
-  public static <F, T> BiPredicate<Kind<F, ?>, Kind<F, ?>> customEquality(
-      Function<Kind<F, ?>, T> narrowFunc, BiPredicate<T, T> comparator) {
-    return (k1, k2) -> {
-      T t1 = narrowFunc.apply(k1);
-      T t2 = narrowFunc.apply(k2);
-      return comparator.test(t1, t2);
-    };
-  }
 }

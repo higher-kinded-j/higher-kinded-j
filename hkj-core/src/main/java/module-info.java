@@ -4,9 +4,7 @@ module org.higherkindedj.core {
   requires transitive org.jspecify;
   requires transitive org.higherkindedj.api;
 
-  // All the exports remain the same.
-
-  exports org.higherkindedj.hkt.tuple;
+    exports org.higherkindedj.hkt.tuple;
   exports org.higherkindedj.hkt.unit;
   exports org.higherkindedj.hkt.either;
   exports org.higherkindedj.hkt.either_t;

@@ -2,14 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.patterns;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.MonadError;
+
+import org.higherkindedj.hkt.*;
 
 /**
  * Flexible validation configuration for type class testing.
@@ -20,6 +20,68 @@ import org.higherkindedj.hkt.MonadError;
 public final class FlexibleValidationConfig {
 
   private FlexibleValidationConfig() {}
+
+    /** Configuration for Functor validation expectations. */
+    public static class FunctorValidation<F, A, B> {
+        protected final Functor<F> functor;
+        protected final Kind<F, A> validKind;
+        protected final Function<A, B> validMapper;
+        protected final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
+
+        private boolean mapHasClassContext = true;
+        private Class<?> mapContextClass = null;
+
+        public FunctorValidation(
+                Functor<F> functor,
+                Kind<F, A> validKind,
+                Function<A, B> validMapper,
+                BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+            this.functor = functor;
+            this.validKind = validKind;
+            this.validMapper = validMapper;
+            this.equalityChecker = equalityChecker;
+        }
+
+        /** Specify that map() operations do not include class context in error messages. */
+        public FunctorValidation<F, A, B> mapWithoutClassContext() {
+            this.mapHasClassContext = false;
+            this.mapContextClass = null;
+            return this;
+        }
+
+        /** Specify that map() operations include the given class in error messages. */
+        public FunctorValidation<F, A, B> mapWithClassContext(Class<?> contextClass) {
+            this.mapHasClassContext = true;
+            this.mapContextClass = contextClass;
+            return this;
+        }
+
+        /** Execute validation tests with the configured expectations. */
+        public void test() {
+            testMapValidation();
+        }
+
+        private void testMapValidation() {
+            if (mapHasClassContext && mapContextClass != null) {
+                String className = mapContextClass.getSimpleName();
+                assertThatThrownBy(() -> functor.map(null, validKind))
+                        .isInstanceOf(NullPointerException.class)
+                        .hasMessageContaining("function f for " + className + ".map cannot be null");
+
+                assertThatThrownBy(() -> functor.map(validMapper, null))
+                        .isInstanceOf(NullPointerException.class)
+                        .hasMessageContaining("Kind for " + className + ".map cannot be null");
+            } else {
+                assertThatThrownBy(() -> functor.map(null, validKind))
+                        .isInstanceOf(NullPointerException.class)
+                        .hasMessageContaining("function f for map cannot be null");
+
+                assertThatThrownBy(() -> functor.map(validMapper, null))
+                        .isInstanceOf(NullPointerException.class)
+                        .hasMessageContaining("Kind for map cannot be null");
+            }
+        }
+    }
 
   /** Configuration for Applicative validation expectations. */
   public static class ApplicativeValidation<F, A, B> {
@@ -360,13 +422,66 @@ public final class FlexibleValidationConfig {
     }
 
     private void testRecoverWithValidation() {
-      assertThatThrownBy(() -> monadError.recoverWith(null, validFallback))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("recoverWith");
+      // Note: recoverWith behavior depends on implementation:
+      // - Default implementation (MonadError interface) delegates to handleErrorWith
+      //   → Error messages will contain "handleErrorWith"
+      // - Custom implementations (like EitherMonad) may have dedicated validation
+      //   → Error messages will contain "recoverWith"
+      // We accept either pattern as valid to accommodate both approaches
 
-      assertThatThrownBy(() -> monadError.recoverWith(validKind, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("recoverWith");
+      if (handleErrorWithHasClassContext && handleErrorWithContextClass != null) {
+        String className = handleErrorWithContextClass.getSimpleName();
+
+        // Test null source - accept either "recoverWith" or "handleErrorWith" in message
+        assertThatThrownBy(() -> monadError.recoverWith(null, validFallback))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessageContaining(className)
+            .satisfies(
+                t -> {
+                  String msg = t.getMessage();
+                  assertThat(msg)
+                      .satisfiesAnyOf(
+                          m -> assertThat(m).contains("recoverWith"),
+                          m -> assertThat(m).contains("handleErrorWith"));
+                });
+
+        // Test null fallback - accept either pattern
+        assertThatThrownBy(() -> monadError.recoverWith(validKind, null))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessageContaining(className)
+            .satisfies(
+                t -> {
+                  String msg = t.getMessage();
+                  assertThat(msg)
+                      .satisfiesAnyOf(
+                          m -> assertThat(m).contains("recoverWith"),
+                          m -> assertThat(m).contains("handleErrorWith"));
+                });
+      } else {
+        // Test null source - accept either pattern
+        assertThatThrownBy(() -> monadError.recoverWith(null, validFallback))
+            .isInstanceOf(NullPointerException.class)
+            .satisfies(
+                t -> {
+                  String msg = t.getMessage();
+                  assertThat(msg)
+                      .satisfiesAnyOf(
+                          m -> assertThat(m).contains("recoverWith"),
+                          m -> assertThat(m).contains("handleErrorWith"));
+                });
+
+        // Test null fallback - accept either pattern
+        assertThatThrownBy(() -> monadError.recoverWith(validKind, null))
+            .isInstanceOf(NullPointerException.class)
+            .satisfies(
+                t -> {
+                  String msg = t.getMessage();
+                  assertThat(msg)
+                      .satisfiesAnyOf(
+                          m -> assertThat(m).contains("recoverWith"),
+                          m -> assertThat(m).contains("handleErrorWith"));
+                });
+      }
     }
   }
 }

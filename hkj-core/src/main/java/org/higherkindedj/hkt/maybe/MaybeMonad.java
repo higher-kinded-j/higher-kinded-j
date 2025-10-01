@@ -29,7 +29,7 @@ public final class MaybeMonad extends MaybeFunctor
 
   /** Private constructor to enforce the singleton pattern. */
   private MaybeMonad() {
-    // Private constructor
+      super();
   }
 
   /**
@@ -147,6 +147,16 @@ public final class MaybeMonad extends MaybeFunctor
     }
 
     return ma;
+  }
+
+  @Override
+  public <A> Kind<MaybeKind.Witness, A> recoverWith(
+      final Kind<MaybeKind.Witness, A> ma, final Kind<MaybeKind.Witness, A> fallback) {
+
+    KindValidator.requireNonNull(ma, MAYBE_MONAD_CLASS, RECOVER_WITH, "source");
+    KindValidator.requireNonNull(fallback, MAYBE_MONAD_CLASS, RECOVER_WITH, "fallback");
+
+    return handleErrorWith(ma, error -> fallback);
   }
 
   /**

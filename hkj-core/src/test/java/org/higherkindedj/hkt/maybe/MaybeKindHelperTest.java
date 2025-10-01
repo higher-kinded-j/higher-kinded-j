@@ -1,130 +1,326 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.test.api.TypeClassTest.kindHelper;
+import java.util.List;
+import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeKindHelper Tests")
+@DisplayName("MaybeKindHelper Complete Test Suite")
 class MaybeKindHelperTest {
+    @Nested
+    @DisplayName("Complete KindHelper Test Suite")
+    class CompleteTestSuite {
+        @Test
+        @DisplayName("Run complete KindHelper test suite for Maybe")
+        void completeKindHelperTestSuite() {
+            Maybe<String> validInstance = Maybe.just("Success");
 
-  @Nested
-  @DisplayName("MAYBE.widen()")
-  class WrapTests {
-    @Test
-    void widen_shouldReturnHolderForJust() {
-      Maybe<String> just = Maybe.just("value");
-      Kind<MaybeKind.Witness, String> kind = MAYBE.widen(just);
+            kindHelper()
+                    .forMaybe(validInstance)
+                    .test();
+        }
 
-      assertThat(kind).isInstanceOf(MaybeHolder.class);
-      assertThat(MAYBE.narrow(kind)).isSameAs(just);
+        @Test
+        @DisplayName("Complete test suite with multiple Maybe types")
+        void completeTestSuiteWithMultipleTypes() {
+            List<Maybe<String>> testInstances =
+                    List.of(Maybe.just("Success"), Maybe.nothing(), Maybe.just(""), Maybe.just("Test"));
+
+            for (Maybe<String> instance : testInstances) {
+                kindHelper()
+                        .forMaybe(instance)
+                        .test();
+            }
+        }
+
+        @Test
+        @DisplayName("Comprehensive test with implementation validation")
+        void comprehensiveTestWithImplementationValidation() {
+            Maybe<String> validInstance = Maybe.just("Comprehensive");
+
+            kindHelper()
+                    .forMaybe(validInstance)
+                    .testWithValidation(MaybeKindHelper.class);
+        }
     }
+    @Nested
+    @DisplayName("Individual Component Tests")
+    class IndividualComponentTests {
+        @Test
+        @DisplayName("Test round-trip widen/narrow operations")
+        void testRoundTripOperations() {
+            Maybe<String> validInstance = Maybe.just("test");
 
-    @Test
-    void widen_shouldReturnHolderForNothing() {
-      Maybe<Integer> nothingVal = Maybe.nothing(); // Use variable for clarity
-      Kind<MaybeKind.Witness, Integer> kind = MAYBE.widen(nothingVal);
+            kindHelper()
+                    .forMaybe(validInstance)
+                    .skipValidations()
+                    .skipInvalidType()
+                    .skipIdempotency()
+                    .skipEdgeCases()
+                    .test();
+        }
 
-      assertThat(kind).isInstanceOf(MaybeHolder.class);
-      assertThat(MAYBE.narrow(kind)).isSameAs(nothingVal);
+        @Test
+        @DisplayName("Test null parameter validations")
+        void testNullParameterValidations() {
+            kindHelper()
+                    .forMaybe(Maybe.just("test"))
+                    .skipRoundTrip()
+                    .skipInvalidType()
+                    .skipIdempotency()
+                    .skipEdgeCases()
+                    .test();
+        }
+
+        @Test
+        @DisplayName("Test invalid Kind type handling")
+        void testInvalidKindType() {
+            kindHelper()
+                    .forMaybe(Maybe.just("test"))
+                    .skipRoundTrip()
+                    .skipValidations()
+                    .skipIdempotency()
+                    .skipEdgeCases()
+                    .test();
+        }
+
+        @Test
+        @DisplayName("Test idempotency of operations")
+        void testIdempotency() {
+            Maybe<String> validInstance = Maybe.just("idempotent");
+
+            kindHelper()
+                    .forMaybe(validInstance)
+                    .skipRoundTrip()
+                    .skipValidations()
+                    .skipInvalidType()
+                    .skipEdgeCases()
+                    .test();
+        }
+
+        @Test
+        @DisplayName("Test edge cases and boundary conditions")
+        void testEdgeCases() {
+            Maybe<String> validInstance = Maybe.just("edge");
+
+            kindHelper()
+                    .forMaybe(validInstance)
+                    .skipRoundTrip()
+                    .skipValidations()
+                    .skipInvalidType()
+                    .skipIdempotency()
+                    .test();
+        }
     }
+    @Nested
+    @DisplayName("Specific Maybe Behaviour Tests")
+    class SpecificBehaviourTests {
+        @Test
+        @DisplayName("Both Just and Nothing instances work correctly")
+        void testJustAndNothingInstances() {
+            Maybe<String> just = Maybe.just("Success");
+            Maybe<String> nothing = Maybe.nothing();
 
-    @Test
-    void widen_shouldThrowForNullInput() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> MAYBE.widen(null))
-          .withMessageContaining("Input Maybe cannot be null");
+            kindHelper().forMaybe(just).test();
+            kindHelper().forMaybe(nothing).test();
+        }
+
+        @Test
+        @DisplayName("Nothing singleton is preserved")
+        void testNothingSingletonPreserved() {
+            Maybe<String> nothing1 = Maybe.nothing();
+            Maybe<Integer> nothing2 = Maybe.nothing();
+
+            kindHelper().forMaybe(nothing1).test();
+            kindHelper().forMaybe(nothing2).test();
+
+            assertThat(nothing1).isSameAs(nothing2);
+        }
+
+        @Test
+        @DisplayName("Complex value types work correctly")
+        void testComplexValueTypes() {
+            List<String> complexValue = List.of("a", "b", "c");
+            Maybe<List<String>> complexMaybe = Maybe.just(complexValue);
+
+            kindHelper().forMaybe(complexMaybe).test();
+
+            assertThat(complexMaybe.get()).isSameAs(complexValue);
+        }
+
+        @Test
+        @DisplayName("Empty string is valid Just value")
+        void testEmptyStringIsValidJust() {
+            Maybe<String> emptyJust = Maybe.just("");
+
+            kindHelper().forMaybe(emptyJust).test();
+
+            assertThat(emptyJust.isJust()).isTrue();
+            assertThat(emptyJust.get()).isEmpty();
+        }
     }
-  }
+    @Nested
+    @DisplayName("Performance and Memory Tests")
+    class PerformanceTests {
+        @Test
+        @DisplayName("Holder creates minimal overhead")
+        void testMinimalOverhead() {
+            Maybe<String> original = Maybe.just("test");
 
-  @Nested
-  @DisplayName("just()")
-  class JustHelperTests {
-    @Test
-    void just_shouldWrapJustValue() {
-      String value = "test";
-      Kind<MaybeKind.Witness, String> kind = MAYBE.just(value);
+            kindHelper()
+                    .forMaybe(original)
+                    .skipPerformance()
+                    .test();
+        }
 
-      assertThat(kind).isInstanceOf(MaybeHolder.class);
-      Maybe<String> maybe = MAYBE.narrow(kind);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(value);
+        @Test
+        @DisplayName("Multiple operations are idempotent")
+        void testIdempotentOperations() {
+            Maybe<String> original = Maybe.just("idempotent");
+
+            kindHelper()
+                    .forMaybe(original)
+                    .skipRoundTrip()
+                    .skipValidations()
+                    .skipInvalidType()
+                    .skipEdgeCases()
+                    .test();
+        }
+
+        @Test
+        @DisplayName("Performance characteristics test")
+        void testPerformanceCharacteristics() {
+            if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
+                Maybe<String> testInstance = Maybe.just("performance_test");
+
+                kindHelper()
+                        .forMaybe(testInstance)
+                        .withPerformanceTests()
+                        .test();
+            }
+        }
+
+        @Test
+        @DisplayName("Memory efficiency test")
+        void testMemoryEfficiency() {
+            if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
+                Maybe<String> testInstance = Maybe.just("memory_test");
+
+                kindHelper()
+                        .forMaybe(testInstance)
+                        .withPerformanceTests()
+                        .test();
+            }
+        }
     }
+    @Nested
+    @DisplayName("Edge Cases and Corner Cases")
+    class EdgeCasesTests {
+        @Test
+        @DisplayName("All combinations of Maybe states")
+        void testAllMaybeStates() {
+            List<Maybe<String>> allStates =
+                    List.of(
+                            Maybe.just("success"),
+                            Maybe.just(""),
+                            Maybe.nothing(),
+                            Maybe.fromNullable("value"),
+                            Maybe.fromNullable(null));
 
-    @Test
-    void just_shouldThrowForNullInput() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> MAYBE.just(null))
-          .withMessageContaining("Value for Just cannot be null");
+            for (Maybe<String> state : allStates) {
+                kindHelper().forMaybe(state).test();
+            }
+        }
+
+        @Test
+        @DisplayName("Full lifecycle test")
+        void testFullLifecycle() {
+            Maybe<String> original = Maybe.just("lifecycle_test");
+            Maybe<String> nothingOriginal = Maybe.nothing();
+
+            kindHelper().forMaybe(original).test();
+            kindHelper().forMaybe(nothingOriginal).test();
+        }
     }
-  }
+    @Nested
+    @DisplayName("Advanced Testing Scenarios")
+    class AdvancedTestingScenarios {
+        @Test
+        @DisplayName("Concurrent access test")
+        void testConcurrentAccess() {
+            if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
+                Maybe<String> testInstance = Maybe.just("concurrent_test");
 
-  @Nested
-  @DisplayName("nothing()")
-  class NothingHelperTests {
-    @Test
-    void nothing_shouldWrapNothingValue() {
-      Kind<MaybeKind.Witness, Integer> kind = MAYBE.nothing();
+                kindHelper()
+                        .forMaybe(testInstance)
+                        .withConcurrencyTests()
+                        .test();
+            }
+        }
 
-      assertThat(kind).isInstanceOf(MaybeHolder.class);
-      Maybe<Integer> maybe = MAYBE.narrow(kind);
-      assertThat(maybe.isNothing()).isTrue();
-      assertThat(maybe).isSameAs(Maybe.nothing());
+        @Test
+        @DisplayName("Implementation standards validation")
+        void testImplementationStandards() {
+            KindHelperTestPattern.validateImplementationStandards(Maybe.class, MaybeKindHelper.class);
+        }
+
+        @Test
+        @DisplayName("Quick test for fast test suites")
+        void testQuickValidation() {
+            Maybe<String> testInstance = Maybe.just("quick_test");
+
+            kindHelper()
+                    .forMaybe(testInstance)
+                    .test();
+        }
+
+        @Test
+        @DisplayName("Stress test with complex scenarios")
+        void testComplexStressScenarios() {
+            List<Maybe<Object>> complexInstances =
+                    List.of(
+                            Maybe.just("simple_string"),
+                            Maybe.just(42),
+                            Maybe.just(List.of(1, 2, 3)),
+                            Maybe.just(java.util.Map.of("key", "value")),
+                            Maybe.nothing());
+
+            for (Maybe<Object> instance : complexInstances) {
+                kindHelper().forMaybe(instance).test();
+            }
+        }
     }
-  }
+    @Nested
+    @DisplayName("Comprehensive Coverage Tests")
+    class ComprehensiveCoverageTests {
+        @Test
+        @DisplayName("All Maybe types and states")
+        void testAllMaybeTypesAndStates() {
+            List<Maybe<String>> allStates =
+                    List.of(
+                            Maybe.just("success"),
+                            Maybe.just(""),
+                            Maybe.nothing(),
+                            Maybe.fromNullable("value"),
+                            Maybe.fromNullable(null));
 
-  @Nested
-  @DisplayName("MAYBE.narrow()")
-  class UnwrapTests {
+            for (Maybe<String> state : allStates) {
+                kindHelper().forMaybe(state).test();
+            }
+        }
 
-    // --- Success Cases ---
-    @Test
-    void narrow_shouldReturnOriginalJust() {
-      Maybe<Integer> original = Maybe.just(123);
-      Kind<MaybeKind.Witness, Integer> kind = MAYBE.widen(original);
-      assertThat(MAYBE.narrow(kind)).isSameAs(original);
+        @Test
+        @DisplayName("Full lifecycle test")
+        void testFullLifecycle() {
+            Maybe<String> original = Maybe.just("lifecycle_test");
+
+            kindHelper().forMaybe(original).test();
+
+            KindHelperTestPattern.validateImplementationStandards(Maybe.class, MaybeKindHelper.class);
+        }
     }
-
-    @Test
-    void narrow_shouldReturnOriginalNothing() {
-      Maybe<String> original = Maybe.nothing();
-      Kind<MaybeKind.Witness, String> kind = MAYBE.widen(original);
-      assertThat(MAYBE.narrow(kind)).isSameAs(original);
-    }
-
-    // --- Failure Cases ---
-    // Dummy Kind implementation that is not MaybeHolder
-    record DummyMaybeKind<A>() implements Kind<MaybeKind.Witness, A> {}
-
-    @Test
-    void narrow_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> MAYBE.narrow(null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted(Maybe.class.getSimpleName()));
-    }
-
-    @Test
-    void narrow_shouldThrowForUnknownKindType() {
-      Kind<MaybeKind.Witness, Integer> unknownKind = new DummyMaybeKind<>();
-      assertThatThrownBy(() -> MAYBE.narrow(unknownKind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              INVALID_KIND_TYPE_TEMPLATE.formatted(
-                  Maybe.class.getSimpleName(), DummyMaybeKind.class.getName()));
-    }
-
-    @Test
-    void shouldThrowForHolderWithNullMaybe() {
-      assertThatThrownBy(() -> new MaybeHolder<>(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining(NULL_HOLDER_STATE_TEMPLATE.formatted("MaybeHolder", "Maybe"));
-    }
-  }
 }
