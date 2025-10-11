@@ -4,15 +4,44 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.test.api.TypeClassTest.kindHelper;
-import java.util.List;
 
+import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
 @DisplayName("EitherKindHelper Complete Test Suite")
-class EitherKindHelperTest {
+class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKindHelperTest.TestError>, String, String> {
     record TestError(String code) {}
+
+    // Helper constant for cleaner type references
+    private static final EitherKindHelper EITHER = EitherKindHelper.EITHER;
+
+    @Override
+    protected Kind<EitherKind.Witness<EitherKindHelperTest.TestError>, String> createValidKind() {
+        return EITHER.widen(Either.right("Success"));
+    }
+
+    @Override
+    protected Kind<EitherKind.Witness<EitherKindHelperTest.TestError>, String> createValidKind2() {
+        return EITHER.widen(Either.right("Another"));
+    }
+
+    @Override
+    protected Function<String, String> createValidMapper() {
+        return String::toUpperCase;
+    }
+
+    @Override
+    protected BiPredicate<Kind<EitherKind.Witness<EitherKindHelperTest.TestError>, ?>, Kind<EitherKind.Witness<EitherKindHelperTest.TestError>, ?>> createEqualityChecker() {
+        return (k1, k2) -> EITHER.narrow(k1).equals(EITHER.narrow(k2));
+    }
+
     @Nested
     @DisplayName("Complete KindHelper Test Suite")
     class CompleteTestSuite {
@@ -53,6 +82,7 @@ class EitherKindHelperTest {
                     .testWithValidation(EitherKindHelper.class);
         }
     }
+
     @Nested
     @DisplayName("Individual Component Tests")
     class IndividualComponentTests {
@@ -122,9 +152,10 @@ class EitherKindHelperTest {
                     .test();
         }
     }
+
     @Nested
-    @DisplayName("Specific Either Behavior Tests")
-    class SpecificBehaviorTests {
+    @DisplayName("Specific Either Behaviour Tests")
+    class SpecificBehaviourTests {
         @Test
         @DisplayName("Both Right and Left instances work correctly")
         void testRightAndLeftInstances() {
@@ -186,6 +217,7 @@ class EitherKindHelperTest {
             assertThat(complexLeft.getLeft().code()).isEqualTo("ComplexError");
         }
     }
+
     @Nested
     @DisplayName("Performance and Memory Tests")
     class PerformanceTests {
@@ -240,6 +272,7 @@ class EitherKindHelperTest {
             }
         }
     }
+
     @Nested
     @DisplayName("Edge Cases and Corner Cases")
     class EdgeCasesTests {
@@ -258,6 +291,7 @@ class EitherKindHelperTest {
             }
         }
     }
+
     @Nested
     @DisplayName("Advanced Testing Scenarios")
     class AdvancedTestingScenarios {
@@ -310,6 +344,7 @@ class EitherKindHelperTest {
             }
         }
     }
+
     @Nested
     @DisplayName("Comprehensive Coverage Tests")
     class ComprehensiveCoverageTests {

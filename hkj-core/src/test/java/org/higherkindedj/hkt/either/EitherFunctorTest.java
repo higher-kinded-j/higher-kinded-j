@@ -10,6 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,27 +19,35 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherFunctor Complete Test Suite")
-class EitherFunctorTest {
-    record TestError(String code) {}
+class EitherFunctorTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
 
     private EitherFunctor<String> functor;
     private Functor<EitherKind.Witness<String>> functorTyped;
-    private Kind<EitherKind.Witness<String>, Integer> validKind;
-    private Kind<EitherKind.Witness<String>, Integer> validKind2;
-    private Function<Integer, String> validMapper;
-    private Function<String, String> secondMapper;
-    private BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>>
-            equalityChecker;
+
+    @Override
+    protected Kind<EitherKind.Witness<String>, Integer> createValidKind() {
+        return EITHER.widen(Either.right(42));
+    }
+
+    @Override
+    protected Kind<EitherKind.Witness<String>, Integer> createValidKind2() {
+        return EITHER.widen(Either.right(24));
+    }
+
+    @Override
+    protected Function<Integer, String> createValidMapper() {
+        return TestFunctions.INT_TO_STRING;
+    }
+
+    @Override
+    protected BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>> createEqualityChecker() {
+        return (k1, k2) -> EITHER.narrow(k1).equals(EITHER.narrow(k2));
+    }
 
     @BeforeEach
     void setUpFunctor() {
         functor = new EitherFunctor<>();
-        functorTyped = functor; // Store as correctly typed reference
-        validKind = EITHER.widen(Either.right(42));
-        validKind2 = EITHER.widen(Either.right(24));
-        validMapper = TestFunctions.INT_TO_STRING;
-        secondMapper = Object::toString;
-        equalityChecker = (k1, k2) -> EITHER.narrow(k1).equals(EITHER.narrow(k2));
+        functorTyped = functor;
     }
 
     @Nested

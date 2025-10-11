@@ -11,6 +11,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,24 +20,34 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeFunctor Complete Test Suite")
-class MaybeFunctorTest {
+class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
     private MaybeFunctor functor;
     private Functor<MaybeKind.Witness> functorTyped;
-    private Kind<MaybeKind.Witness, Integer> validKind;
-    private Kind<MaybeKind.Witness, Integer> validKind2;
-    private Function<Integer, String> validMapper;
-    private Function<String, String> secondMapper;
-    private BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> equalityChecker;
+
+    @Override
+    protected Kind<MaybeKind.Witness, Integer> createValidKind() {
+        return MAYBE.widen(Maybe.just(42));
+    }
+
+    @Override
+    protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
+        return MAYBE.widen(Maybe.just(24));
+    }
+
+    @Override
+    protected Function<Integer, String> createValidMapper() {
+        return TestFunctions.INT_TO_STRING;
+    }
+
+    @Override
+    protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> createEqualityChecker() {
+        return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
+    }
 
     @BeforeEach
     void setUpFunctor() {
         functor = new MaybeFunctor();
         functorTyped = functor;
-        validKind = MAYBE.widen(Maybe.just(42));
-        validKind2 = MAYBE.widen(Maybe.just(24));
-        validMapper = TestFunctions.INT_TO_STRING;
-        secondMapper = Object::toString;
-        equalityChecker = (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
     }
 
     @Nested

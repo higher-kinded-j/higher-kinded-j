@@ -1,16 +1,43 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.test.api.TypeClassTest.kindHelper;
+
 import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeKindHelper Complete Test Suite")
-class MaybeKindHelperTest {
+class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, String> {
+
+    @Override
+    protected Kind<MaybeKind.Witness, String> createValidKind() {
+        return MaybeKindHelper.MAYBE.widen(Maybe.just("Success"));
+    }
+
+    @Override
+    protected Kind<MaybeKind.Witness, String> createValidKind2() {
+        return MaybeKindHelper.MAYBE.widen(Maybe.just("Another"));
+    }
+
+    @Override
+    protected Function<String, String> createValidMapper() {
+        return String::toUpperCase;
+    }
+
+    @Override
+    protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> createEqualityChecker() {
+        return (k1, k2) -> MaybeKindHelper.MAYBE.narrow(k1).equals(MaybeKindHelper.MAYBE.narrow(k2));
+    }
+
     @Nested
     @DisplayName("Complete KindHelper Test Suite")
     class CompleteTestSuite {
@@ -47,6 +74,7 @@ class MaybeKindHelperTest {
                     .testWithValidation(MaybeKindHelper.class);
         }
     }
+
     @Nested
     @DisplayName("Individual Component Tests")
     class IndividualComponentTests {
@@ -116,6 +144,7 @@ class MaybeKindHelperTest {
                     .test();
         }
     }
+
     @Nested
     @DisplayName("Specific Maybe Behaviour Tests")
     class SpecificBehaviourTests {
@@ -163,6 +192,7 @@ class MaybeKindHelperTest {
             assertThat(emptyJust.get()).isEmpty();
         }
     }
+
     @Nested
     @DisplayName("Performance and Memory Tests")
     class PerformanceTests {
@@ -217,6 +247,7 @@ class MaybeKindHelperTest {
             }
         }
     }
+
     @Nested
     @DisplayName("Edge Cases and Corner Cases")
     class EdgeCasesTests {
@@ -246,6 +277,7 @@ class MaybeKindHelperTest {
             kindHelper().forMaybe(nothingOriginal).test();
         }
     }
+
     @Nested
     @DisplayName("Advanced Testing Scenarios")
     class AdvancedTestingScenarios {
@@ -294,6 +326,7 @@ class MaybeKindHelperTest {
             }
         }
     }
+
     @Nested
     @DisplayName("Comprehensive Coverage Tests")
     class ComprehensiveCoverageTests {
