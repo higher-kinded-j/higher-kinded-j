@@ -14,9 +14,11 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,7 +30,7 @@ import org.junit.jupiter.api.Test;
  * framework for consistent error handling.
  */
 @DisplayName("Either<L, R> Core Functionality - Standardised Test Suite")
-class EitherTest {
+class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
 
     private final String leftValue = "Error Message";
     private final Integer rightValue = 123;
@@ -38,21 +40,69 @@ class EitherTest {
     private final Either<String, Integer> rightNullInstance = Either.right(null);
 
     // Type class testing fixtures
-    private final EitherMonad<String> MONAD = EitherMonad.instance();
-    private final Kind<EitherKind.Witness<String>, Integer> validKind =
-            EitherKindHelper.EITHER.widen(rightInstance);
-    private final Kind<EitherKind.Witness<String>, Integer> validKind2 =
-            EitherKindHelper.EITHER.widen(Either.right(456));
-    private final Function<Integer, String> mapper = Object::toString;
-    private final Function<String, String> secondMapper = s -> s; // Changed to String -> String
-    private final Function<Integer, Kind<EitherKind.Witness<String>, String>> flatMapper =
-            i -> EitherKindHelper.EITHER.widen(Either.right(String.valueOf(i)));
-    private final Kind<EitherKind.Witness<String>, Function<Integer, String>> functionKind =
-            EitherKindHelper.EITHER.widen(Either.right(mapper));
-    private final BiFunction<Integer, Integer, String> combiningFunction =
-            (i1, i2) -> String.valueOf(i1 + i2);
-    private final BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>> equalityChecker =
-            (k1, k2) -> EitherKindHelper.EITHER.narrow(k1).equals(EitherKindHelper.EITHER.narrow(k2));
+    private EitherMonad<String> monad;
+    private EitherFunctor<String> functor;
+
+    @Override
+    protected Kind<EitherKind.Witness<String>, Integer> createValidKind() {
+        return EitherKindHelper.EITHER.widen(rightInstance);
+    }
+
+    @Override
+    protected Kind<EitherKind.Witness<String>, Integer> createValidKind2() {
+        return EitherKindHelper.EITHER.widen(Either.right(456));
+    }
+
+    @Override
+    protected Function<Integer, String> createValidMapper() {
+        return Object::toString;
+    }
+
+    @Override
+    protected BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>> createEqualityChecker() {
+        return (k1, k2) -> EitherKindHelper.EITHER.narrow(k1).equals(EitherKindHelper.EITHER.narrow(k2));
+    }
+
+    @Override
+    protected Function<String, String> createSecondMapper() {
+        return s -> s; // String -> String for law testing
+    }
+
+    @Override
+    protected Function<Integer, Kind<EitherKind.Witness<String>, String>> createValidFlatMapper() {
+        return i -> EitherKindHelper.EITHER.widen(Either.right(String.valueOf(i)));
+    }
+
+    @Override
+    protected Kind<EitherKind.Witness<String>, Function<Integer, String>> createValidFunctionKind() {
+        return EitherKindHelper.EITHER.widen(Either.right(validMapper));
+    }
+
+    @Override
+    protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
+        return (i1, i2) -> String.valueOf(i1 + i2);
+    }
+
+    @Override
+    protected Integer createTestValue() {
+        return rightValue;
+    }
+
+    @Override
+    protected Function<Integer, Kind<EitherKind.Witness<String>, String>> createTestFunction() {
+        return i -> EitherKindHelper.EITHER.widen(Either.right(i.toString()));
+    }
+
+    @Override
+    protected Function<String, Kind<EitherKind.Witness<String>, String>> createChainFunction() {
+        return s -> EitherKindHelper.EITHER.widen(Either.right(s + "!"));
+    }
+
+    @BeforeEach
+    void setUpEither() {
+        monad = EitherMonad.instance();
+        functor = EitherFunctor.instance();
+    }
 
     @Nested
     @DisplayName("Complete Type Class Test Suite")
@@ -63,18 +113,18 @@ class EitherTest {
         void runCompleteMonadTestPattern() {
             // Test complete Monad behaviour using available methods
             TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
-                    .<Integer>instance(MONAD)
+                    .<Integer>instance(monad)
                     .<String>withKind(validKind)
                     .withMonadOperations(
                             validKind2,
-                            mapper,
-                            flatMapper,
-                            functionKind,
-                            combiningFunction)
+                            validMapper,
+                            validFlatMapper,
+                            validFunctionKind,
+                            validCombiningFunction)
                     .withLawsTesting(
-                            rightValue,
-                            i -> EitherKindHelper.EITHER.widen(Either.right(i.toString())),
-                            s -> EitherKindHelper.EITHER.widen(Either.right(s + "!")), // Changed to String -> String
+                            testValue,
+                            testFunction,
+                            chainFunction,
                             equalityChecker)
                     .configureValidation()
                     .useInheritanceValidation()
@@ -88,9 +138,9 @@ class EitherTest {
         @DisplayName("Run complete Functor test pattern")
         void runCompleteFunctorTestPattern() {
             TypeClassTest.<EitherKind.Witness<String>>functor(EitherFunctor.class)
-                    .<Integer>instance(MONAD)
+                    .<Integer>instance(functor)
                     .<String>withKind(validKind)
-                    .withMapper(mapper)
+                    .withMapper(validMapper)
                     .withSecondMapper(secondMapper)
                     .withEqualityChecker(equalityChecker)
                     .testAll();
@@ -794,13 +844,13 @@ class EitherTest {
                     };
 
             Either<String, String> success =
-                    Either.<String, String>right("16") // Explicit type parameters
+                    Either.<String, String>right("16")
                             .flatMap(parseInteger)
                             .flatMap(squareRoot)
                             .flatMap(formatResult);
             assertThat(success.getRight()).isEqualTo("4.00");
 
-            // Failure paths - these work because they start with explicit Either instances
+            // Failure paths
             Either<String, String> parseFailure =
                     Either.<String, String>right("not-a-number")
                             .flatMap(parseInteger)
@@ -814,11 +864,6 @@ class EitherTest {
                             .flatMap(squareRoot)
                             .flatMap(formatResult);
             assertThat(negativeFailure.getLeft()).contains("Cannot take square root");
-        }
-
-        // Helper method for Solution 3
-        private Either<String, String> createStringEither(String value) {
-            return Either.right(value);
         }
 
         @Test
@@ -857,7 +902,7 @@ class EitherTest {
                             .flatMap(
                                     resource -> {
                                         Either<String, String> processed = processResource.apply(resource);
-                                        Resource closed = resource.close(); // Always close
+                                        Resource closed = resource.close();
                                         assertThat(closed.open()).isFalse();
                                         return processed;
                                     });
@@ -871,7 +916,7 @@ class EitherTest {
                             .flatMap(
                                     resource -> {
                                         Either<String, String> processed = processResource.apply(resource);
-                                        Resource closed = resource.close(); // Always close
+                                        Resource closed = resource.close();
                                         assertThat(closed.open()).isFalse();
                                         return processed;
                                     });
@@ -985,8 +1030,7 @@ class EitherTest {
         @Test
         @DisplayName("Either maintains type safety across operations")
         void eitherMaintainsTypeSafety() {
-
-            // Test covariance in Right type - this works fine
+            // Test covariance in Right type
             Either<String, Number> numberEither = Either.right(42);
             Either<String, Integer> intEither = numberEither.flatMap(n -> Either.right(n.intValue()));
             assertThat(intEither.getRight()).isEqualTo(42);
@@ -1086,7 +1130,7 @@ class EitherTest {
 
             // Test with flatMap chains
             Either<String, Integer> flatMapResult = start;
-            for (int i = 0; i < 1000; i++) { // Smaller number for flatMap due to overhead
+            for (int i = 0; i < 1000; i++) {
                 flatMapResult = flatMapResult.flatMap(x -> Either.right(x + 1));
             }
 
