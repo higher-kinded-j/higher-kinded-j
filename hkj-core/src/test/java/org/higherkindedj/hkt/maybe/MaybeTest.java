@@ -1,5 +1,5 @@
 // Copyright (c) 2025 Magnus Smith
-// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+// Licensed under the MIT License. See LICENSE.md in the project root for licence information.
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
@@ -14,7 +14,9 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -44,9 +46,9 @@ import org.junit.jupiter.api.Test;
  * </ul>
  */
 @DisplayName("Maybe<T> Complete Test Suite")
-class MaybeTest {
+class MaybeTest extends TypeClassTestBase<MaybeKind.Witness, String, Integer> {
 
-    // Test fixtures
+    // Maybe-specific test fixtures
     private final String justValue = "Present Value";
     private final Maybe<String> justInstance = Maybe.just(justValue);
     private final Maybe<String> nothingInstance = Maybe.nothing();
@@ -55,20 +57,56 @@ class MaybeTest {
 
     // Type class testing fixtures
     private final MaybeMonad MONAD = MaybeMonad.INSTANCE;
-    private final Kind<MaybeKind.Witness, String> validKind =
-            MaybeKindHelper.MAYBE.widen(justInstance);
-    private final Kind<MaybeKind.Witness, String> validKind2 =
-            MaybeKindHelper.MAYBE.widen(Maybe.just("Another"));
-    private final Function<String, Integer> mapper = String::length;
-    private final Function<Integer, String> secondMapper = Object::toString;
-    private final Function<String, Kind<MaybeKind.Witness, Integer>> flatMapper =
-            s -> MaybeKindHelper.MAYBE.widen(Maybe.just(s.length()));
-    private final Kind<MaybeKind.Witness, Function<String, Integer>> functionKind =
-            MaybeKindHelper.MAYBE.widen(Maybe.just(mapper));
-    private final BiFunction<String, String, Integer> combiningFunction =
-            (s1, s2) -> s1.length() + s2.length();
-    private final BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> equalityChecker =
-            (k1, k2) -> MaybeKindHelper.MAYBE.narrow(k1).equals(MaybeKindHelper.MAYBE.narrow(k2));
+
+    @Override
+    protected Kind<MaybeKind.Witness, String> createValidKind() {
+        return MaybeKindHelper.MAYBE.widen(justInstance);
+    }
+
+    @Override
+    protected Kind<MaybeKind.Witness, String> createValidKind2() {
+        return MaybeKindHelper.MAYBE.widen(Maybe.just("Another"));
+    }
+
+    @Override
+    protected Function<String, Integer> createValidMapper() {
+        return String::length;
+    }
+
+    @Override
+    protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> createEqualityChecker() {
+        return (k1, k2) -> MaybeKindHelper.MAYBE.narrow(k1).equals(MaybeKindHelper.MAYBE.narrow(k2));
+    }
+
+    @Override
+    protected Function<String, Kind<MaybeKind.Witness, Integer>> createValidFlatMapper() {
+        return s -> MaybeKindHelper.MAYBE.widen(Maybe.just(s.length()));
+    }
+
+    @Override
+    protected Kind<MaybeKind.Witness, Function<String, Integer>> createValidFunctionKind() {
+        return MaybeKindHelper.MAYBE.widen(Maybe.just(validMapper));
+    }
+
+    @Override
+    protected BiFunction<String, String, Integer> createValidCombiningFunction() {
+        return (s1, s2) -> s1.length() + s2.length();
+    }
+
+    @Override
+    protected String createTestValue() {
+        return justValue;
+    }
+
+    @Override
+    protected Function<String, Kind<MaybeKind.Witness, Integer>> createTestFunction() {
+        return s -> MaybeKindHelper.MAYBE.widen(Maybe.just(s.length()));
+    }
+
+    @Override
+    protected Function<Integer, Kind<MaybeKind.Witness, Integer>> createChainFunction() {
+        return i -> MaybeKindHelper.MAYBE.widen(Maybe.just(i * 2));
+    }
 
     @Nested
     @DisplayName("Complete Type Class Test Suite")
@@ -83,14 +121,14 @@ class MaybeTest {
                     .<Integer>withKind(validKind)
                     .withMonadOperations(
                             validKind2,
-                            mapper,
-                            flatMapper,
-                            functionKind,
-                            combiningFunction)
+                            validMapper,
+                            validFlatMapper,
+                            validFunctionKind,
+                            validCombiningFunction)
                     .withLawsTesting(
                             justValue,
-                            s -> MaybeKindHelper.MAYBE.widen(Maybe.just(s.length())),
-                            i -> MaybeKindHelper.MAYBE.widen(Maybe.just(i * 2)),
+                            testFunction,
+                            chainFunction,
                             equalityChecker)
                     .configureValidation()
                     .useInheritanceValidation()
@@ -106,7 +144,7 @@ class MaybeTest {
             TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
                     .<String>instance(MONAD)
                     .<Integer>withKind(validKind)
-                    .withMapper(mapper)
+                    .withMapper(validMapper)
                     .withSecondMapper(secondMapper)
                     .withEqualityChecker(equalityChecker)
                     .testAll();
@@ -118,7 +156,7 @@ class MaybeTest {
             TypeClassTest.<String>maybe(Maybe.class)
                     .withJust(justInstance)
                     .withNothing(nothingInstance)
-                    .withMapper(mapper)
+                    .withMapper(validMapper)
                     .configureValidation()
                     .useInheritanceValidation()
                     .withMapFrom(MaybeFunctor.class)
@@ -137,7 +175,7 @@ class MaybeTest {
             TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
                     .<String>instance(MONAD)
                     .<Integer>withKind(validKind)
-                    .withMapper(mapper)
+                    .withMapper(validMapper)
                     .testOperations();
         }
 
@@ -147,7 +185,7 @@ class MaybeTest {
             TypeClassTest.<String>maybe(Maybe.class)
                     .withJust(justInstance)
                     .withNothing(nothingInstance)
-                    .withMapper(mapper)
+                    .withMapper(validMapper)
                     .configureValidation()
                     .useInheritanceValidation()
                     .withMapFrom(MaybeFunctor.class)
@@ -175,7 +213,7 @@ class MaybeTest {
             TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
                     .<String>instance(MONAD)
                     .<Integer>withKind(validKind)
-                    .withMapper(mapper)
+                    .withMapper(validMapper)
                     .withSecondMapper(secondMapper)
                     .withEqualityChecker(equalityChecker)
                     .selectTests()
@@ -191,10 +229,10 @@ class MaybeTest {
                     .<Integer>withKind(validKind)
                     .withMonadOperations(
                             validKind2,
-                            mapper,
-                            flatMapper,
-                            functionKind,
-                            combiningFunction)
+                            validMapper,
+                            validFlatMapper,
+                            validFunctionKind,
+                            validCombiningFunction)
                     .testOperations();
         }
 
@@ -204,7 +242,7 @@ class MaybeTest {
             TypeClassTest.<String>maybe(Maybe.class)
                     .withJust(justInstance)
                     .withNothing(nothingInstance)
-                    .withMapper(mapper)
+                    .withMapper(validMapper)
                     .configureValidation()
                     .useInheritanceValidation()
                     .withMapFrom(MaybeFunctor.class)
@@ -237,14 +275,14 @@ class MaybeTest {
                     .<Integer>withKind(validKind)
                     .withMonadOperations(
                             validKind2,
-                            mapper,
-                            flatMapper,
-                            functionKind,
-                            combiningFunction)
+                            validMapper,
+                            validFlatMapper,
+                            validFunctionKind,
+                            validCombiningFunction)
                     .withLawsTesting(
                             justValue,
-                            s -> MaybeKindHelper.MAYBE.widen(Maybe.just(s.length())),
-                            i -> MaybeKindHelper.MAYBE.widen(Maybe.just(i * 2)),
+                            testFunction,
+                            chainFunction,
                             equalityChecker)
                     .selectTests()
                     .onlyLaws()
@@ -574,7 +612,7 @@ class MaybeTest {
             Function<String, Maybe<Integer>> nullReturningMapper = s -> null;
 
             assertThatThrownBy(() -> justInstance.flatMap(nullReturningMapper))
-                    .isInstanceOf(org.higherkindedj.hkt.exception.KindUnwrapException.class)
+                    .isInstanceOf(KindUnwrapException.class)
                     .hasMessageContaining("flatMap returned null");
         }
 
