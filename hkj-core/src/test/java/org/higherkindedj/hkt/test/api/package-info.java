@@ -31,13 +31,13 @@
  * <h2>Supported Type Classes</h2>
  *
  * <ul>
- *   <li>{@link org.higherkindedj.hkt.test.api.functor.FunctorTestStage} - Functor testing
- *   <li>{@link org.higherkindedj.hkt.test.api.applicative.ApplicativeTestStage} - Applicative testing
- *   <li>{@link org.higherkindedj.hkt.test.api.monad.MonadTestStage} - Monad testing
- *   <li>{@link org.higherkindedj.hkt.test.api.monaderror.MonadErrorTestStage} - MonadError testing
- *   <li>{@link org.higherkindedj.hkt.test.api.traverse.TraverseTestStage} - Traverse testing
- *   <li>{@link org.higherkindedj.hkt.test.api.foldable.FoldableTestStage} - Foldable testing
- *   <li>{@link org.higherkindedj.hkt.test.api.kind.KindHelperTestStage} - KindHelper testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.functor.FunctorTestStage} - Functor testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.applicative.ApplicativeTestStage} - Applicative testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.monad.MonadTestStage} - Monad testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.monaderror.MonadErrorTestStage} - MonadError testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.traverse.TraverseTestStage} - Traverse testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.foldable.FoldableTestStage} - Foldable testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage} - KindHelper testing
  * </ul>
  *
  * <h2>Usage Examples</h2>
@@ -153,7 +153,7 @@
  *
  * <p>Stages are immutable where possible, creating new instances for method chaining. Internal
  * executor classes handle the actual test execution by delegating to {@link
- * org.higherkindedj.hkt.test.api.internal.TestMethodRegistry}.
+ * org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry}.
  *
  * @see org.higherkindedj.hkt.test.api.TypeClassTest
  * @see org.higherkindedj.hkt.test.patterns.TypeClassTestPattern

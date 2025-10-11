@@ -1,23 +1,18 @@
-// Copyright (c) 2025 Magnus Smith
-// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api;
 
-import org.higherkindedj.hkt.test.api.applicative.ApplicativeTestStage;
-import org.higherkindedj.hkt.test.api.type.either.EitherCoreTestStage;
-import org.higherkindedj.hkt.test.api.foldable.FoldableTestStage;
-import org.higherkindedj.hkt.test.api.functor.FunctorTestStage;
-import org.higherkindedj.hkt.test.api.kind.KindHelperTestStage;
-import org.higherkindedj.hkt.test.api.type.io.IOCoreTestStage;
-import org.higherkindedj.hkt.test.api.type.maybe.MaybeCoreTestStage;
-import org.higherkindedj.hkt.test.api.monad.MonadTestStage;
-import org.higherkindedj.hkt.test.api.monaderror.MonadErrorTestStage;
-import org.higherkindedj.hkt.test.api.traverse.TraverseTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.applicative.ApplicativeTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.foldable.FoldableTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.functor.FunctorTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.monad.MonadTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.monaderror.MonadErrorTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.traverse.TraverseTestStage;
 
 /**
- * Entry point for hierarchical, progressive disclosure type class testing.
+ * Entry point for type class implementation testing.
  *
- * <p>This API provides a fluent, stage-based approach to testing both type class implementations
- * and core types where each step reveals only contextually relevant options through IDE autocomplete.
+ * <p>This API provides a fluent, stage-based approach to testing type class implementations
+ * where each step reveals only contextually relevant options through IDE autocomplete.
  *
  * <h2>Key Features:</h2>
  *
@@ -26,7 +21,6 @@ import org.higherkindedj.hkt.test.api.traverse.TraverseTestStage;
  *   <li>Type-safe configuration - impossible to skip required parameters
  *   <li>Hierarchical structure - mirrors type class hierarchy
  *   <li>Clear error messages - helpful guidance when configuration is incomplete
- *   <li>Core type testing - test Either, Maybe, and other core types
  * </ul>
  *
  * <h2>Usage Examples:</h2>
@@ -41,30 +35,22 @@ import org.higherkindedj.hkt.test.api.traverse.TraverseTestStage;
  *     .testAll();
  * }</pre>
  *
- * <h3>Core Type Test (Either):</h3>
+ * <h3>Custom Type KindHelper Test:</h3>
  *
  * <pre>{@code
- * TypeClassTest.either(Either.class)
- *     .withLeft(Either.left("error"))
- *     .withRight(Either.right(42))
- *     .withMappers(INT_TO_STRING)
- *     .testAll();
+ * TypeClassTest.kindHelper()
+ *     .forType(MyType.class, myInstance)
+ *     .withHelper(MY_HELPER::widen, MY_HELPER::narrow)
+ *     .test();
  * }</pre>
  *
- * <h3>Core Type Test (Maybe):</h3>
- *
- * <pre>{@code
- * TypeClassTest.maybe(Maybe.class)
- *     .withJust(Maybe.just(42))
- *     .withNothing(Maybe.nothing())
- *     .withMapper(INT_TO_STRING)
- *     .testAll();
- * }</pre>
+ * <p><strong>Note:</strong> For testing built-in types (Either, Maybe, IO),
+ * use {@link CoreTypeTest} instead.
  */
 public final class TypeClassTest {
 
     private TypeClassTest() {
-        throw new AssertionError("TypeClassTest is a utility class and should not be instantiated");
+        throw new AssertionError("TypeClassTest is a utility class");
     }
 
     // =============================================================================
@@ -76,7 +62,7 @@ public final class TypeClassTest {
      *
      * <p>Progressive disclosure: Next step is {@code .instance(functor)}
      *
-     * @param contextClass The implementation class for error messages (e.g., EitherFunctor.class)
+     * @param contextClass The implementation class for error messages (e.g., MyFunctor.class)
      * @param <F> The Functor witness type
      * @return Stage for providing the Functor instance
      */
@@ -151,90 +137,27 @@ public final class TypeClassTest {
     }
 
     /**
-     * Begins configuration for testing a KindHelper implementation.
+     * Begins configuration for testing a custom KindHelper implementation.
      *
-     * <p>Progressive disclosure: Next step is to specify the type using specialized methods.
+     * <p>Progressive disclosure: Next step is to specify the type using {@code .forType()}.
      *
-     * <h3>Usage Examples:</h3>
-     * <h4>Either KindHelper:</h4>
+     * <h2>Usage Example:</h2>
+     *
      * <pre>{@code
      * TypeClassTest.kindHelper()
-     *     .forEither(Either.right("test"))
+     *     .forType(MyType.class, myInstance)
+     *     .withHelper(MY_HELPER::widen, MY_HELPER::narrow)
      *     .test();
      * }</pre>
      *
-     * <h4>Maybe KindHelper:</h4>
-     * <pre>{@code
-     * TypeClassTest.kindHelper()
-     *     .forMaybe(Maybe.just(42))
-     *     .skipValidations()
-     *     .test();
-     * }</pre>
+     * <p><strong>Note:</strong> For built-in types (Either, Maybe, IO),
+     * use {@link CoreTypeTest#eitherKindHelper(org.higherkindedj.hkt.either.Either)},
+     * {@link CoreTypeTest#maybeKindHelper(org.higherkindedj.hkt.maybe.Maybe)}, or
+     * {@link CoreTypeTest#ioKindHelper(org.higherkindedj.hkt.io.IO)} instead.
      *
      * @return Builder for KindHelper testing
      */
     public static KindHelperTestStage.KindHelperBuilder kindHelper() {
         return KindHelperTestStage.builder();
     }
-
-    // =============================================================================
-    // Core Type Entry Points
-    // =============================================================================
-
-    /**
-     * Begins configuration for testing a core Either implementation.
-     *
-     * <p>Tests Either-specific operations like fold, ifLeft, ifRight, getLeft, getRight,
-     * as well as factory methods and basic operations.
-     *
-     * <p>Progressive disclosure: Next step is {@code .withLeft(...)} or {@code .withRight(...)}
-     *
-     * <h3>Usage Example:</h3>
-     * <pre>{@code
-     * TypeClassTest.either(Either.class)
-     *     .withLeft(Either.left("error"))
-     *     .withRight(Either.right(42))
-     *     .withMappers(INT_TO_STRING)
-     *     .testAll();
-     * }</pre>
-     *
-     * @param contextClass The implementation class for error messages (e.g., Either.class)
-     * @param <L> The Left type
-     * @param <R> The Right type
-     * @return Stage for providing test instances
-     */
-    public static <L, R> EitherCoreTestStage<L, R> either(Class<?> contextClass) {
-        return new EitherCoreTestStage<>(contextClass);
-    }
-
-    /**
-     * Begins configuration for testing a core Maybe implementation.
-     *
-     * <p>Tests Maybe-specific operations like get, orElse, orElseGet, isJust, isNothing,
-     * as well as factory methods and basic operations.
-     *
-     * <p>Progressive disclosure: Next step is {@code .withJust(...)} or {@code .withNothing(...)}
-     *
-     * <h3>Usage Example:</h3>
-     * <pre>{@code
-     * TypeClassTest.maybe(Maybe.class)
-     *     .withJust(Maybe.just(42))
-     *     .withNothing(Maybe.nothing())
-     *     .withMapper(INT_TO_STRING)
-     *     .testAll();
-     * }</pre>
-     *
-     * @param contextClass The implementation class for error messages (e.g., Maybe.class)
-     * @param <T> The value type
-     * @return Stage for providing test instances
-     */
-    public static <T> MaybeCoreTestStage<T> maybe(Class<?> contextClass) {
-        return new MaybeCoreTestStage<>(contextClass);
-    }
-
-
-    public static <T> IOCoreTestStage<T> io(Class<?> contextClass) {
-        return new IOCoreTestStage<>(contextClass);
-    }
-
 }

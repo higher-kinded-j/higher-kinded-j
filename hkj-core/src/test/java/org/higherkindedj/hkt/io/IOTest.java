@@ -11,6 +11,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.coverage.TestCoverageReporter;
@@ -80,7 +81,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
         @Test
         @DisplayName("Run complete IO test pattern")
         void runCompleteIOTestPattern() {
-            TypeClassTest.<Integer>io(IO.class)
+            CoreTypeTest.<Integer>io(IO.class)
                     .withIO(IO.delay(() -> 42))
                     .withMapper(TestFunctions.INT_TO_STRING)
                     .testAll();

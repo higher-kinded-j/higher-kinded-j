@@ -14,6 +14,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.data.TestFunctions;
@@ -154,7 +155,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
         @Test
         @DisplayName("Test all Either core operations")
         void testAllEitherCoreOperations() {
-            TypeClassTest.<String, Integer>either(Either.class)
+            CoreTypeTest.<String, Integer>either(Either.class)
                     .withLeft(leftInstance)
                     .withRight(rightInstance)
                     .withMappers(TestFunctions.INT_TO_STRING)
@@ -164,7 +165,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
         @Test
         @DisplayName("Test Either with validation configuration")
         void testEitherWithValidationConfiguration() {
-            TypeClassTest.<String, Integer>either(Either.class)
+            CoreTypeTest.<String, Integer>either(Either.class)
                     .withLeft(leftInstance)
                     .withRight(rightInstance)
                     .withMappers(TestFunctions.INT_TO_STRING)
@@ -178,7 +179,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
         @Test
         @DisplayName("Test Either selective operations")
         void testEitherSelectiveOperations() {
-            TypeClassTest.<String, Integer>either(Either.class)
+            CoreTypeTest.<String, Integer>either(Either.class)
                     .withLeft(leftInstance)
                     .withRight(rightInstance)
                     .withMappers(TestFunctions.INT_TO_STRING)

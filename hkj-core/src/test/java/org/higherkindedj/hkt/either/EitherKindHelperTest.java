@@ -3,12 +3,14 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.test.api.CoreTypeTest.eitherKindHelper;
 import static org.higherkindedj.hkt.test.api.TypeClassTest.kindHelper;
 
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
@@ -50,8 +52,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void completeKindHelperTestSuite() {
             Either<TestError, String> validInstance = Either.right("Success");
 
-            kindHelper()
-                    .forEither(validInstance)
+            eitherKindHelper(validInstance)
                     .test();
         }
 
@@ -66,8 +67,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
                             Either.left(null));
 
             for (Either<TestError, String> instance : testInstances) {
-                kindHelper()
-                        .forEither(instance)
+                eitherKindHelper(instance)
                         .test();
             }
         }
@@ -76,9 +76,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         @DisplayName("Comprehensive test with implementation validation")
         void comprehensiveTestWithImplementationValidation() {
             Either<TestError, String> validInstance = Either.right("Comprehensive");
-
-            kindHelper()
-                    .forEither(validInstance)
+            eitherKindHelper(validInstance)
                     .testWithValidation(EitherKindHelper.class);
         }
     }
@@ -91,8 +89,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void testRoundTripOperations() {
             Either<TestError, String> validInstance = Either.right("test");
 
-            kindHelper()
-                    .forEither(validInstance)
+            eitherKindHelper(validInstance)
                     .skipValidations()
                     .skipInvalidType()
                     .skipIdempotency()
@@ -103,8 +100,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         @Test
         @DisplayName("Test null parameter validations")
         void testNullParameterValidations() {
-            kindHelper()
-                    .forEither(Either.<TestError, String>right("test"))
+            eitherKindHelper(Either.<TestError, String>right("test"))
                     .skipRoundTrip()
                     .skipInvalidType()
                     .skipIdempotency()
@@ -115,8 +111,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         @Test
         @DisplayName("Test invalid Kind type handling")
         void testInvalidKindType() {
-            kindHelper()
-                    .forEither(Either.<TestError, String>right("test"))
+            eitherKindHelper(Either.<TestError, String>right("test"))
                     .skipRoundTrip()
                     .skipValidations()
                     .skipIdempotency()
@@ -129,8 +124,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void testIdempotency() {
             Either<TestError, String> validInstance = Either.right("idempotent");
 
-            kindHelper()
-                    .forEither(validInstance)
+            eitherKindHelper(validInstance)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -143,8 +137,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void testEdgeCases() {
             Either<TestError, String> validInstance = Either.right("edge");
 
-            kindHelper()
-                    .forEither(validInstance)
+            eitherKindHelper(validInstance)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -162,8 +155,8 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
             Either<TestError, String> right = Either.right("Success");
             Either<TestError, String> left = Either.left(new TestError("E404"));
 
-            kindHelper().forEither(right).test();
-            kindHelper().forEither(left).test();
+            eitherKindHelper(right).test();
+            eitherKindHelper(left).test();
         }
 
         @Test
@@ -172,8 +165,8 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
             Either<TestError, String> rightNull = Either.right(null);
             Either<TestError, String> leftNull = Either.left(null);
 
-            kindHelper().forEither(rightNull).test();
-            kindHelper().forEither(leftNull).test();
+            eitherKindHelper(rightNull).test();
+            eitherKindHelper(leftNull).test();
         }
 
         @Test
@@ -191,7 +184,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
 
             Either<ComplexError, String> complexEither = Either.left(complexError);
 
-            kindHelper().forEither(complexEither).test();
+            eitherKindHelper(complexEither).test();
         }
 
         @Test
@@ -200,8 +193,8 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
             Either<String, Integer> stringLeftEither = Either.left("StringError");
             Either<TestError, Integer> testErrorLeftEither = Either.left(new TestError("E1"));
 
-            kindHelper().forEither(stringLeftEither).test();
-            kindHelper().forEither(testErrorLeftEither).test();
+            eitherKindHelper(stringLeftEither).test();
+            eitherKindHelper(testErrorLeftEither).test();
         }
 
         @Test
@@ -210,8 +203,8 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
             Either<TestError, List<String>> complexRight = Either.right(List.of("a", "b", "c"));
             Either<TestError, List<String>> complexLeft = Either.left(new TestError("ComplexError"));
 
-            kindHelper().forEither(complexRight).test();
-            kindHelper().forEither(complexLeft).test();
+            eitherKindHelper(complexRight).test();
+            eitherKindHelper(complexLeft).test();
 
             assertThat(complexRight.getRight()).containsExactly("a", "b", "c");
             assertThat(complexLeft.getLeft().code()).isEqualTo("ComplexError");
@@ -226,8 +219,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void testMinimalOverhead() {
             Either<TestError, String> original = Either.right("test");
 
-            kindHelper()
-                    .forEither(original)
+            eitherKindHelper(original)
                     .skipPerformance()
                     .test();
         }
@@ -237,8 +229,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void testIdempotentOperations() {
             Either<TestError, String> original = Either.right("idempotent");
 
-            kindHelper()
-                    .forEither(original)
+            eitherKindHelper(original)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -252,8 +243,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
             if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
                 Either<TestError, String> testInstance = Either.right("performance_test");
 
-                kindHelper()
-                        .forEither(testInstance)
+                eitherKindHelper(testInstance)
                         .withPerformanceTests()
                         .test();
             }
@@ -265,8 +255,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
             if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
                 Either<TestError, String> testInstance = Either.right("memory_test");
 
-                kindHelper()
-                        .forEither(testInstance)
+                eitherKindHelper(testInstance)
                         .withPerformanceTests()
                         .test();
             }
@@ -287,7 +276,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
                             Either.right(""));
 
             for (Either<TestError, String> instance : nullInstances) {
-                kindHelper().forEither(instance).test();
+                eitherKindHelper(instance).test();
             }
         }
     }
@@ -301,8 +290,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
             if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
                 Either<TestError, String> testInstance = Either.right("concurrent_test");
 
-                kindHelper()
-                        .forEither(testInstance)
+                eitherKindHelper(testInstance)
                         .withConcurrencyTests()
                         .test();
             }
@@ -320,8 +308,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void testQuickValidation() {
             Either<TestError, String> testInstance = Either.right("quick_test");
 
-            kindHelper()
-                    .forEither(testInstance)
+            eitherKindHelper(testInstance)
                     .test();
         }
 
@@ -340,7 +327,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
                             Either.left(null));
 
             for (Either<TestError, Object> instance : complexInstances) {
-                kindHelper().forEither(instance).test();
+                eitherKindHelper(instance).test();
             }
         }
     }
@@ -362,7 +349,7 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
                             Either.left(null));
 
             for (Either<TestError, String> state : allStates) {
-                kindHelper().forEither(state).test();
+                eitherKindHelper(state).test();
             }
         }
 
@@ -371,11 +358,11 @@ class EitherKindHelperTest extends TypeClassTestBase<EitherKind.Witness<EitherKi
         void testFullLifecycle() {
             Either<TestError, String> original = Either.right("lifecycle_test");
 
-            kindHelper().forEither(original).test();
+            eitherKindHelper(original).test();
 
             Either<TestError, String> leftOriginal = Either.left(new TestError("lifecycle_error"));
 
-            kindHelper().forEither(leftOriginal).test();
+            eitherKindHelper(leftOriginal).test();
         }
     }
 }

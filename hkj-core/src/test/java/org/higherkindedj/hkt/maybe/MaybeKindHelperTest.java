@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.test.api.CoreTypeTest.maybeKindHelper;
 import static org.higherkindedj.hkt.test.api.TypeClassTest.kindHelper;
 
 import java.util.List;
@@ -46,8 +47,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void completeKindHelperTestSuite() {
             Maybe<String> validInstance = Maybe.just("Success");
 
-            kindHelper()
-                    .forMaybe(validInstance)
+            maybeKindHelper(validInstance)
                     .test();
         }
 
@@ -58,8 +58,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
                     List.of(Maybe.just("Success"), Maybe.nothing(), Maybe.just(""), Maybe.just("Test"));
 
             for (Maybe<String> instance : testInstances) {
-                kindHelper()
-                        .forMaybe(instance)
+                maybeKindHelper(instance)
                         .test();
             }
         }
@@ -69,8 +68,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void comprehensiveTestWithImplementationValidation() {
             Maybe<String> validInstance = Maybe.just("Comprehensive");
 
-            kindHelper()
-                    .forMaybe(validInstance)
+            maybeKindHelper(validInstance)
                     .testWithValidation(MaybeKindHelper.class);
         }
     }
@@ -83,8 +81,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testRoundTripOperations() {
             Maybe<String> validInstance = Maybe.just("test");
 
-            kindHelper()
-                    .forMaybe(validInstance)
+            maybeKindHelper(validInstance)
                     .skipValidations()
                     .skipInvalidType()
                     .skipIdempotency()
@@ -95,8 +92,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         @Test
         @DisplayName("Test null parameter validations")
         void testNullParameterValidations() {
-            kindHelper()
-                    .forMaybe(Maybe.just("test"))
+            maybeKindHelper(Maybe.just("test"))
                     .skipRoundTrip()
                     .skipInvalidType()
                     .skipIdempotency()
@@ -107,8 +103,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         @Test
         @DisplayName("Test invalid Kind type handling")
         void testInvalidKindType() {
-            kindHelper()
-                    .forMaybe(Maybe.just("test"))
+            maybeKindHelper(Maybe.just("test"))
                     .skipRoundTrip()
                     .skipValidations()
                     .skipIdempotency()
@@ -121,8 +116,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testIdempotency() {
             Maybe<String> validInstance = Maybe.just("idempotent");
 
-            kindHelper()
-                    .forMaybe(validInstance)
+            maybeKindHelper(validInstance)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -135,8 +129,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testEdgeCases() {
             Maybe<String> validInstance = Maybe.just("edge");
 
-            kindHelper()
-                    .forMaybe(validInstance)
+            maybeKindHelper(validInstance)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -154,8 +147,8 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
             Maybe<String> just = Maybe.just("Success");
             Maybe<String> nothing = Maybe.nothing();
 
-            kindHelper().forMaybe(just).test();
-            kindHelper().forMaybe(nothing).test();
+            maybeKindHelper(just).test();
+            maybeKindHelper(nothing).test();
         }
 
         @Test
@@ -164,8 +157,8 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
             Maybe<String> nothing1 = Maybe.nothing();
             Maybe<Integer> nothing2 = Maybe.nothing();
 
-            kindHelper().forMaybe(nothing1).test();
-            kindHelper().forMaybe(nothing2).test();
+            maybeKindHelper(nothing1).test();
+            maybeKindHelper(nothing2).test();
 
             assertThat(nothing1).isSameAs(nothing2);
         }
@@ -176,7 +169,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
             List<String> complexValue = List.of("a", "b", "c");
             Maybe<List<String>> complexMaybe = Maybe.just(complexValue);
 
-            kindHelper().forMaybe(complexMaybe).test();
+            maybeKindHelper(complexMaybe).test();
 
             assertThat(complexMaybe.get()).isSameAs(complexValue);
         }
@@ -186,7 +179,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testEmptyStringIsValidJust() {
             Maybe<String> emptyJust = Maybe.just("");
 
-            kindHelper().forMaybe(emptyJust).test();
+            maybeKindHelper(emptyJust).test();
 
             assertThat(emptyJust.isJust()).isTrue();
             assertThat(emptyJust.get()).isEmpty();
@@ -201,8 +194,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testMinimalOverhead() {
             Maybe<String> original = Maybe.just("test");
 
-            kindHelper()
-                    .forMaybe(original)
+            maybeKindHelper(original)
                     .skipPerformance()
                     .test();
         }
@@ -212,8 +204,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testIdempotentOperations() {
             Maybe<String> original = Maybe.just("idempotent");
 
-            kindHelper()
-                    .forMaybe(original)
+            maybeKindHelper(original)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -227,8 +218,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
             if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
                 Maybe<String> testInstance = Maybe.just("performance_test");
 
-                kindHelper()
-                        .forMaybe(testInstance)
+                maybeKindHelper(testInstance)
                         .withPerformanceTests()
                         .test();
             }
@@ -240,8 +230,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
             if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
                 Maybe<String> testInstance = Maybe.just("memory_test");
 
-                kindHelper()
-                        .forMaybe(testInstance)
+                maybeKindHelper(testInstance)
                         .withPerformanceTests()
                         .test();
             }
@@ -263,7 +252,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
                             Maybe.fromNullable(null));
 
             for (Maybe<String> state : allStates) {
-                kindHelper().forMaybe(state).test();
+                maybeKindHelper(state).test();
             }
         }
 
@@ -273,8 +262,8 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
             Maybe<String> original = Maybe.just("lifecycle_test");
             Maybe<String> nothingOriginal = Maybe.nothing();
 
-            kindHelper().forMaybe(original).test();
-            kindHelper().forMaybe(nothingOriginal).test();
+            maybeKindHelper(original).test();
+            maybeKindHelper(nothingOriginal).test();
         }
     }
 
@@ -287,8 +276,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
             if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
                 Maybe<String> testInstance = Maybe.just("concurrent_test");
 
-                kindHelper()
-                        .forMaybe(testInstance)
+                maybeKindHelper(testInstance)
                         .withConcurrencyTests()
                         .test();
             }
@@ -305,8 +293,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testQuickValidation() {
             Maybe<String> testInstance = Maybe.just("quick_test");
 
-            kindHelper()
-                    .forMaybe(testInstance)
+            maybeKindHelper(testInstance)
                     .test();
         }
 
@@ -322,7 +309,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
                             Maybe.nothing());
 
             for (Maybe<Object> instance : complexInstances) {
-                kindHelper().forMaybe(instance).test();
+                maybeKindHelper(instance).test();
             }
         }
     }
@@ -342,7 +329,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
                             Maybe.fromNullable(null));
 
             for (Maybe<String> state : allStates) {
-                kindHelper().forMaybe(state).test();
+                maybeKindHelper(state).test();
             }
         }
 
@@ -351,7 +338,7 @@ class MaybeKindHelperTest extends TypeClassTestBase<MaybeKind.Witness, String, S
         void testFullLifecycle() {
             Maybe<String> original = Maybe.just("lifecycle_test");
 
-            kindHelper().forMaybe(original).test();
+            maybeKindHelper(original).test();
 
             KindHelperTestPattern.validateImplementationStandards(Maybe.class, MaybeKindHelper.class);
         }

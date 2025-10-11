@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.test.api.CoreTypeTest.ioKindHelper;
 import static org.higherkindedj.hkt.test.api.TypeClassTest.kindHelper;
 
 import java.util.List;
@@ -67,8 +68,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void completeKindHelperTestSuite() {
             IO<String> validInstance = IO.delay(() -> "Success");
 
-            kindHelper()
-                    .forIO(validInstance)
+            ioKindHelper(validInstance)
                     .test();
         }
 
@@ -87,8 +87,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             for (IO<String> instance : testInstances) {
                 // Only test non-exceptional IOs for round-trip
                 if (instance != testInstances.get(3)) {
-                    kindHelper()
-                            .forIO(instance)
+                    ioKindHelper(instance)
                             .test();
                 }
             }
@@ -99,8 +98,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void comprehensiveTestWithImplementationValidation() {
             IO<String> validInstance = IO.delay(() -> "Comprehensive");
 
-            kindHelper()
-                    .forIO(validInstance)
+            ioKindHelper(validInstance)
                     .testWithValidation(IOKindHelper.class);
         }
     }
@@ -113,8 +111,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testRoundTripOperations() {
             IO<String> validInstance = IO.delay(() -> "test");
 
-            kindHelper()
-                    .forIO(validInstance)
+            ioKindHelper(validInstance)
                     .skipValidations()
                     .skipInvalidType()
                     .skipIdempotency()
@@ -125,8 +122,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         @Test
         @DisplayName("Test null parameter validations")
         void testNullParameterValidations() {
-            kindHelper()
-                    .forIO(IO.delay(() -> "test"))
+            ioKindHelper(IO.delay(() -> "test"))
                     .skipRoundTrip()
                     .skipInvalidType()
                     .skipIdempotency()
@@ -137,8 +133,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         @Test
         @DisplayName("Test invalid Kind type handling")
         void testInvalidKindType() {
-            kindHelper()
-                    .forIO(IO.delay(() -> "test"))
+            ioKindHelper(IO.delay(() -> "test"))
                     .skipRoundTrip()
                     .skipValidations()
                     .skipIdempotency()
@@ -151,8 +146,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testIdempotency() {
             IO<String> validInstance = IO.delay(() -> "idempotent");
 
-            kindHelper()
-                    .forIO(validInstance)
+            ioKindHelper(validInstance)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -165,8 +159,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testEdgeCases() {
             IO<String> validInstance = IO.delay(() -> "edge");
 
-            kindHelper()
-                    .forIO(validInstance)
+            ioKindHelper(validInstance)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -187,8 +180,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
                 return "Executed: " + counter.get();
             });
 
-            kindHelper()
-                    .forIO(effectfulIO)
+            ioKindHelper(effectfulIO)
                     .test();
 
             // Verify laziness - effect should not have run during test
@@ -200,8 +192,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testNullValuesPreserved() {
             IO<String> nullIO = IO.delay(() -> null);
 
-            kindHelper()
-                    .forIO(nullIO)
+            ioKindHelper(nullIO)
                     .test();
 
             // Verify null is preserved
@@ -215,8 +206,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
                     .map(s -> s + "_mapped")
                     .flatMap(s -> IO.delay(() -> s + "_flatMapped"));
 
-            kindHelper()
-                    .forIO(complexIO)
+            ioKindHelper(complexIO)
                     .test();
 
             assertThat(complexIO.unsafeRunSync()).isEqualTo("base_mapped_flatMapped");
@@ -228,12 +218,10 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             IO<String> stringIO = IO.delay(() -> "string");
             IO<Integer> intIO = IO.delay(() -> 42);
 
-            kindHelper()
-                    .forIO(stringIO)
+            ioKindHelper(stringIO)
                     .test();
 
-            kindHelper()
-                    .forIO(intIO)
+            ioKindHelper(intIO)
                     .test();
         }
 
@@ -242,8 +230,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testComplexValueTypes() {
             IO<List<String>> complexIO = IO.delay(() -> List.of("a", "b", "c"));
 
-            kindHelper()
-                    .forIO(complexIO)
+            ioKindHelper(complexIO)
                     .test();
 
             assertThat(complexIO.unsafeRunSync()).containsExactly("a", "b", "c");
@@ -384,8 +371,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testMinimalOverhead() {
             IO<String> original = IO.delay(() -> "test");
 
-            kindHelper()
-                    .forIO(original)
+            ioKindHelper(original)
                     .skipPerformance()
                     .test();
         }
@@ -395,8 +381,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testIdempotentOperations() {
             IO<String> original = IO.delay(() -> "idempotent");
 
-            kindHelper()
-                    .forIO(original)
+            ioKindHelper(original)
                     .skipRoundTrip()
                     .skipValidations()
                     .skipInvalidType()
@@ -410,8 +395,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
                 IO<String> testInstance = IO.delay(() -> "performance_test");
 
-                kindHelper()
-                        .forIO(testInstance)
+                ioKindHelper(testInstance)
                         .withPerformanceTests()
                         .test();
             }
@@ -423,8 +407,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
                 IO<String> testInstance = IO.delay(() -> "memory_test");
 
-                kindHelper()
-                        .forIO(testInstance)
+                ioKindHelper(testInstance)
                         .withPerformanceTests()
                         .test();
             }
@@ -443,8 +426,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             );
 
             for (IO<String> instance : nullInstances) {
-                kindHelper()
-                        .forIO(instance)
+                ioKindHelper(instance)
                         .test();
             }
         }
@@ -459,8 +441,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
                 IO<String> testInstance = IO.delay(() -> "concurrent_test");
 
-                kindHelper()
-                        .forIO(testInstance)
+                ioKindHelper(testInstance)
                         .withConcurrencyTests()
                         .test();
             }
@@ -477,8 +458,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testQuickValidation() {
             IO<String> testInstance = IO.delay(() -> "quick_test");
 
-            kindHelper()
-                    .forIO(testInstance)
+            ioKindHelper(testInstance)
                     .test();
         }
 
@@ -494,8 +474,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             );
 
             for (IO<Object> instance : complexInstances) {
-                kindHelper()
-                        .forIO(instance)
+                ioKindHelper(instance)
                         .test();
             }
         }
@@ -514,8 +493,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
             );
 
             for (IO<String> state : allStates) {
-                kindHelper()
-                        .forIO(state)
+                ioKindHelper(state)
                         .test();
             }
         }
@@ -525,8 +503,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         void testFullLifecycle() {
             IO<String> original = IO.delay(() -> "lifecycle_test");
 
-            kindHelper()
-                    .forIO(original)
+            ioKindHelper(original)
                     .test();
         }
     }

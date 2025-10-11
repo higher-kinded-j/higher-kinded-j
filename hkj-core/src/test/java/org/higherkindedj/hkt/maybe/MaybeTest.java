@@ -15,6 +15,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
@@ -153,7 +154,7 @@ class MaybeTest extends TypeClassTestBase<MaybeKind.Witness, String, Integer> {
         @Test
         @DisplayName("Run complete Maybe core type tests")
         void runCompleteMaybeCoreTypeTests() {
-            TypeClassTest.<String>maybe(Maybe.class)
+            CoreTypeTest.<String>maybe(Maybe.class)
                     .withJust(justInstance)
                     .withNothing(nothingInstance)
                     .withMapper(validMapper)
@@ -182,7 +183,7 @@ class MaybeTest extends TypeClassTestBase<MaybeKind.Witness, String, Integer> {
         @Test
         @DisplayName("Test Functor validations only")
         void testFunctorValidationsOnly() {
-            TypeClassTest.<String>maybe(Maybe.class)
+            CoreTypeTest.<String>maybe(Maybe.class)
                     .withJust(justInstance)
                     .withNothing(nothingInstance)
                     .withMapper(validMapper)
@@ -239,7 +240,7 @@ class MaybeTest extends TypeClassTestBase<MaybeKind.Witness, String, Integer> {
         @Test
         @DisplayName("Test Monad validations only with full hierarchy")
         void testMonadValidationsOnly() {
-            TypeClassTest.<String>maybe(Maybe.class)
+            CoreTypeTest.<String>maybe(Maybe.class)
                     .withJust(justInstance)
                     .withNothing(nothingInstance)
                     .withMapper(validMapper)
