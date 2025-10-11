@@ -2,18 +2,21 @@ package org.higherkindedj.hkt.test.api;
 
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.io.IOCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.io.IOKindHelperTest;
+import org.higherkindedj.hkt.test.api.coretype.lazy.LazyCoreTestStage;
+import org.higherkindedj.hkt.test.api.coretype.lazy.LazyKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.maybe.MaybeCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.maybe.MaybeKindHelperTest;
 
 /**
  * Entry point for core type implementation testing.
  *
- * <p>Use this for testing the built-in Either, Maybe, IO types and their operations.
+ * <p>Use this for testing the built-in Either, Maybe, IO, and Lazy types and their operations.
  *
  * <h2>Core Type Testing Examples:</h2>
  *
@@ -35,6 +38,15 @@ import org.higherkindedj.hkt.test.api.coretype.maybe.MaybeKindHelperTest;
  *     .testAll();
  * }</pre>
  *
+ * <h3>Test Lazy Operations:</h3>
+ * <pre>{@code
+ * CoreTypeTest.lazy(Lazy.class)
+ *     .withDeferred(Lazy.defer(() -> 42))
+ *     .withNow(Lazy.now(24))
+ *     .withMappers(Object::toString)
+ *     .testAll();
+ * }</pre>
+ *
  * <h2>KindHelper Testing Examples:</h2>
  *
  * <h3>Test Either KindHelper:</h3>
@@ -47,6 +59,12 @@ import org.higherkindedj.hkt.test.api.coretype.maybe.MaybeKindHelperTest;
  * <pre>{@code
  * CoreTypeTest.maybeKindHelper(Maybe.just(42))
  *     .skipValidations()
+ *     .test();
+ * }</pre>
+ *
+ * <h3>Test Lazy KindHelper:</h3>
+ * <pre>{@code
+ * CoreTypeTest.lazyKindHelper(Lazy.now("test"))
  *     .test();
  * }</pre>
  */
@@ -101,6 +119,20 @@ public final class CoreTypeTest {
      */
     public static <T> IOCoreTestStage<T> io(Class<?> contextClass) {
         return new IOCoreTestStage<>(contextClass);
+    }
+
+    /**
+     * Begins configuration for testing a Lazy implementation.
+     *
+     * <p>Tests Lazy-specific operations like defer, now, force, map, flatMap,
+     * as well as memoisation and thread-safety semantics.
+     *
+     * @param contextClass The implementation class for error messages (e.g., Lazy.class)
+     * @param <A> The value type
+     * @return Stage for providing test instances
+     */
+    public static <A> LazyCoreTestStage<A> lazy(Class<?> contextClass) {
+        return new LazyCoreTestStage<>(contextClass);
     }
 
     // =============================================================================
@@ -180,5 +212,30 @@ public final class CoreTypeTest {
      */
     public static <A> IOKindHelperTest<A> ioKindHelper(IO<A> instance) {
         return new IOKindHelperTest<>(instance);
+    }
+
+    /**
+     * Test Lazy KindHelper with automatic helper detection.
+     *
+     * <p>Automatically uses LazyKindHelper.LAZY for widen/narrow operations.
+     *
+     * <h2>Usage Example:</h2>
+     * <pre>{@code
+     * CoreTypeTest.lazyKindHelper(Lazy.now("test"))
+     *     .test();
+     *
+     * // With performance and concurrency testing
+     * CoreTypeTest.lazyKindHelper(Lazy.defer(() -> 42))
+     *     .withPerformanceTests()
+     *     .withConcurrencyTests()
+     *     .test();
+     * }</pre>
+     *
+     * @param instance The Lazy instance to test
+     * @param <A> The value type
+     * @return Configuration stage for Lazy KindHelper testing
+     */
+    public static <A> LazyKindHelperTest<A> lazyKindHelper(Lazy<A> instance) {
+        return new LazyKindHelperTest<>(instance);
     }
 }

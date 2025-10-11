@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.function.Function5;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Represents the Applicative Functor type class, an algebraic structure that lies between {@link
  * Functor} and {@link Monad} in terms of power.
@@ -157,8 +159,9 @@ public interface Applicative<F> extends Functor<F> {
       final Kind<F, A> fa,
       final Kind<F, B> fb,
       final BiFunction<? super A, ? super B, ? extends C> f) {
-
-    Objects.requireNonNull(f, "combining function for map2 cannot be null");
+    requireNonNull(fa, "Kind<F, A> for map2 cannot be null");
+    requireNonNull(fb, "Kind<F, B> for map2 cannot be null");
+    requireNonNull(f, "combining function for map2 cannot be null");
     // The implementation is now based on map and ap, with a curried function.
     // The key is that the lambda `a -> b -> f.apply(a, b)` helps the compiler
     // resolve the wildcard types correctly before they are passed to map.
@@ -187,9 +190,11 @@ public interface Applicative<F> extends Functor<F> {
       final Kind<F, B> fb,
       final Kind<F, C> fc,
       final Function3<? super A, ? super B, ? super C, ? extends R> f) {
-
-    Objects.requireNonNull(f, "combining function for map3 cannot be null");
-    return ap(map2(fa, fb, (a, b) -> c -> Objects.requireNonNull(f.apply(a, b, c))), fc);
+    requireNonNull(fa, "Kind<F, A> for map3 cannot be null");
+    requireNonNull(fb, "Kind<F, B> for map3 cannot be null");
+    requireNonNull(fc, "Kind<F, C> for map3 cannot be null");
+    requireNonNull(f, "combining function for map3 cannot be null");
+    return ap(map2(fa, fb, (a, b) -> c -> requireNonNull(f.apply(a, b, c))), fc);
   }
 
   /**
@@ -216,8 +221,12 @@ public interface Applicative<F> extends Functor<F> {
       final Kind<F, C> fc,
       final Kind<F, D> fd,
       final Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
-    Objects.requireNonNull(f, "combining function for map4 cannot be null");
-    return ap(map3(fa, fb, fc, (a, b, c) -> d -> Objects.requireNonNull(f.apply(a, b, c, d))), fd);
+    requireNonNull(fa, "Kind<F, A> for map4 cannot be null");
+    requireNonNull(fb, "Kind<F, B> for map4cannot be null");
+    requireNonNull(fc, "Kind<F, C> for map4 cannot be null");
+    requireNonNull(fd, "Kind<F, D> for map4 cannot be null");
+    requireNonNull(f, "combining function for map4 cannot be null");
+    return ap(map3(fa, fb, fc, (a, b, c) -> d -> requireNonNull(f.apply(a, b, c, d))), fd);
   }
 
   /**
@@ -248,9 +257,13 @@ public interface Applicative<F> extends Functor<F> {
       final Kind<F, D> fd,
       final Kind<F, E> fe,
       final Function5<? super A, ? super B, ? super C, ? super D, ? super E, ? extends R> f) {
-    Objects.requireNonNull(f, "combining function for map5 cannot be null");
+    requireNonNull(fa, "Kind<F, A> for map5 cannot be null");
+    requireNonNull(fb, "Kind<F, B> for map5 cannot be null");
+    requireNonNull(fc, "Kind<F, C> for map5 cannot be null");
+    requireNonNull(fd, "Kind<F, D> for map5 cannot be null");
+    requireNonNull(fe, "Kind<F, E> for map5 cannot be null");
+    requireNonNull(f, "combining function for map5 cannot be null");
     return ap(
-        map4(fa, fb, fc, fd, (a, b, c, d) -> e -> Objects.requireNonNull(f.apply(a, b, c, d, e))),
-        fe);
+        map4(fa, fb, fc, fd, (a, b, c, d) -> e -> requireNonNull(f.apply(a, b, c, d, e))), fe);
   }
 }
