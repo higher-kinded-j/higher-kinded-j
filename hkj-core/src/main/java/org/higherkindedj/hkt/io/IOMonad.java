@@ -8,6 +8,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
 
@@ -65,12 +67,16 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
   public <A, B> Kind<IOKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<IOKind.Witness, B>> f, Kind<IOKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, IO_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, IO_MONAD_CLASS, FLAT_MAP);
+    var validatedF = FunctionValidator.requireFlatMapper(f, IO_MONAD_CLASS, FLAT_MAP);
+    var validatedMa = KindValidator.requireNonNull(ma, IO_MONAD_CLASS, FLAT_MAP);
 
-    IO<A> ioA = IO_OP.narrow(ma);
+    IO<A> ioA = IO_OP.narrow(validatedMa);
     // Adapt f: A -> Kind<IO.Witness, B> to A -> IO<B> for IO's flatMap
-    IO<B> ioB = ioA.flatMap(a -> IO_OP.narrow(f.apply(a)));
+    IO<B> ioB = ioA.flatMap(a -> {
+        var kindB = validatedF.apply(a);
+        FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, IO.class);
+        return IO_OP.narrow(f.apply(a));
+    });
     return IO_OP.widen(ioB);
   }
 }

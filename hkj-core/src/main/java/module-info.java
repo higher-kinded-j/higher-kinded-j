@@ -3,7 +3,6 @@ module org.higherkindedj.core {
   // This module requires jspecify and makes it available to its users.
   requires transitive org.jspecify;
   requires transitive org.higherkindedj.api;
-
     exports org.higherkindedj.hkt.tuple;
   exports org.higherkindedj.hkt.unit;
   exports org.higherkindedj.hkt.either;

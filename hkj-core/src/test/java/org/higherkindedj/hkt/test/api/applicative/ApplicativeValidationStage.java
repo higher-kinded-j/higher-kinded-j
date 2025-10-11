@@ -156,25 +156,21 @@ public final class ApplicativeValidationStage<F, A, B> {
      * <p>If laws were configured, includes law tests. Otherwise, runs operations and validations only.
      */
     public void testAll() {
-        ApplicativeTestExecutor<F, A, B> executor = buildExecutor();
-        executor.executeAll();
+        if (lawsStage != null) {
+            operationsStage.build(lawsStage, this).executeAll();
+        } else {
+            operationsStage.build(null, this).executeOperationsAndValidations();
+        }
     }
 
-    /**
-     * Executes only operation and validation tests.
-     */
     public void testOperationsAndValidations() {
-        ApplicativeTestExecutor<F, A, B> executor = buildExecutor();
-        executor.executeOperationsAndValidations();
+        operationsStage.build(lawsStage, this).executeOperationsAndValidations();
     }
 
-    /**
-     * Executes only validation tests.
-     */
     public void testValidations() {
-        ApplicativeTestExecutor<F, A, B> executor = buildExecutor();
-        executor.executeValidations();
+        operationsStage.build(lawsStage, this).executeValidations();
     }
+
 
     // Package-private getters
     Class<?> getMapContext() {

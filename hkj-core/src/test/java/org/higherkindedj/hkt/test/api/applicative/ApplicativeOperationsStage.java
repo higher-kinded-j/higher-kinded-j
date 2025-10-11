@@ -115,6 +115,11 @@ public final class ApplicativeOperationsStage<F, A, B> {
   }
 
     ApplicativeTestExecutor<F, A, B> build(ApplicativeLawsStage<F, A, B> lawsStage) {
+        return build(lawsStage, null);
+    }
+
+    ApplicativeTestExecutor<F, A, B> build(ApplicativeLawsStage<F, A, B> lawsStage,
+                                           ApplicativeValidationStage<F, A, B> validationStage) {
         return new ApplicativeTestExecutor<>(
                 contextClass,
                 applicative,
@@ -124,7 +129,7 @@ public final class ApplicativeOperationsStage<F, A, B> {
                 functionKind,
                 combiningFunction,
                 lawsStage,
-                null);  // Add null for validationStage
+                validationStage);  // Add null for validationStage
     }
 
   // Package-private getters

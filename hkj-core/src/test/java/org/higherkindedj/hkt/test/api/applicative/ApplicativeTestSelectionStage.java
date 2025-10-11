@@ -84,10 +84,22 @@ public final class ApplicativeTestSelectionStage<F, A, B> {
     return operationsStage;
   }
 
-  public void test() {
-    ApplicativeTestExecutor<F, A, B> executor = operationsStage.build(lawsStage);
-    executor.setTestSelection(
-        includeOperations, includeValidations, includeExceptions, includeLaws);
-    executor.executeSelected();
-  }
+    public void test() {
+        ApplicativeTestExecutor<F, A, B> executor =
+                new ApplicativeTestExecutor<>(
+                        operationsStage.getContextClass(),
+                        operationsStage.getApplicative(),
+                        operationsStage.getValidKind(),
+                        operationsStage.getValidKind2(),
+                        operationsStage.getMapper(),
+                        operationsStage.getFunctionKind(),
+                        operationsStage.getCombiningFunction(),
+                        lawsStage,
+                        validationStage
+                );
+
+        executor.setTestSelection(
+                includeOperations, includeValidations, includeExceptions, includeLaws);
+        executor.executeSelected();
+    }
 }
