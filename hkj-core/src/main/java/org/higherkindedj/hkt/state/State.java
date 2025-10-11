@@ -67,14 +67,13 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> State<S, B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, STATE_CLASS, MAP);
-    return State.of(
-        initialState -> {
-          StateTuple<S, A> result = this.run(initialState);
-          B newValue = f.apply(result.value());
-          CoreTypeValidator.requireSupplierResult(newValue, "map function", STATE_CLASS);
-          return new StateTuple<>(f.apply(result.value()), result.state());
-        });
+      FunctionValidator.requireMapper(f, STATE_CLASS, MAP);
+      return State.of(
+              initialState -> {
+                  StateTuple<S, A> result = this.run(initialState);
+                  B newValue = f.apply(result.value());
+                  return new StateTuple<>(newValue, result.state());
+              });
   }
 
   /**
@@ -162,7 +161,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code newState} is null.
    */
   static <S> State<S, Unit> set(S newState) {
-    CoreTypeValidator.requireValue(newState, STATE_CLASS, SET);
+    CoreTypeValidator.requireValue(newState, "newState", STATE_CLASS, SET);
     // The old state `s` is ignored here, as `newState` replaces it.
     return State.of(s -> new StateTuple<>(Unit.INSTANCE, newState));
   }

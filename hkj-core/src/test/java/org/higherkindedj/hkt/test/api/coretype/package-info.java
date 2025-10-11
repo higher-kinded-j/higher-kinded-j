@@ -2,6 +2,7 @@
  * Core type testing framework.
  *
  * <p>Provides fluent APIs for testing built-in types:
+ *
  * <ul>
  *   <li>Either - left/right operations, fold, getters
  *   <li>Maybe - just/nothing operations, get, orElse
@@ -12,6 +13,7 @@
  * <h2>Usage Examples:</h2>
  *
  * <h3>Test Core Type Operations:</h3>
+ *
  * <pre>{@code
  * CoreTypeTest.either(Either.class)
  *     .withLeft(Either.left("error"))
@@ -20,6 +22,7 @@
  * }</pre>
  *
  * <h3>Test KindHelper:</h3>
+ *
  * <pre>{@code
  * CoreTypeTest.eitherKindHelper(Either.right("test"))
  *     .test();

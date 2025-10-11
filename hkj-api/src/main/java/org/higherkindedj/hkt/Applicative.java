@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
+
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.function.Function3;
@@ -10,8 +11,6 @@ import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Represents the Applicative Functor type class, an algebraic structure that lies between {@link

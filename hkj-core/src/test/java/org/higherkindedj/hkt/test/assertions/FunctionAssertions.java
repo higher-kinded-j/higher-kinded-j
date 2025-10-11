@@ -118,14 +118,15 @@ public final class FunctionAssertions {
    * Asserts monoid validation using production FunctionValidator.
    *
    * @param executable The code that should throw
+   * @param monoidName The name of the monoid parameter
    * @param operation The operation name
    * @return Throwable assertion for further chaining
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String monoidName, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireMonoid(null, operation.toString()));
+        executable, () -> FunctionValidator.requireMonoid(null, monoidName, operation.toString()));
   }
 
   /**
@@ -197,15 +198,26 @@ public final class FunctionAssertions {
    * Asserts monoid validation with class context using production FunctionValidator.
    *
    * @param executable The code that should throw
+   * @param monoidName The name of the monoid parameter
    * @param contextClass The class providing context
    * @param operation The operation name
    * @return Throwable assertion for further chaining
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
+      ThrowableAssert.ThrowingCallable executable,
+      String monoidName,
+      Class<?> contextClass,
+      Operation operation) {
+    return assertWithProductionValidator(
+        executable,
+        () -> FunctionValidator.requireMonoid(null, monoidName, contextClass, operation));
+  }
+
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireMonoid(null, contextClass, operation));
+        executable, () -> FunctionValidator.requireMonoid(null, "monoid", contextClass, operation));
   }
 
   /**
@@ -241,7 +253,6 @@ public final class FunctionAssertions {
     return assertWithProductionValidator(
         executable, () -> FunctionValidator.requireHandler(null, contextClass, operation));
   }
-
 
   // =============================================================================
   // Core Production Validator Integration

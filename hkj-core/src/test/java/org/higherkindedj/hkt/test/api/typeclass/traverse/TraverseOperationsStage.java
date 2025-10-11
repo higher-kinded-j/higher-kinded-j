@@ -24,7 +24,7 @@ public final class TraverseOperationsStage<F, G, A, B, M> {
   private final Function<A, B> mapper;
 
   public TraverseOperationsStage(
-          Class<?> contextClass, Traverse<F> traverse, Kind<F, A> validKind, Function<A, B> mapper) {
+      Class<?> contextClass, Traverse<F> traverse, Kind<F, A> validKind, Function<A, B> mapper) {
     this.contextClass = contextClass;
     this.traverse = traverse;
     this.validKind = validKind;

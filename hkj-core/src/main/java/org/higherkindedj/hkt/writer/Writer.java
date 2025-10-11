@@ -80,7 +80,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code monoidW} is {@code null}.
    */
   public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
-    FunctionValidator.requireMonoid(monoidW, WRITER_CLASS, VALUE);
+    FunctionValidator.requireMonoid(monoidW, "monoidW", WRITER_CLASS, VALUE);
     return new Writer<>(monoidW.empty(), value);
   }
 
@@ -96,7 +96,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code log} is {@code null}.
    */
   public static <W> Writer<W, Unit> tell(W log) {
-    CoreTypeValidator.requireValue(log, WRITER_CLASS, TELL);
+    CoreTypeValidator.requireValue(log, "log", WRITER_CLASS, TELL);
     return new Writer<>(log, Unit.INSTANCE);
   }
 
@@ -140,7 +140,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
   public <B> Writer<W, B> flatMap(
       Monoid<W> monoidW, Function<? super A, ? extends Writer<W, ? extends B>> f) {
 
-    FunctionValidator.requireMonoid(monoidW, WRITER_CLASS, FLAT_MAP);
+    FunctionValidator.requireMonoid(monoidW, "monoidW", WRITER_CLASS, FLAT_MAP);
     FunctionValidator.requireFlatMapper(f, WRITER_CLASS, FLAT_MAP);
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);

@@ -120,7 +120,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ListKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, LIST_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMonoid(monoid, "monoid", LIST_TRAVERSE_CLASS, FOLD_MAP);
     FunctionValidator.requireMapper(f, LIST_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, LIST_TRAVERSE_CLASS, FOLD_MAP);
 

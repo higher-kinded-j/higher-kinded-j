@@ -13,36 +13,36 @@ import org.higherkindedj.hkt.io.IO;
  * @param <A> The value type
  */
 public final class IOOperationsStage<A> {
-    private final Class<?> contextClass;
-    private final IO<A> ioInstance;
+  private final Class<?> contextClass;
+  private final IO<A> ioInstance;
 
-    IOOperationsStage(Class<?> contextClass, IO<A> ioInstance) {
-        this.contextClass = contextClass;
-        this.ioInstance = ioInstance;
-    }
+  IOOperationsStage(Class<?> contextClass, IO<A> ioInstance) {
+    this.contextClass = contextClass;
+    this.ioInstance = ioInstance;
+  }
 
-    /**
-     * Provides mapping functions for testing map and flatMap operations.
-     *
-     * <p>Progressive disclosure: Next steps are test selection or execution.
-     *
-     * @param mapper The mapping function (A -> B)
-     * @param <B> The mapped type
-     * @return Configuration stage with execution options
-     */
-    public <B> IOTestConfigStage<A, B> withMapper(Function<A, B> mapper) {
-        return new IOTestConfigStage<>(contextClass, ioInstance, mapper);
-    }
+  /**
+   * Provides mapping functions for testing map and flatMap operations.
+   *
+   * <p>Progressive disclosure: Next steps are test selection or execution.
+   *
+   * @param mapper The mapping function (A -> B)
+   * @param <B> The mapped type
+   * @return Configuration stage with execution options
+   */
+  public <B> IOTestConfigStage<A, B> withMapper(Function<A, B> mapper) {
+    return new IOTestConfigStage<>(contextClass, ioInstance, mapper);
+  }
 
-    /**
-     * Skip mapper configuration and proceed to testing.
-     *
-     * <p>This is useful when you only want to test operations that don't require mappers
-     * (like delay, unsafeRunSync).
-     *
-     * @return Configuration stage without mapper
-     */
-    public IOTestConfigStage<A, String> withoutMapper() {
-        return new IOTestConfigStage<>(contextClass, ioInstance, null);
-    }
+  /**
+   * Skip mapper configuration and proceed to testing.
+   *
+   * <p>This is useful when you only want to test operations that don't require mappers (like delay,
+   * unsafeRunSync).
+   *
+   * @return Configuration stage without mapper
+   */
+  public IOTestConfigStage<A, String> withoutMapper() {
+    return new IOTestConfigStage<>(contextClass, ioInstance, null);
+  }
 }

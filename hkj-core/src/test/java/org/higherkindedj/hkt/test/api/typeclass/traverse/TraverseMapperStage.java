@@ -17,44 +17,35 @@ import org.higherkindedj.hkt.Traverse;
  * @param <B> The output type
  */
 public final class TraverseMapperStage<F, A, B> {
-    private final Class<?> contextClass;
-    private final Traverse<F> traverse;
-    private final Kind<F, A> validKind;
-    private final Function<A, B> mapper;
+  private final Class<?> contextClass;
+  private final Traverse<F> traverse;
+  private final Kind<F, A> validKind;
+  private final Function<A, B> mapper;
 
-    TraverseMapperStage(
-            Class<?> contextClass,
-            Traverse<F> traverse,
-            Kind<F, A> validKind,
-            Function<A, B> mapper) {
-        this.contextClass = contextClass;
-        this.traverse = traverse;
-        this.validKind = validKind;
-        this.mapper = mapper;
-    }
+  TraverseMapperStage(
+      Class<?> contextClass, Traverse<F> traverse, Kind<F, A> validKind, Function<A, B> mapper) {
+    this.contextClass = contextClass;
+    this.traverse = traverse;
+    this.validKind = validKind;
+    this.mapper = mapper;
+  }
 
-    /**
-     * Provides applicative and traverse function.
-     *
-     * <p>Progressive disclosure: Next step is {@code .withFoldableOperations(...)}
-     *
-     * <p>The type parameter G is automatically inferred from the applicative parameter.
-     *
-     * @param applicative The Applicative for traverse
-     * @param traverseFunction The traverse function
-     * @param <G> The Applicative witness type (automatically inferred)
-     * @return Next stage for configuring foldable operations
-     */
-    public <G> TraverseApplicativeStage<F, G, A, B> withApplicative(
-            Applicative<G> applicative,
-            Function<A, Kind<G, B>> traverseFunction) {
+  /**
+   * Provides applicative and traverse function.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withFoldableOperations(...)}
+   *
+   * <p>The type parameter G is automatically inferred from the applicative parameter.
+   *
+   * @param applicative The Applicative for traverse
+   * @param traverseFunction The traverse function
+   * @param <G> The Applicative witness type (automatically inferred)
+   * @return Next stage for configuring foldable operations
+   */
+  public <G> TraverseApplicativeStage<F, G, A, B> withApplicative(
+      Applicative<G> applicative, Function<A, Kind<G, B>> traverseFunction) {
 
-        return new TraverseApplicativeStage<>(
-                contextClass,
-                traverse,
-                validKind,
-                mapper,
-                applicative,
-                traverseFunction);
-    }
+    return new TraverseApplicativeStage<>(
+        contextClass, traverse, validKind, mapper, applicative, traverseFunction);
+  }
 }

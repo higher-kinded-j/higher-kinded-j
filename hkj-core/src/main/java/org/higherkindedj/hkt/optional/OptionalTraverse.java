@@ -178,7 +178,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<OptionalKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMonoid(monoid, "monoid", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
     FunctionValidator.requireMapper(f, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
 

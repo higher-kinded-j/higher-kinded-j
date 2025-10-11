@@ -5,12 +5,13 @@ package org.higherkindedj.hkt.test.api.coretype.io;
 /**
  * Stage for configuring validation contexts in IO core type tests.
  *
- * <p>Allows specifying which implementation class should be used in validation
- * error messages for each operation, supporting inheritance hierarchies.
+ * <p>Allows specifying which implementation class should be used in validation error messages for
+ * each operation, supporting inheritance hierarchies.
  *
  * <h2>Usage Examples:</h2>
  *
  * <h3>Configure Map Validation:</h3>
+ *
  * <pre>{@code
  * TypeClassTest.io(IO.class)
  *     .withIO(ioInstance)
@@ -22,6 +23,7 @@ package org.higherkindedj.hkt.test.api.coretype.io;
  * }</pre>
  *
  * <h3>Configure Full Monad Hierarchy:</h3>
+ *
  * <pre>{@code
  * TypeClassTest.io(IO.class)
  *     .withIO(ioInstance)
@@ -37,105 +39,87 @@ package org.higherkindedj.hkt.test.api.coretype.io;
  * @param <B> The mapped type
  */
 public final class IOValidationStage<A, B> {
-    private final IOTestConfigStage<A, B> configStage;
+  private final IOTestConfigStage<A, B> configStage;
 
-    // Validation context classes
-    private Class<?> mapContext;
-    private Class<?> flatMapContext;
+  // Validation context classes
+  private Class<?> mapContext;
+  private Class<?> flatMapContext;
 
-    IOValidationStage(IOTestConfigStage<A, B> configStage) {
-        this.configStage = configStage;
+  IOValidationStage(IOTestConfigStage<A, B> configStage) {
+    this.configStage = configStage;
+  }
+
+  /**
+   * Uses inheritance-based validation with fluent configuration.
+   *
+   * <p>This allows you to specify which class in the inheritance hierarchy should be used in
+   * validation error messages for each operation.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * .configureValidation()
+   *     .useInheritanceValidation()
+   *         .withMapFrom(IOFunctor.class)
+   *         .withFlatMapFrom(IOMonad.class)
+   *     .testAll()
+   * }</pre>
+   *
+   * @return Fluent configuration builder
+   */
+  public InheritanceValidationBuilder useInheritanceValidation() {
+    return new InheritanceValidationBuilder();
+  }
+
+  /**
+   * Uses default validation (no class context).
+   *
+   * <p>Error messages will not include specific class names.
+   *
+   * @return This stage for further configuration or execution
+   */
+  public IOValidationStage<A, B> useDefaultValidation() {
+    this.mapContext = null;
+    this.flatMapContext = null;
+    return this;
+  }
+
+  /** Fluent builder for inheritance-based validation configuration. */
+  public final class InheritanceValidationBuilder {
+
+    /**
+     * Specifies the class used for map operation validation.
+     *
+     * <p>Error messages for map null validations will reference this class.
+     *
+     * @param contextClass The class that implements map (e.g., IOFunctor.class)
+     * @return This builder for chaining
+     */
+    public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
+      mapContext = contextClass;
+      return this;
     }
 
     /**
-     * Uses inheritance-based validation with fluent configuration.
+     * Specifies the class used for flatMap operation validation.
      *
-     * <p>This allows you to specify which class in the inheritance hierarchy
-     * should be used in validation error messages for each operation.
+     * <p>Error messages for flatMap null validations will reference this class.
      *
-     * <p>Example:
-     * <pre>{@code
-     * .configureValidation()
-     *     .useInheritanceValidation()
-     *         .withMapFrom(IOFunctor.class)
-     *         .withFlatMapFrom(IOMonad.class)
-     *     .testAll()
-     * }</pre>
-     *
-     * @return Fluent configuration builder
+     * @param contextClass The class that implements flatMap (e.g., IOMonad.class)
+     * @return This builder for chaining
      */
-    public InheritanceValidationBuilder useInheritanceValidation() {
-        return new InheritanceValidationBuilder();
+    public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
+      flatMapContext = contextClass;
+      return this;
     }
 
     /**
-     * Uses default validation (no class context).
+     * Completes inheritance validation configuration.
      *
-     * <p>Error messages will not include specific class names.
-     *
-     * @return This stage for further configuration or execution
+     * @return The parent validation stage for execution
      */
-    public IOValidationStage<A, B> useDefaultValidation() {
-        this.mapContext = null;
-        this.flatMapContext = null;
-        return this;
-    }
-
-    /**
-     * Fluent builder for inheritance-based validation configuration.
-     */
-    public final class InheritanceValidationBuilder {
-
-        /**
-         * Specifies the class used for map operation validation.
-         *
-         * <p>Error messages for map null validations will reference this class.
-         *
-         * @param contextClass The class that implements map (e.g., IOFunctor.class)
-         * @return This builder for chaining
-         */
-        public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
-            mapContext = contextClass;
-            return this;
-        }
-
-        /**
-         * Specifies the class used for flatMap operation validation.
-         *
-         * <p>Error messages for flatMap null validations will reference this class.
-         *
-         * @param contextClass The class that implements flatMap (e.g., IOMonad.class)
-         * @return This builder for chaining
-         */
-        public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
-            flatMapContext = contextClass;
-            return this;
-        }
-
-        /**
-         * Completes inheritance validation configuration.
-         *
-         * @return The parent validation stage for execution
-         */
-        public IOValidationStage<A, B> done() {
-            return IOValidationStage.this;
-        }
-
-        /**
-         * Executes all configured tests.
-         *
-         * <p>Includes all test categories with the configured validation contexts.
-         */
-        public void testAll() {
-            IOValidationStage.this.testAll();
-        }
-
-        /**
-         * Executes only validation tests with configured contexts.
-         */
-        public void testValidations() {
-            IOValidationStage.this.testValidations();
-        }
+    public IOValidationStage<A, B> done() {
+      return IOValidationStage.this;
     }
 
     /**
@@ -144,29 +128,42 @@ public final class IOValidationStage<A, B> {
      * <p>Includes all test categories with the configured validation contexts.
      */
     public void testAll() {
-        IOTestExecutor<A, B> executor = buildExecutor();
-        executor.executeAll();
+      IOValidationStage.this.testAll();
     }
 
-    /**
-     * Executes only validation tests with configured contexts.
-     */
+    /** Executes only validation tests with configured contexts. */
     public void testValidations() {
-        // Create executor with only validations enabled
-        IOTestExecutor<A, B> executor = buildExecutor();
-        executor.testValidations();
+      IOValidationStage.this.testValidations();
     }
+  }
 
-    // Package-private getters
-    Class<?> getMapContext() {
-        return mapContext;
-    }
+  /**
+   * Executes all configured tests.
+   *
+   * <p>Includes all test categories with the configured validation contexts.
+   */
+  public void testAll() {
+    IOTestExecutor<A, B> executor = buildExecutor();
+    executor.executeAll();
+  }
 
-    Class<?> getFlatMapContext() {
-        return flatMapContext;
-    }
+  /** Executes only validation tests with configured contexts. */
+  public void testValidations() {
+    // Create executor with only validations enabled
+    IOTestExecutor<A, B> executor = buildExecutor();
+    executor.testValidations();
+  }
 
-    private IOTestExecutor<A, B> buildExecutor() {
-        return configStage.buildExecutorWithValidation(this);
-    }
+  // Package-private getters
+  Class<?> getMapContext() {
+    return mapContext;
+  }
+
+  Class<?> getFlatMapContext() {
+    return flatMapContext;
+  }
+
+  private IOTestExecutor<A, B> buildExecutor() {
+    return configStage.buildExecutorWithValidation(this);
+  }
 }

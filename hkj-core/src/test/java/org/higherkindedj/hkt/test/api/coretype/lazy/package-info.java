@@ -2,6 +2,7 @@
  * Lazy core type testing with progressive disclosure API.
  *
  * <p>This package provides fluent APIs for testing the Lazy type:
+ *
  * <ul>
  *   <li>defer/now operations
  *   <li>force evaluation
@@ -14,6 +15,7 @@
  * <h2>Usage Examples:</h2>
  *
  * <h3>Test Core Type Operations:</h3>
+ *
  * <pre>{@code
  * CoreTypeTest.lazy(Lazy.class)
  *     .withDeferred(Lazy.defer(() -> 42))
@@ -23,12 +25,14 @@
  * }</pre>
  *
  * <h3>Test KindHelper:</h3>
+ *
  * <pre>{@code
  * CoreTypeTest.lazyKindHelper(Lazy.now("test"))
  *     .test();
  * }</pre>
  *
  * <h3>Selective Testing:</h3>
+ *
  * <pre>{@code
  * CoreTypeTest.lazy(Lazy.class)
  *     .withDeferred(deferredInstance)

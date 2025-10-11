@@ -44,7 +44,8 @@ public final class TypeClassTestPattern {
       Functor<F> functor, Class<?> contextClass) {
     return new FunctorTestBuilder<>(functor, contextClass);
   }
-    @Deprecated
+
+  @Deprecated
   public static class FunctorTestBuilder<F, A, B> {
     private final Functor<F> functor;
     private final Class<?> contextClass;
@@ -139,7 +140,8 @@ public final class TypeClassTestPattern {
       MonadError<F, E> monadError, Class<?> contextClass) {
     return new MonadErrorTestBuilder<>(monadError, contextClass);
   }
-    @Deprecated
+
+  @Deprecated
   public static class MonadErrorTestBuilder<F, E, A, B> {
     private final MonadError<F, E> monadError;
     private final Class<?> contextClass;
@@ -872,7 +874,7 @@ public final class TypeClassTestPattern {
     testTraverseLaws(traverse, validApplicative, validKind, validTraverseFunction, equalityChecker);
   }
 
-    private static RuntimeException createTestException(String message) {
-        return new RuntimeException("Test exception: " + message);
-    }
+  private static RuntimeException createTestException(String message) {
+    return new RuntimeException("Test exception: " + message);
+  }
 }

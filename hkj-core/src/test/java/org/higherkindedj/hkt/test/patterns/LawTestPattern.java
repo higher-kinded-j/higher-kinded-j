@@ -24,7 +24,6 @@ public final class LawTestPattern {
   // Functor Laws
   // =============================================================================
 
-
   /** Tests Functor Identity Law: {@code map(id, fa) == fa} */
   public static <F, A> void testFunctorIdentity(
       Functor<F> functor,
@@ -69,7 +68,6 @@ public final class LawTestPattern {
   // =============================================================================
   // Applicative Laws
   // =============================================================================
-
 
   /** Tests Applicative Identity Law: {@code ap(of(id), fa) == fa} */
   public static <F, A> void testApplicativeIdentity(
@@ -134,7 +132,6 @@ public final class LawTestPattern {
   // Monad Laws
   // =============================================================================
 
-
   /** Tests Left Identity Law: {@code flatMap(of(a), f) == f(a)} */
   public static <F, A, B> void testLeftIdentity(
       Monad<F> monad,
@@ -194,8 +191,6 @@ public final class LawTestPattern {
         .isTrue();
   }
 
-
-
   /** Tests that traverse preserves structure (basic property). */
   public static <T, G, A, B> void testTraverseStructurePreservation(
       Traverse<T> traverse,
@@ -216,5 +211,4 @@ public final class LawTestPattern {
         .assertKindNull(() -> traverse.traverse(applicative, testFunction, null), TRAVERSE)
         .execute();
   }
-
 }

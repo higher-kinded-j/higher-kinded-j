@@ -29,7 +29,7 @@ public final class MaybeMonad extends MaybeFunctor
 
   /** Private constructor to enforce the singleton pattern. */
   private MaybeMonad() {
-      super();
+    super();
   }
 
   /**

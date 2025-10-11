@@ -59,7 +59,7 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<MaybeKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMonoid(monoid, "monoid", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
     FunctionValidator.requireMapper(f, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
 

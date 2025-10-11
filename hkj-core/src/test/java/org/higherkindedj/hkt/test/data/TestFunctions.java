@@ -10,8 +10,7 @@ public final class TestFunctions {
     throw new AssertionError("TestFunctions is a utility class");
   }
 
-
-    public  static final Function<Integer, String> INT_TO_STRING = Object::toString;
+  public static final Function<Integer, String> INT_TO_STRING = Object::toString;
 
   /**
    * Creates a function that throws the given exception.
@@ -37,16 +36,4 @@ public final class TestFunctions {
   public static <A, B> Function<A, B> nullReturningFunction() {
     return a -> null;
   }
-
-
-
-
-
-
-
-
-
-
-
-
 }

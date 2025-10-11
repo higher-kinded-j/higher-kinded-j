@@ -10,23 +10,23 @@ package org.higherkindedj.hkt.test.api.typeclass.applicative;
  * @param <B> The output type
  */
 public final class ApplicativeTestSelectionStage<F, A, B> {
-    private final ApplicativeOperationsStage<F, A, B> operationsStage;
-    private final ApplicativeLawsStage<F, A, B> lawsStage;
-    private final ApplicativeValidationStage<F, A, B> validationStage;
+  private final ApplicativeOperationsStage<F, A, B> operationsStage;
+  private final ApplicativeLawsStage<F, A, B> lawsStage;
+  private final ApplicativeValidationStage<F, A, B> validationStage;
 
-    private boolean includeOperations = true;
-    private boolean includeValidations = true;
-    private boolean includeExceptions = true;
-    private boolean includeLaws = true;
+  private boolean includeOperations = true;
+  private boolean includeValidations = true;
+  private boolean includeExceptions = true;
+  private boolean includeLaws = true;
 
-    ApplicativeTestSelectionStage(
-            ApplicativeOperationsStage<F, A, B> operationsStage,
-            ApplicativeLawsStage<F, A, B> lawsStage,
-            ApplicativeValidationStage<F, A, B> validationStage) {
-        this.operationsStage = operationsStage;
-        this.lawsStage = lawsStage;
-        this.validationStage = validationStage;
-    }
+  ApplicativeTestSelectionStage(
+      ApplicativeOperationsStage<F, A, B> operationsStage,
+      ApplicativeLawsStage<F, A, B> lawsStage,
+      ApplicativeValidationStage<F, A, B> validationStage) {
+    this.operationsStage = operationsStage;
+    this.lawsStage = lawsStage;
+    this.validationStage = validationStage;
+  }
 
   public ApplicativeTestSelectionStage<F, A, B> skipOperations() {
     includeOperations = false;
@@ -84,22 +84,21 @@ public final class ApplicativeTestSelectionStage<F, A, B> {
     return operationsStage;
   }
 
-    public void test() {
-        ApplicativeTestExecutor<F, A, B> executor =
-                new ApplicativeTestExecutor<>(
-                        operationsStage.getContextClass(),
-                        operationsStage.getApplicative(),
-                        operationsStage.getValidKind(),
-                        operationsStage.getValidKind2(),
-                        operationsStage.getMapper(),
-                        operationsStage.getFunctionKind(),
-                        operationsStage.getCombiningFunction(),
-                        lawsStage,
-                        validationStage
-                );
+  public void test() {
+    ApplicativeTestExecutor<F, A, B> executor =
+        new ApplicativeTestExecutor<>(
+            operationsStage.getContextClass(),
+            operationsStage.getApplicative(),
+            operationsStage.getValidKind(),
+            operationsStage.getValidKind2(),
+            operationsStage.getMapper(),
+            operationsStage.getFunctionKind(),
+            operationsStage.getCombiningFunction(),
+            lawsStage,
+            validationStage);
 
-        executor.setTestSelection(
-                includeOperations, includeValidations, includeExceptions, includeLaws);
-        executor.executeSelected();
-    }
+    executor.setTestSelection(
+        includeOperations, includeValidations, includeExceptions, includeLaws);
+    executor.executeSelected();
+  }
 }

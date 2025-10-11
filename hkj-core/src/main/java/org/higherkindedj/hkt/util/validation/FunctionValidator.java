@@ -129,18 +129,20 @@ public final class FunctionValidator {
    * Validates monoid instance with class-based operation context.
    *
    * @param monoid The monoid instance to validate
+   * @param monoidName The name of the monoid parameter
    * @param contextClass The class providing context
    * @param operation The operation name (e.g., "foldMap")
    * @param <T> The monoid type
    * @return The validated monoid
    * @throws NullPointerException with context-specific message if monoid is null
    */
-  public static <T> T requireMonoid(T monoid, Class<?> contextClass, Operation operation) {
+  public static <T> T requireMonoid(
+      T monoid, String monoidName, Class<?> contextClass, Operation operation) {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
     String fullOperation = contextClass.getSimpleName() + "." + operation;
-    return requireMonoid(monoid, fullOperation);
+    return requireMonoid(monoid, monoidName, fullOperation);
   }
 
   /**
@@ -152,8 +154,8 @@ public final class FunctionValidator {
    * @return The validated monoid
    * @throws NullPointerException with context-specific message if monoid is null
    */
-  public static <T> T requireMonoid(T monoid, String operation) {
-    var context = new FunctionContext("monoid", operation);
+  public static <T> T requireMonoid(T monoid, String monoidName, String operation) {
+    var context = new FunctionContext(monoidName, operation);
     return Objects.requireNonNull(monoid, context.nullParameterMessage());
   }
 
@@ -179,7 +181,7 @@ public final class FunctionValidator {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    String fullOperation = contextClass.getSimpleName() + " " + operation;
+    String fullOperation = contextClass.getSimpleName() + "." + operation;
     return requireFunction(function, functionName, fullOperation);
   }
 

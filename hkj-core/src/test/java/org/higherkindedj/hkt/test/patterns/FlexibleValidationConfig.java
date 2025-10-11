@@ -8,7 +8,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-
 import org.higherkindedj.hkt.*;
 
 /**
@@ -21,67 +20,67 @@ public final class FlexibleValidationConfig {
 
   private FlexibleValidationConfig() {}
 
-    /** Configuration for Functor validation expectations. */
-    public static class FunctorValidation<F, A, B> {
-        protected final Functor<F> functor;
-        protected final Kind<F, A> validKind;
-        protected final Function<A, B> validMapper;
-        protected final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
+  /** Configuration for Functor validation expectations. */
+  public static class FunctorValidation<F, A, B> {
+    protected final Functor<F> functor;
+    protected final Kind<F, A> validKind;
+    protected final Function<A, B> validMapper;
+    protected final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
 
-        private boolean mapHasClassContext = true;
-        private Class<?> mapContextClass = null;
+    private boolean mapHasClassContext = true;
+    private Class<?> mapContextClass = null;
 
-        public FunctorValidation(
-                Functor<F> functor,
-                Kind<F, A> validKind,
-                Function<A, B> validMapper,
-                BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
-            this.functor = functor;
-            this.validKind = validKind;
-            this.validMapper = validMapper;
-            this.equalityChecker = equalityChecker;
-        }
-
-        /** Specify that map() operations do not include class context in error messages. */
-        public FunctorValidation<F, A, B> mapWithoutClassContext() {
-            this.mapHasClassContext = false;
-            this.mapContextClass = null;
-            return this;
-        }
-
-        /** Specify that map() operations include the given class in error messages. */
-        public FunctorValidation<F, A, B> mapWithClassContext(Class<?> contextClass) {
-            this.mapHasClassContext = true;
-            this.mapContextClass = contextClass;
-            return this;
-        }
-
-        /** Execute validation tests with the configured expectations. */
-        public void test() {
-            testMapValidation();
-        }
-
-        private void testMapValidation() {
-            if (mapHasClassContext && mapContextClass != null) {
-                String className = mapContextClass.getSimpleName();
-                assertThatThrownBy(() -> functor.map(null, validKind))
-                        .isInstanceOf(NullPointerException.class)
-                        .hasMessageContaining("function f for " + className + ".map cannot be null");
-
-                assertThatThrownBy(() -> functor.map(validMapper, null))
-                        .isInstanceOf(NullPointerException.class)
-                        .hasMessageContaining("Kind for " + className + ".map cannot be null");
-            } else {
-                assertThatThrownBy(() -> functor.map(null, validKind))
-                        .isInstanceOf(NullPointerException.class)
-                        .hasMessageContaining("function f for map cannot be null");
-
-                assertThatThrownBy(() -> functor.map(validMapper, null))
-                        .isInstanceOf(NullPointerException.class)
-                        .hasMessageContaining("Kind for map cannot be null");
-            }
-        }
+    public FunctorValidation(
+        Functor<F> functor,
+        Kind<F, A> validKind,
+        Function<A, B> validMapper,
+        BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+      this.functor = functor;
+      this.validKind = validKind;
+      this.validMapper = validMapper;
+      this.equalityChecker = equalityChecker;
     }
+
+    /** Specify that map() operations do not include class context in error messages. */
+    public FunctorValidation<F, A, B> mapWithoutClassContext() {
+      this.mapHasClassContext = false;
+      this.mapContextClass = null;
+      return this;
+    }
+
+    /** Specify that map() operations include the given class in error messages. */
+    public FunctorValidation<F, A, B> mapWithClassContext(Class<?> contextClass) {
+      this.mapHasClassContext = true;
+      this.mapContextClass = contextClass;
+      return this;
+    }
+
+    /** Execute validation tests with the configured expectations. */
+    public void test() {
+      testMapValidation();
+    }
+
+    private void testMapValidation() {
+      if (mapHasClassContext && mapContextClass != null) {
+        String className = mapContextClass.getSimpleName();
+        assertThatThrownBy(() -> functor.map(null, validKind))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessageContaining("function f for " + className + ".map cannot be null");
+
+        assertThatThrownBy(() -> functor.map(validMapper, null))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessageContaining("Kind for " + className + ".map cannot be null");
+      } else {
+        assertThatThrownBy(() -> functor.map(null, validKind))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessageContaining("function f for map cannot be null");
+
+        assertThatThrownBy(() -> functor.map(validMapper, null))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessageContaining("Kind for map cannot be null");
+      }
+    }
+  }
 
   /** Configuration for Applicative validation expectations. */
   public static class ApplicativeValidation<F, A, B> {

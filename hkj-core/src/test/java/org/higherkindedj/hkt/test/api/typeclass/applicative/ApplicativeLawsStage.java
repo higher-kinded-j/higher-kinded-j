@@ -31,41 +31,41 @@ public final class ApplicativeLawsStage<F, A, B> {
     this.equalityChecker = equalityChecker;
   }
 
-    /**
-     * Configures law testing parameters.
-     *
-     * @param testValue A test value for law testing
-     * @param testFunction Test function for law verification
-     * @param equalityChecker Equality checker for comparing Kind instances
-     * @return Laws stage with further options
-     */
-    public ApplicativeLawsStage<F, A, B> withLawsTesting(
-            A testValue,
-            Function<A, B> testFunction,
-            BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+  /**
+   * Configures law testing parameters.
+   *
+   * @param testValue A test value for law testing
+   * @param testFunction Test function for law verification
+   * @param equalityChecker Equality checker for comparing Kind instances
+   * @return Laws stage with further options
+   */
+  public ApplicativeLawsStage<F, A, B> withLawsTesting(
+      A testValue,
+      Function<A, B> testFunction,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
-        return new ApplicativeLawsStage<>(operationsStage, testValue, testFunction, equalityChecker); }
-    /**
-     * Enters test selection mode.
-     *
-     * @return Stage for selecting which tests to run
-     */
-    public ApplicativeTestSelectionStage<F, A, B> selectTests() {
-        return new ApplicativeTestSelectionStage<>(operationsStage, this, null);
-    }
+    return new ApplicativeLawsStage<>(operationsStage, testValue, testFunction, equalityChecker);
+  }
 
+  /**
+   * Enters test selection mode.
+   *
+   * @return Stage for selecting which tests to run
+   */
+  public ApplicativeTestSelectionStage<F, A, B> selectTests() {
+    return new ApplicativeTestSelectionStage<>(operationsStage, this, null);
+  }
 
-    /**
-     * Enters validation configuration mode.
-     *
-     * <p>Progressive disclosure: Shows validation context configuration options.
-     *
-     * @return Validation stage for configuring error message contexts
-     */
-    public ApplicativeValidationStage<F, A, B> configureValidation() {
-        return new ApplicativeValidationStage<>(operationsStage, this);
-    }
-
+  /**
+   * Enters validation configuration mode.
+   *
+   * <p>Progressive disclosure: Shows validation context configuration options.
+   *
+   * @return Validation stage for configuring error message contexts
+   */
+  public ApplicativeValidationStage<F, A, B> configureValidation() {
+    return new ApplicativeValidationStage<>(operationsStage, this);
+  }
 
   /** Executes all tests including laws. */
   public void testAll() {

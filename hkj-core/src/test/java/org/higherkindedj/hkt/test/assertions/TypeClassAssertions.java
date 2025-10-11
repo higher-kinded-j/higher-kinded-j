@@ -421,7 +421,7 @@ public final class TypeClassAssertions {
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldableFoldMapMonoidNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertMonoidNull(executable, contextClass, FOLD_MAP);
+    return FunctionAssertions.assertMonoidNull(executable, "monoid", contextClass, FOLD_MAP);
   }
 
   /**

@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
 
@@ -29,19 +28,16 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
 
   private static final Class<EitherFunctor> EITHER_FUNCTOR_CLASS = EitherFunctor.class;
 
+  private static final EitherFunctor<?> INSTANCE = new EitherFunctor<>();
 
-   private static final EitherFunctor<?> INSTANCE = new EitherFunctor<>();
+  protected EitherFunctor() {}
 
+  @SuppressWarnings("unchecked")
+  public static <L> EitherFunctor<L> instance() {
+    return (EitherFunctor<L>) INSTANCE;
+  }
 
-    protected EitherFunctor() {}
-
-
-    @SuppressWarnings("unchecked")
-    public static <L> EitherFunctor<L> instance() {
-        return (EitherFunctor<L>) INSTANCE;
-    }
-
-    /**
+  /**
    * Applies a function to the "Right" value if the provided {@link Kind} represents a {@link
    * Either.Right}. If it represents a {@link Either.Left}, the "Left" value is propagated
    * unchanged.

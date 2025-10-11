@@ -32,12 +32,17 @@
  *
  * <ul>
  *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.functor.FunctorTestStage} - Functor testing
- *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.applicative.ApplicativeTestStage} - Applicative testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.applicative.ApplicativeTestStage} -
+ *       Applicative testing
  *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.monad.MonadTestStage} - Monad testing
- *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.monaderror.MonadErrorTestStage} - MonadError testing
- *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.traverse.TraverseTestStage} - Traverse testing
- *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.foldable.FoldableTestStage} - Foldable testing
- *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage} - KindHelper testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.monaderror.MonadErrorTestStage} -
+ *       MonadError testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.traverse.TraverseTestStage} - Traverse
+ *       testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.foldable.FoldableTestStage} - Foldable
+ *       testing
+ *   <li>{@link org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage} - KindHelper
+ *       testing
  * </ul>
  *
  * <h2>Usage Examples</h2>

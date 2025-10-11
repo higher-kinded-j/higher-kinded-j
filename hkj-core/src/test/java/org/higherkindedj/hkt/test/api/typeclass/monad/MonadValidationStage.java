@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.monad;
 
 /**
@@ -8,123 +10,113 @@ package org.higherkindedj.hkt.test.api.typeclass.monad;
  * @param <B> The output type
  */
 public final class MonadValidationStage<F, A, B> {
-    private final MonadOperationsStage<F, A, B> operationsStage;
-    private final MonadLawsStage<F, A, B> lawsStage;
+  private final MonadOperationsStage<F, A, B> operationsStage;
+  private final MonadLawsStage<F, A, B> lawsStage;
 
-    // Validation context classes
-    private Class<?> mapContext;
-    private Class<?> apContext;
-    private Class<?> flatMapContext;
+  // Validation context classes
+  private Class<?> mapContext;
+  private Class<?> apContext;
+  private Class<?> flatMapContext;
 
-    MonadValidationStage(
-            MonadOperationsStage<F, A, B> operationsStage,
-            MonadLawsStage<F, A, B> lawsStage) {
-        this.operationsStage = operationsStage;
-        this.lawsStage = lawsStage;
+  MonadValidationStage(
+      MonadOperationsStage<F, A, B> operationsStage, MonadLawsStage<F, A, B> lawsStage) {
+    this.operationsStage = operationsStage;
+    this.lawsStage = lawsStage;
+  }
+
+  /**
+   * Uses inheritance-based validation with fluent configuration.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * .configureValidation()
+   *     .useInheritanceValidation()
+   *         .withMapFrom(EitherFunctor.class)
+   *         .withApFrom(EitherMonad.class)
+   *         .withFlatMapFrom(EitherMonad.class)
+   *     .testAll()
+   * }</pre>
+   *
+   * @return Fluent configuration builder
+   */
+  public InheritanceValidationBuilder useInheritanceValidation() {
+    return new InheritanceValidationBuilder();
+  }
+
+  /** Uses default validation (no class context). */
+  public MonadValidationStage<F, A, B> useDefaultValidation() {
+    this.mapContext = null;
+    this.apContext = null;
+    this.flatMapContext = null;
+    return this;
+  }
+
+  /** Fluent builder for inheritance-based validation configuration. */
+  public final class InheritanceValidationBuilder {
+
+    public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
+      mapContext = contextClass;
+      return this;
     }
 
-    /**
-     * Uses inheritance-based validation with fluent configuration.
-     *
-     * <p>Example:
-     * <pre>{@code
-     * .configureValidation()
-     *     .useInheritanceValidation()
-     *         .withMapFrom(EitherFunctor.class)
-     *         .withApFrom(EitherMonad.class)
-     *         .withFlatMapFrom(EitherMonad.class)
-     *     .testAll()
-     * }</pre>
-     *
-     * @return Fluent configuration builder
-     */
-    public InheritanceValidationBuilder useInheritanceValidation() {
-        return new InheritanceValidationBuilder();
+    public InheritanceValidationBuilder withApFrom(Class<?> contextClass) {
+      apContext = contextClass;
+      return this;
     }
 
-    /**
-     * Uses default validation (no class context).
-     */
-    public MonadValidationStage<F, A, B> useDefaultValidation() {
-        this.mapContext = null;
-        this.apContext = null;
-        this.flatMapContext = null;
-        return this;
+    public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
+      flatMapContext = contextClass;
+      return this;
     }
 
-    /**
-     * Fluent builder for inheritance-based validation configuration.
-     */
-    public final class InheritanceValidationBuilder {
-
-        public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
-            mapContext = contextClass;
-            return this;
-        }
-
-        public InheritanceValidationBuilder withApFrom(Class<?> contextClass) {
-            apContext = contextClass;
-            return this;
-        }
-
-        public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
-            flatMapContext = contextClass;
-            return this;
-        }
-
-        public MonadValidationStage<F, A, B> done() {
-            return MonadValidationStage.this;
-        }
-
-        public MonadTestSelectionStage<F, A, B> selectTests() {
-            return MonadValidationStage.this.selectTests();
-        }
-
-        public void testAll() {
-            MonadValidationStage.this.testAll();
-        }
-
-        public void testValidations() {
-            MonadValidationStage.this.testValidations();
-        }
+    public MonadValidationStage<F, A, B> done() {
+      return MonadValidationStage.this;
     }
 
-    /**
-     * Enters test selection mode.
-     */
     public MonadTestSelectionStage<F, A, B> selectTests() {
-        return new MonadTestSelectionStage<>(operationsStage, lawsStage, this);
+      return MonadValidationStage.this.selectTests();
     }
 
-    /**
-     * Executes all configured tests.
-     */
     public void testAll() {
-        if (lawsStage != null) {
-            operationsStage.build(lawsStage, this).executeAll();
-        } else {
-            operationsStage.build(null, this).executeOperationsAndValidations();
-        }
+      MonadValidationStage.this.testAll();
     }
 
-    /**
-     * Executes only validations with configured contexts.
-     */
     public void testValidations() {
-        MonadTestExecutor<F, A, B> executor = operationsStage.build(lawsStage, this);
-        executor.executeValidations();
+      MonadValidationStage.this.testValidations();
     }
+  }
 
-    // Package-private getters
-    Class<?> getMapContext() {
-        return mapContext;
-    }
+  /** Enters test selection mode. */
+  public MonadTestSelectionStage<F, A, B> selectTests() {
+    return new MonadTestSelectionStage<>(operationsStage, lawsStage, this);
+  }
 
-    Class<?> getApContext() {
-        return apContext;
+  /** Executes all configured tests. */
+  public void testAll() {
+    if (lawsStage != null) {
+      operationsStage.build(lawsStage, this).executeAll();
+    } else {
+      operationsStage.build(null, this).executeOperationsAndValidations();
     }
+  }
 
-    Class<?> getFlatMapContext() {
-        return flatMapContext;
-    }
+  /** Executes only validations with configured contexts. */
+  public void testValidations() {
+    MonadTestExecutor<F, A, B> executor = operationsStage.build(lawsStage, this);
+    executor.executeValidations();
+  }
+
+  // Package-private getters
+  Class<?> getMapContext() {
+    return mapContext;
+  }
+
+  Class<?> getApContext() {
+    return apContext;
+  }
+
+  Class<?> getFlatMapContext() {
+    return flatMapContext;
+  }
 }

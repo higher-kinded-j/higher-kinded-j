@@ -13,17 +13,18 @@ package org.higherkindedj.hkt.test.api.typeclass.functor;
  */
 public final class FunctorTestSelectionStage<F, A, B> {
   private final FunctorTestConfigStage<F, A, B> config;
-    private final FunctorLawsStage<F, A, B> lawsStage;
-    private final FunctorValidationStage<F, A, B> validationStage;
+  private final FunctorLawsStage<F, A, B> lawsStage;
+  private final FunctorValidationStage<F, A, B> validationStage;
 
-    FunctorTestSelectionStage(
-            FunctorTestConfigStage<F, A, B> config,
-            FunctorLawsStage<F, A, B> lawsStage,
-            FunctorValidationStage<F, A, B> validationStage) {
-        this.config = config;
-        this.lawsStage = lawsStage;
-        this.validationStage = validationStage;
-    }
+  FunctorTestSelectionStage(
+      FunctorTestConfigStage<F, A, B> config,
+      FunctorLawsStage<F, A, B> lawsStage,
+      FunctorValidationStage<F, A, B> validationStage) {
+    this.config = config;
+    this.lawsStage = lawsStage;
+    this.validationStage = validationStage;
+  }
+
   // =============================================================================
   // Negative Selection (Skip Specific Tests)
   // =============================================================================

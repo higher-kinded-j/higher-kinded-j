@@ -42,7 +42,7 @@ class StateTupleTest {
     void constructor_throwsNPEForNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> new StateTuple<>(testValue, nullState))
-          .withMessageContaining("Final state (S) in StateTuple cannot be null.");
+          .withMessageContaining("tateTuple.construction value cannot be null");
     }
 
     @Test
@@ -67,7 +67,7 @@ class StateTupleTest {
     void of_throwsNPEForNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> StateTuple.of(nullState, testValue))
-          .withMessageContaining("Final state (S) in StateTuple cannot be null.");
+          .withMessageContaining("StateTuple.of value cannot be null");
     }
   }
 

@@ -2,13 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.io;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
-
-import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 /**
  * Represents a computation that, when executed, can perform side effects and produce a value of
@@ -162,7 +161,7 @@ public interface IO<A> {
         () -> {
           A a = this.unsafeRunSync();
           IO<B> nextIO = f.apply(a);
-            FunctionValidator.requireNonNullResult(nextIO, FLAT_MAP, IO.class);
+          FunctionValidator.requireNonNullResult(nextIO, FLAT_MAP, IO.class);
           return nextIO.unsafeRunSync();
         });
   }

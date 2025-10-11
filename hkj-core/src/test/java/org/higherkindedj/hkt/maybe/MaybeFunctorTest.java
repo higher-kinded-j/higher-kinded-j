@@ -21,235 +21,236 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeFunctor Complete Test Suite")
 class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
-    private MaybeFunctor functor;
-    private Functor<MaybeKind.Witness> functorTyped;
+  private MaybeFunctor functor;
+  private Functor<MaybeKind.Witness> functorTyped;
 
-    @Override
-    protected Kind<MaybeKind.Witness, Integer> createValidKind() {
-        return MAYBE.widen(Maybe.just(42));
+  @Override
+  protected Kind<MaybeKind.Witness, Integer> createValidKind() {
+    return MAYBE.widen(Maybe.just(42));
+  }
+
+  @Override
+  protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
+    return MAYBE.widen(Maybe.just(24));
+  }
+
+  @Override
+  protected Function<Integer, String> createValidMapper() {
+    return TestFunctions.INT_TO_STRING;
+  }
+
+  @Override
+  protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>>
+      createEqualityChecker() {
+    return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
+  }
+
+  @BeforeEach
+  void setUpFunctor() {
+    functor = new MaybeFunctor();
+    functorTyped = functor;
+  }
+
+  @Nested
+  @DisplayName("Complete Functor Test Suite")
+  class CompleteFunctorTestSuite {
+    @Test
+    @DisplayName("Run complete Functor test pattern")
+    void runCompleteFunctorTestPattern() {
+      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+          .<Integer>instance(functorTyped)
+          .<String>withKind(validKind)
+          .withMapper(validMapper)
+          .withSecondMapper(secondMapper)
+          .withEqualityChecker(equalityChecker)
+          .testAll();
     }
 
-    @Override
-    protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
-        return MAYBE.widen(Maybe.just(24));
+    @Test
+    @DisplayName("Validate test structure follows standards")
+    void validateTestStructure() {
+      TestPatternValidator.ValidationResult result =
+          TestPatternValidator.validateAndReport(MaybeFunctorTest.class);
+
+      if (result.hasErrors()) {
+        result.printReport();
+        throw new AssertionError("Test structure validation failed");
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("Operation Tests")
+  class OperationTests {
+    @Test
+    @DisplayName("map() on Just applies function")
+    void mapOnJustAppliesFunction() {
+      Kind<MaybeKind.Witness, String> result = functor.map(validMapper, validKind);
+
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(maybe.get()).isEqualTo("42");
     }
 
-    @Override
-    protected Function<Integer, String> createValidMapper() {
-        return TestFunctions.INT_TO_STRING;
+    @Test
+    @DisplayName("map() on Nothing returns Nothing")
+    void mapOnNothingReturnsNothing() {
+      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+
+      Kind<MaybeKind.Witness, String> result = functor.map(validMapper, nothingKind);
+
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isNothing()).isTrue();
     }
 
-    @Override
-    protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> createEqualityChecker() {
-        return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
+    @Test
+    @DisplayName("map() with null-returning mapper returns Nothing")
+    void mapWithNullReturningMapper() {
+      Function<Integer, String> nullMapper = i -> null;
+
+      Kind<MaybeKind.Witness, String> result = functor.map(nullMapper, validKind);
+
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isNothing()).isTrue();
     }
 
-    @BeforeEach
-    void setUpFunctor() {
-        functor = new MaybeFunctor();
-        functorTyped = functor;
+    @Test
+    @DisplayName("map() chains multiple transformations")
+    void mapChainsMultipleTransformations() {
+      Kind<MaybeKind.Witness, String> result =
+          functor.map(validMapper.andThen(String::toUpperCase), validKind);
+
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(maybe.get()).isEqualTo("42");
+    }
+  }
+
+  @Nested
+  @DisplayName("Individual Components")
+  class IndividualComponents {
+    @Test
+    @DisplayName("Test operations only")
+    void testOperationsOnly() {
+      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+          .<Integer>instance(functorTyped)
+          .<String>withKind(validKind)
+          .withMapper(validMapper)
+          .testOperations();
     }
 
-    @Nested
-    @DisplayName("Complete Functor Test Suite")
-    class CompleteFunctorTestSuite {
-        @Test
-        @DisplayName("Run complete Functor test pattern")
-        void runCompleteFunctorTestPattern() {
-            TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
-                    .<Integer>instance(functorTyped)
-                    .<String>withKind(validKind)
-                    .withMapper(validMapper)
-                    .withSecondMapper(secondMapper)
-                    .withEqualityChecker(equalityChecker)
-                    .testAll();
-        }
-
-        @Test
-        @DisplayName("Validate test structure follows standards")
-        void validateTestStructure() {
-            TestPatternValidator.ValidationResult result =
-                    TestPatternValidator.validateAndReport(MaybeFunctorTest.class);
-
-            if (result.hasErrors()) {
-                result.printReport();
-                throw new AssertionError("Test structure validation failed");
-            }
-        }
+    @Test
+    @DisplayName("Test validations only")
+    void testValidationsOnly() {
+      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+          .<Integer>instance(functorTyped)
+          .<String>withKind(validKind)
+          .withMapper(validMapper)
+          .testValidations();
     }
 
-    @Nested
-    @DisplayName("Operation Tests")
-    class OperationTests {
-        @Test
-        @DisplayName("map() on Just applies function")
-        void mapOnJustAppliesFunction() {
-            Kind<MaybeKind.Witness, String> result = functor.map(validMapper, validKind);
-
-            Maybe<String> maybe = MAYBE.narrow(result);
-            assertThat(maybe.isJust()).isTrue();
-            assertThat(maybe.get()).isEqualTo("42");
-        }
-
-        @Test
-        @DisplayName("map() on Nothing returns Nothing")
-        void mapOnNothingReturnsNothing() {
-            Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
-
-            Kind<MaybeKind.Witness, String> result = functor.map(validMapper, nothingKind);
-
-            Maybe<String> maybe = MAYBE.narrow(result);
-            assertThat(maybe.isNothing()).isTrue();
-        }
-
-        @Test
-        @DisplayName("map() with null-returning mapper returns Nothing")
-        void mapWithNullReturningMapper() {
-            Function<Integer, String> nullMapper = i -> null;
-
-            Kind<MaybeKind.Witness, String> result = functor.map(nullMapper, validKind);
-
-            Maybe<String> maybe = MAYBE.narrow(result);
-            assertThat(maybe.isNothing()).isTrue();
-        }
-
-        @Test
-        @DisplayName("map() chains multiple transformations")
-        void mapChainsMultipleTransformations() {
-            Kind<MaybeKind.Witness, String> result =
-                    functor.map(validMapper.andThen(String::toUpperCase), validKind);
-
-            Maybe<String> maybe = MAYBE.narrow(result);
-            assertThat(maybe.isJust()).isTrue();
-            assertThat(maybe.get()).isEqualTo("42");
-        }
+    @Test
+    @DisplayName("Test exception propagation only")
+    void testExceptionPropagationOnly() {
+      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+          .<Integer>instance(functorTyped)
+          .<String>withKind(validKind)
+          .withMapper(validMapper)
+          .testExceptions();
     }
 
-    @Nested
-    @DisplayName("Individual Components")
-    class IndividualComponents {
-        @Test
-        @DisplayName("Test operations only")
-        void testOperationsOnly() {
-            TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
-                    .<Integer>instance(functorTyped)
-                    .<String>withKind(validKind)
-                    .withMapper(validMapper)
-                    .testOperations();
-        }
+    @Test
+    @DisplayName("Test laws only")
+    void testLawsOnly() {
+      TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
+          .<Integer>instance(functorTyped)
+          .<String>withKind(validKind)
+          .withMapper(validMapper)
+          .withSecondMapper(secondMapper)
+          .withEqualityChecker(equalityChecker)
+          .testLaws();
+    }
+  }
 
-        @Test
-        @DisplayName("Test validations only")
-        void testValidationsOnly() {
-            TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
-                    .<Integer>instance(functorTyped)
-                    .<String>withKind(validKind)
-                    .withMapper(validMapper)
-                    .testValidations();
-        }
+  @Nested
+  @DisplayName("Edge Cases Tests")
+  class EdgeCasesTests {
+    @Test
+    @DisplayName("map() preserves Nothing through chains")
+    void mapPreservesNothingThroughChains() {
+      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
 
-        @Test
-        @DisplayName("Test exception propagation only")
-        void testExceptionPropagationOnly() {
-            TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
-                    .<Integer>instance(functorTyped)
-                    .<String>withKind(validKind)
-                    .withMapper(validMapper)
-                    .testExceptions();
-        }
+      Function<Integer, Integer> doubleFunc = i -> i * 2;
+      Function<Integer, String> stringFunc = i -> "Value: " + i;
 
-        @Test
-        @DisplayName("Test laws only")
-        void testLawsOnly() {
-            TypeClassTest.<MaybeKind.Witness>functor(MaybeFunctor.class)
-                    .<Integer>instance(functorTyped)
-                    .<String>withKind(validKind)
-                    .withMapper(validMapper)
-                    .withSecondMapper(secondMapper)
-                    .withEqualityChecker(equalityChecker)
-                    .testLaws();
-        }
+      Kind<MaybeKind.Witness, Integer> intermediate = functor.map(doubleFunc, nothingKind);
+      Kind<MaybeKind.Witness, String> result = functor.map(stringFunc, intermediate);
+
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isNothing()).isTrue();
     }
 
-    @Nested
-    @DisplayName("Edge Cases Tests")
-    class EdgeCasesTests {
-        @Test
-        @DisplayName("map() preserves Nothing through chains")
-        void mapPreservesNothingThroughChains() {
-            Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+    @Test
+    @DisplayName("map() with complex transformations")
+    void mapWithComplexTransformations() {
+      Function<Integer, String> complexMapper =
+          i -> {
+            if (i < 0) return "negative";
+            if (i == 0) return "zero";
+            return "positive:" + i;
+          };
 
-            Function<Integer, Integer> doubleFunc = i -> i * 2;
-            Function<Integer, String> stringFunc = i -> "Value: " + i;
-
-            Kind<MaybeKind.Witness, Integer> intermediate = functor.map(doubleFunc, nothingKind);
-            Kind<MaybeKind.Witness, String> result = functor.map(stringFunc, intermediate);
-
-            Maybe<String> maybe = MAYBE.narrow(result);
-            assertThat(maybe.isNothing()).isTrue();
-        }
-
-        @Test
-        @DisplayName("map() with complex transformations")
-        void mapWithComplexTransformations() {
-            Function<Integer, String> complexMapper =
-                    i -> {
-                        if (i < 0) return "negative";
-                        if (i == 0) return "zero";
-                        return "positive:" + i;
-                    };
-
-            Kind<MaybeKind.Witness, String> result = functor.map(complexMapper, validKind);
-            Maybe<String> maybe = MAYBE.narrow(result);
-            assertThat(maybe.get()).isEqualTo("positive:42");
-        }
-
-        @Test
-        @DisplayName("map() with identity is idempotent")
-        void mapWithIdentityIsIdempotent() {
-            Function<Integer, Integer> identity = i -> i;
-
-            Kind<MaybeKind.Witness, Integer> result = functor.map(identity, validKind);
-
-            assertThat(MAYBE.narrow(result)).isEqualTo(MAYBE.narrow(validKind));
-        }
+      Kind<MaybeKind.Witness, String> result = functor.map(complexMapper, validKind);
+      Maybe<String> maybe = MAYBE.narrow(result);
+      assertThat(maybe.get()).isEqualTo("positive:42");
     }
 
-    @Nested
-    @DisplayName("Performance Tests")
-    class PerformanceTests {
-        @Test
-        @DisplayName("Test performance characteristics")
-        void testPerformanceCharacteristics() {
-            if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-                Kind<MaybeKind.Witness, Integer> start = validKind;
+    @Test
+    @DisplayName("map() with identity is idempotent")
+    void mapWithIdentityIsIdempotent() {
+      Function<Integer, Integer> identity = i -> i;
 
-                long startTime = System.nanoTime();
-                Kind<MaybeKind.Witness, Integer> result = start;
-                for (int i = 0; i < 10000; i++) {
-                    result = functor.map(x -> x + 1, result);
-                }
-                long duration = System.nanoTime() - startTime;
+      Kind<MaybeKind.Witness, Integer> result = functor.map(identity, validKind);
 
-                assertThat(duration).isLessThan(100_000_000L); // Less than 100ms
-            }
-        }
-
-        @Test
-        @DisplayName("Nothing optimisation - map not called")
-        void nothingOptimisationMapNotCalled() {
-            Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
-            AtomicBoolean called = new AtomicBoolean(false);
-
-            Function<Integer, String> tracker =
-                    i -> {
-                        called.set(true);
-                        return i.toString();
-                    };
-
-            functor.map(tracker, nothingKind);
-
-            assertThat(called).as("Mapper should not be called for Nothing").isFalse();
-        }
+      assertThat(MAYBE.narrow(result)).isEqualTo(MAYBE.narrow(validKind));
     }
+  }
+
+  @Nested
+  @DisplayName("Performance Tests")
+  class PerformanceTests {
+    @Test
+    @DisplayName("Test performance characteristics")
+    void testPerformanceCharacteristics() {
+      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
+        Kind<MaybeKind.Witness, Integer> start = validKind;
+
+        long startTime = System.nanoTime();
+        Kind<MaybeKind.Witness, Integer> result = start;
+        for (int i = 0; i < 10000; i++) {
+          result = functor.map(x -> x + 1, result);
+        }
+        long duration = System.nanoTime() - startTime;
+
+        assertThat(duration).isLessThan(100_000_000L); // Less than 100ms
+      }
+    }
+
+    @Test
+    @DisplayName("Nothing optimisation - map not called")
+    void nothingOptimisationMapNotCalled() {
+      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      Function<Integer, String> tracker =
+          i -> {
+            called.set(true);
+            return i.toString();
+          };
+
+      functor.map(tracker, nothingKind);
+
+      assertThat(called).as("Mapper should not be called for Nothing").isFalse();
+    }
+  }
 }

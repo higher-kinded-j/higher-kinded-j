@@ -145,7 +145,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<EitherKind.Witness<E>, A> fa) {
-    FunctionValidator.requireMonoid(monoid, EITHER_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMonoid(monoid, "monoid", EITHER_TRAVERSE_CLASS, FOLD_MAP);
     FunctionValidator.requireMapper(f, EITHER_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, EITHER_TRAVERSE_CLASS, FOLD_MAP);
 

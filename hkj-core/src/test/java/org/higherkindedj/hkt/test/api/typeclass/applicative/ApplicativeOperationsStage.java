@@ -45,43 +45,41 @@ public final class ApplicativeOperationsStage<F, A, B> {
     this.combiningFunction = combiningFunction;
   }
 
-    /**
-     * Configures law testing parameters.
-     *
-     * @param testValue A test value for law testing
-     * @param testFunction Test function for law verification
-     * @param equalityChecker Equality checker for comparing Kind instances
-     * @return Laws stage with further options
-     */
-    public ApplicativeLawsStage<F, A, B> withLawsTesting(
-            A testValue,
-            Function<A, B> testFunction,
-            BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+  /**
+   * Configures law testing parameters.
+   *
+   * @param testValue A test value for law testing
+   * @param testFunction Test function for law verification
+   * @param equalityChecker Equality checker for comparing Kind instances
+   * @return Laws stage with further options
+   */
+  public ApplicativeLawsStage<F, A, B> withLawsTesting(
+      A testValue,
+      Function<A, B> testFunction,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
-        return new ApplicativeLawsStage<>(this, testValue, testFunction, equalityChecker);
-    }
+    return new ApplicativeLawsStage<>(this, testValue, testFunction, equalityChecker);
+  }
 
-    /**
-     * Enters validation configuration mode.
-     *
-     * <p>Progressive disclosure: Shows validation context configuration options.
-     *
-     * @return Validation stage for configuring error message contexts
-     */
-    public ApplicativeValidationStage<F, A, B> configureValidation() {
-        return new ApplicativeValidationStage<>(this, null);
-    }
+  /**
+   * Enters validation configuration mode.
+   *
+   * <p>Progressive disclosure: Shows validation context configuration options.
+   *
+   * @return Validation stage for configuring error message contexts
+   */
+  public ApplicativeValidationStage<F, A, B> configureValidation() {
+    return new ApplicativeValidationStage<>(this, null);
+  }
 
-    /**
-     * Enters test selection mode for fine-grained control.
-     *
-     * @return Stage for selecting which tests to run
-     */
-    public ApplicativeTestSelectionStage<F, A, B> selectTests() {
-        return new ApplicativeTestSelectionStage<>(this, null, null);
-    }
-
-
+  /**
+   * Enters test selection mode for fine-grained control.
+   *
+   * @return Stage for selecting which tests to run
+   */
+  public ApplicativeTestSelectionStage<F, A, B> selectTests() {
+    return new ApplicativeTestSelectionStage<>(this, null, null);
+  }
 
   /** Executes operation and validation tests only (no laws). */
   public void testOperationsAndValidations() {
@@ -114,23 +112,24 @@ public final class ApplicativeOperationsStage<F, A, B> {
             + "Use .withLawsTesting() to configure laws, or use .testOperationsAndValidations()");
   }
 
-    ApplicativeTestExecutor<F, A, B> build(ApplicativeLawsStage<F, A, B> lawsStage) {
-        return build(lawsStage, null);
-    }
+  ApplicativeTestExecutor<F, A, B> build(ApplicativeLawsStage<F, A, B> lawsStage) {
+    return build(lawsStage, null);
+  }
 
-    ApplicativeTestExecutor<F, A, B> build(ApplicativeLawsStage<F, A, B> lawsStage,
-                                           ApplicativeValidationStage<F, A, B> validationStage) {
-        return new ApplicativeTestExecutor<>(
-                contextClass,
-                applicative,
-                validKind,
-                validKind2,
-                mapper,
-                functionKind,
-                combiningFunction,
-                lawsStage,
-                validationStage);  // Add null for validationStage
-    }
+  ApplicativeTestExecutor<F, A, B> build(
+      ApplicativeLawsStage<F, A, B> lawsStage,
+      ApplicativeValidationStage<F, A, B> validationStage) {
+    return new ApplicativeTestExecutor<>(
+        contextClass,
+        applicative,
+        validKind,
+        validKind2,
+        mapper,
+        functionKind,
+        combiningFunction,
+        lawsStage,
+        validationStage); // Add null for validationStage
+  }
 
   // Package-private getters
   Class<?> getContextClass() {

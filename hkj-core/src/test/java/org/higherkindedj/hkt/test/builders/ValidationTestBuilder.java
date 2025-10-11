@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.builders;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.assertions.FunctionAssertions;
 import org.higherkindedj.hkt.test.assertions.KindAssertions;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
+import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
@@ -81,9 +83,42 @@ public final class ValidationTestBuilder {
     return new ValidationTestBuilder();
   }
 
-  // =============================================================================
-  // Function Validation Methods
-  // =============================================================================
+
+    /**
+     * Adds core type value validation to the test suite.
+     *
+     * @param executable The code that should throw
+     * @param valueName The name of the value parameter
+     * @param contextClass The class providing context
+     * @param operation The operation name
+     * @return This builder for chaining
+     */
+    public ValidationTestBuilder assertValueNull(
+            ThrowableAssert.ThrowingCallable executable,
+            String valueName,
+            Class<?> contextClass,
+            Operation operation) {
+        assertions.add(() -> {
+            // Capture expected exception from production validation
+            Throwable expectedThrowable = null;
+            try {
+                // This simulates what the production validator would do
+                CoreTypeValidator.requireValue(
+                        null, valueName, contextClass, operation);
+                throw new AssertionError("Production validation should have thrown an exception");
+            } catch (Throwable t) {
+                expectedThrowable = t;
+            }
+
+            // Verify test code throws exactly the same exception
+            final Throwable expected = expectedThrowable;
+            assertThatThrownBy(executable)
+                    .isInstanceOf(expected.getClass())
+                    .hasMessage(expected.getMessage())
+                    .as("Test validation should match production CoreTypeValidator exactly");
+        });
+        return this;
+    }
 
   /**
    * Adds mapper function validation to the test suite.
@@ -97,6 +132,7 @@ public final class ValidationTestBuilder {
     assertions.add(() -> FunctionAssertions.assertMapperNull(executable, operation));
     return this;
   }
+
 
   /**
    * Adds mapper function validation with class context to the test suite.
@@ -172,12 +208,13 @@ public final class ValidationTestBuilder {
    * Adds monoid validation to the test suite.
    *
    * @param executable The code that should throw
+   * @param monoidName The name of the monoid parameter
    * @param operation The operation name
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertMonoidNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertMonoidNull(executable, operation));
+      ThrowableAssert.ThrowingCallable executable, String monoidName, Operation operation) {
+    assertions.add(() -> FunctionAssertions.assertMonoidNull(executable, monoidName, operation));
     return this;
   }
 
@@ -185,13 +222,18 @@ public final class ValidationTestBuilder {
    * Adds monoid validation with class context to the test suite.
    *
    * @param executable The code that should throw
+   * @param monoidName The name of the monoid parameter
    * @param contextClass The class providing context
    * @param operation The operation name
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertMonoidNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertMonoidNull(executable, contextClass, operation));
+      ThrowableAssert.ThrowingCallable executable,
+      String monoidName,
+      Class<?> contextClass,
+      Operation operation) {
+    assertions.add(
+        () -> FunctionAssertions.assertMonoidNull(executable, monoidName, contextClass, operation));
     return this;
   }
 
@@ -524,7 +566,10 @@ public final class ValidationTestBuilder {
       Function<A, M> validFoldMapFunction) {
 
     assertMonoidNull(
-        () -> foldable.foldMap(null, validFoldMapFunction, validKind), contextClass, FOLD_MAP);
+        () -> foldable.foldMap(null, validFoldMapFunction, validKind),
+        "monoid",
+        contextClass,
+        FOLD_MAP);
     assertMapperNull(() -> foldable.foldMap(validMonoid, null, validKind), contextClass, FOLD_MAP);
     assertKindNull(
         () -> foldable.foldMap(validMonoid, validFoldMapFunction, null), contextClass, FOLD_MAP);

@@ -15,71 +15,65 @@ import org.higherkindedj.hkt.Kind;
  * @param <B> The output type
  */
 public final class FunctorLawsStage<F, A, B> {
-    private final FunctorTestConfigStage<F, A, B> configStage;
-    final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
+  private final FunctorTestConfigStage<F, A, B> configStage;
+  final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
 
-    FunctorLawsStage(
-            FunctorTestConfigStage<F, A, B> configStage,
-            BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
-        this.configStage = configStage;
-        this.equalityChecker = equalityChecker;
-    }
+  FunctorLawsStage(
+      FunctorTestConfigStage<F, A, B> configStage,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+    this.configStage = configStage;
+    this.equalityChecker = equalityChecker;
+  }
 
-    /**
-     * Enters validation configuration mode.
-     *
-     * <p>Progressive disclosure: Shows validation context configuration options.
-     *
-     * @return Validation stage for configuring error message contexts
-     */
-    public FunctorValidationStage<F, A, B> configureValidation() {
-        return new FunctorValidationStage<>(configStage, this);
-    }
+  /**
+   * Enters validation configuration mode.
+   *
+   * <p>Progressive disclosure: Shows validation context configuration options.
+   *
+   * @return Validation stage for configuring error message contexts
+   */
+  public FunctorValidationStage<F, A, B> configureValidation() {
+    return new FunctorValidationStage<>(configStage, this);
+  }
 
-    /**
-     * Enters test selection mode for fine-grained control.
-     *
-     * <p>Progressive disclosure: Shows test selection options.
-     *
-     * @return Stage for selecting which tests to run
-     */
-    public FunctorTestSelectionStage<F, A, B> selectTests() {
-        return new FunctorTestSelectionStage<>(configStage, this, null);
-    }
+  /**
+   * Enters test selection mode for fine-grained control.
+   *
+   * <p>Progressive disclosure: Shows test selection options.
+   *
+   * @return Stage for selecting which tests to run
+   */
+  public FunctorTestSelectionStage<F, A, B> selectTests() {
+    return new FunctorTestSelectionStage<>(configStage, this, null);
+  }
 
-    /**
-     * Executes all tests including laws.
-     */
-    public void testAll() {
-        buildExecutor().executeAll();
-    }
+  /** Executes all tests including laws. */
+  public void testAll() {
+    buildExecutor().executeAll();
+  }
 
-    /**
-     * Executes operation and law tests (skips validations).
-     */
-    public void testOperationsAndLaws() {
-        buildExecutor().executeOperationsAndLaws();
-    }
+  /** Executes operation and law tests (skips validations). */
+  public void testOperationsAndLaws() {
+    buildExecutor().executeOperationsAndLaws();
+  }
 
-    /**
-     * Executes only law tests.
-     */
-    public void testLaws() {
-        buildExecutor().executeLaws();
-    }
+  /** Executes only law tests. */
+  public void testLaws() {
+    buildExecutor().executeLaws();
+  }
 
-    private FunctorTestExecutor<F, A, B> buildExecutor() {
-        return new FunctorTestExecutor<>(
-                configStage.contextClass,
-                configStage.functor,
-                configStage.validKind,
-                configStage.mapper,
-                configStage.secondMapper,
-                equalityChecker,
-                configStage.includeOperations,
-                configStage.includeValidations,
-                configStage.includeExceptions,
-                configStage.includeLaws,
-                null);
-    }
+  private FunctorTestExecutor<F, A, B> buildExecutor() {
+    return new FunctorTestExecutor<>(
+        configStage.contextClass,
+        configStage.functor,
+        configStage.validKind,
+        configStage.mapper,
+        configStage.secondMapper,
+        equalityChecker,
+        configStage.includeOperations,
+        configStage.includeValidations,
+        configStage.includeExceptions,
+        configStage.includeLaws,
+        null);
+  }
 }

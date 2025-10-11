@@ -68,7 +68,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMonoid(monoid, "monoid", VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
     FunctionValidator.requireMapper(f, VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
 

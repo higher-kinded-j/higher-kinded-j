@@ -119,7 +119,7 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<TryKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, TRY_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMonoid(monoid, "monoid", TRY_TRAVERSE_CLASS, FOLD_MAP);
     FunctionValidator.requireMapper(f, TRY_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, TRY_TRAVERSE_CLASS, FOLD_MAP);
 

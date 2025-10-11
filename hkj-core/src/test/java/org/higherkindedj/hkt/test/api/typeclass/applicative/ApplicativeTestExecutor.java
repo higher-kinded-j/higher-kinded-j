@@ -17,42 +17,42 @@ import org.higherkindedj.hkt.test.patterns.FlexibleValidationConfig;
  * @param <B> The output type
  */
 final class ApplicativeTestExecutor<F, A, B> {
-    private final Class<?> contextClass;
-    private final Applicative<F> applicative;
-    private final Kind<F, A> validKind;
-    private final Kind<F, A> validKind2;
-    private final Function<A, B> mapper;
-    private final Kind<F, Function<A, B>> functionKind;
-    private final BiFunction<A, A, B> combiningFunction;
-    private final ApplicativeLawsStage<F, A, B> lawsStage;
-    private final ApplicativeValidationStage<F, A, B> validationStage;
+  private final Class<?> contextClass;
+  private final Applicative<F> applicative;
+  private final Kind<F, A> validKind;
+  private final Kind<F, A> validKind2;
+  private final Function<A, B> mapper;
+  private final Kind<F, Function<A, B>> functionKind;
+  private final BiFunction<A, A, B> combiningFunction;
+  private final ApplicativeLawsStage<F, A, B> lawsStage;
+  private final ApplicativeValidationStage<F, A, B> validationStage;
 
-    private boolean includeOperations = true;
-    private boolean includeValidations = true;
-    private boolean includeExceptions = true;
-    private boolean includeLaws = true;
+  private boolean includeOperations = true;
+  private boolean includeValidations = true;
+  private boolean includeExceptions = true;
+  private boolean includeLaws = true;
 
-    ApplicativeTestExecutor(
-            Class<?> contextClass,
-            Applicative<F> applicative,
-            Kind<F, A> validKind,
-            Kind<F, A> validKind2,
-            Function<A, B> mapper,
-            Kind<F, Function<A, B>> functionKind,
-            BiFunction<A, A, B> combiningFunction,
-            ApplicativeLawsStage<F, A, B> lawsStage,
-            ApplicativeValidationStage<F, A, B> validationStage) {
+  ApplicativeTestExecutor(
+      Class<?> contextClass,
+      Applicative<F> applicative,
+      Kind<F, A> validKind,
+      Kind<F, A> validKind2,
+      Function<A, B> mapper,
+      Kind<F, Function<A, B>> functionKind,
+      BiFunction<A, A, B> combiningFunction,
+      ApplicativeLawsStage<F, A, B> lawsStage,
+      ApplicativeValidationStage<F, A, B> validationStage) {
 
-        this.contextClass = contextClass;
-        this.applicative = applicative;
-        this.validKind = validKind;
-        this.validKind2 = validKind2;
-        this.mapper = mapper;
-        this.functionKind = functionKind;
-        this.combiningFunction = combiningFunction;
-        this.lawsStage = lawsStage;
-        this.validationStage = validationStage;
-    }
+    this.contextClass = contextClass;
+    this.applicative = applicative;
+    this.validKind = validKind;
+    this.validKind2 = validKind2;
+    this.mapper = mapper;
+    this.functionKind = functionKind;
+    this.combiningFunction = combiningFunction;
+    this.lawsStage = lawsStage;
+    this.validationStage = validationStage;
+  }
 
   void setTestSelection(boolean operations, boolean validations, boolean exceptions, boolean laws) {
     this.includeOperations = operations;
@@ -83,14 +83,20 @@ final class ApplicativeTestExecutor<F, A, B> {
         applicative, validKind, validKind2, mapper, functionKind, combiningFunction);
   }
 
-    void executeValidations() {
-        if (validationStage != null) {
-            createFlexibleValidationConfig().test();
-        } else {
-            TestMethodRegistry.testApplicativeValidations(
-                    applicative, contextClass, validKind, validKind2, mapper, functionKind, combiningFunction);
-        }
+  void executeValidations() {
+    if (validationStage != null) {
+      createFlexibleValidationConfig().test();
+    } else {
+      TestMethodRegistry.testApplicativeValidations(
+          applicative,
+          contextClass,
+          validKind,
+          validKind2,
+          mapper,
+          functionKind,
+          combiningFunction);
     }
+  }
 
   void executeExceptions() {
     TestMethodRegistry.testApplicativeExceptionPropagation(applicative, validKind);
@@ -115,23 +121,21 @@ final class ApplicativeTestExecutor<F, A, B> {
     executeAll();
   }
 
+  private FlexibleValidationConfig.ApplicativeValidation<F, A, B> createFlexibleValidationConfig() {
+    FlexibleValidationConfig.ApplicativeValidation<F, A, B> config =
+        new FlexibleValidationConfig.ApplicativeValidation<>(
+            applicative, validKind, validKind2, mapper, functionKind, combiningFunction);
 
-
-    private FlexibleValidationConfig.ApplicativeValidation<F, A, B> createFlexibleValidationConfig() {
-        FlexibleValidationConfig.ApplicativeValidation<F, A, B> config =
-                new FlexibleValidationConfig.ApplicativeValidation<>(
-                        applicative, validKind, validKind2, mapper, functionKind, combiningFunction);
-
-        if (validationStage.getMapContext() != null) {
-            config.mapWithClassContext(validationStage.getMapContext());
-        }
-        if (validationStage.getApContext() != null) {
-            config.apWithClassContext(validationStage.getApContext());
-        }
-        if (validationStage.getMap2Context() != null) {
-            config.map2WithClassContext(validationStage.getMap2Context());
-        }
-
-        return config;
+    if (validationStage.getMapContext() != null) {
+      config.mapWithClassContext(validationStage.getMapContext());
     }
+    if (validationStage.getApContext() != null) {
+      config.apWithClassContext(validationStage.getApContext());
+    }
+    if (validationStage.getMap2Context() != null) {
+      config.map2WithClassContext(validationStage.getMap2Context());
+    }
+
+    return config;
+  }
 }

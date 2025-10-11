@@ -19,45 +19,45 @@ import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
  * @param <B> The output type
  */
 final class FunctorTestExecutor<F, A, B> {
-    private final Class<?> contextClass;
-    private final Functor<F> functor;
-    private final Kind<F, A> validKind;
-    private final Function<A, B> mapper;
-    private final Function<B, String> secondMapper;
-    private final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
+  private final Class<?> contextClass;
+  private final Functor<F> functor;
+  private final Kind<F, A> validKind;
+  private final Function<A, B> mapper;
+  private final Function<B, String> secondMapper;
+  private final BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
 
-    private final boolean includeOperations;
-    private final boolean includeValidations;
-    private final boolean includeExceptions;
-    private final boolean includeLaws;
+  private final boolean includeOperations;
+  private final boolean includeValidations;
+  private final boolean includeExceptions;
+  private final boolean includeLaws;
 
-    private final FunctorValidationStage<F, A, B> validationStage;
+  private final FunctorValidationStage<F, A, B> validationStage;
 
-    FunctorTestExecutor(
-            Class<?> contextClass,
-            Functor<F> functor,
-            Kind<F, A> validKind,
-            Function<A, B> mapper,
-            Function<B, String> secondMapper,
-            BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker,
-            boolean includeOperations,
-            boolean includeValidations,
-            boolean includeExceptions,
-            boolean includeLaws,
-            FunctorValidationStage<F, A, B> validationStage) {
+  FunctorTestExecutor(
+      Class<?> contextClass,
+      Functor<F> functor,
+      Kind<F, A> validKind,
+      Function<A, B> mapper,
+      Function<B, String> secondMapper,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker,
+      boolean includeOperations,
+      boolean includeValidations,
+      boolean includeExceptions,
+      boolean includeLaws,
+      FunctorValidationStage<F, A, B> validationStage) {
 
-        this.contextClass = contextClass;
-        this.functor = functor;
-        this.validKind = validKind;
-        this.mapper = mapper;
-        this.secondMapper = secondMapper;
-        this.equalityChecker = equalityChecker;
-        this.includeOperations = includeOperations;
-        this.includeValidations = includeValidations;
-        this.includeExceptions = includeExceptions;
-        this.includeLaws = includeLaws;
-        this.validationStage = validationStage;
-    }
+    this.contextClass = contextClass;
+    this.functor = functor;
+    this.validKind = validKind;
+    this.mapper = mapper;
+    this.secondMapper = secondMapper;
+    this.equalityChecker = equalityChecker;
+    this.includeOperations = includeOperations;
+    this.includeValidations = includeValidations;
+    this.includeExceptions = includeExceptions;
+    this.includeLaws = includeLaws;
+    this.validationStage = validationStage;
+  }
 
   void executeAll() {
     if (includeOperations) executeOperations();
@@ -92,13 +92,13 @@ final class FunctorTestExecutor<F, A, B> {
     executeAll();
   }
 
-    void executeOperationsAndLaws() {
-        if (includeOperations) executeOperations();
-        if (includeLaws) executeLaws();
-    }
+  void executeOperationsAndLaws() {
+    if (includeOperations) executeOperations();
+    if (includeLaws) executeLaws();
+  }
 
-    void executeOperationsAndValidations() {
-        if (includeOperations) executeOperations();
-        if (includeValidations) executeValidations();
-    }
+  void executeOperationsAndValidations() {
+    if (includeOperations) executeOperations();
+    if (includeValidations) executeValidations();
+  }
 }

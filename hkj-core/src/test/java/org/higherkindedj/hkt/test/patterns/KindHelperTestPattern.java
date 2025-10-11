@@ -43,7 +43,8 @@ public final class KindHelperTestPattern {
   // =============================================================================
 
   /** Tests round-trip widen/narrow preserves identity. */
-    public static <T, F, A> void testRoundTripWithHelper(T validInstance, KindHelper<T, F, A> helper) {
+  public static <T, F, A> void testRoundTripWithHelper(
+      T validInstance, KindHelper<T, F, A> helper) {
     Kind<F, A> widened = helper.widen(validInstance);
     T narrowed = helper.narrow(widened);
 
@@ -53,7 +54,8 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests null parameter validations using production validators. */
-  public static <T, F, A> void testValidationsWithHelper(Class<T> targetType, KindHelper<T, F, A> helper) {
+  public static <T, F, A> void testValidationsWithHelper(
+      Class<T> targetType, KindHelper<T, F, A> helper) {
     ValidationTestBuilder.create()
         .assertWidenNull(() -> helper.widen(null), targetType)
         .assertNarrowNull(() -> helper.narrow(null), targetType)
@@ -61,7 +63,8 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests invalid Kind type validation with proper error handling. */
-  public static <T, F, A> void testInvalidTypeWithHelper(Class<T> targetType, KindHelper<T, F, A> helper) {
+  public static <T, F, A> void testInvalidTypeWithHelper(
+      Class<T> targetType, KindHelper<T, F, A> helper) {
     Kind<F, A> invalidKind = createDummyKind("invalid_" + targetType.getSimpleName());
 
     assertThatThrownBy(() -> helper.narrow(invalidKind))
@@ -88,7 +91,8 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests multiple round-trips preserve idempotency. */
-    public static <T, F, A> void testIdempotencyWithHelper(T validInstance, KindHelper<T, F, A> helper) {
+  public static <T, F, A> void testIdempotencyWithHelper(
+      T validInstance, KindHelper<T, F, A> helper) {
     T current = validInstance;
     for (int i = 0; i < 3; i++) {
       Kind<F, A> widened = helper.widen(current);
@@ -99,7 +103,7 @@ public final class KindHelperTestPattern {
   }
 
   /** Tests edge cases and boundary conditions. */
-    public static <T, F, A> void testEdgeCasesWithHelper(
+  public static <T, F, A> void testEdgeCasesWithHelper(
       T validInstance, Class<T> targetType, KindHelper<T, F, A> helper) {
 
     Kind<F, A> widened = helper.widen(validInstance);
@@ -182,8 +186,7 @@ public final class KindHelperTestPattern {
   public static <T, F, A> void testConcurrentAccess(
       T validInstance, Function<T, Kind<F, A>> widenFunc, Function<Kind<F, A>, T> narrowFunc) {
 
-    CompletableFuture<Void>[] futures =
-        new CompletableFuture[10];
+    CompletableFuture<Void>[] futures = new CompletableFuture[10];
 
     for (int i = 0; i < futures.length; i++) {
       futures[i] =
@@ -195,8 +198,7 @@ public final class KindHelperTestPattern {
               });
     }
 
-    CompletableFuture<Void> allTasks =
-       CompletableFuture.allOf(futures);
+    CompletableFuture<Void> allTasks = CompletableFuture.allOf(futures);
 
     assertThat(allTasks)
         .as("All concurrent operations should complete successfully")
@@ -230,12 +232,12 @@ public final class KindHelperTestPattern {
     };
   }
 
-     static <F, A> Kind<F, A> createDummyKind(String identifier) {
-        return new Kind<F, A>() {
-            @Override
-            public String toString() {
-                return "DummyKind{" + identifier + "}";
-            }
-        };
-    }
+  static <F, A> Kind<F, A> createDummyKind(String identifier) {
+    return new Kind<F, A>() {
+      @Override
+      public String toString() {
+        return "DummyKind{" + identifier + "}";
+      }
+    };
+  }
 }

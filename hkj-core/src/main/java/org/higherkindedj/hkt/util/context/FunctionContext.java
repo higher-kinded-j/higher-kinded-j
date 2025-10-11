@@ -26,7 +26,7 @@ public record FunctionContext(String functionName, String operation) implements 
 
   @Override
   public String nullParameterMessage() {
-    return String.format("%s for %s cannot be null", functionName, operation);
+    return String.format("Function %s for %s cannot be null", functionName, operation);
   }
 
   @Override

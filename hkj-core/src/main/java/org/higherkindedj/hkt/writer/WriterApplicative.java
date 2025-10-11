@@ -46,7 +46,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterApplicative(Monoid<W> monoidW) {
-    FunctionValidator.requireMonoid(monoidW, WRITER_APPLICATIVE_CLASS, CONSTRUCTION);
+    FunctionValidator.requireMonoid(monoidW, "monoidW", WRITER_APPLICATIVE_CLASS, CONSTRUCTION);
     this.monoidW = monoidW;
   }
 

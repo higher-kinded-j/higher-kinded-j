@@ -16,6 +16,12 @@ public final class CoreTypeValidator {
     return Objects.requireNonNull(value, context + " value cannot be null");
   }
 
+  public static <T> T requireValue(
+      T value, String valueName, Class<?> typeClass, Operation operation) {
+    String context = typeClass.getSimpleName() + "." + operation;
+    return Objects.requireNonNull(value, "%s %s cannot be null".formatted(context, valueName));
+  }
+
   /** Validates an error value for error types */
   public static <E> E requireError(E error, Class<?> typeClass) {
     String context = typeClass.getSimpleName();

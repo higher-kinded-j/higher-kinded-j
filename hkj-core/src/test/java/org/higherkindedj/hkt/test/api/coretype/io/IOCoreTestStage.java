@@ -12,21 +12,21 @@ import org.higherkindedj.hkt.io.IO;
  * @param <A> The value type
  */
 public final class IOCoreTestStage<A> {
-    private final Class<?> contextClass;
+  private final Class<?> contextClass;
 
-    public IOCoreTestStage(Class<?> contextClass) {
-        this.contextClass = contextClass;
-    }
+  public IOCoreTestStage(Class<?> contextClass) {
+    this.contextClass = contextClass;
+  }
 
-    /**
-     * Provides an IO instance for testing.
-     *
-     * <p>Progressive disclosure: Next step is {@code .withMapper(...)}
-     *
-     * @param ioInstance An IO instance
-     * @return Next stage for configuring mapper
-     */
-    public IOOperationsStage<A> withIO(IO<A> ioInstance) {
-        return new IOOperationsStage<>(contextClass, ioInstance);
-    }
+  /**
+   * Provides an IO instance for testing.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withMapper(...)}
+   *
+   * @param ioInstance An IO instance
+   * @return Next stage for configuring mapper
+   */
+  public IOOperationsStage<A> withIO(IO<A> ioInstance) {
+    return new IOOperationsStage<>(contextClass, ioInstance);
+  }
 }

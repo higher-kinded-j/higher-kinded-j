@@ -130,19 +130,20 @@ class LazyMonadTest extends TypeClassTestBase<LazyKind.Witness, Integer, String>
     @Test
     @DisplayName("Run complete Monad test pattern")
     void runCompleteMonadTestPattern() {
-        TypeClassTest.<LazyKind.Witness>monad(LazyMonad.class)
-                .<Integer>instance(lazyMonad)
-                .<String>withKind(validKind)
-                .withMonadOperations(validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-                .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-                .configureValidation()
-                .useInheritanceValidation()
-                .withMapFrom(LazyMonad.class)
-                .withApFrom(LazyMonad.class)
-                .withFlatMapFrom(LazyMonad.class)
-                .selectTests()
-                .skipExceptions()  // Skip generic exception tests - Lazy has special semantics
-                .test();
+      TypeClassTest.<LazyKind.Witness>monad(LazyMonad.class)
+          .<Integer>instance(lazyMonad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(LazyMonad.class)
+          .withApFrom(LazyMonad.class)
+          .withFlatMapFrom(LazyMonad.class)
+          .selectTests()
+          .skipExceptions() // Skip generic exception tests - Lazy has special semantics
+          .test();
     }
 
     @Test
