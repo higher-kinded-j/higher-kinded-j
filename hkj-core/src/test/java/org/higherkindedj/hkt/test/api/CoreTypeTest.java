@@ -20,8 +20,11 @@ import org.higherkindedj.hkt.test.api.coretype.reader.ReaderCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.reader.ReaderKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.state.StateCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.state.StateKindHelperTest;
+import org.higherkindedj.hkt.test.api.coretype.trymonad.TryCoreTestStage;
+import org.higherkindedj.hkt.test.api.coretype.trymonad.TryKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.writer.WriterCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.writer.WriterKindHelperTest;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.writer.Writer;
 
 /**
@@ -151,6 +154,21 @@ public final class CoreTypeTest {
   public static <A> LazyCoreTestStage<A> lazy(Class<?> contextClass) {
     return new LazyCoreTestStage<>(contextClass);
   }
+
+
+    /**
+     * Begins configuration for testing a Try implementation.
+     *
+     * <p>Tests Try-specific operations like get, orElse, orElseGet, fold, recover, recoverWith,
+     * toEither, as well as factory methods and basic operations.
+     *
+     * @param contextClass The implementation class for error messages (e.g., Try.class)
+     * @param <T> The value type
+     * @return Stage for providing test instances
+     */
+    public static <T> TryCoreTestStage<T> tryType(Class<?> contextClass) {
+        return new TryCoreTestStage<>(contextClass);
+    }
 
   // =============================================================================
   // KindHelper Testing for Core Types
@@ -383,4 +401,30 @@ public final class CoreTypeTest {
   public static <S, A> StateKindHelperTest<S, A> stateKindHelper(State<S, A> instance) {
     return new StateKindHelperTest<>(instance);
   }
+
+    /**
+     * Test Try KindHelper with automatic helper detection.
+     *
+     * <p>Automatically uses TryKindHelper.TRY for widen/narrow operations.
+     *
+     * <h2>Usage Example:</h2>
+     *
+     * <pre>{@code
+     * CoreTypeTest.tryKindHelper(Try.success("test"))
+     *     .test();
+     *
+     * // With selective testing
+     * CoreTypeTest.tryKindHelper(Try.success("test"))
+     *     .skipValidations()
+     *     .withPerformanceTests()
+     *     .test();
+     * }</pre>
+     *
+     * @param instance The Try instance to test
+     * @param <T> The value type
+     * @return Configuration stage for Try KindHelper testing
+     */
+    public static <T> TryKindHelperTest<T> tryKindHelper(Try<T> instance) {
+        return new TryKindHelperTest<>(instance);
+    }
 }
