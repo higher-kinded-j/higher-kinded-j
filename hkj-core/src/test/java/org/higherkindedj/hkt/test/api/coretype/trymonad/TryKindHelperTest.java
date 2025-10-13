@@ -35,19 +35,19 @@ import org.higherkindedj.hkt.trymonad.TryKindHelper;
  */
 public final class TryKindHelperTest<T> extends BaseKindHelperConfig<Try<T>, TryKind.Witness, T> {
 
-    private static final TryKindHelper TRY = TryKindHelper.TRY;
+  private static final TryKindHelper TRY = TryKindHelper.TRY;
 
-    public TryKindHelperTest(Try<T> instance) {
-        super(instance, getTryClass(), tryInstance -> TRY.widen(tryInstance), kind -> TRY.narrow(kind));
-    }
+  public TryKindHelperTest(Try<T> instance) {
+    super(instance, getTryClass(), tryInstance -> TRY.widen(tryInstance), kind -> TRY.narrow(kind));
+  }
 
-    @SuppressWarnings("unchecked")
-    private static <T> Class<Try<T>> getTryClass() {
-        return (Class<Try<T>>) (Class<?>) Try.class;
-    }
+  @SuppressWarnings("unchecked")
+  private static <T> Class<Try<T>> getTryClass() {
+    return (Class<Try<T>>) (Class<?>) Try.class;
+  }
 
-    @Override
-    protected TryKindHelperTest<T> self() {
-        return this;
-    }
+  @Override
+  protected TryKindHelperTest<T> self() {
+    return this;
+  }
 }

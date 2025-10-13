@@ -67,13 +67,13 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> State<S, B> map(Function<? super A, ? extends B> f) {
-      FunctionValidator.requireMapper(f, STATE_CLASS, MAP);
-      return State.of(
-              initialState -> {
-                  StateTuple<S, A> result = this.run(initialState);
-                  B newValue = f.apply(result.value());
-                  return new StateTuple<>(newValue, result.state());
-              });
+    FunctionValidator.requireMapper(f, STATE_CLASS, MAP);
+    return State.of(
+        initialState -> {
+          StateTuple<S, A> result = this.run(initialState);
+          B newValue = f.apply(result.value());
+          return new StateTuple<>(newValue, result.state());
+        });
   }
 
   /**

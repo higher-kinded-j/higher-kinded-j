@@ -22,9 +22,12 @@ import org.higherkindedj.hkt.test.api.coretype.state.StateCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.state.StateKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.trymonad.TryCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.trymonad.TryKindHelperTest;
+import org.higherkindedj.hkt.test.api.coretype.validated.ValidatedCoreTestStage;
+import org.higherkindedj.hkt.test.api.coretype.validated.ValidatedKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.writer.WriterCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.writer.WriterKindHelperTest;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.writer.Writer;
 
 /**
@@ -155,20 +158,34 @@ public final class CoreTypeTest {
     return new LazyCoreTestStage<>(contextClass);
   }
 
+  /**
+   * Begins configuration for testing a Try implementation.
+   *
+   * <p>Tests Try-specific operations like get, orElse, orElseGet, fold, recover, recoverWith,
+   * toEither, as well as factory methods and basic operations.
+   *
+   * @param contextClass The implementation class for error messages (e.g., Try.class)
+   * @param <T> The value type
+   * @return Stage for providing test instances
+   */
+  public static <T> TryCoreTestStage<T> tryType(Class<?> contextClass) {
+    return new TryCoreTestStage<>(contextClass);
+  }
 
-    /**
-     * Begins configuration for testing a Try implementation.
-     *
-     * <p>Tests Try-specific operations like get, orElse, orElseGet, fold, recover, recoverWith,
-     * toEither, as well as factory methods and basic operations.
-     *
-     * @param contextClass The implementation class for error messages (e.g., Try.class)
-     * @param <T> The value type
-     * @return Stage for providing test instances
-     */
-    public static <T> TryCoreTestStage<T> tryType(Class<?> contextClass) {
-        return new TryCoreTestStage<>(contextClass);
-    }
+  /**
+   * Begins configuration for testing a Validated implementation.
+   *
+   * <p>Tests Validated-specific operations like fold, ifValid, ifInvalid, getError, get, as well as
+   * factory methods and basic operations.
+   *
+   * @param contextClass The implementation class for error messages (e.g., Validated.class)
+   * @param <E> The error type
+   * @param <A> The value type
+   * @return Stage for providing test instances
+   */
+  public static <E, A> ValidatedCoreTestStage<E, A> validated(Class<?> contextClass) {
+    return new ValidatedCoreTestStage<>(contextClass);
+  }
 
   // =============================================================================
   // KindHelper Testing for Core Types
@@ -402,29 +419,56 @@ public final class CoreTypeTest {
     return new StateKindHelperTest<>(instance);
   }
 
-    /**
-     * Test Try KindHelper with automatic helper detection.
-     *
-     * <p>Automatically uses TryKindHelper.TRY for widen/narrow operations.
-     *
-     * <h2>Usage Example:</h2>
-     *
-     * <pre>{@code
-     * CoreTypeTest.tryKindHelper(Try.success("test"))
-     *     .test();
-     *
-     * // With selective testing
-     * CoreTypeTest.tryKindHelper(Try.success("test"))
-     *     .skipValidations()
-     *     .withPerformanceTests()
-     *     .test();
-     * }</pre>
-     *
-     * @param instance The Try instance to test
-     * @param <T> The value type
-     * @return Configuration stage for Try KindHelper testing
-     */
-    public static <T> TryKindHelperTest<T> tryKindHelper(Try<T> instance) {
-        return new TryKindHelperTest<>(instance);
-    }
+  /**
+   * Test Try KindHelper with automatic helper detection.
+   *
+   * <p>Automatically uses TryKindHelper.TRY for widen/narrow operations.
+   *
+   * <h2>Usage Example:</h2>
+   *
+   * <pre>{@code
+   * CoreTypeTest.tryKindHelper(Try.success("test"))
+   *     .test();
+   *
+   * // With selective testing
+   * CoreTypeTest.tryKindHelper(Try.success("test"))
+   *     .skipValidations()
+   *     .withPerformanceTests()
+   *     .test();
+   * }</pre>
+   *
+   * @param instance The Try instance to test
+   * @param <T> The value type
+   * @return Configuration stage for Try KindHelper testing
+   */
+  public static <T> TryKindHelperTest<T> tryKindHelper(Try<T> instance) {
+    return new TryKindHelperTest<>(instance);
+  }
+
+  /**
+   * Test Validated KindHelper with automatic helper detection.
+   *
+   * <p>Automatically uses ValidatedKindHelper.VALIDATED for widen/narrow operations.
+   *
+   * <h2>Usage Example:</h2>
+   *
+   * <pre>{@code
+   * CoreTypeTest.validatedKindHelper(Validated.valid("test"))
+   *     .test();
+   *
+   * // With selective testing
+   * CoreTypeTest.validatedKindHelper(Validated.valid("test"))
+   *     .skipValidations()
+   *     .withPerformanceTests()
+   *     .test();
+   * }</pre>
+   *
+   * @param instance The Validated instance to test
+   * @param <E> The error type
+   * @param <A> The value type
+   * @return Configuration stage for Validated KindHelper testing
+   */
+  public static <E, A> ValidatedKindHelperTest<E, A> validatedKindHelper(Validated<E, A> instance) {
+    return new ValidatedKindHelperTest<>(instance);
+  }
 }

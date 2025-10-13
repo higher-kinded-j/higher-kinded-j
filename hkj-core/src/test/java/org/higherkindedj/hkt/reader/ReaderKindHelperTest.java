@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.test.api.CoreTypeTest.readerKindHelper;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
@@ -18,7 +17,8 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("ReaderKindHelper Complete Test Suite")
 class ReaderKindHelperTest
-    extends TypeClassTestBase<ReaderKind.Witness<ReaderKindHelperTest.TestEnv>, ReaderKindHelperTest.TestEnv, String> {
+    extends TypeClassTestBase<
+        ReaderKind.Witness<ReaderKindHelperTest.TestEnv>, ReaderKindHelperTest.TestEnv, String> {
 
   public record TestEnv(String value) {}
 
@@ -42,8 +42,7 @@ class ReaderKindHelperTest
   }
 
   @Override
-  protected BiPredicate<
-            Kind<ReaderKind.Witness<TestEnv>, ?>, Kind<ReaderKind.Witness<TestEnv>, ?>>
+  protected BiPredicate<Kind<ReaderKind.Witness<TestEnv>, ?>, Kind<ReaderKind.Witness<TestEnv>, ?>>
       createEqualityChecker() {
     return (k1, k2) -> {
       Reader<TestEnv, ?> r1 = READER.narrow(k1);

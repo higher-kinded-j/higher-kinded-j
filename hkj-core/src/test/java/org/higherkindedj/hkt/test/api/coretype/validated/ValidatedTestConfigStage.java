@@ -1,9 +1,9 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.test.api.coretype.trymonad;
+package org.higherkindedj.hkt.test.api.coretype.validated;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * Stage 4: Optional configuration and test execution.
@@ -11,35 +11,34 @@ import org.higherkindedj.hkt.trymonad.Try;
  * <p>Progressive disclosure: All required parameters configured. Shows test selection and
  * execution.
  *
- * @param <T> The value type
- * @param <S> The mapped type
+ * @param <E> The error type
+ * @param <A> The value type
+ * @param <B> The mapped type
  */
-public final class TryTestConfigStage<T, S> {
+public final class ValidatedTestConfigStage<E, A, B> {
   private final Class<?> contextClass;
-  private final Try<T> successInstance;
-  private final Try<T> failureInstance;
-  private final Function<T, S> mapper;
+  private final Validated<E, A> invalidInstance;
+  private final Validated<E, A> validInstance;
+  private final Function<A, B> mapper;
 
   // Test selection flags
   private boolean includeFactoryMethods = true;
   private boolean includeGetters = true;
   private boolean includeFold = true;
-  private boolean includeOrElse = true;
+  private boolean includeSideEffects = true;
   private boolean includeMap = true;
   private boolean includeFlatMap = true;
-  private boolean includeRecover = true;
-  private boolean includeToEither = true;
   private boolean includeValidations = true;
   private boolean includeEdgeCases = true;
 
-  TryTestConfigStage(
+  ValidatedTestConfigStage(
       Class<?> contextClass,
-      Try<T> successInstance,
-      Try<T> failureInstance,
-      Function<T, S> mapper) {
+      Validated<E, A> invalidInstance,
+      Validated<E, A> validInstance,
+      Function<A, B> mapper) {
     this.contextClass = contextClass;
-    this.successInstance = successInstance;
-    this.failureInstance = failureInstance;
+    this.invalidInstance = invalidInstance;
+    this.validInstance = validInstance;
     this.mapper = mapper;
   }
 
@@ -47,52 +46,42 @@ public final class TryTestConfigStage<T, S> {
   // Test Selection Methods
   // =============================================================================
 
-  public TryTestConfigStage<T, S> skipFactoryMethods() {
+  public ValidatedTestConfigStage<E, A, B> skipFactoryMethods() {
     this.includeFactoryMethods = false;
     return this;
   }
 
-  public TryTestConfigStage<T, S> skipGetters() {
+  public ValidatedTestConfigStage<E, A, B> skipGetters() {
     this.includeGetters = false;
     return this;
   }
 
-  public TryTestConfigStage<T, S> skipFold() {
+  public ValidatedTestConfigStage<E, A, B> skipFold() {
     this.includeFold = false;
     return this;
   }
 
-  public TryTestConfigStage<T, S> skipOrElse() {
-    this.includeOrElse = false;
+  public ValidatedTestConfigStage<E, A, B> skipSideEffects() {
+    this.includeSideEffects = false;
     return this;
   }
 
-  public TryTestConfigStage<T, S> skipMap() {
+  public ValidatedTestConfigStage<E, A, B> skipMap() {
     this.includeMap = false;
     return this;
   }
 
-  public TryTestConfigStage<T, S> skipFlatMap() {
+  public ValidatedTestConfigStage<E, A, B> skipFlatMap() {
     this.includeFlatMap = false;
     return this;
   }
 
-  public TryTestConfigStage<T, S> skipRecover() {
-    this.includeRecover = false;
-    return this;
-  }
-
-  public TryTestConfigStage<T, S> skipToEither() {
-    this.includeToEither = false;
-    return this;
-  }
-
-  public TryTestConfigStage<T, S> skipValidations() {
+  public ValidatedTestConfigStage<E, A, B> skipValidations() {
     this.includeValidations = false;
     return this;
   }
 
-  public TryTestConfigStage<T, S> skipEdgeCases() {
+  public ValidatedTestConfigStage<E, A, B> skipEdgeCases() {
     this.includeEdgeCases = false;
     return this;
   }
@@ -101,61 +90,49 @@ public final class TryTestConfigStage<T, S> {
   // Positive Selection (Run Only Specific Tests)
   // =============================================================================
 
-  public TryTestConfigStage<T, S> onlyFactoryMethods() {
+  public ValidatedTestConfigStage<E, A, B> onlyFactoryMethods() {
     disableAll();
     this.includeFactoryMethods = true;
     return this;
   }
 
-  public TryTestConfigStage<T, S> onlyGetters() {
+  public ValidatedTestConfigStage<E, A, B> onlyGetters() {
     disableAll();
     this.includeGetters = true;
     return this;
   }
 
-  public TryTestConfigStage<T, S> onlyFold() {
+  public ValidatedTestConfigStage<E, A, B> onlyFold() {
     disableAll();
     this.includeFold = true;
     return this;
   }
 
-  public TryTestConfigStage<T, S> onlyOrElse() {
+  public ValidatedTestConfigStage<E, A, B> onlySideEffects() {
     disableAll();
-    this.includeOrElse = true;
+    this.includeSideEffects = true;
     return this;
   }
 
-  public TryTestConfigStage<T, S> onlyMap() {
+  public ValidatedTestConfigStage<E, A, B> onlyMap() {
     disableAll();
     this.includeMap = true;
     return this;
   }
 
-  public TryTestConfigStage<T, S> onlyFlatMap() {
+  public ValidatedTestConfigStage<E, A, B> onlyFlatMap() {
     disableAll();
     this.includeFlatMap = true;
     return this;
   }
 
-  public TryTestConfigStage<T, S> onlyRecover() {
-    disableAll();
-    this.includeRecover = true;
-    return this;
-  }
-
-  public TryTestConfigStage<T, S> onlyToEither() {
-    disableAll();
-    this.includeToEither = true;
-    return this;
-  }
-
-  public TryTestConfigStage<T, S> onlyValidations() {
+  public ValidatedTestConfigStage<E, A, B> onlyValidations() {
     disableAll();
     this.includeValidations = true;
     return this;
   }
 
-  public TryTestConfigStage<T, S> onlyEdgeCases() {
+  public ValidatedTestConfigStage<E, A, B> onlyEdgeCases() {
     disableAll();
     this.includeEdgeCases = true;
     return this;
@@ -165,11 +142,9 @@ public final class TryTestConfigStage<T, S> {
     includeFactoryMethods = false;
     includeGetters = false;
     includeFold = false;
-    includeOrElse = false;
+    includeSideEffects = false;
     includeMap = false;
     includeFlatMap = false;
-    includeRecover = false;
-    includeToEither = false;
     includeValidations = false;
     includeEdgeCases = false;
   }
@@ -185,8 +160,8 @@ public final class TryTestConfigStage<T, S> {
    *
    * @return Validation stage for configuring error message contexts
    */
-  public TryValidationStage<T, S> configureValidation() {
-    return new TryValidationStage<>(this);
+  public ValidatedValidationStage<E, A, B> configureValidation() {
+    return new ValidatedValidationStage<>(this);
   }
 
   // =============================================================================
@@ -199,7 +174,7 @@ public final class TryTestConfigStage<T, S> {
    * <p>This is the most comprehensive test execution option.
    */
   public void testAll() {
-    TryTestExecutor<T, S> executor = buildExecutor();
+    ValidatedTestExecutor<E, A, B> executor = buildExecutor();
     executor.executeAll();
   }
 
@@ -226,38 +201,35 @@ public final class TryTestConfigStage<T, S> {
   // Internal Builder
   // =============================================================================
 
-  private TryTestExecutor<T, S> buildExecutor() {
-    return new TryTestExecutor<>(
+  private ValidatedTestExecutor<E, A, B> buildExecutor() {
+    return new ValidatedTestExecutor<>(
         contextClass,
-        successInstance,
-        failureInstance,
+        invalidInstance,
+        validInstance,
         mapper,
         includeFactoryMethods,
         includeGetters,
         includeFold,
-        includeOrElse,
+        includeSideEffects,
         includeMap,
         includeFlatMap,
-        includeRecover,
-        includeToEither,
         includeValidations,
         includeEdgeCases);
   }
 
-  TryTestExecutor<T, S> buildExecutorWithValidation(TryValidationStage<T, S> validationStage) {
-    return new TryTestExecutor<>(
+  ValidatedTestExecutor<E, A, B> buildExecutorWithValidation(
+      ValidatedValidationStage<E, A, B> validationStage) {
+    return new ValidatedTestExecutor<>(
         contextClass,
-        successInstance,
-        failureInstance,
+        invalidInstance,
+        validInstance,
         mapper,
         includeFactoryMethods,
         includeGetters,
         includeFold,
-        includeOrElse,
+        includeSideEffects,
         includeMap,
         includeFlatMap,
-        includeRecover,
-        includeToEither,
         includeValidations,
         includeEdgeCases,
         validationStage);

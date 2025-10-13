@@ -166,40 +166,40 @@ final class StateTestExecutor<S, A, B> {
     assertThatThrownBy(() -> throwingState.run(initialState)).isSameAs(testException);
   }
 
-    private void testFlatMap() {
-        Function<A, State<S, B>> flatMapper = a -> State.pure(mapper.apply(a));
+  private void testFlatMap() {
+    Function<A, State<S, B>> flatMapper = a -> State.pure(mapper.apply(a));
 
-        // Test flatMap application
-        State<S, B> flatMappedState = stateInstance.flatMap(flatMapper);
-        assertThat(flatMappedState).isNotNull();
+    // Test flatMap application
+    State<S, B> flatMappedState = stateInstance.flatMap(flatMapper);
+    assertThat(flatMappedState).isNotNull();
 
-        StateTuple<S, B> result = flatMappedState.run(initialState);
-        assertThat(result.value()).isNotNull();
+    StateTuple<S, B> result = flatMappedState.run(initialState);
+    assertThat(result.value()).isNotNull();
 
-        // Test flatMap chaining
-        State<S, String> chainedState =
-                stateInstance.flatMap(flatMapper).flatMap(b -> State.pure(b.toString()));
-        assertThat(chainedState).isNotNull();
-        StateTuple<S, String> chainedResult = chainedState.run(initialState);
-        assertThat(chainedResult.value()).isNotNull();
+    // Test flatMap chaining
+    State<S, String> chainedState =
+        stateInstance.flatMap(flatMapper).flatMap(b -> State.pure(b.toString()));
+    assertThat(chainedState).isNotNull();
+    StateTuple<S, String> chainedResult = chainedState.run(initialState);
+    assertThat(chainedResult.value()).isNotNull();
 
-        // Test exception propagation
-        RuntimeException testException = new RuntimeException("Test exception: flatMap test");
-        Function<A, State<S, B>> throwingFlatMapper =
-                a -> {
-                    throw testException;
-                };
-        State<S, B> throwingState = stateInstance.flatMap(throwingFlatMapper);
-        assertThatThrownBy(() -> throwingState.run(initialState)).isSameAs(testException);
+    // Test exception propagation
+    RuntimeException testException = new RuntimeException("Test exception: flatMap test");
+    Function<A, State<S, B>> throwingFlatMapper =
+        a -> {
+          throw testException;
+        };
+    State<S, B> throwingState = stateInstance.flatMap(throwingFlatMapper);
+    assertThatThrownBy(() -> throwingState.run(initialState)).isSameAs(testException);
 
-        // Test null result validation
-        Function<A, State<S, B>> nullReturningMapper = a -> null;
-        State<S, B> nullState = stateInstance.flatMap(nullReturningMapper);
-        assertThatThrownBy(() -> nullState.run(initialState))
-                .isInstanceOf(KindUnwrapException.class)
-                .hasMessageContaining("flatMap")
-                .hasMessageContaining("returned null");
-    }
+    // Test null result validation
+    Function<A, State<S, B>> nullReturningMapper = a -> null;
+    State<S, B> nullState = stateInstance.flatMap(nullReturningMapper);
+    assertThatThrownBy(() -> nullState.run(initialState))
+        .isInstanceOf(KindUnwrapException.class)
+        .hasMessageContaining("flatMap")
+        .hasMessageContaining("returned null");
+  }
 
   void testValidations() {
     // Determine which class context to use for map

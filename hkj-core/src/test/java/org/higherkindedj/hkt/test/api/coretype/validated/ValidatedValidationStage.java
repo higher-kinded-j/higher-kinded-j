@@ -1,9 +1,9 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.test.api.coretype.trymonad;
+package org.higherkindedj.hkt.test.api.coretype.validated;
 
 /**
- * Stage for configuring validation contexts in Try core type tests.
+ * Stage for configuring validation contexts in Validated core type tests.
  *
  * <p>Allows specifying which implementation class should be used in validation error messages for
  * each operation, supporting inheritance hierarchies.
@@ -13,41 +13,42 @@ package org.higherkindedj.hkt.test.api.coretype.trymonad;
  * <h3>Configure Map Validation:</h3>
  *
  * <pre>{@code
- * CoreTypeTest.tryType(Try.class)
- *     .withSuccess(successInstance)
- *     .withFailure(failureInstance)
+ * CoreTypeTest.validated(Validated.class)
+ *     .withInvalid(invalidInstance)
+ *     .withValid(validInstance)
  *     .withMappers(mapper)
  *     .configureValidation()
  *         .useInheritanceValidation()
- *             .withMapFrom(TryFunctor.class)
+ *             .withMapFrom(ValidatedMonad.class)
  *         .testValidations();
  * }</pre>
  *
  * <h3>Configure Full Monad Hierarchy:</h3>
  *
  * <pre>{@code
- * CoreTypeTest.tryType(Try.class)
- *     .withSuccess(successInstance)
- *     .withFailure(failureInstance)
+ * CoreTypeTest.validated(Validated.class)
+ *     .withInvalid(invalidInstance)
+ *     .withValid(validInstance)
  *     .withMappers(mapper)
  *     .configureValidation()
  *         .useInheritanceValidation()
- *             .withMapFrom(TryFunctor.class)
- *             .withFlatMapFrom(TryMonad.class)
+ *             .withMapFrom(ValidatedMonad.class)
+ *             .withFlatMapFrom(ValidatedMonad.class)
  *         .testAll();
  * }</pre>
  *
- * @param <T> The value type
- * @param <S> The mapped type
+ * @param <E> The error type
+ * @param <A> The value type
+ * @param <B> The mapped type
  */
-public final class TryValidationStage<T, S> {
-  private final TryTestConfigStage<T, S> configStage;
+public final class ValidatedValidationStage<E, A, B> {
+  private final ValidatedTestConfigStage<E, A, B> configStage;
 
   // Validation context classes
   private Class<?> mapContext;
   private Class<?> flatMapContext;
 
-  TryValidationStage(TryTestConfigStage<T, S> configStage) {
+  ValidatedValidationStage(ValidatedTestConfigStage<E, A, B> configStage) {
     this.configStage = configStage;
   }
 
@@ -62,8 +63,8 @@ public final class TryValidationStage<T, S> {
    * <pre>{@code
    * .configureValidation()
    *     .useInheritanceValidation()
-   *         .withMapFrom(TryFunctor.class)
-   *         .withFlatMapFrom(TryMonad.class)
+   *         .withMapFrom(ValidatedMonad.class)
+   *         .withFlatMapFrom(ValidatedMonad.class)
    *     .testAll()
    * }</pre>
    *
@@ -80,7 +81,7 @@ public final class TryValidationStage<T, S> {
    *
    * @return This stage for further configuration or execution
    */
-  public TryValidationStage<T, S> useDefaultValidation() {
+  public ValidatedValidationStage<E, A, B> useDefaultValidation() {
     this.mapContext = null;
     this.flatMapContext = null;
     return this;
@@ -94,7 +95,7 @@ public final class TryValidationStage<T, S> {
      *
      * <p>Error messages for map null validations will reference this class.
      *
-     * @param contextClass The class that implements map (e.g., TryFunctor.class)
+     * @param contextClass The class that implements map (e.g., ValidatedMonad.class)
      * @return This builder for chaining
      */
     public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
@@ -107,7 +108,7 @@ public final class TryValidationStage<T, S> {
      *
      * <p>Error messages for flatMap null validations will reference this class.
      *
-     * @param contextClass The class that implements flatMap (e.g., TryMonad.class)
+     * @param contextClass The class that implements flatMap (e.g., ValidatedMonad.class)
      * @return This builder for chaining
      */
     public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
@@ -120,8 +121,8 @@ public final class TryValidationStage<T, S> {
      *
      * @return The parent validation stage for execution
      */
-    public TryValidationStage<T, S> done() {
-      return TryValidationStage.this;
+    public ValidatedValidationStage<E, A, B> done() {
+      return ValidatedValidationStage.this;
     }
 
     /**
@@ -130,12 +131,12 @@ public final class TryValidationStage<T, S> {
      * <p>Includes all test categories with the configured validation contexts.
      */
     public void testAll() {
-      TryValidationStage.this.testAll();
+      ValidatedValidationStage.this.testAll();
     }
 
     /** Executes only validation tests with configured contexts. */
     public void testValidations() {
-      TryValidationStage.this.testValidations();
+      ValidatedValidationStage.this.testValidations();
     }
   }
 
@@ -145,14 +146,14 @@ public final class TryValidationStage<T, S> {
    * <p>Includes all test categories with the configured validation contexts.
    */
   public void testAll() {
-    TryTestExecutor<T, S> executor = buildExecutor();
+    ValidatedTestExecutor<E, A, B> executor = buildExecutor();
     executor.executeAll();
   }
 
   /** Executes only validation tests with configured contexts. */
   public void testValidations() {
     // Create executor with only validations enabled
-    TryTestExecutor<T, S> executor = buildExecutor();
+    ValidatedTestExecutor<E, A, B> executor = buildExecutor();
     executor.testValidations();
   }
 
@@ -165,7 +166,7 @@ public final class TryValidationStage<T, S> {
     return flatMapContext;
   }
 
-  private TryTestExecutor<T, S> buildExecutor() {
+  private ValidatedTestExecutor<E, A, B> buildExecutor() {
     return configStage.buildExecutorWithValidation(this);
   }
 }

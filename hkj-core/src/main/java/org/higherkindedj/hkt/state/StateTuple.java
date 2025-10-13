@@ -69,7 +69,7 @@ public record StateTuple<S, A>(@Nullable A value, S state) {
    * @throws NullPointerException if {@code state} is {@code null}.
    */
   public static <S, A> StateTuple<S, A> of(S state, @Nullable A value) {
-      CoreTypeValidator.requireValue(state, StateTuple.class, Operation.OF);
-      return new StateTuple<>(value, state);
+    CoreTypeValidator.requireValue(state, StateTuple.class, Operation.OF);
+    return new StateTuple<>(value, state);
   }
 }

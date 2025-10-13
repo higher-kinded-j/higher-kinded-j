@@ -83,42 +83,41 @@ public final class ValidationTestBuilder {
     return new ValidationTestBuilder();
   }
 
+  /**
+   * Adds core type value validation to the test suite.
+   *
+   * @param executable The code that should throw
+   * @param valueName The name of the value parameter
+   * @param contextClass The class providing context
+   * @param operation The operation name
+   * @return This builder for chaining
+   */
+  public ValidationTestBuilder assertValueNull(
+      ThrowableAssert.ThrowingCallable executable,
+      String valueName,
+      Class<?> contextClass,
+      Operation operation) {
+    assertions.add(
+        () -> {
+          // Capture expected exception from production validation
+          Throwable expectedThrowable = null;
+          try {
+            // This simulates what the production validator would do
+            CoreTypeValidator.requireValue(null, valueName, contextClass, operation);
+            throw new AssertionError("Production validation should have thrown an exception");
+          } catch (Throwable t) {
+            expectedThrowable = t;
+          }
 
-    /**
-     * Adds core type value validation to the test suite.
-     *
-     * @param executable The code that should throw
-     * @param valueName The name of the value parameter
-     * @param contextClass The class providing context
-     * @param operation The operation name
-     * @return This builder for chaining
-     */
-    public ValidationTestBuilder assertValueNull(
-            ThrowableAssert.ThrowingCallable executable,
-            String valueName,
-            Class<?> contextClass,
-            Operation operation) {
-        assertions.add(() -> {
-            // Capture expected exception from production validation
-            Throwable expectedThrowable = null;
-            try {
-                // This simulates what the production validator would do
-                CoreTypeValidator.requireValue(
-                        null, valueName, contextClass, operation);
-                throw new AssertionError("Production validation should have thrown an exception");
-            } catch (Throwable t) {
-                expectedThrowable = t;
-            }
-
-            // Verify test code throws exactly the same exception
-            final Throwable expected = expectedThrowable;
-            assertThatThrownBy(executable)
-                    .isInstanceOf(expected.getClass())
-                    .hasMessage(expected.getMessage())
-                    .as("Test validation should match production CoreTypeValidator exactly");
+          // Verify test code throws exactly the same exception
+          final Throwable expected = expectedThrowable;
+          assertThatThrownBy(executable)
+              .isInstanceOf(expected.getClass())
+              .hasMessage(expected.getMessage())
+              .as("Test validation should match production CoreTypeValidator exactly");
         });
-        return this;
-    }
+    return this;
+  }
 
   /**
    * Adds mapper function validation to the test suite.
@@ -132,7 +131,6 @@ public final class ValidationTestBuilder {
     assertions.add(() -> FunctionAssertions.assertMapperNull(executable, operation));
     return this;
   }
-
 
   /**
    * Adds mapper function validation with class context to the test suite.

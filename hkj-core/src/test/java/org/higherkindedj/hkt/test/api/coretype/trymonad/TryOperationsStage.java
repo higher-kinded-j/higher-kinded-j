@@ -13,38 +13,38 @@ import org.higherkindedj.hkt.trymonad.Try;
  * @param <T> The value type
  */
 public final class TryOperationsStage<T> {
-    private final Class<?> contextClass;
-    private final Try<T> successInstance;
-    private final Try<T> failureInstance;
+  private final Class<?> contextClass;
+  private final Try<T> successInstance;
+  private final Try<T> failureInstance;
 
-    TryOperationsStage(Class<?> contextClass, Try<T> successInstance, Try<T> failureInstance) {
-        this.contextClass = contextClass;
-        this.successInstance = successInstance;
-        this.failureInstance = failureInstance;
-    }
+  TryOperationsStage(Class<?> contextClass, Try<T> successInstance, Try<T> failureInstance) {
+    this.contextClass = contextClass;
+    this.successInstance = successInstance;
+    this.failureInstance = failureInstance;
+  }
 
-    /**
-     * Provides mapping functions for testing map and flatMap operations.
-     *
-     * <p>Progressive disclosure: Next steps are test selection or execution.
-     *
-     * @param mapper The mapping function (T -> S)
-     * @param <S> The mapped type
-     * @return Configuration stage with execution options
-     */
-    public <S> TryTestConfigStage<T, S> withMappers(Function<T, S> mapper) {
-        return new TryTestConfigStage<>(contextClass, successInstance, failureInstance, mapper);
-    }
+  /**
+   * Provides mapping functions for testing map and flatMap operations.
+   *
+   * <p>Progressive disclosure: Next steps are test selection or execution.
+   *
+   * @param mapper The mapping function (T -> S)
+   * @param <S> The mapped type
+   * @return Configuration stage with execution options
+   */
+  public <S> TryTestConfigStage<T, S> withMappers(Function<T, S> mapper) {
+    return new TryTestConfigStage<>(contextClass, successInstance, failureInstance, mapper);
+  }
 
-    /**
-     * Skip mapper configuration and proceed to testing.
-     *
-     * <p>This is useful when you only want to test operations that don't require mappers (like fold,
-     * orElse, get).
-     *
-     * @return Configuration stage without mappers
-     */
-    public TryTestConfigStage<T, String> withoutMappers() {
-        return new TryTestConfigStage<>(contextClass, successInstance, failureInstance, null);
-    }
+  /**
+   * Skip mapper configuration and proceed to testing.
+   *
+   * <p>This is useful when you only want to test operations that don't require mappers (like fold,
+   * orElse, get).
+   *
+   * @return Configuration stage without mappers
+   */
+  public TryTestConfigStage<T, String> withoutMappers() {
+    return new TryTestConfigStage<>(contextClass, successInstance, failureInstance, null);
+  }
 }
