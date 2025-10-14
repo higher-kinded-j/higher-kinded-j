@@ -50,7 +50,7 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @throws NullPointerException if {@code fn} is null.
    */
   public <B> Id<B> map(Function<? super A, ? extends B> fn) {
-    FunctionValidator.requireMapper(fn, ID_CLASS, MAP);
+    FunctionValidator.requireMapper(fn, "fn", ID_CLASS, MAP);
     return new Id<>(fn.apply(value()));
   }
 
@@ -64,10 +64,10 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @throws NullPointerException if fn is null or if fn returns a null Id.
    */
   public <B> Id<B> flatMap(Function<? super A, ? extends Id<? extends B>> fn) {
-    FunctionValidator.requireFlatMapper(fn, ID_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(fn, "fn", ID_CLASS, FLAT_MAP);
 
     Id<? extends B> result = fn.apply(value());
-    FunctionValidator.requireNonNullResult(result, FLAT_MAP, ID_CLASS);
+    FunctionValidator.requireNonNullResult(result, "fn", ID_CLASS, FLAT_MAP, ID_CLASS);
 
     // The cast is safe because fn returns Id<? extends B> which is covariant
     @SuppressWarnings("unchecked")

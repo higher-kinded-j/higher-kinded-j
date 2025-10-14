@@ -340,13 +340,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(Supplier<? extends T> supplier) {
-      FunctionValidator.requireFunction(supplier, "supplier", Try.Success.class, OR_ELSE_GET);
+      FunctionValidator.requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
       return value;
     }
 
     @Override
     public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
-      FunctionValidator.requireMapper(mapper, Try.Success.class, MAP);
+      FunctionValidator.requireMapper(mapper, "mapper", Try.class, MAP);
       try {
         return new Success<>(mapper.apply(value));
       } catch (Throwable t) {
@@ -356,7 +356,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, Try.Success.class, FLAT_MAP);
+      FunctionValidator.requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
       Try<? extends U> result;
       try {
         result = mapper.apply(value);
@@ -364,7 +364,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
         return new Failure<>(t);
       }
 
-      FunctionValidator.requireNonNullResult(result, FLAT_MAP, Try.class);
+      FunctionValidator.requireNonNullResult(result, "mapper", Try.class,  FLAT_MAP, TRY_CLASS);
       @SuppressWarnings("unchecked")
       Try<U> typedResult = (Try<U>) result;
       return typedResult;
@@ -373,7 +373,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     @Override
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
       FunctionValidator.requireFunction(
-          recoveryFunction, "recoveryFunction", Try.Success.class, RECOVER_FUNCTION);
+          recoveryFunction, "recoveryFunction", Try.class, RECOVER_FUNCTION);
       return this;
     }
 
@@ -381,9 +381,14 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     public Try<T> recoverWith(
         Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
       FunctionValidator.requireFunction(
-          recoveryFunction, "recoveryFunction", Try.Success.class, RECOVER_WITH);
+          recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
       return this;
     }
+
+      @Override
+      public String toString() {
+          return "Success(" + value + ")";
+      }
   }
 
   /**
@@ -417,13 +422,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(Supplier<? extends T> supplier) {
-      FunctionValidator.requireFunction(supplier, "supplier", Try.Failure.class, OR_ELSE_GET);
+      FunctionValidator.requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
       return supplier.get();
     }
 
     @Override
     public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
-      FunctionValidator.requireMapper(mapper, Try.Failure.class, MAP);
+      FunctionValidator.requireMapper(mapper, "mapper", Try.class, MAP);
       @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
       return self;
@@ -431,7 +436,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, Try.Failure.class, FLAT_MAP);
+      FunctionValidator.requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
       @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
       return self;
@@ -440,7 +445,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     @Override
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
       FunctionValidator.requireFunction(
-          recoveryFunction, "recoveryFunction", Try.Failure.class, RECOVER);
+          recoveryFunction, "recoveryFunction", Try.class, RECOVER);
       try {
         return new Success<>(recoveryFunction.apply(cause));
       } catch (Throwable t) {
@@ -452,17 +457,22 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     public Try<T> recoverWith(
         Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
       FunctionValidator.requireFunction(
-          recoveryFunction, "recoveryFunction", Try.Failure.class, RECOVER_WITH);
+          recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
       Try<? extends T> result;
       try {
         result = recoveryFunction.apply(cause);
       } catch (Throwable t) {
         return new Failure<>(t);
       }
-      FunctionValidator.requireNonNullResult(result, RECOVER_WITH, Try.class);
+      FunctionValidator.requireNonNullResult(result, "recoveryFunction", Try.class, RECOVER_WITH, Try.class);
       @SuppressWarnings("unchecked")
       Try<T> typedResult = (Try<T>) result;
       return typedResult;
     }
+
+      @Override
+      public String toString() {
+          return "Failure(" + cause + ")";
+      }
   }
 }

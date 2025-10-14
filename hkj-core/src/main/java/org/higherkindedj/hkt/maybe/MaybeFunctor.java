@@ -62,7 +62,7 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, MAYBE_FUNCTOR_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", MAYBE_FUNCTOR_CLASS, MAP);
     KindValidator.requireNonNull(fa, MAYBE_FUNCTOR_CLASS, MAP);
 
     Maybe<A> maybeA = MAYBE.narrow(fa);

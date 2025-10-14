@@ -91,7 +91,7 @@ public final class IdMonad implements Monad<Id.Witness> {
   public <A, B> Kind<Id.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<Id.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, ID_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", ID_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, ID_MONAD_CLASS, MAP);
 
     return ID.narrow(fa).map(f);
@@ -159,12 +159,12 @@ public final class IdMonad implements Monad<Id.Witness> {
   public <A, B> Kind<Id.Witness, B> flatMap(
       Function<? super A, ? extends Kind<Id.Witness, B>> f, Kind<Id.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, ID_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", ID_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, ID_MONAD_CLASS, FLAT_MAP);
 
     A valueInA = ID.narrow(ma).value();
     Kind<Id.Witness, B> resultKind = f.apply(valueInA);
-    FunctionValidator.requireNonNullResult(resultKind, FLAT_MAP, Id.class);
+    FunctionValidator.requireNonNullResult(resultKind, "f", ID_MONAD_CLASS, FLAT_MAP, Kind.class);
     return resultKind;
   }
 }

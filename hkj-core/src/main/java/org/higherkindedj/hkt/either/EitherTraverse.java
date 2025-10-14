@@ -66,7 +66,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, B> Kind<EitherKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<E>, A> fa) {
-    FunctionValidator.requireMapper(f, EITHER_TRAVERSE_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", EITHER_TRAVERSE_CLASS, MAP);
     KindValidator.requireNonNull(fa, EITHER_TRAVERSE_CLASS, MAP);
 
     Either<E, A> either = EITHER.narrow(fa);
@@ -106,8 +106,8 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<EitherKind.Witness<E>, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, EITHER_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, EITHER_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(applicative, "applicative", EITHER_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireMapper(f, "f", EITHER_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, EITHER_TRAVERSE_CLASS, TRAVERSE);
 
     Either<E, A> either = EITHER.narrow(ta);
@@ -146,7 +146,7 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<EitherKind.Witness<E>, A> fa) {
     FunctionValidator.requireMonoid(monoid, "monoid", EITHER_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, EITHER_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMapper(f, "f", EITHER_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, EITHER_TRAVERSE_CLASS, FOLD_MAP);
 
     Either<E, A> either = EITHER.narrow(fa);

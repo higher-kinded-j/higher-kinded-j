@@ -172,7 +172,7 @@ final class LazyTestExecutor<A, B> {
     Lazy<B> nullLazy = deferredInstance.flatMap(nullReturningMapper);
     assertThatThrownBy(() -> nullLazy.force())
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining("Function in flatMap returned null");
+        .hasMessageContaining( "Function f in Lazy.flatMap returned null when Lazy expected, which is not allowed");
   }
 
   void testValidations() {
@@ -191,11 +191,11 @@ final class LazyTestExecutor<A, B> {
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
     // Map validations
-    builder.assertMapperNull(() -> deferredInstance.map(null), mapContext, Operation.MAP);
+    builder.assertMapperNull(() -> deferredInstance.map(null), "f", mapContext, Operation.MAP);
 
     // FlatMap validations
     builder.assertFlatMapperNull(
-        () -> deferredInstance.flatMap(null), flatMapContext, Operation.FLAT_MAP);
+        () -> deferredInstance.flatMap(null), "f", flatMapContext, Operation.FLAT_MAP);
 
     builder.execute();
   }

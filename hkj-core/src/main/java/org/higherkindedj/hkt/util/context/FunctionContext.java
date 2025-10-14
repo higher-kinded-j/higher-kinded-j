@@ -12,16 +12,16 @@ public record FunctionContext(String functionName, String operation) implements 
     Objects.requireNonNull(operation, "operation cannot be null");
   }
 
-  public static FunctionContext mapper(String operation) {
-    return new FunctionContext("function f", operation);
+  public static FunctionContext mapper(String functionName, String operation) {
+    return new FunctionContext(functionName, operation);
   }
 
-  public static FunctionContext flatMapper(String operation) {
-    return new FunctionContext("function f", operation);
+  public static FunctionContext flatMapper(String functionName, String operation) {
+    return new FunctionContext(functionName, operation);
   }
 
-  public static FunctionContext applicative(String operation) {
-    return new FunctionContext("applicative instance", operation);
+  public static FunctionContext applicative(String applicativeName, String operation) {
+    return new FunctionContext(applicativeName, operation);
   }
 
   @Override

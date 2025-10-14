@@ -48,7 +48,7 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
   public <A, B> Kind<WriterKind.Witness<W>, B> map(
       Function<? super A, ? extends B> f, Kind<WriterKind.Witness<W>, A> fa) {
 
-    FunctionValidator.requireMapper(f, WRITER_FUNCTER_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", WRITER_FUNCTER_CLASS, MAP);
     KindValidator.requireNonNull(fa, WRITER_FUNCTER_CLASS, MAP);
 
     Writer<W, A> writerA = WRITER.narrow(fa);

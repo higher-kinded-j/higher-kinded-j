@@ -101,7 +101,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, ListMonad.class, MAP);
+    FunctionValidator.requireMapper(f, "f", ListMonad.class, MAP);
     KindValidator.requireNonNull(fa, ListMonad.class, MAP);
 
     return ListFunctor.INSTANCE.map(f, fa);
@@ -127,7 +127,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<ListKind.Witness, B>> f, Kind<ListKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, ListMonad.class, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", ListMonad.class, FLAT_MAP);
     KindValidator.requireNonNull(ma, ListMonad.class, FLAT_MAP);
 
     List<A> inputList = LIST.narrow(ma);
@@ -135,7 +135,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
 
     for (A a : inputList) {
       Kind<ListKind.Witness, B> kindB = f.apply(a);
-      FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, List.class);
+      FunctionValidator.requireNonNullResult(kindB, "f", ListMonad.class, FLAT_MAP, Kind.class);
       resultList.addAll(LIST.narrow(kindB));
     }
     return LIST.widen(resultList);

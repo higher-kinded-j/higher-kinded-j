@@ -28,7 +28,7 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, MAYBE_TRAVERSE_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, MAP);
     KindValidator.requireNonNull(fa, MAYBE_TRAVERSE_CLASS, MAP);
 
     return MAYBE.widen(MAYBE.narrow(fa).map(f));
@@ -40,8 +40,8 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<MaybeKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, MAYBE_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(applicative, "applicative", MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, MAYBE_TRAVERSE_CLASS, TRAVERSE);
 
     final Maybe<A> maybe = MAYBE.narrow(ta);
@@ -60,7 +60,7 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<MaybeKind.Witness, A> fa) {
 
     FunctionValidator.requireMonoid(monoid, "monoid", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
 
     final Maybe<A> maybe = MAYBE.narrow(fa);

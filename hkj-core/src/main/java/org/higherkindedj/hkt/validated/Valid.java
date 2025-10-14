@@ -93,17 +93,17 @@ public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, 
 
   @Override
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
-    FunctionValidator.requireMapper(fn, VALID_CLASS, MAP);
+    FunctionValidator.requireMapper(fn, "f", VALID_CLASS, MAP);
     B newValue = fn.apply(value);
-    FunctionValidator.requireNonNullResult(newValue, VALID_CLASS, MAP);
+    FunctionValidator.requireNonNullResult(newValue, "fn", VALID_CLASS, MAP);
     return new Valid<>(newValue);
   }
 
   @Override
   public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
-    FunctionValidator.requireFlatMapper(fn, VALID_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(fn, "fn", VALID_CLASS, FLAT_MAP);
     Validated<E, ? extends B> result = fn.apply(value);
-    FunctionValidator.requireNonNullResult(result, VALID_CLASS, FLAT_MAP);
+    FunctionValidator.requireNonNullResult(result, "fn", VALID_CLASS, FLAT_MAP, Validated.class);
 
     @SuppressWarnings("unchecked")
     Validated<E, B> typedResult = (Validated<E, B>) result;

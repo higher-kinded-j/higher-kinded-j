@@ -81,9 +81,9 @@ public final class FunctionAssertions {
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String mapperName, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireMapper(null, operation.toString()));
+        executable, () -> FunctionValidator.requireMapper(null, mapperName, operation.toString()));
   }
 
   /**
@@ -95,9 +95,9 @@ public final class FunctionAssertions {
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFlatMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String flatMapperName, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireFlatMapper(null, operation.toString()));
+        executable, () -> FunctionValidator.requireFlatMapper(null, flatMapperName, operation.toString()));
   }
 
   /**
@@ -109,9 +109,9 @@ public final class FunctionAssertions {
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String applicativeName, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireApplicative(null, operation.toString()));
+        executable, () -> FunctionValidator.requireApplicative(null, applicativeName, operation.toString()));
   }
 
   /**
@@ -159,9 +159,9 @@ public final class FunctionAssertions {
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String mapperName, Class<?> contextClass, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireMapper(null, contextClass, operation));
+        executable, () -> FunctionValidator.requireMapper(null, mapperName, contextClass, operation));
   }
 
   /**
@@ -174,9 +174,9 @@ public final class FunctionAssertions {
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFlatMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String flatMapperName, Class<?> contextClass, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireFlatMapper(null, contextClass, operation));
+        executable, () -> FunctionValidator.requireFlatMapper(null, flatMapperName, contextClass, operation));
   }
 
   /**
@@ -189,9 +189,9 @@ public final class FunctionAssertions {
    * @throws AssertionError if validation doesn't match production behavior
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireApplicative(null, contextClass, operation));
+        executable, () -> FunctionValidator.requireApplicative(null, applicativeName, contextClass, operation));
   }
 
   /**

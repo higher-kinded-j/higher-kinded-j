@@ -126,7 +126,7 @@ public interface Reader<R, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> Reader<R, B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, READER_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", READER_CLASS, MAP);
     return (R r) -> f.apply(this.run(r));
   }
 
@@ -152,11 +152,11 @@ public interface Reader<R, A> {
    *     Reader}.
    */
   default <B> Reader<R, B> flatMap(Function<? super A, ? extends Reader<R, ? extends B>> f) {
-    FunctionValidator.requireFlatMapper(f, READER_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", READER_CLASS, FLAT_MAP);
     return (R r) -> {
       A a = this.run(r);
       Reader<R, ? extends B> readerB = f.apply(a);
-      FunctionValidator.requireNonNullResult(readerB, FLAT_MAP, READER_CLASS);
+      FunctionValidator.requireNonNullResult(readerB, "f", READER_CLASS, FLAT_MAP, READER_CLASS);
       return readerB.run(r);
     };
   }

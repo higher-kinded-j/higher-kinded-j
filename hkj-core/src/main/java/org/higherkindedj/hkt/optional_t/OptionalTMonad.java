@@ -79,7 +79,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
   public <A, B> Kind<OptionalTKind.Witness<F>, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalTKind.Witness<F>, A> fa) {
 
-    FunctionValidator.requireMapper(f, OPTIONAL_T_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", OPTIONAL_T_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, OPTIONAL_T_MONAD_CLASS, MAP);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(fa);
@@ -150,7 +150,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       Function<? super A, ? extends Kind<OptionalTKind.Witness<F>, B>> f,
       Kind<OptionalTKind.Witness<F>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
@@ -162,7 +162,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
                         a -> {
                           Kind<OptionalTKind.Witness<F>, B> resultKind = f.apply(a);
                           FunctionValidator.requireNonNullResult(
-                              resultKind, OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
+                              resultKind, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
                           OptionalT<F, B> resultT = OPTIONAL_T.narrow(resultKind);
                           return resultT.value();
                         })
@@ -226,7 +226,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
               } else {
                 Kind<OptionalTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
                 FunctionValidator.requireNonNullResult(
-                    resultKind, OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH);
+                    resultKind, "handler", OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
                 OptionalT<F, A> resultT = OPTIONAL_T.narrow(resultKind);
                 return resultT.value();
               }

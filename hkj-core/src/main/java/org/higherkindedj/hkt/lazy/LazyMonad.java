@@ -60,7 +60,7 @@ public class LazyMonad
   public <A, B> Kind<LazyKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<LazyKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, LAZY_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", LAZY_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, LAZY_MONAD_CLASS, MAP);
 
     Lazy<A> lazyA = LAZY.narrow(fa);
@@ -136,7 +136,7 @@ public class LazyMonad
   public <A, B> Kind<LazyKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<LazyKind.Witness, B>> f, Kind<LazyKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, LAZY_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", LAZY_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, LAZY_MONAD_CLASS, FLAT_MAP);
 
     Lazy<A> lazyA = LAZY.narrow(ma);
@@ -145,7 +145,7 @@ public class LazyMonad
         lazyA.flatMap(
             a -> {
               Kind<LazyKind.Witness, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, Lazy.class);
+              FunctionValidator.requireNonNullResult(kindB, "f", LAZY_MONAD_CLASS, FLAT_MAP, Kind.class);
               return LAZY.narrow(kindB);
             });
     return LAZY.widen(lazyB);

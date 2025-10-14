@@ -220,9 +220,9 @@ final class StateTestExecutor<S, A, B> {
     if (validationStage != null && validationStage.getMapContext() != null) {
       StateFunctor<S> functor = new StateFunctor<>();
       Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
-      builder.assertMapperNull(() -> stateInstance.map(null), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> stateInstance.map(null), "f", mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
@@ -230,10 +230,10 @@ final class StateTestExecutor<S, A, B> {
       StateMonad<S> monad = new StateMonad<>();
       Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
     } else {
       builder.assertFlatMapperNull(
-          () -> stateInstance.flatMap(null), flatMapContext, Operation.FLAT_MAP);
+          () -> stateInstance.flatMap(null), "f", flatMapContext, Operation.FLAT_MAP);
     }
 
     // Factory method validations

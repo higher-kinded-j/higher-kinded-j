@@ -71,7 +71,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
   public <A, B> Kind<TryKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, TRY_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", TRY_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, TRY_MONAD_CLASS, FLAT_MAP);
 
     Try<A> tryA = TRY.narrow(ma);
@@ -81,7 +81,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             a -> {
               try {
                 Kind<TryKind.Witness, B> kindB = f.apply(a);
-                FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, Try.class);
+                FunctionValidator.requireNonNullResult(kindB, "f", TRY_MONAD_CLASS, FLAT_MAP, Kind.class);
                 return TRY.narrow(kindB);
               } catch (Throwable t) {
                 return Try.failure(t);
@@ -135,7 +135,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             throwable -> {
               try {
                 Kind<TryKind.Witness, A> recoveryKind = handler.apply(throwable);
-                FunctionValidator.requireNonNullResult(recoveryKind, HANDLE_ERROR_WITH, Try.class);
+                FunctionValidator.requireNonNullResult(recoveryKind, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
                 return TRY.narrow(recoveryKind);
               } catch (Throwable t) {
                 return Try.failure(t);

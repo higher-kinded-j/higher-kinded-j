@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.test.assertions.KindAssertions.assertKindUnwrapException;
+
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,6 +14,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -24,7 +25,7 @@ import org.junit.jupiter.api.Test;
 class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
 
     private final String successValue = "Success Value";
-    private final RuntimeException failureException = new RuntimeException("Operation failed");
+    private final RuntimeException failureException = new RuntimeException("Test exception: map test");
     private final IOException checkedException = new IOException("Checked I/O failed");
     private final Error error = new StackOverflowError("Stack overflow simulation");
 
@@ -369,11 +370,11 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         void orElseGet_shouldThrowIfSupplierIsNull() {
             assertThatNullPointerException()
                     .isThrownBy(() -> failureInstance.orElseGet(null))
-                    .withMessageContaining("Function supplier for Failure.orElseGet cannot be null");
+                    .withMessageContaining("Function supplier for Try.orElseGet cannot be null");
 
             assertThatNullPointerException()
                     .isThrownBy(() -> successInstance.orElseGet(null))
-                    .withMessageContaining("Function supplier for Success.orElseGet cannot be null");
+                    .withMessageContaining("Function supplier for Try.orElseGet cannot be null");
         }
     }
 
@@ -585,11 +586,11 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         void map_shouldThrowIfMapperIsNull() {
             assertThatNullPointerException()
                     .isThrownBy(() -> successInstance.map(null))
-                    .withMessageContaining("Function function f for Success.map cannot be null");
+                    .withMessageContaining("Function mapper for Try.map cannot be null");
 
             assertThatNullPointerException()
                     .isThrownBy(() -> failureInstance.map(null))
-                    .withMessageContaining("mapper cannot be null");
+                    .withMessageContaining("Function mapper for Try.map cannot be null");
         }
     }
 
@@ -647,21 +648,21 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         void flatMap_shouldThrowIfMapperIsNull() {
             assertThatException()
                     .isThrownBy(() -> successInstance.flatMap(null))
-                    .withMessageContaining("unction function f for Success.flatMap cannot be null");
+                    .withMessageContaining("Function mapper for Try.flatMap cannot be null");
 
             assertThatNullPointerException()
                     .isThrownBy(() -> failureInstance.flatMap(null))
-                    .withMessageContaining("Function function f for Failure.flatMap cannot be null");
+                    .withMessageContaining("Function mapper for Try.flatMap cannot be null");
         }
 
         @Test
         @DisplayName("flatMap() on Success should throw NPE if mapper returns null")
         void flatMap_onSuccess_shouldThrowIfMapperReturnsNull() {
             Function<String, Try<Integer>> mapperNull = s -> null;
-            assertThatNullPointerException()
-                    .isThrownBy(() -> successInstance.flatMap(mapperNull))
-                    .withMessageContaining(
-                            "flatMap mapper returned a null Try instance, which is not allowed");
+            assertThatThrownBy(() -> successInstance.flatMap(mapperNull))
+                    .isInstanceOf(KindUnwrapException.class)
+                    .hasMessageContaining(
+                            "Function mapper in Try.flatMap returned null when Try expected, which is not allowed");
         }
     }
 
@@ -728,11 +729,11 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         void recover_shouldThrowIfRecoveryFuncIsNull() {
             assertThatNullPointerException()
                     .isThrownBy(() -> failureInstance.recover(null))
-                    .withMessageContaining("Function recoveryFunction for Failure.recover cannot be null");
+                    .withMessageContaining("Function recoveryFunction for Try.recover cannot be null");
 
             assertThatNullPointerException()
                     .isThrownBy(() -> successInstance.recover(null))
-                    .withMessageContaining("Function recoveryFunction for Success.recoverFunction cannot be null");
+                    .withMessageContaining("Function recoveryFunction for Try.recoverFunction cannot be null");
         }
     }
 
@@ -789,12 +790,11 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         }
 
         @Test
-        @DisplayName("recoverWith() on Failure should throw NPE if recovery func returns null")
+        @DisplayName("recoverWith() on Failure should throw KindUnwrapException if recovery func returns null")
         void recoverWith_onFailure_shouldThrowIfRecoveryFuncReturnsNull() {
-            assertThatNullPointerException()
-                    .isThrownBy(() -> failureInstance.recoverWith(nullReturningRecoveryFunc))
-                    .withMessageContaining(
-                            "recoverWith function returned a null Try instance, which is not allowed");
+            assertThatThrownBy(() -> failureInstance.recoverWith(nullReturningRecoveryFunc))
+                    .isInstanceOf(KindUnwrapException.class)
+                    .hasMessageContaining("Function recoveryFunction in Try.recoverWith returned null when Try expected, which is not allowed");
         }
 
         @Test
@@ -802,11 +802,11 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         void recoverWith_shouldThrowIfRecoveryFuncIsNull() {
             assertThatNullPointerException()
                     .isThrownBy(() -> failureInstance.recoverWith(null))
-                    .withMessageContaining("Function recoveryFunction for Failure.recoverWith cannot be null");
+                    .withMessageContaining("Function recoveryFunction for Try.recoverWith cannot be null");
 
             assertThatNullPointerException()
                     .isThrownBy(() -> successInstance.recoverWith(null))
-                    .withMessageContaining("Function recoveryFunction for Success.recoverWith cannot be null");
+                    .withMessageContaining("Function recoveryFunction for Try.recoverWith cannot be null");
         }
     }
 
@@ -900,16 +900,16 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         @Test
         @DisplayName("toString() on Success")
         void toString_onSuccess() {
-            assertThat(successInstance.toString()).isEqualTo("Success[value=" + successValue + "]");
-            assertThat(successNullInstance.toString()).isEqualTo("Success[value=null]");
+            assertThat(successInstance.toString()).isEqualTo("Success(" +successValue + ")");
+            assertThat(successNullInstance.toString()).isEqualTo("Success(null)");
         }
 
         @Test
         @DisplayName("toString() on Failure")
         void toString_onFailure() {
-            assertThat(failureInstance.toString()).isEqualTo("Failure[cause=" + failureException + "]");
+            assertThat(failureInstance.toString()).isEqualTo("Failure(" + failureException + ")");
             assertThat(failureCheckedInstance.toString())
-                    .isEqualTo("Failure[cause=" + checkedException + "]");
+                    .isEqualTo("Failure(" + checkedException + ")");
         }
 
         @Test

@@ -38,7 +38,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    FunctionValidator.requireMapper(f, VALIDATED_TRAVERSE_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", VALIDATED_TRAVERSE_CLASS, MAP);
     KindValidator.requireNonNull(fa, VALIDATED_TRAVERSE_CLASS, MAP);
 
     return VALIDATED.widen(VALIDATED.narrow(fa).map(f));
@@ -50,8 +50,8 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ValidatedKind.Witness<E>, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, VALIDATED_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, VALIDATED_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(applicative, "applicative", VALIDATED_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireMapper(f, "f", VALIDATED_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, VALIDATED_TRAVERSE_CLASS, TRAVERSE);
 
     return VALIDATED
@@ -69,7 +69,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
     FunctionValidator.requireMonoid(monoid, "monoid", VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMapper(f, "f", VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
 
     // If Valid, map the value. If Invalid, return the monoid's empty value.

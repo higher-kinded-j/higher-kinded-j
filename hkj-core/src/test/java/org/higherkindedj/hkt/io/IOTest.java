@@ -209,7 +209,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThatThrownBy(flatMapped::unsafeRunSync)
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function in flatMap returned null");
+          .hasMessageContaining("Function f in IO.flatMap returned null when IO expected, which is not allowed");
     }
   }
 
@@ -344,8 +344,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThatThrownBy(() -> io.map(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function f")
-          .hasMessageContaining("map");
+          .hasMessageContaining("Function f for IO.map cannot be null");
     }
 
     @Test
@@ -355,8 +354,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThatThrownBy(() -> io.flatMap(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function f")
-          .hasMessageContaining("flatMap");
+          .hasMessageContaining("Function f for IO.flatMap cannot be null");
     }
 
     @Test
@@ -364,8 +362,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void testFunctorMapValidatesNullFunction() {
       assertThatThrownBy(() -> functor.map(null, validKind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function f")
-          .hasMessageContaining("map");
+          .hasMessageContaining("Function f for IOFunctor.map cannot be null");
     }
 
     @Test
@@ -382,8 +379,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void testMonadFlatMapValidatesNullFunction() {
       assertThatThrownBy(() -> monad.flatMap(null, validKind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function f")
-          .hasMessageContaining("flatMap");
+          .hasMessageContaining("Function f for IOMonad.flatMap cannot be null");
     }
 
     @Test

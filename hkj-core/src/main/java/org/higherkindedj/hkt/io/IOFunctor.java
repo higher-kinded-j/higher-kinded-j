@@ -57,7 +57,7 @@ public class IOFunctor implements Functor<IOKind.Witness> {
   public <A, B> Kind<IOKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<IOKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, IO_FUNCTOR_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", IO_FUNCTOR_CLASS, MAP);
     KindValidator.requireNonNull(fa, IO_FUNCTOR_CLASS, MAP);
 
     IO<A> ioA = IO_OP.narrow(fa);

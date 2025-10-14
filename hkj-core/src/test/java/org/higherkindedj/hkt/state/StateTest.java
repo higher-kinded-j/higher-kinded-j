@@ -412,7 +412,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("map() throws NullPointerException for null mapper")
     void mapThrowsForNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> incrementState.map(null), State.class, Operation.MAP)
+          .assertMapperNull(() -> incrementState.map(null), "f", State.class, Operation.MAP)
           .execute();
     }
 
@@ -477,7 +477,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("flatMap() throws NullPointerException for null mapper")
     void flatMapThrowsForNullMapper() {
       ValidationTestBuilder.create()
-          .assertFlatMapperNull(() -> incrementState.flatMap(null), State.class, Operation.FLAT_MAP)
+          .assertFlatMapperNull(() -> incrementState.flatMap(null), "f", State.class, Operation.FLAT_MAP)
           .execute();
     }
 
@@ -489,7 +489,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
 
       assertThatThrownBy(() -> state.run(initialState))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function in flatMap returned null, which is not allowed");
+          .hasMessageContaining("Function f in State.flatMap returned null when State expected, which is not allowed");
     }
 
     @Test

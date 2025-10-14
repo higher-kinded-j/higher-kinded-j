@@ -85,7 +85,7 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
       Function<? super @Nullable A, ? extends Kind<CompletableFutureKind.Witness, B>> f,
       Kind<CompletableFutureKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, COMPLETABLE_FUTURE_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", COMPLETABLE_FUTURE_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, COMPLETABLE_FUTURE_MONAD_CLASS, FLAT_MAP);
 
     CompletableFuture<A> futureA = FUTURE.narrow(ma);

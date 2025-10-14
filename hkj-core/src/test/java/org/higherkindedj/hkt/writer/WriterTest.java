@@ -344,7 +344,7 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("map() validates null mapper using standardised validation")
     void mapValidatesNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> valueWriter.map(null), Writer.class, Operation.MAP)
+          .assertMapperNull(() -> valueWriter.map(null), "f", Writer.class, Operation.MAP)
           .execute();
     }
 
@@ -438,7 +438,7 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
               Writer.class,
               Operation.FLAT_MAP)
           .assertFlatMapperNull(
-              () -> valueWriter.flatMap(stringMonoid, null), Writer.class, Operation.FLAT_MAP)
+              () -> valueWriter.flatMap(stringMonoid, null), "f", Writer.class, Operation.FLAT_MAP)
           .execute();
     }
 
@@ -449,7 +449,7 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
 
       assertThatThrownBy(() -> valueWriter.flatMap(stringMonoid, nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function in flatMap returned null, which is not allowed");
+          .hasMessageContaining("Function f in Writer.flatMap returned null when Writer expected, which is not allowed");
     }
 
     @Test

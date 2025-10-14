@@ -112,7 +112,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   public <B> Writer<W, B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, WRITER_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", WRITER_CLASS, MAP);
     return new Writer<>(this.log, f.apply(this.value));
   }
 
@@ -141,10 +141,10 @@ public record Writer<W, A>(W log, @Nullable A value) {
       Monoid<W> monoidW, Function<? super A, ? extends Writer<W, ? extends B>> f) {
 
     FunctionValidator.requireMonoid(monoidW, "monoidW", WRITER_CLASS, FLAT_MAP);
-    FunctionValidator.requireFlatMapper(f, WRITER_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", WRITER_CLASS, FLAT_MAP);
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);
-    FunctionValidator.requireNonNullResult(nextWriter, FLAT_MAP, Writer.class);
+    FunctionValidator.requireNonNullResult(nextWriter, "f", WRITER_CLASS, FLAT_MAP, WRITER_CLASS);
 
     W combinedLog = monoidW.combine(this.log, nextWriter.log());
     // The cast to B is safe due to the ? extends B in the function's return type.

@@ -6,6 +6,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 
@@ -129,7 +131,7 @@ public interface IO<A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> IO<B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, IO.class, MAP);
+    FunctionValidator.requireMapper(f, "f", IO.class, MAP);
     return IO.delay(() -> f.apply(this.unsafeRunSync()));
   }
 
@@ -156,12 +158,12 @@ public interface IO<A> {
    * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
    */
   default <B> IO<B> flatMap(Function<? super A, ? extends IO<B>> f) {
-    FunctionValidator.requireFlatMapper(f, IO.class, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", IO.class, FLAT_MAP);
     return IO.delay(
         () -> {
           A a = this.unsafeRunSync();
           IO<B> nextIO = f.apply(a);
-          FunctionValidator.requireNonNullResult(nextIO, FLAT_MAP, IO.class);
+          FunctionValidator.requireNonNullResult(nextIO, "f", IO.class, FLAT_MAP, IO.class);
           return nextIO.unsafeRunSync();
         });
   }

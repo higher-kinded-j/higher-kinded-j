@@ -81,7 +81,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
   public <R_IN, R_OUT> Kind<EitherTKind.Witness<F, L>, R_OUT> map(
       Function<? super R_IN, ? extends R_OUT> f, Kind<EitherTKind.Witness<F, L>, R_IN> fa) {
 
-    FunctionValidator.requireMapper(f, EITHER_T_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", EITHER_T_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, EITHER_T_MONAD_CLASS, MAP);
 
     EitherT<F, L, R_IN> eitherT = EITHER_T.narrow(fa);
@@ -147,7 +147,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
       Function<? super R_IN, ? extends Kind<EitherTKind.Witness<F, L>, R_OUT>> f,
       Kind<EitherTKind.Witness<F, L>, R_IN> ma) {
 
-    FunctionValidator.requireFlatMapper(f, EITHER_T_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", EITHER_T_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, EITHER_T_MONAD_CLASS, FLAT_MAP);
 
     EitherT<F, L, R_IN> eitherT_ma = EITHER_T.narrow(ma);
@@ -158,7 +158,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
               if (innerEither.isRight()) {
                 R_IN r_in = innerEither.getRight();
                 Kind<EitherTKind.Witness<F, L>, R_OUT> resultKindT = f.apply(r_in);
-                FunctionValidator.requireNonNullResult(resultKindT, EITHER_T_MONAD_CLASS, FLAT_MAP);
+                FunctionValidator.requireNonNullResult(resultKindT, "f", EITHER_T_MONAD_CLASS, FLAT_MAP);
                 EitherT<F, L, R_OUT> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R_OUT>>
               } else {
@@ -226,7 +226,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
                 L leftVal = innerEither.getLeft();
                 Kind<EitherTKind.Witness<F, L>, R> resultKindT = handler.apply(leftVal);
                 FunctionValidator.requireNonNullResult(
-                    resultKindT, HANDLE_ERROR_WITH, EitherT.class);
+                    resultKindT, "handler",EitherT.class, HANDLE_ERROR_WITH,  Kind.class);
                 EitherT<F, L, R> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R>>
               }

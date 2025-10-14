@@ -180,7 +180,7 @@ final class IOTestExecutor<A, B> {
     IO<B> nullIO = ioInstance.flatMap(nullReturningMapper);
     assertThatThrownBy(nullIO::unsafeRunSync)
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining("Function in flatMap returned null");
+        .hasMessageContaining("Function f in IO.flatMap returned null when IO expected, which is not allowed");
   }
 
   void testValidations() {
@@ -203,10 +203,10 @@ final class IOTestExecutor<A, B> {
       // Use the type class interface validation
       IOFunctor functor = new IOFunctor();
       Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
       // Use the instance method
-      builder.assertMapperNull(() -> ioInstance.map(null), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> ioInstance.map(null), "f", mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
@@ -215,11 +215,11 @@ final class IOTestExecutor<A, B> {
       IOMonad monad = IOMonad.INSTANCE;
       Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
     } else {
       // Use the instance method
       builder.assertFlatMapperNull(
-          () -> ioInstance.flatMap(null), flatMapContext, Operation.FLAT_MAP);
+          () -> ioInstance.flatMap(null), "f", flatMapContext, Operation.FLAT_MAP);
     }
 
     // Delay validation

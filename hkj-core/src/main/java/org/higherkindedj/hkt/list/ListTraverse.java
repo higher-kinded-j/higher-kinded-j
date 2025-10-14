@@ -49,7 +49,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, LIST_TRAVERSE_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", LIST_TRAVERSE_CLASS, MAP);
     KindValidator.requireNonNull(fa, LIST_TRAVERSE_CLASS, MAP);
 
     return ListFunctor.INSTANCE.map(f, fa);
@@ -78,8 +78,8 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ListKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, LIST_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, LIST_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(applicative, "applicative", LIST_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireMapper(f, "f", LIST_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, LIST_TRAVERSE_CLASS, TRAVERSE);
 
     List<A> listA = LIST.narrow(ta);
@@ -121,7 +121,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ListKind.Witness, A> fa) {
 
     FunctionValidator.requireMonoid(monoid, "monoid", LIST_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, LIST_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMapper(f, "f", LIST_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, LIST_TRAVERSE_CLASS, FOLD_MAP);
 
     M accumulator = monoid.empty();

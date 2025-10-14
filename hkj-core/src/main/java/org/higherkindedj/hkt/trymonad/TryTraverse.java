@@ -43,7 +43,7 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, TRY_TRAVERSE_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", TRY_TRAVERSE_CLASS, MAP);
     KindValidator.requireNonNull(fa, TRY_TRAVERSE_CLASS, MAP);
 
     return TRY.widen(TRY.narrow(fa).map(f));
@@ -78,8 +78,8 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<TryKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, TRY_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, TRY_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(applicative, "applicative", TRY_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireMapper(f, "f", TRY_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, TRY_TRAVERSE_CLASS, TRAVERSE);
 
     return TRY.narrow(ta)
@@ -120,7 +120,7 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<TryKind.Witness, A> fa) {
 
     FunctionValidator.requireMonoid(monoid, "monoid", TRY_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, TRY_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMapper(f, "f", TRY_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, TRY_TRAVERSE_CLASS, FOLD_MAP);
 
     // If the Try is a Success, apply the function `f` to the value.

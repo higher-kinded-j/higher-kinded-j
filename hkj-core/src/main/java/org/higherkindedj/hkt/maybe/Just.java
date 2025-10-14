@@ -42,17 +42,17 @@ record Just<T>(T value) implements Maybe<T> {
 
   @Override
   public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
-    FunctionValidator.requireMapper(mapper, Just.class, MAP);
+    FunctionValidator.requireMapper(mapper, "mapper", Just.class, MAP);
     // Use fromNullable to handle cases where the mapper might return null
     return Maybe.fromNullable(mapper.apply(value)); // Result of apply is Nullable
   }
 
   @Override
   public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
-    FunctionValidator.requireFlatMapper(mapper, Just.class, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(mapper, "mapper", Just.class, FLAT_MAP);
 
     Maybe<? extends U> result = mapper.apply(value);
-    FunctionValidator.requireNonNullResult(result, Just.class, FLAT_MAP);
+    FunctionValidator.requireNonNullResult(result, "mapper", Just.class, FLAT_MAP, Maybe.class);
 
     // Cast needed because of <? extends U> - unavoidable Java type system limitation
     @SuppressWarnings("unchecked")

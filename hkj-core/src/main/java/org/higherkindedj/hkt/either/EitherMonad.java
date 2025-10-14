@@ -78,7 +78,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
       Function<? super A, ? extends Kind<EitherKind.Witness<L>, B>> f,
       Kind<EitherKind.Witness<L>, A> ma) {
     Function<? super A, ? extends Kind<EitherKind.Witness<L>, B>> validatedF =
-        FunctionValidator.requireFlatMapper(f, EITHER_MONAD_CLASS, FLAT_MAP);
+        FunctionValidator.requireFlatMapper(f, "f", EITHER_MONAD_CLASS, FLAT_MAP);
     Kind<EitherKind.Witness<L>, A> validatedMa =
         KindValidator.requireNonNull(ma, EITHER_MONAD_CLASS, FLAT_MAP);
 
@@ -87,7 +87,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
         eitherA.flatMap(
             a -> {
               Kind<EitherKind.Witness<L>, B> kindB = validatedF.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, Either.class);
+              FunctionValidator.requireNonNullResult(kindB, "f", EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);
               return EITHER.narrow(kindB);
             });
     return EITHER.widen(resultEither);

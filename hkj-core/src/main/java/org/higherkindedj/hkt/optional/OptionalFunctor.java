@@ -79,7 +79,7 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, OPTIONAL_FUNCTOR_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", OPTIONAL_FUNCTOR_CLASS, MAP);
     KindValidator.requireNonNull(fa, OPTIONAL_FUNCTOR_CLASS, MAP);
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);

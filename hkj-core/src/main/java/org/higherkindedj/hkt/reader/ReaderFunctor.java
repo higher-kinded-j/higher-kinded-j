@@ -53,7 +53,7 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
   public <A, B> Kind<ReaderKind.Witness<R>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
 
-    FunctionValidator.requireMapper(f, READER_FUNCTOR_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", READER_FUNCTOR_CLASS, MAP);
     KindValidator.requireNonNull(fa, READER_FUNCTOR_CLASS, MAP);
 
     Reader<R, A> readerA = READER.narrow(fa);

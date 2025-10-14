@@ -109,7 +109,7 @@ public final class Lazy<A> {
    * @throws NullPointerException if f is null.
    */
   public <B> Lazy<B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, LAZY_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", LAZY_CLASS, MAP);
     return Lazy.defer(() -> f.apply(this.force()));
   }
 
@@ -125,11 +125,11 @@ public final class Lazy<A> {
    * @throws NullPointerException if f is null or f returns null.
    */
   public <B> Lazy<B> flatMap(Function<? super A, ? extends Lazy<? extends B>> f) {
-    FunctionValidator.requireFlatMapper(f, LAZY_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", LAZY_CLASS, FLAT_MAP);
     return Lazy.defer(
         () -> {
           Lazy<? extends B> nextLazy = f.apply(this.force());
-          FunctionValidator.requireNonNullResult(nextLazy, FLAT_MAP, LAZY_CLASS);
+          FunctionValidator.requireNonNullResult(nextLazy, "f", LAZY_CLASS, FLAT_MAP, LAZY_CLASS);
           return nextLazy.force();
         });
   }

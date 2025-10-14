@@ -127,8 +127,8 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertMapperNull(executable, operation));
+      ThrowableAssert.ThrowingCallable executable, String mapperName, Operation operation) {
+    assertions.add(() -> FunctionAssertions.assertMapperNull(executable, mapperName, operation));
     return this;
   }
 
@@ -141,8 +141,8 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertMapperNull(executable, contextClass, operation));
+      ThrowableAssert.ThrowingCallable executable, String mapperName, Class<?> contextClass, Operation operation) {
+    assertions.add(() -> FunctionAssertions.assertMapperNull(executable, mapperName, contextClass, operation));
     return this;
   }
 
@@ -154,8 +154,8 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertFlatMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertFlatMapperNull(executable, operation));
+      ThrowableAssert.ThrowingCallable executable, String flatMapperName, Operation operation) {
+    assertions.add(() -> FunctionAssertions.assertFlatMapperNull(executable, flatMapperName, operation));
     return this;
   }
 
@@ -168,9 +168,9 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertFlatMapperNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String flatMapperName, Class<?> contextClass, Operation operation) {
     assertions.add(
-        () -> FunctionAssertions.assertFlatMapperNull(executable, contextClass, operation));
+        () -> FunctionAssertions.assertFlatMapperNull(executable, flatMapperName, contextClass, operation));
     return this;
   }
 
@@ -182,8 +182,8 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertApplicativeNull(executable, operation));
+      ThrowableAssert.ThrowingCallable executable, String applicativeName, Operation operation) {
+    assertions.add(() -> FunctionAssertions.assertApplicativeNull(executable, applicativeName, operation));
     return this;
   }
 
@@ -196,9 +196,9 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass, Operation operation) {
     assertions.add(
-        () -> FunctionAssertions.assertApplicativeNull(executable, contextClass, operation));
+        () -> FunctionAssertions.assertApplicativeNull(executable, applicativeName, contextClass, operation));
     return this;
   }
 
@@ -397,8 +397,8 @@ public final class ValidationTestBuilder {
       Kind<F, A> validKind,
       java.util.function.Function<A, B> validMapper) {
 
-    assertMapperNull(() -> functor.map(null, validKind), contextClass, Operation.MAP);
-    assertKindNull(() -> functor.map(validMapper, null), contextClass, Operation.MAP);
+    assertMapperNull(() -> functor.map(null, validKind), "f", contextClass, Operation.MAP);
+    assertKindNull(() -> functor.map(validMapper, null),  contextClass, Operation.MAP);
     return this;
   }
 
@@ -487,7 +487,7 @@ public final class ValidationTestBuilder {
         validCombiningFunction);
 
     // FlatMap operations
-    assertFlatMapperNull(() -> monad.flatMap(null, validKind), contextClass, FLAT_MAP);
+    assertFlatMapperNull(() -> monad.flatMap(null, validKind), "f", contextClass, FLAT_MAP);
     assertKindNull(() -> monad.flatMap(validFlatMapper, null), contextClass, FLAT_MAP);
 
     return this;
@@ -568,7 +568,7 @@ public final class ValidationTestBuilder {
         "monoid",
         contextClass,
         FOLD_MAP);
-    assertMapperNull(() -> foldable.foldMap(validMonoid, null, validKind), contextClass, FOLD_MAP);
+    assertMapperNull(() -> foldable.foldMap(validMonoid, null, validKind), "f", contextClass, FOLD_MAP);
     assertKindNull(
         () -> foldable.foldMap(validMonoid, validFoldMapFunction, null), contextClass, FOLD_MAP);
 
@@ -612,9 +612,9 @@ public final class ValidationTestBuilder {
 
     // Traverse operations
     assertApplicativeNull(
-        () -> traverse.traverse(null, validTraverseFunction, validKind), contextClass, TRAVERSE);
+        () -> traverse.traverse(null, validTraverseFunction, validKind), "applicative", contextClass, TRAVERSE);
     assertMapperNull(
-        () -> traverse.traverse(validApplicative, null, validKind), contextClass, TRAVERSE);
+        () -> traverse.traverse(validApplicative, null, validKind), "f", contextClass, TRAVERSE);
     assertKindNull(
         () -> traverse.traverse(validApplicative, validTraverseFunction, null),
         contextClass,

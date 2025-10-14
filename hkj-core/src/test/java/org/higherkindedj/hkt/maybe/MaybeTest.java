@@ -508,8 +508,8 @@ class MaybeTest extends TypeClassTestBase<MaybeKind.Witness, String, Integer> {
     @DisplayName("map() validates null mapper using ValidationTestBuilder")
     void mapValidatesNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> justInstance.map(null), Just.class, Operation.MAP)
-          .assertMapperNull(() -> nothingInstance.map(null), Maybe.class, Operation.MAP)
+          .assertMapperNull(() -> justInstance.map(null), "mapper", Just.class, Operation.MAP)
+          .assertMapperNull(() -> nothingInstance.map(null), "mapper", Maybe.class, Operation.MAP)
           .execute();
     }
 
@@ -582,8 +582,8 @@ class MaybeTest extends TypeClassTestBase<MaybeKind.Witness, String, Integer> {
     @DisplayName("flatMap() validates parameters using ValidationTestBuilder")
     void flatMapValidatesParameters() {
       ValidationTestBuilder.create()
-          .assertFlatMapperNull(() -> justInstance.flatMap(null), Just.class, FLAT_MAP)
-          .assertFlatMapperNull(() -> nothingInstance.flatMap(null), Maybe.class, FLAT_MAP)
+          .assertFlatMapperNull(() -> justInstance.flatMap(null), "mapper", Just.class, FLAT_MAP)
+          .assertFlatMapperNull(() -> nothingInstance.flatMap(null), "mapper", Maybe.class, FLAT_MAP)
           .execute();
     }
 

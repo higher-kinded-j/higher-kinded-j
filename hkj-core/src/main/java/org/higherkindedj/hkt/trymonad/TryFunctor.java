@@ -38,7 +38,7 @@ public class TryFunctor implements Functor<TryKind.Witness> {
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, TRY_FUNCTOR_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", TRY_FUNCTOR_CLASS, MAP);
     KindValidator.requireNonNull(fa, TRY_FUNCTOR_CLASS, MAP);
 
     Try<A> tryA = TRY.narrow(fa);

@@ -101,10 +101,10 @@ final class MaybeTestExecutor<T, S> {
       // Use the type class interface validation
       MaybeFunctor functor = MaybeFunctor.INSTANCE;
       Kind<MaybeKind.Witness, T> kind = MaybeKindHelper.MAYBE.widen(justInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
       // Use the instance method
-      builder.assertMapperNull(() -> justInstance.map(null), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> justInstance.map(null), "mapper", mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
@@ -113,11 +113,11 @@ final class MaybeTestExecutor<T, S> {
       MaybeMonad monad = MaybeMonad.INSTANCE;
       Kind<MaybeKind.Witness, T> kind = MaybeKindHelper.MAYBE.widen(justInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
     } else {
       // Use the instance method
       builder.assertFlatMapperNull(
-          () -> justInstance.flatMap(null), flatMapContext, Operation.FLAT_MAP);
+          () -> justInstance.flatMap(null), "mapper",flatMapContext,  Operation.FLAT_MAP);
     }
 
     // OrElseGet validation (only on Nothing, as Just doesn't call supplier)

@@ -237,7 +237,7 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     void mapShouldThrowNPEForNullMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(null, validKind))
-          .withMessageContaining("function f for LazyMonad.map cannot be null"); // Changed
+          .withMessageContaining("Function f for LazyMonad.map cannot be null"); // Changed
     }
 
     @Test

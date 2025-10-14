@@ -54,7 +54,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    FunctionValidator.requireMapper(f, VALIDATED_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", VALIDATED_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, VALIDATED_MONAD_CLASS, MAP);
 
     Validated<E, A> validated = VALIDATED.narrow(fa);
@@ -119,7 +119,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Function<? super A, ? extends Kind<ValidatedKind.Witness<E>, B>> f,
       Kind<ValidatedKind.Witness<E>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, VALIDATED_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", VALIDATED_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, VALIDATED_MONAD_CLASS, FLAT_MAP);
 
     Validated<E, A> validatedValue = VALIDATED.narrow(ma);
@@ -127,7 +127,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
         validatedValue.flatMap(
             a -> {
               Kind<ValidatedKind.Witness<E>, B> kindResult = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindResult, FLAT_MAP, Validated.class);
+              FunctionValidator.requireNonNullResult(kindResult, "f", VALIDATED_MONAD_CLASS, FLAT_MAP, Validated.class);
               return VALIDATED.narrow(kindResult);
             });
     return VALIDATED.widen(result);
@@ -181,7 +181,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     if (validated.isInvalid()) {
       E errorValue = validated.getError();
       Kind<ValidatedKind.Witness<E>, A> resultFromHandler = handler.apply(errorValue);
-      FunctionValidator.requireNonNullResult(resultFromHandler, HANDLE_ERROR_WITH, Validated.class);
+      FunctionValidator.requireNonNullResult(resultFromHandler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
       return resultFromHandler;
     } else {
       return ma;

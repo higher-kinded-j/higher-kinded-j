@@ -133,7 +133,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
   public <A, B> Kind<ReaderTKind.Witness<F, R_ENV>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderTKind.Witness<F, R_ENV>, A> fa) {
 
-    FunctionValidator.requireMapper(f, READER_T_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", READER_T_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, READER_T_MONAD_CLASS, MAP);
 
     ReaderT<F, R_ENV, A> faT = READER_T.narrow(fa);
@@ -176,7 +176,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
       Function<? super A, ? extends Kind<ReaderTKind.Witness<F, R_ENV>, B>> f,
       Kind<ReaderTKind.Witness<F, R_ENV>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, READER_T_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", READER_T_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, READER_T_MONAD_CLASS, FLAT_MAP);
 
     ReaderT<F, R_ENV, A> maT = READER_T.narrow(ma);
@@ -189,7 +189,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
               a -> {
                 Kind<ReaderTKind.Witness<F, R_ENV>, B> resultReaderTKind = f.apply(a);
                 FunctionValidator.requireNonNullResult(
-                    resultReaderTKind, READER_T_MONAD_CLASS, FLAT_MAP);
+                    resultReaderTKind, "f", READER_T_MONAD_CLASS, FLAT_MAP);
                 ReaderT<F, R_ENV, B> nextReaderT = READER_T.narrow(resultReaderTKind);
                 return nextReaderT.run().apply(r);
               };

@@ -97,14 +97,14 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
   @Override
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
-    FunctionValidator.requireMapper(fn, Invalid.class, MAP);
+    FunctionValidator.requireMapper(fn, "fn", Invalid.class, MAP);
     return (Validated<E, B>) this;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
-    FunctionValidator.requireFlatMapper(fn, Invalid.class, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(fn, "fn", Invalid.class, FLAT_MAP);
     return (Validated<E, B>) this;
   }
 
@@ -112,7 +112,7 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
-    FunctionValidator.requireNonNullResult(fnValidated, VALIDATED_CLASS, AP);
+    FunctionValidator.requireNonNullResult(fnValidated, "fnValidated", VALIDATED_CLASS, AP);
     CoreTypeValidator.requireValue(semigroup, Invalid.class, AP);
 
     if (fnValidated.isInvalid()) {

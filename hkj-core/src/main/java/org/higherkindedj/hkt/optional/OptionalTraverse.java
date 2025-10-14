@@ -76,7 +76,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, OPTIONAL_TRAVERSE_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, MAP);
     KindValidator.requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, MAP);
 
     return OPTIONAL.widen(OPTIONAL.narrow(fa).map(f));
@@ -127,8 +127,8 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<OptionalKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(applicative, "applicative", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
 
     return OPTIONAL
@@ -179,7 +179,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<OptionalKind.Witness, A> fa) {
 
     FunctionValidator.requireMonoid(monoid, "monoid", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    FunctionValidator.requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
     KindValidator.requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
 
     Optional<A> optional = OPTIONAL.narrow(fa);

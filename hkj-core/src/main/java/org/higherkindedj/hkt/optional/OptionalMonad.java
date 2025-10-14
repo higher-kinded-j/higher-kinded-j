@@ -107,7 +107,7 @@ public final class OptionalMonad extends OptionalFunctor
       Function<? super A, ? extends Kind<OptionalKind.Witness, B>> f,
       Kind<OptionalKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, OPTIONAL_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", OPTIONAL_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, OPTIONAL_MONAD_CLASS, FLAT_MAP);
 
     Optional<A> optA = OPTIONAL.narrow(ma);
@@ -115,7 +115,7 @@ public final class OptionalMonad extends OptionalFunctor
         optA.flatMap(
             a -> {
               Kind<OptionalKind.Witness, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, FLAT_MAP, Optional.class);
+              FunctionValidator.requireNonNullResult(kindB, "f", OPTIONAL_MONAD_CLASS, FLAT_MAP, Optional.class);
               return OPTIONAL.narrow(kindB);
             });
     return OPTIONAL.widen(resultOpt);
@@ -192,7 +192,7 @@ public final class OptionalMonad extends OptionalFunctor
     Optional<A> optional = OPTIONAL.narrow(ma);
     if (optional.isEmpty()) {
       Kind<OptionalKind.Witness, A> recoveryKind = handler.apply(Unit.INSTANCE);
-      FunctionValidator.requireNonNullResult(recoveryKind, HANDLE_ERROR_WITH, Optional.class);
+      FunctionValidator.requireNonNullResult(recoveryKind, "handler", OPTIONAL_MONAD_CLASS, HANDLE_ERROR_WITH, Optional.class);
       return recoveryKind;
     } else {
       return ma;

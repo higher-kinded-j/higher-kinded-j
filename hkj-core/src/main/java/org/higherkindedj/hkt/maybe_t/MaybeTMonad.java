@@ -78,7 +78,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
   public <A, B> Kind<MaybeTKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeTKind.Witness<F>, A> fa) {
 
-    FunctionValidator.requireMapper(f, MAYBE_T_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", MAYBE_T_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, MAYBE_T_MONAD_CLASS, MAP);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(fa);
@@ -134,7 +134,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
       Function<? super A, ? extends Kind<MaybeTKind.Witness<F>, B>> f,
       Kind<MaybeTKind.Witness<F>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, MAYBE_T_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(ma, MAYBE_T_MONAD_CLASS, FLAT_MAP);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
@@ -147,7 +147,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
                         a -> {
                           Kind<MaybeTKind.Witness<F>, B> resultKind = f.apply(a);
                           FunctionValidator.requireNonNullResult(
-                              resultKind, MAYBE_T_MONAD_CLASS, FLAT_MAP);
+                              resultKind, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP, Kind.class);
                           MaybeT<F, B> resultT = MAYBE_T.narrow(resultKind);
                           return resultT.value();
                         })
@@ -212,7 +212,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
               } else { // If Nothing
                 Kind<MaybeTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
                 FunctionValidator.requireNonNullResult(
-                    resultKind, MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH);
+                    resultKind, "handler", MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
                 MaybeT<F, A> resultT = MAYBE_T.narrow(resultKind);
                 return resultT.value(); // This is Kind<F, Maybe<A>>
               }

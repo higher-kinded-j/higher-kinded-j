@@ -152,7 +152,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    */
   @SuppressWarnings("unchecked")
   default <R2> Either<L, R2> map(Function<? super R, ? extends R2> mapper) {
-    FunctionValidator.requireMapper(mapper, EITHER_CLASS, MAP);
+    FunctionValidator.requireMapper(mapper, "mapper", EITHER_CLASS, MAP);
     return switch (this) {
       case Left<L, R> l -> (Either<L, R2>) l; // Return self, cast is safe.
       case Right<L, R>(var rValue) -> Either.right(mapper.apply(rValue)); // Create new Right
@@ -294,7 +294,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     @SuppressWarnings("unchecked")
     public <R2> Either<L, R2> flatMap(
         Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, Either.class, FLAT_MAP);
+      FunctionValidator.requireFlatMapper(mapper, "mapper", Either.class, FLAT_MAP);
       return (Either<L, R2>) this; // Left remains Left, type L is unchanged.
     }
 
@@ -354,10 +354,10 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     @SuppressWarnings("unchecked")
     public <R2> Either<L, R2> flatMap(
         Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, Either.class, FLAT_MAP);
+      FunctionValidator.requireFlatMapper(mapper, "mapper", Either.class, FLAT_MAP);
       // Apply the mapper, which itself returns an Either.
       Either<L, ? extends R2> result = mapper.apply(value);
-      FunctionValidator.requireNonNullResult(result, FLAT_MAP, Either.class);
+      FunctionValidator.requireNonNullResult(result, "mapper", EITHER_CLASS, FLAT_MAP, EITHER_CLASS);
       // Cast is safe because ? extends R2 is compatible with R2
       return (Either<L, R2>) result;
     }

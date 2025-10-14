@@ -67,7 +67,7 @@ public interface State<S, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> State<S, B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, STATE_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", STATE_CLASS, MAP);
     return State.of(
         initialState -> {
           StateTuple<S, A> result = this.run(initialState);
@@ -99,7 +99,7 @@ public interface State<S, A> {
    *     is null.
    */
   default <B> State<S, B> flatMap(Function<? super A, ? extends State<S, ? extends B>> f) {
-    FunctionValidator.requireFlatMapper(f, STATE_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", STATE_CLASS, FLAT_MAP);
     return State.of(
         initialState -> {
           StateTuple<S, A> result1 = this.run(initialState);
@@ -107,7 +107,7 @@ public interface State<S, A> {
           S stateS1 = result1.state();
 
           State<S, ? extends B> nextState = f.apply(valueA);
-          FunctionValidator.requireNonNullResult(nextState, FLAT_MAP, STATE_CLASS);
+          FunctionValidator.requireNonNullResult(nextState, "f", STATE_CLASS, FLAT_MAP, STATE_CLASS);
 
           StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
 

@@ -87,7 +87,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
       Function<? super A, ? extends B> f, Kind<StateTKind.Witness<S, F>, A> fa) {
-    FunctionValidator.requireMapper(f, STATE_T_MONAD_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", STATE_T_MONAD_CLASS, MAP);
     KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, MAP);
 
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
@@ -211,7 +211,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   public <A, B> Kind<StateTKind.Witness<S, F>, B> flatMap(
       Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
       Kind<StateTKind.Witness<S, F>, A> fa) {
-    FunctionValidator.requireFlatMapper(f, STATE_T_MONAD_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(f, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
     KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, FLAT_MAP);
 
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
@@ -221,7 +221,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
             monadF.<StateTuple<S, A>, StateTuple<S, B>>flatMap(
                 tupleA -> {
                   Kind<StateTKind.Witness<S, F>, B> kindB = f.apply(tupleA.value());
-                  FunctionValidator.requireNonNullResult(kindB, STATE_T_MONAD_CLASS, FLAT_MAP);
+                  FunctionValidator.requireNonNullResult(kindB, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
                   StateT<S, F, B> stateTb = StateTKind.narrow(kindB);
                   return stateTb.runStateT(tupleA.state());
                 },

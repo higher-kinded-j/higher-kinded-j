@@ -263,10 +263,10 @@ final class ValidatedTestExecutor<E, A, B> {
       ValidatedMonad<E> monad =
           ValidatedMonad.instance(null); // Semigroup not needed for validation
       Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(validInstance);
-      builder.assertMapperNull(() -> monad.map(null, kind), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> monad.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
       // Use the instance method
-      builder.assertMapperNull(() -> validInstance.map(null), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> validInstance.map(null), "fn", mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
@@ -276,11 +276,11 @@ final class ValidatedTestExecutor<E, A, B> {
           ValidatedMonad.instance(null); // Semigroup not needed for validation
       Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(validInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f",flatMapContext,  Operation.FLAT_MAP);
     } else {
       // Use the instance method
       builder.assertFlatMapperNull(
-          () -> validInstance.flatMap(null), flatMapContext, Operation.FLAT_MAP);
+          () -> validInstance.flatMap(null), "fn",flatMapContext,  Operation.FLAT_MAP);
     }
 
     // Side effect validations

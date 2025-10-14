@@ -293,10 +293,10 @@ final class TryTestExecutor<T, S> {
       // Use the type class interface validation
       TryFunctor functor = new TryFunctor();
       Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
       // Use the instance method
-      builder.assertMapperNull(() -> successInstance.map(null), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> successInstance.map(null), "mapper", mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
@@ -305,11 +305,11 @@ final class TryTestExecutor<T, S> {
       TryMonad monad = TryMonad.INSTANCE;
       Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
     } else {
       // Use the instance method
       builder.assertFlatMapperNull(
-          () -> successInstance.flatMap(null), flatMapContext, Operation.FLAT_MAP);
+          () -> successInstance.flatMap(null), "mapper", flatMapContext, Operation.FLAT_MAP);
     }
 
     // Recover validations

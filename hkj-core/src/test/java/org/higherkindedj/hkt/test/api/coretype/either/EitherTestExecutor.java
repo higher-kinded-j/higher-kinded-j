@@ -261,10 +261,10 @@ final class EitherTestExecutor<L, R, S> {
       // Use the type class interface validation
       EitherFunctor<L> functor = EitherFunctor.instance();
       Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
       // Use the instance method
-      builder.assertMapperNull(() -> rightInstance.map(null), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> rightInstance.map(null),"mapper",  mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
@@ -273,11 +273,11 @@ final class EitherTestExecutor<L, R, S> {
       EitherMonad<L> monad = EitherMonad.instance();
       Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
     } else {
       // Use the instance method
       builder.assertFlatMapperNull(
-          () -> rightInstance.flatMap(null), flatMapContext, Operation.FLAT_MAP);
+          () -> rightInstance.flatMap(null), "mapper", flatMapContext, Operation.FLAT_MAP);
     }
 
     // Side effect validations

@@ -76,7 +76,7 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
   public <A, B> Kind<CompletableFutureKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<CompletableFutureKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
     KindValidator.requireNonNull(fa, COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
 
     CompletableFuture<A> futureA = FUTURE.narrow(fa);

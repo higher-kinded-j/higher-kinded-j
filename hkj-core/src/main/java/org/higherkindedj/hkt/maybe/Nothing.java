@@ -53,13 +53,13 @@ final class Nothing<T> implements Maybe<T> {
 
   @Override
   public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
-    FunctionValidator.requireMapper(mapper, MAYBE_CLASS, MAP);
+    FunctionValidator.requireMapper(mapper,"mapper",  MAYBE_CLASS, MAP);
     return instance(); // Mapping Nothing always results in Nothing
   }
 
   @Override
   public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
-    FunctionValidator.requireFlatMapper(mapper, MAYBE_CLASS, FLAT_MAP);
+    FunctionValidator.requireFlatMapper(mapper, "mapper", MAYBE_CLASS, FLAT_MAP);
     return instance(); // FlatMapping Nothing always results in Nothing
   }
 

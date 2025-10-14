@@ -64,7 +64,7 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
   public <A, B> Kind<StateKind.Witness<S>, B> map(
       Function<? super A, ? extends B> f, Kind<StateKind.Witness<S>, A> fa) {
 
-    FunctionValidator.requireMapper(f, STATE_FUNCTOR_CLASS, MAP);
+    FunctionValidator.requireMapper(f, "f", STATE_FUNCTOR_CLASS, MAP);
     KindValidator.requireNonNull(fa, STATE_FUNCTOR_CLASS, MAP);
 
     State<S, A> stateA = STATE.narrow(fa);

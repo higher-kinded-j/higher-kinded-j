@@ -96,8 +96,8 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFunctorMapFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertMapperNull(executable, contextClass, Operation.MAP);
+      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
+    return FunctionAssertions.assertMapperNull(executable, functionName, contextClass, Operation.MAP);
   }
 
   /**
@@ -108,7 +108,7 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFunctorMapKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
     return KindAssertions.assertKindNull(executable, contextClass, Operation.MAP);
   }
 
@@ -126,8 +126,8 @@ public final class TypeClassAssertions {
   public static <F, A, B> void assertAllFunctorOperations(
       Functor<F> functor, Class<?> contextClass, Kind<F, A> validKind, Function<A, B> validMapper) {
 
-    assertFunctorMapFunctionNull(() -> functor.map(null, validKind), contextClass);
-    assertFunctorMapKindNull(() -> functor.map(validMapper, null), contextClass);
+    assertFunctorMapFunctionNull(() -> functor.map(null, validKind), "f",contextClass);
+    assertFunctorMapKindNull(() -> functor.map(validMapper, null), "f", contextClass);
   }
 
   // =============================================================================
@@ -247,8 +247,8 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonadFlatMapFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertFlatMapperNull(executable, contextClass, FLAT_MAP);
+      ThrowableAssert.ThrowingCallable executable,String functionName,  Class<?> contextClass) {
+    return FunctionAssertions.assertFlatMapperNull(executable, functionName, contextClass, FLAT_MAP);
   }
 
   /**
@@ -259,8 +259,8 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonadFlatMapKindNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, FLAT_MAP);
+      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, TRAVERSE);
   }
 
   /**
@@ -296,8 +296,8 @@ public final class TypeClassAssertions {
         validCombiningFunction);
 
     // FlatMap operations
-    assertMonadFlatMapFunctionNull(() -> monad.flatMap(null, validKind), contextClass);
-    assertMonadFlatMapKindNull(() -> monad.flatMap(validFlatMapper, null), contextClass);
+    assertMonadFlatMapFunctionNull(() -> monad.flatMap(null, validKind), "f", contextClass);
+    assertMonadFlatMapKindNull(() -> monad.flatMap(validFlatMapper, null), "f", contextClass);
   }
 
   // =============================================================================
@@ -432,8 +432,8 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFoldableFoldMapFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertMapperNull(executable, contextClass, FOLD_MAP);
+      ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
+    return FunctionAssertions.assertMapperNull(executable, functionName, contextClass, FOLD_MAP);
   }
 
   /**
@@ -470,7 +470,7 @@ public final class TypeClassAssertions {
     assertFoldableFoldMapMonoidNull(
         () -> foldable.foldMap(null, validFoldMapFunction, validKind), contextClass);
     assertFoldableFoldMapFunctionNull(
-        () -> foldable.foldMap(validMonoid, null, validKind), contextClass);
+        () -> foldable.foldMap(validMonoid, null, validKind), "f", contextClass);
     assertFoldableFoldMapKindNull(
         () -> foldable.foldMap(validMonoid, validFoldMapFunction, null), contextClass);
   }
@@ -487,8 +487,8 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertApplicativeNull(executable, contextClass, TRAVERSE);
+      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass) {
+    return FunctionAssertions.assertApplicativeNull(executable, applicativeName, contextClass, TRAVERSE);
   }
 
   /**
@@ -499,8 +499,8 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertTraverseFunctionNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertMapperNull(executable, contextClass, TRAVERSE);
+      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass) {
+    return FunctionAssertions.assertMapperNull(executable, applicativeName, contextClass, TRAVERSE);
   }
 
   /**
@@ -523,8 +523,8 @@ public final class TypeClassAssertions {
    * @return Throwable assertion for further chaining
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertSequenceAApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
-    return FunctionAssertions.assertApplicativeNull(executable, contextClass, SEQUENCE_A);
+      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass) {
+    return FunctionAssertions.assertApplicativeNull(executable, applicativeName, contextClass, SEQUENCE_A);
   }
 
   /**
@@ -575,9 +575,9 @@ public final class TypeClassAssertions {
 
     // Traverse operations
     assertTraverseApplicativeNull(
-        () -> traverse.traverse(null, validTraverseFunction, validKind), contextClass);
+        () -> traverse.traverse(null, validTraverseFunction, validKind), "applicative", contextClass);
     assertTraverseFunctionNull(
-        () -> traverse.traverse(validApplicative, null, validKind), contextClass);
+        () -> traverse.traverse(validApplicative, null, validKind), "f", contextClass);
     assertTraverseKindNull(
         () -> traverse.traverse(validApplicative, validTraverseFunction, null), contextClass);
   }

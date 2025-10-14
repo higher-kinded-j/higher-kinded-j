@@ -185,7 +185,7 @@ final class WriterTestExecutor<W, A, B> {
     Function<A, Writer<W, B>> nullReturningMapper = a -> null;
     assertThatThrownBy(() -> writerInstance.flatMap(monoid, nullReturningMapper))
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining("Function in flatMap returned null, which is not allowed");
+        .hasMessageContaining("Function f in Writer.flatMap returned null when Writer expected, which is not allowed");
   }
 
   void testValidations() {
@@ -207,9 +207,9 @@ final class WriterTestExecutor<W, A, B> {
     if (validationStage != null && validationStage.getMapContext() != null) {
       WriterFunctor<W> functor = new WriterFunctor<>();
       Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
-      builder.assertMapperNull(() -> writerInstance.map(null), mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> writerInstance.map(null), "f", mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
@@ -217,10 +217,10 @@ final class WriterTestExecutor<W, A, B> {
       WriterMonad<W> monad = new WriterMonad<>(monoid);
       Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
     } else {
       builder.assertFlatMapperNull(
-          () -> writerInstance.flatMap(monoid, null), flatMapContext, Operation.FLAT_MAP);
+          () -> writerInstance.flatMap(monoid, null), "f", flatMapContext, Operation.FLAT_MAP);
     }
 
     // FlatMap monoid validation

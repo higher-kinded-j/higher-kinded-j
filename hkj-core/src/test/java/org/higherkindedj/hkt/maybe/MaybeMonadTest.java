@@ -373,7 +373,7 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
       // Verify null validation for flatMap - covered by testValidationsOnly() but kept explicit
       assertThatThrownBy(() -> monad.flatMap(null, validKind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function f for MaybeMonad.flatMap cannot be null");
+          .hasMessageContaining("Function f for MaybeMonad.flatMap cannot be null");
 
       assertThatThrownBy(() -> monad.flatMap(validFlatMapper, null))
           .isInstanceOf(NullPointerException.class)
