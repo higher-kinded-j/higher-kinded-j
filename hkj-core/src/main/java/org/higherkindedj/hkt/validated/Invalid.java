@@ -113,7 +113,7 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
     FunctionValidator.requireNonNullResult(fnValidated, "fnValidated", VALIDATED_CLASS, AP);
-    CoreTypeValidator.requireValue(semigroup, Invalid.class, AP);
+    CoreTypeValidator.requireValue(semigroup, "semigroup", Invalid.class, AP);
 
     if (fnValidated.isInvalid()) {
       E combinedError = semigroup.combine(fnValidated.getError(), this.error);

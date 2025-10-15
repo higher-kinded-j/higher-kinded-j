@@ -93,7 +93,7 @@ public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, 
 
   @Override
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
-    FunctionValidator.requireMapper(fn, "f", VALID_CLASS, MAP);
+    FunctionValidator.requireMapper(fn, "fn", VALID_CLASS, MAP);
     B newValue = fn.apply(value);
     FunctionValidator.requireNonNullResult(newValue, "fn", VALID_CLASS, MAP);
     return new Valid<>(newValue);
@@ -114,7 +114,7 @@ public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, 
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
     FunctionValidator.requireFunction(fnValidated, "fnValidated", VALID_CLASS, AP);
-    CoreTypeValidator.requireValue(semigroup, VALID_CLASS, AP);
+    CoreTypeValidator.requireValue(semigroup, "semigroup", VALID_CLASS, AP);
 
     return fnValidated.fold(
         Validated::invalid, // Propagate the error from the function

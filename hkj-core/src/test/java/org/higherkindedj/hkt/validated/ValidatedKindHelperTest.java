@@ -2,161 +2,337 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
+import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.NoSuchElementException;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Tests for {@link ValidatedKindHelper}. */
+@DisplayName("ValidatedKindHelper Complete Test Suite")
 class ValidatedKindHelperTest {
 
-  private final String testValue = "TestValue";
-  private final List<String> testError = Collections.singletonList("TestError");
-  private final Integer testIntValue = 42;
+    private Validated<String, Integer> validInstance;
+    private Validated<String, Integer> invalidInstance;
 
-  // --- Test widen() ---
+    @BeforeEach
+    void setUp() {
+        validInstance = Validated.valid(42);
+        invalidInstance = Validated.invalid("test-error");
+    }
 
-  @Test
-  void widen_withValidInstance_shouldReturnKind() {
-    Validated<List<String>, String> originalValid = Validated.valid(testValue);
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(originalValid);
+    @Nested
+    @DisplayName("Complete Test Suite")
+    class CompleteTestSuite {
 
-    assertNotNull(kind);
-    // To fully verify, narrow it back
-    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
-    assertEquals(originalValid, narrowed);
-    assertTrue(narrowed.isValid());
-    assertEquals(testValue, narrowed.get());
-  }
+        @Test
+        @DisplayName("Run complete ValidatedKindHelper test pattern for Valid")
+        void runCompleteValidatedKindHelperTestPatternForValid() {
+            CoreTypeTest.validatedKindHelper(validInstance).test();
+        }
 
-  @Test
-  void widen_withInvalidInstance_shouldReturnKind() {
-    Validated<List<String>, String> originalInvalid = Validated.invalid(testError);
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(originalInvalid);
+        @Test
+        @DisplayName("Run complete ValidatedKindHelper test pattern for Invalid")
+        void runCompleteValidatedKindHelperTestPatternForInvalid() {
+            CoreTypeTest.validatedKindHelper(invalidInstance).test();
+        }
+    }
 
-    assertNotNull(kind);
-    // To fully verify, narrow it back
-    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
-    assertEquals(originalInvalid, narrowed);
-    assertTrue(narrowed.isInvalid());
-    assertEquals(testError, narrowed.getError());
-  }
+    @Nested
+    @DisplayName("Widen Operations")
+    class WidenOperations {
 
-  // --- Test narrow() ---
+        @Test
+        @DisplayName("Widen converts Valid to Kind")
+        void widenConvertsValidToKind() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
 
-  @Test
-  void narrow_withKindFromValid_shouldReturnValidatedInstance() {
-    Validated<List<String>, Integer> originalValid = Validated.valid(testIntValue);
-    Kind<ValidatedKind.Witness<List<String>>, Integer> kind = VALIDATED.widen(originalValid);
-    Validated<List<String>, Integer> narrowed = VALIDATED.narrow(kind);
+            assertThat(kind).isNotNull();
+            assertThat(kind).isInstanceOf(ValidatedKind.class);
+            assertThat(kind).isSameAs(validInstance);
+        }
 
-    assertNotNull(narrowed);
-    assertInstanceOf(Valid.class, narrowed);
-    assertEquals(originalValid, narrowed);
-    assertTrue(narrowed.isValid());
-    assertEquals(testIntValue, narrowed.get());
-  }
+        @Test
+        @DisplayName("Widen converts Invalid to Kind")
+        void widenConvertsInvalidToKind() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
 
-  @Test
-  void narrow_withKindFromInvalid_shouldReturnValidatedInstance() {
-    Validated<List<String>, Integer> originalInvalid = Validated.invalid(testError);
-    Kind<ValidatedKind.Witness<List<String>>, Integer> kind = VALIDATED.widen(originalInvalid);
-    Validated<List<String>, Integer> narrowed = VALIDATED.narrow(kind);
+            assertThat(kind).isNotNull();
+            assertThat(kind).isInstanceOf(ValidatedKind.class);
+            assertThat(kind).isSameAs(invalidInstance);
+        }
 
-    assertNotNull(narrowed);
-    assertInstanceOf(Invalid.class, narrowed);
-    assertEquals(originalInvalid, narrowed);
-    assertTrue(narrowed.isInvalid());
-    assertEquals(testError, narrowed.getError());
-    assertThrows(NoSuchElementException.class, narrowed::get);
-  }
+        @Test
+        @DisplayName("Widen rejects null Validated")
+        void widenRejectsNullValidated() {
+            assertThatThrownBy(() -> VALIDATED.widen(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("Validated")
+                    .hasMessageContaining("widen")
+                    .hasMessageContaining("cannot be null");
+        }
 
-  // Test narrow with a non-Validated Kind (difficult to set up without other Kind types)
-  // Typically, this would involve creating a mock or a different Kind implementation.
-  // For now, we rely on the type safety of the witness and the explicit cast.
-  // If a different Kind were passed, a ClassCastException would occur, which is expected.
+        @Test
+        @DisplayName("Widen is idempotent")
+        void widenIsIdempotent() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind1 = VALIDATED.widen(validInstance);
+            Kind<ValidatedKind.Witness<String>, Integer> kind2 = VALIDATED.widen(validInstance);
 
-  // --- Test factory valid() ---
+            assertThat(kind1).isSameAs(kind2);
+            assertThat(kind1).isSameAs(validInstance);
+        }
+    }
 
-  @Test
-  void factoryValid_shouldCreateAKindRepresentingValid() {
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.valid(testValue);
-    assertNotNull(kind);
+    @Nested
+    @DisplayName("Narrow Operations")
+    class NarrowOperations {
 
-    Validated<List<String>, String> validated = VALIDATED.narrow(kind);
-    assertTrue(validated.isValid());
-    assertFalse(validated.isInvalid());
-    assertEquals(testValue, validated.get());
-    assertThrows(NoSuchElementException.class, validated::getError);
-  }
+        @Test
+        @DisplayName("Narrow converts Kind to Valid")
+        void narrowConvertsKindToValid() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
+            Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
 
-  @Test
-  void factoryValid_withNullValue_shouldThrowNullPointerException() {
-    // Validated.valid() itself throws NPE for null, so widen(Validated.valid(null)) will also fail
-    // early.
-    assertThrows(
-        NullPointerException.class,
-        () -> {
-          VALIDATED.valid(null);
-        });
-  }
+            assertThat(narrowed).isNotNull();
+            assertThat(narrowed).isSameAs(validInstance);
+            assertThat(narrowed.isValid()).isTrue();
+            assertThat(narrowed.get()).isEqualTo(42);
+        }
 
-  // --- Test factory invalid() ---
+        @Test
+        @DisplayName("Narrow converts Kind to Invalid")
+        void narrowConvertsKindToInvalid() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
+            Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
 
-  @Test
-  void factoryInvalid_shouldCreateAKindRepresentingInvalid() {
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.invalid(testError);
-    assertNotNull(kind);
+            assertThat(narrowed).isNotNull();
+            assertThat(narrowed).isSameAs(invalidInstance);
+            assertThat(narrowed.isInvalid()).isTrue();
+            assertThat(narrowed.getError()).isEqualTo("test-error");
+        }
 
-    Validated<List<String>, String> validated = VALIDATED.narrow(kind);
-    assertTrue(validated.isInvalid());
-    assertFalse(validated.isValid());
-    assertEquals(testError, validated.getError());
-    assertThrows(NoSuchElementException.class, validated::get);
-  }
+        @Test
+        @DisplayName("Narrow rejects null Kind")
+        void narrowRejectsNullKind() {
+            assertThatThrownBy(() -> VALIDATED.narrow(null))
+                .isInstanceOf(KindUnwrapException.class)
+                .hasMessageContaining("Cannot narrow null Kind for Validated");
 
-  @Test
-  void factoryInvalid_withNullError_shouldThrowNullPointerException() {
-    // Validated.invalid() itself throws NPE for null, so widen(Validated.invalid(null)) will also
-    // fail early.
-    List<String> nullErrorList = null;
-    assertThrows(
-        NullPointerException.class,
-        () -> {
-          VALIDATED.invalid(nullErrorList);
-        });
-  }
+        }
 
-  // --- Test round trip widen and narrow ---
-  @Test
-  void roundTrip_validInstance_preservesIdentityAndData() {
-    Validated<List<String>, String> original = Validated.valid("Round trip");
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(original);
-    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
+        @Test
+        @DisplayName("Narrow rejects invalid Kind type")
+        void narrowRejectsInvalidKindType() {
+            Kind<ValidatedKind.Witness<String>, Integer> invalidKind =
+                    new Kind<ValidatedKind.Witness<String>, Integer>() {
+                        @Override
+                        public String toString() {
+                            return "InvalidKind";
+                        }
+                    };
 
-    assertEquals(original, narrowed);
-    assertTrue(narrowed.isValid());
-    assertEquals("Round trip", narrowed.get());
-  }
+            assertThatThrownBy(() -> VALIDATED.narrow(invalidKind))
+                    .isInstanceOf(KindUnwrapException.class)
+                    .hasMessageContaining("Validated");
+        }
 
-  @Test
-  void roundTrip_invalidInstance_preservesIdentityAndData() {
-    List<String> error = Collections.singletonList("Error round trip");
-    Validated<List<String>, String> original = Validated.invalid(error);
-    Kind<ValidatedKind.Witness<List<String>>, String> kind = VALIDATED.widen(original);
-    Validated<List<String>, String> narrowed = VALIDATED.narrow(kind);
+        @Test
+        @DisplayName("Narrow is idempotent")
+        void narrowIsIdempotent() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
+            Validated<String, Integer> narrowed1 = VALIDATED.narrow(kind);
+            Validated<String, Integer> narrowed2 = VALIDATED.narrow(kind);
 
-    assertEquals(original, narrowed);
-    assertTrue(narrowed.isInvalid());
-    assertEquals(error, narrowed.getError());
-  }
+            assertThat(narrowed1).isSameAs(narrowed2);
+            assertThat(narrowed1).isSameAs(validInstance);
+        }
+    }
+
+    @Nested
+    @DisplayName("Round Trip Operations")
+    class RoundTripOperations {
+
+        @Test
+        @DisplayName("Round trip preserves Valid identity")
+        void roundTripPreservesValidIdentity() {
+            Kind<ValidatedKind.Witness<String>, Integer> widened = VALIDATED.widen(validInstance);
+            Validated<String, Integer> narrowed = VALIDATED.narrow(widened);
+
+            assertThat(narrowed).isSameAs(validInstance);
+        }
+
+        @Test
+        @DisplayName("Round trip preserves Invalid identity")
+        void roundTripPreservesInvalidIdentity() {
+            Kind<ValidatedKind.Witness<String>, Integer> widened = VALIDATED.widen(invalidInstance);
+            Validated<String, Integer> narrowed = VALIDATED.narrow(widened);
+
+            assertThat(narrowed).isSameAs(invalidInstance);
+        }
+
+        @Test
+        @DisplayName("Multiple round trips preserve identity")
+        void multipleRoundTripsPreserveIdentity() {
+            Validated<String, Integer> current = validInstance;
+
+            for (int i = 0; i < 3; i++) {
+                Kind<ValidatedKind.Witness<String>, Integer> widened = VALIDATED.widen(current);
+                current = VALIDATED.narrow(widened);
+            }
+
+            assertThat(current).isSameAs(validInstance);
+        }
+    }
+
+    @Nested
+    @DisplayName("Factory Methods")
+    class FactoryMethods {
+
+        @Test
+        @DisplayName("Valid factory creates Valid Kind")
+        void validFactoryCreatesValidKind() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.valid(42);
+
+            assertThat(kind).isNotNull();
+            assertThat(kind).isInstanceOf(ValidatedKind.class);
+
+            Validated<String, Integer> validated = VALIDATED.narrow(kind);
+            assertThat(validated.isValid()).isTrue();
+            assertThat(validated.get()).isEqualTo(42);
+        }
+
+        @Test
+        @DisplayName("Valid factory rejects null value")
+        void validFactoryRejectsNullValue() {
+            assertThatThrownBy(() -> VALIDATED.<String, Integer>valid(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("value")
+                    .hasMessageContaining("Validated")
+                    .hasMessageContaining("construction");
+        }
+
+        @Test
+        @DisplayName("Invalid factory creates Invalid Kind")
+        void invalidFactoryCreatesInvalidKind() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.invalid("error");
+
+            assertThat(kind).isNotNull();
+            assertThat(kind).isInstanceOf(ValidatedKind.class);
+
+            Validated<String, Integer> validated = VALIDATED.narrow(kind);
+            assertThat(validated.isInvalid()).isTrue();
+            assertThat(validated.getError()).isEqualTo("error");
+        }
+
+        @Test
+        @DisplayName("Invalid factory rejects null error")
+        void invalidFactoryRejectsNullError() {
+            assertThatThrownBy(() -> VALIDATED.<String, Integer>invalid(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("error")
+                    .hasMessageContaining("Validated");
+        }
+    }
+
+    @Nested
+    @DisplayName("Edge Cases Tests")
+    class EdgeCasesTests {
+
+        @Test
+        @DisplayName("Widen and narrow preserve Valid type information")
+        void widenAndNarrowPreserveValidTypeInformation() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
+            Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
+
+            assertThat(narrowed).isInstanceOf(Valid.class);
+            assertThat(narrowed.get()).isInstanceOf(Integer.class);
+        }
+
+        @Test
+        @DisplayName("Widen and narrow preserve Invalid type information")
+        void widenAndNarrowPreserveInvalidTypeInformation() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
+            Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
+
+            assertThat(narrowed).isInstanceOf(Invalid.class);
+            assertThat(narrowed.getError()).isInstanceOf(String.class);
+        }
+
+        @Test
+        @DisplayName("Kind representation preserves Valid toString")
+        void kindRepresentationPreservesValidToString() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
+
+            assertThat(kind.toString()).isEqualTo("Valid(42)");
+        }
+
+        @Test
+        @DisplayName("Kind representation preserves Invalid toString")
+        void kindRepresentationPreservesInvalidToString() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
+
+            assertThat(kind.toString()).isEqualTo("Invalid(test-error)");
+        }
+
+        @Test
+        @DisplayName("ValidatedKindHelper is a singleton enum")
+        void validatedKindHelperIsASingletonEnum() {
+            assertThat(VALIDATED).isSameAs(ValidatedKindHelper.VALIDATED);
+            assertThat(ValidatedKindHelper.values()).containsExactly(VALIDATED);
+        }
+    }
+
+    @Nested
+    @DisplayName("Performance Tests")
+    class PerformanceTests {
+
+        @Test
+        @DisplayName("Widen operation is fast")
+        void widenOperationIsFast() {
+            int iterations = 10000;
+
+            // Warm up
+            for (int i = 0; i < 1000; i++) {
+                VALIDATED.widen(validInstance);
+            }
+
+            long start = System.nanoTime();
+            for (int i = 0; i < iterations; i++) {
+                VALIDATED.widen(validInstance);
+            }
+            long duration = System.nanoTime() - start;
+
+            double averageNanos = (double) duration / iterations;
+            assertThat(averageNanos)
+                    .as("Widen should be fast (< 1000ns average)")
+                    .isLessThan(1000.0);
+        }
+
+        @Test
+        @DisplayName("Narrow operation is fast")
+        void narrowOperationIsFast() {
+            Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
+            int iterations = 10000;
+
+            // Warm up
+            for (int i = 0; i < 1000; i++) {
+                VALIDATED.narrow(kind);
+            }
+
+            long start = System.nanoTime();
+            for (int i = 0; i < iterations; i++) {
+                VALIDATED.narrow(kind);
+            }
+            long duration = System.nanoTime() - start;
+
+            double averageNanos = (double) duration / iterations;
+            assertThat(averageNanos)
+                    .as("Narrow should be fast (< 1000ns average)")
+                    .isLessThan(1000.0);
+        }
+    }
 }

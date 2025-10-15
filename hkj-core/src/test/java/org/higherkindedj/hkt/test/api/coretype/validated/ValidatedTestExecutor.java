@@ -234,60 +234,67 @@ final class ValidatedTestExecutor<E, A, B> {
     Consumer<E> errorAction = e -> {};
     Consumer<A> valueAction = a -> {};
 
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
-    // Fold validations
+    // Fold validations (uses Validated interface, so always use contextClass)
     builder.assertFunctionNull(
         () -> invalidInstance.fold(null, valueMapper),
         "invalidMapper",
         contextClass,
         Operation.FOLD);
     builder.assertFunctionNull(
-        () -> invalidInstance.fold(errorMapper, null), "validMapper", contextClass, Operation.FOLD);
+        () -> invalidInstance.fold(errorMapper, null),
+        "validMapper",
+        contextClass,
+        Operation.FOLD);
 
-    // Map validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      // Use the type class interface validation
-      ValidatedMonad<E> monad =
-          ValidatedMonad.instance(null); // Semigroup not needed for validation
-      Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(validInstance);
-      builder.assertMapperNull(() -> monad.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      // Use the instance method
-      builder.assertMapperNull(() -> validInstance.map(null), "fn", mapContext, Operation.MAP);
-    }
+    // Determine contexts for concrete implementations
+    Class<?> validMapContext =
+        (validationStage != null && validationStage.getMapContext() != null)
+            ? validationStage.getMapContext()
+            : Invalid.class;  // Default to Invalid.class since we're testing Invalid
 
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      // Use the type class interface validation
-      ValidatedMonad<E> monad =
-          ValidatedMonad.instance(null); // Semigroup not needed for validation
-      Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(validInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f",flatMapContext,  Operation.FLAT_MAP);
-    } else {
-      // Use the instance method
-      builder.assertFlatMapperNull(
-          () -> validInstance.flatMap(null), "fn",flatMapContext,  Operation.FLAT_MAP);
-    }
+    Class<?> validFlatMapContext =
+        (validationStage != null && validationStage.getFlatMapContext() != null)
+            ? validationStage.getFlatMapContext()
+            : Invalid.class;  // Default to Invalid.class
+
+    Class<?> validIfValidContext =
+        (validationStage != null && validationStage.getIfValidContext() != null)
+            ? validationStage.getIfValidContext()
+            : Invalid.class;  // Default to Invalid.class
+
+    Class<?> validIfInvalidContext =
+        (validationStage != null && validationStage.getIfInvalidContext() != null)
+            ? validationStage.getIfInvalidContext()
+            : Invalid.class;  // Default to Invalid.class
+
+    // Map validations
+    builder.assertMapperNull(
+        () -> invalidInstance.map(null),
+        "fn",
+        validMapContext,
+        Operation.MAP);
+
+    // FlatMap validations
+    builder.assertFlatMapperNull(
+        () -> invalidInstance.flatMap(null),
+        "fn",
+        validFlatMapContext,
+        Operation.FLAT_MAP);
 
     // Side effect validations
     builder.assertFunctionNull(
-        () -> invalidInstance.ifInvalid(null), "consumer", contextClass, Operation.IF_INVALID);
+        () -> invalidInstance.ifInvalid(null),
+        "consumer",
+        validIfInvalidContext,
+        Operation.IF_INVALID);
+
     builder.assertFunctionNull(
-        () -> validInstance.ifValid(null), "consumer", contextClass, Operation.IF_VALID);
+        () -> invalidInstance.ifValid(null),
+        "consumer",
+        validIfValidContext,
+        Operation.IF_VALID);
 
     builder.execute();
   }

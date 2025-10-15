@@ -47,6 +47,8 @@ public final class ValidatedValidationStage<E, A, B> {
   // Validation context classes
   private Class<?> mapContext;
   private Class<?> flatMapContext;
+  private Class<?> ifValidContext;
+  private Class<?> ifInvalidContext;
 
   ValidatedValidationStage(ValidatedTestConfigStage<E, A, B> configStage) {
     this.configStage = configStage;
@@ -116,6 +118,16 @@ public final class ValidatedValidationStage<E, A, B> {
       return this;
     }
 
+    public InheritanceValidationBuilder withIfValidFrom(Class<?> contextClass) {
+      ifValidContext = contextClass;
+      return this;
+    }
+
+    public InheritanceValidationBuilder withIfInvalidFrom(Class<?> contextClass) {
+      ifInvalidContext = contextClass;
+      return this;
+    }
+
     /**
      * Completes inheritance validation configuration.
      *
@@ -164,6 +176,14 @@ public final class ValidatedValidationStage<E, A, B> {
 
   Class<?> getFlatMapContext() {
     return flatMapContext;
+  }
+
+  Class<?> getIfValidContext() {
+    return ifValidContext;
+  }
+
+  Class<?> getIfInvalidContext() {
+    return ifInvalidContext;
   }
 
   private ValidatedTestExecutor<E, A, B> buildExecutor() {

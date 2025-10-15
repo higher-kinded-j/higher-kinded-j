@@ -22,6 +22,9 @@ public final class KindValidator {
     throw new AssertionError("KindValidator is a utility class and should not be instantiated");
   }
 
+
+  //TODO: Do we need both narrow and narrowWithTypeCheck.
+
   /**
    * Validates and narrows a Kind with rich type context using a custom narrower function.
    *

@@ -260,7 +260,7 @@ public final class TypeClassAssertions {
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonadFlatMapKindNull(
       ThrowableAssert.ThrowingCallable executable, String functionName, Class<?> contextClass) {
-    return KindAssertions.assertKindNull(executable, contextClass, TRAVERSE);
+    return KindAssertions.assertKindNull(executable, contextClass, FLAT_MAP);
   }
 
   /**
