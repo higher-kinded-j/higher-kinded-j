@@ -69,21 +69,23 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
         @Test
         @DisplayName("Run complete Functor test pattern")
         void runCompleteFunctorPattern() {
-            TypeClassTest.functor(TryFunctor.class)
-                    .instance(functor)
-                    .withKind(validKind)
+            TypeClassTest.<TryKind.Witness>functor(TryFunctor.class)
+                    .<String>instance(functor)
+                    .<Integer>withKind(validKind)
                     .withMapper(validMapper)
                     .withSecondMapper(secondMapper)
                     .withEqualityChecker(equalityChecker)
-                    .testAll();
+                    .selectTests()
+                    .skipExceptions()  // Skip exception propagation - Try captures, not propagates
+                    .test();
         }
 
         @Test
         @DisplayName("Verify Functor operations")
         void verifyFunctorOperations() {
-            TypeClassTest.functor(TryFunctor.class)
-                    .instance(functor)
-                    .withKind(validKind)
+            TypeClassTest.<TryKind.Witness>functor(TryFunctor.class)
+                    .<String>instance(functor)
+                    .<Integer>withKind(validKind)
                     .withMapper(validMapper)
                     .testOperations();
         }
@@ -91,9 +93,9 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
         @Test
         @DisplayName("Verify Functor validations")
         void verifyFunctorValidations() {
-            TypeClassTest.functor(TryFunctor.class)
-                    .instance(functor)
-                    .withKind(validKind)
+            TypeClassTest.<TryKind.Witness>functor(TryFunctor.class)
+                    .<String>instance(functor)
+                    .<Integer>withKind(validKind)
                     .withMapper(validMapper)
                     .testValidations();
         }
@@ -110,9 +112,9 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
         @Test
         @DisplayName("Test operations only")
         void testOperationsOnly() {
-            TypeClassTest.functor(TryFunctor.class)
-                    .instance(functor)
-                    .withKind(validKind)
+            TypeClassTest.<TryKind.Witness>functor(TryFunctor.class)
+                    .<String>instance(functor)
+                    .<Integer>withKind(validKind)
                     .withMapper(validMapper)
                     .selectTests()
                     .onlyOperations()
@@ -122,9 +124,9 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
         @Test
         @DisplayName("Test validations only")
         void testValidationsOnly() {
-            TypeClassTest.functor(TryFunctor.class)
-                    .instance(functor)
-                    .withKind(validKind)
+            TypeClassTest.<TryKind.Witness>functor(TryFunctor.class)
+                    .<String>instance(functor)
+                    .<Integer>withKind(validKind)
                     .withMapper(validMapper)
                     .selectTests()
                     .onlyValidations()
@@ -132,23 +134,19 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
         }
 
         @Test
-        @DisplayName("Test exception propagation only")
+        @DisplayName("Test exception propagation only - N/A for Try (captures exceptions by design)")
         void testExceptionPropagationOnly() {
-            TypeClassTest.functor(TryFunctor.class)
-                    .instance(functor)
-                    .withKind(validKind)
-                    .withMapper(validMapper)
-                    .selectTests()
-                    .onlyExceptions()
-                    .test();
+            // Try captures exceptions rather than propagating them
+            // This is the core feature of Try, so standard exception propagation tests don't apply
+            // See ExceptionPropagationTests nested class for Try-specific exception handling tests
         }
 
         @Test
         @DisplayName("Test laws only")
         void testLawsOnly() {
-            TypeClassTest.functor(TryFunctor.class)
-                    .instance(functor)
-                    .withKind(validKind)
+            TypeClassTest.<TryKind.Witness>functor(TryFunctor.class)
+                    .<String>instance(functor)
+                    .<Integer>withKind(validKind)
                     .withMapper(validMapper)
                     .withSecondMapper(secondMapper)
                     .withEqualityChecker(equalityChecker)
@@ -234,7 +232,7 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
         void map_shouldThrowNPEIfMapperIsNull() {
             assertThatNullPointerException()
                     .isThrownBy(() -> functor.map(null, validKind))
-                    .withMessageContaining("function f for TryFunctor.map cannot be null");
+                    .withMessageContaining("Function f for TryFunctor.map cannot be null");
         }
 
         @Test

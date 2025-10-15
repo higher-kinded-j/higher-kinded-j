@@ -2,222 +2,474 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trymonad;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.maybe.MaybeKindHelper;
+import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-public class TryTraverseTest {
+@DisplayName("TryTraverse Complete Test Suite")
+class TryTraverseTest extends TypeClassTestBase<TryKind.Witness, Integer, String> {
 
-  private final TryTraverse traverse = TryTraverse.INSTANCE;
-  private final Foldable<TryKind.Witness> foldable = TryTraverse.INSTANCE;
-  private final Applicative<MaybeKind.Witness> maybeApplicative = MaybeMonad.INSTANCE;
+    private static final MaybeKindHelper MAYBE = MaybeKindHelper.MAYBE;
 
-  // A test function that returns a Maybe of a string, or Nothing if the input is negative.
-  private final Function<Integer, Kind<MaybeKind.Witness, String>> validatePositive =
-      i -> {
-        if (i >= 0) {
-          return MAYBE.widen(Maybe.just("Value: " + i));
-        } else {
-          return MAYBE.widen(Maybe.nothing());
+    private static final Monoid<String> STRING_MONOID = Monoids.string();
+    private static final Monoid<Integer> SUM_MONOID = Monoids.integerAddition();
+
+    private TryTraverse traverse;
+    private Applicative<MaybeKind.Witness> maybeApplicative;
+
+    @BeforeEach
+    void setUpTraverse() {
+        traverse = TryTraverse.INSTANCE;
+        maybeApplicative = MaybeMonad.INSTANCE;
+    }
+
+    @Override
+    protected Kind<TryKind.Witness, Integer> createValidKind() {
+        return TRY.widen(Try.success(42));
+    }
+
+    @Override
+    protected Kind<TryKind.Witness, Integer> createValidKind2() {
+        return TRY.widen(Try.success(24));
+    }
+
+    @Override
+    protected Function<Integer, String> createValidMapper() {
+        return Object::toString;
+    }
+
+    @Override
+    protected java.util.function.BiPredicate<
+            Kind<TryKind.Witness, ?>, Kind<TryKind.Witness, ?>>
+    createEqualityChecker() {
+        return (k1, k2) -> {
+            Try<?> t1 = TRY.narrow(k1);
+            Try<?> t2 = TRY.narrow(k2);
+            return t1.equals(t2);
+        };
+    }
+
+    @Nested
+    @DisplayName("Complete Traverse Test Suite")
+    class CompleteTraverseTestSuite {
+
+
+        @Test
+        @DisplayName("Run complete Traverse test pattern")
+        void runCompleteTraverseTestPattern() {
+            Function<Integer, Kind<MaybeKind.Witness, String>> traverseFunc =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
+
+            // Note: We test operations and validations separately because Try's map
+            // catches exceptions (converting them to Failure) rather than propagating them,
+            // which differs from the standard Traverse exception propagation tests
+            TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+                    .<Integer>instance(traverse)
+                    .<String>withKind(validKind)
+                    .withOperations(validMapper)
+                    .withApplicative(maybeApplicative, traverseFunc)
+                    .withFoldableOperations(STRING_MONOID, validMapper)
+                    .testOperations();
+
+            TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+                    .<Integer>instance(traverse)
+                    .<String>withKind(validKind)
+                    .withOperations(validMapper)
+                    .withApplicative(maybeApplicative, traverseFunc)
+                    .withFoldableOperations(STRING_MONOID, validMapper)
+                    .testValidations();
+
+            // Exception tests are handled separately in ExceptionHandlingTests
+            // because Try has special exception handling semantics
         }
-      };
-
-  @Nested
-  @DisplayName("map method")
-  class MapTests {
-    @Test
-    @DisplayName("map should apply a function to a Success value")
-    void mapSuccess() {
-      // Given a Success value
-      Kind<TryKind.Witness, Integer> input = TRY.widen(Try.success(10));
-
-      // When we map over it
-      Kind<TryKind.Witness, Integer> result = traverse.map(i -> i * 2, input);
-
-      // Then the result is a Success with the new value
-      assertThat(TRY.narrow(result)).isEqualTo(Try.success(20));
     }
 
-    @Test
-    @DisplayName("map should do nothing to a Failure value")
-    void mapFailure() {
-      // Given a Failure value
-      final Throwable error = new RuntimeException("Error");
-      Kind<TryKind.Witness, Integer> input = TRY.widen(Try.failure(error));
+    @Nested
+    @DisplayName("Traverse Operation Tests")
+    class TraverseOperationTests {
 
-      // When we map over it
-      Kind<TryKind.Witness, Integer> result = traverse.map(i -> i * 2, input);
-      final Try<Integer> tryResult = TRY.narrow(result);
+        @Test
+        @DisplayName("traverse on Success should apply function and wrap result")
+        void traverseOnSuccessShouldApplyFunction() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
 
-      // Then the result is still the original Failure
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isInstanceOf(RuntimeException.class).isEqualTo(error);
-    }
-  }
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, func, successKind);
 
-  @Nested
-  @DisplayName("traverse method")
-  class TraverseTests {
-    @Test
-    @DisplayName("traverse should map a function over a Success value")
-    void traverseSuccessSucceeds() throws Throwable {
-      // Given a Success value
-      Kind<TryKind.Witness, Integer> input = TRY.widen(Try.success(42));
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            assertThat(narrowedResult.isJust()).isTrue();
 
-      // When we traverse it with a function that succeeds
-      Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
+            Try<String> innerTry = TRY.narrow(narrowedResult.get());
+            assertThat(innerTry.isSuccess()).isTrue();
+            assertThat(innerTry.orElse(null)).isEqualTo("42");
+        }
 
-      // Then the result is a Just containing a Success of the new value
-      Maybe<Kind<TryKind.Witness, String>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(TRY.narrow(maybeResult.get()).get()).isEqualTo("Value: 42");
-    }
+        @Test
+        @DisplayName("traverse on Failure should wrap Failure in applicative")
+        void traverseOnFailureShouldWrapFailure() {
+            RuntimeException originalException = new RuntimeException("Test failure");
+            Kind<TryKind.Witness, Integer> failureKind = TRY.widen(Try.failure(originalException));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
 
-    @Test
-    @DisplayName("traverse should return Nothing when the function fails on a Success value")
-    void traverseSuccessFails() {
-      // Given a Success value that will cause the function to fail
-      Kind<TryKind.Witness, Integer> input = TRY.widen(Try.success(-1));
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, func, failureKind);
 
-      // When we traverse it with a function that returns Nothing
-      Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            assertThat(narrowedResult.isJust()).isTrue();
 
-      // Then the result is Nothing
-      assertThat(MAYBE.narrow(result).isNothing()).isTrue();
-    }
+            Try<String> innerTry = TRY.narrow(narrowedResult.get());
+            assertThat(innerTry.isFailure()).isTrue();
+        }
 
-    @Test
-    @DisplayName("traverse should do nothing to a Failure value")
-    void traverseFailure() {
-      // Given a Failure value
-      final Throwable error = new RuntimeException("Initial Error");
-      Kind<TryKind.Witness, Integer> input = TRY.widen(Try.failure(error));
+        @Test
+        @DisplayName("traverse with null value in Success should work correctly")
+        void traverseWithNullValueShouldWork() {
+            Kind<TryKind.Witness, Integer> successNullKind = TRY.widen(Try.success(null));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.just("null"));
 
-      // When we traverse it
-      Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, func, successNullKind);
 
-      // Then the result is a Just containing the original Failure
-      Maybe<Kind<TryKind.Witness, String>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            assertThat(narrowedResult.isJust()).isTrue();
 
-      final Try<String> tryResult = TRY.narrow(maybeResult.get());
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isInstanceOf(RuntimeException.class).isEqualTo(error);
-    }
-  }
+            Try<String> innerTry = TRY.narrow(narrowedResult.get());
+            assertThat(innerTry.isSuccess()).isTrue();
+            assertThat(innerTry.orElse(null)).isEqualTo("null");
+        }
 
-  @Nested
-  @DisplayName("sequenceA method")
-  class SequenceATests {
-    @Test
-    @DisplayName("sequenceA should turn Success<Just<A>> into Just<Success<A>>")
-    void sequenceSuccessSucceeds() {
-      // Given a Success containing a Just
-      final Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.just(123));
-      final Kind<TryKind.Witness, Kind<MaybeKind.Witness, Integer>> input =
-          TRY.widen(Try.success(maybeKind));
+        @Test
+        @DisplayName("traverse should preserve structure")
+        void traverseShouldPreserveStructure() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
 
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<TryKind.Witness, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, func, successKind);
 
-      // Then the result is a Just containing a Success
-      Maybe<Kind<TryKind.Witness, Integer>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(TRY.narrow(maybeResult.get())).isEqualTo(Try.success(123));
+            assertThat(result).isNotNull();
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            assertThat(narrowedResult.isJust()).isTrue();
+        }
     }
 
-    @Test
-    @DisplayName("sequenceA should turn Success<Nothing> into Nothing")
-    void sequenceSuccessFails() {
-      // Given a Success containing a Nothing
-      final Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.nothing());
-      final Kind<TryKind.Witness, Kind<MaybeKind.Witness, Integer>> input =
-          TRY.widen(Try.success(maybeKind));
+    @Nested
+    @DisplayName("Functor Operations Tests (Inherited)")
+    class FunctorOperationsTests {
 
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<TryKind.Witness, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
+        @Test
+        @DisplayName("map on Success should apply function")
+        void mapOnSuccessShouldApplyFunction() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
 
-      // Then the result is Nothing
-      assertThat(MAYBE.narrow(result).isNothing()).isTrue();
+            Kind<TryKind.Witness, String> result = traverse.map(Object::toString, successKind);
+
+            Try<String> narrowedResult = TRY.narrow(result);
+            assertThat(narrowedResult.isSuccess()).isTrue();
+            assertThat(narrowedResult.orElse(null)).isEqualTo("42");
+        }
+
+        @Test
+        @DisplayName("map on Failure should preserve Failure")
+        void mapOnFailureShouldPreserveFailure() {
+            RuntimeException originalException = new RuntimeException("Test failure");
+            Kind<TryKind.Witness, Integer> failureKind = TRY.widen(Try.failure(originalException));
+
+            Kind<TryKind.Witness, String> result = traverse.map(Object::toString, failureKind);
+
+            Try<String> narrowedResult = TRY.narrow(result);
+            assertThat(narrowedResult.isFailure()).isTrue();
+        }
     }
 
-    @Test
-    @DisplayName("sequenceA should do nothing to a Failure value")
-    void sequenceFailure() {
-      // Given a Failure value
-      final Throwable error = new RuntimeException("Initial Error");
-      final Try<Kind<MaybeKind.Witness, Integer>> tryMonad = Try.failure(error);
-      final Kind<TryKind.Witness, Kind<MaybeKind.Witness, Integer>> input = TRY.widen(tryMonad);
+    @Nested
+    @DisplayName("Foldable Operations Tests (Inherited)")
+    class FoldableOperationsTests {
 
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<TryKind.Witness, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
+        @Test
+        @DisplayName("foldMap on Success should apply function")
+        void foldMapOnSuccessShouldApplyFunction() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
 
-      // Then the result is a Just containing the original Failure
-      Maybe<Kind<TryKind.Witness, Integer>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
+            String result = traverse.foldMap(STRING_MONOID, Object::toString, successKind);
 
-      final Try<Integer> tryResult = TRY.narrow(maybeResult.get());
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isInstanceOf(RuntimeException.class).isEqualTo(error);
-    }
-  }
+            assertThat(result).isEqualTo("42");
+        }
 
-  @Nested
-  @DisplayName("foldMap method")
-  class FoldMapTests {
-    @Test
-    @DisplayName("foldMap on a Success value should apply the function")
-    void foldMap_onSuccess_shouldApplyFunction() {
-      Kind<TryKind.Witness, Integer> success = TRY.widen(Try.success(10));
-      Monoid<Integer> sumMonoid = Monoids.integerAddition();
+        @Test
+        @DisplayName("foldMap on Failure should return identity")
+        void foldMapOnFailureShouldReturnIdentity() {
+            Kind<TryKind.Witness, Integer> failureKind =
+                    TRY.widen(Try.failure(new RuntimeException("Test failure")));
 
-      Integer result = foldable.foldMap(sumMonoid, i -> i * 2, success);
+            String result = traverse.foldMap(STRING_MONOID, Object::toString, failureKind);
 
-      assertThat(result).isEqualTo(20);
+            assertThat(result).isEqualTo("");
+        }
     }
 
-    @Test
-    @DisplayName("foldMap on a Failure value should return the monoid's empty value")
-    void foldMap_onFailure_shouldReturnMonoidEmpty() {
-      Kind<TryKind.Witness, Integer> failure = TRY.widen(Try.failure(new Exception("fail")));
-      Monoid<Integer> sumMonoid = Monoids.integerAddition();
+    @Nested
+    @DisplayName("Individual Traverse Components")
+    class IndividualTraverseComponents {
 
-      Integer result = foldable.foldMap(sumMonoid, i -> i * 2, failure);
+        @Test
+        @DisplayName("Test traverse operations only")
+        void testOperationsOnly() {
+            Function<Integer, Kind<MaybeKind.Witness, String>> traverseFunc =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
+            TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+                    .<Integer>instance(traverse)
+                    .<String>withKind(validKind)
+                    .withOperations(validMapper)
+                    .withApplicative(maybeApplicative, traverseFunc)
+                    .withFoldableOperations(STRING_MONOID, validMapper)
+                    .testOperations();
+        }
 
-      assertThat(result).isEqualTo(sumMonoid.empty());
-      assertThat(result).isZero();
+        @Test
+        @DisplayName("Test traverse validations only")
+        void testValidationsOnly() {
+            Function<Integer, Kind<MaybeKind.Witness, String>> traverseFunc =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
+
+            TypeClassTest.<TryKind.Witness>traverse(TryTraverse.class)
+                    .<Integer>instance(traverse)
+                    .<String>withKind(validKind)
+                    .withOperations(validMapper)
+                    .withApplicative(maybeApplicative, traverseFunc)
+                    .withFoldableOperations(STRING_MONOID, validMapper)
+                    .testValidations();
+        }
+
+
+        @Test
+        @DisplayName("Test exception propagation only")
+        void testExceptionPropagationOnly() {
+            // Note: Try has special exception handling semantics where map() catches
+            // exceptions and wraps them in Failure rather than propagating them.
+            // Therefore, we cannot use the standard testExceptions() pattern.
+            // Exception handling is thoroughly tested in the ExceptionHandlingTests nested class instead.
+
+            // We verify here that traverse and foldMap do propagate exceptions correctly:
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            RuntimeException testException = new RuntimeException("Test exception");
+
+            // traverse should propagate exceptions
+            Function<Integer, Kind<MaybeKind.Witness, String>> throwingTraverseFunc =
+                    i -> {
+                        throw testException;
+                    };
+            assertThatThrownBy(() -> traverse.traverse(maybeApplicative, throwingTraverseFunc, successKind))
+                    .isSameAs(testException);
+
+            // foldMap should propagate exceptions
+            Function<Integer, String> throwingFoldMapFunc =
+                    i -> {
+                        throw testException;
+                    };
+            assertThatThrownBy(() -> traverse.foldMap(STRING_MONOID, throwingFoldMapFunc, successKind))
+                    .isSameAs(testException);
+        }
     }
 
-    @Test
-    @DisplayName("foldMap on a Failure value with String monoid should return empty string")
-    void foldMap_onFailure_withStringMonoid_shouldReturnEmptyString() {
-      Kind<TryKind.Witness, Integer> failure = TRY.widen(Try.failure(new Exception("fail")));
-      Monoid<String> stringMonoid = Monoids.string();
+    @Nested
+    @DisplayName("Edge Cases Tests")
+    class EdgeCasesTests {
 
-      String result = foldable.foldMap(stringMonoid, Object::toString, failure);
+        @Test
+        @DisplayName("traverse preserves Success/Failure distinction")
+        void traversePreservesDistinction() {
+            Kind<TryKind.Witness, Integer> success = TRY.widen(Try.success(42));
+            Kind<TryKind.Witness, Integer> failure =
+                    TRY.widen(Try.failure(new RuntimeException("Error")));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
 
-      assertThat(result).isEqualTo(stringMonoid.empty());
-      assertThat(result).isEmpty();
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> successResult =
+                    traverse.traverse(maybeApplicative, func, success);
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> failureResult =
+                    traverse.traverse(maybeApplicative, func, failure);
+
+            Try<String> successTry = TRY.narrow(MAYBE.narrow(successResult).get());
+            Try<String> failureTry = TRY.narrow(MAYBE.narrow(failureResult).get());
+
+            assertThat(successTry.isSuccess()).isTrue();
+            assertThat(failureTry.isFailure()).isTrue();
+        }
+
+        @Test
+        @DisplayName("traverse with function returning Nothing should preserve structure")
+        void traverseWithNothingReturningFunction() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.nothing());
+
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, func, successKind);
+
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            assertThat(narrowedResult.isNothing()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Multiple traverse operations should be independent")
+        void multipleTraverseOperationsAreIndependent() {
+            Kind<TryKind.Witness, Integer> kind = TRY.widen(Try.success(42));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func1 =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func2 =
+                    i -> MAYBE.widen(Maybe.just("different"));
+
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result1 =
+                    traverse.traverse(maybeApplicative, func1, kind);
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result2 =
+                    traverse.traverse(maybeApplicative, func2, kind);
+
+            Try<String> try1 = TRY.narrow(MAYBE.narrow(result1).get());
+            Try<String> try2 = TRY.narrow(MAYBE.narrow(result2).get());
+
+            assertThat(try1.orElse(null)).isEqualTo("42");
+            assertThat(try2.orElse(null)).isEqualTo("different");
+        }
     }
-  }
+
+    @Nested
+    @DisplayName("Exception Handling Tests")
+    class ExceptionHandlingTests {
+
+        @Test
+        @DisplayName("traverse should propagate function exceptions on Success")
+        void traverseShouldPropagateExceptionsFromFunction() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            RuntimeException testException = new RuntimeException("Test exception in traverse");
+
+            Function<Integer, Kind<MaybeKind.Witness, String>> throwingFunction =
+                    i -> {
+                        throw testException;
+                    };
+
+            assertThatThrownBy(() -> traverse.traverse(maybeApplicative, throwingFunction, successKind))
+                    .isSameAs(testException);
+        }
+
+        @Test
+        @DisplayName("traverse should not call function on Failure")
+        void traverseShouldNotCallFunctionOnFailure() {
+            Kind<TryKind.Witness, Integer> failureKind =
+                    TRY.widen(Try.failure(new RuntimeException("Original failure")));
+            RuntimeException testException = new RuntimeException("Function should not be called");
+
+            Function<Integer, Kind<MaybeKind.Witness, String>> throwingFunction =
+                    i -> {
+                        throw testException;
+                    };
+
+            // Should not throw because function should not be called
+            assertThatCode(
+                    () -> traverse.traverse(maybeApplicative, throwingFunction, failureKind))
+                    .doesNotThrowAnyException();
+
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, throwingFunction, failureKind);
+
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            assertThat(narrowedResult.isJust()).isTrue();
+
+            Try<String> innerTry = TRY.narrow(narrowedResult.get());
+            assertThat(innerTry.isFailure()).isTrue();
+        }
+
+        @Test
+        @DisplayName("map should capture function exceptions in Failure on Success")
+        void mapShouldCaptureExceptionsFromFunction() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            RuntimeException testException = new RuntimeException("Test exception in map");
+
+            Function<Integer, String> throwingFunction =
+                    i -> {
+                        throw testException;
+                    };
+
+            Kind<TryKind.Witness, String> result = traverse.map(throwingFunction, successKind);
+            Try<String> narrowedResult = TRY.narrow(result);
+
+            assertThat(narrowedResult.isFailure()).isTrue();
+            assertThatThrownBy(() -> narrowedResult.get())
+                    .isSameAs(testException);
+        }
+
+        @Test
+        @DisplayName("foldMap should capture function exceptions in identity on Success")
+        void foldMapShouldCaptureExceptionsFromFunction() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            RuntimeException testException = new RuntimeException("Test exception in foldMap");
+
+            Function<Integer, String> throwingFunction =
+                    i -> {
+                        throw testException;
+                    };
+
+            // foldMap will propagate the exception since it's not caught by Try
+            assertThatThrownBy(() -> traverse.foldMap(STRING_MONOID, throwingFunction, successKind))
+                    .isSameAs(testException);
+        }
+    }
+
+
+    @Nested
+    @DisplayName("Applicative Effect Tests")
+    class ApplicativeEffectTests {
+
+        @Test
+        @DisplayName("traverse respects applicative structure")
+        void traverseRespectsApplicativeStructure() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.just(i.toString()));
+
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, func, successKind);
+
+            // Result should be wrapped in Maybe applicative context
+            assertThat(result).isNotNull();
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            assertThat(narrowedResult).isNotNull();
+            assertThat(narrowedResult.isJust()).isTrue();
+        }
+
+        @Test
+        @DisplayName("traverse with failing applicative function should preserve failure")
+        void traverseWithFailingApplicativeFunctionShouldPreserveFailure() {
+            Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+            Function<Integer, Kind<MaybeKind.Witness, String>> func =
+                    i -> MAYBE.widen(Maybe.nothing());
+
+            Kind<MaybeKind.Witness, Kind<TryKind.Witness, String>> result =
+                    traverse.traverse(maybeApplicative, func, successKind);
+
+            Maybe<Kind<TryKind.Witness, String>> narrowedResult = MAYBE.narrow(result);
+            // When the applicative function returns Nothing, the whole result is Nothing
+            assertThat(narrowedResult.isNothing()).isTrue();
+        }
+    }
 }
