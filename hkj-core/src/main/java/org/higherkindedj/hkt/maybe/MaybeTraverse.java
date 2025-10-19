@@ -40,7 +40,8 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<MaybeKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, "applicative", MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(
+        applicative, "applicative", MAYBE_TRAVERSE_CLASS, TRAVERSE);
     FunctionValidator.requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, MAYBE_TRAVERSE_CLASS, TRAVERSE);
 

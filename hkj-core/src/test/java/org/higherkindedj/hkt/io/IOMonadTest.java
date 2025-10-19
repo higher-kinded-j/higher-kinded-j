@@ -454,7 +454,9 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThatThrownBy(() -> IO_OP.unsafeRunSync(result))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function f in IOMonad.flatMap returned null when Kind expected, which is not allowed");
+          .hasMessageContaining(
+              "Function f in IOMonad.flatMap returned null when Kind expected, which is not"
+                  + " allowed");
     }
   }
 

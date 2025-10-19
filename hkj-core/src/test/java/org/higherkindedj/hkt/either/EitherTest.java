@@ -680,8 +680,10 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @DisplayName("flatMap() validates parameters using standardised validation")
     void flatMapValidatesParameters() {
       ValidationTestBuilder.create()
-          .assertFlatMapperNull(() -> rightInstance.flatMap(null), "mapper", Either.class, Operation.FLAT_MAP)
-          .assertFlatMapperNull(() -> leftInstance.flatMap(null), "mapper",Either.class, Operation.FLAT_MAP)
+          .assertFlatMapperNull(
+              () -> rightInstance.flatMap(null), "mapper", Either.class, Operation.FLAT_MAP)
+          .assertFlatMapperNull(
+              () -> leftInstance.flatMap(null), "mapper", Either.class, Operation.FLAT_MAP)
           .execute();
     }
 
@@ -694,7 +696,9 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       // NullPointerException
       assertThatThrownBy(() -> rightInstance.flatMap(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function mapper in Either.flatMap returned null when Either expected, which is not allowed");
+          .hasMessageContaining(
+              "Function mapper in Either.flatMap returned null when Either expected, which is not"
+                  + " allowed");
     }
 
     @Test

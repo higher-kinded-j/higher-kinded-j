@@ -94,7 +94,8 @@ public final class ReaderMonad<R> extends ReaderApplicative<R>
         readerA.flatMap(
             a -> {
               Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, "f", READER_MONAD_CLASS, FLAT_MAP, Kind.class);
+              FunctionValidator.requireNonNullResult(
+                  kindB, "f", READER_MONAD_CLASS, FLAT_MAP, Kind.class);
               return READER.narrow(kindB);
             });
 

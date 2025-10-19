@@ -106,7 +106,8 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<EitherKind.Witness<E>, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, "applicative", EITHER_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(
+        applicative, "applicative", EITHER_TRAVERSE_CLASS, TRAVERSE);
     FunctionValidator.requireMapper(f, "f", EITHER_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, EITHER_TRAVERSE_CLASS, TRAVERSE);
 

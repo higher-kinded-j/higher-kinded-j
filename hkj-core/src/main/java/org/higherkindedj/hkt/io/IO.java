@@ -6,8 +6,6 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 

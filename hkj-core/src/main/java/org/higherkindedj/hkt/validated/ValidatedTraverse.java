@@ -50,7 +50,8 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ValidatedKind.Witness<E>, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, "applicative", VALIDATED_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(
+        applicative, "applicative", VALIDATED_TRAVERSE_CLASS, TRAVERSE);
     FunctionValidator.requireMapper(f, "f", VALIDATED_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, VALIDATED_TRAVERSE_CLASS, TRAVERSE);
 

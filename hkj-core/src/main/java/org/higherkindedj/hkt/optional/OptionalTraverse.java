@@ -127,7 +127,8 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<OptionalKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, "applicative", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    FunctionValidator.requireApplicative(
+        applicative, "applicative", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
     FunctionValidator.requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
     KindValidator.requireNonNull(ta, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
 

@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.test.assertions.FunctionAssertions;
 import org.higherkindedj.hkt.test.assertions.KindAssertions;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
 import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
+import org.higherkindedj.hkt.util.validation.DomainValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
@@ -141,8 +142,12 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertMapperNull(
-      ThrowableAssert.ThrowingCallable executable, String mapperName, Class<?> contextClass, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertMapperNull(executable, mapperName, contextClass, operation));
+      ThrowableAssert.ThrowingCallable executable,
+      String mapperName,
+      Class<?> contextClass,
+      Operation operation) {
+    assertions.add(
+        () -> FunctionAssertions.assertMapperNull(executable, mapperName, contextClass, operation));
     return this;
   }
 
@@ -155,7 +160,8 @@ public final class ValidationTestBuilder {
    */
   public ValidationTestBuilder assertFlatMapperNull(
       ThrowableAssert.ThrowingCallable executable, String flatMapperName, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertFlatMapperNull(executable, flatMapperName, operation));
+    assertions.add(
+        () -> FunctionAssertions.assertFlatMapperNull(executable, flatMapperName, operation));
     return this;
   }
 
@@ -168,9 +174,14 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertFlatMapperNull(
-      ThrowableAssert.ThrowingCallable executable, String flatMapperName, Class<?> contextClass, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable,
+      String flatMapperName,
+      Class<?> contextClass,
+      Operation operation) {
     assertions.add(
-        () -> FunctionAssertions.assertFlatMapperNull(executable, flatMapperName, contextClass, operation));
+        () ->
+            FunctionAssertions.assertFlatMapperNull(
+                executable, flatMapperName, contextClass, operation));
     return this;
   }
 
@@ -183,7 +194,8 @@ public final class ValidationTestBuilder {
    */
   public ValidationTestBuilder assertApplicativeNull(
       ThrowableAssert.ThrowingCallable executable, String applicativeName, Operation operation) {
-    assertions.add(() -> FunctionAssertions.assertApplicativeNull(executable, applicativeName, operation));
+    assertions.add(
+        () -> FunctionAssertions.assertApplicativeNull(executable, applicativeName, operation));
     return this;
   }
 
@@ -196,9 +208,14 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public ValidationTestBuilder assertApplicativeNull(
-      ThrowableAssert.ThrowingCallable executable, String applicativeName, Class<?> contextClass, Operation operation) {
+      ThrowableAssert.ThrowingCallable executable,
+      String applicativeName,
+      Class<?> contextClass,
+      Operation operation) {
     assertions.add(
-        () -> FunctionAssertions.assertApplicativeNull(executable, applicativeName, contextClass, operation));
+        () ->
+            FunctionAssertions.assertApplicativeNull(
+                executable, applicativeName, contextClass, operation));
     return this;
   }
 
@@ -398,7 +415,7 @@ public final class ValidationTestBuilder {
       java.util.function.Function<A, B> validMapper) {
 
     assertMapperNull(() -> functor.map(null, validKind), "f", contextClass, Operation.MAP);
-    assertKindNull(() -> functor.map(validMapper, null),  contextClass, Operation.MAP);
+    assertKindNull(() -> functor.map(validMapper, null), contextClass, Operation.MAP);
     return this;
   }
 
@@ -568,7 +585,8 @@ public final class ValidationTestBuilder {
         "monoid",
         contextClass,
         FOLD_MAP);
-    assertMapperNull(() -> foldable.foldMap(validMonoid, null, validKind), "f", contextClass, FOLD_MAP);
+    assertMapperNull(
+        () -> foldable.foldMap(validMonoid, null, validKind), "f", contextClass, FOLD_MAP);
     assertKindNull(
         () -> foldable.foldMap(validMonoid, validFoldMapFunction, null), contextClass, FOLD_MAP);
 
@@ -612,7 +630,10 @@ public final class ValidationTestBuilder {
 
     // Traverse operations
     assertApplicativeNull(
-        () -> traverse.traverse(null, validTraverseFunction, validKind), "applicative", contextClass, TRAVERSE);
+        () -> traverse.traverse(null, validTraverseFunction, validKind),
+        "applicative",
+        contextClass,
+        TRAVERSE);
     assertMapperNull(
         () -> traverse.traverse(validApplicative, null, validKind), "f", contextClass, TRAVERSE);
     assertKindNull(
@@ -622,6 +643,74 @@ public final class ValidationTestBuilder {
 
     return this;
   }
+
+    /**
+     * Adds transformer outer monad validation to the test suite.
+     *
+     * @param executable The code that should throw
+     * @param contextClass The class providing context
+     * @param operation The operation name
+     * @return This builder for chaining
+     */
+    public ValidationTestBuilder assertTransformerOuterMonadNull(
+            ThrowableAssert.ThrowingCallable executable,
+            Class<?> contextClass,
+            Operation operation) {
+        assertions.add(
+                () -> {
+                    // Capture expected exception from production validation
+                    Throwable expectedThrowable = null;
+                    try {
+                        DomainValidator.requireOuterMonad(null, contextClass, operation);
+                        throw new AssertionError("Production validation should have thrown an exception");
+                    } catch (Throwable t) {
+                        expectedThrowable = t;
+                    }
+
+                    // Verify test code throws exactly the same exception
+                    final Throwable expected = expectedThrowable;
+                    assertThatThrownBy(executable)
+                            .isInstanceOf(expected.getClass())
+                            .hasMessage(expected.getMessage())
+                            .as("Test validation should match production DomainValidator exactly");
+                });
+        return this;
+    }
+
+    /**
+     * Adds transformer component validation to the test suite.
+     *
+     * @param executable The code that should throw
+     * @param componentName The name of the component (e.g., "inner Either")
+     * @param contextClass The class providing context
+     * @param operation The operation name
+     * @return This builder for chaining
+     */
+    public ValidationTestBuilder assertTransformerComponentNull(
+            ThrowableAssert.ThrowingCallable executable,
+            String componentName,
+            Class<?> contextClass,
+            Operation operation) {
+        assertions.add(
+                () -> {
+                    // Capture expected exception from production validation
+                    Throwable expectedThrowable = null;
+                    try {
+                        DomainValidator.requireTransformerComponent(null, componentName, contextClass, operation);
+                        throw new AssertionError("Production validation should have thrown an exception");
+                    } catch (Throwable t) {
+                        expectedThrowable = t;
+                    }
+
+                    // Verify test code throws exactly the same exception
+                    final Throwable expected = expectedThrowable;
+                    assertThatThrownBy(executable)
+                            .isInstanceOf(expected.getClass())
+                            .hasMessage(expected.getMessage())
+                            .as("Test validation should match production DomainValidator exactly");
+                });
+        return this;
+    }
 
   // =============================================================================
   // Execution Methods

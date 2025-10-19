@@ -117,7 +117,7 @@ final class MaybeTestExecutor<T, S> {
     } else {
       // Use the instance method
       builder.assertFlatMapperNull(
-          () -> justInstance.flatMap(null), "mapper",flatMapContext,  Operation.FLAT_MAP);
+          () -> justInstance.flatMap(null), "mapper", flatMapContext, Operation.FLAT_MAP);
     }
 
     // OrElseGet validation (only on Nothing, as Just doesn't call supplier)

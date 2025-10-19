@@ -39,7 +39,7 @@ public final class LawTestPattern {
 
     // Test null validations
     ValidationTestBuilder.create()
-        .assertMapperNull(() -> functor.map(null, validKind),"f",  MAP)
+        .assertMapperNull(() -> functor.map(null, validKind), "f", MAP)
         .assertKindNull(() -> functor.map(identity, null), MAP)
         .execute();
   }
@@ -206,7 +206,8 @@ public final class LawTestPattern {
 
     // Test null validations
     ValidationTestBuilder.create()
-        .assertApplicativeNull(() -> traverse.traverse(null, testFunction, validKind), "applicative", TRAVERSE)
+        .assertApplicativeNull(
+            () -> traverse.traverse(null, testFunction, validKind), "applicative", TRAVERSE)
         .assertMapperNull(() -> traverse.traverse(applicative, null, validKind), "f", TRAVERSE)
         .assertKindNull(() -> traverse.traverse(applicative, testFunction, null), TRAVERSE)
         .execute();

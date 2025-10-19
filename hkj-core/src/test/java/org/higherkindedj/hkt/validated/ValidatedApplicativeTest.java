@@ -9,9 +9,7 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-
 import org.higherkindedj.hkt.*;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,8 +21,8 @@ import org.junit.jupiter.api.Test;
 class ValidatedApplicativeTest
     extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
 
-    private Applicative<ValidatedKind.Witness<String>> applicative;
-    private Semigroup<String> stringSemigroup;
+  private Applicative<ValidatedKind.Witness<String>> applicative;
+  private Semigroup<String> stringSemigroup;
 
   @Override
   protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind() {
@@ -42,7 +40,8 @@ class ValidatedApplicativeTest
   }
 
   @Override
-  protected Kind<ValidatedKind.Witness<String>, Function<Integer, String>> createValidFunctionKind() {
+  protected Kind<ValidatedKind.Witness<String>, Function<Integer, String>>
+      createValidFunctionKind() {
     Function<Integer, String> fn = n -> "Value: " + n;
     return VALIDATED.widen(Validated.valid(fn));
   }
@@ -53,8 +52,9 @@ class ValidatedApplicativeTest
   }
 
   @Override
-  protected BiPredicate <Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
-  createEqualityChecker() {
+  protected BiPredicate<
+          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
+      createEqualityChecker() {
     return (k1, k2) -> {
       Validated<String, ?> v1 = VALIDATED.narrow(k1);
       Validated<String, ?> v2 = VALIDATED.narrow(k2);
@@ -64,7 +64,7 @@ class ValidatedApplicativeTest
 
   @BeforeEach
   void setUpApplicative() {
-     stringSemigroup = (a, b) -> a + ", " + b;
+    stringSemigroup = (a, b) -> a + ", " + b;
     applicative = ValidatedMonad.instance(stringSemigroup);
   }
 
@@ -75,9 +75,9 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Run complete Applicative test pattern")
     void runCompleteApplicativeTestPattern() {
-        TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-                .<Integer>instance(applicative)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(42, Object::toString, equalityChecker)
           .testAll();
@@ -104,8 +104,7 @@ class ValidatedApplicativeTest
       Function<Integer, String> fn = n -> "Value: " + n;
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> fnKind =
           VALIDATED.widen(Validated.valid(fn));
-      Kind<ValidatedKind.Witness<String>, Integer> valueKind =
-          VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> valueKind = VALIDATED.widen(Validated.valid(42));
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
 
@@ -134,8 +133,7 @@ class ValidatedApplicativeTest
     void apPropagatesInvalidFunction() {
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> fnKind =
           VALIDATED.widen(Validated.invalid("error"));
-      Kind<ValidatedKind.Witness<String>, Integer> valueKind =
-          VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> valueKind = VALIDATED.widen(Validated.valid(42));
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
 
@@ -198,9 +196,9 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-                .<Integer>instance(applicative)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .testOperations();
     }
@@ -208,9 +206,9 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-                .<Integer>instance(applicative)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .testValidations();
     }
@@ -218,9 +216,9 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-                .<Integer>instance(applicative)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .testExceptions();
     }
@@ -228,9 +226,9 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-                .<Integer>instance(applicative)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(42, Object::toString, equalityChecker)
           .testLaws();
@@ -244,9 +242,9 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Test with inheritance-based validation")
     void testWithInheritanceBasedValidation() {
-        TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-                .<Integer>instance(applicative)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .configureValidation()
           .useInheritanceValidation()
@@ -261,23 +259,23 @@ class ValidatedApplicativeTest
   @DisplayName("Error Accumulation Tests")
   class ErrorAccumulationTests {
 
-      @Test
-      @DisplayName("Map3 accumulates three errors")
-      void map3AccumulatesThreeErrors() {
-          Kind<ValidatedKind.Witness<String>, Integer> kind1 =
-                  VALIDATED.widen(Validated.invalid("error1"));
-          Kind<ValidatedKind.Witness<String>, Integer> kind2 =
-                  VALIDATED.widen(Validated.invalid("error2"));
-          Kind<ValidatedKind.Witness<String>, Integer> kind3 =
-                  VALIDATED.widen(Validated.invalid("error3"));
+    @Test
+    @DisplayName("Map3 accumulates three errors")
+    void map3AccumulatesThreeErrors() {
+      Kind<ValidatedKind.Witness<String>, Integer> kind1 =
+          VALIDATED.widen(Validated.invalid("error1"));
+      Kind<ValidatedKind.Witness<String>, Integer> kind2 =
+          VALIDATED.widen(Validated.invalid("error2"));
+      Kind<ValidatedKind.Witness<String>, Integer> kind3 =
+          VALIDATED.widen(Validated.invalid("error3"));
 
-          Kind<ValidatedKind.Witness<String>, String> result =
-                  applicative.map3(kind1, kind2, kind3, (a, b, c) -> a + "+" + b + "+" + c);
+      Kind<ValidatedKind.Witness<String>, String> result =
+          applicative.map3(kind1, kind2, kind3, (a, b, c) -> a + "+" + b + "+" + c);
 
-          Validated<String, String> validated = VALIDATED.narrow(result);
-          assertThat(validated.isInvalid()).isTrue();
-          assertThat(validated.getError()).isEqualTo("error1, error2, error3");
-      }
+      Validated<String, String> validated = VALIDATED.narrow(result);
+      assertThat(validated.isInvalid()).isTrue();
+      assertThat(validated.getError()).isEqualTo("error1, error2, error3");
+    }
 
     @Test
     @DisplayName("Map4 accumulates four errors")
@@ -292,7 +290,8 @@ class ValidatedApplicativeTest
           VALIDATED.widen(Validated.invalid("error4"));
 
       Kind<ValidatedKind.Witness<String>, String> result =
-          applicative.map4(kind1, kind2, kind3, kind4, (a, b, c, d) -> a + "+" + b + "+" + c + "+" + d);
+          applicative.map4(
+              kind1, kind2, kind3, kind4, (a, b, c, d) -> a + "+" + b + "+" + c + "+" + d);
 
       Validated<String, String> validated = VALIDATED.narrow(result);
       assertThat(validated.isInvalid()).isTrue();
@@ -321,19 +320,20 @@ class ValidatedApplicativeTest
   @DisplayName("Edge Cases Tests")
   class EdgeCasesTests {
 
-      @Test
-      @DisplayName("Of with null value throws exception")
-      void ofWithNullValueThrowsException() {
-          // ValidatedMonad.of validates that the value cannot be null
-          assertThatThrownBy(() -> applicative.of(null))
-                  .isInstanceOf(NullPointerException.class)
-                  .hasMessageContaining("ValidatedMonad.of value cannot be null");
-      }
+    @Test
+    @DisplayName("Of with null value throws exception")
+    void ofWithNullValueThrowsException() {
+      // ValidatedMonad.of validates that the value cannot be null
+      assertThatThrownBy(() -> applicative.of(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("ValidatedMonad.of value cannot be null");
+    }
+
     @Test
     @DisplayName("Error accumulation order matches semigroup")
     void errorAccumulationOrderMatchesSemigroup() {
       Semigroup<String> reverseSemigroup = (a, b) -> b + ", " + a;
-        Applicative<ValidatedKind.Witness<String>> reverseApplicative =
+      Applicative<ValidatedKind.Witness<String>> reverseApplicative =
           ValidatedMonad.instance(reverseSemigroup);
 
       Kind<ValidatedKind.Witness<String>, Integer> kind1 =

@@ -357,7 +357,8 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
       FunctionValidator.requireFlatMapper(mapper, "mapper", Either.class, FLAT_MAP);
       // Apply the mapper, which itself returns an Either.
       Either<L, ? extends R2> result = mapper.apply(value);
-      FunctionValidator.requireNonNullResult(result, "mapper", EITHER_CLASS, FLAT_MAP, EITHER_CLASS);
+      FunctionValidator.requireNonNullResult(
+          result, "mapper", EITHER_CLASS, FLAT_MAP, EITHER_CLASS);
       // Cast is safe because ? extends R2 is compatible with R2
       return (Either<L, R2>) result;
     }

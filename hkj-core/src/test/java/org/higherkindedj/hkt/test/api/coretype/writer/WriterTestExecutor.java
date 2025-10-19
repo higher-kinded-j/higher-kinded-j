@@ -185,7 +185,9 @@ final class WriterTestExecutor<W, A, B> {
     Function<A, Writer<W, B>> nullReturningMapper = a -> null;
     assertThatThrownBy(() -> writerInstance.flatMap(monoid, nullReturningMapper))
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining("Function f in Writer.flatMap returned null when Writer expected, which is not allowed");
+        .hasMessageContaining(
+            "Function f in Writer.flatMap returned null when Writer expected, which is not"
+                + " allowed");
   }
 
   void testValidations() {

@@ -209,7 +209,8 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThatThrownBy(flatMapped::unsafeRunSync)
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function f in IO.flatMap returned null when IO expected, which is not allowed");
+          .hasMessageContaining(
+              "Function f in IO.flatMap returned null when IO expected, which is not allowed");
     }
   }
 

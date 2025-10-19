@@ -82,7 +82,8 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
             this.monoidW,
             a -> {
               Kind<WriterKind.Witness<W>, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, "f", WRITER_MAONAD_CLASS, FLAT_MAP, Kind.class);
+              FunctionValidator.requireNonNullResult(
+                  kindB, "f", WRITER_MAONAD_CLASS, FLAT_MAP, Kind.class);
               return WRITER.narrow(kindB);
             });
 

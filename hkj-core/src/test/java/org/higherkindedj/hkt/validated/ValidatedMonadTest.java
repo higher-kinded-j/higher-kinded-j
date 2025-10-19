@@ -10,7 +10,6 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
@@ -20,8 +19,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ValidatedMonad Complete Test Suite")
-class ValidatedMonadTest
-    extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
+class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
 
   private ValidatedMonad<String> monad;
   private Semigroup<String> stringSemigroup;
@@ -42,14 +40,13 @@ class ValidatedMonadTest
   }
 
   @Override
-  protected Function<Integer, Kind<ValidatedKind.Witness<String>, String>>
-  createValidFlatMapper() {
+  protected Function<Integer, Kind<ValidatedKind.Witness<String>, String>> createValidFlatMapper() {
     return n -> VALIDATED.widen(Validated.valid("Value: " + n));
   }
 
   @Override
   protected Kind<ValidatedKind.Witness<String>, Function<Integer, String>>
-  createValidFunctionKind() {
+      createValidFunctionKind() {
     Function<Integer, String> fn = n -> "Result: " + n;
     return VALIDATED.widen(Validated.valid(fn));
   }
@@ -75,8 +72,9 @@ class ValidatedMonadTest
   }
 
   @Override
-  protected BiPredicate <Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
-  createEqualityChecker() {
+  protected BiPredicate<
+          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
+      createEqualityChecker() {
     return (k1, k2) -> {
       Validated<String, ?> v1 = VALIDATED.narrow(k1);
       Validated<String, ?> v2 = VALIDATED.narrow(k2);
@@ -86,7 +84,7 @@ class ValidatedMonadTest
 
   @BeforeEach
   void setUpMonad() {
-      stringSemigroup = (a, b) -> a + ", " + b;
+    stringSemigroup = (a, b) -> a + ", " + b;
     monad = ValidatedMonad.instance(stringSemigroup);
   }
 
@@ -179,9 +177,9 @@ class ValidatedMonadTest
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-                .<Integer>instance(monad)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .testOperations();
@@ -190,9 +188,9 @@ class ValidatedMonadTest
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-                .<Integer>instance(monad)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .testValidations();
@@ -201,9 +199,9 @@ class ValidatedMonadTest
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-                .<Integer>instance(monad)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .testExceptions();
@@ -212,9 +210,9 @@ class ValidatedMonadTest
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-        TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-                .<Integer>instance(monad)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
@@ -229,9 +227,9 @@ class ValidatedMonadTest
     @Test
     @DisplayName("Test with inheritance-based validation")
     void testWithInheritanceBasedValidation() {
-        TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-                .<Integer>instance(monad)
-                .<String>withKind(validKind)
+      TypeClassTest.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
           .withMonadOperations(
               validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
           .configureValidation()
@@ -305,7 +303,7 @@ class ValidatedMonadTest
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> nullReturningFn = n -> null;
 
       org.junit.jupiter.api.Assertions.assertThrows(
-              KindUnwrapException.class, () -> monad.flatMap(nullReturningFn, kind));
+          KindUnwrapException.class, () -> monad.flatMap(nullReturningFn, kind));
     }
 
     @Test

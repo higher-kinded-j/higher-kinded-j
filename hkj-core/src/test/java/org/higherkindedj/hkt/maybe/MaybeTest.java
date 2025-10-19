@@ -583,7 +583,8 @@ class MaybeTest extends TypeClassTestBase<MaybeKind.Witness, String, Integer> {
     void flatMapValidatesParameters() {
       ValidationTestBuilder.create()
           .assertFlatMapperNull(() -> justInstance.flatMap(null), "mapper", Just.class, FLAT_MAP)
-          .assertFlatMapperNull(() -> nothingInstance.flatMap(null), "mapper", Maybe.class, FLAT_MAP)
+          .assertFlatMapperNull(
+              () -> nothingInstance.flatMap(null), "mapper", Maybe.class, FLAT_MAP)
           .execute();
     }
 

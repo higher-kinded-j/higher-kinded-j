@@ -180,7 +180,8 @@ final class IOTestExecutor<A, B> {
     IO<B> nullIO = ioInstance.flatMap(nullReturningMapper);
     assertThatThrownBy(nullIO::unsafeRunSync)
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining("Function f in IO.flatMap returned null when IO expected, which is not allowed");
+        .hasMessageContaining(
+            "Function f in IO.flatMap returned null when IO expected, which is not allowed");
   }
 
   void testValidations() {

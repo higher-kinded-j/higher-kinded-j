@@ -19,6 +19,7 @@ public enum Operation {
   CONSTRUCTION("construction"),
   LEFT("left"),
   RIGHT("right"),
+  FROM_KIND("fromKind"),
   FROM_EITHER("fromEither"),
   FROM_MAYBE("fromMaybe"),
   FROM_OPTIONAL("fromOptional"),

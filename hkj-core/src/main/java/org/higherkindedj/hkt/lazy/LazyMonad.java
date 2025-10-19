@@ -145,7 +145,8 @@ public class LazyMonad
         lazyA.flatMap(
             a -> {
               Kind<LazyKind.Witness, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, "f", LAZY_MONAD_CLASS, FLAT_MAP, Kind.class);
+              FunctionValidator.requireNonNullResult(
+                  kindB, "f", LAZY_MONAD_CLASS, FLAT_MAP, Kind.class);
               return LAZY.narrow(kindB);
             });
     return LAZY.widen(lazyB);

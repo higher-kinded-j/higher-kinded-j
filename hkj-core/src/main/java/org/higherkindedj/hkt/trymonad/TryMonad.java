@@ -81,7 +81,8 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             a -> {
               try {
                 Kind<TryKind.Witness, B> kindB = f.apply(a);
-                FunctionValidator.requireNonNullResult(kindB, "f", TRY_MONAD_CLASS, FLAT_MAP, Kind.class);
+                FunctionValidator.requireNonNullResult(
+                    kindB, "f", TRY_MONAD_CLASS, FLAT_MAP, Kind.class);
                 return TRY.narrow(kindB);
               } catch (Throwable t) {
                 return Try.failure(t);
@@ -135,7 +136,8 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             throwable -> {
               try {
                 Kind<TryKind.Witness, A> recoveryKind = handler.apply(throwable);
-                FunctionValidator.requireNonNullResult(recoveryKind, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+                FunctionValidator.requireNonNullResult(
+                    recoveryKind, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
                 return TRY.narrow(recoveryKind);
               } catch (Throwable t) {
                 return Try.failure(t);

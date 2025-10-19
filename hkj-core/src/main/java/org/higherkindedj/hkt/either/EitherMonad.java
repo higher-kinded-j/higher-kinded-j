@@ -87,7 +87,8 @@ public class EitherMonad<L> extends EitherFunctor<L>
         eitherA.flatMap(
             a -> {
               Kind<EitherKind.Witness<L>, B> kindB = validatedF.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, "f", EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);
+              FunctionValidator.requireNonNullResult(
+                  kindB, "f", EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);
               return EITHER.narrow(kindB);
             });
     return EITHER.widen(resultEither);

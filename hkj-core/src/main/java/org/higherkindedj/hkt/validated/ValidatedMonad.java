@@ -133,7 +133,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
         validatedValue.flatMap(
             a -> {
               Kind<ValidatedKind.Witness<E>, B> kindResult = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindResult, "f", VALIDATED_MONAD_CLASS, FLAT_MAP, Validated.class);
+              FunctionValidator.requireNonNullResult(
+                  kindResult, "f", VALIDATED_MONAD_CLASS, FLAT_MAP, Validated.class);
               return VALIDATED.narrow(kindResult);
             });
     return VALIDATED.widen(result);
@@ -187,166 +188,166 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
     if (validated.isInvalid()) {
       E errorValue = validated.getError();
       Kind<ValidatedKind.Witness<E>, A> resultFromHandler = handler.apply(errorValue);
-      FunctionValidator.requireNonNullResult(resultFromHandler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+      FunctionValidator.requireNonNullResult(
+          resultFromHandler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
       return resultFromHandler;
     } else {
       return ma;
     }
   }
 
-    @Override
-    public <A, B, C> Kind<ValidatedKind.Witness<E>, C> map2(
-            Kind<ValidatedKind.Witness<E>, A> fa,
-            Kind<ValidatedKind.Witness<E>, B> fb,
-            BiFunction<? super A, ? super B, ? extends C> f) {
+  @Override
+  public <A, B, C> Kind<ValidatedKind.Witness<E>, C> map2(
+      Kind<ValidatedKind.Witness<E>, A> fa,
+      Kind<ValidatedKind.Witness<E>, B> fb,
+      BiFunction<? super A, ? super B, ? extends C> f) {
 
-        KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_2, "first");
-        KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_2, "second");
-        FunctionValidator.requireFunction(f, "combining function", ValidatedMonad.class, MAP_2);
+    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_2, "first");
+    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_2, "second");
+    FunctionValidator.requireFunction(f, "combining function", ValidatedMonad.class, MAP_2);
 
-        Validated<E, A> va = VALIDATED.narrow(fa);
-        Validated<E, B> vb = VALIDATED.narrow(fb);
+    Validated<E, A> va = VALIDATED.narrow(fa);
+    Validated<E, B> vb = VALIDATED.narrow(fb);
 
-        // Collect all errors if any exist
-        if (va.isInvalid() || vb.isInvalid()) {
-            List<E> errors = new ArrayList<>();
-            if (va.isInvalid()) errors.add(va.getError());
-            if (vb.isInvalid()) errors.add(vb.getError());
+    // Collect all errors if any exist
+    if (va.isInvalid() || vb.isInvalid()) {
+      List<E> errors = new ArrayList<>();
+      if (va.isInvalid()) errors.add(va.getError());
+      if (vb.isInvalid()) errors.add(vb.getError());
 
-            // Combine all errors using the semigroup
-            E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
-            return VALIDATED.invalid(combinedError);
-        }
-
-        // Both valid - apply the function
-        C result = f.apply(va.get(), vb.get());
-        FunctionValidator.requireNonNullResult(result, "combining function", ValidatedMonad.class, MAP_2);
-        return VALIDATED.valid(result);
+      // Combine all errors using the semigroup
+      E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
+      return VALIDATED.invalid(combinedError);
     }
 
+    // Both valid - apply the function
+    C result = f.apply(va.get(), vb.get());
+    FunctionValidator.requireNonNullResult(
+        result, "combining function", ValidatedMonad.class, MAP_2);
+    return VALIDATED.valid(result);
+  }
 
-    @Override
-    public <A, B, C, D> Kind<ValidatedKind.Witness<E>, D> map3(
-            Kind<ValidatedKind.Witness<E>, A> fa,
-            Kind<ValidatedKind.Witness<E>, B> fb,
-            Kind<ValidatedKind.Witness<E>, C> fc,
-            Function3<? super A, ? super B, ? super C, ? extends D> f) {
+  @Override
+  public <A, B, C, D> Kind<ValidatedKind.Witness<E>, D> map3(
+      Kind<ValidatedKind.Witness<E>, A> fa,
+      Kind<ValidatedKind.Witness<E>, B> fb,
+      Kind<ValidatedKind.Witness<E>, C> fc,
+      Function3<? super A, ? super B, ? super C, ? extends D> f) {
 
-        KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_3, "first");
-        KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_3, "second");
-        KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_3, "third");
-        FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_3);
+    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_3, "first");
+    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_3, "second");
+    KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_3, "third");
+    FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_3);
 
-        Validated<E, A> va = VALIDATED.narrow(fa);
-        Validated<E, B> vb = VALIDATED.narrow(fb);
-        Validated<E, C> vc = VALIDATED.narrow(fc);
+    Validated<E, A> va = VALIDATED.narrow(fa);
+    Validated<E, B> vb = VALIDATED.narrow(fb);
+    Validated<E, C> vc = VALIDATED.narrow(fc);
 
-        // Collect all errors if any exist
-        if (va.isInvalid() || vb.isInvalid() || vc.isInvalid()) {
-            List<E> errors = new ArrayList<>();
-            if (va.isInvalid()) errors.add(va.getError());
-            if (vb.isInvalid()) errors.add(vb.getError());
-            if (vc.isInvalid()) errors.add(vc.getError());
+    // Collect all errors if any exist
+    if (va.isInvalid() || vb.isInvalid() || vc.isInvalid()) {
+      List<E> errors = new ArrayList<>();
+      if (va.isInvalid()) errors.add(va.getError());
+      if (vb.isInvalid()) errors.add(vb.getError());
+      if (vc.isInvalid()) errors.add(vc.getError());
 
-            // Combine all errors using the semigroup
-            E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
-            return VALIDATED.invalid(combinedError);
-        }
-
-        // All valid - apply the function
-        D result = f.apply(va.get(), vb.get(), vc.get());
-        FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_3);
-        return VALIDATED.valid(result);
+      // Combine all errors using the semigroup
+      E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
+      return VALIDATED.invalid(combinedError);
     }
 
-    @Override
-    public <A, B, C, D, R> Kind<ValidatedKind.Witness<E>, R> map4(
-            Kind<ValidatedKind.Witness<E>, A> fa,
-            Kind<ValidatedKind.Witness<E>, B> fb,
-            Kind<ValidatedKind.Witness<E>, C> fc,
-            Kind<ValidatedKind.Witness<E>, D> fd,
-            Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
+    // All valid - apply the function
+    D result = f.apply(va.get(), vb.get(), vc.get());
+    FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_3);
+    return VALIDATED.valid(result);
+  }
 
-        KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_4, "first");
-        KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_4, "second");
-        KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_4, "third");
-        KindValidator.requireNonNull(fd, ValidatedMonad.class, MAP_4, "fourth");
-        FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_4);
+  @Override
+  public <A, B, C, D, R> Kind<ValidatedKind.Witness<E>, R> map4(
+      Kind<ValidatedKind.Witness<E>, A> fa,
+      Kind<ValidatedKind.Witness<E>, B> fb,
+      Kind<ValidatedKind.Witness<E>, C> fc,
+      Kind<ValidatedKind.Witness<E>, D> fd,
+      Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
 
-        Validated<E, A> va = VALIDATED.narrow(fa);
-        Validated<E, B> vb = VALIDATED.narrow(fb);
-        Validated<E, C> vc = VALIDATED.narrow(fc);
-        Validated<E, D> vd = VALIDATED.narrow(fd);
+    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_4, "first");
+    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_4, "second");
+    KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_4, "third");
+    KindValidator.requireNonNull(fd, ValidatedMonad.class, MAP_4, "fourth");
+    FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_4);
 
-        // Collect all errors if any exist
-        if (va.isInvalid() || vb.isInvalid() || vc.isInvalid() || vd.isInvalid()) {
-            List<E> errors = new ArrayList<>();
-            if (va.isInvalid()) errors.add(va.getError());
-            if (vb.isInvalid()) errors.add(vb.getError());
-            if (vc.isInvalid()) errors.add(vc.getError());
-            if (vd.isInvalid()) errors.add(vd.getError());
+    Validated<E, A> va = VALIDATED.narrow(fa);
+    Validated<E, B> vb = VALIDATED.narrow(fb);
+    Validated<E, C> vc = VALIDATED.narrow(fc);
+    Validated<E, D> vd = VALIDATED.narrow(fd);
 
-            // Combine all errors using the semigroup
-            E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
-            return VALIDATED.invalid(combinedError);
-        }
+    // Collect all errors if any exist
+    if (va.isInvalid() || vb.isInvalid() || vc.isInvalid() || vd.isInvalid()) {
+      List<E> errors = new ArrayList<>();
+      if (va.isInvalid()) errors.add(va.getError());
+      if (vb.isInvalid()) errors.add(vb.getError());
+      if (vc.isInvalid()) errors.add(vc.getError());
+      if (vd.isInvalid()) errors.add(vd.getError());
 
-        // All valid - apply the function
-        R result = f.apply(va.get(), vb.get(), vc.get(), vd.get());
-        FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_4);
-        return VALIDATED.valid(result);
+      // Combine all errors using the semigroup
+      E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
+      return VALIDATED.invalid(combinedError);
     }
 
-    @Override
-    public <A, B, C, D, E1, R> Kind<ValidatedKind.Witness<E>, R> map5(
-            Kind<ValidatedKind.Witness<E>, A> fa,
-            Kind<ValidatedKind.Witness<E>, B> fb,
-            Kind<ValidatedKind.Witness<E>, C> fc,
-            Kind<ValidatedKind.Witness<E>, D> fd,
-            Kind<ValidatedKind.Witness<E>, E1> fe,
-            Function5<? super A, ? super B, ? super C, ? super D, ? super E1, ? extends R> f) {
+    // All valid - apply the function
+    R result = f.apply(va.get(), vb.get(), vc.get(), vd.get());
+    FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_4);
+    return VALIDATED.valid(result);
+  }
 
-        KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_5, "first");
-        KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_5, "second");
-        KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_5, "third");
-        KindValidator.requireNonNull(fd, ValidatedMonad.class, MAP_5, "fourth");
-        KindValidator.requireNonNull(fe, ValidatedMonad.class, MAP_5, "fifth");
-        FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_5);
+  @Override
+  public <A, B, C, D, E1, R> Kind<ValidatedKind.Witness<E>, R> map5(
+      Kind<ValidatedKind.Witness<E>, A> fa,
+      Kind<ValidatedKind.Witness<E>, B> fb,
+      Kind<ValidatedKind.Witness<E>, C> fc,
+      Kind<ValidatedKind.Witness<E>, D> fd,
+      Kind<ValidatedKind.Witness<E>, E1> fe,
+      Function5<? super A, ? super B, ? super C, ? super D, ? super E1, ? extends R> f) {
 
-        Validated<E, A> va = VALIDATED.narrow(fa);
-        Validated<E, B> vb = VALIDATED.narrow(fb);
-        Validated<E, C> vc = VALIDATED.narrow(fc);
-        Validated<E, D> vd = VALIDATED.narrow(fd);
-        Validated<E, E1> ve = VALIDATED.narrow(fe);
+    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_5, "first");
+    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_5, "second");
+    KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_5, "third");
+    KindValidator.requireNonNull(fd, ValidatedMonad.class, MAP_5, "fourth");
+    KindValidator.requireNonNull(fe, ValidatedMonad.class, MAP_5, "fifth");
+    FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_5);
 
-        // Collect all errors if any exist
-        if (va.isInvalid() || vb.isInvalid() || vc.isInvalid() || vd.isInvalid() || ve.isInvalid()) {
-            List<E> errors = new ArrayList<>();
-            if (va.isInvalid()) errors.add(va.getError());
-            if (vb.isInvalid()) errors.add(vb.getError());
-            if (vc.isInvalid()) errors.add(vc.getError());
-            if (vd.isInvalid()) errors.add(vd.getError());
-            if (ve.isInvalid()) errors.add(ve.getError());
+    Validated<E, A> va = VALIDATED.narrow(fa);
+    Validated<E, B> vb = VALIDATED.narrow(fb);
+    Validated<E, C> vc = VALIDATED.narrow(fc);
+    Validated<E, D> vd = VALIDATED.narrow(fd);
+    Validated<E, E1> ve = VALIDATED.narrow(fe);
 
-            // Combine all errors using the semigroup
-            E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
-            return VALIDATED.invalid(combinedError);
-        }
+    // Collect all errors if any exist
+    if (va.isInvalid() || vb.isInvalid() || vc.isInvalid() || vd.isInvalid() || ve.isInvalid()) {
+      List<E> errors = new ArrayList<>();
+      if (va.isInvalid()) errors.add(va.getError());
+      if (vb.isInvalid()) errors.add(vb.getError());
+      if (vc.isInvalid()) errors.add(vc.getError());
+      if (vd.isInvalid()) errors.add(vd.getError());
+      if (ve.isInvalid()) errors.add(ve.getError());
 
-        // All valid - apply the function
-        R result = f.apply(va.get(), vb.get(), vc.get(), vd.get(), ve.get());
-        FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_5);
-        return VALIDATED.valid(result);
+      // Combine all errors using the semigroup
+      E combinedError = errors.stream().reduce(semigroup::combine).orElseThrow();
+      return VALIDATED.invalid(combinedError);
     }
 
-    @Override
-    public <A> Kind<ValidatedKind.Witness<E>, A> recoverWith(
-            Kind<ValidatedKind.Witness<E>, A> ma,
-            Kind<ValidatedKind.Witness<E>, A> fallback) {
+    // All valid - apply the function
+    R result = f.apply(va.get(), vb.get(), vc.get(), vd.get(), ve.get());
+    FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_5);
+    return VALIDATED.valid(result);
+  }
 
-        KindValidator.requireNonNull(ma, ValidatedMonad.class, RECOVER_WITH, "source");
-        KindValidator.requireNonNull(fallback, ValidatedMonad.class, RECOVER_WITH, "fallback");
+  @Override
+  public <A> Kind<ValidatedKind.Witness<E>, A> recoverWith(
+      Kind<ValidatedKind.Witness<E>, A> ma, Kind<ValidatedKind.Witness<E>, A> fallback) {
 
-        return handleErrorWith(ma, e -> fallback);
-    }
+    KindValidator.requireNonNull(ma, ValidatedMonad.class, RECOVER_WITH, "source");
+    KindValidator.requireNonNull(fallback, ValidatedMonad.class, RECOVER_WITH, "fallback");
+
+    return handleErrorWith(ma, e -> fallback);
+  }
 }

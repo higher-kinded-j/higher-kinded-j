@@ -107,7 +107,8 @@ public interface State<S, A> {
           S stateS1 = result1.state();
 
           State<S, ? extends B> nextState = f.apply(valueA);
-          FunctionValidator.requireNonNullResult(nextState, "f", STATE_CLASS, FLAT_MAP, STATE_CLASS);
+          FunctionValidator.requireNonNullResult(
+              nextState, "f", STATE_CLASS, FLAT_MAP, STATE_CLASS);
 
           StateTuple<S, ? extends B> finalResultTuple = nextState.run(stateS1);
 

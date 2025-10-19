@@ -8,7 +8,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.higherkindedj.hkt.validated.*;
@@ -243,45 +242,35 @@ final class ValidatedTestExecutor<E, A, B> {
         contextClass,
         Operation.FOLD);
     builder.assertFunctionNull(
-        () -> invalidInstance.fold(errorMapper, null),
-        "validMapper",
-        contextClass,
-        Operation.FOLD);
+        () -> invalidInstance.fold(errorMapper, null), "validMapper", contextClass, Operation.FOLD);
 
     // Determine contexts for concrete implementations
     Class<?> validMapContext =
         (validationStage != null && validationStage.getMapContext() != null)
             ? validationStage.getMapContext()
-            : Invalid.class;  // Default to Invalid.class since we're testing Invalid
+            : Invalid.class; // Default to Invalid.class since we're testing Invalid
 
     Class<?> validFlatMapContext =
         (validationStage != null && validationStage.getFlatMapContext() != null)
             ? validationStage.getFlatMapContext()
-            : Invalid.class;  // Default to Invalid.class
+            : Invalid.class; // Default to Invalid.class
 
     Class<?> validIfValidContext =
         (validationStage != null && validationStage.getIfValidContext() != null)
             ? validationStage.getIfValidContext()
-            : Invalid.class;  // Default to Invalid.class
+            : Invalid.class; // Default to Invalid.class
 
     Class<?> validIfInvalidContext =
         (validationStage != null && validationStage.getIfInvalidContext() != null)
             ? validationStage.getIfInvalidContext()
-            : Invalid.class;  // Default to Invalid.class
+            : Invalid.class; // Default to Invalid.class
 
     // Map validations
-    builder.assertMapperNull(
-        () -> invalidInstance.map(null),
-        "fn",
-        validMapContext,
-        Operation.MAP);
+    builder.assertMapperNull(() -> invalidInstance.map(null), "fn", validMapContext, Operation.MAP);
 
     // FlatMap validations
     builder.assertFlatMapperNull(
-        () -> invalidInstance.flatMap(null),
-        "fn",
-        validFlatMapContext,
-        Operation.FLAT_MAP);
+        () -> invalidInstance.flatMap(null), "fn", validFlatMapContext, Operation.FLAT_MAP);
 
     // Side effect validations
     builder.assertFunctionNull(
@@ -291,10 +280,7 @@ final class ValidatedTestExecutor<E, A, B> {
         Operation.IF_INVALID);
 
     builder.assertFunctionNull(
-        () -> invalidInstance.ifValid(null),
-        "consumer",
-        validIfValidContext,
-        Operation.IF_VALID);
+        () -> invalidInstance.ifValid(null), "consumer", validIfValidContext, Operation.IF_VALID);
 
     builder.execute();
   }

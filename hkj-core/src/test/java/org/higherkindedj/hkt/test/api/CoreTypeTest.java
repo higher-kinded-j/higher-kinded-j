@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api;
 
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.lazy.Lazy;
@@ -10,6 +11,7 @@ import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherKindHelperTest;
+import org.higherkindedj.hkt.test.api.coretype.eithert.EitherTCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.io.IOCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.io.IOKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.lazy.LazyCoreTestStage;
@@ -187,6 +189,69 @@ public final class CoreTypeTest {
     return new ValidatedCoreTestStage<>(contextClass);
   }
 
+  /**
+   * Begins configuration for testing a Reader implementation.
+   *
+   * <p>Tests Reader-specific operations like run, ask, constant, as well as factory methods and
+   * basic operations.
+   *
+   * @param contextClass The implementation class for error messages (e.g., Reader.class)
+   * @param <R> The environment type
+   * @param <A> The value type
+   * @return Stage for providing test instances
+   */
+  public static <R, A> ReaderCoreTestStage<R, A> reader(Class<?> contextClass) {
+    return new ReaderCoreTestStage<>(contextClass);
+  }
+
+  /**
+   * Begins configuration for testing a Writer implementation.
+   *
+   * <p>Tests Writer-specific operations like value, tell, run, exec, as well as log accumulation
+   * and basic operations.
+   *
+   * @param contextClass The implementation class for error messages (e.g., Writer.class)
+   * @param <W> The log type
+   * @param <A> The value type
+   * @return Stage for providing test instances
+   */
+  public static <W, A> WriterCoreTestStage<W, A> writer(Class<?> contextClass) {
+    return new WriterCoreTestStage<>(contextClass);
+  }
+
+  /**
+   * Begins configuration for testing a State implementation.
+   *
+   * <p>Tests State-specific operations like pure, get, set, modify, inspect, as well as state
+   * threading and basic operations.
+   *
+   * @param contextClass The implementation class for error messages (e.g., State.class)
+   * @param <S> The state type
+   * @param <A> The value type
+   * @return Stage for providing test instances
+   */
+  public static <S, A> StateCoreTestStage<S, A> state(Class<?> contextClass) {
+    return new StateCoreTestStage<>(contextClass);
+  }
+
+  /**
+   * Begins configuration for testing an EitherT implementation.
+   *
+   * <p>Tests EitherT-specific operations like factory methods (right, left, fromEither, liftF),
+   * value accessor, as well as validation.
+   *
+   * @param contextClass The implementation class for error messages (e.g., EitherT.class)
+   * @param outerMonad The outer monad instance required for EitherT operations
+   * @param <F> The outer monad witness type
+   * @param <L> The Left type
+   * @param <R> The Right type
+   * @return Stage for providing test instances
+   */
+  public static <F, L, R> EitherTCoreTestStage<F, L, R> eitherT(
+      Class<?> contextClass, Monad<F> outerMonad) {
+    return new EitherTCoreTestStage<>(contextClass, outerMonad);
+  }
+
   // =============================================================================
   // KindHelper Testing for Core Types
   // =============================================================================
@@ -293,51 +358,6 @@ public final class CoreTypeTest {
    */
   public static <A> LazyKindHelperTest<A> lazyKindHelper(Lazy<A> instance) {
     return new LazyKindHelperTest<>(instance);
-  }
-
-  /**
-   * Begins configuration for testing a Reader implementation.
-   *
-   * <p>Tests Reader-specific operations like run, ask, constant, as well as factory methods and
-   * basic operations.
-   *
-   * @param contextClass The implementation class for error messages (e.g., Reader.class)
-   * @param <R> The environment type
-   * @param <A> The value type
-   * @return Stage for providing test instances
-   */
-  public static <R, A> ReaderCoreTestStage<R, A> reader(Class<?> contextClass) {
-    return new ReaderCoreTestStage<>(contextClass);
-  }
-
-  /**
-   * Begins configuration for testing a Writer implementation.
-   *
-   * <p>Tests Writer-specific operations like value, tell, run, exec, as well as log accumulation
-   * and basic operations.
-   *
-   * @param contextClass The implementation class for error messages (e.g., Writer.class)
-   * @param <W> The log type
-   * @param <A> The value type
-   * @return Stage for providing test instances
-   */
-  public static <W, A> WriterCoreTestStage<W, A> writer(Class<?> contextClass) {
-    return new WriterCoreTestStage<>(contextClass);
-  }
-
-  /**
-   * Begins configuration for testing a State implementation.
-   *
-   * <p>Tests State-specific operations like pure, get, set, modify, inspect, as well as state
-   * threading and basic operations.
-   *
-   * @param contextClass The implementation class for error messages (e.g., State.class)
-   * @param <S> The state type
-   * @param <A> The value type
-   * @return Stage for providing test instances
-   */
-  public static <S, A> StateCoreTestStage<S, A> state(Class<?> contextClass) {
-    return new StateCoreTestStage<>(contextClass);
   }
 
   /**

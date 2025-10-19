@@ -264,7 +264,7 @@ final class EitherTestExecutor<L, R, S> {
       builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
     } else {
       // Use the instance method
-      builder.assertMapperNull(() -> rightInstance.map(null),"mapper",  mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> rightInstance.map(null), "mapper", mapContext, Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided

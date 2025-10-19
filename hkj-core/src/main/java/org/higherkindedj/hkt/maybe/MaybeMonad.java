@@ -70,7 +70,8 @@ public final class MaybeMonad extends MaybeFunctor
         maybeA.flatMap(
             a -> {
               Kind<MaybeKind.Witness, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(kindB, "f", MAYBE_MONAD_CLASS, FLAT_MAP, Maybe.class);
+              FunctionValidator.requireNonNullResult(
+                  kindB, "f", MAYBE_MONAD_CLASS, FLAT_MAP, Maybe.class);
               return MAYBE.narrow(kindB);
             });
 
@@ -142,7 +143,8 @@ public final class MaybeMonad extends MaybeFunctor
 
     if (maybe.isNothing()) {
       Kind<MaybeKind.Witness, A> result = handler.apply(Unit.INSTANCE);
-      FunctionValidator.requireNonNullResult(result, "handler",  MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, Maybe.class);
+      FunctionValidator.requireNonNullResult(
+          result, "handler", MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, Maybe.class);
       return result;
     }
 

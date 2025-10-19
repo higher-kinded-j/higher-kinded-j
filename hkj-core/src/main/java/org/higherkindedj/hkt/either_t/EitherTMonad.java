@@ -158,7 +158,8 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
               if (innerEither.isRight()) {
                 R_IN r_in = innerEither.getRight();
                 Kind<EitherTKind.Witness<F, L>, R_OUT> resultKindT = f.apply(r_in);
-                FunctionValidator.requireNonNullResult(resultKindT, "f", EITHER_T_MONAD_CLASS, FLAT_MAP);
+                FunctionValidator.requireNonNullResult(
+                    resultKindT, "f", EITHER_T_MONAD_CLASS, FLAT_MAP);
                 EitherT<F, L, R_OUT> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R_OUT>>
               } else {
@@ -226,7 +227,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
                 L leftVal = innerEither.getLeft();
                 Kind<EitherTKind.Witness<F, L>, R> resultKindT = handler.apply(leftVal);
                 FunctionValidator.requireNonNullResult(
-                    resultKindT, "handler",EitherT.class, HANDLE_ERROR_WITH,  Kind.class);
+                    resultKindT, "handler", EitherT.class, HANDLE_ERROR_WITH, Kind.class);
                 EitherT<F, L, R> resultT = EITHER_T.narrow(resultKindT);
                 return resultT.value(); // This is Kind<F, Either<L, R>>
               }

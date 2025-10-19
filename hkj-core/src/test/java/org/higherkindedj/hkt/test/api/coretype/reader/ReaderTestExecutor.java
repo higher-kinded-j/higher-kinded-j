@@ -176,7 +176,9 @@ final class ReaderTestExecutor<R, A, B> {
     Reader<R, B> nullReader = readerInstance.flatMap(nullReturningMapper);
     assertThatThrownBy(() -> nullReader.run(environment))
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining("Function f in Reader.flatMap returned null when Reader expected, which is not allowed");
+        .hasMessageContaining(
+            "Function f in Reader.flatMap returned null when Reader expected, which is not"
+                + " allowed");
   }
 
   void testValidations() {
