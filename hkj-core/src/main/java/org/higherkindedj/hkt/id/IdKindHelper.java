@@ -32,8 +32,7 @@ public enum IdKindHelper implements IdConverterOps {
    */
   @Override
   public <A> Kind<Id.Witness, A> widen(Id<A> id) {
-    KindValidator.requireForWiden(id, ID_CLASS);
-    return id;
+    return KindValidator.requireForWiden(id, ID_CLASS);
   }
 
   /**

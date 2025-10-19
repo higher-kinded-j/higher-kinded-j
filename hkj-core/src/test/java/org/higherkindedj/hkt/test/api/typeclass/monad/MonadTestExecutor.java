@@ -85,15 +85,27 @@ final class MonadTestExecutor<F, A, B> {
     TestMethodRegistry.testMonadOperations(monad, validKind, mapper, flatMapper, functionKind);
   }
 
-  void executeValidations() {
-    if (validationStage != null) {
-      // Use FlexibleValidationConfig with custom contexts
-      createFlexibleValidationConfig().test();
-    } else {
-      TestMethodRegistry.testMonadValidations(
-          monad, contextClass, validKind, mapper, flatMapper, functionKind);
+    void executeValidations() {
+        // Always use FlexibleValidationConfig for consistent validation testing
+        if (validationStage != null) {
+            // Use configured validation contexts
+            createFlexibleValidationConfig().test();
+        } else {
+            // Use default validation (test only directly implemented operations)
+            // For Monad, only test map and flatMap (not ap/map2 which are inherited)
+            FlexibleValidationConfig.MonadValidation<F, A, B> config =
+                    new FlexibleValidationConfig.MonadValidation<>(
+                            monad, validKind, validKind2, mapper, functionKind, combiningFunction, flatMapper);
+
+            // Configure to test map and flatMap with class context (if overridden)
+            // but don't test ap/map2 (which are inherited default implementations)
+            config.mapWithClassContext(contextClass);
+            config.flatMapWithClassContext(contextClass);
+            // Don't configure ap or map2 - they won't be tested
+
+            config.test();
+        }
     }
-  }
 
   private FlexibleValidationConfig.MonadValidation<F, A, B> createFlexibleValidationConfig() {
     FlexibleValidationConfig.MonadValidation<F, A, B> config =

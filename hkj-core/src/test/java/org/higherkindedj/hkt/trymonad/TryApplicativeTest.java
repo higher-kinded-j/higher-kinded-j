@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
@@ -100,7 +102,6 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
           .useInheritanceValidation()
           .withMapFrom(TryFunctor.class)
           .withApFrom(TryApplicative.class)
-          .withMap2From(TryApplicative.class)
           .testValidations();
     }
 
@@ -125,7 +126,7 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
           .useInheritanceValidation()
           .withMapFrom(TryFunctor.class)
           .withApFrom(TryApplicative.class)
-          .withMap2From(TryApplicative.class)
+          .withMap2From(Applicative.class)
           .testValidations();
     }
   }
@@ -161,7 +162,7 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
           .useInheritanceValidation()
           .withMapFrom(TryFunctor.class)
           .withApFrom(TryApplicative.class)
-          .withMap2From(TryApplicative.class)
+          .withMap2From(Applicative.class)
           .selectTests()
           .onlyValidations()
           .test();

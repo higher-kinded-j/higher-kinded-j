@@ -9,6 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
@@ -403,7 +405,7 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     void map2ShouldThrowNPEForNullFirstKind() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.map2(null, validKind2, validCombiningFunction))
-          .withMessageContaining("Kind<F, A> for map2 cannot be null");
+          .withMessageContaining("Kind<F, A> fa for map2 cannot be null");
     }
 
     @Test
@@ -411,7 +413,7 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     void map2ShouldThrowNPEForNullSecondKind() {
       assertThatNullPointerException()
           .isThrownBy(() -> applicative.map2(validKind, null, validCombiningFunction))
-          .withMessageContaining("Kind<F, B> for map2 cannot be null");
+          .withMessageContaining("Kind<F, B> fb for map2 cannot be null");
     }
 
     @Test
@@ -578,7 +580,7 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
           .useInheritanceValidation()
           .withMapFrom(LazyMonad.class)
           .withApFrom(LazyMonad.class)
-          .withMap2From(LazyMonad.class)
+          .withMap2From(Applicative.class)
           .testValidations();
     }
 

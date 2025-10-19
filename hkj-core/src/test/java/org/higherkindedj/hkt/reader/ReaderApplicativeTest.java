@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -101,7 +103,7 @@ class ReaderApplicativeTest
           .useInheritanceValidation()
           .withMapFrom(ReaderFunctor.class)
           .withApFrom(ReaderApplicative.class)
-          .withMap2From(ReaderApplicative.class)
+          .withMap2From(Applicative.class)
           .selectTests()
           .skipExceptions() // Reader is lazy - exceptions only thrown on run()
           .test();
@@ -210,7 +212,7 @@ class ReaderApplicativeTest
           .useInheritanceValidation()
           .withMapFrom(ReaderFunctor.class)
           .withApFrom(ReaderApplicative.class)
-          .withMap2From(ReaderApplicative.class)
+          .withMap2From(Applicative.class)
           .testValidations();
     }
 

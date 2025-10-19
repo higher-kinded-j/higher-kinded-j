@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.test.api;
 
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -12,6 +13,8 @@ import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.either_t.EitherTCoreTestStage;
+import org.higherkindedj.hkt.test.api.coretype.id.IdCoreTestStage;
+import org.higherkindedj.hkt.test.api.coretype.id.IdKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.io.IOCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.io.IOKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.lazy.LazyCoreTestStage;
@@ -292,6 +295,20 @@ public final class CoreTypeTest {
         return new ReaderTCoreTestStage<>(contextClass, outerMonad);
     }
 
+    /**
+     *
+     * <p>Tests Id-specific operations like value, map, flatMap, as well as factory methods and basic
+     * operations.
+     *
+     * @param contextClass The implementation class for error messages (e.g., Id.class)
+     * @param <A> The value type
+     * @return Stage for providing test instances
+     */
+    public static <A> IdCoreTestStage<A> id(
+            Class<?> contextClass) {
+        return new IdCoreTestStage<>(contextClass);
+    }
+
   // =============================================================================
   // KindHelper Testing for Core Types
   // =============================================================================
@@ -531,4 +548,8 @@ public final class CoreTypeTest {
   public static <E, A> ValidatedKindHelperTest<E, A> validatedKindHelper(Validated<E, A> instance) {
     return new ValidatedKindHelperTest<>(instance);
   }
+
+    public static <A> IdKindHelperTest<A> idKindHelper(Id<A> instance) {
+        return new IdKindHelperTest<>(instance);
+    }
 }

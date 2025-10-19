@@ -8,6 +8,8 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -97,7 +99,7 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
           .useInheritanceValidation()
           .withMapFrom(StateFunctor.class)
           .withApFrom(StateApplicative.class)
-          .withMap2From(StateApplicative.class)
+          .withMap2From(Applicative.class)
           .selectTests()
           .skipExceptions() // State is lazy - exceptions deferred until run()
           .test();

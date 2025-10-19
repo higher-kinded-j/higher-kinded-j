@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
+
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -87,7 +89,7 @@ class WriterApplicativeTest extends TypeClassTestBase<WriterKind.Witness<String>
           .useInheritanceValidation()
           .withMapFrom(WriterFunctor.class)
           .withApFrom(WriterApplicative.class)
-          .withMap2From(WriterApplicative.class)
+          .withMap2From(Applicative.class)
           .testAll();
     }
   }
