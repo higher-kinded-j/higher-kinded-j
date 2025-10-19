@@ -11,13 +11,14 @@ import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.either.EitherKindHelperTest;
-import org.higherkindedj.hkt.test.api.coretype.eithert.EitherTCoreTestStage;
+import org.higherkindedj.hkt.test.api.coretype.either_t.EitherTCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.io.IOCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.io.IOKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.lazy.LazyCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.lazy.LazyKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.maybe.MaybeCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.maybe.MaybeKindHelperTest;
+import org.higherkindedj.hkt.test.api.coretype.maybe_t.MaybeTCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.reader.ReaderCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.reader.ReaderKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.state.StateCoreTestStage;
@@ -251,6 +252,12 @@ public final class CoreTypeTest {
       Class<?> contextClass, Monad<F> outerMonad) {
     return new EitherTCoreTestStage<>(contextClass, outerMonad);
   }
+
+
+    public static <F, A> MaybeTCoreTestStage<F, A> maybeT(
+            Class<?> contextClass, Monad<F> outerMonad) {
+        return new MaybeTCoreTestStage<>(contextClass, outerMonad);
+    }
 
   // =============================================================================
   // KindHelper Testing for Core Types

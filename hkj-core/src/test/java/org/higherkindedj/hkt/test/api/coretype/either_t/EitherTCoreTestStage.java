@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.test.api.coretype.eithert;
+package org.higherkindedj.hkt.test.api.coretype.either_t;
 
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either_t.EitherT;
