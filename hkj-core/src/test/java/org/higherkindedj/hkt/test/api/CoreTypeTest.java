@@ -21,6 +21,7 @@ import org.higherkindedj.hkt.test.api.coretype.maybe.MaybeKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.maybe_t.MaybeTCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.reader.ReaderCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.reader.ReaderKindHelperTest;
+import org.higherkindedj.hkt.test.api.coretype.reader_t.ReaderTCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.state.StateCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.state.StateKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.state_t.StateTCoreTestStage;
@@ -274,6 +275,22 @@ public final class CoreTypeTest {
       Class<?> contextClass, Monad<F> outerMonad) {
     return new StateTCoreTestStage<>(contextClass, outerMonad);
   }
+
+    /**
+     * Tests ReaderT-specific operations like factory methods (of, liftF, reader, ask), runner
+     * methods (run), as well as validation.
+     *
+     * @param contextClass The implementation class for error messages (e.g., ReaderT.class)
+     * @param outerMonad The outer monad instance required for ReaderT operations
+     * @param <F> The outer monad witness type
+     * @param <R> The environment type
+     * @param <A> The value type
+     * @return Stage for providing test instances
+     */
+    public static <F, R, A> ReaderTCoreTestStage<F, R, A> readerT(
+            Class<?> contextClass, Monad<F> outerMonad) {
+        return new ReaderTCoreTestStage<>(contextClass, outerMonad);
+    }
 
   // =============================================================================
   // KindHelper Testing for Core Types

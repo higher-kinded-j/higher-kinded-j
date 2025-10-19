@@ -1,107 +1,172 @@
 // Copyright (c) 2025 Magnus Smith
-// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+// Licensed under the MIT License. See LICENSE.md in the project root for licence information.
 package org.higherkindedj.hkt.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
-import java.util.Optional;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderTKindHelper Tests (Outer: OptionalKind.Witness, Env: String)")
+@DisplayName("ReaderTKindHelper Tests (F=OptionalKind.Witness, R=String)")
 class ReaderTKindHelperTest {
 
-  // Environment type R_ENV is String for these tests
-  private final String testEnv = "testEnvironment";
+    private static final String TYPE_NAME = "ReaderT";
 
-  // Helper to create a ReaderT for testing
-  // F = OptionalKind.Witness, R_ENV = String
-  private <A> ReaderT<OptionalKind.Witness, String, A> createReaderT(
-      Function<String, Kind<OptionalKind.Witness, A>> runFn) {
-    return ReaderT.of(runFn);
-  }
+    private Monad<OptionalKind.Witness> outerMonad;
 
-  @Nested
-  @DisplayName("READER_T.widen() tests")
-  class WrapTests {
-    @Test
-    @DisplayName("should wrap a non-null ReaderT into a Kind<ReaderTKind.Witness<F,R>,A>")
-    void widen_nonNullReaderT_shouldReturnReaderTKind() {
-      ReaderT<OptionalKind.Witness, String, Integer> concreteReaderT =
-          createReaderT(env -> OPTIONAL.widen(Optional.of(env.length())));
-
-      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
-          READER_T.widen(concreteReaderT);
-
-      assertThat(wrapped).isNotNull().isInstanceOf(ReaderT.class);
-      assertThat(READER_T.narrow(wrapped)).isSameAs(concreteReaderT);
+    @BeforeEach
+    void setUp() {
+        outerMonad = OptionalMonad.INSTANCE;
     }
 
-    @Test
-    @DisplayName("should throw NullPointerException when wrapping null")
-    void widen_nullReaderT_shouldThrowNullPointerException() {
-      assertThatThrownBy(() -> READER_T.widen(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted("ReaderT"));
-    }
-  }
-
-  @Nested
-  @DisplayName("READER_T.narrow() tests")
-  class UnwrapTests {
-    @Test
-    @DisplayName("should unwrap a valid Kind to the original ReaderT instance")
-    void narrow_validKind_shouldReturnReaderT() {
-      ReaderT<OptionalKind.Witness, String, Integer> originalReaderT =
-          createReaderT(env -> OPTIONAL.widen(Optional.of(env.hashCode())));
-      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrappedKind =
-          READER_T.widen(originalReaderT);
-
-      ReaderT<OptionalKind.Witness, String, Integer> unwrappedReaderT =
-          READER_T.narrow(wrappedKind);
-
-      assertThat(unwrappedReaderT).isSameAs(originalReaderT);
+    private <A> ReaderT<OptionalKind.Witness, String, A> createReaderT(A value) {
+        return ReaderT.reader(outerMonad, env -> value);
     }
 
-    @Test
-    @DisplayName("should throw KindUnwrapException when unwrapping null")
-    void narrow_nullKind_shouldThrowKindUnwrapException() {
-      assertThatThrownBy(() -> READER_T.narrow(null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(NULL_KIND_TEMPLATE.formatted("ReaderT"));
+    @Nested
+    @DisplayName("Widen Tests")
+    class WidenTests {
+
+        @Test
+        @DisplayName("widen should convert non-null ReaderT to ReaderTKind")
+        void widen_nonNullReaderT_shouldReturnReaderTKind() {
+            ReaderT<OptionalKind.Witness, String, Integer> concreteReaderT = createReaderT(123);
+            Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
+                    READER_T.widen(concreteReaderT);
+
+            assertThat(wrapped).isNotNull().isInstanceOf(ReaderTKind.class);
+            assertThat(READER_T.narrow(wrapped)).isSameAs(concreteReaderT);
+        }
+
+        @Test
+        @DisplayName("widen should preserve ReaderT function")
+        void widen_shouldPreserveFunction() {
+            ReaderT<OptionalKind.Witness, String, Integer> concreteReaderT = createReaderT(456);
+            Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> wrapped =
+                    READER_T.widen(concreteReaderT);
+
+            ReaderT<OptionalKind.Witness, String, Integer> narrowed = READER_T.narrow(wrapped);
+            assertThat(narrowed.run()).isSameAs(concreteReaderT.run());
+        }
+
+        @Test
+        @DisplayName("widen should throw NullPointerException when given null")
+        void widen_nullReaderT_shouldThrowNullPointerException() {
+            assertThatThrownBy(() -> READER_T.widen(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted(TYPE_NAME));
+        }
+    }
+
+    @Nested
+    @DisplayName("Narrow Tests")
+    class NarrowTests {
+
+        @Test
+        @DisplayName("narrow should unwrap valid ReaderTKind to original ReaderT instance")
+        void narrow_validKind_shouldReturnReaderT() {
+            ReaderT<OptionalKind.Witness, String, Integer> originalReaderT = createReaderT(789);
+            var wrappedKind = READER_T.widen(originalReaderT);
+
+            ReaderT<OptionalKind.Witness, String, Integer> unwrappedReaderT =
+                    READER_T.narrow(wrappedKind);
+
+            assertThat(unwrappedReaderT).isSameAs(originalReaderT);
+        }
+
+        @Test
+        @DisplayName("narrow should preserve ReaderT function")
+        void narrow_shouldPreserveFunction() {
+            ReaderT<OptionalKind.Witness, String, Integer> originalReaderT = createReaderT(999);
+            var wrappedKind = READER_T.widen(originalReaderT);
+
+            ReaderT<OptionalKind.Witness, String, Integer> unwrappedReaderT =
+                    READER_T.narrow(wrappedKind);
+
+            assertThat(unwrappedReaderT.run()).isSameAs(originalReaderT.run());
+        }
+
+        @Test
+        @DisplayName("narrow should throw KindUnwrapException when given null")
+        void narrow_nullKind_shouldThrowKindUnwrapException() {
+            assertThatThrownBy(() -> READER_T.narrow(null))
+                    .isInstanceOf(KindUnwrapException.class)
+                    .hasMessage(NULL_KIND_TEMPLATE.formatted(TYPE_NAME));
+        }
+
+        @Test
+        @DisplayName("narrow should throw KindUnwrapException when given incorrect Kind type")
+        void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
+            OtherKind<OptionalKind.Witness, String, Integer> incorrectKind = new OtherKind<>();
+
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> kindToTest =
+                    (Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer>) (Kind) incorrectKind;
+
+            assertThatThrownBy(() -> READER_T.narrow(kindToTest))
+                    .isInstanceOf(KindUnwrapException.class)
+                    .hasMessage(
+                            INVALID_KIND_TYPE_TEMPLATE.formatted(TYPE_NAME, incorrectKind.getClass().getName()));
+        }
+    }
+
+    @Nested
+    @DisplayName("Round-Trip Tests")
+    class RoundTripTests {
+
+        @Test
+        @DisplayName("widen then narrow should preserve identity")
+        void roundTrip_shouldPreserveIdentity() {
+            ReaderT<OptionalKind.Witness, String, Integer> original = createReaderT(111);
+
+            Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> widened =
+                    READER_T.widen(original);
+            ReaderT<OptionalKind.Witness, String, Integer> narrowed = READER_T.narrow(widened);
+
+            assertThat(narrowed).isSameAs(original);
+        }
+
+        @Test
+        @DisplayName("widen then narrow should preserve function reference")
+        void roundTrip_shouldPreserveFunctionReference() {
+            ReaderT<OptionalKind.Witness, String, Integer> original = createReaderT(222);
+
+            Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> widened =
+                    READER_T.widen(original);
+            ReaderT<OptionalKind.Witness, String, Integer> narrowed = READER_T.narrow(widened);
+
+            assertThat(narrowed.run()).isSameAs(original.run());
+        }
+
+        @Test
+        @DisplayName("multiple round-trips should preserve identity")
+        void multipleRoundTrips_shouldPreserveIdentity() {
+            ReaderT<OptionalKind.Witness, String, Integer> original = createReaderT(333);
+
+            ReaderT<OptionalKind.Witness, String, Integer> current = original;
+            for (int i = 0; i < 3; i++) {
+                Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> widened =
+                        READER_T.widen(current);
+                current = READER_T.narrow(widened);
+            }
+
+            assertThat(current).isSameAs(original);
+        }
     }
 
     // Dummy Kind for testing invalid type unwrap
-    // F is outer monad witness, R_ENV is environment type
-    private static class OtherKindWitness<F_Witness, R_ENV_Witness> {}
-
-    private static class OtherKind<F, R_ENV, A> implements Kind<OtherKindWitness<F, R_ENV>, A> {}
-
-    @Test
-    @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
-    void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
-      class SimpleIncorrectKind<A> implements Kind<SimpleIncorrectKind<?>, A> {}
-      SimpleIncorrectKind<Integer> incorrectKind = new SimpleIncorrectKind<>();
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> kindToTest =
-          (Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer>) (Kind) incorrectKind;
-
-      assertThatThrownBy(() -> READER_T.narrow(kindToTest))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageStartingWith(INVALID_KIND_TYPE_TEMPLATE.formatted("ReaderT", ""))
-          .hasMessageContaining(SimpleIncorrectKind.class.getName());
-    }
-  }
+    private static class OtherKind<F_Witness, R, A>
+            implements Kind<OtherKind<F_Witness, R, ?>, A> {}
 }
