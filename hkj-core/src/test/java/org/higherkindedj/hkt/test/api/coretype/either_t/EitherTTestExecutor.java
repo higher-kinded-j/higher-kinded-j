@@ -115,61 +115,49 @@ final class EitherTTestExecutor<F, L, R, S> {
     assertThat(leftValue).as("Left instance value() should return non-null").isNotNull();
   }
 
-    void testValidations() {
-        // Determine which class context to use
-        Class<?> validationContext =
-                (validationStage != null && validationStage.getValidationContext() != null)
-                        ? validationStage.getValidationContext()
-                        : contextClass;
+  void testValidations() {
+    // Determine which class context to use
+    Class<?> validationContext =
+        (validationStage != null && validationStage.getValidationContext() != null)
+            ? validationStage.getValidationContext()
+            : contextClass;
 
-        ValidationTestBuilder builder = ValidationTestBuilder.create();
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
 
-        // Test fromKind() null validation - uses KindValidator
-        builder.assertKindNull(
-                () -> EitherT.fromKind(null),
-                validationContext,
-                Operation.CONSTRUCTION);
+    // Test fromKind() null validation - uses KindValidator
+    builder.assertKindNull(() -> EitherT.fromKind(null), validationContext, Operation.CONSTRUCTION);
 
-        // Test right() null monad validation - uses DomainValidator.requireOuterMonad
-        builder.assertTransformerOuterMonadNull(
-                () -> EitherT.right(null, rightInstance.value()),
-                validationContext,
-                Operation.RIGHT);
+    // Test right() null monad validation - uses DomainValidator.requireOuterMonad
+    builder.assertTransformerOuterMonadNull(
+        () -> EitherT.right(null, rightInstance.value()), validationContext, Operation.RIGHT);
 
-        // Test left() null monad validation - uses DomainValidator.requireOuterMonad
-        builder.assertTransformerOuterMonadNull(
-                () -> EitherT.left(null, leftInstance.value()),
-                validationContext,
-                Operation.LEFT);
+    // Test left() null monad validation - uses DomainValidator.requireOuterMonad
+    builder.assertTransformerOuterMonadNull(
+        () -> EitherT.left(null, leftInstance.value()), validationContext, Operation.LEFT);
 
-        // Test fromEither() null monad validation - uses DomainValidator.requireOuterMonad
-        builder.assertTransformerOuterMonadNull(
-                () -> EitherT.fromEither(null, Either.right(null)),
-                validationContext,
-                Operation.FROM_EITHER);
+    // Test fromEither() null monad validation - uses DomainValidator.requireOuterMonad
+    builder.assertTransformerOuterMonadNull(
+        () -> EitherT.fromEither(null, Either.right(null)),
+        validationContext,
+        Operation.FROM_EITHER);
 
-        // Test fromEither() null either validation - uses DomainValidator.requireTransformerComponent
-        builder.assertTransformerComponentNull(
-                () -> EitherT.fromEither(outerMonad, null),
-                "inner Either",
-                validationContext,
-                Operation.FROM_EITHER);
+    // Test fromEither() null either validation - uses DomainValidator.requireTransformerComponent
+    builder.assertTransformerComponentNull(
+        () -> EitherT.fromEither(outerMonad, null),
+        "inner Either",
+        validationContext,
+        Operation.FROM_EITHER);
 
-        // Test liftF() null monad validation - uses DomainValidator.requireOuterMonad
-        builder.assertTransformerOuterMonadNull(
-                () -> EitherT.liftF(null, outerMonad.of(null)),
-                validationContext,
-                Operation.LIFT_F);
+    // Test liftF() null monad validation - uses DomainValidator.requireOuterMonad
+    builder.assertTransformerOuterMonadNull(
+        () -> EitherT.liftF(null, outerMonad.of(null)), validationContext, Operation.LIFT_F);
 
-        // Test liftF() null Kind validation
-        builder.assertKindNull(
-                () -> EitherT.liftF(outerMonad, null),
-                validationContext,
-                Operation.LIFT_F,
-                "source Kind");
+    // Test liftF() null Kind validation
+    builder.assertKindNull(
+        () -> EitherT.liftF(outerMonad, null), validationContext, Operation.LIFT_F, "source Kind");
 
-        builder.execute();
-    }
+    builder.execute();
+  }
 
   private void testEdgeCases() {
     // Test with null values (if instances allow them)

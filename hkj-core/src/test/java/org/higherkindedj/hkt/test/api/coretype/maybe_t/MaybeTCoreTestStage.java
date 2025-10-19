@@ -14,35 +14,35 @@ import org.higherkindedj.hkt.maybe_t.MaybeT;
  * @param <A> The type of the value potentially held by the inner Maybe
  */
 public final class MaybeTCoreTestStage<F, A> {
-    private final Class<?> contextClass;
-    private final Monad<F> outerMonad;
+  private final Class<?> contextClass;
+  private final Monad<F> outerMonad;
 
-    public MaybeTCoreTestStage(Class<?> contextClass, Monad<F> outerMonad) {
-        this.contextClass = contextClass;
-        this.outerMonad = outerMonad;
-    }
+  public MaybeTCoreTestStage(Class<?> contextClass, Monad<F> outerMonad) {
+    this.contextClass = contextClass;
+    this.outerMonad = outerMonad;
+  }
 
-    /**
-     * Provides a Just instance for testing.
-     *
-     * <p>Progressive disclosure: Next step is {@code .withNothing(...)}
-     *
-     * @param justInstance A Just instance (can have null value)
-     * @return Next stage for configuring Nothing instance
-     */
-    public MaybeTInstanceStage<F, A> withJust(MaybeT<F, A> justInstance) {
-        return new MaybeTInstanceStage<>(contextClass, outerMonad, justInstance, null);
-    }
+  /**
+   * Provides a Just instance for testing.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withNothing(...)}
+   *
+   * @param justInstance A Just instance (can have null value)
+   * @return Next stage for configuring Nothing instance
+   */
+  public MaybeTInstanceStage<F, A> withJust(MaybeT<F, A> justInstance) {
+    return new MaybeTInstanceStage<>(contextClass, outerMonad, justInstance, null);
+  }
 
-    /**
-     * Provides a Nothing instance for testing.
-     *
-     * <p>Progressive disclosure: Next step is {@code .withJust(...)}
-     *
-     * @param nothingInstance A Nothing instance
-     * @return Next stage for configuring Just instance
-     */
-    public MaybeTInstanceStage<F, A> withNothing(MaybeT<F, A> nothingInstance) {
-        return new MaybeTInstanceStage<>(contextClass, outerMonad, null, nothingInstance);
-    }
+  /**
+   * Provides a Nothing instance for testing.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withJust(...)}
+   *
+   * @param nothingInstance A Nothing instance
+   * @return Next stage for configuring Just instance
+   */
+  public MaybeTInstanceStage<F, A> withNothing(MaybeT<F, A> nothingInstance) {
+    return new MaybeTInstanceStage<>(contextClass, outerMonad, null, nothingInstance);
+  }
 }

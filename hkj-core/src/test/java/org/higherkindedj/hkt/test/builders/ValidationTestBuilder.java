@@ -644,73 +644,72 @@ public final class ValidationTestBuilder {
     return this;
   }
 
-    /**
-     * Adds transformer outer monad validation to the test suite.
-     *
-     * @param executable The code that should throw
-     * @param contextClass The class providing context
-     * @param operation The operation name
-     * @return This builder for chaining
-     */
-    public ValidationTestBuilder assertTransformerOuterMonadNull(
-            ThrowableAssert.ThrowingCallable executable,
-            Class<?> contextClass,
-            Operation operation) {
-        assertions.add(
-                () -> {
-                    // Capture expected exception from production validation
-                    Throwable expectedThrowable = null;
-                    try {
-                        DomainValidator.requireOuterMonad(null, contextClass, operation);
-                        throw new AssertionError("Production validation should have thrown an exception");
-                    } catch (Throwable t) {
-                        expectedThrowable = t;
-                    }
+  /**
+   * Adds transformer outer monad validation to the test suite.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The class providing context
+   * @param operation The operation name
+   * @return This builder for chaining
+   */
+  public ValidationTestBuilder assertTransformerOuterMonadNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
+    assertions.add(
+        () -> {
+          // Capture expected exception from production validation
+          Throwable expectedThrowable = null;
+          try {
+            DomainValidator.requireOuterMonad(null, contextClass, operation);
+            throw new AssertionError("Production validation should have thrown an exception");
+          } catch (Throwable t) {
+            expectedThrowable = t;
+          }
 
-                    // Verify test code throws exactly the same exception
-                    final Throwable expected = expectedThrowable;
-                    assertThatThrownBy(executable)
-                            .isInstanceOf(expected.getClass())
-                            .hasMessage(expected.getMessage())
-                            .as("Test validation should match production DomainValidator exactly");
-                });
-        return this;
-    }
+          // Verify test code throws exactly the same exception
+          final Throwable expected = expectedThrowable;
+          assertThatThrownBy(executable)
+              .isInstanceOf(expected.getClass())
+              .hasMessage(expected.getMessage())
+              .as("Test validation should match production DomainValidator exactly");
+        });
+    return this;
+  }
 
-    /**
-     * Adds transformer component validation to the test suite.
-     *
-     * @param executable The code that should throw
-     * @param componentName The name of the component (e.g., "inner Either")
-     * @param contextClass The class providing context
-     * @param operation The operation name
-     * @return This builder for chaining
-     */
-    public ValidationTestBuilder assertTransformerComponentNull(
-            ThrowableAssert.ThrowingCallable executable,
-            String componentName,
-            Class<?> contextClass,
-            Operation operation) {
-        assertions.add(
-                () -> {
-                    // Capture expected exception from production validation
-                    Throwable expectedThrowable = null;
-                    try {
-                        DomainValidator.requireTransformerComponent(null, componentName, contextClass, operation);
-                        throw new AssertionError("Production validation should have thrown an exception");
-                    } catch (Throwable t) {
-                        expectedThrowable = t;
-                    }
+  /**
+   * Adds transformer component validation to the test suite.
+   *
+   * @param executable The code that should throw
+   * @param componentName The name of the component (e.g., "inner Either")
+   * @param contextClass The class providing context
+   * @param operation The operation name
+   * @return This builder for chaining
+   */
+  public ValidationTestBuilder assertTransformerComponentNull(
+      ThrowableAssert.ThrowingCallable executable,
+      String componentName,
+      Class<?> contextClass,
+      Operation operation) {
+    assertions.add(
+        () -> {
+          // Capture expected exception from production validation
+          Throwable expectedThrowable = null;
+          try {
+            DomainValidator.requireTransformerComponent(
+                null, componentName, contextClass, operation);
+            throw new AssertionError("Production validation should have thrown an exception");
+          } catch (Throwable t) {
+            expectedThrowable = t;
+          }
 
-                    // Verify test code throws exactly the same exception
-                    final Throwable expected = expectedThrowable;
-                    assertThatThrownBy(executable)
-                            .isInstanceOf(expected.getClass())
-                            .hasMessage(expected.getMessage())
-                            .as("Test validation should match production DomainValidator exactly");
-                });
-        return this;
-    }
+          // Verify test code throws exactly the same exception
+          final Throwable expected = expectedThrowable;
+          assertThatThrownBy(executable)
+              .isInstanceOf(expected.getClass())
+              .hasMessage(expected.getMessage())
+              .as("Test validation should match production DomainValidator exactly");
+        });
+    return this;
+  }
 
   // =============================================================================
   // Execution Methods

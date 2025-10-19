@@ -23,6 +23,7 @@ import org.higherkindedj.hkt.test.api.coretype.reader.ReaderCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.reader.ReaderKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.state.StateCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.state.StateKindHelperTest;
+import org.higherkindedj.hkt.test.api.coretype.state_t.StateTCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.trymonad.TryCoreTestStage;
 import org.higherkindedj.hkt.test.api.coretype.trymonad.TryKindHelperTest;
 import org.higherkindedj.hkt.test.api.coretype.validated.ValidatedCoreTestStage;
@@ -253,11 +254,26 @@ public final class CoreTypeTest {
     return new EitherTCoreTestStage<>(contextClass, outerMonad);
   }
 
+  public static <F, A> MaybeTCoreTestStage<F, A> maybeT(
+      Class<?> contextClass, Monad<F> outerMonad) {
+    return new MaybeTCoreTestStage<>(contextClass, outerMonad);
+  }
 
-    public static <F, A> MaybeTCoreTestStage<F, A> maybeT(
-            Class<?> contextClass, Monad<F> outerMonad) {
-        return new MaybeTCoreTestStage<>(contextClass, outerMonad);
-    }
+  /**
+   * Tests StateT-specific operations like factory methods (create), runner methods (runStateT,
+   * evalStateT, execStateT), as well as validation.
+   *
+   * @param contextClass The implementation class for error messages (e.g., StateT.class)
+   * @param outerMonad The outer monad instance required for StateT operations
+   * @param <S> The state type
+   * @param <F> The outer monad witness type
+   * @param <A> The value type
+   * @return Stage for providing test instances
+   */
+  public static <S, F, A> StateTCoreTestStage<S, F, A> stateT(
+      Class<?> contextClass, Monad<F> outerMonad) {
+    return new StateTCoreTestStage<>(contextClass, outerMonad);
+  }
 
   // =============================================================================
   // KindHelper Testing for Core Types

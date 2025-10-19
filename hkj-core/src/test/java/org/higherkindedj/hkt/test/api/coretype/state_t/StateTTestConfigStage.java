@@ -1,10 +1,10 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.test.api.coretype.maybe_t;
+package org.higherkindedj.hkt.test.api.coretype.state_t;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.maybe_t.MaybeT;
+import org.higherkindedj.hkt.state_t.StateT;
 
 /**
  * Stage 4: Optional configuration and test execution.
@@ -12,33 +12,34 @@ import org.higherkindedj.hkt.maybe_t.MaybeT;
  * <p>Progressive disclosure: All required parameters configured. Shows test selection and
  * execution.
  *
+ * @param <S> The state type
  * @param <F> The outer monad witness type
- * @param <A> The type of the value potentially held by the inner Maybe
+ * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class MaybeTTestConfigStage<F, A, B> {
+public final class StateTTestConfigStage<S, F, A, B> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
-  private final MaybeT<F, A> justInstance;
-  private final MaybeT<F, A> nothingInstance;
+  private final StateT<S, F, A> firstInstance;
+  private final StateT<S, F, A> secondInstance;
   private final Function<A, B> mapper;
 
   // Test selection flags
   private boolean includeFactoryMethods = true;
-  private boolean includeValueAccessor = true;
+  private boolean includeRunnerMethods = true;
   private boolean includeValidations = true;
   private boolean includeEdgeCases = true;
 
-  MaybeTTestConfigStage(
+  StateTTestConfigStage(
       Class<?> contextClass,
       Monad<F> outerMonad,
-      MaybeT<F, A> justInstance,
-      MaybeT<F, A> nothingInstance,
+      StateT<S, F, A> firstInstance,
+      StateT<S, F, A> secondInstance,
       Function<A, B> mapper) {
     this.contextClass = contextClass;
     this.outerMonad = outerMonad;
-    this.justInstance = justInstance;
-    this.nothingInstance = nothingInstance;
+    this.firstInstance = firstInstance;
+    this.secondInstance = secondInstance;
     this.mapper = mapper;
   }
 
@@ -46,22 +47,22 @@ public final class MaybeTTestConfigStage<F, A, B> {
   // Test Selection Methods
   // =============================================================================
 
-  public MaybeTTestConfigStage<F, A, B> skipFactoryMethods() {
+  public StateTTestConfigStage<S, F, A, B> skipFactoryMethods() {
     this.includeFactoryMethods = false;
     return this;
   }
 
-  public MaybeTTestConfigStage<F, A, B> skipValueAccessor() {
-    this.includeValueAccessor = false;
+  public StateTTestConfigStage<S, F, A, B> skipRunnerMethods() {
+    this.includeRunnerMethods = false;
     return this;
   }
 
-  public MaybeTTestConfigStage<F, A, B> skipValidations() {
+  public StateTTestConfigStage<S, F, A, B> skipValidations() {
     this.includeValidations = false;
     return this;
   }
 
-  public MaybeTTestConfigStage<F, A, B> skipEdgeCases() {
+  public StateTTestConfigStage<S, F, A, B> skipEdgeCases() {
     this.includeEdgeCases = false;
     return this;
   }
@@ -70,25 +71,25 @@ public final class MaybeTTestConfigStage<F, A, B> {
   // Positive Selection (Run Only Specific Tests)
   // =============================================================================
 
-  public MaybeTTestConfigStage<F, A, B> onlyFactoryMethods() {
+  public StateTTestConfigStage<S, F, A, B> onlyFactoryMethods() {
     disableAll();
     this.includeFactoryMethods = true;
     return this;
   }
 
-  public MaybeTTestConfigStage<F, A, B> onlyValueAccessor() {
+  public StateTTestConfigStage<S, F, A, B> onlyRunnerMethods() {
     disableAll();
-    this.includeValueAccessor = true;
+    this.includeRunnerMethods = true;
     return this;
   }
 
-  public MaybeTTestConfigStage<F, A, B> onlyValidations() {
+  public StateTTestConfigStage<S, F, A, B> onlyValidations() {
     disableAll();
     this.includeValidations = true;
     return this;
   }
 
-  public MaybeTTestConfigStage<F, A, B> onlyEdgeCases() {
+  public StateTTestConfigStage<S, F, A, B> onlyEdgeCases() {
     disableAll();
     this.includeEdgeCases = true;
     return this;
@@ -96,7 +97,7 @@ public final class MaybeTTestConfigStage<F, A, B> {
 
   private void disableAll() {
     includeFactoryMethods = false;
-    includeValueAccessor = false;
+    includeRunnerMethods = false;
     includeValidations = false;
     includeEdgeCases = false;
   }
@@ -112,8 +113,8 @@ public final class MaybeTTestConfigStage<F, A, B> {
    *
    * @return Validation stage for configuring error message contexts
    */
-  public MaybeTValidationStage<F, A, B> configureValidation() {
-    return new MaybeTValidationStage<>(this);
+  public StateTValidationStage<S, F, A, B> configureValidation() {
+    return new StateTValidationStage<>(this);
   }
 
   // =============================================================================
@@ -126,7 +127,7 @@ public final class MaybeTTestConfigStage<F, A, B> {
    * <p>This is the most comprehensive test execution option.
    */
   public void testAll() {
-    MaybeTTestExecutor<F, A, B> executor = buildExecutor();
+    StateTTestExecutor<S, F, A, B> executor = buildExecutor();
     executor.executeAll();
   }
 
@@ -153,29 +154,29 @@ public final class MaybeTTestConfigStage<F, A, B> {
   // Internal Builder
   // =============================================================================
 
-  private MaybeTTestExecutor<F, A, B> buildExecutor() {
-    return new MaybeTTestExecutor<>(
+  private StateTTestExecutor<S, F, A, B> buildExecutor() {
+    return new StateTTestExecutor<>(
         contextClass,
         outerMonad,
-        justInstance,
-        nothingInstance,
+        firstInstance,
+        secondInstance,
         mapper,
         includeFactoryMethods,
-        includeValueAccessor,
+        includeRunnerMethods,
         includeValidations,
         includeEdgeCases);
   }
 
-  MaybeTTestExecutor<F, A, B> buildExecutorWithValidation(
-      MaybeTValidationStage<F, A, B> validationStage) {
-    return new MaybeTTestExecutor<>(
+  StateTTestExecutor<S, F, A, B> buildExecutorWithValidation(
+      StateTValidationStage<S, F, A, B> validationStage) {
+    return new StateTTestExecutor<>(
         contextClass,
         outerMonad,
-        justInstance,
-        nothingInstance,
+        firstInstance,
+        secondInstance,
         mapper,
         includeFactoryMethods,
-        includeValueAccessor,
+        includeRunnerMethods,
         includeValidations,
         includeEdgeCases,
         validationStage);

@@ -23,185 +23,169 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MaybeTKindHelper Tests (F=OptionalKind.Witness)")
 class MaybeTKindHelperTest {
 
-    private static final String TYPE_NAME = "MaybeT";
+  private static final String TYPE_NAME = "MaybeT";
 
-    private Monad<OptionalKind.Witness> outerMonad;
+  private Monad<OptionalKind.Witness> outerMonad;
 
-    @BeforeEach
-    void setUp() {
-        outerMonad = OptionalMonad.INSTANCE;
+  @BeforeEach
+  void setUp() {
+    outerMonad = OptionalMonad.INSTANCE;
+  }
+
+  private <A> MaybeT<OptionalKind.Witness, A> createMaybeT(Maybe<A> maybe) {
+    return MaybeT.fromMaybe(outerMonad, maybe);
+  }
+
+  @Nested
+  @DisplayName("Widen Tests")
+  class WidenTests {
+
+    @Test
+    @DisplayName("widen should convert non-null MaybeT (Just) to MaybeTKind")
+    void widen_nonNullMaybeTJust_shouldReturnMaybeTKind() {
+      MaybeT<OptionalKind.Witness, Integer> concreteMaybeT = createMaybeT(Maybe.just(123));
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> wrapped =
+          MAYBE_T.widen(concreteMaybeT);
+
+      assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKind.class);
+      assertThat(MAYBE_T.narrow(wrapped)).isSameAs(concreteMaybeT);
     }
 
-    private <A> MaybeT<OptionalKind.Witness, A> createMaybeT(Maybe<A> maybe) {
-        return MaybeT.fromMaybe(outerMonad, maybe);
+    @Test
+    @DisplayName("widen should convert non-null MaybeT (Nothing) to MaybeTKind")
+    void widen_nonNullMaybeTNothing_shouldReturnMaybeTKind() {
+      MaybeT<OptionalKind.Witness, Integer> concreteMaybeT = createMaybeT(Maybe.nothing());
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> wrapped =
+          MAYBE_T.widen(concreteMaybeT);
+
+      assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKind.class);
+      assertThat(MAYBE_T.narrow(wrapped)).isSameAs(concreteMaybeT);
     }
 
-    @Nested
-    @DisplayName("Widen Tests")
-    class WidenTests {
+    @Test
+    @DisplayName("widen should convert non-null MaybeT (Just(null)) to MaybeTKind")
+    void widen_nonNullMaybeTJustNull_shouldReturnMaybeTKind() {
+      // Use fromNullable instead of just for null values
+      MaybeT<OptionalKind.Witness, String> concreteMaybeT = createMaybeT(Maybe.fromNullable(null));
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> wrapped =
+          MAYBE_T.widen(concreteMaybeT);
 
-        @Test
-        @DisplayName("widen should convert non-null MaybeT (Just) to MaybeTKind")
-        void widen_nonNullMaybeTJust_shouldReturnMaybeTKind() {
-            MaybeT<OptionalKind.Witness, Integer> concreteMaybeT =
-                    createMaybeT(Maybe.just(123));
-            Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> wrapped =
-                    MAYBE_T.widen(concreteMaybeT);
-
-            assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKind.class);
-            assertThat(MAYBE_T.narrow(wrapped)).isSameAs(concreteMaybeT);
-        }
-
-        @Test
-        @DisplayName("widen should convert non-null MaybeT (Nothing) to MaybeTKind")
-        void widen_nonNullMaybeTNothing_shouldReturnMaybeTKind() {
-            MaybeT<OptionalKind.Witness, Integer> concreteMaybeT =
-                    createMaybeT(Maybe.nothing());
-            Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> wrapped =
-                    MAYBE_T.widen(concreteMaybeT);
-
-            assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKind.class);
-            assertThat(MAYBE_T.narrow(wrapped)).isSameAs(concreteMaybeT);
-        }
-
-        @Test
-        @DisplayName("widen should convert non-null MaybeT (Just(null)) to MaybeTKind")
-        void widen_nonNullMaybeTJustNull_shouldReturnMaybeTKind() {
-            // Use fromNullable instead of just for null values
-            MaybeT<OptionalKind.Witness, String> concreteMaybeT =
-                    createMaybeT(Maybe.fromNullable(null));
-            Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> wrapped =
-                    MAYBE_T.widen(concreteMaybeT);
-
-            assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKind.class);
-            assertThat(MAYBE_T.narrow(wrapped)).isSameAs(concreteMaybeT);
-        }
-
-        @Test
-        @DisplayName("widen should throw NullPointerException when given null")
-        void widen_nullMaybeT_shouldThrowNullPointerException() {
-            assertThatThrownBy(() -> MAYBE_T.widen(null))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted(TYPE_NAME));
-        }
+      assertThat(wrapped).isNotNull().isInstanceOf(MaybeTKind.class);
+      assertThat(MAYBE_T.narrow(wrapped)).isSameAs(concreteMaybeT);
     }
 
-    @Nested
-    @DisplayName("Narrow Tests")
-    class NarrowTests {
+    @Test
+    @DisplayName("widen should throw NullPointerException when given null")
+    void widen_nullMaybeT_shouldThrowNullPointerException() {
+      assertThatThrownBy(() -> MAYBE_T.widen(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted(TYPE_NAME));
+    }
+  }
 
-        @Test
-        @DisplayName("narrow should unwrap valid MaybeTKind (Just) to original MaybeT instance")
-        void narrow_validKindJust_shouldReturnMaybeT() {
-            MaybeT<OptionalKind.Witness, Integer> originalMaybeT =
-                    createMaybeT(Maybe.just(456));
-            var wrappedKind = MAYBE_T.widen(originalMaybeT);
+  @Nested
+  @DisplayName("Narrow Tests")
+  class NarrowTests {
 
-            MaybeT<OptionalKind.Witness, Integer> unwrappedMaybeT =
-                    MAYBE_T.narrow(wrappedKind);
+    @Test
+    @DisplayName("narrow should unwrap valid MaybeTKind (Just) to original MaybeT instance")
+    void narrow_validKindJust_shouldReturnMaybeT() {
+      MaybeT<OptionalKind.Witness, Integer> originalMaybeT = createMaybeT(Maybe.just(456));
+      var wrappedKind = MAYBE_T.widen(originalMaybeT);
 
-            assertThat(unwrappedMaybeT).isSameAs(originalMaybeT);
-        }
+      MaybeT<OptionalKind.Witness, Integer> unwrappedMaybeT = MAYBE_T.narrow(wrappedKind);
 
-        @Test
-        @DisplayName("narrow should unwrap valid MaybeTKind (Nothing) to original MaybeT instance")
-        void narrow_validKindNothing_shouldReturnMaybeT() {
-            MaybeT<OptionalKind.Witness, Integer> originalMaybeT =
-                    createMaybeT(Maybe.nothing());
-            var wrappedKind = MAYBE_T.widen(originalMaybeT);
-
-            MaybeT<OptionalKind.Witness, Integer> unwrappedMaybeT =
-                    MAYBE_T.narrow(wrappedKind);
-
-            assertThat(unwrappedMaybeT).isSameAs(originalMaybeT);
-        }
-
-        @Test
-        @DisplayName("narrow should throw KindUnwrapException when given null")
-        void narrow_nullKind_shouldThrowKindUnwrapException() {
-            assertThatThrownBy(() -> MAYBE_T.narrow(null))
-                    .isInstanceOf(KindUnwrapException.class)
-                    .hasMessage(NULL_KIND_TEMPLATE.formatted(TYPE_NAME));
-        }
-
-        @Test
-        @DisplayName("narrow should throw KindUnwrapException when given incorrect Kind type")
-        void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
-            OtherKind<OptionalKind.Witness, Integer> incorrectKind = new OtherKind<>();
-
-            @SuppressWarnings({"unchecked", "rawtypes"})
-            Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> kindToTest =
-                    (Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>) (Kind) incorrectKind;
-
-            assertThatThrownBy(() -> MAYBE_T.narrow(kindToTest))
-                    .isInstanceOf(KindUnwrapException.class)
-                    .hasMessage(
-                            INVALID_KIND_TYPE_TEMPLATE.formatted(TYPE_NAME, incorrectKind.getClass().getName()));
-        }
+      assertThat(unwrappedMaybeT).isSameAs(originalMaybeT);
     }
 
-    @Nested
-    @DisplayName("Round-Trip Tests")
-    class RoundTripTests {
+    @Test
+    @DisplayName("narrow should unwrap valid MaybeTKind (Nothing) to original MaybeT instance")
+    void narrow_validKindNothing_shouldReturnMaybeT() {
+      MaybeT<OptionalKind.Witness, Integer> originalMaybeT = createMaybeT(Maybe.nothing());
+      var wrappedKind = MAYBE_T.widen(originalMaybeT);
 
-        @Test
-        @DisplayName("widen then narrow should preserve identity for Just")
-        void roundTrip_just_shouldPreserveIdentity() {
-            MaybeT<OptionalKind.Witness, Integer> original =
-                    createMaybeT(Maybe.just(789));
+      MaybeT<OptionalKind.Witness, Integer> unwrappedMaybeT = MAYBE_T.narrow(wrappedKind);
 
-            Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> widened =
-                    MAYBE_T.widen(original);
-            MaybeT<OptionalKind.Witness, Integer> narrowed = MAYBE_T.narrow(widened);
-
-            assertThat(narrowed).isSameAs(original);
-        }
-
-        @Test
-        @DisplayName("widen then narrow should preserve identity for Nothing")
-        void roundTrip_nothing_shouldPreserveIdentity() {
-            MaybeT<OptionalKind.Witness, Integer> original =
-                    createMaybeT(Maybe.nothing());
-
-            Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> widened =
-                    MAYBE_T.widen(original);
-            MaybeT<OptionalKind.Witness, Integer> narrowed = MAYBE_T.narrow(widened);
-
-            assertThat(narrowed).isSameAs(original);
-        }
-
-        @Test
-        @DisplayName("widen then narrow should preserve identity for Just(null)")
-        void roundTrip_justNull_shouldPreserveIdentity() {
-            // Use fromNullable instead of just for null values
-            MaybeT<OptionalKind.Witness, String> original =
-                    createMaybeT(Maybe.fromNullable(null));
-
-            Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> widened =
-                    MAYBE_T.widen(original);
-            MaybeT<OptionalKind.Witness, String> narrowed = MAYBE_T.narrow(widened);
-
-            assertThat(narrowed).isSameAs(original);
-        }
-
-        @Test
-        @DisplayName("multiple round-trips should preserve identity")
-        void multipleRoundTrips_shouldPreserveIdentity() {
-            MaybeT<OptionalKind.Witness, Integer> original =
-                    createMaybeT(Maybe.just(999));
-
-            MaybeT<OptionalKind.Witness, Integer> current = original;
-            for (int i = 0; i < 3; i++) {
-                Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> widened =
-                        MAYBE_T.widen(current);
-                current = MAYBE_T.narrow(widened);
-            }
-
-            assertThat(current).isSameAs(original);
-        }
+      assertThat(unwrappedMaybeT).isSameAs(originalMaybeT);
     }
 
-    // Dummy Kind for testing invalid type unwrap
-    private static class OtherKind<F_Witness, A>
-            implements Kind<OtherKind<F_Witness, ?>, A> {}
+    @Test
+    @DisplayName("narrow should throw KindUnwrapException when given null")
+    void narrow_nullKind_shouldThrowKindUnwrapException() {
+      assertThatThrownBy(() -> MAYBE_T.narrow(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessage(NULL_KIND_TEMPLATE.formatted(TYPE_NAME));
+    }
+
+    @Test
+    @DisplayName("narrow should throw KindUnwrapException when given incorrect Kind type")
+    void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
+      OtherKind<OptionalKind.Witness, Integer> incorrectKind = new OtherKind<>();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> kindToTest =
+          (Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>) (Kind) incorrectKind;
+
+      assertThatThrownBy(() -> MAYBE_T.narrow(kindToTest))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessage(
+              INVALID_KIND_TYPE_TEMPLATE.formatted(TYPE_NAME, incorrectKind.getClass().getName()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Round-Trip Tests")
+  class RoundTripTests {
+
+    @Test
+    @DisplayName("widen then narrow should preserve identity for Just")
+    void roundTrip_just_shouldPreserveIdentity() {
+      MaybeT<OptionalKind.Witness, Integer> original = createMaybeT(Maybe.just(789));
+
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> widened = MAYBE_T.widen(original);
+      MaybeT<OptionalKind.Witness, Integer> narrowed = MAYBE_T.narrow(widened);
+
+      assertThat(narrowed).isSameAs(original);
+    }
+
+    @Test
+    @DisplayName("widen then narrow should preserve identity for Nothing")
+    void roundTrip_nothing_shouldPreserveIdentity() {
+      MaybeT<OptionalKind.Witness, Integer> original = createMaybeT(Maybe.nothing());
+
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> widened = MAYBE_T.widen(original);
+      MaybeT<OptionalKind.Witness, Integer> narrowed = MAYBE_T.narrow(widened);
+
+      assertThat(narrowed).isSameAs(original);
+    }
+
+    @Test
+    @DisplayName("widen then narrow should preserve identity for Just(null)")
+    void roundTrip_justNull_shouldPreserveIdentity() {
+      // Use fromNullable instead of just for null values
+      MaybeT<OptionalKind.Witness, String> original = createMaybeT(Maybe.fromNullable(null));
+
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> widened = MAYBE_T.widen(original);
+      MaybeT<OptionalKind.Witness, String> narrowed = MAYBE_T.narrow(widened);
+
+      assertThat(narrowed).isSameAs(original);
+    }
+
+    @Test
+    @DisplayName("multiple round-trips should preserve identity")
+    void multipleRoundTrips_shouldPreserveIdentity() {
+      MaybeT<OptionalKind.Witness, Integer> original = createMaybeT(Maybe.just(999));
+
+      MaybeT<OptionalKind.Witness, Integer> current = original;
+      for (int i = 0; i < 3; i++) {
+        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> widened = MAYBE_T.widen(current);
+        current = MAYBE_T.narrow(widened);
+      }
+
+      assertThat(current).isSameAs(original);
+    }
+  }
+
+  // Dummy Kind for testing invalid type unwrap
+  private static class OtherKind<F_Witness, A> implements Kind<OtherKind<F_Witness, ?>, A> {}
 }

@@ -1,24 +1,25 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.test.api.coretype.maybe_t;
+package org.higherkindedj.hkt.test.api.coretype.state_t;
 
 /**
- * Stage for configuring validation contexts in MaybeT core type tests.
+ * Stage for configuring validation contexts in StateT core type tests.
  *
  * <p>Allows specifying which implementation class should be used in validation error messages,
  * supporting inheritance hierarchies.
  *
+ * @param <S> The state type
  * @param <F> The outer monad witness type
- * @param <A> The type of the value potentially held by the inner Maybe
+ * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class MaybeTValidationStage<F, A, B> {
-  private final MaybeTTestConfigStage<F, A, B> configStage;
+public final class StateTValidationStage<S, F, A, B> {
+  private final StateTTestConfigStage<S, F, A, B> configStage;
 
   // Validation context class
   private Class<?> validationContext;
 
-  MaybeTValidationStage(MaybeTTestConfigStage<F, A, B> configStage) {
+  StateTValidationStage(StateTTestConfigStage<S, F, A, B> configStage) {
     this.configStage = configStage;
   }
 
@@ -32,7 +33,7 @@ public final class MaybeTValidationStage<F, A, B> {
    * <pre>{@code
    * .configureValidation()
    *     .useInheritanceValidation()
-   *         .withContextFrom(MaybeT.class)
+   *         .withContextFrom(StateT.class)
    *     .testAll()
    * }</pre>
    *
@@ -49,7 +50,7 @@ public final class MaybeTValidationStage<F, A, B> {
    *
    * @return This stage for further configuration or execution
    */
-  public MaybeTValidationStage<F, A, B> useDefaultValidation() {
+  public StateTValidationStage<S, F, A, B> useDefaultValidation() {
     this.validationContext = null;
     return this;
   }
@@ -73,18 +74,18 @@ public final class MaybeTValidationStage<F, A, B> {
      *
      * @return The parent validation stage for execution
      */
-    public MaybeTValidationStage<F, A, B> done() {
-      return MaybeTValidationStage.this;
+    public StateTValidationStage<S, F, A, B> done() {
+      return StateTValidationStage.this;
     }
 
     /** Executes all configured tests. */
     public void testAll() {
-      MaybeTValidationStage.this.testAll();
+      StateTValidationStage.this.testAll();
     }
 
     /** Executes only validation tests with configured contexts. */
     public void testValidations() {
-      MaybeTValidationStage.this.testValidations();
+      StateTValidationStage.this.testValidations();
     }
   }
 
@@ -94,13 +95,13 @@ public final class MaybeTValidationStage<F, A, B> {
    * <p>Includes all test categories with the configured validation contexts.
    */
   public void testAll() {
-    MaybeTTestExecutor<F, A, B> executor = buildExecutor();
+    StateTTestExecutor<S, F, A, B> executor = buildExecutor();
     executor.executeAll();
   }
 
   /** Executes only validation tests with configured contexts. */
   public void testValidations() {
-    MaybeTTestExecutor<F, A, B> executor = buildExecutor();
+    StateTTestExecutor<S, F, A, B> executor = buildExecutor();
     executor.testValidations();
   }
 
@@ -109,7 +110,7 @@ public final class MaybeTValidationStage<F, A, B> {
     return validationContext;
   }
 
-  private MaybeTTestExecutor<F, A, B> buildExecutor() {
+  private StateTTestExecutor<S, F, A, B> buildExecutor() {
     return configStage.buildExecutorWithValidation(this);
   }
 }

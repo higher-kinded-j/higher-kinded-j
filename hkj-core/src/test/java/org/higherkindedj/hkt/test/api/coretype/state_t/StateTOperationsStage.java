@@ -1,34 +1,35 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.test.api.coretype.maybe_t;
+package org.higherkindedj.hkt.test.api.coretype.state_t;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.maybe_t.MaybeT;
+import org.higherkindedj.hkt.state_t.StateT;
 
 /**
- * Stage 3: Configure mapping functions for MaybeT testing.
+ * Stage 3: Configure mapping functions for StateT testing.
  *
  * <p>Progressive disclosure: Shows mapper configuration and execution options.
  *
+ * @param <S> The state type
  * @param <F> The outer monad witness type
- * @param <A> The type of the value potentially held by the inner Maybe
+ * @param <A> The value type
  */
-public final class MaybeTOperationsStage<F, A> {
+public final class StateTOperationsStage<S, F, A> {
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
-  private final MaybeT<F, A> justInstance;
-  private final MaybeT<F, A> nothingInstance;
+  private final StateT<S, F, A> firstInstance;
+  private final StateT<S, F, A> secondInstance;
 
-  MaybeTOperationsStage(
+  StateTOperationsStage(
       Class<?> contextClass,
       Monad<F> outerMonad,
-      MaybeT<F, A> justInstance,
-      MaybeT<F, A> nothingInstance) {
+      StateT<S, F, A> firstInstance,
+      StateT<S, F, A> secondInstance) {
     this.contextClass = contextClass;
     this.outerMonad = outerMonad;
-    this.justInstance = justInstance;
-    this.nothingInstance = nothingInstance;
+    this.firstInstance = firstInstance;
+    this.secondInstance = secondInstance;
   }
 
   /**
@@ -40,21 +41,21 @@ public final class MaybeTOperationsStage<F, A> {
    * @param <B> The mapped type
    * @return Configuration stage with execution options
    */
-  public <B> MaybeTTestConfigStage<F, A, B> withMappers(Function<A, B> mapper) {
-    return new MaybeTTestConfigStage<>(
-        contextClass, outerMonad, justInstance, nothingInstance, mapper);
+  public <B> StateTTestConfigStage<S, F, A, B> withMappers(Function<A, B> mapper) {
+    return new StateTTestConfigStage<>(
+        contextClass, outerMonad, firstInstance, secondInstance, mapper);
   }
 
   /**
    * Skip mapper configuration and proceed to testing.
    *
    * <p>This is useful when you only want to test operations that don't require mappers (like
-   * factory methods, value accessor).
+   * factory methods, runner methods).
    *
    * @return Configuration stage without mappers
    */
-  public MaybeTTestConfigStage<F, A, String> withoutMappers() {
-    return new MaybeTTestConfigStage<>(
-        contextClass, outerMonad, justInstance, nothingInstance, null);
+  public StateTTestConfigStage<S, F, A, String> withoutMappers() {
+    return new StateTTestConfigStage<>(
+        contextClass, outerMonad, firstInstance, secondInstance, null);
   }
 }
