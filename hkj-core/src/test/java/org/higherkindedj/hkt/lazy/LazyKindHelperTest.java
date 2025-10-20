@@ -21,10 +21,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("LazyKindHelper Complete Test Suite")
 class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
 
-  // ============================================================================
-  // Test Fixtures
-  // ============================================================================
-
   private static final ThrowableSupplier<String> BASE_COMPUTATION = () -> "Result";
   private static final Lazy<String> BASE_LAZY = Lazy.defer(BASE_COMPUTATION);
 
@@ -41,10 +37,6 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
       };
   private static final Lazy<String> CHECKED_FAILING_LAZY =
       Lazy.defer(CHECKED_EXCEPTION_COMPUTATION);
-
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
 
   @Override
   protected Kind<LazyKind.Witness, String> createValidKind() {
@@ -76,10 +68,6 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
       }
     };
   }
-
-  // ============================================================================
-  // Complete Test Suite
-  // ============================================================================
 
   @Nested
   @DisplayName("Complete LazyKindHelper Test Suite")

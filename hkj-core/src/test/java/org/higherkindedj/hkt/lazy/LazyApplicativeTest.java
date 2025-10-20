@@ -21,16 +21,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Lazy Applicative Complete Test Suite")
 class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
 
-  // ============================================================================
-  // Test Fixtures
-  // ============================================================================
-
   private LazyMonad applicative;
   private static final AtomicInteger COUNTER = new AtomicInteger(0);
-
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
 
   @Override
   protected Kind<LazyKind.Witness, String> createValidKind() {
@@ -83,10 +75,6 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     applicative = LazyMonad.INSTANCE;
     COUNTER.set(0);
   }
-
-  // ============================================================================
-  // Complete Test Suite
-  // ============================================================================
 
   @Nested
   @DisplayName("Complete LazyApplicative Test Suite")

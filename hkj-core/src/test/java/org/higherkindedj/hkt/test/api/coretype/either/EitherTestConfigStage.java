@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.test.api.coretype.either;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
 
 /**
  * Stage 4: Optional configuration and test execution.
@@ -15,21 +16,21 @@ import org.higherkindedj.hkt.either.Either;
  * @param <R> The Right type
  * @param <S> The mapped type
  */
-public final class EitherTestConfigStage<L, R, S> {
+public final class EitherTestConfigStage<L, R, S>
+    extends BaseTestConfigStage<EitherTestConfigStage<L, R, S>> {
+
   private final Class<?> contextClass;
   private final Either<L, R> leftInstance;
   private final Either<L, R> rightInstance;
   private final Function<R, S> mapper;
 
-  // Test selection flags
+  // Type-specific test selection flags
   private boolean includeFactoryMethods = true;
   private boolean includeGetters = true;
   private boolean includeFold = true;
   private boolean includeSideEffects = true;
   private boolean includeMap = true;
   private boolean includeFlatMap = true;
-  private boolean includeValidations = true;
-  private boolean includeEdgeCases = true;
 
   EitherTestConfigStage(
       Class<?> contextClass,
@@ -43,7 +44,51 @@ public final class EitherTestConfigStage<L, R, S> {
   }
 
   // =============================================================================
-  // Test Selection Methods
+  // BaseTestConfigStage Implementation
+  // =============================================================================
+
+  @Override
+  protected EitherTestConfigStage<L, R, S> self() {
+    return this;
+  }
+
+  @Override
+  public void testAll() {
+    buildExecutor().executeAll();
+  }
+
+  @Override
+  public EitherValidationStage<L, R, S> configureValidation() {
+    return new EitherValidationStage<>(this);
+  }
+
+  @Override
+  public EitherTestConfigStage<L, R, S> onlyValidations() {
+    disableAll();
+    this.includeValidations = true;
+    return this;
+  }
+
+  @Override
+  public EitherTestConfigStage<L, R, S> onlyEdgeCases() {
+    disableAll();
+    this.includeEdgeCases = true;
+    return this;
+  }
+
+  @Override
+  protected void disableAll() {
+    super.disableAll();
+    includeFactoryMethods = false;
+    includeGetters = false;
+    includeFold = false;
+    includeSideEffects = false;
+    includeMap = false;
+    includeFlatMap = false;
+  }
+
+  // =============================================================================
+  // Type-Specific Test Selection Methods
   // =============================================================================
 
   public EitherTestConfigStage<L, R, S> skipFactoryMethods() {
@@ -73,16 +118,6 @@ public final class EitherTestConfigStage<L, R, S> {
 
   public EitherTestConfigStage<L, R, S> skipFlatMap() {
     this.includeFlatMap = false;
-    return this;
-  }
-
-  public EitherTestConfigStage<L, R, S> skipValidations() {
-    this.includeValidations = false;
-    return this;
-  }
-
-  public EitherTestConfigStage<L, R, S> skipEdgeCases() {
-    this.includeEdgeCases = false;
     return this;
   }
 
@@ -125,81 +160,6 @@ public final class EitherTestConfigStage<L, R, S> {
     this.includeFlatMap = true;
     return this;
   }
-
-  public EitherTestConfigStage<L, R, S> onlyValidations() {
-    disableAll();
-    this.includeValidations = true;
-    return this;
-  }
-
-  public EitherTestConfigStage<L, R, S> onlyEdgeCases() {
-    disableAll();
-    this.includeEdgeCases = true;
-    return this;
-  }
-
-  private void disableAll() {
-    includeFactoryMethods = false;
-    includeGetters = false;
-    includeFold = false;
-    includeSideEffects = false;
-    includeMap = false;
-    includeFlatMap = false;
-    includeValidations = false;
-    includeEdgeCases = false;
-  }
-
-  // =============================================================================
-  // Validation Configuration
-  // =============================================================================
-
-  /**
-   * Enters validation configuration mode.
-   *
-   * <p>Progressive disclosure: Shows validation context configuration options.
-   *
-   * @return Validation stage for configuring error message contexts
-   */
-  public EitherValidationStage<L, R, S> configureValidation() {
-    return new EitherValidationStage<>(this);
-  }
-
-  // =============================================================================
-  // Execution Methods
-  // =============================================================================
-
-  /**
-   * Executes all configured tests.
-   *
-   * <p>This is the most comprehensive test execution option.
-   */
-  public void testAll() {
-    EitherTestExecutor<L, R, S> executor = buildExecutor();
-    executor.executeAll();
-  }
-
-  /** Executes only core operation tests (no validations or edge cases). */
-  public void testOperations() {
-    includeValidations = false;
-    includeEdgeCases = false;
-    testAll();
-  }
-
-  /** Executes only validation tests. */
-  public void testValidations() {
-    onlyValidations();
-    testAll();
-  }
-
-  /** Executes only edge case tests. */
-  public void testEdgeCases() {
-    onlyEdgeCases();
-    testAll();
-  }
-
-  // =============================================================================
-  // Internal Builder
-  // =============================================================================
 
   private EitherTestExecutor<L, R, S> buildExecutor() {
     return new EitherTestExecutor<>(

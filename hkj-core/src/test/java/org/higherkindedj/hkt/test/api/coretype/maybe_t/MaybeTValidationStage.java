@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.coretype.maybe_t;
 
+import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationStage;
+
 /**
  * Stage for configuring validation contexts in MaybeT core type tests.
  *
@@ -12,80 +14,18 @@ package org.higherkindedj.hkt.test.api.coretype.maybe_t;
  * @param <A> The type of the value potentially held by the inner Maybe
  * @param <B> The mapped type
  */
-public final class MaybeTValidationStage<F, A, B> {
-  private final MaybeTTestConfigStage<F, A, B> configStage;
+public final class MaybeTValidationStage<F, A, B>
+    extends BaseTransformerValidationStage<MaybeTValidationStage<F, A, B>> {
 
-  // Validation context class
-  private Class<?> validationContext;
+  private final MaybeTTestConfigStage<F, A, B> configStage;
 
   MaybeTValidationStage(MaybeTTestConfigStage<F, A, B> configStage) {
     this.configStage = configStage;
   }
 
-  /**
-   * Uses inheritance-based validation with fluent configuration.
-   *
-   * <p>Specifies which implementation class is used for validation messages.
-   *
-   * <p>Example:
-   *
-   * <pre>{@code
-   * .configureValidation()
-   *     .useInheritanceValidation()
-   *         .withContextFrom(MaybeT.class)
-   *     .testAll()
-   * }</pre>
-   *
-   * @return Fluent configuration builder
-   */
-  public InheritanceValidationBuilder useInheritanceValidation() {
-    return new InheritanceValidationBuilder();
-  }
-
-  /**
-   * Uses default validation (no class context).
-   *
-   * <p>Error messages will not include specific class names.
-   *
-   * @return This stage for further configuration or execution
-   */
-  public MaybeTValidationStage<F, A, B> useDefaultValidation() {
-    this.validationContext = null;
+  @Override
+  protected MaybeTValidationStage<F, A, B> self() {
     return this;
-  }
-
-  /** Fluent builder for inheritance-based validation configuration. */
-  public final class InheritanceValidationBuilder {
-
-    /**
-     * Specifies the class used for validation error messages.
-     *
-     * @param contextClass The class that implements the operations
-     * @return This builder for chaining
-     */
-    public InheritanceValidationBuilder withContextFrom(Class<?> contextClass) {
-      validationContext = contextClass;
-      return this;
-    }
-
-    /**
-     * Completes inheritance validation configuration.
-     *
-     * @return The parent validation stage for execution
-     */
-    public MaybeTValidationStage<F, A, B> done() {
-      return MaybeTValidationStage.this;
-    }
-
-    /** Executes all configured tests. */
-    public void testAll() {
-      MaybeTValidationStage.this.testAll();
-    }
-
-    /** Executes only validation tests with configured contexts. */
-    public void testValidations() {
-      MaybeTValidationStage.this.testValidations();
-    }
   }
 
   /**
@@ -93,20 +33,15 @@ public final class MaybeTValidationStage<F, A, B> {
    *
    * <p>Includes all test categories with the configured validation contexts.
    */
+  @Override
   public void testAll() {
-    MaybeTTestExecutor<F, A, B> executor = buildExecutor();
-    executor.executeAll();
+    buildExecutor().executeAll();
   }
 
   /** Executes only validation tests with configured contexts. */
+  @Override
   public void testValidations() {
-    MaybeTTestExecutor<F, A, B> executor = buildExecutor();
-    executor.testValidations();
-  }
-
-  // Package-private getter
-  Class<?> getValidationContext() {
-    return validationContext;
+    buildExecutor().testValidations();
   }
 
   private MaybeTTestExecutor<F, A, B> buildExecutor() {

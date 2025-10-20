@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateKindHelper;
 import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -24,20 +25,16 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class StateTestExecutor<S, A, B> {
-  private final Class<?> contextClass;
+final class StateTestExecutor<S, A, B>
+    extends BaseCoreTypeTestExecutor<A, B, StateValidationStage<S, A, B>> {
+
   private final State<S, A> stateInstance;
   private final S initialState;
-  private final Function<A, B> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeRun;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final StateValidationStage<S, A, B> validationStage;
 
   StateTestExecutor(
       Class<?> contextClass,
@@ -77,26 +74,86 @@ final class StateTestExecutor<S, A, B> {
       boolean includeEdgeCases,
       StateValidationStage<S, A, B> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.stateInstance = stateInstance;
     this.initialState = initialState;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeRun = includeRun;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeRun) testRun();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Map validations - test through the Functor interface if custom context provided
+    if (validationStage != null && validationStage.getMapContext() != null) {
+      StateFunctor<S> functor = new StateFunctor<>();
+      Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+    } else {
+      builder.assertMapperNull(() -> stateInstance.map(null), "f", getMapContext(), Operation.MAP);
+    }
+
+    // FlatMap validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getFlatMapContext() != null) {
+      StateMonad<S> monad = new StateMonad<>();
+      Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> stateInstance.flatMap(null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    }
+
+    // Factory method validations
+    builder.assertFunctionNull(() -> State.of(null), "runFunction", contextClass, Operation.OF);
+    builder.assertValueNull(() -> State.set(null), "newState", contextClass, Operation.SET);
+    builder.assertFunctionNull(() -> State.modify(null), "f", contextClass, Operation.MODIFY);
+    builder.assertFunctionNull(() -> State.inspect(null), "f", contextClass, Operation.INSPECT);
+
+    builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test state threading
+    State<S, String> threadedState =
+        State.<S>get()
+            .flatMap(s -> State.pure("value"))
+            .flatMap(v -> State.set(initialState))
+            .flatMap(u -> State.get())
+            .map(Object::toString);
+
+    StateTuple<S, String> result = threadedState.run(initialState);
+    assertThat(result.state()).isNotNull();
+    assertThat(result.value()).isNotNull();
+
+    // Test pure leaves state unchanged
+    State<S, String> pureState = State.pure("test");
+    StateTuple<S, String> pureResult = pureState.run(initialState);
+    assertThat(pureResult.state()).isSameAs(initialState);
+
+    // Test get returns current state
+    State<S, S> getState = State.get();
+    StateTuple<S, S> getResult = getState.run(initialState);
+    assertThat(getResult.value()).isSameAs(initialState);
+    assertThat(getResult.state()).isSameAs(initialState);
+
+    // Test StateTuple factory method
+    StateTuple<S, String> tuple = StateTuple.of(initialState, "value");
+    assertThat(tuple.state()).isSameAs(initialState);
+    assertThat(tuple.value()).isEqualTo("value");
   }
 
   private void testFactoryMethods() {
@@ -199,79 +256,5 @@ final class StateTestExecutor<S, A, B> {
         .isInstanceOf(KindUnwrapException.class)
         .hasMessageContaining("flatMap")
         .hasMessageContaining("returned null");
-  }
-
-  void testValidations() {
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Map validations - test through the Functor interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      StateFunctor<S> functor = new StateFunctor<>();
-      Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      builder.assertMapperNull(() -> stateInstance.map(null), "f", mapContext, Operation.MAP);
-    }
-
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      StateMonad<S> monad = new StateMonad<>();
-      Kind<StateKind.Witness<S>, A> kind = StateKindHelper.STATE.widen(stateInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
-    } else {
-      builder.assertFlatMapperNull(
-          () -> stateInstance.flatMap(null), "f", flatMapContext, Operation.FLAT_MAP);
-    }
-
-    // Factory method validations
-    builder.assertFunctionNull(() -> State.of(null), "runFunction", contextClass, Operation.OF);
-    builder.assertValueNull(() -> State.set(null), "newState", contextClass, Operation.SET);
-    builder.assertFunctionNull(() -> State.modify(null), "f", contextClass, Operation.MODIFY);
-    builder.assertFunctionNull(() -> State.inspect(null), "f", contextClass, Operation.INSPECT);
-
-    builder.execute();
-  }
-
-  private void testEdgeCases() {
-    // Test state threading
-    State<S, String> threadedState =
-        State.<S>get()
-            .flatMap(s -> State.pure("value"))
-            .flatMap(v -> State.set(initialState))
-            .flatMap(u -> State.get())
-            .map(Object::toString);
-
-    StateTuple<S, String> result = threadedState.run(initialState);
-    assertThat(result.state()).isNotNull();
-    assertThat(result.value()).isNotNull();
-
-    // Test pure leaves state unchanged
-    State<S, String> pureState = State.pure("test");
-    StateTuple<S, String> pureResult = pureState.run(initialState);
-    assertThat(pureResult.state()).isSameAs(initialState);
-
-    // Test get returns current state
-    State<S, S> getState = State.get();
-    StateTuple<S, S> getResult = getState.run(initialState);
-    assertThat(getResult.value()).isSameAs(initialState);
-    assertThat(getResult.state()).isSameAs(initialState);
-
-    // Test StateTuple factory method
-    StateTuple<S, String> tuple = StateTuple.of(initialState, "value");
-    assertThat(tuple.state()).isSameAs(initialState);
-    assertThat(tuple.value()).isEqualTo("value");
   }
 }

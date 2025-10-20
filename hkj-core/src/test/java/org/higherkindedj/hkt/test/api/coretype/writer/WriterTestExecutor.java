@@ -8,6 +8,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -24,20 +25,16 @@ import org.higherkindedj.hkt.writer.WriterMonad;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class WriterTestExecutor<W, A, B> {
-  private final Class<?> contextClass;
+final class WriterTestExecutor<W, A, B>
+    extends BaseCoreTypeTestExecutor<A, B, WriterValidationStage<W, A, B>> {
+
   private final Writer<W, A> writerInstance;
   private final Monoid<W> monoid;
-  private final Function<A, B> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeRun;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final WriterValidationStage<W, A, B> validationStage;
 
   WriterTestExecutor(
       Class<?> contextClass,
@@ -77,26 +74,87 @@ final class WriterTestExecutor<W, A, B> {
       boolean includeEdgeCases,
       WriterValidationStage<W, A, B> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.writerInstance = writerInstance;
     this.monoid = monoid;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeRun = includeRun;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeRun) testRun();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Map validations - test through the Functor interface if custom context provided
+    if (validationStage != null && validationStage.getMapContext() != null) {
+      WriterFunctor<W> functor = new WriterFunctor<>();
+      Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+    } else {
+      builder.assertMapperNull(() -> writerInstance.map(null), "f", getMapContext(), Operation.MAP);
+    }
+
+    // FlatMap validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getFlatMapContext() != null) {
+      WriterMonad<W> monad = new WriterMonad<>(monoid);
+      Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> writerInstance.flatMap(monoid, null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    }
+
+    // FlatMap monoid validation
+    builder.assertMonoidNull(
+        () -> writerInstance.flatMap(null, a -> writerInstance),
+        "monoidW",
+        contextClass,
+        Operation.FLAT_MAP);
+
+    // Value monoid validation
+    builder.assertMonoidNull(
+        () -> Writer.value(null, "test"), "monoidW", contextClass, Operation.VALUE);
+
+    builder.execute();
+
+    // Tell validation
+    assertThatThrownBy(() -> Writer.tell(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("Writer.tell log cannot be null");
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test log combining with flatMap
+    W log1 = writerInstance.log();
+    W log2 = monoid.empty();
+    W combined = monoid.combine(log1, log2);
+    assertThat(combined).isNotNull();
+
+    // Test Writer with null value (if A allows nulls)
+    Writer<W, A> nullValueWriter = new Writer<>(monoid.empty(), null);
+    assertThat(nullValueWriter.value()).isNull();
+    assertThat(nullValueWriter.run()).isNull();
+
+    // Test record methods
+    assertThat(writerInstance.log()).isNotNull();
+    assertThat(writerInstance.value()).isEqualTo(writerInstance.run());
+
+    // Test that tell produces Unit
+    Writer<W, Unit> tellWriter = Writer.tell(log1);
+    assertThat(tellWriter.value()).isEqualTo(Unit.INSTANCE);
   }
 
   private void testFactoryMethods() {
@@ -188,80 +246,5 @@ final class WriterTestExecutor<W, A, B> {
         .hasMessageContaining(
             "Function f in Writer.flatMap returned null when Writer expected, which is not"
                 + " allowed");
-  }
-
-  void testValidations() {
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Map validations - test through the Functor interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      WriterFunctor<W> functor = new WriterFunctor<>();
-      Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      builder.assertMapperNull(() -> writerInstance.map(null), "f", mapContext, Operation.MAP);
-    }
-
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      WriterMonad<W> monad = new WriterMonad<>(monoid);
-      Kind<WriterKind.Witness<W>, A> kind = WriterKindHelper.WRITER.widen(writerInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
-    } else {
-      builder.assertFlatMapperNull(
-          () -> writerInstance.flatMap(monoid, null), "f", flatMapContext, Operation.FLAT_MAP);
-    }
-
-    // FlatMap monoid validation
-    builder.assertMonoidNull(
-        () -> writerInstance.flatMap(null, a -> writerInstance),
-        "monoidW",
-        contextClass,
-        Operation.FLAT_MAP);
-
-    // Value monoid validation
-    builder.assertMonoidNull(
-        () -> Writer.value(null, "test"), "monoidW", contextClass, Operation.VALUE);
-
-    builder.execute();
-
-    // Tell validation
-    assertThatThrownBy(() -> Writer.tell(null))
-        .isInstanceOf(NullPointerException.class)
-        .hasMessage("Writer.tell log cannot be null");
-  }
-
-  private void testEdgeCases() {
-    // Test log combining with flatMap
-    W log1 = writerInstance.log();
-    W log2 = monoid.empty();
-    W combined = monoid.combine(log1, log2);
-    assertThat(combined).isNotNull();
-
-    // Test Writer with null value (if A allows nulls)
-    Writer<W, A> nullValueWriter = new Writer<>(monoid.empty(), null);
-    assertThat(nullValueWriter.value()).isNull();
-    assertThat(nullValueWriter.run()).isNull();
-
-    // Test record methods
-    assertThat(writerInstance.log()).isNotNull();
-    assertThat(writerInstance.value()).isEqualTo(writerInstance.run());
-
-    // Test that tell produces Unit
-    Writer<W, Unit> tellWriter = Writer.tell(log1);
-    assertThat(tellWriter.value()).isEqualTo(Unit.INSTANCE);
   }
 }

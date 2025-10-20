@@ -21,10 +21,6 @@ class TryMonadTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
 
   private TryMonad monad;
 
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
   @Override
   protected Kind<TryKind.Witness, String> createValidKind() {
     return TryKindHelper.TRY.widen(Try.success("test value"));

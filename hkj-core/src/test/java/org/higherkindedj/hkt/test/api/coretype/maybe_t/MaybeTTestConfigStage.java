@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.test.api.coretype.maybe_t;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.maybe_t.MaybeT;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerTestConfigStage;
 
 /**
  * Stage 4: Optional configuration and test execution.
@@ -16,18 +17,14 @@ import org.higherkindedj.hkt.maybe_t.MaybeT;
  * @param <A> The type of the value potentially held by the inner Maybe
  * @param <B> The mapped type
  */
-public final class MaybeTTestConfigStage<F, A, B> {
+public final class MaybeTTestConfigStage<F, A, B>
+    extends BaseTransformerTestConfigStage<MaybeTTestConfigStage<F, A, B>> {
+
   private final Class<?> contextClass;
   private final Monad<F> outerMonad;
   private final MaybeT<F, A> justInstance;
   private final MaybeT<F, A> nothingInstance;
   private final Function<A, B> mapper;
-
-  // Test selection flags
-  private boolean includeFactoryMethods = true;
-  private boolean includeValueAccessor = true;
-  private boolean includeValidations = true;
-  private boolean includeEdgeCases = true;
 
   MaybeTTestConfigStage(
       Class<?> contextClass,
@@ -42,116 +39,20 @@ public final class MaybeTTestConfigStage<F, A, B> {
     this.mapper = mapper;
   }
 
-  // =============================================================================
-  // Test Selection Methods
-  // =============================================================================
-
-  public MaybeTTestConfigStage<F, A, B> skipFactoryMethods() {
-    this.includeFactoryMethods = false;
+  @Override
+  protected MaybeTTestConfigStage<F, A, B> self() {
     return this;
   }
 
-  public MaybeTTestConfigStage<F, A, B> skipValueAccessor() {
-    this.includeValueAccessor = false;
-    return this;
+  @Override
+  public void testAll() {
+    buildExecutor().executeAll();
   }
 
-  public MaybeTTestConfigStage<F, A, B> skipValidations() {
-    this.includeValidations = false;
-    return this;
-  }
-
-  public MaybeTTestConfigStage<F, A, B> skipEdgeCases() {
-    this.includeEdgeCases = false;
-    return this;
-  }
-
-  // =============================================================================
-  // Positive Selection (Run Only Specific Tests)
-  // =============================================================================
-
-  public MaybeTTestConfigStage<F, A, B> onlyFactoryMethods() {
-    disableAll();
-    this.includeFactoryMethods = true;
-    return this;
-  }
-
-  public MaybeTTestConfigStage<F, A, B> onlyValueAccessor() {
-    disableAll();
-    this.includeValueAccessor = true;
-    return this;
-  }
-
-  public MaybeTTestConfigStage<F, A, B> onlyValidations() {
-    disableAll();
-    this.includeValidations = true;
-    return this;
-  }
-
-  public MaybeTTestConfigStage<F, A, B> onlyEdgeCases() {
-    disableAll();
-    this.includeEdgeCases = true;
-    return this;
-  }
-
-  private void disableAll() {
-    includeFactoryMethods = false;
-    includeValueAccessor = false;
-    includeValidations = false;
-    includeEdgeCases = false;
-  }
-
-  // =============================================================================
-  // Validation Configuration
-  // =============================================================================
-
-  /**
-   * Enters validation configuration mode.
-   *
-   * <p>Progressive disclosure: Shows validation context configuration options.
-   *
-   * @return Validation stage for configuring error message contexts
-   */
+  @Override
   public MaybeTValidationStage<F, A, B> configureValidation() {
     return new MaybeTValidationStage<>(this);
   }
-
-  // =============================================================================
-  // Execution Methods
-  // =============================================================================
-
-  /**
-   * Executes all configured tests.
-   *
-   * <p>This is the most comprehensive test execution option.
-   */
-  public void testAll() {
-    MaybeTTestExecutor<F, A, B> executor = buildExecutor();
-    executor.executeAll();
-  }
-
-  /** Executes only core operation tests (no validations or edge cases). */
-  public void testOperations() {
-    includeValidations = false;
-    includeEdgeCases = false;
-    testAll();
-  }
-
-  /** Executes only validation tests. */
-  public void testValidations() {
-    onlyValidations();
-    testAll();
-  }
-
-  /** Executes only edge case tests. */
-  public void testEdgeCases() {
-    onlyEdgeCases();
-    testAll();
-  }
-
-  // =============================================================================
-  // Internal Builder
-  // =============================================================================
 
   private MaybeTTestExecutor<F, A, B> buildExecutor() {
     return new MaybeTTestExecutor<>(
