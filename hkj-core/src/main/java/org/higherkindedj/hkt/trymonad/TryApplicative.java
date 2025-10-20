@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -57,8 +57,8 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
   public <A, B> Kind<TryKind.Witness, B> ap(
       Kind<TryKind.Witness, ? extends Function<A, B>> ff, Kind<TryKind.Witness, A> fa) {
 
-    KindValidator.requireNonNull(ff, TRY_APPLICATIVE_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, TRY_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, TRY_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, TRY_APPLICATIVE_CLASS, AP, "argument");
 
     Try<? extends Function<A, B>> tryF = TRY.narrow(ff);
     Try<A> tryA = TRY.narrow(fa);

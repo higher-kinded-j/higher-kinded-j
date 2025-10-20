@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +34,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <E, A> Kind<ValidatedKind.Witness<E>, A> widen(Validated<E, A> validated) {
-    KindValidator.requireForWiden(validated, VALIDATED_CLASS);
+    Validation.kind().requireForWiden(validated, VALIDATED_CLASS);
     return (Kind<ValidatedKind.Witness<E>, A>) validated;
   }
 
@@ -49,7 +49,7 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <E, A> Validated<E, A> narrow(@Nullable Kind<ValidatedKind.Witness<E>, A> kind) {
-    return KindValidator.narrowWithTypeCheck(kind, VALIDATED_CLASS);
+    return Validation.kind().narrowWithTypeCheck(kind, VALIDATED_CLASS);
   }
 
   /**

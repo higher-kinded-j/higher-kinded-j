@@ -14,9 +14,8 @@ import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.assertions.FunctionAssertions;
 import org.higherkindedj.hkt.test.assertions.KindAssertions;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
-import org.higherkindedj.hkt.util.validation.TransformerValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Fluent builder for testing multiple validation conditions using standardized framework.
@@ -104,7 +103,7 @@ public final class ValidationTestBuilder {
           Throwable expectedThrowable = null;
           try {
             // This simulates what the production validator would do
-            CoreTypeValidator.requireValue(null, valueName, contextClass, operation);
+            Validation.coreType().requireValue(null, valueName, contextClass, operation);
             throw new AssertionError("Production validation should have thrown an exception");
           } catch (Throwable t) {
             expectedThrowable = t;
@@ -659,7 +658,7 @@ public final class ValidationTestBuilder {
           // Capture expected exception from production validation
           Throwable expectedThrowable = null;
           try {
-            TransformerValidator.requireOuterMonad(null, contextClass, operation);
+            Validation.transformer().requireOuterMonad(null, contextClass, operation);
             throw new AssertionError("Production validation should have thrown an exception");
           } catch (Throwable t) {
             expectedThrowable = t;
@@ -694,8 +693,8 @@ public final class ValidationTestBuilder {
           // Capture expected exception from production validation
           Throwable expectedThrowable = null;
           try {
-            TransformerValidator.requireTransformerComponent(
-                null, componentName, contextClass, operation);
+            Validation.transformer()
+                .requireTransformerComponent(null, componentName, contextClass, operation);
             throw new AssertionError("Production validation should have thrown an exception");
           } catch (Throwable t) {
             expectedThrowable = t;

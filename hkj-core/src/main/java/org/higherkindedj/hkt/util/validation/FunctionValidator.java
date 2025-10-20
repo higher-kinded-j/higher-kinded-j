@@ -6,7 +6,6 @@ import static java.util.Objects.isNull;
 
 import java.util.Objects;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.util.context.FunctionContext;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -15,11 +14,8 @@ import org.jspecify.annotations.Nullable;
  * <p>This validator ensures consistent error messaging for function parameters across all monad
  * operations, preventing confusion about which operation failed and why.
  */
-public final class FunctionValidator {
-
-  private FunctionValidator() {
-    throw new AssertionError("FunctionValidator is a utility class and should not be instantiated");
-  }
+public enum FunctionValidator {
+  FUNCTION_VALIDATOR;
 
   /**
    * Validates mapping function with class-based operation context.
@@ -32,11 +28,11 @@ public final class FunctionValidator {
    * @throws NullPointerException with context-specific message if function is null
    * @example
    *     <pre>
-   * FunctionValidator.requireMapper(f, StateTMonad.class, "map");
+   * Validation.functionValidator().requireMapper(f, StateTMonad.class, "map");
    * // Error: "function f for StateTMonad.map cannot be null"
    * </pre>
    */
-  public static <T> T requireMapper(
+  public <T> T requireMapper(
       T function, String functionName, Class<?> contextClass, Operation operation) {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
@@ -55,7 +51,7 @@ public final class FunctionValidator {
    * @return The validated function
    * @throws NullPointerException with context-specific message if function is null
    */
-  public static <T> T requireMapper(T function, String functionName, String operation) {
+  public <T> T requireMapper(T function, String functionName, String operation) {
     var context = FunctionContext.mapper(functionName, operation);
     return Objects.requireNonNull(function, context.nullParameterMessage());
   }
@@ -71,11 +67,11 @@ public final class FunctionValidator {
    * @throws NullPointerException with context-specific message if function is null
    * @example
    *     <pre>
-   * FunctionValidator.requireFlatMapper(f, StateTMonad.class, FLAT_MAP);
+   * Validation.functionValidator().requireFlatMapper(f, StateTMonad.class, FLAT_MAP);
    * // Error: "function f for StateTMonad.flatMap cannot be null"
    * </pre>
    */
-  public static <T> T requireFlatMapper(
+  public <T> T requireFlatMapper(
       T function, String functionName, Class<?> contextClass, Operation operation) {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
@@ -94,7 +90,7 @@ public final class FunctionValidator {
    * @return The validated function
    * @throws NullPointerException with context-specific message if function is null
    */
-  public static <T> T requireFlatMapper(T function, String functionName, String operation) {
+  public <T> T requireFlatMapper(T function, String functionName, String operation) {
     var context = FunctionContext.flatMapper(functionName, operation);
     return Objects.requireNonNull(function, context.nullParameterMessage());
   }
@@ -109,7 +105,7 @@ public final class FunctionValidator {
    * @return The validated applicative
    * @throws NullPointerException with context-specific message if applicative is null
    */
-  public static <T> T requireApplicative(
+  public <T> T requireApplicative(
       T applicative, String applicativeName, Class<?> contextClass, Operation operation) {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
@@ -128,7 +124,7 @@ public final class FunctionValidator {
    * @return The validated applicative
    * @throws NullPointerException with context-specific message if applicative is null
    */
-  public static <T> T requireApplicative(T applicative, String applicativeName, String operation) {
+  public <T> T requireApplicative(T applicative, String applicativeName, String operation) {
     var context = FunctionContext.applicative(applicativeName, operation);
     return Objects.requireNonNull(applicative, context.nullParameterMessage());
   }
@@ -144,7 +140,7 @@ public final class FunctionValidator {
    * @return The validated monoid
    * @throws NullPointerException with context-specific message if monoid is null
    */
-  public static <T> T requireMonoid(
+  public <T> T requireMonoid(
       T monoid, String monoidName, Class<?> contextClass, Operation operation) {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
@@ -162,7 +158,7 @@ public final class FunctionValidator {
    * @return The validated monoid
    * @throws NullPointerException with context-specific message if monoid is null
    */
-  public static <T> T requireMonoid(T monoid, String monoidName, String operation) {
+  public <T> T requireMonoid(T monoid, String monoidName, String operation) {
     var context = new FunctionContext(monoidName, operation);
     return Objects.requireNonNull(monoid, context.nullParameterMessage());
   }
@@ -179,11 +175,11 @@ public final class FunctionValidator {
    * @throws NullPointerException with context-specific message if function is null
    * @example
    *     <pre>
-   * FunctionValidator.requireFunction(fn, "runStateTFn", StateT.class, "construction");
+   * Validation.functionValidator().requireFunction(fn, "runStateTFn", StateT.class, "construction");
    * // Error: "runStateTFn for StateT construction cannot be null"
    * </pre>
    */
-  public static <T> T requireFunction(
+  public <T> T requireFunction(
       T function, String functionName, Class<?> contextClass, Operation operation) {
 
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
@@ -203,7 +199,7 @@ public final class FunctionValidator {
    * @return The validated function
    * @throws NullPointerException with context-specific message if function is null
    */
-  public static <T> T requireFunction(T function, String functionName, String operation) {
+  public <T> T requireFunction(T function, String functionName, String operation) {
     var context = new FunctionContext(functionName, operation);
     return Objects.requireNonNull(function, context.nullParameterMessage());
   }
@@ -219,11 +215,11 @@ public final class FunctionValidator {
    * @throws KindUnwrapException if result is null
    * @example
    *     <pre>
-   * FunctionValidator.requireNonNullResult(kindB, StateTMonad.class, "flatMap");
+   * Validation.functionValidator().requireNonNullResult(kindB, StateTMonad.class, "flatMap");
    * // Error: "Function in StateTMonad.flatMap returned null, which is not allowed"
    * </pre>
    */
-  public static <T> T requireNonNullResult(
+  public <T> T requireNonNullResult(
       T result, String functionName, Class<?> contextClass, Operation operation) {
     return requireNonNullResult(result, functionName, contextClass, operation, null);
   }
@@ -238,7 +234,7 @@ public final class FunctionValidator {
    * @return The validated result
    * @throws KindUnwrapException if result is null
    */
-  public static <T> T requireNonNullResult(
+  public <T> T requireNonNullResult(
       T result,
       String functionName,
       Class<?> contextClass,
@@ -263,12 +259,36 @@ public final class FunctionValidator {
   }
 
   // Add validation for handlers (used in error handling)
-  public static <T> T requireHandler(T handler, Class<?> contextClass, Operation operation) {
+  public <T> T requireHandler(T handler, Class<?> contextClass, Operation operation) {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
     String fullOperation = contextClass.getSimpleName() + "." + operation;
     var context = new FunctionContext("handler", fullOperation);
     return Objects.requireNonNull(handler, context.nullParameterMessage());
+  }
+
+  public record FunctionContext(String functionName, String operation) {
+
+    public FunctionContext {
+      Objects.requireNonNull(functionName, "functionName cannot be null");
+      Objects.requireNonNull(operation, "operation cannot be null");
+    }
+
+    public static FunctionContext mapper(String functionName, String operation) {
+      return new FunctionContext(functionName, operation);
+    }
+
+    public static FunctionContext flatMapper(String functionName, String operation) {
+      return new FunctionContext(functionName, operation);
+    }
+
+    public static FunctionContext applicative(String applicativeName, String operation) {
+      return new FunctionContext(applicativeName, operation);
+    }
+
+    public String nullParameterMessage() {
+      return String.format("Function %s for %s cannot be null", functionName, operation);
+    }
   }
 }

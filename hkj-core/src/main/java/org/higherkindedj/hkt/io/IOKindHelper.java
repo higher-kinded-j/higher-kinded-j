@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.io;
 
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,7 +28,7 @@ public enum IOKindHelper implements IOConverterOps {
    */
   record IOHolder<A>(IO<A> ioInstance) implements IOKind<A> {
     IOHolder {
-      KindValidator.requireForWiden(ioInstance, IO_CLASS);
+      Validation.kind().requireForWiden(ioInstance, IO_CLASS);
     }
   }
 
@@ -59,7 +59,7 @@ public enum IOKindHelper implements IOConverterOps {
    */
   @Override
   public <A> IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, IO_CLASS, this::extractIO);
+    return Validation.kind().narrow(kind, IO_CLASS, this::extractIO);
   }
 
   /**

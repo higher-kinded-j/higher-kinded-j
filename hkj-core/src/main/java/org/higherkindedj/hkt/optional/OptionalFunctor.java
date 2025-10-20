@@ -9,8 +9,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -79,8 +78,8 @@ public class OptionalFunctor implements Functor<OptionalKind.Witness> {
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", OPTIONAL_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, OPTIONAL_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", OPTIONAL_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, OPTIONAL_FUNCTOR_CLASS, MAP);
 
     Optional<A> optionalA = OPTIONAL.narrow(fa);
     // Optional.map correctly handles f returning null by creating Optional.empty()

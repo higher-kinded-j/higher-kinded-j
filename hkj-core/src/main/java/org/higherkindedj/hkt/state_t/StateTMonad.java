@@ -8,9 +8,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
-import org.higherkindedj.hkt.util.validation.TransformerValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,7 +35,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
 
   // Private constructor, use factory method
   private StateTMonad(Monad<F> monadF) {
-    this.monadF = TransformerValidator.requireOuterMonad(monadF, STATE_T_MONAD_CLASS, CONSTRUCTION);
+    this.monadF =
+        Validation.transformer().requireOuterMonad(monadF, STATE_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -87,8 +86,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   @Override
   public <A, B> Kind<StateTKind.Witness<S, F>, B> map(
       Function<? super A, ? extends B> f, Kind<StateTKind.Witness<S, F>, A> fa) {
-    FunctionValidator.requireMapper(f, "f", STATE_T_MONAD_CLASS, MAP);
-    KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", STATE_T_MONAD_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, MAP);
 
     StateT<S, F, A> stateT = StateTKind.narrow(fa);
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
@@ -140,8 +139,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   public <A, B> Kind<StateTKind.Witness<S, F>, B> ap(
       Kind<StateTKind.Witness<S, F>, ? extends Function<A, B>> ff,
       Kind<StateTKind.Witness<S, F>, A> fa) {
-    KindValidator.requireNonNull(ff, STATE_T_MONAD_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, STATE_T_MONAD_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, AP, "argument");
 
     StateT<S, F, ? extends Function<A, B>> stateTf = StateTKind.narrow(ff);
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
@@ -153,8 +152,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
                   Function<A, B> function = tupleF.value();
                   S s1 = tupleF.state();
 
-                  FunctionValidator.requireFunction(
-                      function, "wrapped function", STATE_T_MONAD_CLASS, AP);
+                  Validation.function()
+                      .requireFunction(function, "wrapped function", STATE_T_MONAD_CLASS, AP);
 
                   Kind<F, StateTuple<S, A>> resultA = stateTa.runStateT(s1);
 
@@ -211,8 +210,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
   public <A, B> Kind<StateTKind.Witness<S, F>, B> flatMap(
       Function<? super A, ? extends Kind<StateTKind.Witness<S, F>, B>> f,
       Kind<StateTKind.Witness<S, F>, A> fa) {
-    FunctionValidator.requireFlatMapper(f, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(fa, STATE_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(fa, STATE_T_MONAD_CLASS, FLAT_MAP);
 
     StateT<S, F, A> stateTa = StateTKind.narrow(fa);
 
@@ -221,7 +220,8 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
             monadF.<StateTuple<S, A>, StateTuple<S, B>>flatMap(
                 tupleA -> {
                   Kind<StateTKind.Witness<S, F>, B> kindB = f.apply(tupleA.value());
-                  FunctionValidator.requireNonNullResult(kindB, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
+                  Validation.function()
+                      .requireNonNullResult(kindB, "f", STATE_T_MONAD_CLASS, FLAT_MAP);
                   StateT<S, F, B> stateTb = StateTKind.narrow(kindB);
                   return stateTb.runStateT(tupleA.state());
                 },

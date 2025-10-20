@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -91,8 +90,8 @@ public final class IdMonad implements Monad<Id.Witness> {
   public <A, B> Kind<Id.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<Id.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", ID_MONAD_CLASS, MAP);
-    KindValidator.requireNonNull(fa, ID_MONAD_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", ID_MONAD_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, ID_MONAD_CLASS, MAP);
 
     return ID.narrow(fa).map(f);
   }
@@ -122,13 +121,13 @@ public final class IdMonad implements Monad<Id.Witness> {
   public <A, B> Kind<Id.Witness, B> ap(
       Kind<Id.Witness, ? extends Function<A, B>> ff, Kind<Id.Witness, A> fa) {
 
-    KindValidator.requireNonNull(ff, ID_MONAD_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, ID_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, ID_MONAD_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, ID_MONAD_CLASS, AP, "argument");
 
     Function<A, B> function = ID.narrow(ff).value();
     A value = ID.narrow(fa).value();
 
-    FunctionValidator.requireFunction(function, "function", ID_MONAD_CLASS, AP);
+    Validation.function().requireFunction(function, "function", ID_MONAD_CLASS, AP);
     return Id.of(function.apply(value));
   }
 
@@ -159,12 +158,13 @@ public final class IdMonad implements Monad<Id.Witness> {
   public <A, B> Kind<Id.Witness, B> flatMap(
       Function<? super A, ? extends Kind<Id.Witness, B>> f, Kind<Id.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", ID_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, ID_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", ID_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, ID_MONAD_CLASS, FLAT_MAP);
 
     A valueInA = ID.narrow(ma).value();
     Kind<Id.Witness, B> resultKind = f.apply(valueInA);
-    FunctionValidator.requireNonNullResult(resultKind, "f", ID_MONAD_CLASS, FLAT_MAP, Kind.class);
+    Validation.function()
+        .requireNonNullResult(resultKind, "f", ID_MONAD_CLASS, FLAT_MAP, Kind.class);
     return resultKind;
   }
 }

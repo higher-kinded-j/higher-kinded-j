@@ -7,7 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -117,8 +117,8 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    */
   default <T> T fold(
       Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
-    FunctionValidator.requireFunction(leftMapper, "leftMapper", EITHER_CLASS, FOLD);
-    FunctionValidator.requireFunction(rightMapper, "rightMapper", EITHER_CLASS, FOLD);
+    Validation.function().requireFunction(leftMapper, "leftMapper", EITHER_CLASS, FOLD);
+    Validation.function().requireFunction(rightMapper, "rightMapper", EITHER_CLASS, FOLD);
 
     return switch (this) {
       case Left<L, R>(var leftValue) -> leftMapper.apply(leftValue);
@@ -152,7 +152,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    */
   @SuppressWarnings("unchecked")
   default <R2> Either<L, R2> map(Function<? super R, ? extends R2> mapper) {
-    FunctionValidator.requireMapper(mapper, "mapper", EITHER_CLASS, MAP);
+    Validation.function().requireMapper(mapper, "mapper", EITHER_CLASS, MAP);
     return switch (this) {
       case Left<L, R> l -> (Either<L, R2>) l; // Return self, cast is safe.
       case Right<L, R>(var rValue) -> Either.right(mapper.apply(rValue)); // Create new Right
@@ -294,19 +294,19 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     @SuppressWarnings("unchecked")
     public <R2> Either<L, R2> flatMap(
         Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, "mapper", Either.class, FLAT_MAP);
+      Validation.function().requireFlatMapper(mapper, "mapper", Either.class, FLAT_MAP);
       return (Either<L, R2>) this; // Left remains Left, type L is unchanged.
     }
 
     @Override
     public void ifLeft(Consumer<? super L> action) {
-      FunctionValidator.requireFunction(action, "action", Either.class, IF_LEFT);
+      Validation.function().requireFunction(action, "action", Either.class, IF_LEFT);
       action.accept(value);
     }
 
     @Override
     public void ifRight(Consumer<? super R> action) {
-      FunctionValidator.requireFunction(action, "action", EITHER_CLASS, IF_RIGHT);
+      Validation.function().requireFunction(action, "action", EITHER_CLASS, IF_RIGHT);
     }
 
     /**
@@ -354,23 +354,23 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
     @SuppressWarnings("unchecked")
     public <R2> Either<L, R2> flatMap(
         Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, "mapper", Either.class, FLAT_MAP);
+      Validation.function().requireFlatMapper(mapper, "mapper", Either.class, FLAT_MAP);
       // Apply the mapper, which itself returns an Either.
       Either<L, ? extends R2> result = mapper.apply(value);
-      FunctionValidator.requireNonNullResult(
-          result, "mapper", EITHER_CLASS, FLAT_MAP, EITHER_CLASS);
+      Validation.function()
+          .requireNonNullResult(result, "mapper", EITHER_CLASS, FLAT_MAP, EITHER_CLASS);
       // Cast is safe because ? extends R2 is compatible with R2
       return (Either<L, R2>) result;
     }
 
     @Override
     public void ifLeft(Consumer<? super L> action) {
-      FunctionValidator.requireFunction(action, "action", Either.class, IF_LEFT);
+      Validation.function().requireFunction(action, "action", Either.class, IF_LEFT);
     }
 
     @Override
     public void ifRight(Consumer<? super R> action) {
-      FunctionValidator.requireFunction(action, "action", Either.class, IF_RIGHT);
+      Validation.function().requireFunction(action, "action", Either.class, IF_RIGHT);
       action.accept(value);
     }
 

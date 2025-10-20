@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.maybe_t;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +34,7 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    */
   @Override
   public <F, A> Kind<MaybeTKind.Witness<F>, A> widen(MaybeT<F, A> maybeT) {
-    KindValidator.requireForWiden(maybeT, MAYBE_T_CLASS);
+    Validation.kind().requireForWiden(maybeT, MAYBE_T_CLASS);
     return maybeT;
   }
 
@@ -51,6 +51,6 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    */
   @Override
   public <F, A> MaybeT<F, A> narrow(@Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
-    return KindValidator.narrowWithTypeCheck(kind, MAYBE_T_CLASS);
+    return Validation.kind().narrowWithTypeCheck(kind, MAYBE_T_CLASS);
   }
 }

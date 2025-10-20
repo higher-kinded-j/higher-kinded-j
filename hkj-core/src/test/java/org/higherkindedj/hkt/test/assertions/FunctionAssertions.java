@@ -8,6 +8,7 @@ import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Function parameter validation assertions aligned with production validators.
@@ -59,7 +60,6 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * }</pre>
  *
  * @see FunctionValidator
- * @see org.higherkindedj.hkt.util.context.FunctionContext
  */
 public final class FunctionAssertions {
 
@@ -73,7 +73,7 @@ public final class FunctionAssertions {
   // =============================================================================
 
   /**
-   * Asserts mapper function validation using production FunctionValidator.
+   * Asserts mapper function validation using production Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param operation The operation name
@@ -83,11 +83,12 @@ public final class FunctionAssertions {
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMapperNull(
       ThrowableAssert.ThrowingCallable executable, String mapperName, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireMapper(null, mapperName, operation.toString()));
+        executable,
+        () -> Validation.function().requireMapper(null, mapperName, operation.toString()));
   }
 
   /**
-   * Asserts flatMapper function validation using production FunctionValidator.
+   * Asserts flatMapper function validation using production Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param operation The operation name
@@ -98,11 +99,11 @@ public final class FunctionAssertions {
       ThrowableAssert.ThrowingCallable executable, String flatMapperName, Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireFlatMapper(null, flatMapperName, operation.toString()));
+        () -> Validation.function().requireFlatMapper(null, flatMapperName, operation.toString()));
   }
 
   /**
-   * Asserts applicative validation using production FunctionValidator.
+   * Asserts applicative validation using production Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param operation The operation name
@@ -113,11 +114,12 @@ public final class FunctionAssertions {
       ThrowableAssert.ThrowingCallable executable, String applicativeName, Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireApplicative(null, applicativeName, operation.toString()));
+        () ->
+            Validation.function().requireApplicative(null, applicativeName, operation.toString()));
   }
 
   /**
-   * Asserts monoid validation using production FunctionValidator.
+   * Asserts monoid validation using production Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param monoidName The name of the monoid parameter
@@ -128,11 +130,12 @@ public final class FunctionAssertions {
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
       ThrowableAssert.ThrowingCallable executable, String monoidName, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireMonoid(null, monoidName, operation.toString()));
+        executable,
+        () -> Validation.function().requireMonoid(null, monoidName, operation.toString()));
   }
 
   /**
-   * Asserts generic function validation using production FunctionValidator.
+   * Asserts generic function validation using production Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param functionName The name of the function parameter
@@ -144,7 +147,7 @@ public final class FunctionAssertions {
       ThrowableAssert.ThrowingCallable executable, String functionName, Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireFunction(null, functionName, operation.toString()));
+        () -> Validation.function().requireFunction(null, functionName, operation.toString()));
   }
 
   // =============================================================================
@@ -152,7 +155,8 @@ public final class FunctionAssertions {
   // =============================================================================
 
   /**
-   * Asserts mapper function validation with class context using production FunctionValidator.
+   * Asserts mapper function validation with class context using production
+   * Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param contextClass The class providing context (e.g., EitherMonad.class)
@@ -167,11 +171,12 @@ public final class FunctionAssertions {
       Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireMapper(null, mapperName, contextClass, operation));
+        () -> Validation.function().requireMapper(null, mapperName, contextClass, operation));
   }
 
   /**
-   * Asserts flatMapper function validation with class context using production FunctionValidator.
+   * Asserts flatMapper function validation with class context using production
+   * Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param contextClass The class providing context
@@ -186,11 +191,13 @@ public final class FunctionAssertions {
       Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireFlatMapper(null, flatMapperName, contextClass, operation));
+        () ->
+            Validation.function().requireFlatMapper(null, flatMapperName, contextClass, operation));
   }
 
   /**
-   * Asserts applicative validation with class context using production FunctionValidator.
+   * Asserts applicative validation with class context using production
+   * Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param contextClass The class providing context
@@ -205,11 +212,13 @@ public final class FunctionAssertions {
       Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireApplicative(null, applicativeName, contextClass, operation));
+        () ->
+            Validation.function()
+                .requireApplicative(null, applicativeName, contextClass, operation));
   }
 
   /**
-   * Asserts monoid validation with class context using production FunctionValidator.
+   * Asserts monoid validation with class context using production Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param monoidName The name of the monoid parameter
@@ -225,17 +234,19 @@ public final class FunctionAssertions {
       Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireMonoid(null, monoidName, contextClass, operation));
+        () -> Validation.function().requireMonoid(null, monoidName, contextClass, operation));
   }
 
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireMonoid(null, "monoid", contextClass, operation));
+        executable,
+        () -> Validation.function().requireMonoid(null, "monoid", contextClass, operation));
   }
 
   /**
-   * Asserts custom function validation with class context using production FunctionValidator.
+   * Asserts custom function validation with class context using production
+   * Validation.functionValidator().
    *
    * @param executable The code that should throw
    * @param functionName The name of the function parameter
@@ -251,7 +262,7 @@ public final class FunctionAssertions {
       Operation operation) {
     return assertWithProductionValidator(
         executable,
-        () -> FunctionValidator.requireFunction(null, functionName, contextClass, operation));
+        () -> Validation.function().requireFunction(null, functionName, contextClass, operation));
   }
 
   /**
@@ -265,7 +276,7 @@ public final class FunctionAssertions {
   public static AbstractThrowableAssert<?, ? extends Throwable> assertHandlerNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> FunctionValidator.requireHandler(null, contextClass, operation));
+        executable, () -> Validation.function().requireHandler(null, contextClass, operation));
   }
 
   // =============================================================================

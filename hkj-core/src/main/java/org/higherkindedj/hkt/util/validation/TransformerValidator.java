@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.util.validation;
 
 import java.util.Objects;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.util.context.DomainContext;
 
 /**
  * Handles domain-specific validations for transformers, witnesses, etc.
@@ -12,11 +11,8 @@ import org.higherkindedj.hkt.util.context.DomainContext;
  * <p>This validator provides specialized validation for Higher-Kinded-J specific concepts like
  * monad transformers and witness types.
  */
-public final class TransformerValidator {
-
-  private TransformerValidator() {
-    throw new AssertionError("DomainValidator is a utility class and should not be instantiated");
-  }
+public enum TransformerValidator {
+  TRANSFORMER_VALIDATOR;
 
   /**
    * Validates outer monad for transformer construction with class-based context.
@@ -41,7 +37,7 @@ public final class TransformerValidator {
    * // Error: "Outer Monad cannot be null for OptionalT.lift"
    * </pre>
    */
-  public static <F> Monad<F> requireOuterMonad(
+  public <F> Monad<F> requireOuterMonad(
       Monad<F> monad, Class<?> transformerClass, Operation methodName) {
 
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
@@ -78,7 +74,7 @@ public final class TransformerValidator {
    * // Error: "inner Optional cannot be null for OptionalT.fromOptional"
    * </pre>
    */
-  public static <T> T requireTransformerComponent(
+  public <T> T requireTransformerComponent(
       T component, String componentName, Class<?> transformerClass, Operation methodName) {
 
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
@@ -90,6 +86,31 @@ public final class TransformerValidator {
     var context = DomainContext.transformer(fullContext);
 
     return Objects.requireNonNull(
-        component, context.customMessage("%s cannot be null for %s", componentName, fullContext));
+        component, "%s cannot be null for %s".formatted(componentName, fullContext));
+  }
+
+  /** Context for domain-specific validations (transformers, etc.) */
+  public record DomainContext(String domainType, String objectName) {
+
+    public DomainContext {
+      Objects.requireNonNull(domainType, "domainType cannot be null");
+      Objects.requireNonNull(objectName, "objectName cannot be null");
+    }
+
+    public static DomainContext transformer(String transformerName) {
+      return new DomainContext("transformer", transformerName);
+    }
+
+    public static DomainContext witness(String operation) {
+      return new DomainContext("witness", operation);
+    }
+
+    public String nullParameterMessage() {
+      return "%s %s cannot be null for %s"
+          .formatted(
+              domainType.substring(0, 1).toUpperCase() + domainType.substring(1),
+              objectName.equals("witness") ? "Monad" : "",
+              objectName);
+    }
   }
 }

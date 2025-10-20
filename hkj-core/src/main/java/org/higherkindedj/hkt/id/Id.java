@@ -7,7 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -50,7 +50,7 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @throws NullPointerException if {@code fn} is null.
    */
   public <B> Id<B> map(Function<? super A, ? extends B> fn) {
-    FunctionValidator.requireMapper(fn, "fn", ID_CLASS, MAP);
+    Validation.function().requireMapper(fn, "fn", ID_CLASS, MAP);
     return new Id<>(fn.apply(value()));
   }
 
@@ -64,10 +64,10 @@ public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
    * @throws NullPointerException if fn is null or if fn returns a null Id.
    */
   public <B> Id<B> flatMap(Function<? super A, ? extends Id<? extends B>> fn) {
-    FunctionValidator.requireFlatMapper(fn, "fn", ID_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(fn, "fn", ID_CLASS, FLAT_MAP);
 
     Id<? extends B> result = fn.apply(value());
-    FunctionValidator.requireNonNullResult(result, "fn", ID_CLASS, FLAT_MAP, ID_CLASS);
+    Validation.function().requireNonNullResult(result, "fn", ID_CLASS, FLAT_MAP, ID_CLASS);
 
     // The cast is safe because fn returns Id<? extends B> which is covariant
     @SuppressWarnings("unchecked")

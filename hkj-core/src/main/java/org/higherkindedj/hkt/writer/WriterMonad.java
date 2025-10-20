@@ -9,8 +9,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Monad} interface for the {@link Writer} type. This provides the full
@@ -70,8 +69,8 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
       Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
       Kind<WriterKind.Witness<W>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", WRITER_MAONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, WRITER_MAONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", WRITER_MAONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, WRITER_MAONAD_CLASS, FLAT_MAP);
 
     Writer<W, A> writerA = WRITER.narrow(ma);
 
@@ -82,8 +81,8 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
             this.monoidW,
             a -> {
               Kind<WriterKind.Witness<W>, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(
-                  kindB, "f", WRITER_MAONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function()
+                  .requireNonNullResult(kindB, "f", WRITER_MAONAD_CLASS, FLAT_MAP, Kind.class);
               return WRITER.narrow(kindB);
             });
 

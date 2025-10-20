@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.util.context.KindContext;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -16,11 +15,8 @@ import org.jspecify.annotations.Nullable;
  * descriptions instead of type names, and ensures consistent error messaging across all
  * Kind-related operations.
  */
-public final class KindValidator {
-
-  private KindValidator() {
-    throw new AssertionError("KindValidator is a utility class and should not be instantiated");
-  }
+public enum KindValidator {
+  KIND_VALIDATOR;
 
   /**
    * Validates and narrows a Kind with rich type context using a custom narrower function.
@@ -34,7 +30,7 @@ public final class KindValidator {
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or narrowing fails
    */
-  public static <F, A, T> T narrow(
+  public <F, A, T> T narrow(
       @Nullable Kind<F, A> kind, Class<T> targetType, Function<Kind<F, A>, T> narrower) {
 
     var context = KindContext.narrow(targetType);
@@ -49,8 +45,7 @@ public final class KindValidator {
       throw new KindUnwrapException(context.invalidTypeMessage(kind.getClass().getName()), e);
     } catch (Exception e) {
       throw new KindUnwrapException(
-          context.customMessage(
-              "Failed to narrow Kind to %s: %s", targetType.getSimpleName(), e.getMessage()),
+          "Failed to narrow Kind to %s: %s".formatted(targetType.getSimpleName(), e.getMessage()),
           e);
     }
   }
@@ -67,7 +62,7 @@ public final class KindValidator {
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or not of the expected type
    */
-  public static <F, A, T> T narrowWithTypeCheck(@Nullable Kind<F, A> kind, Class<T> targetType) {
+  public <F, A, T> T narrowWithTypeCheck(@Nullable Kind<F, A> kind, Class<T> targetType) {
 
     var context = KindContext.narrow(targetType);
 
@@ -91,7 +86,7 @@ public final class KindValidator {
    * @return The validated input
    * @throws NullPointerException if input is null
    */
-  public static <T> T requireForWiden(T input, Class<T> inputType) {
+  public <T> T requireForWiden(T input, Class<T> inputType) {
     var context = KindContext.widen(inputType);
     return Objects.requireNonNull(input, context.nullInputMessage());
   }
@@ -108,11 +103,11 @@ public final class KindValidator {
    * @throws NullPointerException if kind is null
    * @example
    *     <pre>
-   * KindValidator.requireNonNull(fa, StateTMonad.class, "map");
+   * Validation.kindValidator().requireNonNull(fa, StateTMonad.class, "map");
    * // Error: "Kind for StateTMonad.map cannot be null"
    * </pre>
    */
-  public static <F, A> Kind<F, A> requireNonNull(
+  public <F, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Class<?> contextClass, Operation operation) {
 
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
@@ -132,7 +127,7 @@ public final class KindValidator {
    * @return The validated Kind
    * @throws NullPointerException if kind is null
    */
-  public static <F, A> Kind<F, A> requireNonNull(Kind<F, A> kind, Operation operation) {
+  public <F, A> Kind<F, A> requireNonNull(Kind<F, A> kind, Operation operation) {
     return Objects.requireNonNull(kind, "Kind for " + operation + " cannot be null");
   }
 
@@ -154,14 +149,14 @@ public final class KindValidator {
    * @throws NullPointerException if kind is null
    * @example
    *     <pre>
-   * KindValidator.requireNonNull(ff, StateTMonad.class, "ap", "function");
+   * Validation.kindValidator().requireNonNull(ff, StateTMonad.class, "ap", "function");
    * // Error: "Kind for StateTMonad.ap (function) cannot be null"
    *
-   * KindValidator.requireNonNull(fa, StateTMonad.class, "ap", "argument");
+   * Validation.kindValidator().requireNonNull(fa, StateTMonad.class, "ap", "argument");
    * // Error: "Kind for StateTMonad.ap (argument) cannot be null"
    * </pre>
    */
-  public static <F, A> Kind<F, A> requireNonNull(
+  public <F, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Class<?> contextClass, Operation operation, @Nullable String descriptor) {
 
     Objects.requireNonNull(contextClass, "contextClass cannot be null");
@@ -185,12 +180,40 @@ public final class KindValidator {
    * @return The validated Kind
    * @throws NullPointerException if kind is null
    */
-  public static <F, A> Kind<F, A> requireNonNull(
+  public <F, A> Kind<F, A> requireNonNull(
       Kind<F, A> kind, Operation operation, @Nullable String descriptor) {
 
     String contextMessage =
         descriptor != null ? operation + " (" + descriptor + ")" : operation.toString();
 
     return Objects.requireNonNull(kind, "Kind for " + contextMessage + " cannot be null");
+  }
+
+  public record KindContext(Class<?> targetType, String operation) {
+
+    public KindContext {
+      Objects.requireNonNull(targetType, "targetType cannot be null");
+      Objects.requireNonNull(operation, "operation cannot be null");
+    }
+
+    public static KindContext narrow(Class<?> targetType) {
+      return new KindContext(targetType, "narrow");
+    }
+
+    public static KindContext widen(Class<?> targetType) {
+      return new KindContext(targetType, "widen");
+    }
+
+    public String nullParameterMessage() {
+      return "Cannot %s null Kind for %s".formatted(operation, targetType.getSimpleName());
+    }
+
+    public String nullInputMessage() {
+      return "Input %s cannot be null for %s".formatted(targetType.getSimpleName(), operation);
+    }
+
+    public String invalidTypeMessage(String actualClassName) {
+      return "Kind instance is not a %s: %s".formatted(targetType.getSimpleName(), actualClassName);
+    }
   }
 }

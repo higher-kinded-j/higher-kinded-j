@@ -10,8 +10,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * The Traverse and Foldable instance for {@link Try}.
@@ -43,8 +42,8 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", TRY_TRAVERSE_CLASS, MAP);
-    KindValidator.requireNonNull(fa, TRY_TRAVERSE_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", TRY_TRAVERSE_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, TRY_TRAVERSE_CLASS, MAP);
 
     return TRY.widen(TRY.narrow(fa).map(f));
   }
@@ -78,9 +77,10 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<TryKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, "applicative", TRY_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, "f", TRY_TRAVERSE_CLASS, TRAVERSE);
-    KindValidator.requireNonNull(ta, TRY_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function()
+        .requireApplicative(applicative, "applicative", TRY_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().requireMapper(f, "f", TRY_TRAVERSE_CLASS, TRAVERSE);
+    Validation.kind().requireNonNull(ta, TRY_TRAVERSE_CLASS, TRAVERSE);
 
     return TRY.narrow(ta)
         .fold(
@@ -119,9 +119,9 @@ public enum TryTraverse implements Traverse<TryKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<TryKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, "monoid", TRY_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, "f", TRY_TRAVERSE_CLASS, FOLD_MAP);
-    KindValidator.requireNonNull(fa, TRY_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMonoid(monoid, "monoid", TRY_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMapper(f, "f", TRY_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.kind().requireNonNull(fa, TRY_TRAVERSE_CLASS, FOLD_MAP);
 
     // If the Try is a Success, apply the function `f` to the value.
     // If it's a Failure, return the identity element of the Monoid.

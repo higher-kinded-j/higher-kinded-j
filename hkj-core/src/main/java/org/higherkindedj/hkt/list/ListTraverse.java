@@ -14,8 +14,7 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -49,8 +48,8 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", LIST_TRAVERSE_CLASS, MAP);
-    KindValidator.requireNonNull(fa, LIST_TRAVERSE_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", LIST_TRAVERSE_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, LIST_TRAVERSE_CLASS, MAP);
 
     return ListFunctor.INSTANCE.map(f, fa);
   }
@@ -78,9 +77,10 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ListKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(applicative, "applicative", LIST_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, "f", LIST_TRAVERSE_CLASS, TRAVERSE);
-    KindValidator.requireNonNull(ta, LIST_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function()
+        .requireApplicative(applicative, "applicative", LIST_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().requireMapper(f, "f", LIST_TRAVERSE_CLASS, TRAVERSE);
+    Validation.kind().requireNonNull(ta, LIST_TRAVERSE_CLASS, TRAVERSE);
 
     List<A> listA = LIST.narrow(ta);
     Kind<G, List<B>> result = applicative.of(new LinkedList<>());
@@ -120,9 +120,9 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ListKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, "monoid", LIST_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, "f", LIST_TRAVERSE_CLASS, FOLD_MAP);
-    KindValidator.requireNonNull(fa, LIST_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMonoid(monoid, "monoid", LIST_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMapper(f, "f", LIST_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.kind().requireNonNull(fa, LIST_TRAVERSE_CLASS, FOLD_MAP);
 
     M accumulator = monoid.empty();
     for (A a : LIST.narrow(fa)) {

@@ -10,8 +10,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Represents a value that is either Valid (correct) or Invalid (erroneous). This is a sealed
@@ -155,8 +154,8 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
   default <T> T fold(
       Function<? super E, ? extends T> invalidMapper,
       Function<? super A, ? extends T> validMapper) {
-    FunctionValidator.requireFunction(invalidMapper, "invalidMapper", VALIDATED_CLASS, FOLD);
-    FunctionValidator.requireFunction(validMapper, "validMapper", VALIDATED_CLASS, FOLD);
+    Validation.function().requireFunction(invalidMapper, "invalidMapper", VALIDATED_CLASS, FOLD);
+    Validation.function().requireFunction(validMapper, "validMapper", VALIDATED_CLASS, FOLD);
     if (isInvalid()) {
       return invalidMapper.apply(getError());
     } else {
@@ -186,7 +185,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @throws NullPointerException if value is null.
    */
   static <E, A> Validated<E, A> valid(A value) {
-    CoreTypeValidator.requireValue(value, VALIDATED_CLASS, CONSTRUCTION);
+    Validation.coreType().requireValue(value, VALIDATED_CLASS, CONSTRUCTION);
     return new Valid<>(value);
   }
 
@@ -200,7 +199,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @throws NullPointerException if error is null.
    */
   static <E, A> Validated<E, A> invalid(E error) {
-    CoreTypeValidator.requireError(error, VALIDATED_CLASS, INVALID);
+    Validation.coreType().requireError(error, VALIDATED_CLASS, INVALID);
     return new Invalid<>(error);
   }
 }

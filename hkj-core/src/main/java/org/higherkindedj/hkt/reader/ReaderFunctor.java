@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} interface for the {@link Reader} type, using {@link
@@ -53,8 +52,8 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
   public <A, B> Kind<ReaderKind.Witness<R>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", READER_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, READER_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", READER_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, READER_FUNCTOR_CLASS, MAP);
 
     Reader<R, A> readerA = READER.narrow(fa);
     Reader<R, B> readerB = readerA.map(f);

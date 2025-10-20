@@ -40,7 +40,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   private final Semigroup<E> semigroup;
 
   private ValidatedMonad(Semigroup<E> semigroup) {
-    this.semigroup = CoreTypeValidator.requireValue(semigroup, VALIDATED_MONAD_CLASS, CONSTRUCTION);
+    this.semigroup =
+        Validation.coreType().requireValue(semigroup, VALIDATED_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -60,8 +61,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   public <A, B> Kind<ValidatedKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", VALIDATED_MONAD_CLASS, MAP);
-    KindValidator.requireNonNull(fa, VALIDATED_MONAD_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", VALIDATED_MONAD_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, VALIDATED_MONAD_CLASS, MAP);
 
     Validated<E, A> validated = VALIDATED.narrow(fa);
     Validated<E, B> result = validated.map(f);
@@ -81,7 +82,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> of(A value) {
     // Valid requires non-null value, so validate here
-    CoreTypeValidator.requireValue(value, VALIDATED_MONAD_CLASS, OF);
+    Validation.coreType().requireValue(value, VALIDATED_MONAD_CLASS, OF);
 
     Validated<E, A> validInstance = Validated.valid(value);
     return VALIDATED.widen(validInstance);
@@ -92,8 +93,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Kind<ValidatedKind.Witness<E>, ? extends Function<A, B>> ff,
       Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    KindValidator.requireNonNull(ff, VALIDATED_MONAD_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, VALIDATED_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, VALIDATED_MONAD_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, VALIDATED_MONAD_CLASS, AP, "argument");
 
     Validated<E, ? extends Function<A, B>> fnValidated = VALIDATED.narrow(ff);
     Validated<E, A> valueValidated = VALIDATED.narrow(fa);
@@ -125,16 +126,17 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Function<? super A, ? extends Kind<ValidatedKind.Witness<E>, B>> f,
       Kind<ValidatedKind.Witness<E>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", VALIDATED_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, VALIDATED_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", VALIDATED_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, VALIDATED_MONAD_CLASS, FLAT_MAP);
 
     Validated<E, A> validatedValue = VALIDATED.narrow(ma);
     Validated<E, B> result =
         validatedValue.flatMap(
             a -> {
               Kind<ValidatedKind.Witness<E>, B> kindResult = f.apply(a);
-              FunctionValidator.requireNonNullResult(
-                  kindResult, "f", VALIDATED_MONAD_CLASS, FLAT_MAP, Validated.class);
+              Validation.function()
+                  .requireNonNullResult(
+                      kindResult, "f", VALIDATED_MONAD_CLASS, FLAT_MAP, Validated.class);
               return VALIDATED.narrow(kindResult);
             });
     return VALIDATED.widen(result);
@@ -154,7 +156,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> raiseError(E error) {
     // Validated.invalid already validates non-null, but be explicit
-    CoreTypeValidator.requireError(error, VALIDATED_MONAD_CLASS, RAISE_ERROR);
+    Validation.coreType().requireError(error, VALIDATED_MONAD_CLASS, RAISE_ERROR);
     return VALIDATED.invalid(error);
   }
 
@@ -180,16 +182,18 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Kind<ValidatedKind.Witness<E>, A> ma,
       Function<? super E, ? extends Kind<ValidatedKind.Witness<E>, A>> handler) {
 
-    KindValidator.requireNonNull(ma, VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    FunctionValidator.requireFunction(handler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    Validation.function()
+        .requireFunction(handler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     Validated<E, A> validated = VALIDATED.narrow(ma);
 
     if (validated.isInvalid()) {
       E errorValue = validated.getError();
       Kind<ValidatedKind.Witness<E>, A> resultFromHandler = handler.apply(errorValue);
-      FunctionValidator.requireNonNullResult(
-          resultFromHandler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+      Validation.function()
+          .requireNonNullResult(
+              resultFromHandler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
       return resultFromHandler;
     } else {
       return ma;
@@ -202,9 +206,9 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Kind<ValidatedKind.Witness<E>, B> fb,
       BiFunction<? super A, ? super B, ? extends C> f) {
 
-    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_2, "first");
-    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_2, "second");
-    FunctionValidator.requireFunction(f, "combining function", ValidatedMonad.class, MAP_2);
+    Validation.kind().requireNonNull(fa, ValidatedMonad.class, MAP_2, "first");
+    Validation.kind().requireNonNull(fb, ValidatedMonad.class, MAP_2, "second");
+    Validation.function().requireFunction(f, "combining function", ValidatedMonad.class, MAP_2);
 
     Validated<E, A> va = VALIDATED.narrow(fa);
     Validated<E, B> vb = VALIDATED.narrow(fb);
@@ -222,8 +226,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
 
     // Both valid - apply the function
     C result = f.apply(va.get(), vb.get());
-    FunctionValidator.requireNonNullResult(
-        result, "combining function", ValidatedMonad.class, MAP_2);
+    Validation.function()
+        .requireNonNullResult(result, "combining function", ValidatedMonad.class, MAP_2);
     return VALIDATED.valid(result);
   }
 
@@ -234,10 +238,10 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Kind<ValidatedKind.Witness<E>, C> fc,
       Function3<? super A, ? super B, ? super C, ? extends D> f) {
 
-    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_3, "first");
-    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_3, "second");
-    KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_3, "third");
-    FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_3);
+    Validation.kind().requireNonNull(fa, ValidatedMonad.class, MAP_3, "first");
+    Validation.kind().requireNonNull(fb, ValidatedMonad.class, MAP_3, "second");
+    Validation.kind().requireNonNull(fc, ValidatedMonad.class, MAP_3, "third");
+    Validation.function().requireFunction(f, "f", ValidatedMonad.class, MAP_3);
 
     Validated<E, A> va = VALIDATED.narrow(fa);
     Validated<E, B> vb = VALIDATED.narrow(fb);
@@ -257,7 +261,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
 
     // All valid - apply the function
     D result = f.apply(va.get(), vb.get(), vc.get());
-    FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_3);
+    Validation.function().requireNonNullResult(result, "f", ValidatedMonad.class, MAP_3);
     return VALIDATED.valid(result);
   }
 
@@ -269,11 +273,11 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Kind<ValidatedKind.Witness<E>, D> fd,
       Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
 
-    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_4, "first");
-    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_4, "second");
-    KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_4, "third");
-    KindValidator.requireNonNull(fd, ValidatedMonad.class, MAP_4, "fourth");
-    FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_4);
+    Validation.kind().requireNonNull(fa, ValidatedMonad.class, MAP_4, "first");
+    Validation.kind().requireNonNull(fb, ValidatedMonad.class, MAP_4, "second");
+    Validation.kind().requireNonNull(fc, ValidatedMonad.class, MAP_4, "third");
+    Validation.kind().requireNonNull(fd, ValidatedMonad.class, MAP_4, "fourth");
+    Validation.function().requireFunction(f, "f", ValidatedMonad.class, MAP_4);
 
     Validated<E, A> va = VALIDATED.narrow(fa);
     Validated<E, B> vb = VALIDATED.narrow(fb);
@@ -295,7 +299,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
 
     // All valid - apply the function
     R result = f.apply(va.get(), vb.get(), vc.get(), vd.get());
-    FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_4);
+    Validation.function().requireNonNullResult(result, "f", ValidatedMonad.class, MAP_4);
     return VALIDATED.valid(result);
   }
 
@@ -308,12 +312,12 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
       Kind<ValidatedKind.Witness<E>, E1> fe,
       Function5<? super A, ? super B, ? super C, ? super D, ? super E1, ? extends R> f) {
 
-    KindValidator.requireNonNull(fa, ValidatedMonad.class, MAP_5, "first");
-    KindValidator.requireNonNull(fb, ValidatedMonad.class, MAP_5, "second");
-    KindValidator.requireNonNull(fc, ValidatedMonad.class, MAP_5, "third");
-    KindValidator.requireNonNull(fd, ValidatedMonad.class, MAP_5, "fourth");
-    KindValidator.requireNonNull(fe, ValidatedMonad.class, MAP_5, "fifth");
-    FunctionValidator.requireFunction(f, "f", ValidatedMonad.class, MAP_5);
+    Validation.kind().requireNonNull(fa, ValidatedMonad.class, MAP_5, "first");
+    Validation.kind().requireNonNull(fb, ValidatedMonad.class, MAP_5, "second");
+    Validation.kind().requireNonNull(fc, ValidatedMonad.class, MAP_5, "third");
+    Validation.kind().requireNonNull(fd, ValidatedMonad.class, MAP_5, "fourth");
+    Validation.kind().requireNonNull(fe, ValidatedMonad.class, MAP_5, "fifth");
+    Validation.function().requireFunction(f, "f", ValidatedMonad.class, MAP_5);
 
     Validated<E, A> va = VALIDATED.narrow(fa);
     Validated<E, B> vb = VALIDATED.narrow(fb);
@@ -337,7 +341,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
 
     // All valid - apply the function
     R result = f.apply(va.get(), vb.get(), vc.get(), vd.get(), ve.get());
-    FunctionValidator.requireNonNullResult(result, "f", ValidatedMonad.class, MAP_5);
+    Validation.function().requireNonNullResult(result, "f", ValidatedMonad.class, MAP_5);
     return VALIDATED.valid(result);
   }
 
@@ -345,8 +349,8 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   public <A> Kind<ValidatedKind.Witness<E>, A> recoverWith(
       Kind<ValidatedKind.Witness<E>, A> ma, Kind<ValidatedKind.Witness<E>, A> fallback) {
 
-    KindValidator.requireNonNull(ma, ValidatedMonad.class, RECOVER_WITH, "source");
-    KindValidator.requireNonNull(fallback, ValidatedMonad.class, RECOVER_WITH, "fallback");
+    Validation.kind().requireNonNull(ma, ValidatedMonad.class, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, ValidatedMonad.class, RECOVER_WITH, "fallback");
 
     return handleErrorWith(ma, e -> fallback);
   }

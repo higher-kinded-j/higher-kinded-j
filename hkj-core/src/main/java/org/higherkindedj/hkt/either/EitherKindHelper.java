@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,7 +30,7 @@ public enum EitherKindHelper implements EitherConverterOps {
   record EitherHolder<L, R>(Either<L, R> either) implements EitherKind<L, R> {
 
     public EitherHolder {
-      KindValidator.requireForWiden(either, EITHER_CLASS);
+      Validation.kind().requireForWiden(either, EITHER_CLASS);
     }
   }
 
@@ -64,7 +64,7 @@ public enum EitherKindHelper implements EitherConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <L, R> Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind) {
-    return KindValidator.narrow(kind, EITHER_CLASS, this::extractEither);
+    return Validation.kind().narrow(kind, EITHER_CLASS, this::extractEither);
   }
 
   private <L, R> Either<L, R> extractEither(Kind<EitherKind.Witness<L>, R> kind) {

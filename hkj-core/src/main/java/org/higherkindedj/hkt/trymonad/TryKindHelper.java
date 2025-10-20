@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.trymonad;
 
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +27,7 @@ public enum TryKindHelper implements TryConverterOps {
    */
   record TryHolder<A>(Try<A> tryInstance) implements TryKind<A> {
     TryHolder {
-      KindValidator.requireForWiden(tryInstance, TRY_CLASS);
+      Validation.kind().requireForWiden(tryInstance, TRY_CLASS);
     }
   }
 
@@ -59,7 +59,7 @@ public enum TryKindHelper implements TryConverterOps {
    */
   @Override
   public <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, TRY_CLASS, this::extractTry);
+    return Validation.kind().narrow(kind, TRY_CLASS, this::extractTry);
   }
 
   /**

@@ -11,7 +11,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -105,8 +105,8 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
       Kind<CompletableFutureKind.Witness, A> fa) {
 
     // Enhanced validation with descriptive parameters
-    KindValidator.requireNonNull(ff, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "argument");
 
     CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
     CompletableFuture<A> futureA = FUTURE.narrow(fa);

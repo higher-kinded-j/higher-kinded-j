@@ -4,36 +4,23 @@ package org.higherkindedj.hkt.util.validation;
 
 import java.util.Objects;
 
-public final class CoreTypeValidator {
-
-  private CoreTypeValidator() {
-    throw new AssertionError("CoreTypeValidator is a utility class");
-  }
+public enum CoreTypeValidator {
+  CORE_TYPE_VALIDATOR;
 
   /** Validates a value for core type constructors (Either, Validated, etc.) */
-  public static <T> T requireValue(T value, Class<?> typeClass, Operation operation) {
+  public <T> T requireValue(T value, Class<?> typeClass, Operation operation) {
     String context = typeClass.getSimpleName() + "." + operation;
     return Objects.requireNonNull(value, context + " value cannot be null");
   }
 
-  public static <T> T requireValue(
-      T value, String valueName, Class<?> typeClass, Operation operation) {
+  public <T> T requireValue(T value, String valueName, Class<?> typeClass, Operation operation) {
     String context = typeClass.getSimpleName() + "." + operation;
     return Objects.requireNonNull(value, "%s %s cannot be null".formatted(context, valueName));
   }
 
   /** Validates an error value for error types */
-  public static <E> E requireError(E error, Class<?> typeClass, Operation operation) {
+  public <E> E requireError(E error, Class<?> typeClass, Operation operation) {
     String context = typeClass.getSimpleName() + "." + operation;
     return Objects.requireNonNull(error, context + " error cannot be null");
-  }
-
-  /** Validates a supplier result */
-  public static <T> T requireSupplierResult(T result, String supplierName, Class<?> typeClass) {
-    if (result == null) {
-      throw new NullPointerException(
-          supplierName + " returned null for " + typeClass.getSimpleName());
-    }
-    return result;
   }
 }

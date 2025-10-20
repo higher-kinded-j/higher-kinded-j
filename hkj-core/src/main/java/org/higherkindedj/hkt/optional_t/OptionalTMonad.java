@@ -11,9 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
-import org.higherkindedj.hkt.util.validation.TransformerValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,7 +39,8 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    */
   public OptionalTMonad(Monad<F> outerMonad) {
     this.outerMonad =
-        TransformerValidator.requireOuterMonad(outerMonad, OPTIONAL_T_MONAD_CLASS, CONSTRUCTION);
+        Validation.transformer()
+            .requireOuterMonad(outerMonad, OPTIONAL_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -79,8 +78,8 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
   public <A, B> Kind<OptionalTKind.Witness<F>, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<OptionalTKind.Witness<F>, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", OPTIONAL_T_MONAD_CLASS, MAP);
-    KindValidator.requireNonNull(fa, OPTIONAL_T_MONAD_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", OPTIONAL_T_MONAD_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, OPTIONAL_T_MONAD_CLASS, MAP);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(fa);
     Kind<F, Optional<B>> newValue = outerMonad.map(opt -> opt.map(f), optionalT.value());
@@ -115,8 +114,8 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       Kind<OptionalTKind.Witness<F>, ? extends Function<A, @Nullable B>> ff,
       Kind<OptionalTKind.Witness<F>, A> fa) {
 
-    KindValidator.requireNonNull(ff, OPTIONAL_T_MONAD_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, OPTIONAL_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, OPTIONAL_T_MONAD_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, OPTIONAL_T_MONAD_CLASS, AP, "argument");
 
     OptionalT<F, ? extends Function<A, @Nullable B>> funcT = OPTIONAL_T.narrow(ff);
     OptionalT<F, A> valT = OPTIONAL_T.narrow(fa);
@@ -150,8 +149,8 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       Function<? super A, ? extends Kind<OptionalTKind.Witness<F>, B>> f,
       Kind<OptionalTKind.Witness<F>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 
@@ -161,8 +160,9 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
                 optA.map(
                         a -> {
                           Kind<OptionalTKind.Witness<F>, B> resultKind = f.apply(a);
-                          FunctionValidator.requireNonNullResult(
-                              resultKind, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
+                          Validation.function()
+                              .requireNonNullResult(
+                                  resultKind, "f", OPTIONAL_T_MONAD_CLASS, FLAT_MAP);
                           OptionalT<F, B> resultT = OPTIONAL_T.narrow(resultKind);
                           return resultT.value();
                         })
@@ -212,9 +212,9 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
       Kind<OptionalTKind.Witness<F>, A> ma,
       Function<? super Unit, ? extends Kind<OptionalTKind.Witness<F>, A>> handler) {
 
-    KindValidator.requireNonNull(ma, OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    FunctionValidator.requireFunction(
-        handler, "handler", OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    Validation.function()
+        .requireFunction(handler, "handler", OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     OptionalT<F, A> optionalT = OPTIONAL_T.narrow(ma);
 
@@ -225,8 +225,13 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
                 return outerMonad.of(optA);
               } else {
                 Kind<OptionalTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
-                FunctionValidator.requireNonNullResult(
-                    resultKind, "handler", OPTIONAL_T_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+                Validation.function()
+                    .requireNonNullResult(
+                        resultKind,
+                        "handler",
+                        OPTIONAL_T_MONAD_CLASS,
+                        HANDLE_ERROR_WITH,
+                        Kind.class);
                 OptionalT<F, A> resultT = OPTIONAL_T.narrow(resultKind);
                 return resultT.value();
               }

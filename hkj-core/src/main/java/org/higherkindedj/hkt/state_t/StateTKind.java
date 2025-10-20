@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.state_t;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -115,7 +115,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *     not actually an instance of {@link StateT} (or a compatible subtype).
    */
   static <S, F, A> StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
-    return KindValidator.narrowWithTypeCheck(kind, StateT.class);
+    return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
   }
 
   /**
@@ -145,6 +145,6 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    */
   @SuppressWarnings("unchecked")
   static <S, F, A> StateT<S, F, A> narrowK(@Nullable Kind<?, A> kind) {
-    return KindValidator.narrowWithTypeCheck(kind, StateT.class);
+    return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
   }
 }

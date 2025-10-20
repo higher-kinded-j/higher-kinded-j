@@ -7,8 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} type class for {@link IO}, using {@link IOKind.Witness} as the
@@ -57,8 +56,8 @@ public class IOFunctor implements Functor<IOKind.Witness> {
   public <A, B> Kind<IOKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<IOKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", IO_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, IO_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", IO_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, IO_FUNCTOR_CLASS, MAP);
 
     IO<A> ioA = IO_OP.narrow(fa);
     IO<B> ioB = ioA.map(f);

@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.lazy;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +27,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    */
   record LazyHolder<A>(Lazy<A> lazyInstance) implements LazyKind<A> {
     LazyHolder {
-      KindValidator.requireForWiden(lazyInstance, LAZY_CLASS);
+      Validation.kind().requireForWiden(lazyInstance, LAZY_CLASS);
     }
   }
 
@@ -58,7 +58,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    */
   @Override
   public <A> Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, LAZY_CLASS, this::extractLazy);
+    return Validation.kind().narrow(kind, LAZY_CLASS, this::extractLazy);
   }
 
   /**

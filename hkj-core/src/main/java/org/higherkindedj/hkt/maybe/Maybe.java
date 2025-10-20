@@ -7,7 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.JUST;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -40,7 +40,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * @throws NullPointerException if {@code value} is {@code null}.
    */
   static <T> Maybe<T> just(T value) {
-    CoreTypeValidator.requireValue(value, MAYBE_CLASS, JUST);
+    Validation.coreType().requireValue(value, MAYBE_CLASS, JUST);
     return new Just<>(value);
   }
 

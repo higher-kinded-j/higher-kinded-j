@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Monad} interface for the {@link Reader} monad.
@@ -85,8 +84,8 @@ public final class ReaderMonad<R> extends ReaderApplicative<R>
       Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
       Kind<ReaderKind.Witness<R>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", READER_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, READER_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", READER_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, READER_MONAD_CLASS, FLAT_MAP);
 
     Reader<R, A> readerA = READER.narrow(ma);
 
@@ -94,8 +93,8 @@ public final class ReaderMonad<R> extends ReaderApplicative<R>
         readerA.flatMap(
             a -> {
               Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(
-                  kindB, "f", READER_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function()
+                  .requireNonNullResult(kindB, "f", READER_MONAD_CLASS, FLAT_MAP, Kind.class);
               return READER.narrow(kindB);
             });
 

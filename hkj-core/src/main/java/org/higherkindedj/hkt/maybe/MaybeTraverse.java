@@ -10,8 +10,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * The Traverse and Foldable instance for {@link Maybe}.
@@ -28,8 +27,8 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, MAP);
-    KindValidator.requireNonNull(fa, MAYBE_TRAVERSE_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, MAYBE_TRAVERSE_CLASS, MAP);
 
     return MAYBE.widen(MAYBE.narrow(fa).map(f));
   }
@@ -40,10 +39,10 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<MaybeKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(
-        applicative, "applicative", MAYBE_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, TRAVERSE);
-    KindValidator.requireNonNull(ta, MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function()
+        .requireApplicative(applicative, "applicative", MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    Validation.kind().requireNonNull(ta, MAYBE_TRAVERSE_CLASS, TRAVERSE);
 
     final Maybe<A> maybe = MAYBE.narrow(ta);
 
@@ -60,9 +59,9 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<MaybeKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, "monoid", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
-    KindValidator.requireNonNull(fa, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMonoid(monoid, "monoid", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.kind().requireNonNull(fa, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
 
     final Maybe<A> maybe = MAYBE.narrow(fa);
     // If Just, map the value. If Nothing, return the monoid's empty value.

@@ -10,8 +10,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -78,17 +77,17 @@ public class EitherMonad<L> extends EitherFunctor<L>
       Function<? super A, ? extends Kind<EitherKind.Witness<L>, B>> f,
       Kind<EitherKind.Witness<L>, A> ma) {
     Function<? super A, ? extends Kind<EitherKind.Witness<L>, B>> validatedF =
-        FunctionValidator.requireFlatMapper(f, "f", EITHER_MONAD_CLASS, FLAT_MAP);
+        Validation.function().requireFlatMapper(f, "f", EITHER_MONAD_CLASS, FLAT_MAP);
     Kind<EitherKind.Witness<L>, A> validatedMa =
-        KindValidator.requireNonNull(ma, EITHER_MONAD_CLASS, FLAT_MAP);
+        Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, FLAT_MAP);
 
     Either<L, A> eitherA = EITHER.narrow(validatedMa);
     Either<L, B> resultEither =
         eitherA.flatMap(
             a -> {
               Kind<EitherKind.Witness<L>, B> kindB = validatedF.apply(a);
-              FunctionValidator.requireNonNullResult(
-                  kindB, "f", EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);
+              Validation.function()
+                  .requireNonNullResult(kindB, "f", EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);
               return EITHER.narrow(kindB);
             });
     return EITHER.widen(resultEither);
@@ -118,9 +117,9 @@ public class EitherMonad<L> extends EitherFunctor<L>
 
     // Enhanced validation with descriptive parameters
     Kind<EitherKind.Witness<L>, ? extends Function<A, B>> validatedFfKind =
-        KindValidator.requireNonNull(ffKind, EITHER_MONAD_CLASS, AP, "function");
+        Validation.kind().requireNonNull(ffKind, EITHER_MONAD_CLASS, AP, "function");
     Kind<EitherKind.Witness<L>, A> validatedFaKind =
-        KindValidator.requireNonNull(faKind, EITHER_MONAD_CLASS, AP, "argument");
+        Validation.kind().requireNonNull(faKind, EITHER_MONAD_CLASS, AP, "argument");
 
     Either<L, ? extends Function<A, B>> eitherF = EITHER.narrow(validatedFfKind);
     Either<L, A> eitherA = EITHER.narrow(validatedFaKind);
@@ -138,13 +137,13 @@ public class EitherMonad<L> extends EitherFunctor<L>
       Kind<EitherKind.Witness<L>, C> fcKind,
       Function3<? super A, ? super B, ? super C, ? extends R_TYPE> f) {
     Kind<EitherKind.Witness<L>, A> validatedFaKind =
-        KindValidator.requireNonNull(faKind, EITHER_MONAD_CLASS, MAP_3, "first");
+        Validation.kind().requireNonNull(faKind, EITHER_MONAD_CLASS, MAP_3, "first");
     Kind<EitherKind.Witness<L>, B> validatedFbKind =
-        KindValidator.requireNonNull(fbKind, EITHER_MONAD_CLASS, MAP_3, "second");
+        Validation.kind().requireNonNull(fbKind, EITHER_MONAD_CLASS, MAP_3, "second");
     Kind<EitherKind.Witness<L>, C> validatedFcKind =
-        KindValidator.requireNonNull(fcKind, EITHER_MONAD_CLASS, MAP_3, "third");
+        Validation.kind().requireNonNull(fcKind, EITHER_MONAD_CLASS, MAP_3, "third");
     Function3<? super A, ? super B, ? super C, ? extends R_TYPE> validatedF =
-        FunctionValidator.requireFunction(f, "combining function", EITHER_MONAD_CLASS, MAP_3);
+        Validation.function().requireFunction(f, "combining function", EITHER_MONAD_CLASS, MAP_3);
 
     return this.flatMap(
         a ->
@@ -162,15 +161,15 @@ public class EitherMonad<L> extends EitherFunctor<L>
       Function4<? super A, ? super B, ? super C, ? super D, ? extends R_TYPE> f) {
 
     Kind<EitherKind.Witness<L>, A> validatedFaKind =
-        KindValidator.requireNonNull(faKind, EITHER_MONAD_CLASS, MAP_4, "first");
+        Validation.kind().requireNonNull(faKind, EITHER_MONAD_CLASS, MAP_4, "first");
     Kind<EitherKind.Witness<L>, B> validatedFbKind =
-        KindValidator.requireNonNull(fbKind, EITHER_MONAD_CLASS, MAP_4, "second");
+        Validation.kind().requireNonNull(fbKind, EITHER_MONAD_CLASS, MAP_4, "second");
     Kind<EitherKind.Witness<L>, C> validatedFcKind =
-        KindValidator.requireNonNull(fcKind, EITHER_MONAD_CLASS, MAP_4, "third");
+        Validation.kind().requireNonNull(fcKind, EITHER_MONAD_CLASS, MAP_4, "third");
     Kind<EitherKind.Witness<L>, D> validatedFdKind =
-        KindValidator.requireNonNull(fdKind, EITHER_MONAD_CLASS, MAP_4, "fourth");
+        Validation.kind().requireNonNull(fdKind, EITHER_MONAD_CLASS, MAP_4, "fourth");
     Function4<? super A, ? super B, ? super C, ? super D, ? extends R_TYPE> validatedF =
-        FunctionValidator.requireFunction(f, "combining function", EITHER_MONAD_CLASS, MAP_4);
+        Validation.function().requireFunction(f, "combining function", EITHER_MONAD_CLASS, MAP_4);
 
     return this.flatMap(
         a ->
@@ -213,10 +212,10 @@ public class EitherMonad<L> extends EitherFunctor<L>
       Function<? super L, ? extends Kind<EitherKind.Witness<L>, A>> handler) {
 
     Kind<EitherKind.Witness<L>, A> validatedMa =
-        KindValidator.requireNonNull(ma, EITHER_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+        Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
     Function<? super L, ? extends Kind<EitherKind.Witness<L>, A>> validatedHandler =
-        FunctionValidator.requireFunction(
-            handler, "handler", EITHER_MONAD_CLASS, HANDLE_ERROR_WITH);
+        Validation.function()
+            .requireFunction(handler, "handler", EITHER_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     Either<L, A> either = EITHER.narrow(validatedMa);
     return either.fold(validatedHandler, _ -> validatedMa);
@@ -226,8 +225,8 @@ public class EitherMonad<L> extends EitherFunctor<L>
   public <A> Kind<EitherKind.Witness<L>, A> recoverWith(
       final Kind<EitherKind.Witness<L>, A> ma, final Kind<EitherKind.Witness<L>, A> fallback) {
 
-    KindValidator.requireNonNull(ma, EITHER_MONAD_CLASS, RECOVER_WITH, "source");
-    KindValidator.requireNonNull(fallback, EITHER_MONAD_CLASS, RECOVER_WITH, "fallback");
+    Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, EITHER_MONAD_CLASS, RECOVER_WITH, "fallback");
 
     return handleErrorWith(ma, error -> fallback);
   }
@@ -236,7 +235,7 @@ public class EitherMonad<L> extends EitherFunctor<L>
   public <A> Kind<EitherKind.Witness<L>, A> recover(
       final Kind<EitherKind.Witness<L>, A> ma, @Nullable A value) {
 
-    KindValidator.requireNonNull(ma, EITHER_MONAD_CLASS, RECOVER, "source");
+    Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, RECOVER, "source");
 
     return handleError(ma, _ -> value);
   }

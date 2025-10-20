@@ -5,7 +5,7 @@ package org.higherkindedj.hkt.future;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,7 +30,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
   record CompletableFutureHolder<A>(CompletableFuture<A> future)
       implements CompletableFutureKind<A> {
     CompletableFutureHolder {
-      KindValidator.requireForWiden(future, COMPLETABLE_FUTURE_CLASS);
+      Validation.kind().requireForWiden(future, COMPLETABLE_FUTURE_CLASS);
     }
   }
 
@@ -64,7 +64,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    */
   @Override
   public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, COMPLETABLE_FUTURE_CLASS, this::extractCompletableFuture);
+    return Validation.kind().narrow(kind, COMPLETABLE_FUTURE_CLASS, this::extractCompletableFuture);
   }
 
   /**

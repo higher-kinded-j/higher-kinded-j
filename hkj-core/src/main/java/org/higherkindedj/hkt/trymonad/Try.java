@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -83,7 +83,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code supplier} is null.
    */
   static <T> Try<T> of(Supplier<? extends T> supplier) {
-    FunctionValidator.requireFunction(supplier, "supplier", TRY_CLASS, OF);
+    Validation.function().requireFunction(supplier, "supplier", TRY_CLASS, OF);
     try {
       return new Success<>(supplier.get());
     } catch (Throwable t) {
@@ -185,8 +185,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       Function<? super T, ? extends U> successMapper,
       Function<? super Throwable, ? extends U> failureMapper) {
 
-    FunctionValidator.requireFunction(successMapper, "successMapper", TRY_CLASS, FOLD);
-    FunctionValidator.requireFunction(failureMapper, "failureMapper", TRY_CLASS, FOLD);
+    Validation.function().requireFunction(successMapper, "successMapper", TRY_CLASS, FOLD);
+    Validation.function().requireFunction(failureMapper, "failureMapper", TRY_CLASS, FOLD);
 
     return switch (this) {
       case Success<T>(var value) -> successMapper.apply(value);
@@ -207,8 +207,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code failureToLeftMapper} is null.
    */
   default <L> Either<L, T> toEither(Function<? super Throwable, ? extends L> failureToLeftMapper) {
-    FunctionValidator.requireFunction(
-        failureToLeftMapper, "failureToLeftMapper", TRY_CLASS, TO_EITHER);
+    Validation.function()
+        .requireFunction(failureToLeftMapper, "failureToLeftMapper", TRY_CLASS, TO_EITHER);
     return switch (this) {
       case Success<T>(var value) -> Either.right(value);
       case Failure<T>(var cause) -> {
@@ -288,8 +288,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if either {@code successAction} or {@code failureAction} is null.
    */
   default void match(Consumer<? super T> successAction, Consumer<? super Throwable> failureAction) {
-    FunctionValidator.requireFunction(successAction, "successAction", TRY_CLASS, MATCH);
-    FunctionValidator.requireFunction(failureAction, "failureAction", TRY_CLASS, MATCH);
+    Validation.function().requireFunction(successAction, "successAction", TRY_CLASS, MATCH);
+    Validation.function().requireFunction(failureAction, "failureAction", TRY_CLASS, MATCH);
 
     switch (this) {
       case Success<T>(var value) -> {
@@ -340,13 +340,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(Supplier<? extends T> supplier) {
-      FunctionValidator.requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
+      Validation.function().requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
       return value;
     }
 
     @Override
     public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
-      FunctionValidator.requireMapper(mapper, "mapper", Try.class, MAP);
+      Validation.function().requireMapper(mapper, "mapper", Try.class, MAP);
       try {
         return new Success<>(mapper.apply(value));
       } catch (Throwable t) {
@@ -356,7 +356,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
+      Validation.function().requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
       Try<? extends U> result;
       try {
         result = mapper.apply(value);
@@ -364,7 +364,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
         return new Failure<>(t);
       }
 
-      FunctionValidator.requireNonNullResult(result, "mapper", Try.class, FLAT_MAP, TRY_CLASS);
+      Validation.function().requireNonNullResult(result, "mapper", Try.class, FLAT_MAP, TRY_CLASS);
       @SuppressWarnings("unchecked")
       Try<U> typedResult = (Try<U>) result;
       return typedResult;
@@ -372,16 +372,16 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
-      FunctionValidator.requireFunction(
-          recoveryFunction, "recoveryFunction", Try.class, RECOVER_FUNCTION);
+      Validation.function()
+          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER_FUNCTION);
       return this;
     }
 
     @Override
     public Try<T> recoverWith(
         Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
-      FunctionValidator.requireFunction(
-          recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
+      Validation.function()
+          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
       return this;
     }
 
@@ -422,13 +422,13 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public @Nullable T orElseGet(Supplier<? extends T> supplier) {
-      FunctionValidator.requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
+      Validation.function().requireFunction(supplier, "supplier", Try.class, OR_ELSE_GET);
       return supplier.get();
     }
 
     @Override
     public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
-      FunctionValidator.requireMapper(mapper, "mapper", Try.class, MAP);
+      Validation.function().requireMapper(mapper, "mapper", Try.class, MAP);
       @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
       return self;
@@ -436,7 +436,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public <U> Try<U> flatMap(Function<? super T, ? extends Try<? extends U>> mapper) {
-      FunctionValidator.requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
+      Validation.function().requireFlatMapper(mapper, "mapper", Try.class, FLAT_MAP);
       @SuppressWarnings("unchecked")
       Try<U> self = (Try<U>) this;
       return self;
@@ -444,7 +444,8 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
 
     @Override
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
-      FunctionValidator.requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER);
+      Validation.function()
+          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER);
       try {
         return new Success<>(recoveryFunction.apply(cause));
       } catch (Throwable t) {
@@ -455,16 +456,16 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     @Override
     public Try<T> recoverWith(
         Function<? super Throwable, ? extends Try<? extends T>> recoveryFunction) {
-      FunctionValidator.requireFunction(
-          recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
+      Validation.function()
+          .requireFunction(recoveryFunction, "recoveryFunction", Try.class, RECOVER_WITH);
       Try<? extends T> result;
       try {
         result = recoveryFunction.apply(cause);
       } catch (Throwable t) {
         return new Failure<>(t);
       }
-      FunctionValidator.requireNonNullResult(
-          result, "recoveryFunction", Try.class, RECOVER_WITH, Try.class);
+      Validation.function()
+          .requireNonNullResult(result, "recoveryFunction", Try.class, RECOVER_WITH, Try.class);
       @SuppressWarnings("unchecked")
       Try<T> typedResult = (Try<T>) result;
       return typedResult;

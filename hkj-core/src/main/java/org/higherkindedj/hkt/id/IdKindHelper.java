@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.id;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,7 +32,7 @@ public enum IdKindHelper implements IdConverterOps {
    */
   @Override
   public <A> Kind<Id.Witness, A> widen(Id<A> id) {
-    return KindValidator.requireForWiden(id, ID_CLASS);
+    return Validation.kind().requireForWiden(id, ID_CLASS);
   }
 
   /**
@@ -46,7 +46,7 @@ public enum IdKindHelper implements IdConverterOps {
    */
   @Override
   public <A> Id<A> narrow(@Nullable Kind<Id.Witness, A> kind) {
-    return KindValidator.narrowWithTypeCheck(kind, ID_CLASS);
+    return Validation.kind().narrowWithTypeCheck(kind, ID_CLASS);
   }
 
   /**

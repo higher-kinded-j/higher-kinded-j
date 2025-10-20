@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -62,8 +61,8 @@ public class MaybeFunctor implements Functor<MaybeKind.Witness> {
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<MaybeKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", MAYBE_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, MAYBE_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", MAYBE_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, MAYBE_FUNCTOR_CLASS, MAP);
 
     Maybe<A> maybeA = MAYBE.narrow(fa);
     Maybe<B> resultMaybe = maybeA.map(f);

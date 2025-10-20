@@ -11,8 +11,7 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link Either}, using {@link
@@ -66,8 +65,8 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, B> Kind<EitherKind.Witness<E>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<E>, A> fa) {
-    FunctionValidator.requireMapper(f, "f", EITHER_TRAVERSE_CLASS, MAP);
-    KindValidator.requireNonNull(fa, EITHER_TRAVERSE_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", EITHER_TRAVERSE_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, EITHER_TRAVERSE_CLASS, MAP);
 
     Either<E, A> either = EITHER.narrow(fa);
     Either<E, B> resultEither = either.map(f);
@@ -106,10 +105,10 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<EitherKind.Witness<E>, A> ta) {
 
-    FunctionValidator.requireApplicative(
-        applicative, "applicative", EITHER_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, "f", EITHER_TRAVERSE_CLASS, TRAVERSE);
-    KindValidator.requireNonNull(ta, EITHER_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function()
+        .requireApplicative(applicative, "applicative", EITHER_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().requireMapper(f, "f", EITHER_TRAVERSE_CLASS, TRAVERSE);
+    Validation.kind().requireNonNull(ta, EITHER_TRAVERSE_CLASS, TRAVERSE);
 
     Either<E, A> either = EITHER.narrow(ta);
 
@@ -146,9 +145,9 @@ public final class EitherTraverse<E> implements Traverse<EitherKind.Witness<E>> 
   @Override
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<EitherKind.Witness<E>, A> fa) {
-    FunctionValidator.requireMonoid(monoid, "monoid", EITHER_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, "f", EITHER_TRAVERSE_CLASS, FOLD_MAP);
-    KindValidator.requireNonNull(fa, EITHER_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMonoid(monoid, "monoid", EITHER_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMapper(f, "f", EITHER_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.kind().requireNonNull(fa, EITHER_TRAVERSE_CLASS, FOLD_MAP);
 
     Either<E, A> either = EITHER.narrow(fa);
     return either.fold(left -> monoid.empty(), f);

@@ -8,8 +8,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.TransformerValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Represents the StateT monad transformer as a Java record. It allows composing stateful
@@ -40,8 +39,8 @@ public record StateT<S, F, A>(Function<S, Kind<F, StateTuple<S, A>>> runStateTFn
    * @throws NullPointerException if runStateTFn or monadF is null.
    */
   public StateT {
-    FunctionValidator.requireFunction(runStateTFn, "runStateTFn", STATE_T_CLASS, CONSTRUCTION);
-    TransformerValidator.requireOuterMonad(monadF, STATE_T_CLASS, CONSTRUCTION);
+    Validation.function().requireFunction(runStateTFn, "runStateTFn", STATE_T_CLASS, CONSTRUCTION);
+    Validation.transformer().requireOuterMonad(monadF, STATE_T_CLASS, CONSTRUCTION);
   }
 
   /**

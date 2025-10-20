@@ -7,8 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -64,7 +63,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code log} is {@code null}.
    */
   public Writer {
-    CoreTypeValidator.requireValue(log, WRITER_CLASS, CONSTRUCTION);
+    Validation.coreType().requireValue(log, WRITER_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -80,7 +79,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code monoidW} is {@code null}.
    */
   public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
-    FunctionValidator.requireMonoid(monoidW, "monoidW", WRITER_CLASS, VALUE);
+    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_CLASS, VALUE);
     return new Writer<>(monoidW.empty(), value);
   }
 
@@ -96,7 +95,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code log} is {@code null}.
    */
   public static <W> Writer<W, Unit> tell(W log) {
-    CoreTypeValidator.requireValue(log, "log", WRITER_CLASS, TELL);
+    Validation.coreType().requireValue(log, "log", WRITER_CLASS, TELL);
     return new Writer<>(log, Unit.INSTANCE);
   }
 
@@ -112,7 +111,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   public <B> Writer<W, B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, "f", WRITER_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", WRITER_CLASS, MAP);
     return new Writer<>(this.log, f.apply(this.value));
   }
 
@@ -140,11 +139,12 @@ public record Writer<W, A>(W log, @Nullable A value) {
   public <B> Writer<W, B> flatMap(
       Monoid<W> monoidW, Function<? super A, ? extends Writer<W, ? extends B>> f) {
 
-    FunctionValidator.requireMonoid(monoidW, "monoidW", WRITER_CLASS, FLAT_MAP);
-    FunctionValidator.requireFlatMapper(f, "f", WRITER_CLASS, FLAT_MAP);
+    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", WRITER_CLASS, FLAT_MAP);
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);
-    FunctionValidator.requireNonNullResult(nextWriter, "f", WRITER_CLASS, FLAT_MAP, WRITER_CLASS);
+    Validation.function()
+        .requireNonNullResult(nextWriter, "f", WRITER_CLASS, FLAT_MAP, WRITER_CLASS);
 
     W combinedLog = monoidW.combine(this.log, nextWriter.log());
     // The cast to B is safe due to the ? extends B in the function's return type.

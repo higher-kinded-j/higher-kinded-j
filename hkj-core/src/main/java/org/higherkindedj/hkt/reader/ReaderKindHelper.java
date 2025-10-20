@@ -6,9 +6,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.RUN_READER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -39,7 +38,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
      * @throws NullPointerException if the provided {@code reader} instance is null.
      */
     ReaderHolder {
-      KindValidator.requireForWiden(reader, READER_CLASS);
+      Validation.kind().requireForWiden(reader, READER_CLASS);
     }
   }
 
@@ -75,7 +74,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    */
   @Override
   public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
-    return KindValidator.narrow(kind, READER_CLASS, this::extractReader);
+    return Validation.kind().narrow(kind, READER_CLASS, this::extractReader);
   }
 
   /**
@@ -89,7 +88,8 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   public <R, A> Kind<ReaderKind.Witness<R>, A> reader(Function<R, A> runFunction) {
-    FunctionValidator.requireFunction(runFunction, "runFunction", READER_CLASS, Operation.READER);
+    Validation.function()
+        .requireFunction(runFunction, "runFunction", READER_CLASS, Operation.READER);
     return this.widen(Reader.of(runFunction));
   }
 
@@ -134,7 +134,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * @throws NullPointerException if {@code environment} is {@code null}.
    */
   public <R, A> @Nullable A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment) {
-    KindValidator.requireNonNull(kind, READER_CLASS, RUN_READER);
+    Validation.kind().requireNonNull(kind, READER_CLASS, RUN_READER);
     // Note: We don't validate environment as null here since Reader interface allows @NonNull R
     // but the specific nullability contract depends on the design of the environment type R
     return this.narrow(kind).run(environment);

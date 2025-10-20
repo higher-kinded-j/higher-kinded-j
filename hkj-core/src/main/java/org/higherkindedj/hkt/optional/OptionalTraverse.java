@@ -11,8 +11,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Traverse} and Foldable type classes for {@link java.util.Optional}, using
@@ -76,8 +75,8 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   public <A, B> Kind<OptionalKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<OptionalKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, MAP);
-    KindValidator.requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, MAP);
 
     return OPTIONAL.widen(OPTIONAL.narrow(fa).map(f));
   }
@@ -127,10 +126,10 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<OptionalKind.Witness, A> ta) {
 
-    FunctionValidator.requireApplicative(
-        applicative, "applicative", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
-    FunctionValidator.requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
-    KindValidator.requireNonNull(ta, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function()
+        .requireApplicative(applicative, "applicative", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    Validation.kind().requireNonNull(ta, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
 
     return OPTIONAL
         .narrow(ta)
@@ -179,9 +178,9 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<OptionalKind.Witness, A> fa) {
 
-    FunctionValidator.requireMonoid(monoid, "monoid", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
-    FunctionValidator.requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
-    KindValidator.requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMonoid(monoid, "monoid", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.kind().requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
 
     Optional<A> optional = OPTIONAL.narrow(fa);
     // If present, map the value. If empty, return the monoid's empty value.

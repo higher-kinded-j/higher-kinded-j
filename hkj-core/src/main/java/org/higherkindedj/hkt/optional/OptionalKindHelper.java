@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.optional;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +34,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
      * @throws NullPointerException if the provided {@code optional} instance is null.
      */
     OptionalHolder {
-      KindValidator.requireForWiden(optional, OPTIONAL_CLASS);
+      Validation.kind().requireForWiden(optional, OPTIONAL_CLASS);
     }
   }
 
@@ -66,7 +66,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    */
   @Override
   public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, OPTIONAL_CLASS, this::extractOptional);
+    return Validation.kind().narrow(kind, OPTIONAL_CLASS, this::extractOptional);
   }
 
   /**

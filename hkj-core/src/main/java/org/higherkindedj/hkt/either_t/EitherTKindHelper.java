@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.either_t;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -35,7 +35,7 @@ public enum EitherTKindHelper implements EitherTConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <F, L, R> Kind<EitherTKind.Witness<F, L>, R> widen(EitherT<F, L, R> eitherT) {
-    KindValidator.requireForWiden(eitherT, EITHER_T_CLASS);
+    Validation.kind().requireForWiden(eitherT, EITHER_T_CLASS);
     return (Kind<EitherTKind.Witness<F, L>, R>) eitherT;
   }
 
@@ -53,6 +53,6 @@ public enum EitherTKindHelper implements EitherTConverterOps {
    */
   @Override
   public <F, L, R> EitherT<F, L, R> narrow(@Nullable Kind<EitherTKind.Witness<F, L>, R> kind) {
-    return KindValidator.narrowWithTypeCheck(kind, EITHER_T_CLASS);
+    return Validation.kind().narrowWithTypeCheck(kind, EITHER_T_CLASS);
   }
 }

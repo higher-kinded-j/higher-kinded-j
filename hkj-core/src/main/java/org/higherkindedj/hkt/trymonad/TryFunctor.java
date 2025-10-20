@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} interface for {@link Try}, using {@link TryKind.Witness}.
@@ -38,8 +37,8 @@ public class TryFunctor implements Functor<TryKind.Witness> {
   public <A, B> Kind<TryKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<TryKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", TRY_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, TRY_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", TRY_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, TRY_FUNCTOR_CLASS, MAP);
 
     Try<A> tryA = TRY.narrow(fa);
     Try<B> resultTry = tryA.map(f);

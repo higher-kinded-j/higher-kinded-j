@@ -11,9 +11,7 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
-import org.higherkindedj.hkt.util.validation.TransformerValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,7 +39,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    */
   public MaybeTMonad(Monad<F> outerMonad) {
     this.outerMonad =
-        TransformerValidator.requireOuterMonad(outerMonad, MAYBE_T_MONAD_CLASS, CONSTRUCTION);
+        Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -78,8 +76,8 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
   public <A, B> Kind<MaybeTKind.Witness<F>, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeTKind.Witness<F>, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", MAYBE_T_MONAD_CLASS, MAP);
-    KindValidator.requireNonNull(fa, MAYBE_T_MONAD_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", MAYBE_T_MONAD_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, MAYBE_T_MONAD_CLASS, MAP);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(fa);
     Kind<F, Maybe<B>> newValue = outerMonad.map(maybe -> maybe.map(f), maybeT.value());
@@ -103,8 +101,8 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
   public <A, B> Kind<MaybeTKind.Witness<F>, B> ap(
       Kind<MaybeTKind.Witness<F>, ? extends Function<A, B>> ff, Kind<MaybeTKind.Witness<F>, A> fa) {
 
-    KindValidator.requireNonNull(ff, MAYBE_T_MONAD_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, MAYBE_T_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, MAYBE_T_MONAD_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, MAYBE_T_MONAD_CLASS, AP, "argument");
 
     MaybeT<F, ? extends Function<A, B>> funcT = MAYBE_T.narrow(ff);
     MaybeT<F, A> valT = MAYBE_T.narrow(fa);
@@ -134,8 +132,8 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
       Function<? super A, ? extends Kind<MaybeTKind.Witness<F>, B>> f,
       Kind<MaybeTKind.Witness<F>, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, MAYBE_T_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, MAYBE_T_MONAD_CLASS, FLAT_MAP);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
 
@@ -146,8 +144,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
                     .map(
                         a -> {
                           Kind<MaybeTKind.Witness<F>, B> resultKind = f.apply(a);
-                          FunctionValidator.requireNonNullResult(
-                              resultKind, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP, Kind.class);
+                          Validation.function()
+                              .requireNonNullResult(
+                                  resultKind, "f", MAYBE_T_MONAD_CLASS, FLAT_MAP, Kind.class);
                           MaybeT<F, B> resultT = MAYBE_T.narrow(resultKind);
                           return resultT.value();
                         })
@@ -199,8 +198,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
       Kind<MaybeTKind.Witness<F>, A> ma,
       Function<? super Unit, ? extends Kind<MaybeTKind.Witness<F>, A>> handler) {
 
-    KindValidator.requireNonNull(ma, MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    FunctionValidator.requireFunction(handler, "handler", MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    Validation.function()
+        .requireFunction(handler, "handler", MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     MaybeT<F, A> maybeT = MAYBE_T.narrow(ma);
 
@@ -211,8 +211,9 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
                 return outerMonad.of(maybeA); // If Just(a), return F<Just(a)>
               } else { // If Nothing
                 Kind<MaybeTKind.Witness<F>, A> resultKind = handler.apply(Unit.INSTANCE);
-                FunctionValidator.requireNonNullResult(
-                    resultKind, "handler", MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+                Validation.function()
+                    .requireNonNullResult(
+                        resultKind, "handler", MAYBE_T_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
                 MaybeT<F, A> resultT = MAYBE_T.narrow(resultKind);
                 return resultT.value(); // This is Kind<F, Maybe<A>>
               }

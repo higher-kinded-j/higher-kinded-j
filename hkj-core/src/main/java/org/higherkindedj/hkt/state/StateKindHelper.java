@@ -7,8 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -39,7 +38,7 @@ public enum StateKindHelper implements StateConverterOps {
      * @throws NullPointerException if the provided {@code stateInstance} is null.
      */
     StateHolder {
-      KindValidator.requireForWiden(stateInstance, STATE_CLASS);
+      Validation.kind().requireForWiden(stateInstance, STATE_CLASS);
     }
   }
 
@@ -74,7 +73,7 @@ public enum StateKindHelper implements StateConverterOps {
    */
   @Override
   public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
-    return KindValidator.narrow(kind, STATE_CLASS, this::extractState);
+    return Validation.kind().narrow(kind, STATE_CLASS, this::extractState);
   }
 
   /**
@@ -122,7 +121,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code f} is null.
    */
   public <S> Kind<StateKind.Witness<S>, Unit> modify(Function<S, S> f) {
-    FunctionValidator.requireFunction(f, "f", STATE_CLASS, MODIFY);
+    Validation.function().requireFunction(f, "f", STATE_CLASS, MODIFY);
     return this.widen(State.modify(f));
   }
 
@@ -137,7 +136,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code f} is null.
    */
   public <S, A> Kind<StateKind.Witness<S>, A> inspect(Function<S, @Nullable A> f) {
-    FunctionValidator.requireFunction(f, "f", STATE_CLASS, INSPECT);
+    Validation.function().requireFunction(f, "f", STATE_CLASS, INSPECT);
     return this.widen(State.inspect(f));
   }
 
@@ -154,7 +153,7 @@ public enum StateKindHelper implements StateConverterOps {
    */
   public <S, A> StateTuple<S, A> runState(
       @Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
-    KindValidator.requireNonNull(kind, STATE_CLASS, RUN_STATE);
+    Validation.kind().requireNonNull(kind, STATE_CLASS, RUN_STATE);
     // Note: initialState validation is handled by StateTuple constructor
     return this.narrow(kind).run(initialState);
   }

@@ -11,8 +11,7 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -65,8 +64,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> ap(
       Kind<ListKind.Witness, ? extends Function<A, B>> ff, Kind<ListKind.Witness, A> fa) {
 
-    KindValidator.requireNonNull(ff, ListMonad.class, AP, "function");
-    KindValidator.requireNonNull(fa, ListMonad.class, AP, "argument");
+    Validation.kind().requireNonNull(ff, ListMonad.class, AP, "function");
+    Validation.kind().requireNonNull(fa, ListMonad.class, AP, "argument");
 
     List<? extends Function<A, B>> functions = LIST.narrow(ff);
     List<A> values = LIST.narrow(fa);
@@ -101,8 +100,8 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", ListMonad.class, MAP);
-    KindValidator.requireNonNull(fa, ListMonad.class, MAP);
+    Validation.function().requireMapper(f, "f", ListMonad.class, MAP);
+    Validation.kind().requireNonNull(fa, ListMonad.class, MAP);
 
     return ListFunctor.INSTANCE.map(f, fa);
   }
@@ -127,15 +126,15 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<ListKind.Witness, B>> f, Kind<ListKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", ListMonad.class, FLAT_MAP);
-    KindValidator.requireNonNull(ma, ListMonad.class, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", ListMonad.class, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, ListMonad.class, FLAT_MAP);
 
     List<A> inputList = LIST.narrow(ma);
     List<B> resultList = new ArrayList<>();
 
     for (A a : inputList) {
       Kind<ListKind.Witness, B> kindB = f.apply(a);
-      FunctionValidator.requireNonNullResult(kindB, "f", ListMonad.class, FLAT_MAP, Kind.class);
+      Validation.function().requireNonNullResult(kindB, "f", ListMonad.class, FLAT_MAP, Kind.class);
       resultList.addAll(LIST.narrow(kindB));
     }
     return LIST.widen(resultList);

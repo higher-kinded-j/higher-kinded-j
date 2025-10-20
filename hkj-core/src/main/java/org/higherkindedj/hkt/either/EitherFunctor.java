@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} interface for the {@link Either} type, biased towards the "Right"
@@ -57,8 +56,8 @@ public class EitherFunctor<L> implements Functor<EitherKind.Witness<L>> {
   @Override
   public <A, B> Kind<EitherKind.Witness<L>, B> map(
       Function<? super A, ? extends B> f, Kind<EitherKind.Witness<L>, A> fa) {
-    FunctionValidator.requireMapper(f, "f", EITHER_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, EITHER_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", EITHER_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, EITHER_FUNCTOR_CLASS, MAP);
 
     Either<L, A> eitherA = EITHER.narrow(fa);
     Either<L, B> resultEither = eitherA.map(f); // Delegates to Either's right-biased map

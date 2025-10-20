@@ -10,8 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -46,7 +45,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterApplicative(Monoid<W> monoidW) {
-    FunctionValidator.requireMonoid(monoidW, "monoidW", WRITER_APPLICATIVE_CLASS, CONSTRUCTION);
+    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_APPLICATIVE_CLASS, CONSTRUCTION);
     this.monoidW = monoidW;
   }
 
@@ -89,8 +88,8 @@ public class WriterApplicative<W> extends WriterFunctor<W>
   public <A, B> Kind<WriterKind.Witness<W>, B> ap(
       Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff, Kind<WriterKind.Witness<W>, A> fa) {
 
-    KindValidator.requireNonNull(ff, WRITER_APPLICATIVE_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, WRITER_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, WRITER_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, WRITER_APPLICATIVE_CLASS, AP, "argument");
 
     Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);
@@ -100,7 +99,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
     Function<A, B> func = writerF.value();
     A val = writerA.value();
 
-    FunctionValidator.requireFunction(func, "function", WRITER_APPLICATIVE_CLASS, AP);
+    Validation.function().requireFunction(func, "function", WRITER_APPLICATIVE_CLASS, AP);
     B resultValue = func.apply(val);
 
     return WRITER.widen(new Writer<>(combinedLog, resultValue));

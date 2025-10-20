@@ -5,8 +5,7 @@ package org.higherkindedj.hkt.lazy;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,7 +36,7 @@ public final class Lazy<A> {
   private final ThrowableSupplier<? extends A> computation;
 
   private Lazy(ThrowableSupplier<? extends A> computation) {
-    this.computation = CoreTypeValidator.requireValue(computation, LAZY_CLASS, CONSTRUCTION);
+    this.computation = Validation.coreType().requireValue(computation, LAZY_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -49,7 +48,7 @@ public final class Lazy<A> {
    * @throws NullPointerException if computation is null.
    */
   public static <A> Lazy<A> defer(ThrowableSupplier<? extends A> computation) {
-    FunctionValidator.requireFunction(computation, "computation", LAZY_CLASS, DEFER);
+    Validation.function().requireFunction(computation, "computation", LAZY_CLASS, DEFER);
     return new Lazy<>(computation);
   }
 
@@ -109,7 +108,7 @@ public final class Lazy<A> {
    * @throws NullPointerException if f is null.
    */
   public <B> Lazy<B> map(Function<? super A, ? extends B> f) {
-    FunctionValidator.requireMapper(f, "f", LAZY_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", LAZY_CLASS, MAP);
     return Lazy.defer(() -> f.apply(this.force()));
   }
 
@@ -125,11 +124,12 @@ public final class Lazy<A> {
    * @throws NullPointerException if f is null or f returns null.
    */
   public <B> Lazy<B> flatMap(Function<? super A, ? extends Lazy<? extends B>> f) {
-    FunctionValidator.requireFlatMapper(f, "f", LAZY_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", LAZY_CLASS, FLAT_MAP);
     return Lazy.defer(
         () -> {
           Lazy<? extends B> nextLazy = f.apply(this.force());
-          FunctionValidator.requireNonNullResult(nextLazy, "f", LAZY_CLASS, FLAT_MAP, LAZY_CLASS);
+          Validation.function()
+              .requireNonNullResult(nextLazy, "f", LAZY_CLASS, FLAT_MAP, LAZY_CLASS);
           return nextLazy.force();
         });
   }

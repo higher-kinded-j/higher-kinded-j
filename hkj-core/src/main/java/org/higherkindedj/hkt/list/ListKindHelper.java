@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.list;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -31,7 +31,7 @@ public enum ListKindHelper implements ListConverterOps {
    */
   @Override
   public <A> Kind<ListKind.Witness, A> widen(List<A> list) {
-    KindValidator.requireForWiden(list, LIST_CLASS);
+    Validation.kind().requireForWiden(list, LIST_CLASS);
     return of(list);
   }
 
@@ -47,7 +47,7 @@ public enum ListKindHelper implements ListConverterOps {
    */
   @Override
   public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, LIST_CLASS, this::extractList);
+    return Validation.kind().narrow(kind, LIST_CLASS, this::extractList);
   }
 
   /**
@@ -62,7 +62,7 @@ public enum ListKindHelper implements ListConverterOps {
    *     representation.
    */
   public <A> List<A> narrowOr(@Nullable Kind<ListKind.Witness, A> kind, List<A> defaultValue) {
-    KindValidator.requireForWiden(defaultValue, LIST_CLASS);
+    Validation.kind().requireForWiden(defaultValue, LIST_CLASS);
     if (kind == null) {
       return defaultValue;
     }

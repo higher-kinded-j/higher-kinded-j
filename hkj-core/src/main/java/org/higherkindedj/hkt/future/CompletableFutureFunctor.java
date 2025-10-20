@@ -9,8 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -76,8 +75,8 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
   public <A, B> Kind<CompletableFutureKind.Witness, B> map(
       Function<? super A, ? extends @Nullable B> f, Kind<CompletableFutureKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
 
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);

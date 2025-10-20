@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} type class for {@link StateKind}{@code <S, A>}, allowing the
@@ -64,8 +63,8 @@ public class StateFunctor<S> implements Functor<StateKind.Witness<S>> {
   public <A, B> Kind<StateKind.Witness<S>, B> map(
       Function<? super A, ? extends B> f, Kind<StateKind.Witness<S>, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", STATE_FUNCTOR_CLASS, MAP);
-    KindValidator.requireNonNull(fa, STATE_FUNCTOR_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", STATE_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, STATE_FUNCTOR_CLASS, MAP);
 
     State<S, A> stateA = STATE.narrow(fa);
     State<S, B> stateB = stateA.map(f);

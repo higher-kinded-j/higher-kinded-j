@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.optional_t;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +34,7 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    */
   @Override
   public <F, A> Kind<OptionalTKind.Witness<F>, A> widen(OptionalT<F, A> optionalT) {
-    KindValidator.requireForWiden(optionalT, OPTIONAL_T_CLASS);
+    Validation.kind().requireForWiden(optionalT, OPTIONAL_T_CLASS);
     return optionalT;
   }
 
@@ -51,6 +51,6 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    */
   @Override
   public <F, A> OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
-    return KindValidator.narrowWithTypeCheck(kind, OPTIONAL_T_CLASS);
+    return Validation.kind().narrowWithTypeCheck(kind, OPTIONAL_T_CLASS);
   }
 }

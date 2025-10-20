@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -76,8 +76,8 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
   public <A, B> Kind<ReaderKind.Witness<R>, B> ap(
       Kind<ReaderKind.Witness<R>, ? extends Function<A, B>> ff, Kind<ReaderKind.Witness<R>, A> fa) {
 
-    KindValidator.requireNonNull(ff, READER_APPLICATIVE_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, READER_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, READER_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, READER_APPLICATIVE_CLASS, AP, "argument");
 
     Reader<R, ? extends Function<A, B>> readerF = READER.narrow(ff);
     Reader<R, A> readerA = READER.narrow(fa);

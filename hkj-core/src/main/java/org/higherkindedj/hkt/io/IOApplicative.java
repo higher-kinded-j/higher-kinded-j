@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Applicative} type class for {@link IO}, using {@link IOKind.Witness} as the
@@ -77,8 +77,8 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
   public <A, B> Kind<IOKind.Witness, B> ap(
       Kind<IOKind.Witness, ? extends Function<A, B>> ff, Kind<IOKind.Witness, A> fa) {
 
-    KindValidator.requireNonNull(ff, IO_APPLICATIVE_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, IO_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, IO_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, IO_APPLICATIVE_CLASS, AP, "argument");
 
     IO<? extends Function<A, B>> ioF = IO_OP.narrow(ff);
     IO<A> ioA = IO_OP.narrow(fa);

@@ -7,9 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
-import org.higherkindedj.hkt.util.validation.TransformerValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Represents the Reader Transformer Monad, {@code ReaderT<F, R, A>}. It wraps a computation that
@@ -50,7 +48,7 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code run} is null.
    */
   public ReaderT {
-    FunctionValidator.requireFunction(run, "run", READER_T_CLASS, CONSTRUCTION);
+    Validation.function().requireFunction(run, "run", READER_T_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -82,8 +80,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, R_ENV, A> ReaderT<F, R_ENV, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
-    TransformerValidator.requireOuterMonad(outerMonad, READER_T_CLASS, LIFT_F);
-    KindValidator.requireNonNull(fa, READER_T_CLASS, LIFT_F, "source Kind");
+    Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, LIFT_F);
+    Validation.kind().requireNonNull(fa, READER_T_CLASS, LIFT_F, "source Kind");
     return new ReaderT<>(r -> fa);
   }
 
@@ -102,8 +100,8 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    */
   public static <F, R_ENV, A> ReaderT<F, R_ENV, A> reader(
       Monad<F> outerMonad, Function<R_ENV, A> f) {
-    TransformerValidator.requireOuterMonad(outerMonad, READER_T_CLASS, READER);
-    FunctionValidator.requireFunction(f, "environment function", READER_T_CLASS, READER);
+    Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, READER);
+    Validation.function().requireFunction(f, "environment function", READER_T_CLASS, READER);
     return new ReaderT<>(r -> outerMonad.of(f.apply(r)));
   }
 
@@ -118,7 +116,7 @@ public record ReaderT<F, R_ENV, A>(Function<R_ENV, Kind<F, A>> run)
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, R_ENV> ReaderT<F, R_ENV, R_ENV> ask(Monad<F> outerMonad) {
-    TransformerValidator.requireOuterMonad(outerMonad, READER_T_CLASS, ASK);
+    Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, ASK);
     return new ReaderT<>(r -> outerMonad.of(r));
   }
 

@@ -10,8 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Represents the erroneous (Invalid) case of a {@link Validated}. It holds a non-null error value
@@ -34,7 +33,7 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
    * @throws NullPointerException if {@code error} is null.
    */
   public Invalid {
-    CoreTypeValidator.requireError(error, Invalid.class, INVALID);
+    Validation.coreType().requireError(error, Invalid.class, INVALID);
   }
 
   @Override
@@ -65,7 +64,8 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
 
   @Override
   public A orElseGet(Supplier<? extends A> otherSupplier) {
-    FunctionValidator.requireFunction(otherSupplier, "otherSupplier", Invalid.class, OR_ELSE_GET);
+    Validation.function()
+        .requireFunction(otherSupplier, "otherSupplier", Invalid.class, OR_ELSE_GET);
     A suppliedValue = otherSupplier.get();
     Objects.requireNonNull(suppliedValue, "orElseGet supplier returned null for Invalid.");
     return suppliedValue;
@@ -73,8 +73,8 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
 
   @Override
   public <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
-    FunctionValidator.requireFunction(
-        exceptionSupplier, "exceptionSupplier", Invalid.class, OR_ELSE_THROW);
+    Validation.function()
+        .requireFunction(exceptionSupplier, "exceptionSupplier", Invalid.class, OR_ELSE_THROW);
     X throwable = exceptionSupplier.get();
     Objects.requireNonNull(
         throwable,
@@ -84,27 +84,27 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
 
   @Override
   public void ifValid(Consumer<? super A> consumer) {
-    FunctionValidator.requireFunction(consumer, "consumer", Invalid.class, IF_VALID);
+    Validation.function().requireFunction(consumer, "consumer", Invalid.class, IF_VALID);
     // No action for Invalid
   }
 
   @Override
   public void ifInvalid(Consumer<? super E> consumer) {
-    FunctionValidator.requireFunction(consumer, "consumer", Invalid.class, IF_INVALID);
+    Validation.function().requireFunction(consumer, "consumer", Invalid.class, IF_INVALID);
     consumer.accept(error);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
-    FunctionValidator.requireMapper(fn, "fn", Invalid.class, MAP);
+    Validation.function().requireMapper(fn, "fn", Invalid.class, MAP);
     return (Validated<E, B>) this;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
-    FunctionValidator.requireFlatMapper(fn, "fn", Invalid.class, FLAT_MAP);
+    Validation.function().requireFlatMapper(fn, "fn", Invalid.class, FLAT_MAP);
     return (Validated<E, B>) this;
   }
 
@@ -112,8 +112,8 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
   @SuppressWarnings("unchecked")
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
-    FunctionValidator.requireNonNullResult(fnValidated, "fnValidated", VALIDATED_CLASS, AP);
-    CoreTypeValidator.requireValue(semigroup, "semigroup", Invalid.class, AP);
+    Validation.function().requireNonNullResult(fnValidated, "fnValidated", VALIDATED_CLASS, AP);
+    Validation.coreType().requireValue(semigroup, "semigroup", Invalid.class, AP);
 
     if (fnValidated.isInvalid()) {
       E combinedError = semigroup.combine(fnValidated.getError(), this.error);

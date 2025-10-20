@@ -7,7 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /** Concrete implementation of Maybe representing the presence of a value. */
@@ -42,17 +42,17 @@ record Just<T>(T value) implements Maybe<T> {
 
   @Override
   public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
-    FunctionValidator.requireMapper(mapper, "mapper", Just.class, MAP);
+    Validation.function().requireMapper(mapper, "mapper", Just.class, MAP);
     // Use fromNullable to handle cases where the mapper might return null
     return Maybe.fromNullable(mapper.apply(value)); // Result of apply is Nullable
   }
 
   @Override
   public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
-    FunctionValidator.requireFlatMapper(mapper, "mapper", Just.class, FLAT_MAP);
+    Validation.function().requireFlatMapper(mapper, "mapper", Just.class, FLAT_MAP);
 
     Maybe<? extends U> result = mapper.apply(value);
-    FunctionValidator.requireNonNullResult(result, "mapper", Just.class, FLAT_MAP, Maybe.class);
+    Validation.function().requireNonNullResult(result, "mapper", Just.class, FLAT_MAP, Maybe.class);
 
     // Cast needed because of <? extends U> - unavoidable Java type system limitation
     @SuppressWarnings("unchecked")

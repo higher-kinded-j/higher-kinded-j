@@ -123,7 +123,7 @@ final class MaybeTTestExecutor<F, A, B> {
 
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
-    // Test fromKind() null validation - uses CoreTypeValidator.requireValue
+    // Test fromKind() null validation - uses Validation.coreTypeValidator().requireValue
     builder.assertValueNull(
         () -> MaybeT.fromKind(null), "value", validationContext, Operation.CONSTRUCTION);
 

@@ -10,8 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Represents the correct (Valid) case of a {@link Validated}. It holds a non-null value of type
@@ -36,7 +35,7 @@ public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, 
    * @throws NullPointerException if {@code value} is null.
    */
   public Valid {
-    CoreTypeValidator.requireValue(value, Valid.class, CONSTRUCTION);
+    Validation.coreType().requireValue(value, Valid.class, CONSTRUCTION);
   }
 
   @Override
@@ -68,42 +67,43 @@ public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, 
 
   @Override
   public A orElseGet(Supplier<? extends A> otherSupplier) {
-    FunctionValidator.requireFunction(otherSupplier, "otherSupplier", VALID_CLASS, OR_ELSE_GET);
+    Validation.function().requireFunction(otherSupplier, "otherSupplier", VALID_CLASS, OR_ELSE_GET);
     return value;
   }
 
   @Override
   public <X extends Throwable> A orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
-    FunctionValidator.requireFunction(
-        exceptionSupplier, "exceptionSupplier", VALID_CLASS, OR_ELSE_THROW);
+    Validation.function()
+        .requireFunction(exceptionSupplier, "exceptionSupplier", VALID_CLASS, OR_ELSE_THROW);
     return value;
   }
 
   @Override
   public void ifValid(Consumer<? super A> consumer) {
-    FunctionValidator.requireFunction(consumer, "consumer", VALID_CLASS, IF_VALID);
+    Validation.function().requireFunction(consumer, "consumer", VALID_CLASS, IF_VALID);
     consumer.accept(value);
   }
 
   @Override
   public void ifInvalid(Consumer<? super E> consumer) {
-    FunctionValidator.requireFunction(consumer, "consumer", VALID_CLASS, IF_INVALID);
+    Validation.function().requireFunction(consumer, "consumer", VALID_CLASS, IF_INVALID);
     // No action for Valid
   }
 
   @Override
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
-    FunctionValidator.requireMapper(fn, "fn", VALID_CLASS, MAP);
+    Validation.function().requireMapper(fn, "fn", VALID_CLASS, MAP);
     B newValue = fn.apply(value);
-    FunctionValidator.requireNonNullResult(newValue, "fn", VALID_CLASS, MAP);
+    Validation.function().requireNonNullResult(newValue, "fn", VALID_CLASS, MAP);
     return new Valid<>(newValue);
   }
 
   @Override
   public <B> Validated<E, B> flatMap(Function<? super A, ? extends Validated<E, ? extends B>> fn) {
-    FunctionValidator.requireFlatMapper(fn, "fn", VALID_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(fn, "fn", VALID_CLASS, FLAT_MAP);
     Validated<E, ? extends B> result = fn.apply(value);
-    FunctionValidator.requireNonNullResult(result, "fn", VALID_CLASS, FLAT_MAP, Validated.class);
+    Validation.function()
+        .requireNonNullResult(result, "fn", VALID_CLASS, FLAT_MAP, Validated.class);
 
     @SuppressWarnings("unchecked")
     Validated<E, B> typedResult = (Validated<E, B>) result;
@@ -113,8 +113,8 @@ public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, 
   @Override
   public <B> Validated<E, B> ap(
       Validated<E, Function<? super A, ? extends B>> fnValidated, Semigroup<E> semigroup) {
-    FunctionValidator.requireFunction(fnValidated, "fnValidated", VALID_CLASS, AP);
-    CoreTypeValidator.requireValue(semigroup, "semigroup", VALID_CLASS, AP);
+    Validation.function().requireFunction(fnValidated, "fnValidated", VALID_CLASS, AP);
+    Validation.coreType().requireValue(semigroup, "semigroup", VALID_CLASS, AP);
 
     return fnValidated.fold(
         Validated::invalid, // Propagate the error from the function

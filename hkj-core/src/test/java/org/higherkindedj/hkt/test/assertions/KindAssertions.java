@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Kind parameter validation assertions aligned with production validators.
@@ -65,7 +66,6 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * }</pre>
  *
  * @see KindValidator
- * @see org.higherkindedj.hkt.util.context.KindContext
  */
 public final class KindAssertions {
 
@@ -88,7 +88,7 @@ public final class KindAssertions {
   public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
       ThrowableAssert.ThrowingCallable executable, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> KindValidator.requireNonNull((Kind<?, ?>) null, operation));
+        executable, () -> Validation.kind().requireNonNull((Kind<?, ?>) null, operation));
   }
 
   /**
@@ -103,7 +103,8 @@ public final class KindAssertions {
   public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
       ThrowableAssert.ThrowingCallable executable, Operation operation, String descriptor) {
     return assertWithProductionValidator(
-        executable, () -> KindValidator.requireNonNull((Kind<?, ?>) null, operation, descriptor));
+        executable,
+        () -> Validation.kind().requireNonNull((Kind<?, ?>) null, operation, descriptor));
   }
 
   // =============================================================================
@@ -122,7 +123,8 @@ public final class KindAssertions {
   public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
     return assertWithProductionValidator(
-        executable, () -> KindValidator.requireNonNull((Kind<?, ?>) null, contextClass, operation));
+        executable,
+        () -> Validation.kind().requireNonNull((Kind<?, ?>) null, contextClass, operation));
   }
 
   /**
@@ -142,7 +144,9 @@ public final class KindAssertions {
       String descriptor) {
     return assertWithProductionValidator(
         executable,
-        () -> KindValidator.requireNonNull((Kind<?, ?>) null, contextClass, operation, descriptor));
+        () ->
+            Validation.kind()
+                .requireNonNull((Kind<?, ?>) null, contextClass, operation, descriptor));
   }
 
   // =============================================================================
@@ -166,8 +170,8 @@ public final class KindAssertions {
           // Cast targetType to Class<Object> for the generic method call
           @SuppressWarnings("unchecked")
           Class<Object> objectTargetType = (Class<Object>) targetType;
-          KindValidator.<Object, Object, Object>narrow(
-              nullKind, objectTargetType, kind -> new Object());
+          Validation.kind()
+              .<Object, Object, Object>narrow(nullKind, objectTargetType, kind -> new Object());
         });
   }
 
@@ -200,7 +204,7 @@ public final class KindAssertions {
   public static AbstractThrowableAssert<?, ? extends Throwable> assertWidenNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> inputType) {
     return assertWithProductionValidator(
-        executable, () -> KindValidator.requireForWiden(null, inputType));
+        executable, () -> Validation.kind().requireForWiden(null, inputType));
   }
 
   // =============================================================================

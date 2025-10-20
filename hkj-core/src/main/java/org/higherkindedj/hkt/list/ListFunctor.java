@@ -10,8 +10,7 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} type class for {@link java.util.List}, using {@link
@@ -73,8 +72,8 @@ class ListFunctor implements Functor<ListKind.Witness> {
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", ListFunctor.class, MAP);
-    KindValidator.requireNonNull(fa, ListFunctor.class, MAP);
+    Validation.function().requireMapper(f, "f", ListFunctor.class, MAP);
+    Validation.kind().requireNonNull(fa, ListFunctor.class, MAP);
 
     List<A> listA = LIST.narrow(fa);
     List<B> listB = new ArrayList<>(listA.size());

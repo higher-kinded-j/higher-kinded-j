@@ -8,7 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -58,8 +58,8 @@ public class StateApplicative<S> extends StateFunctor<S>
   public <A, B> Kind<StateKind.Witness<S>, B> ap(
       Kind<StateKind.Witness<S>, ? extends Function<A, B>> ff, Kind<StateKind.Witness<S>, A> fa) {
 
-    KindValidator.requireNonNull(ff, STATE_APPLICATIVE_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, STATE_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, STATE_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, STATE_APPLICATIVE_CLASS, AP, "argument");
 
     State<S, ? extends Function<A, B>> stateF = STATE.narrow(ff);
     State<S, A> stateA = STATE.narrow(fa);

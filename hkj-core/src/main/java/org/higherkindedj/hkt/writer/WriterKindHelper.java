@@ -7,8 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.TELL;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.validation.CoreTypeValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +33,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   record WriterHolder<W, A>(Writer<W, A> writer) implements WriterKind<W, A> {
     WriterHolder {
-      KindValidator.requireForWiden(writer, WRITER_CLASS);
+      Validation.kind().requireForWiden(writer, WRITER_CLASS);
     }
   }
 
@@ -69,7 +68,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   @Override
   public <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
-    return KindValidator.narrow(kind, WRITER_CLASS, this::extractWriter);
+    return Validation.kind().narrow(kind, WRITER_CLASS, this::extractWriter);
   }
 
   /**
@@ -98,7 +97,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @throws NullPointerException if {@code log} is null (delegated to Writer.tell).
    */
   public <W> Kind<WriterKind.Witness<W>, Unit> tell(W log) {
-    CoreTypeValidator.requireValue(log, WRITER_CLASS, TELL);
+    Validation.coreType().requireValue(log, WRITER_CLASS, TELL);
     return this.widen(Writer.tell(log));
   }
 

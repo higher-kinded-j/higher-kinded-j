@@ -692,7 +692,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void flatMapValidatesNonNullResults() {
       Function<Integer, Either<String, String>> nullReturningMapper = i -> null;
 
-      // The FunctionValidator.requireNonNullResult throws KindUnwrapException, not
+      // The Validation.functionValidator().requireNonNullResult throws KindUnwrapException, not
       // NullPointerException
       assertThatThrownBy(() -> rightInstance.flatMap(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)

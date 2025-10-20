@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link MonadError} interface for the {@link Try} data type.
@@ -71,8 +70,8 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
   public <A, B> Kind<TryKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<TryKind.Witness, B>> f, Kind<TryKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", TRY_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, TRY_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", TRY_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, TRY_MONAD_CLASS, FLAT_MAP);
 
     Try<A> tryA = TRY.narrow(ma);
 
@@ -81,8 +80,8 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             a -> {
               try {
                 Kind<TryKind.Witness, B> kindB = f.apply(a);
-                FunctionValidator.requireNonNullResult(
-                    kindB, "f", TRY_MONAD_CLASS, FLAT_MAP, Kind.class);
+                Validation.function()
+                    .requireNonNullResult(kindB, "f", TRY_MONAD_CLASS, FLAT_MAP, Kind.class);
                 return TRY.narrow(kindB);
               } catch (Throwable t) {
                 return Try.failure(t);
@@ -102,7 +101,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    */
   @Override
   public <A> Kind<TryKind.Witness, A> raiseError(Throwable error) {
-    FunctionValidator.requireFunction(error, "error", TRY_MONAD_CLASS, RAISE_ERROR);
+    Validation.function().requireFunction(error, "error", TRY_MONAD_CLASS, RAISE_ERROR);
     return TRY.widen(Try.failure(error));
   }
 
@@ -126,8 +125,8 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
       Kind<TryKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<TryKind.Witness, A>> handler) {
 
-    KindValidator.requireNonNull(ma, TRY_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    FunctionValidator.requireFunction(handler, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, TRY_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    Validation.function().requireFunction(handler, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     Try<A> tryA = TRY.narrow(ma);
 
@@ -136,8 +135,9 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
             throwable -> {
               try {
                 Kind<TryKind.Witness, A> recoveryKind = handler.apply(throwable);
-                FunctionValidator.requireNonNullResult(
-                    recoveryKind, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
+                Validation.function()
+                    .requireNonNullResult(
+                        recoveryKind, "handler", TRY_MONAD_CLASS, HANDLE_ERROR_WITH, Kind.class);
                 return TRY.narrow(recoveryKind);
               } catch (Throwable t) {
                 return Try.failure(t);

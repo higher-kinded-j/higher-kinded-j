@@ -8,8 +8,7 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} interface for the {@link Writer} type. This allows mapping a
@@ -48,8 +47,8 @@ public class WriterFunctor<W> implements Functor<WriterKind.Witness<W>> {
   public <A, B> Kind<WriterKind.Witness<W>, B> map(
       Function<? super A, ? extends B> f, Kind<WriterKind.Witness<W>, A> fa) {
 
-    FunctionValidator.requireMapper(f, "f", WRITER_FUNCTER_CLASS, MAP);
-    KindValidator.requireNonNull(fa, WRITER_FUNCTER_CLASS, MAP);
+    Validation.function().requireMapper(f, "f", WRITER_FUNCTER_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, WRITER_FUNCTER_CLASS, MAP);
 
     Writer<W, A> writerA = WRITER.narrow(fa);
     Writer<W, B> writerB = writerA.map(f);

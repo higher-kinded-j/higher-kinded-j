@@ -10,8 +10,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.validation.FunctionValidator;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -61,8 +60,8 @@ public final class MaybeMonad extends MaybeFunctor
   public <A, B> Kind<MaybeKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<MaybeKind.Witness, B>> f, Kind<MaybeKind.Witness, A> ma) {
 
-    FunctionValidator.requireFlatMapper(f, "f", MAYBE_MONAD_CLASS, FLAT_MAP);
-    KindValidator.requireNonNull(ma, MAYBE_MONAD_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", MAYBE_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, MAYBE_MONAD_CLASS, FLAT_MAP);
 
     Maybe<A> maybeA = MAYBE.narrow(ma);
 
@@ -70,8 +69,8 @@ public final class MaybeMonad extends MaybeFunctor
         maybeA.flatMap(
             a -> {
               Kind<MaybeKind.Witness, B> kindB = f.apply(a);
-              FunctionValidator.requireNonNullResult(
-                  kindB, "f", MAYBE_MONAD_CLASS, FLAT_MAP, Maybe.class);
+              Validation.function()
+                  .requireNonNullResult(kindB, "f", MAYBE_MONAD_CLASS, FLAT_MAP, Maybe.class);
               return MAYBE.narrow(kindB);
             });
 
@@ -94,8 +93,8 @@ public final class MaybeMonad extends MaybeFunctor
   public <A, B> Kind<MaybeKind.Witness, B> ap(
       Kind<MaybeKind.Witness, ? extends Function<A, B>> ff, Kind<MaybeKind.Witness, A> fa) {
 
-    KindValidator.requireNonNull(ff, MAYBE_MONAD_CLASS, AP, "function");
-    KindValidator.requireNonNull(fa, MAYBE_MONAD_CLASS, AP, "argument");
+    Validation.kind().requireNonNull(ff, MAYBE_MONAD_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, MAYBE_MONAD_CLASS, AP, "argument");
 
     Maybe<? extends Function<A, B>> maybeF = MAYBE.narrow(ff);
     Maybe<A> maybeA = MAYBE.narrow(fa);
@@ -136,15 +135,16 @@ public final class MaybeMonad extends MaybeFunctor
       Kind<MaybeKind.Witness, A> ma,
       Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler) {
 
-    KindValidator.requireNonNull(ma, MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    FunctionValidator.requireFunction(handler, "handler", MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.kind().requireNonNull(ma, MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    Validation.function().requireFunction(handler, "handler", MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     Maybe<A> maybe = MAYBE.narrow(ma);
 
     if (maybe.isNothing()) {
       Kind<MaybeKind.Witness, A> result = handler.apply(Unit.INSTANCE);
-      FunctionValidator.requireNonNullResult(
-          result, "handler", MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, Maybe.class);
+      Validation.function()
+          .requireNonNullResult(
+              result, "handler", MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, Maybe.class);
       return result;
     }
 
@@ -155,8 +155,8 @@ public final class MaybeMonad extends MaybeFunctor
   public <A> Kind<MaybeKind.Witness, A> recoverWith(
       final Kind<MaybeKind.Witness, A> ma, final Kind<MaybeKind.Witness, A> fallback) {
 
-    KindValidator.requireNonNull(ma, MAYBE_MONAD_CLASS, RECOVER_WITH, "source");
-    KindValidator.requireNonNull(fallback, MAYBE_MONAD_CLASS, RECOVER_WITH, "fallback");
+    Validation.kind().requireNonNull(ma, MAYBE_MONAD_CLASS, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, MAYBE_MONAD_CLASS, RECOVER_WITH, "fallback");
 
     return handleErrorWith(ma, error -> fallback);
   }

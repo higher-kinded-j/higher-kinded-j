@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.maybe;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,7 +27,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    */
   record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> {
     MaybeHolder {
-      KindValidator.requireForWiden(maybe, MAYBE_CLASS);
+      Validation.kind().requireForWiden(maybe, MAYBE_CLASS);
     }
   }
 
@@ -58,7 +58,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    */
   @Override
   public <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, MAYBE_CLASS, this::extractMaybe);
+    return Validation.kind().narrow(kind, MAYBE_CLASS, this::extractMaybe);
   }
 
   private <A> Maybe<A> extractMaybe(Kind<MaybeKind.Witness, A> kind) {
