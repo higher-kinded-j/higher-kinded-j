@@ -33,9 +33,6 @@ public final class ErrorHandling {
   /** Standard error message template for null Kind instances. */
   public static final String NULL_KIND_TEMPLATE = "Cannot narrow null Kind for %s";
 
-  /** Standard error message template for unexpected Kind types. */
-  public static final String INVALID_KIND_TYPE_TEMPLATE = "Kind instance is not a %s: %s";
-
   /** Standard error message template for null inputs to widen operations. */
   public static final String NULL_WIDEN_INPUT_TEMPLATE = "Input %s cannot be null for widen";
 }
