@@ -11,9 +11,9 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.unit.Unit;
-import org.higherkindedj.hkt.util.validation.DomainValidator;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.TransformerValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,7 +41,7 @@ public class MaybeTMonad<F> implements MonadError<MaybeTKind.Witness<F>, Unit> {
    */
   public MaybeTMonad(Monad<F> outerMonad) {
     this.outerMonad =
-        DomainValidator.requireOuterMonad(outerMonad, MAYBE_T_MONAD_CLASS, CONSTRUCTION);
+        TransformerValidator.requireOuterMonad(outerMonad, MAYBE_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**

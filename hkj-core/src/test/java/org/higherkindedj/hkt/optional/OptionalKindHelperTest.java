@@ -91,8 +91,7 @@ class OptionalKindHelperTest {
       assertThatNullPointerException()
           .isThrownBy(() -> new OptionalHolder<>(null))
           .isInstanceOf(NullPointerException.class)
-          .withMessageContaining(
-              NULL_HOLDER_STATE_TEMPLATE.formatted("OptionalHolder", "Optional"));
+          .withMessageContaining("Input Optional cannot be null for widen");
     }
   }
 }

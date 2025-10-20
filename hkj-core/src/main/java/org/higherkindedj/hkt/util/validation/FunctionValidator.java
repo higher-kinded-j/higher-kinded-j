@@ -262,12 +262,6 @@ public final class FunctionValidator {
     return result;
   }
 
-  // Add validation for predicates (used in MonadZero filtering)
-  public static <T> T requirePredicate(T predicate, Operation operation) {
-    var context = new FunctionContext("predicate", operation.toString());
-    return Objects.requireNonNull(predicate, context.nullParameterMessage());
-  }
-
   // Add validation for handlers (used in error handling)
   public static <T> T requireHandler(T handler, Class<?> contextClass, Operation operation) {
     Objects.requireNonNull(contextClass, "contextClass cannot be null");

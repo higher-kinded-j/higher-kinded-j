@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 public enum ListKindHelper implements ListConverterOps {
   LIST;
 
-  private static final Class<List> TYPE = List.class;
+  private static final Class<List> LIST_CLASS = List.class;
 
   /**
    * Widens a standard {@link java.util.List} into its higher-kinded representation, {@code
@@ -31,8 +31,8 @@ public enum ListKindHelper implements ListConverterOps {
    */
   @Override
   public <A> Kind<ListKind.Witness, A> widen(List<A> list) {
-    KindValidator.requireForWiden(list, TYPE);
-    return ListKind.of(list);
+    KindValidator.requireForWiden(list, LIST_CLASS);
+    return of(list);
   }
 
   /**
@@ -47,7 +47,7 @@ public enum ListKindHelper implements ListConverterOps {
    */
   @Override
   public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, TYPE, this::extractList);
+    return KindValidator.narrow(kind, LIST_CLASS, this::extractList);
   }
 
   /**
@@ -61,12 +61,12 @@ public enum ListKindHelper implements ListConverterOps {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is not a valid ListKind
    *     representation.
    */
-  public <A> List<A> unwrapOr(@Nullable Kind<ListKind.Witness, A> kind, List<A> defaultValue) {
-    KindValidator.requireForWiden(defaultValue, TYPE);
+  public <A> List<A> narrowOr(@Nullable Kind<ListKind.Witness, A> kind, List<A> defaultValue) {
+    KindValidator.requireForWiden(defaultValue, LIST_CLASS);
     if (kind == null) {
       return defaultValue;
     }
-    return ListKind.narrow(kind).unwrap();
+    return narrow(kind);
   }
 
   /**
@@ -77,8 +77,29 @@ public enum ListKindHelper implements ListConverterOps {
    */
   private <A> List<A> extractList(Kind<ListKind.Witness, A> kind) {
     return switch (kind) {
-      case ListKind<A> listKind -> listKind.unwrap();
+      case ListHolder<A> listKind -> listKind.list();
       default -> throw new ClassCastException();
     };
+  }
+
+  /**
+   * Concrete implementation of {@link ListKind<A>}. This record wraps a {@code java.util.List<A>}
+   * to make it a {@code ListKind<A>}.
+   *
+   * @param <A> The element type of the list.
+   * @param list The list.
+   */
+  record ListHolder<A>(List<A> list) implements ListKind<A> {}
+
+  /**
+   * Factory method to create a {@code ListKind<A>} (specifically a {@code ListView<A>}) from a
+   * standard {@link java.util.List}.
+   *
+   * @param list The list to wrap.
+   * @param <A> The element type.
+   * @return A new {@code ListKind<A>} instance.
+   */
+  public <A> ListKind<A> of(List<A> list) {
+    return new ListKindHelper.ListHolder<>(list);
   }
 }

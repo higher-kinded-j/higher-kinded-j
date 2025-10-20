@@ -32,22 +32,21 @@ import org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage.BaseKin
  *
  * @param <A> The value type
  */
-public final class IdKindHelperTest<A>
-        extends BaseKindHelperConfig<Id<A>, Id.Witness, A> {
+public final class IdKindHelperTest<A> extends BaseKindHelperConfig<Id<A>, Id.Witness, A> {
 
-    private static final IdKindHelper ID = IdKindHelper.ID;
+  private static final IdKindHelper ID = IdKindHelper.ID;
 
-    public IdKindHelperTest(Id<A> instance) {
-        super(instance, getIdClass(), id -> ID.widen(id), kind -> ID.narrow(kind));
-    }
+  public IdKindHelperTest(Id<A> instance) {
+    super(instance, getIdClass(), id -> ID.widen(id), kind -> ID.narrow(kind));
+  }
 
-    @SuppressWarnings("unchecked")
-    private static <A> Class<Id<A>> getIdClass() {
-        return (Class<Id<A>>) (Class<?>) Id.class;
-    }
+  @SuppressWarnings("unchecked")
+  private static <A> Class<Id<A>> getIdClass() {
+    return (Class<Id<A>>) (Class<?>) Id.class;
+  }
 
-    @Override
-    protected IdKindHelperTest<A> self() {
-        return this;
-    }
+  @Override
+  protected IdKindHelperTest<A> self() {
+    return this;
+  }
 }

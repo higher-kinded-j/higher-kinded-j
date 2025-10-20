@@ -8,10 +8,10 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.util.validation.DomainValidator;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
 import org.higherkindedj.hkt.util.validation.Operation;
+import org.higherkindedj.hkt.util.validation.TransformerValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -77,7 +77,7 @@ public enum StateTKindHelper implements StateTConverterOps {
   public <S, F, A> StateT<S, F, A> stateT(
       Function<S, Kind<F, StateTuple<S, A>>> runStateTFn, Monad<F> monadF) {
     FunctionValidator.requireFunction(runStateTFn, "runStateTFn", STATE_T_CLASS, Operation.STATE_T);
-    DomainValidator.requireOuterMonad(monadF, STATE_T_CLASS, Operation.STATE_T);
+    TransformerValidator.requireOuterMonad(monadF, STATE_T_CLASS, Operation.STATE_T);
     return StateT.create(runStateTFn, monadF);
   }
 
@@ -94,7 +94,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    * @throws NullPointerException if {@code monadF} or {@code fa} is null.
    */
   public <S, F, A> StateT<S, F, A> liftF(Monad<F> monadF, Kind<F, A> fa) {
-    DomainValidator.requireOuterMonad(monadF, STATE_T_CLASS, LIFT_F);
+    TransformerValidator.requireOuterMonad(monadF, STATE_T_CLASS, LIFT_F);
     KindValidator.requireNonNull(fa, STATE_T_CLASS, LIFT_F, "source Kind");
 
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.map(a -> StateTuple.of(s, a), fa);

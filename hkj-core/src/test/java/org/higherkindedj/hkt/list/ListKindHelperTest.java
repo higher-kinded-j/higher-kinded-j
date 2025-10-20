@@ -27,7 +27,7 @@ class ListKindHelperTest {
       List<String> list = Arrays.asList("a", "b");
       Kind<ListKind.Witness, String> kind = LIST.widen(list);
       assertThat(kind)
-          .isInstanceOf(ListKind.ListView.class); // ListKind.ListView is the concrete type
+          .isInstanceOf(ListKindHelper.ListHolder.class); // ListKind.ListView is the concrete type
       // To verify content, unwrap and check
       assertThat(LIST.narrow(kind)).isEqualTo(list);
     }
@@ -36,7 +36,7 @@ class ListKindHelperTest {
     void widen_shouldReturnListViewForEmptyList() {
       List<Integer> emptyList = Collections.emptyList();
       Kind<ListKind.Witness, Integer> kind = LIST.widen(emptyList);
-      assertThat(kind).isInstanceOf(ListKind.ListView.class);
+      assertThat(kind).isInstanceOf(ListKindHelper.ListHolder.class);
       assertThat(LIST.narrow(kind)).isEqualTo(emptyList);
     }
 
@@ -80,22 +80,22 @@ class ListKindHelperTest {
       List<String> list = Arrays.asList("a", "b");
       Kind<ListKind.Witness, String> kind = LIST.widen(list);
       List<String> defaultList = Collections.singletonList("default");
-      assertThat(LIST.unwrapOr(kind, defaultList)).isEqualTo(list);
+      assertThat(LIST.narrowOr(kind, defaultList)).isEqualTo(list);
     }
 
     @Test
     void unwrapOr_shouldReturnDefaultWhenKindIsNull() {
       List<String> defaultList = Collections.singletonList("default");
-      assertThat(LIST.unwrapOr(null, defaultList)).isSameAs(defaultList);
+      assertThat(LIST.narrowOr(null, defaultList)).isSameAs(defaultList);
     }
 
     @Test
     void unwrapOr_shouldThrowNPEWhenDefaultIsNull() {
       List<String> list = Arrays.asList("a", "b");
       Kind<ListKind.Witness, String> kind = LIST.widen(list);
-      assertThatThrownBy(() -> LIST.unwrapOr(kind, null))
+      assertThatThrownBy(() -> LIST.narrowOr(kind, null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Input defaultValue cannot be null");
+          .hasMessageContaining("Input List cannot be null for widen");
     }
   }
 }

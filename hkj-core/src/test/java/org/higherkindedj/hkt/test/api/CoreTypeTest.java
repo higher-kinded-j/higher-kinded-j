@@ -279,35 +279,33 @@ public final class CoreTypeTest {
     return new StateTCoreTestStage<>(contextClass, outerMonad);
   }
 
-    /**
-     * Tests ReaderT-specific operations like factory methods (of, liftF, reader, ask), runner
-     * methods (run), as well as validation.
-     *
-     * @param contextClass The implementation class for error messages (e.g., ReaderT.class)
-     * @param outerMonad The outer monad instance required for ReaderT operations
-     * @param <F> The outer monad witness type
-     * @param <R> The environment type
-     * @param <A> The value type
-     * @return Stage for providing test instances
-     */
-    public static <F, R, A> ReaderTCoreTestStage<F, R, A> readerT(
-            Class<?> contextClass, Monad<F> outerMonad) {
-        return new ReaderTCoreTestStage<>(contextClass, outerMonad);
-    }
+  /**
+   * Tests ReaderT-specific operations like factory methods (of, liftF, reader, ask), runner methods
+   * (run), as well as validation.
+   *
+   * @param contextClass The implementation class for error messages (e.g., ReaderT.class)
+   * @param outerMonad The outer monad instance required for ReaderT operations
+   * @param <F> The outer monad witness type
+   * @param <R> The environment type
+   * @param <A> The value type
+   * @return Stage for providing test instances
+   */
+  public static <F, R, A> ReaderTCoreTestStage<F, R, A> readerT(
+      Class<?> contextClass, Monad<F> outerMonad) {
+    return new ReaderTCoreTestStage<>(contextClass, outerMonad);
+  }
 
-    /**
-     *
-     * <p>Tests Id-specific operations like value, map, flatMap, as well as factory methods and basic
-     * operations.
-     *
-     * @param contextClass The implementation class for error messages (e.g., Id.class)
-     * @param <A> The value type
-     * @return Stage for providing test instances
-     */
-    public static <A> IdCoreTestStage<A> id(
-            Class<?> contextClass) {
-        return new IdCoreTestStage<>(contextClass);
-    }
+  /**
+   * Tests Id-specific operations like value, map, flatMap, as well as factory methods and basic
+   * operations.
+   *
+   * @param contextClass The implementation class for error messages (e.g., Id.class)
+   * @param <A> The value type
+   * @return Stage for providing test instances
+   */
+  public static <A> IdCoreTestStage<A> id(Class<?> contextClass) {
+    return new IdCoreTestStage<>(contextClass);
+  }
 
   // =============================================================================
   // KindHelper Testing for Core Types
@@ -549,7 +547,7 @@ public final class CoreTypeTest {
     return new ValidatedKindHelperTest<>(instance);
   }
 
-    public static <A> IdKindHelperTest<A> idKindHelper(Id<A> instance) {
-        return new IdKindHelperTest<>(instance);
-    }
+  public static <A> IdKindHelperTest<A> idKindHelper(Id<A> instance) {
+    return new IdKindHelperTest<>(instance);
+  }
 }

@@ -10,9 +10,9 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.util.validation.DomainValidator;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.TransformerValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -45,7 +45,7 @@ public class EitherTMonad<F, L> implements MonadError<EitherTKind.Witness<F, L>,
    */
   public EitherTMonad(Monad<F> outerMonad) {
     this.outerMonad =
-        DomainValidator.requireOuterMonad(outerMonad, EITHER_T_MONAD_CLASS, CONSTRUCTION);
+        TransformerValidator.requireOuterMonad(outerMonad, EITHER_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**

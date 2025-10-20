@@ -97,8 +97,7 @@ class CompletableFutureKindHelperTest {
     void shouldThrowForHolderWithNullFuture() {
       assertThatThrownBy(() -> new CompletableFutureHolder<>(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining(
-              NULL_HOLDER_STATE_TEMPLATE.formatted("CompletableFutureHolder", "CompletableFuture"));
+          .hasMessageContaining("Input CompletableFuture cannot be null for widen");
     }
   }
 }

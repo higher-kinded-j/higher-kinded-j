@@ -58,6 +58,7 @@ public enum Operation {
   IF_INVALID("ifInvalid"),
   OR_ELSE_THROW("orElseThrow"),
   DELAY("delay"),
+  INVALID("invalid"),
   ;
   ;
 

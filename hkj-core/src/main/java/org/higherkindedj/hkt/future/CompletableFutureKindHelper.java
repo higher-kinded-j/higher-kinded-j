@@ -64,7 +64,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    */
   @Override
   public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
-    return KindValidator.narrow(kind, COMPLETABLE_FUTURE_CLASS, this::extractFuture);
+    return KindValidator.narrow(kind, COMPLETABLE_FUTURE_CLASS, this::extractCompletableFuture);
   }
 
   /**
@@ -98,7 +98,8 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
     }
   }
 
-  private <A> CompletableFuture<A> extractFuture(Kind<CompletableFutureKind.Witness, A> kind) {
+  private <A> CompletableFuture<A> extractCompletableFuture(
+      Kind<CompletableFutureKind.Witness, A> kind) {
     return switch (kind) {
       case CompletableFutureHolder<A> holder -> holder.future();
       default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator

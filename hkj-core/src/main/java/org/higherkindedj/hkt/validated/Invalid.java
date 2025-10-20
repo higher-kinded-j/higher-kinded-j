@@ -34,7 +34,7 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
    * @throws NullPointerException if {@code error} is null.
    */
   public Invalid {
-    CoreTypeValidator.requireError(error, Invalid.class);
+    CoreTypeValidator.requireError(error, Invalid.class, INVALID);
   }
 
   @Override

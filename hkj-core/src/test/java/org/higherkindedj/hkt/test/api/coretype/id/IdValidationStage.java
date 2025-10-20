@@ -39,102 +39,87 @@ package org.higherkindedj.hkt.test.api.coretype.id;
  * @param <B> The mapped type
  */
 public final class IdValidationStage<A, B> {
-    private final IdTestConfigStage<A, B> configStage;
+  private final IdTestConfigStage<A, B> configStage;
 
-    // Validation context classes
-    private Class<?> mapContext;
-    private Class<?> flatMapContext;
+  // Validation context classes
+  private Class<?> mapContext;
+  private Class<?> flatMapContext;
 
-    IdValidationStage(IdTestConfigStage<A, B> configStage) {
-        this.configStage = configStage;
+  IdValidationStage(IdTestConfigStage<A, B> configStage) {
+    this.configStage = configStage;
+  }
+
+  /**
+   * Uses inheritance-based validation with fluent configuration.
+   *
+   * <p>This allows you to specify which class in the inheritance hierarchy should be used in
+   * validation error messages for each operation.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * .configureValidation()
+   *     .useInheritanceValidation()
+   *         .withMapFrom(IdMonad.class)
+   *         .withFlatMapFrom(IdMonad.class)
+   *     .testAll()
+   * }</pre>
+   *
+   * @return Fluent configuration builder
+   */
+  public InheritanceValidationBuilder useInheritanceValidation() {
+    return new InheritanceValidationBuilder();
+  }
+
+  /**
+   * Uses default validation (no class context).
+   *
+   * <p>Error messages will not include specific class names.
+   *
+   * @return This stage for further configuration or execution
+   */
+  public IdValidationStage<A, B> useDefaultValidation() {
+    this.mapContext = null;
+    this.flatMapContext = null;
+    return this;
+  }
+
+  /** Fluent builder for inheritance-based validation configuration. */
+  public final class InheritanceValidationBuilder {
+
+    /**
+     * Specifies the class used for map operation validation.
+     *
+     * <p>Error messages for map null validations will reference this class.
+     *
+     * @param contextClass The class that implements map (e.g., IdMonad.class)
+     * @return This builder for chaining
+     */
+    public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
+      mapContext = contextClass;
+      return this;
     }
 
     /**
-     * Uses inheritance-based validation with fluent configuration.
+     * Specifies the class used for flatMap operation validation.
      *
-     * <p>This allows you to specify which class in the inheritance hierarchy should be used in
-     * validation error messages for each operation.
+     * <p>Error messages for flatMap null validations will reference this class.
      *
-     * <p>Example:
-     *
-     * <pre>{@code
-     * .configureValidation()
-     *     .useInheritanceValidation()
-     *         .withMapFrom(IdMonad.class)
-     *         .withFlatMapFrom(IdMonad.class)
-     *     .testAll()
-     * }</pre>
-     *
-     * @return Fluent configuration builder
+     * @param contextClass The class that implements flatMap (e.g., IdMonad.class)
+     * @return This builder for chaining
      */
-    public InheritanceValidationBuilder useInheritanceValidation() {
-        return new InheritanceValidationBuilder();
+    public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
+      flatMapContext = contextClass;
+      return this;
     }
 
     /**
-     * Uses default validation (no class context).
+     * Completes inheritance validation configuration.
      *
-     * <p>Error messages will not include specific class names.
-     *
-     * @return This stage for further configuration or execution
+     * @return The parent validation stage for execution
      */
-    public IdValidationStage<A, B> useDefaultValidation() {
-        this.mapContext = null;
-        this.flatMapContext = null;
-        return this;
-    }
-
-    /** Fluent builder for inheritance-based validation configuration. */
-    public final class InheritanceValidationBuilder {
-
-        /**
-         * Specifies the class used for map operation validation.
-         *
-         * <p>Error messages for map null validations will reference this class.
-         *
-         * @param contextClass The class that implements map (e.g., IdMonad.class)
-         * @return This builder for chaining
-         */
-        public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
-            mapContext = contextClass;
-            return this;
-        }
-
-        /**
-         * Specifies the class used for flatMap operation validation.
-         *
-         * <p>Error messages for flatMap null validations will reference this class.
-         *
-         * @param contextClass The class that implements flatMap (e.g., IdMonad.class)
-         * @return This builder for chaining
-         */
-        public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
-            flatMapContext = contextClass;
-            return this;
-        }
-
-        /**
-         * Completes inheritance validation configuration.
-         *
-         * @return The parent validation stage for execution
-         */
-        public IdValidationStage<A, B> done() {
-            return IdValidationStage.this;
-        }
-
-        /**
-         * Executes all configured tests.
-         *
-         * <p>Includes all test categories with the configured validation contexts.
-         */
-        public void testAll() {
-            IdValidationStage.this.testAll();
-        }
-
-        /** Executes only validation tests with configured contexts. */
-        public void testValidations() {
-            IdValidationStage.this.testValidations();
-        }
+    public IdValidationStage<A, B> done() {
+      return IdValidationStage.this;
     }
 
     /**
@@ -143,27 +128,42 @@ public final class IdValidationStage<A, B> {
      * <p>Includes all test categories with the configured validation contexts.
      */
     public void testAll() {
-        IdTestExecutor<A, B> executor = buildExecutor();
-        executor.executeAll();
+      IdValidationStage.this.testAll();
     }
 
     /** Executes only validation tests with configured contexts. */
     public void testValidations() {
-        // Create executor with only validations enabled
-        IdTestExecutor<A, B> executor = buildExecutor();
-        executor.testValidations();
+      IdValidationStage.this.testValidations();
     }
+  }
 
-    // Package-private getters
-    Class<?> getMapContext() {
-        return mapContext;
-    }
+  /**
+   * Executes all configured tests.
+   *
+   * <p>Includes all test categories with the configured validation contexts.
+   */
+  public void testAll() {
+    IdTestExecutor<A, B> executor = buildExecutor();
+    executor.executeAll();
+  }
 
-    Class<?> getFlatMapContext() {
-        return flatMapContext;
-    }
+  /** Executes only validation tests with configured contexts. */
+  public void testValidations() {
+    // Create executor with only validations enabled
+    IdTestExecutor<A, B> executor = buildExecutor();
+    executor.testValidations();
+  }
 
-    private IdTestExecutor<A, B> buildExecutor() {
-        return configStage.buildExecutorWithValidation(this);
-    }
+  // Package-private getters
+  Class<?> getMapContext() {
+    return mapContext;
+  }
+
+  Class<?> getFlatMapContext() {
+    return flatMapContext;
+  }
+
+  private IdTestExecutor<A, B> buildExecutor() {
+    return configStage.buildExecutorWithValidation(this);
+  }
 }

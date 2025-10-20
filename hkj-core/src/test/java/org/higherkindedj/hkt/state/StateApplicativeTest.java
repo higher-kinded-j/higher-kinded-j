@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;

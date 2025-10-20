@@ -22,8 +22,6 @@ public final class KindValidator {
     throw new AssertionError("KindValidator is a utility class and should not be instantiated");
   }
 
-  // TODO: Do we need both narrow and narrowWithTypeCheck.
-
   /**
    * Validates and narrows a Kind with rich type context using a custom narrower function.
    *
@@ -82,28 +80,6 @@ public final class KindValidator {
     }
 
     return targetType.cast(kind);
-  }
-
-  /**
-   * Advanced narrowing with multiple type matchers. Useful when a Kind might be one of several
-   * valid types.
-   */
-  public static <F, A, T> T narrowWithMatchers(
-      @Nullable Kind<F, A> kind, Class<T> resultType, TypeMatcher<Kind<F, A>, T>... matchers) {
-
-    var context = KindContext.narrow(resultType);
-
-    if (kind == null) {
-      throw new KindUnwrapException(context.nullParameterMessage());
-    }
-
-    for (TypeMatcher<Kind<F, A>, T> matcher : matchers) {
-      if (matcher.matches(kind)) {
-        return matcher.extract(kind);
-      }
-    }
-
-    throw new KindUnwrapException(context.invalidTypeMessage(kind.getClass().getName()));
   }
 
   /**
@@ -216,27 +192,5 @@ public final class KindValidator {
         descriptor != null ? operation + " (" + descriptor + ")" : operation.toString();
 
     return Objects.requireNonNull(kind, "Kind for " + contextMessage + " cannot be null");
-  }
-
-  /** Interface for type matching in advanced narrowing scenarios. */
-  public interface TypeMatcher<S, T> {
-    boolean matches(S source);
-
-    T extract(S source);
-
-    static <S, T> TypeMatcher<S, T> forClass(Class<? extends T> clazz) {
-      return new TypeMatcher<S, T>() {
-        @Override
-        public boolean matches(S source) {
-          return clazz.isInstance(source);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public T extract(S source) {
-          return (T) source;
-        }
-      };
-    }
   }
 }

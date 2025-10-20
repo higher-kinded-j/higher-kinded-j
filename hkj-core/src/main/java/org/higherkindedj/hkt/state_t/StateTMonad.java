@@ -8,9 +8,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.state.StateTuple;
-import org.higherkindedj.hkt.util.validation.DomainValidator;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.TransformerValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,7 +37,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
 
   // Private constructor, use factory method
   private StateTMonad(Monad<F> monadF) {
-    this.monadF = DomainValidator.requireOuterMonad(monadF, STATE_T_MONAD_CLASS, CONSTRUCTION);
+    this.monadF = TransformerValidator.requireOuterMonad(monadF, STATE_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**

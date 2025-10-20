@@ -23,8 +23,8 @@ public final class CoreTypeValidator {
   }
 
   /** Validates an error value for error types */
-  public static <E> E requireError(E error, Class<?> typeClass) {
-    String context = typeClass.getSimpleName();
+  public static <E> E requireError(E error, Class<?> typeClass, Operation operation) {
+    String context = typeClass.getSimpleName() + "." + operation;
     return Objects.requireNonNull(error, context + " error cannot be null");
   }
 

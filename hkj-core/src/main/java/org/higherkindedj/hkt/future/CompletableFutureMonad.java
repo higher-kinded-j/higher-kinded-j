@@ -111,7 +111,7 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
   @Override
   public <A> Kind<CompletableFutureKind.Witness, A> raiseError(Throwable error) {
     // Validate that error (Throwable) is not null
-    CoreTypeValidator.requireError(error, COMPLETABLE_FUTURE_MONAD_CLASS);
+    CoreTypeValidator.requireError(error, COMPLETABLE_FUTURE_MONAD_CLASS, RAISE_ERROR);
     return FUTURE.widen(CompletableFuture.failedFuture(error));
   }
 

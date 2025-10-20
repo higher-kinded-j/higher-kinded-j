@@ -154,7 +154,7 @@ public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> raiseError(E error) {
     // Validated.invalid already validates non-null, but be explicit
-    CoreTypeValidator.requireError(error, VALIDATED_MONAD_CLASS);
+    CoreTypeValidator.requireError(error, VALIDATED_MONAD_CLASS, RAISE_ERROR);
     return VALIDATED.invalid(error);
   }
 

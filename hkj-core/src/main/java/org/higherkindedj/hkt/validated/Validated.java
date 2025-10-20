@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
-import static org.higherkindedj.hkt.util.validation.Operation.FOLD;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
@@ -201,7 +200,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @throws NullPointerException if error is null.
    */
   static <E, A> Validated<E, A> invalid(E error) {
-    CoreTypeValidator.requireError(error, VALIDATED_CLASS);
+    CoreTypeValidator.requireError(error, VALIDATED_CLASS, INVALID);
     return new Invalid<>(error);
   }
 }

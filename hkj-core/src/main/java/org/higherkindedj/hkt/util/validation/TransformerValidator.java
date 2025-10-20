@@ -12,9 +12,9 @@ import org.higherkindedj.hkt.util.context.DomainContext;
  * <p>This validator provides specialized validation for Higher-Kinded-J specific concepts like
  * monad transformers and witness types.
  */
-public final class DomainValidator {
+public final class TransformerValidator {
 
-  private DomainValidator() {
+  private TransformerValidator() {
     throw new AssertionError("DomainValidator is a utility class and should not be instantiated");
   }
 

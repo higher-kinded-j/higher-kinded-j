@@ -7,8 +7,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.util.validation.DomainValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.TransformerValidator;
 
 /**
  * Represents the concrete implementation of the Optional Transformer Monad (OptionalT). It wraps a
@@ -68,7 +68,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
    */
   public static <F, A extends Object> OptionalT<F, A> some(Monad<F> outerMonad, A a) {
-    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, SOME);
+    TransformerValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, SOME);
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.of(a));
     return new OptionalT<>(lifted);
   }
@@ -84,7 +84,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, A> OptionalT<F, A> none(Monad<F> outerMonad) {
-    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, NONE);
+    TransformerValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, NONE);
     Kind<F, Optional<A>> lifted = outerMonad.of(Optional.empty());
     return new OptionalT<>(lifted);
   }
@@ -101,8 +101,8 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code optional} is null.
    */
   public static <F, A> OptionalT<F, A> fromOptional(Monad<F> outerMonad, Optional<A> optional) {
-    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, FROM_OPTIONAL);
-    DomainValidator.requireTransformerComponent(
+    TransformerValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, FROM_OPTIONAL);
+    TransformerValidator.requireTransformerComponent(
         optional, "inner Optional", OPTIONAL_T_CLASS, FROM_OPTIONAL);
     Kind<F, Optional<A>> lifted = outerMonad.of(optional);
     return new OptionalT<>(lifted);
@@ -122,7 +122,7 @@ public record OptionalT<F, A>(Kind<F, Optional<A>> value) implements OptionalTKi
    * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
    */
   public static <F, A> OptionalT<F, A> liftF(Monad<F> outerMonad, Kind<F, A> fa) {
-    DomainValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, LIFT_F);
+    TransformerValidator.requireOuterMonad(outerMonad, OPTIONAL_T_CLASS, LIFT_F);
     KindValidator.requireNonNull(fa, OPTIONAL_T_CLASS, LIFT_F, "source Kind");
     Kind<F, Optional<A>> mapped = outerMonad.map(Optional::ofNullable, fa);
     return new OptionalT<>(mapped);

@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
-
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;

@@ -9,9 +9,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.util.validation.DomainValidator;
 import org.higherkindedj.hkt.util.validation.FunctionValidator;
 import org.higherkindedj.hkt.util.validation.KindValidator;
+import org.higherkindedj.hkt.util.validation.TransformerValidator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -49,7 +49,7 @@ public class ReaderTMonad<F, R_ENV> implements Monad<ReaderTKind.Witness<F, R_EN
    */
   public ReaderTMonad(Monad<F> outerMonad) {
     this.outerMonad =
-        DomainValidator.requireOuterMonad(outerMonad, READER_T_MONAD_CLASS, CONSTRUCTION);
+        TransformerValidator.requireOuterMonad(outerMonad, READER_T_MONAD_CLASS, CONSTRUCTION);
   }
 
   /**
