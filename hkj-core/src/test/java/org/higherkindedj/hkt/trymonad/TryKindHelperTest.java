@@ -276,7 +276,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     void failure_shouldThrowNPEForNullThrowable() {
       assertThatNullPointerException()
           .isThrownBy(() -> TRY.failure(null))
-          .withMessageContaining("Throwable for Failure cannot be null");
+          .withMessageContaining("Try.raiseError error cannot be null");
     }
 
     @Test

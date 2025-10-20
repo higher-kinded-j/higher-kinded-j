@@ -30,7 +30,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class WriterMonad<W> extends WriterApplicative<W> implements Monad<WriterKind.Witness<W>> {
 
-  private static Class<WriterMonad> WRITER_MAONAD_CLASS = WriterMonad.class;
+  private static final Class<WriterMonad> WRITER_MAONAD_CLASS = WriterMonad.class;
 
   /**
    * Constructs a {@code WriterMonad}.

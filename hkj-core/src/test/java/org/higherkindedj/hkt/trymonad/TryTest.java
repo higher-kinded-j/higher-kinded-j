@@ -174,7 +174,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     void failure_shouldThrowNPEForNullThrowable() {
       assertThatNullPointerException()
           .isThrownBy(() -> Try.failure(null))
-          .withMessageContaining("Throwable for Failure cannot be null");
+          .withMessageContaining("Try.raiseError error cannot be null");
     }
 
     @Test
@@ -515,11 +515,11 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     @DisplayName("toEither() on Failure should throw NPE if mapper returns null")
     void toEither_onFailure_shouldThrowNPEIfMapperReturnsNull() {
       Function<Throwable, String> nullReturningMapper = t -> null;
-      assertThatNullPointerException()
-          .isThrownBy(() -> failureInstance.toEither(nullReturningMapper))
-          .withMessageContaining(
-              "failureToLeftMapper returned null, which is not allowed for the left value of"
-                  + " Either");
+      assertThatThrownBy(() -> failureInstance.toEither(nullReturningMapper))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(
+              "Function failureToLeftMapper in Try.toEither returned null when Either expected,"
+                  + " which is not allowed");
     }
 
     @Test

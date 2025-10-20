@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -112,7 +111,7 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * @throws NullPointerException if {@code throwable} is null.
    */
   static <T> Try<T> failure(Throwable throwable) {
-    Objects.requireNonNull(throwable, "Throwable for Failure cannot be null");
+    Validation.coreType().requireError(throwable, TRY_CLASS, RAISE_ERROR);
     return new Failure<>(throwable);
   }
 
@@ -213,9 +212,9 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
       case Success<T>(var value) -> Either.right(value);
       case Failure<T>(var cause) -> {
         L leftValue = failureToLeftMapper.apply(cause);
-        Objects.requireNonNull(
-            leftValue,
-            "failureToLeftMapper returned null, which is not allowed for the left value of Either");
+        Validation.function()
+            .requireNonNullResult(
+                leftValue, "failureToLeftMapper", TRY_CLASS, TO_EITHER, Either.class);
         yield Either.left(leftValue);
       }
     };
