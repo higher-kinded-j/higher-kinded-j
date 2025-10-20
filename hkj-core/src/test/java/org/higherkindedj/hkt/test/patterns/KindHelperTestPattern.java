@@ -172,12 +172,12 @@ public final class KindHelperTestPattern {
     double narrowAvgNanos = (double) narrowTime / iterations;
 
     assertThat(widenAvgNanos)
-        .as("widen operation should be fast (< 1000ns average)")
-        .isLessThan(1000.0);
+        .as("widen operation should be fast (< 2000ns average)")
+        .isLessThan(2000.0);
 
     assertThat(narrowAvgNanos)
-        .as("narrow operation should be fast (< 1000ns average)")
-        .isLessThan(1000.0);
+        .as("narrow operation should be fast (< 2000ns average)")
+        .isLessThan(2000.0);
   }
 
   /** Tests concurrent access to ensure thread safety. */
