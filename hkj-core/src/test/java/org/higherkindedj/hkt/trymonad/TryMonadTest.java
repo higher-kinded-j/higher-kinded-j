@@ -340,7 +340,7 @@ class TryMonadTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     void raiseError_shouldThrowNPEForNullThrowable() {
       assertThatNullPointerException()
           .isThrownBy(() -> monad.raiseError(null))
-          .withMessageContaining("Function error for TryMonad.raiseError cannot be null");
+          .withMessageContaining("TryMonad.raiseError error cannot be null");
     }
   }
 

@@ -101,7 +101,7 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    */
   @Override
   public <A> Kind<TryKind.Witness, A> raiseError(Throwable error) {
-    Validation.function().requireFunction(error, "error", TRY_MONAD_CLASS, RAISE_ERROR);
+    Validation.coreType().requireError(error, TRY_MONAD_CLASS, RAISE_ERROR);
     return TRY.widen(Try.failure(error));
   }
 
