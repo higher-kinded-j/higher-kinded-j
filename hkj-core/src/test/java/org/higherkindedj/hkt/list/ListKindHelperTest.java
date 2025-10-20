@@ -68,7 +68,8 @@ class ListKindHelperTest {
       Kind<ListKind.Witness, String> unknownKind = new DummyListKind<>();
       assertThatThrownBy(() -> LIST.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Kind instance is not a List:");
+          .hasMessageContaining(
+              "Kind instance cannot be narrowed to " + List.class.getSimpleName());
     }
   }
 

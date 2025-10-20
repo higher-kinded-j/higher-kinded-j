@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.either_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
-import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
@@ -122,8 +121,7 @@ class EitherTKindHelperTest {
 
       assertThatThrownBy(() -> EITHER_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(
-              INVALID_KIND_TYPE_TEMPLATE.formatted(TYPE_NAME, incorrectKind.getClass().getName()));
+          .hasMessage("Kind instance cannot be narrowed to EitherT");
     }
   }
 

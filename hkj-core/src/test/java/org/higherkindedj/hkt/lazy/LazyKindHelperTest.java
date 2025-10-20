@@ -192,7 +192,7 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
       assertThatThrownBy(() -> LAZY.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              INVALID_KIND_TYPE_TEMPLATE.formatted("Lazy", DummyOtherKind.class.getName()));
+              "Kind instance cannot be narrowed to " + Lazy.class.getSimpleName());
     }
 
     @Test

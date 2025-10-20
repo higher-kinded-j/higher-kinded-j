@@ -78,15 +78,13 @@ public final class KindHelperTestPattern {
                       // New format from KindValidator.narrow
                       msg ->
                           assertThat(msg)
-                              .contains("Failed to narrow Kind to " + targetType.getSimpleName()),
+                              .contains(
+                                  "Kind instance cannot be narrowed to "
+                                      + targetType.getSimpleName()),
                       // Alternative format
                       msg ->
                           assertThat(msg)
-                              .contains("Expected " + targetType.getSimpleName() + "Holder"),
-                      // Legacy format
-                      msg ->
-                          assertThat(msg)
-                              .contains("Kind instance is not a " + targetType.getSimpleName()));
+                              .contains("Expected " + targetType.getSimpleName() + "Holder"));
             });
   }
 

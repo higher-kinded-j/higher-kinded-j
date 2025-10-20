@@ -33,7 +33,7 @@ public enum KindValidator {
   public <F, A, T> T narrow(
       @Nullable Kind<F, A> kind, Class<T> targetType, Function<Kind<F, A>, T> narrower) {
 
-    var context = KindContext.narrow(targetType);
+    var context = new KindContext(targetType, "narrow");
 
     if (kind == null) {
       throw new KindUnwrapException(context.nullParameterMessage());
@@ -41,12 +41,8 @@ public enum KindValidator {
 
     try {
       return narrower.apply(kind);
-    } catch (ClassCastException e) {
-      throw new KindUnwrapException(context.invalidTypeMessage(kind.getClass().getName()), e);
     } catch (Exception e) {
-      throw new KindUnwrapException(
-          "Failed to narrow Kind to %s: %s".formatted(targetType.getSimpleName(), e.getMessage()),
-          e);
+      throw new KindUnwrapException(context.invalidTypeMessage(), e);
     }
   }
 
@@ -64,14 +60,14 @@ public enum KindValidator {
    */
   public <F, A, T> T narrowWithTypeCheck(@Nullable Kind<F, A> kind, Class<T> targetType) {
 
-    var context = KindContext.narrow(targetType);
+    var context = new KindContext(targetType, "narrow");
 
     if (kind == null) {
       throw new KindUnwrapException(context.nullParameterMessage());
     }
 
     if (!targetType.isInstance(kind)) {
-      throw new KindUnwrapException(context.invalidTypeMessage(kind.getClass().getName()));
+      throw new KindUnwrapException(context.invalidTypeMessage());
     }
 
     return targetType.cast(kind);
@@ -87,7 +83,7 @@ public enum KindValidator {
    * @throws NullPointerException if input is null
    */
   public <T> T requireForWiden(T input, Class<T> inputType) {
-    var context = KindContext.widen(inputType);
+    var context = new KindContext(inputType, "widen");
     return Objects.requireNonNull(input, context.nullInputMessage());
   }
 
@@ -196,14 +192,6 @@ public enum KindValidator {
       Objects.requireNonNull(operation, "operation cannot be null");
     }
 
-    public static KindContext narrow(Class<?> targetType) {
-      return new KindContext(targetType, "narrow");
-    }
-
-    public static KindContext widen(Class<?> targetType) {
-      return new KindContext(targetType, "widen");
-    }
-
     public String nullParameterMessage() {
       return "Cannot %s null Kind for %s".formatted(operation, targetType.getSimpleName());
     }
@@ -212,8 +200,8 @@ public enum KindValidator {
       return "Input %s cannot be null for %s".formatted(targetType.getSimpleName(), operation);
     }
 
-    public String invalidTypeMessage(String actualClassName) {
-      return "Kind instance is not a %s: %s".formatted(targetType.getSimpleName(), actualClassName);
+    public String invalidTypeMessage() {
+      return "Kind instance cannot be narrowed to " + targetType.getSimpleName();
     }
   }
 }

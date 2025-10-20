@@ -98,19 +98,15 @@ public enum TransformerValidator {
     }
 
     public static DomainContext transformer(String transformerName) {
-      return new DomainContext("transformer", transformerName);
+      return new DomainContext("Transformer", transformerName);
     }
 
     public static DomainContext witness(String operation) {
-      return new DomainContext("witness", operation);
+      return new DomainContext("Witness", operation);
     }
 
     public String nullParameterMessage() {
-      return "%s %s cannot be null for %s"
-          .formatted(
-              domainType.substring(0, 1).toUpperCase() + domainType.substring(1),
-              objectName.equals("witness") ? "Monad" : "",
-              objectName);
+      return "%s cannot be null for %s".formatted(domainType, objectName);
     }
   }
 }

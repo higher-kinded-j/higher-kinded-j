@@ -224,7 +224,8 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
 
       assertThatExceptionOfType(org.higherkindedj.hkt.exception.KindUnwrapException.class)
           .isThrownBy(() -> TRY.narrow(invalidKind))
-          .withMessageContaining("Kind instance is not a Try:");
+          .withMessageContaining(
+              "Kind instance cannot be narrowed to " + Try.class.getSimpleName());
     }
 
     // Dummy Kind implementation for testing invalid types

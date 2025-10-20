@@ -82,8 +82,7 @@ class OptionalKindHelperTest {
       assertThatThrownBy(() -> OPTIONAL.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              INVALID_KIND_TYPE_TEMPLATE.formatted(
-                  Optional.class.getSimpleName(), DummyOptionalKind.class.getName()));
+              "Kind instance cannot be narrowed to " + Optional.class.getSimpleName());
     }
 
     @Test

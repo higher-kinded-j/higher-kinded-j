@@ -281,7 +281,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       IOKind<String> unknownKind = new DummyIOKind<>();
       assertThatThrownBy(() -> IO_OP.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Kind instance is not a IO: " + DummyIOKind.class.getName());
+          .hasMessageContaining("Kind instance cannot be narrowed to " + IO.class.getSimpleName());
     }
   }
 

@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.state.StateKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import java.util.function.BiFunction;
@@ -137,8 +136,7 @@ class StateKindHelperTest extends TypeClassTestBase<StateKind.Witness<Integer>, 
       assertThatThrownBy(() -> STATE.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
-              String.format(
-                  INVALID_KIND_TYPE_TEMPLATE, "State", DummyNonStateHolderKind.class.getName()));
+              "Kind instance cannot be narrowed to " + State.class.getSimpleName());
     }
   }
 
