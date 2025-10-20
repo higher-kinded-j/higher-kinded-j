@@ -88,17 +88,14 @@ class CompletableFutureKindHelperTest {
       Kind<CompletableFutureKind.Witness, Integer> unknownKind = new DummyFutureKind<>();
       assertThatThrownBy(() -> FUTURE.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              INVALID_KIND_TYPE_TEMPLATE.formatted(
-                  "CompletableFuture", DummyFutureKind.class.getName()));
+          .hasMessageContaining("Kind instance cannot be narrowed to CompletableFuture");
     }
 
     @Test
     void shouldThrowForHolderWithNullFuture() {
       assertThatThrownBy(() -> new CompletableFutureHolder<>(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining(
-              NULL_HOLDER_STATE_TEMPLATE.formatted("CompletableFutureHolder", "CompletableFuture"));
+          .hasMessageContaining("Input CompletableFuture cannot be null for widen");
     }
   }
 }

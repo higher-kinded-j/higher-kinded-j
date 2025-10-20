@@ -2,12 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.narrowKindWithTypeCheck;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullForHolder;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullForWiden;
-
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,20 +15,19 @@ import org.jspecify.annotations.Nullable;
  * org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE; MAYBE.widen(...);}
  */
 public enum MaybeKindHelper implements MaybeConverterOps {
-  MAYBE; // Singleton instance named MAYBE
+  MAYBE;
 
-  private static final String TYPE_NAME = "Maybe";
+  private static final Class<Maybe> MAYBE_CLASS = Maybe.class;
 
   /**
    * Internal record implementing {@link MaybeKind} to hold the concrete {@link Maybe} instance.
-   * Changed to package-private for potential test access.
    *
    * @param <A> The type of the value potentially held by the {@code maybe}.
    * @param maybe The {@link Maybe} instance being wrapped.
    */
   record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> {
     MaybeHolder {
-      requireNonNullForHolder(maybe, TYPE_NAME);
+      Validation.kind().requireForWiden(maybe, MAYBE_CLASS);
     }
   }
 
@@ -47,7 +42,6 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    */
   @Override
   public <A> Kind<MaybeKind.Witness, A> widen(Maybe<A> maybe) {
-    requireNonNullForWiden(maybe, "Maybe");
     return new MaybeHolder<>(maybe);
   }
 
@@ -58,13 +52,20 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * @param <A> The element type of the {@code Maybe}.
    * @param kind The {@code Kind} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Maybe}&lt;A&gt; instance.
-   * @throws KindUnwrapException if {@code kind} is {@code null}, if {@code kind} is not an instance
-   *     of {@link MaybeHolder}, or if the {@code MaybeHolder} internally contains a {@code null}
-   *     {@link Maybe} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null}, if
+   *     {@code kind} is not an instance of {@link MaybeHolder}, or if the {@code MaybeHolder}
+   *     internally contains a {@code null} {@link Maybe} instance.
    */
   @Override
   public <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
-    return narrowKindWithTypeCheck(kind, MaybeHolder.class, TYPE_NAME).maybe();
+    return Validation.kind().narrow(kind, MAYBE_CLASS, this::extractMaybe);
+  }
+
+  private <A> Maybe<A> extractMaybe(Kind<MaybeKind.Witness, A> kind) {
+    return switch (kind) {
+      case MaybeHolder<A> holder -> holder.maybe();
+      default -> throw new ClassCastException(); // Caught by KindValidator
+    };
   }
 
   /**

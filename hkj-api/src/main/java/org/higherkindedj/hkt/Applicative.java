@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
+
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.function.Function3;
@@ -130,6 +131,7 @@ public interface Applicative<F> extends Functor<F> {
    * @param <B> The type of the value in {@code fb}.
    * @param <C> The type of the result of the combined computation.
    * @return A non-null {@code Kind<F, C>} containing the result.
+   * @throws NullPointerException if {@code f} is null.
    */
   default <A, B, C> Kind<F, C> map2(
       final Kind<F, A> fa, final Kind<F, B> fb, final Function<A, Function<B, C>> f) {
@@ -150,11 +152,15 @@ public interface Applicative<F> extends Functor<F> {
    * @param <B> The type of the value in {@code fb}.
    * @param <C> The type of the result of applying {@code f}.
    * @return A non-null {@code Kind<F, C>} containing the result.
+   * @throws NullPointerException if {@code f} is null.
    */
   default <A, B, C> Kind<F, C> map2(
       final Kind<F, A> fa,
       final Kind<F, B> fb,
       final BiFunction<? super A, ? super B, ? extends C> f) {
+    requireNonNull(fa, "Kind<F, A> fa for map2 cannot be null");
+    requireNonNull(fb, "Kind<F, B> fb for map2 cannot be null");
+    requireNonNull(f, "combining function for map2 cannot be null");
     // The implementation is now based on map and ap, with a curried function.
     // The key is that the lambda `a -> b -> f.apply(a, b)` helps the compiler
     // resolve the wildcard types correctly before they are passed to map.
@@ -176,13 +182,18 @@ public interface Applicative<F> extends Functor<F> {
    * @param <R> The type of the result of applying {@code f}.
    * @return A non-null {@code Kind<F, R>} containing the result of applying {@code f} to the values
    *     from {@code fa}, {@code fb}, and {@code fc} within the context {@code F}.
+   * @throws NullPointerException if {@code f} is null.
    */
   default <A, B, C, R> Kind<F, R> map3(
       final Kind<F, A> fa,
       final Kind<F, B> fb,
       final Kind<F, C> fc,
       final Function3<? super A, ? super B, ? super C, ? extends R> f) {
-    return ap(map2(fa, fb, (a, b) -> c -> Objects.requireNonNull(f.apply(a, b, c))), fc);
+    requireNonNull(fa, "Kind<F, A> fa for map3 cannot be null");
+    requireNonNull(fb, "Kind<F, B> fb for map3 cannot be null");
+    requireNonNull(fc, "Kind<F, C> fc for map3 cannot be null");
+    requireNonNull(f, "combining function for map3 cannot be null");
+    return ap(map2(fa, fb, (a, b) -> c -> requireNonNull(f.apply(a, b, c))), fc);
   }
 
   /**
@@ -201,6 +212,7 @@ public interface Applicative<F> extends Functor<F> {
    * @param <R> The type of the result of applying {@code f}.
    * @return A non-null {@code Kind<F, R>} containing the result of applying {@code f} to the values
    *     from the four applicative arguments within the context {@code F}.
+   * @throws NullPointerException if {@code f} is null.
    */
   default <A, B, C, D, R> Kind<F, R> map4(
       final Kind<F, A> fa,
@@ -208,7 +220,12 @@ public interface Applicative<F> extends Functor<F> {
       final Kind<F, C> fc,
       final Kind<F, D> fd,
       final Function4<? super A, ? super B, ? super C, ? super D, ? extends R> f) {
-    return ap(map3(fa, fb, fc, (a, b, c) -> d -> Objects.requireNonNull(f.apply(a, b, c, d))), fd);
+    requireNonNull(fa, "Kind<F, A> fa for map4 cannot be null");
+    requireNonNull(fb, "Kind<F, B> fb for map4 cannot be null");
+    requireNonNull(fc, "Kind<F, C> fc for map4 cannot be null");
+    requireNonNull(fd, "Kind<F, D> fd for map4 cannot be null");
+    requireNonNull(f, "combining function for map4 cannot be null");
+    return ap(map3(fa, fb, fc, (a, b, c) -> d -> requireNonNull(f.apply(a, b, c, d))), fd);
   }
 
   /**
@@ -230,6 +247,7 @@ public interface Applicative<F> extends Functor<F> {
    * @param <R> The type of the result of applying {@code f}.
    * @return A non-null {@code Kind<F, R>} containing the result of applying {@code f} to the values
    *     from the five applicative arguments within the context {@code F}.
+   * @throws NullPointerException if {@code f} is null.
    */
   default <A, B, C, D, E, R> Kind<F, R> map5(
       final Kind<F, A> fa,
@@ -238,8 +256,13 @@ public interface Applicative<F> extends Functor<F> {
       final Kind<F, D> fd,
       final Kind<F, E> fe,
       final Function5<? super A, ? super B, ? super C, ? super D, ? super E, ? extends R> f) {
+    requireNonNull(fa, "Kind<F, A> fa for map5 cannot be null");
+    requireNonNull(fb, "Kind<F, B> fb for map5 cannot be null");
+    requireNonNull(fc, "Kind<F, C> fc for map5 cannot be null");
+    requireNonNull(fd, "Kind<F, D> fd for map5 cannot be null");
+    requireNonNull(fe, "Kind<F, E> fe for map5 cannot be null");
+    requireNonNull(f, "combining function for map5 cannot be null");
     return ap(
-        map4(fa, fb, fc, fd, (a, b, c, d) -> e -> Objects.requireNonNull(f.apply(a, b, c, d, e))),
-        fe);
+        map4(fa, fb, fc, fd, (a, b, c, d) -> e -> requireNonNull(f.apply(a, b, c, d, e))), fe);
   }
 }

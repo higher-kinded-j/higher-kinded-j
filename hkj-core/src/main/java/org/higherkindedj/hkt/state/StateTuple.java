@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import java.util.Objects;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.validation.Operation;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.jspecify.annotations.Nullable;
 
@@ -49,7 +50,7 @@ public record StateTuple<S, A>(@Nullable A value, S state) {
    * @throws NullPointerException if {@code state} is {@code null}.
    */
   public StateTuple {
-    Objects.requireNonNull(state, "Final state (S) in StateTuple cannot be null.");
+    Validation.coreType().requireValue(state, StateTuple.class, Operation.CONSTRUCTION);
   }
 
   /**
@@ -68,6 +69,7 @@ public record StateTuple<S, A>(@Nullable A value, S state) {
    * @throws NullPointerException if {@code state} is {@code null}.
    */
   public static <S, A> StateTuple<S, A> of(S state, @Nullable A value) {
+    Validation.coreType().requireValue(state, StateTuple.class, Operation.OF);
     return new StateTuple<>(value, state);
   }
 }

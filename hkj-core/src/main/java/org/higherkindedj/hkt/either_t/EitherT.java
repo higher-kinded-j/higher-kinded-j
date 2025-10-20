@@ -2,12 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.requireValidOuterMonad;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
-import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,8 +28,9 @@ import org.jspecify.annotations.Nullable;
  * @see EitherTMonad
  * @see EitherTKindHelper
  */
-public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
-    implements EitherTKind<F, L, R> { // Implements the updated EitherTKind
+public record EitherT<F, L, R>(Kind<F, Either<L, R>> value) implements EitherTKind<F, L, R> {
+
+  private static final Class<EitherT> EITHER_T_CLASS = EitherT.class;
 
   /**
    * Canonical constructor for {@code EitherT}.
@@ -37,13 +38,10 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
    * @param value The underlying monadic value {@code Kind<F, Either<L, R>>}.
    * @throws NullPointerException if {@code value} is null.
    */
-  public EitherT { // Canonical constructor
-    Objects.requireNonNull(value, "Wrapped value cannot be null for EitherT");
+  public EitherT {
+    Validation.kind().requireNonNull(value, EITHER_T_CLASS, CONSTRUCTION);
   }
 
-  // Static factory methods (fromKind, right, left, fromEither, liftF) remain the same.
-  // Their Javadoc is already quite good.
-  // ... (existing static factory methods as provided in the fetched file) ...
   /**
    * Creates an {@code EitherT} from an existing {@code Kind<F, Either<L, R>>}.
    *
@@ -71,7 +69,7 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, L, R> EitherT<F, L, R> right(Monad<F> outerMonad, @Nullable R r) {
-    requireValidOuterMonad(outerMonad, "EitherT.right");
+    Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, RIGHT);
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.right(r));
     return new EitherT<>(lifted);
   }
@@ -88,7 +86,7 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
    * @throws NullPointerException if {@code outerMonad} is null.
    */
   public static <F, L, R> EitherT<F, L, R> left(Monad<F> outerMonad, @Nullable L l) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for left");
+    Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, LEFT);
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.left(l));
     return new EitherT<>(lifted);
   }
@@ -106,8 +104,9 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
    * @throws NullPointerException if {@code outerMonad} or {@code either} is null.
    */
   public static <F, L, R> EitherT<F, L, R> fromEither(Monad<F> outerMonad, Either<L, R> either) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for fromEither");
-    Objects.requireNonNull(either, "Input Either cannot be null for fromEither");
+    Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, FROM_EITHER);
+    Validation.transformer()
+        .requireTransformerComponent(either, "inner Either", EITHER_T_CLASS, FROM_EITHER);
     Kind<F, Either<L, R>> lifted = outerMonad.of(either);
     return new EitherT<>(lifted);
   }
@@ -126,8 +125,8 @@ public record EitherT<F, L, R>(Kind<F, Either<L, R>> value)
    * @throws NullPointerException if {@code outerMonad} or {@code fr} is null.
    */
   public static <F, L, R> EitherT<F, L, R> liftF(Monad<F> outerMonad, Kind<F, R> fr) {
-    Objects.requireNonNull(outerMonad, "Outer Monad cannot be null for liftF");
-    Objects.requireNonNull(fr, "Input Kind<F, R> cannot be null for liftF");
+    Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, LIFT_F);
+    Validation.kind().requireNonNull(fr, EITHER_T_CLASS, LIFT_F, "source Kind");
     Kind<F, Either<L, R>> mapped = outerMonad.map(Either::right, fr);
     return new EitherT<>(mapped);
   }

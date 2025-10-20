@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Enum implementing {@link ValidatedConverterOps} for widen/narrow operations, and providing
@@ -17,31 +17,39 @@ import org.higherkindedj.hkt.Kind;
 public enum ValidatedKindHelper implements ValidatedConverterOps {
   VALIDATED;
 
-  public static final String TYPE_NAME = "Validated";
+  private static final Class<Validated> VALIDATED_CLASS = Validated.class;
 
   /**
    * Widens a {@link Validated} to its {@link Kind} representation. Implements {@link
-   * ValidatedConverterOps#widen}. The {@code @SuppressWarnings("unchecked")} is necessary because
-   * Java's type system doesn't fully capture that {@code Validated<E, A>} is inherently a {@code
+   * ValidatedConverterOps#widen}.
+   *
+   * <p>The {@code @SuppressWarnings("unchecked")} is necessary because Java's type system doesn't
+   * fully capture that {@code Validated<E, A>} is inherently a {@code
    * Kind<ValidatedKind.Witness<E>, A>} in this HKT emulation. This cast is fundamental to the HKT
    * pattern for {@code Validated} in this library.
+   *
+   * <p>Note: Unlike other KindHelpers, Validated doesn't use a holder because Valid and Invalid
+   * already implement ValidatedKind directly.
    */
   @Override
   @SuppressWarnings("unchecked")
   public <E, A> Kind<ValidatedKind.Witness<E>, A> widen(Validated<E, A> validated) {
-    requireNonNullForWiden(validated, TYPE_NAME);
+    Validation.kind().requireForWiden(validated, VALIDATED_CLASS);
     return (Kind<ValidatedKind.Witness<E>, A>) validated;
   }
 
   /**
    * Narrows a {@link Kind} representation to a {@link Validated}. Implements {@link
-   * ValidatedConverterOps#narrow}. The {@code @SuppressWarnings("unchecked")} is for the explicit
-   * cast from a Kind back to a more specific {@code Validated<E, A>}. Callers must ensure the Kind
-   * instance is indeed of the correct underlying Validated type.
+   * ValidatedConverterOps#narrow}.
+   *
+   * <p>The {@code @SuppressWarnings("unchecked")} is for the explicit cast from a Kind back to a
+   * more specific {@code Validated<E, A>}. This uses type checking to ensure the Kind instance is
+   * indeed of the correct underlying Validated type.
    */
   @Override
-  public <E, A> Validated<E, A> narrow(Kind<ValidatedKind.Witness<E>, A> kind) {
-    return narrowKindWithTypeCheck(kind, Validated.class, TYPE_NAME);
+  @SuppressWarnings("unchecked")
+  public <E, A> Validated<E, A> narrow(@Nullable Kind<ValidatedKind.Witness<E>, A> kind) {
+    return Validation.kind().narrowWithTypeCheck(kind, VALIDATED_CLASS);
   }
 
   /**

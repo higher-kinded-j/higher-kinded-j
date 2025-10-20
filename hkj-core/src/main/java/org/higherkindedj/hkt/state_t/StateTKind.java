@@ -2,9 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -116,7 +115,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    *     not actually an instance of {@link StateT} (or a compatible subtype).
    */
   static <S, F, A> StateT<S, F, A> narrow(@Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
-    return narrowKindWithTypeCheck(kind, StateT.class, "StateT");
+    return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
   }
 
   /**
@@ -144,8 +143,8 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
    *     not actually an instance of {@link StateT}.
    */
-  @SuppressWarnings("unchecked") // This method is explicitly for unsafe, unchecked casting.
+  @SuppressWarnings("unchecked")
   static <S, F, A> StateT<S, F, A> narrowK(@Nullable Kind<?, A> kind) {
-    return narrowKindWithTypeCheck(kind, StateT.class, "StateT");
+    return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
   }
 }

@@ -2,10 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 public enum OptionalKindHelper implements OptionalConverterOps {
   OPTIONAL;
 
-  public static final String TYPE_NAME = "Optional";
+  private static final Class<Optional> OPTIONAL_CLASS = Optional.class;
 
   /**
    * Internal record implementing the {@link OptionalKind} interface.
@@ -34,8 +33,8 @@ public enum OptionalKindHelper implements OptionalConverterOps {
      * @param optional The {@link Optional} to hold. Must not be null.
      * @throws NullPointerException if the provided {@code optional} instance is null.
      */
-    OptionalHolder { // Compact constructor
-      requireNonNullForHolder(optional, TYPE_NAME);
+    OptionalHolder {
+      Validation.kind().requireForWiden(optional, OPTIONAL_CLASS);
     }
   }
 
@@ -52,7 +51,6 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    */
   @Override
   public <A> Kind<OptionalKind.Witness, A> widen(Optional<A> optional) {
-    requireNonNullForWiden(optional, TYPE_NAME);
     return new OptionalHolder<>(optional);
   }
 
@@ -68,15 +66,21 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    */
   @Override
   public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
-    return narrowKind(kind, TYPE_NAME, this::narrowInternal);
+    return Validation.kind().narrow(kind, OPTIONAL_CLASS, this::extractOptional);
   }
 
-  /** Internal narrowing implementation that performs the actual type checking and extraction. */
-  @SuppressWarnings("unchecked")
-  private <A> Optional<A> narrowInternal(Kind<OptionalKind.Witness, A> kind) {
+  /**
+   * Internal extraction method that retrieves the Optional from the Kind.
+   *
+   * @param <A> The type of the value potentially held by the {@code Optional}.
+   * @param kind The {@code Kind} to extract from.
+   * @return The extracted {@code Optional}.
+   * @throws ClassCastException if the kind is not an {@code OptionalHolder}.
+   */
+  private <A> Optional<A> extractOptional(Kind<OptionalKind.Witness, A> kind) {
     return switch (kind) {
-      case OptionalKindHelper.OptionalHolder<?> holder -> (Optional<A>) holder.optional();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+      case OptionalHolder<A> holder -> holder.optional();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
     };
   }
 }

@@ -3,13 +3,13 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,6 +32,9 @@ import org.jspecify.annotations.Nullable;
  * @see CompletableFutureKindHelper
  */
 public class CompletableFutureFunctor implements Functor<CompletableFutureKind.Witness> {
+
+  private static final Class<CompletableFutureFunctor> COMPLETABLE_FUTURE_FUNCTOR_CLASS =
+      CompletableFutureFunctor.class;
 
   /**
    * Constructs a new {@code CompletableFutureFunctor} instance. This constructor is public to allow
@@ -70,10 +73,10 @@ public class CompletableFutureFunctor implements Functor<CompletableFutureKind.W
    */
   @Override
   public <A, B> Kind<CompletableFutureKind.Witness, B> map(
-      Function<? super A, ? extends @Nullable B> f, // Function A -> B, where B can be null
-      Kind<CompletableFutureKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+      Function<? super A, ? extends @Nullable B> f, Kind<CompletableFutureKind.Witness, A> fa) {
+
+    Validation.function().requireMapper(f, "f", COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, COMPLETABLE_FUTURE_FUNCTOR_CLASS, MAP);
 
     CompletableFuture<A> futureA = FUTURE.narrow(fa);
     CompletableFuture<B> futureB = futureA.thenApply(f);

@@ -84,7 +84,7 @@ class OptionalTTest {
     void fromKind_throwsOnNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> OptionalT.fromKind(null))
-          .withMessageContaining("Kind value for fromKind cannot be null");
+          .withMessageContaining("Kind for OptionalT.construction cannot be null");
     }
 
     @Test
@@ -124,7 +124,7 @@ class OptionalTTest {
     void fromOptional_throwsOnNullOptional() {
       assertThatNullPointerException()
           .isThrownBy(() -> OptionalT.fromOptional(outerMonad, null))
-          .withMessageContaining("Input Optional cannot be null");
+          .withMessageContaining("inner Optional cannot be null for OptionalT.fromOptional");
     }
 
     @Test

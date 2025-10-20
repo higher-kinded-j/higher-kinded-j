@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 public enum StateKindHelper implements StateConverterOps {
   STATE;
 
-  public static final String TYPE_NAME = "State";
+  private static final Class<State> STATE_CLASS = State.class;
 
   /**
    * An internal record that implements {@link StateKind}{@code <S, A>} to hold the concrete {@link
@@ -37,7 +38,7 @@ public enum StateKindHelper implements StateConverterOps {
      * @throws NullPointerException if the provided {@code stateInstance} is null.
      */
     StateHolder {
-      requireNonNullForHolder(stateInstance, TYPE_NAME);
+      Validation.kind().requireForWiden(stateInstance, STATE_CLASS);
     }
   }
 
@@ -54,7 +55,6 @@ public enum StateKindHelper implements StateConverterOps {
    */
   @Override
   public <S, A> Kind<StateKind.Witness<S>, A> widen(State<S, A> state) {
-    requireNonNullForWiden(state, TYPE_NAME);
     return new StateHolder<>(state);
   }
 
@@ -72,9 +72,8 @@ public enum StateKindHelper implements StateConverterOps {
    *     internal {@code stateInstance} is non-null.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
-    return narrowKind(kind, TYPE_NAME, this::narrowInternal);
+    return Validation.kind().narrow(kind, STATE_CLASS, this::extractState);
   }
 
   /**
@@ -122,7 +121,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code f} is null.
    */
   public <S> Kind<StateKind.Witness<S>, Unit> modify(Function<S, S> f) {
-    requireNonNullFunction(f, "state modification function");
+    Validation.function().requireFunction(f, "f", STATE_CLASS, MODIFY);
     return this.widen(State.modify(f));
   }
 
@@ -137,7 +136,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws NullPointerException if {@code f} is null.
    */
   public <S, A> Kind<StateKind.Witness<S>, A> inspect(Function<S, @Nullable A> f) {
-    requireNonNullFunction(f, "state inspection function");
+    Validation.function().requireFunction(f, "f", STATE_CLASS, INSPECT);
     return this.widen(State.inspect(f));
   }
 
@@ -154,7 +153,7 @@ public enum StateKindHelper implements StateConverterOps {
    */
   public <S, A> StateTuple<S, A> runState(
       @Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
-    requireNonNullKind(kind, "Kind for runState");
+    Validation.kind().requireNonNull(kind, STATE_CLASS, RUN_STATE);
     // Note: initialState validation is handled by StateTuple constructor
     return this.narrow(kind).run(initialState);
   }
@@ -192,10 +191,10 @@ public enum StateKindHelper implements StateConverterOps {
 
   /** Internal narrowing implementation that performs the actual type checking and extraction. */
   @SuppressWarnings("unchecked")
-  private <S, A> State<S, A> narrowInternal(Kind<StateKind.Witness<S>, A> kind) {
+  private <S, A> State<S, A> extractState(Kind<StateKind.Witness<S>, A> kind) {
     return switch (kind) {
-      case StateKindHelper.StateHolder<?, A> holder -> (State<S, A>) holder.stateInstance();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by narrowKind
+      case StateKindHelper.StateHolder<?, ?> holder -> (State<S, A>) holder.stateInstance();
+      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
     };
   }
 }

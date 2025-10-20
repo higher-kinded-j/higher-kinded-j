@@ -3,15 +3,14 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
-import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * The Traverse and Foldable instance for {@link Maybe}.
@@ -22,11 +21,15 @@ import org.higherkindedj.hkt.Traverse;
 public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   INSTANCE;
 
+  private static final Class<MaybeTraverse> MAYBE_TRAVERSE_CLASS = MaybeTraverse.class;
+
   @Override
   public <A, B> Kind<MaybeKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {
-    requireNonNullFunction(f, "f");
-    requireNonNullKind(fa, "fa");
+
+    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, MAYBE_TRAVERSE_CLASS, MAP);
+
     return MAYBE.widen(MAYBE.narrow(fa).map(f));
   }
 
@@ -36,9 +39,10 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<MaybeKind.Witness, A> ta) {
 
-    Objects.requireNonNull(applicative, "applicative");
-    requireNonNullFunction(f, "f");
-    requireNonNullKind(ta, "ta");
+    Validation.function()
+        .requireApplicative(applicative, "applicative", MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    Validation.kind().requireNonNull(ta, MAYBE_TRAVERSE_CLASS, TRAVERSE);
 
     final Maybe<A> maybe = MAYBE.narrow(ta);
 
@@ -55,9 +59,9 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<MaybeKind.Witness, A> fa) {
 
-    Objects.requireNonNull(monoid, "monoid");
-    requireNonNullFunction(f, "f");
-    requireNonNullKind(fa, "fa");
+    Validation.function().requireMonoid(monoid, "monoid", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.kind().requireNonNull(fa, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
 
     final Maybe<A> maybe = MAYBE.narrow(fa);
     // If Just, map the value. If Nothing, return the monoid's empty value.

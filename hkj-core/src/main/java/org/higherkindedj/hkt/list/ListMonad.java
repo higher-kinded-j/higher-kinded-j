@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -23,7 +24,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   /** A ListMonad singleton */
   public static final ListMonad INSTANCE = new ListMonad();
 
-  // Constructor can be private if INSTANCE is the only way to get it.
+  /** Private constructor to enforce singleton pattern. */
   private ListMonad() {}
 
   /**
@@ -33,15 +34,14 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    * @param value The value to lift. Can be {@code null}.
    * @param <A> The type of the value.
    * @return A {@code Kind<ListKind.Witness, A>} representing a list. If value is null, it's an
-   *     empty list; otherwise, a list containing the single value.
+   *     empty list; otherwise, a list containing the single value. Never null.
    */
   @Override
   public <A> Kind<ListKind.Witness, A> of(@Nullable A value) {
     if (value == null) {
-      return ListKind.of(Collections.emptyList()); // Create an empty list for null input
+      return LIST.widen(Collections.emptyList());
     }
-    return ListKind.of(
-        Collections.singletonList(value)); // Create a singleton list for non-null input
+    return LIST.widen(Collections.singletonList(value));
   }
 
   /**
@@ -49,25 +49,30 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    * context. This involves taking all functions from the first list and applying each one to all
    * values from the second list, collecting all results into a new list.
    *
-   * @param ff A {@code Kind<ListKind.Witness, Function<A, B>>} (a list of functions).
-   * @param fa A {@code Kind<ListKind.Witness, A>} (a list of values).
+   * @param ff A {@code Kind<ListKind.Witness, Function<A, B>>} (a list of functions). Must not be
+   *     null.
+   * @param fa A {@code Kind<ListKind.Witness, A>} (a list of values). Must not be null.
    * @param <A> The input type of the function.
    * @param <B> The output type of the function.
    * @return A {@code Kind<ListKind.Witness, B>} containing all results of applying each function in
-   *     {@code ff} to each value in {@code fa}.
+   *     {@code ff} to each value in {@code fa}. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid List representations.
    */
   @Override
   public <A, B> Kind<ListKind.Witness, B> ap(
       Kind<ListKind.Witness, ? extends Function<A, B>> ff, Kind<ListKind.Witness, A> fa) {
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
 
-    List<? extends Function<A, B>> functions = ListKind.narrow(ff).unwrap();
-    List<A> values = ListKind.narrow(fa).unwrap();
+    Validation.kind().requireNonNull(ff, ListMonad.class, AP, "function");
+    Validation.kind().requireNonNull(fa, ListMonad.class, AP, "argument");
+
+    List<? extends Function<A, B>> functions = LIST.narrow(ff);
+    List<A> values = LIST.narrow(fa);
     List<B> resultList = new ArrayList<>();
 
     if (functions.isEmpty() || values.isEmpty()) {
-      return ListKind.of(Collections.emptyList());
+      return LIST.widen(Collections.emptyList());
     }
 
     for (Function<A, B> func : functions) {
@@ -75,25 +80,29 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
         resultList.add(func.apply(val));
       }
     }
-    return ListKind.of(resultList);
+    return LIST.widen(resultList);
   }
 
   /**
    * Maps a function over a list in a higher-kinded context. This delegates to the {@link
    * ListFunctor} instance.
    *
-   * @param f The function to apply.
-   * @param fa The {@code Kind<ListKind.Witness, A>} (a list of values).
+   * @param f The function to apply. Must not be null.
+   * @param fa The {@code Kind<ListKind.Witness, A>} (a list of values). Must not be null.
    * @param <A> The input type of the function.
    * @param <B> The output type of the function.
    * @return A {@code Kind<ListKind.Witness, B>} containing the results of applying {@code f} to
-   *     each element.
+   *     each element. Never null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
    */
   @Override
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+
+    Validation.function().requireMapper(f, "f", ListMonad.class, MAP);
+    Validation.kind().requireNonNull(fa, ListMonad.class, MAP);
+
     return ListFunctor.INSTANCE.map(f, fa);
   }
 
@@ -103,29 +112,42 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    * concatenated (flattened) into a single result list.
    *
    * @param f A function from {@code A} to {@code Kind<ListKind.Witness, B>} (a list of {@code B}s).
-   * @param ma The input {@code Kind<ListKind.Witness, A>} (a list of {@code A}s).
+   *     Must not be null.
+   * @param ma The input {@code Kind<ListKind.Witness, A>} (a list of {@code A}s). Must not be null.
    * @param <A> The type of elements in the input list.
    * @param <B> The type of elements in the lists produced by the function {@code f}.
-   * @return A {@code Kind<ListKind.Witness, B>} which is the flattened list of all results.
+   * @return A {@code Kind<ListKind.Witness, B>} which is the flattened list of all results. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the result of
+   *     {@code f} cannot be unwrapped.
    */
   @Override
   public <A, B> Kind<ListKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<ListKind.Witness, B>> f, Kind<ListKind.Witness, A> ma) {
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
 
-    List<A> inputList = ListKind.narrow(ma).unwrap();
+    Validation.function().requireFlatMapper(f, "f", ListMonad.class, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, ListMonad.class, FLAT_MAP);
+
+    List<A> inputList = LIST.narrow(ma);
     List<B> resultList = new ArrayList<>();
 
     for (A a : inputList) {
-      Kind<ListKind.Witness, B> kindB = f.apply(a); // This is a ListKind<B> (ListView<B>)
-      resultList.addAll(ListKind.narrow(kindB).unwrap());
+      Kind<ListKind.Witness, B> kindB = f.apply(a);
+      Validation.function().requireNonNullResult(kindB, "f", ListMonad.class, FLAT_MAP, Kind.class);
+      resultList.addAll(LIST.narrow(kindB));
     }
-    return ListKind.of(resultList);
+    return LIST.widen(resultList);
   }
 
+  /**
+   * Returns the "zero" or "empty" value for this Monad, which is an empty list.
+   *
+   * @param <T> The type parameter of the Kind.
+   * @return A {@code Kind<ListKind.Witness, T>} representing an empty list. Never null.
+   */
   @Override
   public <T> Kind<ListKind.Witness, T> zero() {
-    return ListKind.of(Collections.emptyList());
+    return LIST.widen(Collections.emptyList());
   }
 }

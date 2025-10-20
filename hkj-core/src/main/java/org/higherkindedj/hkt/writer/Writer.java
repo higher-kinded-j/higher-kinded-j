@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import java.util.Objects;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -49,6 +51,8 @@ import org.jspecify.annotations.Nullable;
  */
 public record Writer<W, A>(W log, @Nullable A value) {
 
+  private static Class<Writer> WRITER_CLASS = Writer.class;
+
   /**
    * Compact constructor for {@link Writer}. Ensures that the log component {@code W} is never
    * {@code null}.
@@ -59,7 +63,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code log} is {@code null}.
    */
   public Writer {
-    Objects.requireNonNull(log, "Log (W) in Writer cannot be null.");
+    Validation.coreType().requireValue(log, WRITER_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -75,7 +79,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code monoidW} is {@code null}.
    */
   public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
-    Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.value");
+    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_CLASS, VALUE);
     return new Writer<>(monoidW.empty(), value);
   }
 
@@ -91,7 +95,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code log} is {@code null}.
    */
   public static <W> Writer<W, Unit> tell(W log) {
-    Objects.requireNonNull(log, "Log message for Writer.tell cannot be null");
+    Validation.coreType().requireValue(log, "log", WRITER_CLASS, TELL);
     return new Writer<>(log, Unit.INSTANCE);
   }
 
@@ -107,7 +111,7 @@ public record Writer<W, A>(W log, @Nullable A value) {
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   public <B> Writer<W, B> map(Function<? super A, ? extends B> f) {
-    Objects.requireNonNull(f, "Mapper function cannot be null for Writer.map");
+    Validation.function().requireMapper(f, "f", WRITER_CLASS, MAP);
     return new Writer<>(this.log, f.apply(this.value));
   }
 
@@ -134,11 +138,13 @@ public record Writer<W, A>(W log, @Nullable A value) {
    */
   public <B> Writer<W, B> flatMap(
       Monoid<W> monoidW, Function<? super A, ? extends Writer<W, ? extends B>> f) {
-    Objects.requireNonNull(monoidW, "Monoid<W> cannot be null for Writer.flatMap");
-    Objects.requireNonNull(f, "flatMap mapper function cannot be null");
+
+    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_CLASS, FLAT_MAP);
+    Validation.function().requireFlatMapper(f, "f", WRITER_CLASS, FLAT_MAP);
 
     Writer<W, ? extends B> nextWriter = f.apply(this.value);
-    Objects.requireNonNull(nextWriter, "flatMap function returned a null Writer instance");
+    Validation.function()
+        .requireNonNullResult(nextWriter, "f", WRITER_CLASS, FLAT_MAP, WRITER_CLASS);
 
     W combinedLog = monoidW.combine(this.log, nextWriter.log());
     // The cast to B is safe due to the ? extends B in the function's return type.

@@ -2,220 +2,478 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.function.BiPredicate;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Foldable;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
+import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-public class ValidatedTraverseTest {
+@DisplayName("ValidatedTraverse Complete Test Suite")
+class ValidatedTraverseTest
+    extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
 
-  private final ValidatedTraverse<String> traverse = ValidatedTraverse.instance();
-  private final Foldable<ValidatedKind.Witness<String>> foldable = ValidatedTraverse.instance();
-  private final Applicative<MaybeKind.Witness> maybeApplicative = MaybeMonad.INSTANCE;
+  private static final MaybeKindHelper MAYBE = MaybeKindHelper.MAYBE;
 
-  // A test function that "validates" a number, returning its string representation in a Maybe,
-  // but returns Nothing for negative numbers.
-  private final Function<Integer, Kind<MaybeKind.Witness, String>> validatePositive =
-      i -> {
-        if (i >= 0) {
-          return MAYBE.widen(Maybe.just("Number is " + i));
-        } else {
-          return MAYBE.widen(Maybe.nothing());
-        }
-      };
+  private ValidatedTraverse<String> traverse;
+  private MaybeMonad applicative;
+  private Monoid<String> monoid;
+
+  @Override
+  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind() {
+    return VALIDATED.widen(Validated.valid(42));
+  }
+
+  @Override
+  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind2() {
+    return VALIDATED.widen(Validated.valid(24));
+  }
+
+  @Override
+  protected Function<Integer, String> createValidMapper() {
+    return Object::toString;
+  }
+
+  @Override
+  protected BiPredicate<
+          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
+      createEqualityChecker() {
+    return (k1, k2) -> VALIDATED.narrow(k1).equals(VALIDATED.narrow(k2));
+  }
+
+  @BeforeEach
+  void setUpTraverse() {
+    traverse = ValidatedTraverse.instance();
+    applicative = MaybeMonad.INSTANCE;
+    monoid = Monoids.string();
+  }
 
   @Nested
-  @DisplayName("map method")
-  class MapTests {
-    @Test
-    @DisplayName("map should apply a function to a Valid value")
-    void mapValid() {
-      // Given a Valid value
-      Kind<ValidatedKind.Witness<String>, Integer> input = VALIDATED.widen(Validated.valid(10));
-
-      // When we map over it
-      Kind<ValidatedKind.Witness<String>, String> result = traverse.map(i -> "Value: " + i, input);
-
-      // Then the result is a Valid containing the new value
-      assertThat(VALIDATED.<String, String>narrow(result)).isEqualTo(Validated.valid("Value: 10"));
-    }
+  @DisplayName("Complete Test Suite")
+  class CompleteTestSuite {
 
     @Test
-    @DisplayName("map should do nothing to an Invalid value")
-    void mapInvalid() {
-      // Given an Invalid value
-      Kind<ValidatedKind.Witness<String>, Integer> input =
-          VALIDATED.widen(Validated.invalid("Error"));
-
-      // When we map over it
-      Kind<ValidatedKind.Witness<String>, String> result = traverse.map(i -> "Value: " + i, input);
-
-      // Then the result is still the original Invalid
-      assertThat(VALIDATED.<String, String>narrow(result)).isEqualTo(Validated.invalid("Error"));
+    @DisplayName("Run complete ValidatedTraverse test pattern")
+    void runCompleteValidatedTraverseTestPattern() {
+      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+          .<Integer>instance(traverse)
+          .<String>withKind(validKind)
+          .withOperations(validMapper)
+          .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
+          .withFoldableOperations(monoid, Object::toString)
+          .testAll();
     }
   }
 
   @Nested
-  @DisplayName("traverse method")
-  class TraverseTests {
+  @DisplayName("Functor Operations")
+  class FunctorOperations {
+
     @Test
-    @DisplayName("traverse should map a function over a Valid value and lift the result")
-    void traverseValidSucceeds() {
-      // Given a Valid value
-      Kind<ValidatedKind.Witness<String>, Integer> input = VALIDATED.widen(Validated.valid(123));
+    @DisplayName("Map transforms Valid values")
+    void mapTransformsValidValues() {
+      Kind<ValidatedKind.Witness<String>, String> result = traverse.map(validMapper, validKind);
 
-      // When we traverse it with a function that succeeds
-      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
-
-      // Then the result is a Just containing a Valid of the new value
-      Maybe<Kind<ValidatedKind.Witness<String>, String>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(VALIDATED.<String, String>narrow(maybeResult.get()))
-          .isEqualTo(Validated.valid("Number is 123"));
+      Validated<String, String> validated = VALIDATED.narrow(result);
+      assertThat(validated.isValid()).isTrue();
+      assertThat(validated.get()).isEqualTo("42");
     }
 
     @Test
-    @DisplayName("traverse should return Nothing when the function fails on a Valid value")
-    void traverseValidFails() {
-      // Given a Valid value that will cause the function to fail
-      Kind<ValidatedKind.Witness<String>, Integer> input = VALIDATED.widen(Validated.valid(-1));
-
-      // When we traverse it with a function that returns Nothing
-      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
-
-      // Then the result is Nothing
-      Maybe<Kind<ValidatedKind.Witness<String>, String>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isNothing()).isTrue();
-    }
-
-    @Test
-    @DisplayName("traverse should do nothing to an Invalid value")
-    void traverseInvalid() {
-      // Given an Invalid value
-      Kind<ValidatedKind.Witness<String>, Integer> input =
-          VALIDATED.widen(Validated.invalid("Initial Error"));
-
-      // When we traverse it
-      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
-
-      // Then the result is a Just containing the original Invalid
-      Maybe<Kind<ValidatedKind.Witness<String>, String>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(VALIDATED.<String, String>narrow(maybeResult.get()))
-          .isEqualTo(Validated.invalid("Initial Error"));
-    }
-  }
-
-  @Nested
-  @DisplayName("sequenceA method")
-  class SequenceATests {
-    @Test
-    @DisplayName("sequenceA should turn Valid<Just<A>> into Just<Valid<A>>")
-    void sequenceValidSucceeds() {
-      // Given a Valid containing a Just
-      final Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.just(123));
-      final Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> input =
-          VALIDATED.widen(Validated.valid(maybeKind));
-
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
-
-      // Then the result is a Just containing a Valid
-      Maybe<Kind<ValidatedKind.Witness<String>, Integer>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(VALIDATED.<String, Integer>narrow(maybeResult.get()))
-          .isEqualTo(Validated.valid(123));
-    }
-
-    @Test
-    @DisplayName("sequenceA should turn Valid<Nothing> into Nothing")
-    void sequenceValidFails() {
-      // Given a Valid containing a Nothing
-      final Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.nothing());
-      final Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> input =
-          VALIDATED.widen(Validated.valid(maybeKind));
-
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
-
-      // Then the result is Nothing
-      assertThat(MAYBE.narrow(result).isNothing()).isTrue();
-    }
-
-    @Test
-    @DisplayName("sequenceA should do nothing to an Invalid value")
-    void sequenceInvalid() {
-      // Given an Invalid value
-      final Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> input =
-          VALIDATED.widen(Validated.invalid("Initial Error"));
-
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
-
-      // Then the result is a Just containing the original Invalid
-      Maybe<Kind<ValidatedKind.Witness<String>, Integer>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(VALIDATED.<String, Integer>narrow(maybeResult.get()))
-          .isEqualTo(Validated.invalid("Initial Error"));
-    }
-  }
-
-  @Nested
-  @DisplayName("foldMap method")
-  class FoldMapTests {
-    @Test
-    @DisplayName("foldMap on a Valid value should apply the function")
-    void foldMap_onValid_shouldApplyFunction() {
-      Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.widen(Validated.valid(10));
-      Monoid<Integer> sumMonoid = Monoids.integerAddition();
-
-      Integer result = foldable.foldMap(sumMonoid, i -> i + 5, valid);
-
-      assertThat(result).isEqualTo(15);
-    }
-
-    @Test
-    @DisplayName("foldMap on an Invalid value should return the monoid's empty value")
-    void foldMap_onInvalid_shouldReturnMonoidEmpty() {
+    @DisplayName("Map preserves Invalid values")
+    void mapPreservesInvalidValues() {
       Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("Error"));
-      Monoid<Integer> sumMonoid = Monoids.integerAddition();
+          VALIDATED.widen(Validated.invalid("error"));
 
-      Integer result = foldable.foldMap(sumMonoid, i -> i + 5, invalid);
+      Kind<ValidatedKind.Witness<String>, String> result = traverse.map(validMapper, invalid);
 
-      assertThat(result).isEqualTo(sumMonoid.empty());
-      assertThat(result).isZero();
+      Validated<String, String> validated = VALIDATED.narrow(result);
+      assertThat(validated.isInvalid()).isTrue();
+      assertThat(validated.getError()).isEqualTo("error");
     }
 
     @Test
-    @DisplayName("foldMap on an Invalid value with String monoid should return empty string")
-    void foldMap_onInvalid_withStringMonoid_shouldReturnEmptyString() {
+    @DisplayName("Map validates mapper is non-null")
+    void mapValidatesMapperIsNonNull() {
+      assertThatThrownBy(() -> traverse.map(null, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("map");
+    }
+
+    @Test
+    @DisplayName("Map validates Kind is non-null")
+    void mapValidatesKindIsNonNull() {
+      assertThatThrownBy(() -> traverse.map(validMapper, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("map");
+    }
+  }
+
+  @Nested
+  @DisplayName("Foldable Operations")
+  class FoldableOperations {
+
+    @Test
+    @DisplayName("FoldMap reduces Valid to monoid value")
+    void foldMapReducesValidToMonoidValue() {
+      String result = traverse.foldMap(monoid, Object::toString, validKind);
+
+      assertThat(result).isEqualTo("42");
+    }
+
+    @Test
+    @DisplayName("FoldMap returns empty for Invalid")
+    void foldMapReturnsEmptyForInvalid() {
       Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("Error"));
-      Monoid<String> stringMonoid = Monoids.string();
+          VALIDATED.widen(Validated.invalid("error"));
 
-      String result = foldable.foldMap(stringMonoid, Object::toString, invalid);
+      String result = traverse.foldMap(monoid, Object::toString, invalid);
 
-      assertThat(result).isEqualTo(stringMonoid.empty());
-      assertThat(result).isEmpty();
+      assertThat(result).isEqualTo("");
+    }
+
+    @Test
+    @DisplayName("FoldMap validates monoid is non-null")
+    void foldMapValidatesMonoidIsNonNull() {
+      assertThatThrownBy(() -> traverse.foldMap(null, Object::toString, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("monoid")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("foldMap");
+    }
+
+    @Test
+    @DisplayName("FoldMap validates mapper is non-null")
+    void foldMapValidatesMapperIsNonNull() {
+      assertThatThrownBy(() -> traverse.foldMap(monoid, null, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("foldMap");
+    }
+
+    @Test
+    @DisplayName("FoldMap validates Kind is non-null")
+    void foldMapValidatesKindIsNonNull() {
+      assertThatThrownBy(() -> traverse.foldMap(monoid, Object::toString, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("foldMap");
+    }
+  }
+
+  @Nested
+  @DisplayName("Traverse Operations")
+  class TraverseOperations {
+
+    @Test
+    @DisplayName("Traverse transforms Valid values")
+    void traverseTransformsValidValues() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> f =
+          i -> MAYBE.widen(Maybe.just(i.toString()));
+
+      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result =
+          traverse.traverse(applicative, f, validKind);
+
+      Maybe<Kind<ValidatedKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+
+      Validated<String, String> validated = VALIDATED.narrow(maybe.get());
+      assertThat(validated.isValid()).isTrue();
+      assertThat(validated.get()).isEqualTo("42");
+    }
+
+    @Test
+    @DisplayName("Traverse lifts Invalid into applicative")
+    void traverseLiftsInvalidIntoApplicative() {
+      Kind<ValidatedKind.Witness<String>, Integer> invalid =
+          VALIDATED.widen(Validated.invalid("error"));
+
+      Function<Integer, Kind<MaybeKind.Witness, String>> f =
+          i -> MAYBE.widen(Maybe.just(i.toString()));
+
+      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result =
+          traverse.traverse(applicative, f, invalid);
+
+      Maybe<Kind<ValidatedKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+
+      Validated<String, String> validated = VALIDATED.narrow(maybe.get());
+      assertThat(validated.isInvalid()).isTrue();
+      assertThat(validated.getError()).isEqualTo("error");
+    }
+
+    @Test
+    @DisplayName("Traverse handles Nothing in transformation")
+    void traverseHandlesNothingInTransformation() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> f = i -> MAYBE.widen(Maybe.nothing());
+
+      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result =
+          traverse.traverse(applicative, f, validKind);
+
+      Maybe<Kind<ValidatedKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isNothing()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Traverse validates applicative is non-null")
+    void traverseValidatesApplicativeIsNonNull() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> f =
+          i -> MAYBE.widen(Maybe.just(i.toString()));
+
+      assertThatThrownBy(() -> traverse.traverse(null, f, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("applicative")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("traverse");
+    }
+
+    @Test
+    @DisplayName("Traverse validates function is non-null")
+    void traverseValidatesFunctionIsNonNull() {
+      assertThatThrownBy(() -> traverse.traverse(applicative, null, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("traverse");
+    }
+
+    @Test
+    @DisplayName("Traverse validates Kind is non-null")
+    void traverseValidatesKindIsNonNull() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> f =
+          i -> MAYBE.widen(Maybe.just(i.toString()));
+
+      assertThatThrownBy(() -> traverse.traverse(applicative, f, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("ValidatedTraverse")
+          .hasMessageContaining("traverse");
+    }
+  }
+
+  @Nested
+  @DisplayName("Individual Components")
+  class IndividualComponents {
+
+    @Test
+    @DisplayName("Test operations only")
+    void testOperationsOnly() {
+      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+          .<Integer>instance(traverse)
+          .<String>withKind(validKind)
+          .withOperations(validMapper)
+          .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
+          .withFoldableOperations(monoid, Object::toString)
+          .testOperations();
+    }
+
+    @Test
+    @DisplayName("Test validations only")
+    void testValidationsOnly() {
+      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+          .<Integer>instance(traverse)
+          .<String>withKind(validKind)
+          .withOperations(validMapper)
+          .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
+          .withFoldableOperations(monoid, Object::toString)
+          .testValidations();
+    }
+
+    @Test
+    @DisplayName("Test exceptions only")
+    void testExceptionsOnly() {
+      TypeClassTest.<ValidatedKind.Witness<String>>traverse(ValidatedTraverse.class)
+          .<Integer>instance(traverse)
+          .<String>withKind(validKind)
+          .withOperations(validMapper)
+          .withApplicative(applicative, i -> MAYBE.widen(Maybe.just(i.toString())))
+          .withFoldableOperations(monoid, Object::toString)
+          .testExceptions();
+    }
+  }
+
+  @Nested
+  @DisplayName("Exception Propagation Tests")
+  class ExceptionPropagationTests {
+
+    @Test
+    @DisplayName("Map propagates exceptions from mapper")
+    void mapPropagatesExceptionsFromMapper() {
+      RuntimeException testException = new RuntimeException("Test exception");
+      Function<Integer, String> throwingMapper =
+          i -> {
+            throw testException;
+          };
+
+      assertThatThrownBy(() -> traverse.map(throwingMapper, validKind)).isSameAs(testException);
+    }
+
+    @Test
+    @DisplayName("FoldMap propagates exceptions from mapper")
+    void foldMapPropagatesExceptionsFromMapper() {
+      RuntimeException testException = new RuntimeException("Test exception");
+      Function<Integer, String> throwingMapper =
+          i -> {
+            throw testException;
+          };
+
+      assertThatThrownBy(() -> traverse.foldMap(monoid, throwingMapper, validKind))
+          .isSameAs(testException);
+    }
+
+    @Test
+    @DisplayName("Traverse propagates exceptions from function")
+    void traversePropagatesExceptionsFromFunction() {
+      RuntimeException testException = new RuntimeException("Test exception");
+      Function<Integer, Kind<MaybeKind.Witness, String>> throwingFunction =
+          i -> {
+            throw testException;
+          };
+
+      assertThatThrownBy(() -> traverse.traverse(applicative, throwingFunction, validKind))
+          .isSameAs(testException);
+    }
+  }
+
+  @Nested
+  @DisplayName("Edge Cases Tests")
+  class EdgeCasesTests {
+
+    @Test
+    @DisplayName("ValidatedTraverse is a singleton")
+    void validatedTraverseIsASingleton() {
+      ValidatedTraverse<String> instance1 = ValidatedTraverse.instance();
+      ValidatedTraverse<String> instance2 = ValidatedTraverse.instance();
+
+      assertThat(instance1).isSameAs(instance2);
+    }
+
+    @Test
+    @DisplayName("Map preserves structure for Valid")
+    void mapPreservesStructureForValid() {
+      Kind<ValidatedKind.Witness<String>, String> result = traverse.map(validMapper, validKind);
+
+      assertThat(result).isNotNull();
+      assertThat(result).isInstanceOf(ValidatedKind.class);
+    }
+
+    @Test
+    @DisplayName("FoldMap with identity function returns value for Valid")
+    void foldMapWithIdentityFunctionReturnsValueForValid() {
+      Monoid<Integer> intMonoid = Monoids.integerAddition();
+      Function<Integer, Integer> identity = i -> i;
+
+      Integer result = traverse.foldMap(intMonoid, identity, validKind);
+
+      assertThat(result).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("FoldMap with identity function returns empty for Invalid")
+    void foldMapWithIdentityFunctionReturnsEmptyForInvalid() {
+      Kind<ValidatedKind.Witness<String>, Integer> invalid =
+          VALIDATED.widen(Validated.invalid("error"));
+      Monoid<Integer> intMonoid = Monoids.integerAddition();
+      Function<Integer, Integer> identity = i -> i;
+
+      Integer result = traverse.foldMap(intMonoid, identity, invalid);
+
+      assertThat(result).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Traverse preserves applicative structure")
+    void traversePreservesApplicativeStructure() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> f =
+          i -> MAYBE.widen(Maybe.just(i.toString()));
+
+      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result =
+          traverse.traverse(applicative, f, validKind);
+
+      assertThat(result).isNotNull();
+      assertThat(result).isInstanceOf(MaybeKind.class);
+    }
+
+    @Test
+    @DisplayName("Multiple traversals compose correctly")
+    void multipleTraversalsComposeCorrectly() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> f =
+          i -> MAYBE.widen(Maybe.just(i.toString()));
+
+      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, String>> result1 =
+          traverse.traverse(applicative, f, validKind);
+
+      Maybe<Kind<ValidatedKind.Witness<String>, String>> maybe1 = MAYBE.narrow(result1);
+      assertThat(maybe1.isJust()).isTrue();
+
+      Kind<ValidatedKind.Witness<String>, String> validated1 = maybe1.get();
+
+      Function<String, Kind<MaybeKind.Witness, Integer>> g =
+          s -> MAYBE.widen(Maybe.just(s.length()));
+
+      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, Integer>> result2 =
+          traverse.traverse(applicative, g, validated1);
+
+      Maybe<Kind<ValidatedKind.Witness<String>, Integer>> maybe2 = MAYBE.narrow(result2);
+      assertThat(maybe2.isJust()).isTrue();
+
+      Validated<String, Integer> validated2 = VALIDATED.narrow(maybe2.get());
+      assertThat(validated2.isValid()).isTrue();
+      assertThat(validated2.get()).isEqualTo(2); // "42".length()
+    }
+  }
+
+  @Nested
+  @DisplayName("Type Variance Tests")
+  class TypeVarianceTests {
+
+    @Test
+    @DisplayName("Traverse works with different error types")
+    void traverseWorksWithDifferentErrorTypes() {
+      Kind<ValidatedKind.Witness<Integer>, String> intErrorValid =
+          VALIDATED.widen(Validated.valid("test"));
+
+      ValidatedTraverse<Integer> intTraverse = ValidatedTraverse.instance();
+
+      Function<String, Kind<MaybeKind.Witness, Integer>> f =
+          s -> MAYBE.widen(Maybe.just(s.length()));
+
+      Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<Integer>, Integer>> result =
+          intTraverse.traverse(applicative, f, intErrorValid);
+
+      Maybe<Kind<ValidatedKind.Witness<Integer>, Integer>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+
+      Validated<Integer, Integer> validated = VALIDATED.narrow(maybe.get());
+      assertThat(validated.isValid()).isTrue();
+      assertThat(validated.get()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("FoldMap works with different monoid types")
+    void foldMapWorksWithDifferentMonoidTypes() {
+      Monoid<Integer> intMonoid = Monoids.integerAddition();
+      Function<Integer, Integer> doubler = i -> i * 2;
+
+      Integer result = traverse.foldMap(intMonoid, doubler, validKind);
+
+      assertThat(result).isEqualTo(84);
     }
   }
 }

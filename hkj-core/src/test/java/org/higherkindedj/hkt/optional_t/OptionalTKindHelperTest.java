@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
-import static org.higherkindedj.hkt.util.ErrorHandling.INVALID_KIND_TYPE_TEMPLATE;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
@@ -153,8 +152,8 @@ class OptionalTKindHelperTest {
 
       assertThatThrownBy(() -> OPTIONAL_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageStartingWith(INVALID_KIND_TYPE_TEMPLATE.formatted("OptionalT", ""))
-          .hasMessageContaining(OtherKind.class.getName());
+          .hasMessageContaining(
+              "Kind instance cannot be narrowed to " + OptionalT.class.getSimpleName());
     }
 
     @Test

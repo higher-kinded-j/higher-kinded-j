@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -11,6 +11,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,6 +42,9 @@ import org.jspecify.annotations.Nullable;
  */
 public class CompletableFutureApplicative extends CompletableFutureFunctor
     implements Applicative<CompletableFutureKind.Witness> {
+
+  private static final Class<CompletableFutureApplicative> COMPLETABLE_FUTURE_APPLICATIVE_CLASS =
+      CompletableFutureApplicative.class;
 
   /** Constructs a new {@code CompletableFutureApplicative} instance. */
   public CompletableFutureApplicative() {
@@ -100,8 +104,9 @@ public class CompletableFutureApplicative extends CompletableFutureFunctor
       Kind<CompletableFutureKind.Witness, ? extends Function<A, B>> ff,
       Kind<CompletableFutureKind.Witness, A> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    // Enhanced validation with descriptive parameters
+    Validation.kind().requireNonNull(ff, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, COMPLETABLE_FUTURE_APPLICATIVE_CLASS, AP, "argument");
 
     CompletableFuture<? extends Function<A, B>> futureF = FUTURE.narrow(ff);
     CompletableFuture<A> futureA = FUTURE.narrow(fa);

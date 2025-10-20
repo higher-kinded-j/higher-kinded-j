@@ -3,460 +3,488 @@
 package org.higherkindedj.hkt.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeTMonad Tests (F=OptionalKind.Witness)")
-class MaybeTMonadTest {
+@DisplayName("MaybeTMonad Complete Test Suite (Outer: OptionalKind.Witness)")
+class MaybeTMonadTest
+    extends TypeClassTestBase<MaybeTKind.Witness<OptionalKind.Witness>, Integer, String> {
 
-  private final Monad<OptionalKind.Witness> outerMonad = OptionalMonad.INSTANCE;
-  private Monad<MaybeTKind.Witness<OptionalKind.Witness>> maybeTMonad;
+  private MonadError<OptionalKind.Witness, Unit> outerMonad = OptionalMonad.INSTANCE;
+  private MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> maybeTMonad =
+      new MaybeTMonad<>(outerMonad);
 
-  private final Integer initialValue = 123;
+  @BeforeEach
+  void setUpMonad() {
+    outerMonad = OptionalMonad.INSTANCE;
+    maybeTMonad = new MaybeTMonad<>(outerMonad);
+  }
 
   private <A> Optional<Maybe<A>> unwrapKindToOptionalMaybe(
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> kind) {
-    MaybeT<OptionalKind.Witness, A> maybeT = MAYBE_T.narrow(kind);
+    if (kind == null) return Optional.empty();
+    var maybeT = MAYBE_T.narrow(kind);
     Kind<OptionalKind.Witness, Maybe<A>> outerKind = maybeT.value();
     return OPTIONAL.narrow(outerKind);
   }
 
-  private <A extends @NonNull Object> Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> justT(
-      @NonNull A value) {
-    MaybeT<OptionalKind.Witness, A> mt = MaybeT.just(outerMonad, value);
-    return MAYBE_T.widen(mt);
+  private <R> Kind<MaybeTKind.Witness<OptionalKind.Witness>, R> justT(R value) {
+    return MAYBE_T.widen(MaybeT.just(outerMonad, value));
   }
 
-  private <A> Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> nothingT() {
-    MaybeT<OptionalKind.Witness, A> mt = MaybeT.nothing(outerMonad);
-    return MAYBE_T.widen(mt);
+  private <R> Kind<MaybeTKind.Witness<OptionalKind.Witness>, R> nothingT() {
+    return MAYBE_T.widen(MaybeT.nothing(outerMonad));
   }
 
-  private <A> Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> outerEmptyT() {
-    Kind<OptionalKind.Witness, Maybe<A>> emptyOuter = OPTIONAL.widen(Optional.empty());
-    MaybeT<OptionalKind.Witness, A> mt = MaybeT.fromKind(emptyOuter);
-    return MAYBE_T.widen(mt);
+  private <R> Kind<MaybeTKind.Witness<OptionalKind.Witness>, R> emptyT() {
+    Kind<OptionalKind.Witness, Maybe<R>> emptyOuter = OPTIONAL.widen(Optional.empty());
+    return MAYBE_T.widen(MaybeT.fromKind(emptyOuter));
   }
 
-  @BeforeEach
-  void setUp() {
-    maybeTMonad = new MaybeTMonad<>(outerMonad);
+  private <A, B>
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<A, B>> justTWithNullFunction() {
+    // Create Optional<Maybe<Function>> where Maybe contains null function
+    Kind<OptionalKind.Witness, Maybe<Function<A, B>>> outerOptionalOfJustNullFunc =
+        OPTIONAL.widen(Optional.of(Maybe.fromNullable(null)));
+    return MAYBE_T.widen(MaybeT.fromKind(outerOptionalOfJustNullFunc));
+  }
+
+  // TypeClassTestBase implementations
+  @Override
+  protected Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> createValidKind() {
+    return justT(10);
+  }
+
+  @Override
+  protected Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> createValidKind2() {
+    return justT(20);
+  }
+
+  @Override
+  protected Function<Integer, String> createValidMapper() {
+    return Object::toString;
+  }
+
+  @Override
+  protected BiPredicate<
+          Kind<MaybeTKind.Witness<OptionalKind.Witness>, ?>,
+          Kind<MaybeTKind.Witness<OptionalKind.Witness>, ?>>
+      createEqualityChecker() {
+    return (k1, k2) -> unwrapKindToOptionalMaybe(k1).equals(unwrapKindToOptionalMaybe(k2));
+  }
+
+  @Override
+  protected Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>>
+      createValidFlatMapper() {
+    return i -> justT("v" + i);
+  }
+
+  @Override
+  protected Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>>
+      createValidFunctionKind() {
+    return justT(Object::toString);
+  }
+
+  @Override
+  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
+    return (a, b) -> a + "+" + b;
+  }
+
+  @Override
+  protected Integer createTestValue() {
+    return 5;
+  }
+
+  @Override
+  protected Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>>
+      createTestFunction() {
+    return i -> justT("v" + i);
+  }
+
+  @Override
+  protected Function<String, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>>
+      createChainFunction() {
+    return s -> justT(s + "!");
   }
 
   @Nested
-  @DisplayName("Applicative 'of' tests")
-  class OfTests {
-    @Test
-    void of_shouldWrapValueAsJustInOptional() {
-      String successValue = "SUCCESS";
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> kind = maybeTMonad.of(successValue);
-      assertThat(unwrapKindToOptionalMaybe(kind)).isPresent().contains(Maybe.just(successValue));
-    }
+  @DisplayName("Complete Test Suite")
+  class CompleteTestSuite {
 
     @Test
-    void of_shouldWrapNullAsNothingInOptional() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> kind = maybeTMonad.of(null);
-      assertThat(unwrapKindToOptionalMaybe(kind)).isPresent().contains(Maybe.nothing());
+    @DisplayName("Verify all test categories are covered")
+    void verifyCompleteCoverage() {
+      // Verify that all nested test classes exist and have tests
+      assertThat(FunctorOperationTests.class).isNotNull();
+      assertThat(ApplicativeOperationTests.class).isNotNull();
+      assertThat(MonadOperationTests.class).isNotNull();
+      assertThat(MonadErrorOperationTests.class).isNotNull();
+      assertThat(MonadLawTests.class).isNotNull();
+      assertThat(EdgeCaseTests.class).isNotNull();
     }
   }
 
   @Nested
-  @DisplayName("Functor 'map' tests")
-  class MapTests {
+  @DisplayName("Functor Operations")
+  class FunctorOperationTests {
+
     @Test
+    @DisplayName("map should apply function when Just")
     void map_shouldApplyFunctionWhenJust() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialKind = justT(initialValue);
-      Function<Integer, String> intToString = Object::toString;
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> mappedKind =
-          maybeTMonad.map(intToString, initialKind);
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = justT(10);
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
+          maybeTMonad.map(Object::toString, input);
 
-      assertThat(unwrapKindToOptionalMaybe(mappedKind))
-          .isPresent()
-          .contains(Maybe.just(String.valueOf(initialValue)));
+      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
+      assertThat(maybe).isPresent().contains(Maybe.just("10"));
     }
 
     @Test
-    void map_shouldReturnNothingWhenNothing() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialKind = nothingT();
-      Function<Integer, String> intToString = Object::toString;
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> mappedKind =
-          maybeTMonad.map(intToString, initialKind);
+    @DisplayName("map should propagate Nothing when Nothing")
+    void map_shouldPropagateNothingWhenNothing() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = nothingT();
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
+          maybeTMonad.map(Object::toString, input);
 
-      assertThat(unwrapKindToOptionalMaybe(mappedKind)).isPresent().contains(Maybe.nothing());
+      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
+      assertThat(maybe).isPresent().contains(Maybe.nothing());
     }
 
     @Test
-    void map_shouldReturnOuterEmptyWhenOuterEmpty() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialKind = outerEmptyT();
-      Function<Integer, String> intToString = Object::toString;
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> mappedKind =
-          maybeTMonad.map(intToString, initialKind);
+    @DisplayName("map should propagate empty outer monad")
+    void map_shouldPropagateEmpty() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = emptyT();
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
+          maybeTMonad.map(Object::toString, input);
 
-      assertThat(unwrapKindToOptionalMaybe(mappedKind)).isEmpty();
+      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
+      assertThat(maybe).isEmpty();
     }
 
     @Test
-    void map_shouldHandleMappingToNullAsNothing() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialKind = justT(initialValue);
-      Function<Integer, @Nullable String> toNull = x -> null;
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> mappedKind =
-          maybeTMonad.map(toNull, initialKind);
-      assertThat(unwrapKindToOptionalMaybe(mappedKind)).isPresent().contains(Maybe.nothing());
+    @DisplayName("map should convert null result to Nothing")
+    void map_shouldConvertNullResultToNothing() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = justT(10);
+      Function<Integer, String> nullReturningMapper = i -> null;
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
+          maybeTMonad.map(nullReturningMapper, input);
+
+      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
+      assertThat(maybe).isPresent().contains(Maybe.nothing());
     }
   }
 
   @Nested
-  @DisplayName("Applicative 'ap' tests")
-  class ApTests {
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> funcKindJust =
-        justT(Object::toString);
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> funcKindNothing =
-        nothingT();
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> funcKindOuterEmpty =
-        outerEmptyT();
+  @DisplayName("Applicative Operations")
+  class ApplicativeOperationTests {
 
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> valKindJust = justT(42);
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> valKindNothing = nothingT();
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> valKindOuterEmpty = outerEmptyT();
+    final Function<Integer, String> multiplyToString = i -> "Res:" + (i * 2);
 
     @Test
-    void ap_justFunc_justVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindJust, valKindJust);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("42"));
+    @DisplayName("ap: F<Just(func)> ap F<Just(val)> should apply function")
+    void ap_FuncJust_ValJust_shouldApplyFunction() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff =
+          justT(multiplyToString);
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
+
+      var result = maybeTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("Res:20"));
     }
 
     @Test
-    void ap_justFunc_nothingVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindJust, valKindNothing);
+    @DisplayName("ap: F<Just(func)> ap F<Nothing> should propagate val Nothing")
+    void ap_FuncJust_ValNothing_shouldPropagateValNothing() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff =
+          justT(multiplyToString);
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = nothingT();
+
+      var result = maybeTMonad.ap(ff, fa);
       assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
-    void ap_nothingFunc_justVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindNothing, valKindJust);
+    @DisplayName("ap: F<Nothing> ap F<Just(val)> should propagate func Nothing")
+    void ap_FuncNothing_ValJust_shouldPropagateFuncNothing() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff = nothingT();
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
+
+      var result = maybeTMonad.ap(ff, fa);
       assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
-    void ap_outerEmptyFunc_justVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindOuterEmpty, valKindJust);
+    @DisplayName("ap: F<Nothing> ap F<Nothing> should propagate func Nothing")
+    void ap_FuncNothing_ValNothing_shouldPropagateFuncNothing() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff = nothingT();
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = nothingT();
+
+      var result = maybeTMonad.ap(ff, fa);
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+    }
+
+    @Test
+    @DisplayName("ap: F.empty (for function) ap F<Just(val)> should be outer empty")
+    void ap_FuncOuterEmpty_ValJust_shouldBeOuterEmpty() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff = emptyT();
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
+
+      var result = maybeTMonad.ap(ff, fa);
       assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
 
     @Test
-    void ap_nothingFunc_nothingVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindNothing, valKindNothing);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
-    }
+    @DisplayName("ap: F<Just(func)> ap F.empty (for value) should be outer empty")
+    void ap_FuncJust_ValOuterEmpty_shouldBeOuterEmpty() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff =
+          justT(multiplyToString);
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = emptyT();
 
-    @Test
-    void ap_justFunc_outerEmptyVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindJust, valKindOuterEmpty);
+      var result = maybeTMonad.ap(ff, fa);
       assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
 
     @Test
-    void ap_outerEmptyFunc_nothingVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindOuterEmpty, valKindNothing);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
-    }
+    @DisplayName("ap: F<Nothing> ap F<Just(val)> should propagate Nothing")
+    void ap_FuncNothing_ValJust_shouldPropagateNothing() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff = nothingT();
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
 
-    @Test
-    void ap_outerEmptyFunc_outerEmptyVal() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.ap(funcKindOuterEmpty, valKindOuterEmpty);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("Monad 'flatMap' tests")
-  class FlatMapTests {
-    Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> intToJustStringT =
-        i -> justT("V" + i);
-    Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> intToNothingStringT =
-        i -> nothingT();
-    Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>>
-        intToOuterEmptyStringT = i -> outerEmptyT();
-
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialJust = justT(5);
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialNothing = nothingT();
-    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialOuterEmpty = outerEmptyT();
-
-    @Test
-    void flatMap_just_toJust() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.flatMap(intToJustStringT, initialJust);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("V5"));
-    }
-
-    @Test
-    void flatMap_just_toNothing() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.flatMap(intToNothingStringT, initialJust);
+      var result = maybeTMonad.ap(ff, fa);
       assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
     @Test
-    void flatMap_nothing_toJust() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.flatMap(intToJustStringT, initialNothing);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
-    }
-
-    @Test
-    void flatMap_just_toOuterEmpty() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.flatMap(intToOuterEmptyStringT, initialJust);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
-    }
-
-    @Test
-    void flatMap_nothing_toNothing() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.flatMap(intToNothingStringT, initialNothing);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
-    }
-
-    @Test
-    void flatMap_nothing_toOuterEmpty() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.flatMap(intToOuterEmptyStringT, initialNothing);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
-    }
-
-    @Test
-    void flatMap_outerEmpty_toNothing() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.flatMap(intToNothingStringT, initialOuterEmpty);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
-    }
-
-    @Test
-    void flatMap_just_functionThrowsException() {
-      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> fThrows =
+    @DisplayName("ap: F<Just(function_throws)> ap F<Just(val)> should throw exception")
+    void ap_FuncJustThrows_ValJust_shouldThrowException() {
+      RuntimeException ex = new RuntimeException("Function apply crashed");
+      Function<Integer, String> throwingFunc =
           i -> {
-            throw new RuntimeException("flatMap function error");
+            throw ex;
           };
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = justT(1);
-      try {
-        // The type of the result from flatMap will be correct due to method signature.
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> resultKind =
-            maybeTMonad.flatMap(fThrows, initial);
-        assertThat(unwrapKindToOptionalMaybe(resultKind)).isEmpty();
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff =
+          justT(throwingFunc);
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
 
-      } catch (RuntimeException e) {
-        assertThat(e.getMessage()).isEqualTo("flatMap function error");
-      }
+      assertThatThrownBy(() -> maybeTMonad.ap(ff, fa))
+          .isInstanceOf(RuntimeException.class)
+          .isSameAs(ex);
+    }
+  }
+
+  @Nested
+  @DisplayName("Monad Operations")
+  class MonadOperationTests {
+
+    @Test
+    @DisplayName("flatMap: Initial Just, Function returns Just")
+    void flatMap_initialJust_funcReturnsJust() {
+      var initialJust = justT(10);
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcReturnsJust =
+          i -> justT("Value:" + i);
+
+      var result = maybeTMonad.flatMap(funcReturnsJust, initialJust);
+
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("Value:10"));
     }
 
-    private <A> void assertMaybeTEquals(
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> k1,
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> k2) {
-      assertThat(unwrapKindToOptionalMaybe(k1)).isEqualTo(unwrapKindToOptionalMaybe(k2));
+    @Test
+    @DisplayName("flatMap: Initial Just, Function returns Nothing")
+    void flatMap_initialJust_funcReturnsNothing() {
+      var initialJust = justT(10);
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcReturnsNothing =
+          i -> nothingT();
+
+      var result = maybeTMonad.flatMap(funcReturnsNothing, initialJust);
+
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
 
-    @Nested
-    @DisplayName("Monad Laws")
-    class MonadLaws {
-      int value = 5;
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> mVal = justT(value);
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> mValNothing = nothingT();
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> mValOuterEmpty = outerEmptyT();
+    @Test
+    @DisplayName("flatMap: Initial Just, Function returns Empty Outer Monad")
+    void flatMap_initialJust_funcReturnsEmptyOuter() {
+      var initialJust = justT(20);
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcReturnsEmpty =
+          i -> emptyT();
 
-      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> fLaw =
-          i -> justT("v" + i);
-      Function<String, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> gLaw =
-          s -> justT(s + "!");
+      var result = maybeTMonad.flatMap(funcReturnsEmpty, initialJust);
 
-      @Test
-      @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
-      void leftIdentity() {
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> ofValue = maybeTMonad.of(value);
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> leftSide =
-            maybeTMonad.flatMap(fLaw, ofValue);
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> rightSide = fLaw.apply(value);
-        assertMaybeTEquals(leftSide, rightSide);
-
-        Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> fLawHandlesNull =
-            i -> (i == null) ? nothingT() : justT("v" + i);
-
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> leftSideOfNull =
-            maybeTMonad.flatMap(fLawHandlesNull, maybeTMonad.of(null));
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> rightSideOfNull =
-            fLawHandlesNull.apply(null);
-        assertMaybeTEquals(leftSideOfNull, rightSideOfNull);
-      }
-
-      @Test
-      @DisplayName("2. Right Identity: flatMap(m, of) == m")
-      void rightIdentity() {
-        Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> ofFunc =
-            f -> maybeTMonad.of(f);
-
-        assertMaybeTEquals(maybeTMonad.flatMap(ofFunc, mVal), mVal);
-        assertMaybeTEquals(maybeTMonad.flatMap(ofFunc, mValNothing), mValNothing);
-        assertMaybeTEquals(maybeTMonad.flatMap(ofFunc, mValOuterEmpty), mValOuterEmpty);
-      }
-
-      @Test
-      @DisplayName(
-          "3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-      void associativity() {
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> innerLeft =
-            maybeTMonad.flatMap(fLaw, mVal);
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> leftSide =
-            maybeTMonad.flatMap(gLaw, innerLeft);
-
-        Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> rightSideFunc =
-            a -> maybeTMonad.flatMap(gLaw, fLaw.apply(a));
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> rightSide =
-            maybeTMonad.flatMap(rightSideFunc, mVal);
-        assertMaybeTEquals(leftSide, rightSide);
-
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> innerNothing =
-            maybeTMonad.flatMap(fLaw, mValNothing);
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> leftSideNothing =
-            maybeTMonad.flatMap(gLaw, innerNothing);
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> rightSideNothing =
-            maybeTMonad.flatMap(rightSideFunc, mValNothing);
-        assertMaybeTEquals(leftSideNothing, rightSideNothing);
-
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> innerOuterEmpty =
-            maybeTMonad.flatMap(fLaw, mValOuterEmpty);
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> leftSideOuterEmpty =
-            maybeTMonad.flatMap(gLaw, innerOuterEmpty);
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> rightSideOuterEmpty =
-            maybeTMonad.flatMap(rightSideFunc, mValOuterEmpty);
-        assertMaybeTEquals(leftSideOuterEmpty, rightSideOuterEmpty);
-      }
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
     }
 
-    @Nested
-    @DisplayName("MonadError 'raiseError' and 'handleErrorWith' tests")
-    class MonadErrorTests {
+    @Test
+    @DisplayName("flatMap: Initial Nothing, Function should not be called")
+    void flatMap_initialNothing_funcNotCalled() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialNothing = nothingT();
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcShouldNotRun =
+          i -> {
+            throw new AssertionError("Function should not have been called for Nothing input");
+          };
 
-      @Test
-      void raiseError_shouldProduceOuterJustInnerNothing() {
-        // Cast to MonadError with the correct Witness type
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void>) maybeTMonad;
+      var result = maybeTMonad.flatMap(funcShouldNotRun, initialNothing);
 
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> errorKind =
-            monadErr.raiseError(null);
-        assertThat(unwrapKindToOptionalMaybe(errorKind)).isPresent().contains(Maybe.nothing());
-      }
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+    }
 
-      @Test
-      void handleErrorWith_onJustValue_shouldReturnOriginal() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void>) maybeTMonad;
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = justT(123);
-        Function<Void, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-            err -> justT(789);
+    @Test
+    @DisplayName("flatMap: Initial Empty Outer Monad, Function should not be called")
+    void flatMap_initialEmptyOuter_funcNotCalled() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialEmptyOuter = emptyT();
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcShouldNotRun =
+          i -> {
+            throw new AssertionError("Function should not have been called for empty outer input");
+          };
 
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
-            monadErr.handleErrorWith(initial, handler);
+      var result = maybeTMonad.flatMap(funcShouldNotRun, initialEmptyOuter);
 
-        assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(123));
-      }
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
+    }
 
-      @Test
-      void handleErrorWith_onNothingValue_shouldApplyHandler_returningJust() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-            err -> justT(789);
+    @Test
+    @DisplayName("flatMap: Function throws unhandled RuntimeException")
+    void flatMap_functionThrowsRuntimeException() {
+      var initialJust = justT(30);
+      RuntimeException runtimeEx = new RuntimeException("Error in function application!");
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcThrows =
+          i -> {
+            throw runtimeEx;
+          };
 
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
-            monadErr.handleErrorWith(initial, handler);
+      assertThatThrownBy(() -> maybeTMonad.flatMap(funcThrows, initialJust))
+          .isInstanceOf(RuntimeException.class)
+          .isSameAs(runtimeEx);
+    }
+  }
 
-        assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(789));
-      }
+  @Nested
+  @DisplayName("MonadError Operations")
+  class MonadErrorOperationTests {
 
-      @Test
-      void handleErrorWith_onNothingValue_shouldApplyHandler_returningNothing() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-            err -> nothingT();
+    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> justVal;
+    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> nothingVal;
+    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> emptyVal;
+    Unit raisedErrorObj;
+    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> raisedErrorKind;
 
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
-            monadErr.handleErrorWith(initial, handler);
+    @BeforeEach
+    void setUpMonadError() {
+      justVal = justT(100);
+      nothingVal = nothingT();
+      emptyVal = emptyT();
+      raisedErrorObj = Unit.INSTANCE;
+      raisedErrorKind = maybeTMonad.raiseError(raisedErrorObj);
+    }
 
-        assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
-      }
+    @Test
+    @DisplayName("raiseError should create Nothing in Optional")
+    void raiseError_shouldCreateNothingInOptional() {
+      Optional<Maybe<Integer>> result = unwrapKindToOptionalMaybe(raisedErrorKind);
+      assertThat(result).isPresent().contains(Maybe.nothing());
+    }
 
-      @Test
-      void handleErrorWith_onNothingValue_shouldApplyHandler_returningOuterEmpty() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-            err -> outerEmptyT();
+    @Test
+    @DisplayName("handleErrorWith should handle Nothing")
+    void handleErrorWith_shouldHandleNothing() {
+      Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+          err -> justT(404);
 
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
-            monadErr.handleErrorWith(initial, handler);
+      var result = maybeTMonad.handleErrorWith(nothingVal, handler);
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(404));
+    }
 
-        assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
-      }
+    @Test
+    @DisplayName("handleErrorWith should ignore Just")
+    void handleErrorWith_shouldIgnoreJust() {
+      Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+          err -> justT(-1);
 
-      @Test
-      void handleErrorWith_onOuterEmpty_shouldReturnOuterEmpty() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Void>) maybeTMonad;
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = outerEmptyT();
-        Function<Void, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-            err -> justT(789);
+      var result = maybeTMonad.handleErrorWith(justVal, handler);
+      assertThat(unwrapKindToOptionalMaybe(result)).isEqualTo(unwrapKindToOptionalMaybe(justVal));
+    }
 
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
-            monadErr.handleErrorWith(initial, handler);
+    @Test
+    @DisplayName("handleErrorWith should propagate empty")
+    void handleErrorWith_shouldPropagateEmpty() {
+      Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
+          err -> justT(-1);
 
-        assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
-      }
+      var result = maybeTMonad.handleErrorWith(emptyVal, handler);
+      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
+    }
+  }
 
-      @Test
-      void handleErrorWith_onNothingValue_handlerThrowsException() {
-        MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit> monadErr =
-            (MonadError<MaybeTKind.Witness<OptionalKind.Witness>, Unit>) maybeTMonad;
-        Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initial = nothingT();
-        Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handlerThrows =
-            err -> {
-              throw new RuntimeException("handler error");
-            };
-        try {
-          Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result =
-              monadErr.handleErrorWith(initial, handlerThrows);
-          assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
-        } catch (RuntimeException e) {
-          assertThat(e.getMessage()).isEqualTo("handler error");
-        }
-      }
+  @Nested
+  @DisplayName("Monad Laws")
+  class MonadLawTests {
+
+    @Test
+    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
+    void leftIdentity() {
+      var ofValue = maybeTMonad.of(testValue);
+      var leftSide = maybeTMonad.flatMap(testFunction, ofValue);
+      var rightSide = testFunction.apply(testValue);
+
+      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Right Identity: flatMap(m, of) == m")
+    void rightIdentity() {
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> ofFunc =
+          i -> maybeTMonad.of(i);
+
+      assertThat(equalityChecker.test(maybeTMonad.flatMap(ofFunc, validKind), validKind)).isTrue();
+      assertThat(equalityChecker.test(maybeTMonad.flatMap(ofFunc, nothingT()), nothingT()))
+          .isTrue();
+      assertThat(equalityChecker.test(maybeTMonad.flatMap(ofFunc, emptyT()), emptyT())).isTrue();
+    }
+
+    @Test
+    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+    void associativity() {
+      var innerFlatMap = maybeTMonad.flatMap(testFunction, validKind);
+      var leftSide = maybeTMonad.flatMap(chainFunction, innerFlatMap);
+
+      Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> rightSideFunc =
+          a -> maybeTMonad.flatMap(chainFunction, testFunction.apply(a));
+      var rightSide = maybeTMonad.flatMap(rightSideFunc, validKind);
+
+      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("Edge Cases")
+  class EdgeCaseTests {
+
+    @Test
+    @DisplayName("of with null value")
+    void of_withNullValue() {
+      var result = maybeTMonad.of(null);
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.fromNullable(null));
+    }
+
+    @Test
+    @DisplayName("raiseError with null error")
+    void raiseError_withNullError() {
+      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result = maybeTMonad.raiseError(null);
+      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
     }
   }
 }

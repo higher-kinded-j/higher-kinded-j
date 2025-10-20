@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.Optional;
@@ -12,12 +11,13 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("EitherT Class Tests (Outer: OptionalKind.Witness, Left: String)")
+@DisplayName("EitherT Core Type Tests (Outer: OptionalKind.Witness, Left: String)")
 class EitherTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;
@@ -40,7 +40,6 @@ class EitherTTest {
 
     wrappedRight = OPTIONAL.widen(Optional.of(Either.right(rightValue)));
     wrappedLeft = OPTIONAL.widen(Optional.of(Either.left(leftValue)));
-    // wrappedEmpty represents an empty Optional that would contain an Either
     wrappedEmpty = OPTIONAL.widen(Optional.empty());
 
     wrappedOuterValue = OPTIONAL.widen(Optional.of(otherRightValue));
@@ -56,8 +55,8 @@ class EitherTTest {
   }
 
   @Nested
-  @DisplayName("Static Factory Methods")
-  class FactoryTests {
+  @DisplayName("Factory Methods")
+  class FactoryMethodTests {
 
     @Test
     @DisplayName("fromKind should wrap existing Kind<F, Either<L, R>>")
@@ -73,14 +72,6 @@ class EitherTTest {
       assertThat(etRight.value()).isSameAs(wrappedRight);
       assertThat(etLeft.value()).isSameAs(wrappedLeft);
       assertThat(etEmpty.value()).isSameAs(wrappedEmpty);
-    }
-
-    @Test
-    @DisplayName("fromKind should throw NullPointerException for null input")
-    void fromKind_throwsOnNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> EitherT.fromKind(null))
-          .withMessageContaining("Wrapped value cannot be null");
     }
 
     @Test
@@ -135,11 +126,11 @@ class EitherTTest {
 
   @Nested
   @DisplayName("Instance Methods")
-  class InstanceTests {
+  class InstanceMethodTests {
 
     @Test
-    @DisplayName("getValue should return the wrapped Kind")
-    void getValue_returnsWrapped() {
+    @DisplayName("value should return the wrapped Kind")
+    void value_returnsWrapped() {
       EitherT<OptionalKind.Witness, String, String> et = EitherT.fromKind(wrappedRight);
       assertThat(et.value()).isSameAs(wrappedRight);
 
@@ -150,7 +141,7 @@ class EitherTTest {
 
   @Nested
   @DisplayName("Object Methods")
-  class ObjectTests {
+  class ObjectMethodTests {
 
     Kind<OptionalKind.Witness, Either<String, String>> wrappedRight1 =
         OPTIONAL.widen(Optional.of(Either.right("A")));
@@ -241,6 +232,67 @@ class EitherTTest {
 
       assertThat(etEmpty.toString()).startsWith("EitherT[value=").endsWith("]");
       assertThat(etEmpty.toString()).contains("Optional.empty");
+    }
+  }
+
+  @Nested
+  @DisplayName("Complete Core Type Test Suite")
+  class CompleteCoreTypeTests {
+
+    @Test
+    @DisplayName("Run complete EitherT core type tests")
+    void runCompleteEitherTTests() {
+      CoreTypeTest.eitherT(EitherT.class, outerMonad)
+          .withLeft(EitherT.left(outerMonad, leftValue))
+          .withRight(EitherT.right(outerMonad, rightValue))
+          .withMappers(Object::toString)
+          .testAll();
+    }
+  }
+
+  @Nested
+  @DisplayName("Edge Cases")
+  class EdgeCaseTests {
+
+    @Test
+    @DisplayName("Edge case: null values in Either")
+    void edgeCase_nullValuesInEither() {
+      EitherT<OptionalKind.Witness, String, String> leftNull = EitherT.left(outerMonad, null);
+      assertThat(leftNull).isNotNull();
+      assertThat(leftNull.value()).isNotNull();
+
+      EitherT<OptionalKind.Witness, String, String> rightNull = EitherT.right(outerMonad, null);
+      assertThat(rightNull).isNotNull();
+      assertThat(rightNull.value()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Edge case: fromEither with Left")
+    void edgeCase_fromEitherWithLeft() {
+      Either<String, String> eitherLeft = Either.left(null);
+      EitherT<OptionalKind.Witness, String, String> fromEitherLeft =
+          EitherT.fromEither(outerMonad, eitherLeft);
+      assertThat(fromEitherLeft).isNotNull();
+      assertThat(fromEitherLeft.value()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Edge case: fromEither with Right")
+    void edgeCase_fromEitherWithRight() {
+      Either<String, String> eitherRight = Either.right(null);
+      EitherT<OptionalKind.Witness, String, String> fromEitherRight =
+          EitherT.fromEither(outerMonad, eitherRight);
+      assertThat(fromEitherRight).isNotNull();
+      assertThat(fromEitherRight.value()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Edge case: liftF with null-valued outer Kind")
+    void edgeCase_liftFWithNullValuedOuter() {
+      Kind<OptionalKind.Witness, String> liftedValue = outerMonad.of(null);
+      EitherT<OptionalKind.Witness, String, String> lifted = EitherT.liftF(outerMonad, liftedValue);
+      assertThat(lifted).isNotNull();
+      assertThat(lifted.value()).isNotNull();
     }
   }
 }

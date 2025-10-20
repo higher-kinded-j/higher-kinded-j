@@ -3,13 +3,14 @@
 package org.higherkindedj.hkt.future;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,6 +35,9 @@ import org.jspecify.annotations.Nullable;
  */
 public class CompletableFutureMonad extends CompletableFutureApplicative
     implements MonadError<CompletableFutureKind.Witness, Throwable> {
+
+  public static Class<CompletableFutureMonad> COMPLETABLE_FUTURE_MONAD_CLASS =
+      CompletableFutureMonad.class;
 
   /** Singleton instance of {@code CompletableFutureMonad}. */
   public static final CompletableFutureMonad INSTANCE = new CompletableFutureMonad();
@@ -79,8 +83,8 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
       Function<? super @Nullable A, ? extends Kind<CompletableFutureKind.Witness, B>> f,
       Kind<CompletableFutureKind.Witness, A> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+    Validation.function().requireFlatMapper(f, "f", COMPLETABLE_FUTURE_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, COMPLETABLE_FUTURE_MONAD_CLASS, FLAT_MAP);
 
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
     CompletableFuture<B> futureB =
@@ -104,8 +108,8 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
    */
   @Override
   public <A> Kind<CompletableFutureKind.Witness, A> raiseError(Throwable error) {
-    // Validate that error is not null for better error messages
-    requireNonNullFunction(error, "error throwable for CompletableFuture.raiseError");
+    // Validate that error (Throwable) is not null
+    Validation.coreType().requireError(error, COMPLETABLE_FUTURE_MONAD_CLASS, RAISE_ERROR);
     return FUTURE.widen(CompletableFuture.failedFuture(error));
   }
 
@@ -137,8 +141,11 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
       Kind<CompletableFutureKind.Witness, A> ma,
       Function<? super Throwable, ? extends Kind<CompletableFutureKind.Witness, A>> handler) {
 
-    requireNonNullKind(ma, "source Kind for handleErrorWith");
-    requireNonNullFunction(handler, "handler function for handleErrorWith");
+    // Enhanced validation with descriptive parameter
+    Validation.kind()
+        .requireNonNull(ma, COMPLETABLE_FUTURE_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
+    Validation.function()
+        .requireFunction(handler, "handler", COMPLETABLE_FUTURE_MONAD_CLASS, HANDLE_ERROR_WITH);
 
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
 

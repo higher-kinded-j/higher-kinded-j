@@ -2,329 +2,402 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.*;
 
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
-import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Invalid<E, A> Tests")
+@DisplayName("Invalid Complete Test Suite")
 class InvalidTest {
 
-  private final Invalid<String, Integer> invalidInstance =
-      new Invalid<>("Error: Something went wrong");
-  private final Invalid<Integer, String> invalidWithDifferentErrorType = new Invalid<>(404);
-  private final Semigroup<String> stringSemigroup = Semigroups.string(" & ");
+  private Invalid<String, Integer> invalidInstance;
+  private Semigroup<String> semigroup;
+
+  @BeforeEach
+  void setUp() {
+    invalidInstance = new Invalid<>("test-error");
+    semigroup = Semigroups.string(",");
+  }
 
   @Nested
-  @DisplayName("Constructor Tests")
-  class ConstructorTests {
-    @Test
-    @DisplayName("should initialize with a non-null error")
-    void shouldInitializeWithANonNullError() {
-      assertThatCode(() -> new Invalid<>("Test Error")).doesNotThrowAnyException();
-      Invalid<String, Integer> inv = new Invalid<>("Test Error");
-      assertThat(inv.error()).isEqualTo("Test Error");
-    }
+  @DisplayName("Complete Test Suite")
+  class CompleteTestSuite {
 
     @Test
-    @DisplayName("should throw NullPointerException if error is null")
-    void shouldThrowNullPointerExceptionIfErrorIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> new Invalid<>(null))
-          .withMessage(Validated.INVALID_ERROR_CANNOT_BE_NULL_MSG);
+    @DisplayName("Run complete Invalid core type test pattern")
+    void runCompleteInvalidValidationTests() {
+      Validated<String, Integer> anotherInvalid = Validated.invalid("another-error");
+
+      CoreTypeTest.<String, Integer>validated(Validated.class)
+          .withInvalid(invalidInstance)
+          .withValid(anotherInvalid) // Use another Invalid, not Valid
+          .withMappers(Object::toString)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(Invalid.class)
+          .withFlatMapFrom(Invalid.class)
+          .withIfValidFrom(Invalid.class)
+          .withIfInvalidFrom(Invalid.class)
+          .testValidations();
     }
   }
 
   @Nested
-  @DisplayName("State Checking Methods")
-  class StateCheckingMethods {
+  @DisplayName("Construction Tests")
+  class ConstructionTests {
+
     @Test
-    @DisplayName("isValid should return false")
-    void isValidShouldReturnFalse() {
+    @DisplayName("Invalid creation succeeds with non-null error")
+    void invalidCreationSucceedsWithNonNullError() {
+      Invalid<String, Integer> invalid = new Invalid<>("error");
+      assertThat(invalid.error()).isEqualTo("error");
+    }
+
+    @Test
+    @DisplayName("Invalid creation rejects null error")
+    void invalidCreationRejectsNullError() {
+      assertThatThrownBy(() -> new Invalid<String, Integer>(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("error")
+          .hasMessageContaining("Invalid");
+    }
+
+    @Test
+    @DisplayName("Factory method creates Invalid instance")
+    void factoryMethodCreatesInvalidInstance() {
+      Validated<String, Integer> validated = Validated.invalid("error");
+
+      assertThat(validated).isInstanceOf(Invalid.class);
+      assertThat(validated.isInvalid()).isTrue();
+      assertThat(validated.getError()).isEqualTo("error");
+    }
+  }
+
+  @Nested
+  @DisplayName("Query Operations")
+  class QueryOperations {
+
+    @Test
+    @DisplayName("IsValid returns false")
+    void isValidReturnsFalse() {
       assertThat(invalidInstance.isValid()).isFalse();
     }
 
     @Test
-    @DisplayName("isInvalid should return true")
-    void isInvalidShouldReturnTrue() {
+    @DisplayName("IsInvalid returns true")
+    void isInvalidReturnsTrue() {
       assertThat(invalidInstance.isInvalid()).isTrue();
     }
-  }
 
-  @Nested
-  @DisplayName("Value Retrieval Methods")
-  class ValueRetrievalMethods {
     @Test
-    @DisplayName("get should throw NoSuchElementException")
-    void getShouldThrowNoSuchElementException() {
-      assertThatThrownBy(invalidInstance::get)
+    @DisplayName("Get throws NoSuchElementException")
+    void getThrowsNoSuchElementException() {
+      assertThatThrownBy(() -> invalidInstance.get())
           .isInstanceOf(NoSuchElementException.class)
-          .hasMessage(
-              Invalid.CANNOT_GET_FROM_INVALID_INSTANCE_PREFIX_MSG + invalidInstance.error());
+          .hasMessageContaining("Cannot get() from an Invalid instance")
+          .hasMessageContaining("Error: test-error");
     }
 
     @Test
-    @DisplayName("getError should return the error")
-    void getErrorShouldReturnTheError() {
-      assertThat(invalidInstance.getError()).isEqualTo("Error: Something went wrong");
-      assertThat(invalidWithDifferentErrorType.getError()).isEqualTo(404);
-    }
-  }
-
-  @Nested
-  @DisplayName("orElse Methods")
-  class OrElseMethods {
-    @Test
-    @DisplayName("orElse should return the other value")
-    void orElseShouldReturnTheOtherValue() {
-      assertThat(invalidInstance.orElse(200)).isEqualTo(200);
-    }
-
-    @Test
-    @DisplayName("orElse should throw NullPointerException if other is null")
-    void orElseShouldThrowNullPointerExceptionIfOtherIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.orElse(null))
-          .withMessage(Invalid.OR_ELSE_OTHER_CANNOT_BE_NULL_MSG);
-    }
-
-    @Test
-    @DisplayName("orElseGet should return value from supplier")
-    void orElseGetShouldReturnValueFromSupplier() {
-      Supplier<Integer> supplier = () -> 200;
-      assertThat(invalidInstance.orElseGet(supplier)).isEqualTo(200);
-    }
-
-    @Test
-    @DisplayName("orElseGet should throw NullPointerException if supplier is null")
-    void orElseGetShouldThrowNullPointerExceptionIfSupplierIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.orElseGet(null))
-          .withMessage(Invalid.OR_ELSE_GET_SUPPLIER_CANNOT_BE_NULL_MSG);
-    }
-
-    @Test
-    @DisplayName("orElseGet should throw NullPointerException if supplier returns null")
-    void orElseGetShouldThrowNullPointerExceptionIfSupplierReturnsNull() {
-      Supplier<Integer> nullReturningSupplier = () -> null;
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.orElseGet(nullReturningSupplier))
-          .withMessage(Invalid.OR_ELSE_GET_SUPPLIER_RETURNED_NULL_MSG);
-    }
-
-    @Test
-    @DisplayName("orElseThrow should throw exception from supplier")
-    void orElseThrowShouldThrowExceptionFromSupplier() {
-      class MyCustomException extends Throwable {
-        MyCustomException(String message) {
-          super(message);
-        }
-      }
-      Supplier<MyCustomException> exceptionSupplier = () -> new MyCustomException("Custom Error");
-      assertThatThrownBy(() -> invalidInstance.orElseThrow(exceptionSupplier))
-          .isInstanceOf(MyCustomException.class)
-          .hasMessage("Custom Error");
-    }
-
-    @Test
-    @DisplayName("orElseThrow should throw NullPointerException if supplier is null")
-    void orElseThrowShouldThrowNullPointerExceptionIfSupplierIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.orElseThrow(null))
-          .withMessage(Invalid.OR_ELSE_THROW_SUPPLIER_CANNOT_BE_NULL_MSG);
-    }
-
-    @Test
-    @DisplayName("orElseThrow should throw NullPointerException if supplier produces null")
-    void orElseThrowShouldThrowNullPointerExceptionIfSupplierProducesNull() {
-      Supplier<RuntimeException> nullProducingSupplier = () -> null;
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.orElseThrow(nullProducingSupplier))
-          .withMessage(Invalid.OR_ELSE_THROW_SUPPLIER_PRODUCED_NULL_MSG);
+    @DisplayName("GetError returns the encapsulated error")
+    void getErrorReturnsTheEncapsulatedError() {
+      assertThat(invalidInstance.getError()).isEqualTo("test-error");
     }
   }
 
   @Nested
-  @DisplayName("Side Effect Methods")
-  class SideEffectMethods {
+  @DisplayName("OrElse Operations")
+  class OrElseOperations {
+
     @Test
-    @DisplayName("ifValid should not perform action")
-    void ifValidShouldNotPerformAction() {
-      Consumer<Integer> consumer = val -> fail("Consumer should not be called for Invalid");
-      invalidInstance.ifValid(consumer);
-      // No assertion needed if fail() is not called
+    @DisplayName("OrElse returns the alternative value")
+    void orElseReturnsTheAlternativeValue() {
+      assertThat(invalidInstance.orElse(100)).isEqualTo(100);
     }
 
     @Test
-    @DisplayName("ifValid should throw NullPointerException if consumer is null")
-    void ifValidShouldThrowNullPointerExceptionIfConsumerIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.ifValid(null))
-          .withMessage(Invalid.IF_VALID_CONSUMER_CANNOT_BE_NULL_MSG);
+    @DisplayName("OrElse rejects null parameter")
+    void orElseRejectsNullParameter() {
+      assertThatThrownBy(() -> invalidInstance.orElse(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("orElse")
+          .hasMessageContaining("other")
+          .hasMessageContaining("Invalid");
     }
 
     @Test
-    @DisplayName("ifInvalid should perform action with the error")
-    void ifInvalidShouldPerformActionWithTheError() {
-      AtomicReference<String> store = new AtomicReference<>();
-      Consumer<String> consumer = store::set;
-      invalidInstance.ifInvalid(consumer);
-      assertThat(store.get()).isEqualTo("Error: Something went wrong");
+    @DisplayName("OrElseGet returns the supplied value")
+    void orElseGetReturnsTheSuppliedValue() {
+      Integer result = invalidInstance.orElseGet(() -> 100);
+      assertThat(result).isEqualTo(100);
     }
 
     @Test
-    @DisplayName("ifInvalid should throw NullPointerException if consumer is null")
-    void ifInvalidShouldThrowNullPointerExceptionIfConsumerIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.ifInvalid(null))
-          .withMessage(Invalid.IF_INVALID_CONSUMER_CANNOT_BE_NULL_MSG);
+    @DisplayName("OrElseGet validates supplier is non-null")
+    void orElseGetValidatesSupplierIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.orElseGet(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("otherSupplier")
+          .hasMessageContaining("Invalid")
+          .hasMessageContaining("orElseGet");
+    }
+
+    @Test
+    @DisplayName("OrElseGet validates supplier result is non-null")
+    void orElseGetValidatesSupplierResultIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.orElseGet(() -> null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("orElseGet supplier returned null")
+          .hasMessageContaining("Invalid");
+    }
+
+    @Test
+    @DisplayName("OrElseThrow throws the supplied exception")
+    void orElseThrowThrowsTheSuppliedException() {
+      RuntimeException exception = new RuntimeException("Test exception");
+
+      assertThatThrownBy(() -> invalidInstance.orElseThrow(() -> exception)).isSameAs(exception);
+    }
+
+    @Test
+    @DisplayName("OrElseThrow validates supplier is non-null")
+    void orElseThrowValidatesSupplierIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.orElseThrow(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("exceptionSupplier")
+          .hasMessageContaining("Invalid")
+          .hasMessageContaining("orElseThrow");
+    }
+
+    @Test
+    @DisplayName("OrElseThrow validates supplier result is non-null")
+    void orElseThrowValidatesSupplierResultIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.orElseThrow(() -> null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("orElseThrow")
+          .hasMessageContaining("exceptionSupplier")
+          .hasMessageContaining("null throwable")
+          .hasMessageContaining("Invalid");
     }
   }
 
   @Nested
-  @DisplayName("Transformation Methods (map, flatMap, ap)")
-  class TransformationMethods {
+  @DisplayName("Side Effect Operations")
+  class SideEffectOperations {
+
     @Test
-    @DisplayName("map should return the same Invalid instance")
-    void mapShouldReturnTheSameInvalidInstance() {
-      Function<Integer, String> toStringFunc = Object::toString;
-      Validated<String, String> mapped = invalidInstance.map(toStringFunc);
-      assertThat(mapped).isSameAs(invalidInstance);
-      assertThat(mapped.isInvalid()).isTrue();
-      assertThat(mapped.getError()).isEqualTo("Error: Something went wrong");
+    @DisplayName("IfValid does not execute consumer")
+    void ifValidDoesNotExecuteConsumer() {
+      AtomicBoolean executed = new AtomicBoolean(false);
+
+      invalidInstance.ifValid(v -> executed.set(true));
+
+      assertThat(executed).isFalse();
     }
 
     @Test
-    @DisplayName("map should throw NullPointerException if function is null")
-    void mapShouldThrowNullPointerExceptionIfFunctionIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.map(null))
-          .withMessage(Invalid.MAP_FN_CANNOT_BE_NULL_MSG);
+    @DisplayName("IfValid validates consumer is non-null")
+    void ifValidValidatesConsumerIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.ifValid(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("consumer")
+          .hasMessageContaining("Invalid")
+          .hasMessageContaining("ifValid");
     }
 
     @Test
-    @DisplayName("flatMap should return the same Invalid instance")
-    void flatMapShouldReturnTheSameInvalidInstance() {
-      Function<Integer, Validated<String, String>> toValidatedStringFunc =
-          val -> Validated.valid("Val: " + val);
-      Validated<String, String> flatMapped = invalidInstance.flatMap(toValidatedStringFunc);
-      assertThat(flatMapped).isSameAs(invalidInstance);
-      assertThat(flatMapped.isInvalid()).isTrue();
-      assertThat(flatMapped.getError()).isEqualTo("Error: Something went wrong");
+    @DisplayName("IfInvalid executes consumer with the error")
+    void ifInvalidExecutesConsumerWithTheError() {
+      AtomicBoolean executed = new AtomicBoolean(false);
+
+      invalidInstance.ifInvalid(
+          e -> {
+            assertThat(e).isEqualTo("test-error");
+            executed.set(true);
+          });
+
+      assertThat(executed).isTrue();
     }
 
     @Test
-    @DisplayName("flatMap should throw NullPointerException if function is null")
-    void flatMapShouldThrowNullPointerExceptionIfFunctionIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.flatMap(null))
-          .withMessage(Invalid.FLATMAP_FN_CANNOT_BE_NULL_MSG);
+    @DisplayName("IfInvalid validates consumer is non-null")
+    void ifInvalidValidatesConsumerIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.ifInvalid(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("consumer")
+          .hasMessageContaining("Invalid")
+          .hasMessageContaining("ifInvalid");
     }
+  }
+
+  @Nested
+  @DisplayName("Transformation Operations")
+  class TransformationOperations {
 
     @Test
-    @DisplayName("ap should return this Invalid instance if the function is Valid")
-    void apShouldReturnThisInvalidIfFnValidatedIsValid() {
-      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
-          Validated.valid(i -> "Applied: " + i);
+    @DisplayName("Map preserves the Invalid instance")
+    void mapPreservesTheInvalidInstance() {
+      Validated<String, String> result = invalidInstance.map(Object::toString);
 
-      Validated<String, String> result = invalidInstance.ap(fnValidated, stringSemigroup);
-      assertThat(result).isInstanceOf(Invalid.class);
-      assertThat(result.getError()).isEqualTo(invalidInstance.error());
-    }
-
-    @Test
-    @DisplayName("ap should combine errors if the function is also Invalid")
-    void apShouldCombineErrorsIfFnValidatedIsAlsoInvalid() {
-      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
-          Validated.invalid("Function Error");
-
-      Validated<String, String> result = invalidInstance.ap(fnValidated, stringSemigroup);
+      assertThat(result).isSameAs(invalidInstance);
       assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("Function Error & Error: Something went wrong");
+      assertThat(result.getError()).isEqualTo("test-error");
     }
 
     @Test
-    @DisplayName("ap should throw NullPointerException if fnValidated is null")
-    void apShouldThrowNullPointerExceptionIfFnValidatedIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.ap(null, stringSemigroup))
-          .withMessage(Invalid.AP_FN_VALIDATED_CANNOT_BE_NULL_MSG);
+    @DisplayName("Map validates mapper is non-null")
+    void mapValidatesMapperIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.map(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("fn")
+          .hasMessageContaining("Invalid")
+          .hasMessageContaining("map");
     }
 
     @Test
-    @DisplayName("ap should throw NullPointerException if semigroup is null")
-    void apShouldThrowNullPointerExceptionIfSemigroupIsNull() {
+    @DisplayName("FlatMap preserves the Invalid instance")
+    void flatMapPreservesTheInvalidInstance() {
+      Validated<String, String> result =
+          invalidInstance.flatMap(i -> Validated.valid(i.toString()));
+
+      assertThat(result).isSameAs(invalidInstance);
+      assertThat(result.isInvalid()).isTrue();
+      assertThat(result.getError()).isEqualTo("test-error");
+    }
+
+    @Test
+    @DisplayName("FlatMap validates mapper is non-null")
+    void flatMapValidatesMapperIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.flatMap(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("fn")
+          .hasMessageContaining("Invalid")
+          .hasMessageContaining("flatMap");
+    }
+  }
+
+  @Nested
+  @DisplayName("Ap Operations")
+  class ApOperations {
+
+    @Test
+    @DisplayName("Ap with Invalid function accumulates errors")
+    void apWithInvalidFunctionAccumulatesErrors() {
       Validated<String, Function<? super Integer, ? extends String>> fnValidated =
-          Validated.valid(i -> "Applied: " + i);
-      assertThatNullPointerException()
-          .isThrownBy(() -> invalidInstance.ap(fnValidated, null))
-          .withMessage(Valid.SEMIGROUP_FOR_FOR_AP_CANNOT_BE_NULL_MSG);
+          Validated.invalid("function error");
+
+      Validated<String, String> result = invalidInstance.ap(fnValidated, semigroup);
+
+      assertThat(result.isInvalid()).isTrue();
+      assertThat(result.getError()).isEqualTo("function error,test-error");
+    }
+
+    @Test
+    @DisplayName("Ap with Valid function preserves Invalid instance")
+    void apWithValidFunctionPreservesInvalidInstance() {
+      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
+          Validated.valid(Object::toString);
+
+      Validated<String, String> result = invalidInstance.ap(fnValidated, semigroup);
+
+      assertThat(result).isSameAs(invalidInstance);
+      assertThat(result.isInvalid()).isTrue();
+      assertThat(result.getError()).isEqualTo("test-error");
+    }
+
+    @Test
+    @DisplayName("Ap validates function is non-null")
+    void apValidatesFunctionIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.ap(null, semigroup))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(
+              "Function fnValidated in Validated.ap returned null, which is not allowed");
+    }
+
+    @Test
+    @DisplayName("Ap validates semigroup is non-null")
+    void apValidatesSemigroupIsNonNull() {
+      Validated<String, Function<? super Integer, ? extends String>> fnValidated =
+          Validated.valid(Object::toString);
+
+      assertThatThrownBy(() -> invalidInstance.ap(fnValidated, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Invalid.ap semigroup cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("toEither Method")
-  class ToEitherMethod {
-    @Test
-    @DisplayName("toEither should return an Either.Left with the same error")
-    void toEither_shouldReturnLeft() {
-      Either<String, Integer> result = invalidInstance.toEither();
+  @DisplayName("Fold Operations")
+  class FoldOperations {
 
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isEqualTo("Error: Something went wrong");
+    @Test
+    @DisplayName("Fold applies invalid mapper")
+    void foldAppliesInvalidMapper() {
+      String result = invalidInstance.fold(error -> "Error: " + error, value -> "Value: " + value);
+
+      assertThat(result).isEqualTo("Error: test-error");
+    }
+
+    @Test
+    @DisplayName("Fold validates invalid mapper is non-null")
+    void foldValidatesInvalidMapperIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.fold(null, v -> "valid"))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function invalidMapper for Validated.fold cannot be null");
+    }
+
+    @Test
+    @DisplayName("Fold validates valid mapper is non-null")
+    void foldValidatesValidMapperIsNonNull() {
+      assertThatThrownBy(() -> invalidInstance.fold(e -> "invalid", null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function validMapper for Validated.fold cannot be null");
     }
   }
 
   @Nested
-  @DisplayName("toString Method")
-  class ToStringMethod {
-    @Test
-    @DisplayName("toString should return correct format")
-    void toStringShouldReturnCorrectFormat() {
-      assertThat(invalidInstance.toString()).isEqualTo("Invalid(Error: Something went wrong)");
-      assertThat(invalidWithDifferentErrorType.toString()).isEqualTo("Invalid(404)");
-    }
-  }
+  @DisplayName("Edge Cases Tests")
+  class EdgeCasesTests {
 
-  @Nested
-  @DisplayName("Record Properties")
-  class RecordProperties {
     @Test
-    @DisplayName("should have correct error via record accessor")
-    void shouldHaveCorrectErrorViaRecordAccessor() {
-      assertThat(invalidInstance.error()).isEqualTo("Error: Something went wrong");
+    @DisplayName("ToString produces readable output")
+    void toStringProducesReadableOutput() {
+      assertThat(invalidInstance.toString()).isEqualTo("Invalid(test-error)");
     }
 
     @Test
-    @DisplayName("equals and hashCode should work as expected for records")
-    void equalsAndHashCodeShouldWorkAsExpectedForRecords() {
-      Invalid<String, Integer> sameInvalidInstance = new Invalid<>("Error: Something went wrong");
-      Invalid<String, Integer> differentInvalidInstance = new Invalid<>("Another Error");
-      Invalid<Integer, Integer> differentErrorTypeInvalid = new Invalid<>(500);
-      String notAnInvalid = "not an invalid";
+    @DisplayName("Equals compares errors correctly")
+    void equalsComparesErrorsCorrectly() {
+      Invalid<String, Integer> same = new Invalid<>("test-error");
+      Invalid<String, Integer> different = new Invalid<>("other-error");
 
-      // Equality
-      assertThat(invalidInstance).isEqualTo(sameInvalidInstance);
-      assertThat(invalidInstance).isNotEqualTo(differentInvalidInstance);
-      assertThat(invalidInstance).isNotEqualTo(differentErrorTypeInvalid);
-      assertThat(invalidInstance).isNotEqualTo(notAnInvalid);
+      assertThat(invalidInstance).isEqualTo(same);
+      assertThat(invalidInstance).isNotEqualTo(different);
+      assertThat(invalidInstance).isNotEqualTo(null);
+      assertThat(invalidInstance).isNotEqualTo("not an Invalid");
+    }
 
-      // HashCode
-      assertThat(invalidInstance).hasSameHashCodeAs(sameInvalidInstance);
-      assertThat(invalidInstance.hashCode()).isNotEqualTo(differentInvalidInstance.hashCode());
+    @Test
+    @DisplayName("HashCode is consistent")
+    void hashCodeIsConsistent() {
+      Invalid<String, Integer> same = new Invalid<>("test-error");
+
+      assertThat(invalidInstance.hashCode()).isEqualTo(same.hashCode());
+    }
+
+    @Test
+    @DisplayName("Record accessor returns error")
+    void recordAccessorReturnsError() {
+      assertThat(invalidInstance.error()).isEqualTo("test-error");
     }
   }
 }

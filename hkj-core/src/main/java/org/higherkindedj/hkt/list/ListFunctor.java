@@ -2,14 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullFunction;
-import static org.higherkindedj.hkt.util.ErrorHandling.requireNonNullKind;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} type class for {@link java.util.List}, using {@link
@@ -63,23 +64,22 @@ class ListFunctor implements Functor<ListKind.Witness> {
    *     containing the input list.
    * @return A new non-null {@code Kind<ListKind.Witness, B>} containing a list with the results of
    *     applying the function {@code f} to each element of the input list.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
    *     ListKind} representation.
-   * @throws NullPointerException if {@code f} or {@code fa} is null.
    */
   @Override
   public <A, B> Kind<ListKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<ListKind.Witness, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
-    // Narrow to ListKind<A> to call unwrap, or directly to ListView<A>
-    // ListKind.narrow ensures fa is not null and is of the correct type.
-    List<A> listA = ListKind.narrow(fa).unwrap();
+
+    Validation.function().requireMapper(f, "f", ListFunctor.class, MAP);
+    Validation.kind().requireNonNull(fa, ListFunctor.class, MAP);
+
+    List<A> listA = LIST.narrow(fa);
     List<B> listB = new ArrayList<>(listA.size());
     for (A a : listA) {
       listB.add(f.apply(a));
     }
-    // Use the static factory on ListKind to return the correct HKT
-    return ListKind.of(listB);
+    return LIST.widen(listB);
   }
 }

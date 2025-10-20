@@ -2,350 +2,424 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
+import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderMonad Tests")
-class ReaderMonadTest {
+@DisplayName("ReaderMonad Complete Test Suite")
+class ReaderMonadTest
+    extends TypeClassTestBase<ReaderKind.Witness<ReaderMonadTest.Config>, Integer, String> {
 
   // Simple environment for tests
-  record Config(String url, int connections) {}
+  public record Config(String url, int connections) {}
 
-  final Config testConfig = new Config("db://localhost", 5);
+  private final Config testConfig = new Config("db://localhost", 5);
 
-  // Monad instance for Reader<Config, ?>
-  private ReaderMonad<Config> readerMonad;
+  private ReaderMonad<Config> monad;
+
+  @Override
+  protected Kind<ReaderKind.Witness<Config>, Integer> createValidKind() {
+    return READER.widen(Reader.of(Config::connections));
+  }
+
+  @Override
+  protected Kind<ReaderKind.Witness<Config>, Integer> createValidKind2() {
+    return READER.widen(Reader.of(config -> config.connections() * 2));
+  }
+
+  @Override
+  protected Function<Integer, String> createValidMapper() {
+    return TestFunctions.INT_TO_STRING;
+  }
+
+  @Override
+  protected Function<Integer, Kind<ReaderKind.Witness<Config>, String>> createValidFlatMapper() {
+    return i -> READER.widen(Reader.of(config -> config.url() + ":" + i));
+  }
+
+  @Override
+  protected Kind<ReaderKind.Witness<Config>, Function<Integer, String>> createValidFunctionKind() {
+    return READER.widen(Reader.of(config -> i -> config.url() + i));
+  }
+
+  @Override
+  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
+    return (a, b) -> "Result:" + a + "," + b;
+  }
+
+  @Override
+  protected Integer createTestValue() {
+    return 5;
+  }
+
+  @Override
+  protected Function<Integer, Kind<ReaderKind.Witness<Config>, String>> createTestFunction() {
+    return i -> READER.widen(Reader.of(config -> config.url() + ":" + i));
+  }
+
+  @Override
+  protected Function<String, Kind<ReaderKind.Witness<Config>, String>> createChainFunction() {
+    return s -> READER.widen(Reader.of(config -> s + " (" + config.connections() + ")"));
+  }
+
+  @Override
+  protected BiPredicate<Kind<ReaderKind.Witness<Config>, ?>, Kind<ReaderKind.Witness<Config>, ?>>
+      createEqualityChecker() {
+    return (k1, k2) -> {
+      // Run both readers with the same config and compare results
+      Object result1 = READER.runReader(k1, testConfig);
+      Object result2 = READER.runReader(k2, testConfig);
+      if (result1 == null && result2 == null) return true;
+      if (result1 == null || result2 == null) return false;
+      return result1.equals(result2);
+    };
+  }
 
   @BeforeEach
-  void setUp() {
-    readerMonad = ReaderMonad.instance();
-  }
-
-  // Helper to run and get result
-  private <A> A run(Kind<ReaderKind.Witness<Config>, A> kind) {
-    return READER.runReader(kind, testConfig);
-  }
-
-  // --- Basic Operations ---
-
-  @Nested
-  @DisplayName("Applicative 'of' tests")
-  class OfTests {
-    @Test
-    void of_shouldCreateConstantReader() {
-      Kind<ReaderKind.Witness<Config>, String> kind = readerMonad.of("constantValue");
-      assertThat(run(kind)).isEqualTo("constantValue");
-      // Verify it ignores environment
-      assertThat(READER.runReader(kind, new Config("other", 0))).isEqualTo("constantValue");
-    }
-
-    @Test
-    void of_shouldAllowNullValue() {
-      Kind<ReaderKind.Witness<Config>, String> kind = readerMonad.of(null);
-      assertThat(run(kind)).isNull();
-    }
+  void setUpMonad() {
+    monad = ReaderMonad.instance();
+    validateMonadFixtures();
   }
 
   @Nested
-  @DisplayName("Functor 'map' tests")
-  class MapTests {
+  @DisplayName("Complete Monad Test Suite")
+  class CompleteMonadTestSuite {
+
     @Test
-    void map_shouldApplyFunctionToResult() {
-      var urlReaderKind = READER.reader(Config::url);
-      var lengthReaderKind = readerMonad.map(String::length, urlReaderKind);
-      assertThat(run(lengthReaderKind)).isEqualTo(testConfig.url().length());
+    @DisplayName("Run complete Monad test pattern")
+    void runCompleteMonadTestPattern() {
+      TypeClassTest.<ReaderKind.Witness<Config>>monad(ReaderMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(ReaderFunctor.class)
+          .withApFrom(ReaderApplicative.class)
+          .withFlatMapFrom(ReaderMonad.class)
+          .selectTests()
+          .skipExceptions() // Reader is lazy - exceptions only thrown on run()
+          .test();
     }
 
     @Test
-    void map_shouldChainFunctions() {
-      var connectionsReaderKind = READER.reader(Config::connections);
-      // Map connections -> double -> string
-      var mappedKind =
-          readerMonad.map(
-              conns -> "Connections: " + conns,
-              readerMonad.map(c -> c * 2.0, connectionsReaderKind));
-      assertThat(run(mappedKind)).isEqualTo("Connections: " + (testConfig.connections() * 2.0));
+    @DisplayName("Validate test structure follows standards")
+    void validateTestStructure() {
+      TestPatternValidator.ValidationResult result =
+          TestPatternValidator.validateAndReport(ReaderMonadTest.class);
+
+      if (result.hasErrors()) {
+        result.printReport();
+        throw new AssertionError("Test structure validation failed");
+      }
     }
   }
 
   @Nested
-  @DisplayName("Applicative 'ap' tests")
-  class ApTests {
+  @DisplayName("Operation Tests")
+  class OperationTests {
+
     @Test
-    void ap_shouldApplyReaderFunctionToReaderValue() {
-      // Reader<Config, Function<Integer, String>>
-      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind =
-          READER.reader(config -> (Integer i) -> config.url() + ":" + i);
+    @DisplayName("of() creates constant Reader")
+    void ofCreatesConstantReader() {
+      Kind<ReaderKind.Witness<Config>, String> result = monad.of("constantValue");
 
-      // Reader<Config, Integer>
-      var valKind = READER.reader(Config::connections);
-
-      var resultKind = readerMonad.ap(funcKind, valKind);
-
-      assertThat(run(resultKind)).isEqualTo(testConfig.url() + ":" + testConfig.connections());
+      Reader<Config, String> reader = READER.narrow(result);
+      assertThat(reader.run(testConfig)).isEqualTo("constantValue");
+      assertThat(reader.run(new Config("other", 0))).isEqualTo("constantValue");
     }
 
     @Test
-    void ap_shouldWorkWithConstantFunctionAndValue() {
-      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind =
-          readerMonad.of(i -> "Num" + i);
-      var valKind = readerMonad.of(100);
-      var resultKind = readerMonad.ap(funcKind, valKind);
-      assertThat(run(resultKind)).isEqualTo("Num100");
+    @DisplayName("map() applies function to result")
+    void mapAppliesFunctionToResult() {
+      Kind<ReaderKind.Witness<Config>, String> result = monad.map(validMapper, validKind);
+
+      Reader<Config, String> reader = READER.narrow(result);
+      assertThat(reader.run(testConfig)).isEqualTo(String.valueOf(testConfig.connections()));
     }
 
     @Test
-    void ap_shouldThrowExceptionWhenFunctionIsNull() {
-      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind = readerMonad.of(null);
-      var valKind = readerMonad.of(100);
-      var resultKind = readerMonad.ap(funcKind, valKind);
+    @DisplayName("flatMap() sequences computations")
+    void flatMapSequencesComputations() {
+      Kind<ReaderKind.Witness<Config>, String> result = monad.flatMap(validFlatMapper, validKind);
 
-      assertThatThrownBy(() -> run(resultKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessage("Function extracted from Reader for 'ap' was null");
+      Reader<Config, String> reader = READER.narrow(result);
+      assertThat(reader.run(testConfig))
+          .isEqualTo(testConfig.url() + ":" + testConfig.connections());
     }
 
     @Test
-    void ap_shouldPropagateExceptionFromFunction() {
-      var exception = new RuntimeException("Test exception");
-      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind =
-          readerMonad.of(
-              i -> {
-                throw exception;
-              });
-      var valKind = readerMonad.of(100);
-      var resultKind = readerMonad.ap(funcKind, valKind);
+    @DisplayName("flatMap() passes environment correctly")
+    void flatMapPassesEnvironmentCorrectly() {
+      Function<Integer, Kind<ReaderKind.Witness<Config>, String>> flatMapper =
+          conns -> READER.widen(Reader.of(config -> config.url() + " [" + conns + "]"));
 
-      assertThatThrownBy(() -> run(resultKind)).isSameAs(exception);
-    }
-  }
+      Kind<ReaderKind.Witness<Config>, String> result = monad.flatMap(flatMapper, validKind);
 
-  @Nested
-  @DisplayName("Monad 'flatMap' tests")
-  class FlatMapTests {
-    @Test
-    void flatMap_shouldSequenceComputations() {
-      // Get URL, then based on URL, get connections
-      var urlKind = READER.reader(Config::url);
-
-      Function<String, Kind<ReaderKind.Witness<Config>, Integer>> getConnectionsBasedOnUrl =
-          url ->
-              url.startsWith("db:")
-                  ? READER.reader(Config::connections) // Use original env
-                  : READER.constant(-1); // Return constant if URL doesn't match
-
-      var resultKind = readerMonad.flatMap(getConnectionsBasedOnUrl, urlKind);
-
-      assertThat(run(resultKind)).isEqualTo(testConfig.connections());
-
-      // Test with different config
-      Config otherConfig = new Config("http://server", 10);
-      assertThat(READER.runReader(resultKind, otherConfig)).isEqualTo(-1);
-    }
-
-    @Test
-    void flatMap_shouldPassEnvironmentCorrectly() {
-      // Reader 1: Get connections
-      var connKind = READER.reader(Config::connections);
-      // Reader 2 (depends on connections): Get URL and append connections
-      Function<Integer, Kind<ReaderKind.Witness<Config>, String>> getUrlAndAppendConns =
-          conns ->
-              READER.reader(env -> env.url() + " [" + conns + "]"); // Uses env passed to *its* run
-
-      var resultKind = readerMonad.flatMap(getUrlAndAppendConns, connKind);
-
-      // run(resultKind) is equivalent to:
-      // r -> { int c = connKind.run(r); Reader<R,String> r2 = getUrlAndAppendConns(c); return
-      // r2.run(r); }
-      // r -> { int c = r.connections(); Reader<R,String> r2 = env -> env.url() + " [" + c + "]";
-      // return r2.run(r); }
-      // r -> { int c = r.connections(); return r.url() + " [" + c + "]"; }
-      assertThat(run(resultKind))
+      Reader<Config, String> reader = READER.narrow(result);
+      assertThat(reader.run(testConfig))
           .isEqualTo(testConfig.url() + " [" + testConfig.connections() + "]");
     }
-  }
 
-  // --- Law Tests ---
-
-  // Helper functions for laws
-  final Function<Integer, String> intToString = Object::toString;
-  final Function<String, String> appendWorld = s -> s + " world";
-
-  // Kind<ReaderKind.Witness<Config>, Integer>
-  final Kind<ReaderKind.Witness<Config>, Integer> mValue = READER.reader(Config::connections);
-  // Function Integer -> Kind<ReaderKind.Witness<Config>, String>
-  final Function<Integer, Kind<ReaderKind.Witness<Config>, String>> f =
-      i -> READER.reader(env -> env.url() + ":" + i);
-  // Function String -> Kind<ReaderKind.Witness<Config>, String>
-  final Function<String, Kind<ReaderKind.Witness<Config>, String>> g =
-      s -> READER.reader(env -> s + " (" + env.connections() + ")");
-
-  @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
     @Test
-    @DisplayName("1. Identity: map(id, fa) == fa")
-    void identity() {
-      Kind<ReaderKind.Witness<Config>, Integer> fa = READER.reader(Config::connections);
-      Kind<ReaderKind.Witness<Config>, Integer> result = readerMonad.map(Function.identity(), fa);
-      // Compare results when run
-      assertThat(run(result)).isEqualTo(run(fa));
+    @DisplayName("ap() applies function to value - both from environment")
+    void apAppliesFunctionToValue() {
+      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind =
+          READER.widen(Reader.of(config -> i -> config.url() + ":" + i));
+      Kind<ReaderKind.Witness<Config>, Integer> valueKind = validKind;
+
+      Kind<ReaderKind.Witness<Config>, String> result = monad.ap(funcKind, valueKind);
+
+      Reader<Config, String> reader = READER.narrow(result);
+      assertThat(reader.run(testConfig))
+          .isEqualTo(testConfig.url() + ":" + testConfig.connections());
     }
 
     @Test
-    @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
-    void composition() {
-      Kind<ReaderKind.Witness<Config>, Integer> fa = READER.reader(Config::connections);
-      Function<Integer, String> fMap = i -> "v" + i;
-      Function<String, String> gMap = s -> s + "!";
-      Function<Integer, String> gComposeF = gMap.compose(fMap);
+    @DisplayName("ap() works with constant function and value")
+    void apWorksWithConstantFunctionAndValue() {
+      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind =
+          monad.of(i -> "Num" + i);
+      Kind<ReaderKind.Witness<Config>, Integer> valueKind = monad.of(100);
 
-      Kind<ReaderKind.Witness<Config>, String> leftSide = readerMonad.map(gComposeF, fa);
-      Kind<ReaderKind.Witness<Config>, String> rightSide =
-          readerMonad.map(gMap, readerMonad.map(fMap, fa));
+      Kind<ReaderKind.Witness<Config>, String> result = monad.ap(funcKind, valueKind);
 
-      assertThat(run(leftSide)).isEqualTo(run(rightSide));
+      assertThat(READER.runReader(result, testConfig)).isEqualTo("Num100");
+    }
+
+    @Test
+    @DisplayName("map2() combines two Reader values")
+    void map2CombinesTwoReaderValues() {
+      Kind<ReaderKind.Witness<Config>, Integer> r1 = validKind;
+      Kind<ReaderKind.Witness<Config>, Integer> r2 = validKind2;
+
+      BiFunction<Integer, Integer, String> combiner = (a, b) -> a + "," + b;
+      Kind<ReaderKind.Witness<Config>, String> result = monad.map2(r1, r2, combiner);
+
+      assertThat(READER.runReader(result, testConfig))
+          .isEqualTo(testConfig.connections() + "," + (testConfig.connections() * 2));
     }
   }
 
   @Nested
-  @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
-
-    Kind<ReaderKind.Witness<Config>, Integer> v = READER.reader(Config::connections);
-    Kind<ReaderKind.Witness<Config>, Function<Integer, String>> fKind =
-        READER.reader(env -> i -> env.url() + i);
-    Kind<ReaderKind.Witness<Config>, Function<String, String>> gKind =
-        READER.reader(env -> s -> s + env.connections());
+  @DisplayName("Individual Components")
+  class IndividualComponents {
 
     @Test
-    @DisplayName("1. Identity: ap(of(id), v) == v")
-    void identity() {
-      Kind<ReaderKind.Witness<Config>, Function<Integer, Integer>> idFuncKind =
-          readerMonad.of(Function.identity());
-      assertThat(run(readerMonad.ap(idFuncKind, v))).isEqualTo(run(v));
+    @DisplayName("Test operations only")
+    void testOperationsOnly() {
+      TypeClassTest.<ReaderKind.Witness<Config>>monad(ReaderMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .testOperations();
     }
 
     @Test
-    @DisplayName("2. Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      int x = 10;
-      Function<Integer, String> func = i -> "X" + i;
-      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> apFunc = readerMonad.of(func);
-      Kind<ReaderKind.Witness<Config>, Integer> apVal = readerMonad.of(x);
-
-      Kind<ReaderKind.Witness<Config>, String> leftSide = readerMonad.ap(apFunc, apVal);
-      Kind<ReaderKind.Witness<Config>, String> rightSide = readerMonad.of(func.apply(x));
-
-      assertThat(run(leftSide)).isEqualTo(run(rightSide));
+    @DisplayName("Test validations only")
+    void testValidationsOnly() {
+      TypeClassTest.<ReaderKind.Witness<Config>>monad(ReaderMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(ReaderFunctor.class)
+          .withApFrom(ReaderApplicative.class)
+          .withFlatMapFrom(ReaderMonad.class)
+          .testValidations();
     }
 
     @Test
-    @DisplayName("3. Interchange: ap(fKind, of(y)) == ap(of(f -> f(y)), fKind)")
-    void interchange() {
-      int y = 20;
-      Kind<ReaderKind.Witness<Config>, String> leftSide = readerMonad.ap(fKind, readerMonad.of(y));
-
-      Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<ReaderKind.Witness<Config>, Function<Function<Integer, String>, String>> evalKind =
-          readerMonad.of(evalWithY);
-      Kind<ReaderKind.Witness<Config>, String> rightSide = readerMonad.ap(evalKind, fKind);
-
-      assertThat(run(leftSide)).isEqualTo(run(rightSide));
+    @DisplayName("Test exception propagation only")
+    void testExceptionPropagationOnly() {
+      // Reader is lazy - exceptions only occur when run() is called
+      // Exception propagation is thoroughly tested in EdgeCasesTests
+      TypeClassTest.<ReaderKind.Witness<Config>>monad(ReaderMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(ReaderFunctor.class)
+          .withApFrom(ReaderApplicative.class)
+          .withFlatMapFrom(ReaderMonad.class)
+          .selectTests()
+          .skipExceptions()
+          .test();
     }
 
     @Test
-    @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
-    void composition() {
-      Function<
-              Function<String, String>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          composeMap = gg -> gg::compose;
-
-      Kind<
-              ReaderKind.Witness<Config>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          mappedCompose = readerMonad.map(composeMap, gKind);
-      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> ap1 =
-          readerMonad.ap(mappedCompose, fKind);
-      Kind<ReaderKind.Witness<Config>, String> leftSide = readerMonad.ap(ap1, v);
-
-      Kind<ReaderKind.Witness<Config>, String> innerAp = readerMonad.ap(fKind, v);
-      Kind<ReaderKind.Witness<Config>, String> rightSide = readerMonad.ap(gKind, innerAp);
-
-      assertThat(run(leftSide)).isEqualTo(run(rightSide));
+    @DisplayName("Test laws only")
+    void testLawsOnly() {
+      TypeClassTest.<ReaderKind.Witness<Config>>monad(ReaderMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .testLaws();
     }
   }
 
   @Nested
-  @DisplayName("Monad Laws")
-  class MonadLaws {
-    @Test
-    @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      int value = 5;
-      Kind<ReaderKind.Witness<Config>, Integer> ofValue = readerMonad.of(value);
-      Kind<ReaderKind.Witness<Config>, String> leftSide = readerMonad.flatMap(f, ofValue);
-      Kind<ReaderKind.Witness<Config>, String> rightSide = f.apply(value);
+  @DisplayName("Edge Cases Tests")
+  class EdgeCasesTests {
 
-      assertThat(run(leftSide)).isEqualTo(run(rightSide));
+    @Test
+    @DisplayName("Deep flatMap chaining")
+    void deepFlatMapChaining() {
+      Kind<ReaderKind.Witness<Config>, Integer> start = READER.widen(Reader.of(config -> 1));
+
+      Kind<ReaderKind.Witness<Config>, Integer> result = start;
+      for (int i = 0; i < 10; i++) {
+        final int increment = i;
+        result = monad.flatMap(x -> monad.of(x + increment), result);
+      }
+
+      assertThat(READER.runReader(result, testConfig))
+          .isEqualTo(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
     }
 
     @Test
-    @DisplayName("2. Right Identity: flatMap(m, of) == m")
-    void rightIdentity() {
-      Function<Integer, Kind<ReaderKind.Witness<Config>, Integer>> ofFunc = i -> readerMonad.of(i);
-      Kind<ReaderKind.Witness<Config>, Integer> leftSide = readerMonad.flatMap(ofFunc, mValue);
-      assertThat(run(leftSide)).isEqualTo(run(mValue));
+    @DisplayName("ask() identity - returns environment")
+    void askIdentityReturnsEnvironment() {
+      Kind<ReaderKind.Witness<Config>, Config> askReader = READER.ask();
+      assertThat(READER.runReader(askReader, testConfig)).isSameAs(testConfig);
     }
 
     @Test
-    @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-    void associativity() {
-      Kind<ReaderKind.Witness<Config>, String> innerFlatMap = readerMonad.flatMap(f, mValue);
-      Kind<ReaderKind.Witness<Config>, String> leftSide = readerMonad.flatMap(g, innerFlatMap);
-
-      Function<Integer, Kind<ReaderKind.Witness<Config>, String>> rightSideFunc =
-          a -> readerMonad.flatMap(g, f.apply(a));
-      Kind<ReaderKind.Witness<Config>, String> rightSide =
-          readerMonad.flatMap(rightSideFunc, mValue);
-
-      assertThat(run(leftSide)).isEqualTo(run(rightSide));
+    @DisplayName("constant() ignores environment")
+    void constantIgnoresEnvironment() {
+      Kind<ReaderKind.Witness<Config>, String> constantReader = READER.constant("fixed");
+      Config differentConfig = new Config("http://server", 10);
+      assertThat(READER.runReader(constantReader, differentConfig)).isEqualTo("fixed");
     }
-  }
-
-  // --- mapN Tests --- (Using default Applicative implementations)
-  @Nested
-  @DisplayName("mapN tests")
-  class MapNTests {
-    Kind<ReaderKind.Witness<Config>, Integer> r1 = READER.reader(Config::connections);
-    Kind<ReaderKind.Witness<Config>, String> r2 = READER.reader(Config::url);
-    Kind<ReaderKind.Witness<Config>, Double> r3 = READER.reader(env -> env.connections() * 1.5);
-    Kind<ReaderKind.Witness<Config>, Boolean> r4 = READER.reader(env -> env.url().startsWith("db"));
 
     @Test
-    void map2_combinesResults() {
+    @DisplayName("map() preserves environment threading")
+    void mapPreservesEnvironmentThreading() {
+      Kind<ReaderKind.Witness<Config>, Config> askReader = READER.ask();
+      Kind<ReaderKind.Witness<Config>, String> mappedAsk = monad.map(Config::url, askReader);
+      assertThat(READER.runReader(mappedAsk, testConfig)).isEqualTo(testConfig.url());
+    }
+
+    @Test
+    @DisplayName("Exception in function propagates through map")
+    void exceptionInFunctionPropagatesThroughMap() {
+      RuntimeException testException = new RuntimeException("Test exception: map test");
+      Function<Integer, String> throwingMapper =
+          i -> {
+            throw testException;
+          };
+
+      Kind<ReaderKind.Witness<Config>, String> result = monad.map(throwingMapper, validKind);
+      Reader<Config, String> reader = READER.narrow(result);
+
+      assertThatThrownBy(() -> reader.run(testConfig)).isSameAs(testException);
+    }
+
+    @Test
+    @DisplayName("Exception in function propagates through flatMap")
+    void exceptionInFunctionPropagatesThroughFlatMap() {
+      RuntimeException testException = new RuntimeException("Test exception: flatMap test");
+      Function<Integer, Kind<ReaderKind.Witness<Config>, String>> throwingFlatMapper =
+          i -> {
+            throw testException;
+          };
+
       Kind<ReaderKind.Witness<Config>, String> result =
-          readerMonad.map2(r1, r2, (conns, url) -> url + " (" + conns + ")");
-      assertThat(run(result)).isEqualTo(testConfig.url() + " (" + testConfig.connections() + ")");
+          monad.flatMap(throwingFlatMapper, validKind);
+      Reader<Config, String> reader = READER.narrow(result);
+
+      assertThatThrownBy(() -> reader.run(testConfig)).isSameAs(testException);
     }
 
     @Test
-    void map3_combinesResults() {
+    @DisplayName("Exception in ap function propagates")
+    void exceptionInApFunctionPropagates() {
+      RuntimeException testException = new RuntimeException("Test exception: ap test");
+      Kind<ReaderKind.Witness<Config>, Function<Integer, String>> funcKind =
+          monad.of(
+              i -> {
+                throw testException;
+              });
+
+      Kind<ReaderKind.Witness<Config>, String> result = monad.ap(funcKind, validKind);
+      Reader<Config, String> reader = READER.narrow(result);
+
+      assertThatThrownBy(() -> reader.run(testConfig)).isSameAs(testException);
+    }
+  }
+
+  @Nested
+  @DisplayName("Performance Tests")
+  class PerformanceTests {
+
+    @Test
+    @DisplayName("flatMap efficient with many operations")
+    void flatMapEfficientWithManyOperations() {
+      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
+        Kind<ReaderKind.Witness<Config>, Integer> start = monad.of(1);
+
+        Kind<ReaderKind.Witness<Config>, Integer> result = start;
+        for (int i = 0; i < 100; i++) {
+          final int increment = i;
+          result = monad.flatMap(x -> monad.of(x + increment), result);
+        }
+
+        int expectedSum = 1 + (99 * 100) / 2;
+        assertThat(READER.runReader(result, testConfig)).isEqualTo(expectedSum);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("mapN Tests")
+  class MapNTests {
+    Kind<ReaderKind.Witness<Config>, Integer> r1 = READER.widen(Reader.of(Config::connections));
+    Kind<ReaderKind.Witness<Config>, String> r2 = READER.widen(Reader.of(Config::url));
+    Kind<ReaderKind.Witness<Config>, Double> r3 =
+        READER.widen(Reader.of(config -> config.connections() * 1.5));
+    Kind<ReaderKind.Witness<Config>, Boolean> r4 =
+        READER.widen(Reader.of(config -> config.url().startsWith("db")));
+
+    @Test
+    @DisplayName("map2() combines results")
+    void map2CombinesResults() {
+      Kind<ReaderKind.Witness<Config>, String> result =
+          monad.map2(r1, r2, (conns, url) -> url + " (" + conns + ")");
+      assertThat(READER.runReader(result, testConfig))
+          .isEqualTo(testConfig.url() + " (" + testConfig.connections() + ")");
+    }
+
+    @Test
+    @DisplayName("map3() combines results")
+    void map3CombinesResults() {
       Function3<Integer, String, Double, String> f3 =
           (i, s, d) -> String.format("I:%d S:%s D:%.1f", i, s, d);
-      Kind<ReaderKind.Witness<Config>, String> result = readerMonad.map3(r1, r2, r3, f3);
-      assertThat(run(result))
+      Kind<ReaderKind.Witness<Config>, String> result = monad.map3(r1, r2, r3, f3);
+      assertThat(READER.runReader(result, testConfig))
           .isEqualTo(
               String.format(
                   "I:%d S:%s D:%.1f",
@@ -353,11 +427,12 @@ class ReaderMonadTest {
     }
 
     @Test
-    void map4_combinesResults() {
+    @DisplayName("map4() combines results")
+    void map4CombinesResults() {
       Function4<Integer, String, Double, Boolean, String> f4 =
           (i, s, d, b) -> String.format("I:%d S:%s D:%.1f B:%b", i, s, d, b);
-      Kind<ReaderKind.Witness<Config>, String> result = readerMonad.map4(r1, r2, r3, r4, f4);
-      assertThat(run(result))
+      Kind<ReaderKind.Witness<Config>, String> result = monad.map4(r1, r2, r3, r4, f4);
+      assertThat(READER.runReader(result, testConfig))
           .isEqualTo(
               String.format(
                   "I:%d S:%s D:%.1f B:%b",
@@ -365,6 +440,31 @@ class ReaderMonadTest {
                   testConfig.url(),
                   testConfig.connections() * 1.5,
                   testConfig.url().startsWith("db")));
+    }
+  }
+
+  @Nested
+  @DisplayName("Core Type Tests")
+  class CoreTypeTests {
+
+    @Test
+    @DisplayName("Test Reader core type operations")
+    void testReaderCoreTypeOperations() {
+      Reader<Config, Integer> reader = Reader.of(Config::connections);
+
+      CoreTypeTest.<Config, Integer>reader(Reader.class)
+          .withReader(reader)
+          .withEnvironment(testConfig)
+          .withMappers(TestFunctions.INT_TO_STRING)
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Test ReaderKindHelper")
+    void testReaderKindHelper() {
+      Reader<Config, String> reader = Reader.constant("test");
+
+      CoreTypeTest.readerKindHelper(reader).test();
     }
   }
 }

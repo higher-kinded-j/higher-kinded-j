@@ -2,12 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
+import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Monad} interface for the {@link Reader} monad.
@@ -34,6 +35,8 @@ import org.higherkindedj.hkt.Monad;
  */
 public final class ReaderMonad<R> extends ReaderApplicative<R>
     implements Monad<ReaderKind.Witness<R>> {
+
+  private static final Class<ReaderMonad> READER_MONAD_CLASS = ReaderMonad.class;
 
   private static final ReaderMonad<?> INSTANCE = new ReaderMonad<>();
 
@@ -81,21 +84,20 @@ public final class ReaderMonad<R> extends ReaderApplicative<R>
       Function<? super A, ? extends Kind<ReaderKind.Witness<R>, B>> f,
       Kind<ReaderKind.Witness<R>, A> ma) {
 
-    requireNonNullFunction(f, "function f for flatMap");
-    requireNonNullKind(ma, "source Kind for flatMap");
+    Validation.function().requireFlatMapper(f, "f", READER_MONAD_CLASS, FLAT_MAP);
+    Validation.kind().requireNonNull(ma, READER_MONAD_CLASS, FLAT_MAP);
 
-    Reader<R, A> readerA = READER.narrow(ma); // Convert Kind back to concrete Reader
+    Reader<R, A> readerA = READER.narrow(ma);
 
-    // flatMap on the concrete Reader<R,A> takes a function A -> Reader<R,B>
-    // The input function f is A -> Kind<ReaderKind.Witness<R>, B>
-    // So, we need to adapt f by unwrapping its result.
     Reader<R, B> readerB =
         readerA.flatMap(
             a -> {
               Kind<ReaderKind.Witness<R>, B> kindB = f.apply(a);
-              return READER.narrow(kindB); // unwrap Kind<ReaderKind.Witness<R>, B> to Reader<R,B>
+              Validation.function()
+                  .requireNonNullResult(kindB, "f", READER_MONAD_CLASS, FLAT_MAP, Kind.class);
+              return READER.narrow(kindB);
             });
 
-    return READER.widen(readerB); // Wrap the resulting concrete Reader back into a Kind
+    return READER.widen(readerB);
   }
 }

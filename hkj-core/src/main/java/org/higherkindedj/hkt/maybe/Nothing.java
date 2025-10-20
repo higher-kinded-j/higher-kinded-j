@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /** Concrete implementation of Maybe representing the absence of a value (singleton). */
@@ -45,19 +47,19 @@ final class Nothing<T> implements Maybe<T> {
 
   @Override
   public T orElseGet(Supplier<? extends T> other) {
-    Objects.requireNonNull(other, "orElseGet supplier cannot be null");
+    Validation.function().requireFunction(other, "otherSupplier", MAYBE_CLASS, OR_ELSE_GET);
     return other.get(); // Supplier must return NonNull T
   }
 
   @Override
   public <U> Maybe<U> map(Function<? super T, ? extends @Nullable U> mapper) {
-    Objects.requireNonNull(mapper, "mapper function cannot be null");
+    Validation.function().requireMapper(mapper, "mapper", MAYBE_CLASS, MAP);
     return instance(); // Mapping Nothing always results in Nothing
   }
 
   @Override
   public <U> Maybe<U> flatMap(Function<? super T, ? extends Maybe<? extends U>> mapper) {
-    Objects.requireNonNull(mapper, "mapper function cannot be null");
+    Validation.function().requireFlatMapper(mapper, "mapper", MAYBE_CLASS, FLAT_MAP);
     return instance(); // FlatMapping Nothing always results in Nothing
   }
 

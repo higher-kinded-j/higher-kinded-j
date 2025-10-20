@@ -2,10 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
-import java.util.Objects;
 import java.util.function.Function;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -73,6 +73,8 @@ import org.jspecify.annotations.Nullable;
 @FunctionalInterface
 public interface Reader<R, A> {
 
+  Class<Reader> READER_CLASS = Reader.class;
+
   /**
    * Executes the computation encapsulated by this {@code Reader} using the provided environment.
    * This is the method that "runs" the reader, supplying the necessary context or dependencies.
@@ -101,7 +103,7 @@ public interface Reader<R, A> {
    * @throws NullPointerException if {@code runFunction} is null.
    */
   static <R, A> Reader<R, A> of(Function<R, A> runFunction) {
-    requireNonNullFunction(runFunction, "runFunction for Reader.of");
+    Validation.function().requireFunction(runFunction, "runFunction", READER_CLASS, OF);
     return runFunction::apply;
   }
 
@@ -124,7 +126,7 @@ public interface Reader<R, A> {
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> Reader<R, B> map(Function<? super A, ? extends B> f) {
-    requireNonNullFunction(f, "mapper function for Reader.map");
+    Validation.function().requireMapper(f, "f", READER_CLASS, MAP);
     return (R r) -> f.apply(this.run(r));
   }
 
@@ -150,11 +152,12 @@ public interface Reader<R, A> {
    *     Reader}.
    */
   default <B> Reader<R, B> flatMap(Function<? super A, ? extends Reader<R, ? extends B>> f) {
-    requireNonNullFunction(f, "flatMap mapper function for Reader.flatMap");
+    Validation.function().requireFlatMapper(f, "f", READER_CLASS, FLAT_MAP);
     return (R r) -> {
       A a = this.run(r);
       Reader<R, ? extends B> readerB = f.apply(a);
-      Objects.requireNonNull(readerB, "flatMap function returned null Reader");
+      Validation.function()
+          .requireNonNullResult(readerB, "f", READER_CLASS, FLAT_MAP, READER_CLASS);
       return readerB.run(r);
     };
   }

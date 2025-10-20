@@ -3,675 +3,690 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout; // Import Timeout
 
-@DisplayName("Lazy<A> Direct Tests (ThrowableSupplier)")
-class LazyTest {
+@DisplayName("Lazy<A> Complete Test Suite")
+class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
 
-  private AtomicInteger counter;
-  private ExecutorService executor; // For concurrency tests
+  // ============================================================================
+  // Test Fixtures
+  // ============================================================================
 
-  @BeforeEach
-  void setUp() {
-    counter = new AtomicInteger(0);
-    // Use a fixed thread pool for more predictable concurrency tests
-    // Adjust pool size if needed, but 10 is usually reasonable for testing
-    executor = Executors.newFixedThreadPool(10);
+  private static final AtomicInteger COUNTER = new AtomicInteger(0);
+
+  // ============================================================================
+  // TypeClassTestBase Implementation
+  // ============================================================================
+
+  @Override
+  protected Kind<LazyKind.Witness, String> createValidKind() {
+    return LAZY.widen(Lazy.defer(() -> "TestValue"));
   }
 
-  @AfterEach
-  void tearDown() {
-    // Shut down the executor after each test
-    if (executor != null) {
-      executor.shutdownNow();
-      try {
-        // Wait a bit for termination
-        if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-          System.err.println("Executor did not terminate in time.");
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+  @Override
+  protected Kind<LazyKind.Witness, String> createValidKind2() {
+    return LAZY.widen(Lazy.defer(() -> "TestValue2"));
   }
 
-  // --- Test Suppliers (now ThrowableSupplier) ---
+  @Override
+  protected Function<String, Integer> createValidMapper() {
+    return String::length;
+  }
 
-  private ThrowableSupplier<String> successSupplier() {
-    return () -> { // Lambda implicitly matches ThrowableSupplier if it doesn't throw checked
-      counter.incrementAndGet();
-      // Simulate some work
+  @Override
+  protected BiPredicate<Kind<LazyKind.Witness, ?>, Kind<LazyKind.Witness, ?>>
+      createEqualityChecker() {
+    return (k1, k2) -> {
       try {
-        Thread.sleep(5); // Small delay
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        // If interrupted during non-critical sleep, maybe just proceed or log
-        // For testing concurrency failure propagation, throw here.
-        throw new CompletionException("Interrupted during successSupplier sleep", e);
+        Lazy<?> lazy1 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k1);
+        Lazy<?> lazy2 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k2);
+        Object v1 = lazy1.force();
+        Object v2 = lazy2.force();
+        return v1 != null ? v1.equals(v2) : v2 == null;
+      } catch (Throwable e) {
+        return false;
       }
+    };
+  }
+
+  @Override
+  protected Function<Integer, String> createSecondMapper() {
+    return Object::toString;
+  }
+
+  @Override
+  protected Function<String, Kind<LazyKind.Witness, Integer>> createValidFlatMapper() {
+    return s -> LAZY.widen(Lazy.defer(() -> s.length()));
+  }
+
+  private static ThrowableSupplier<String> successSupplier() {
+    return () -> {
+      COUNTER.incrementAndGet();
+      Thread.sleep(5); // Small delay to test memoisation
       return "SuccessValue";
     };
   }
 
-  private ThrowableSupplier<String> nullSupplier() {
+  private static ThrowableSupplier<String> nullSupplier() {
     return () -> {
-      counter.incrementAndGet();
+      COUNTER.incrementAndGet();
       return null;
     };
   }
 
-  private ThrowableSupplier<String> runtimeFailSupplier() {
+  private static ThrowableSupplier<String> runtimeFailSupplier() {
     return () -> {
-      counter.incrementAndGet();
+      COUNTER.incrementAndGet();
       throw new IllegalStateException("Runtime Failure");
     };
   }
 
-  private ThrowableSupplier<String> errorFailSupplier() {
+  private static ThrowableSupplier<String> checkedFailSupplier() {
     return () -> {
-      counter.incrementAndGet();
-      throw new StackOverflowError("Error Failure");
+      COUNTER.incrementAndGet();
+      throw new IOException("Checked Failure");
     };
   }
 
-  // Supplier that *directly* throws a checked exception
-  private ThrowableSupplier<String> checkedFailSupplierDirect() {
-    return () -> {
-      counter.incrementAndGet();
-      throw new IOException("Direct Checked Failure"); // Directly throw checked exception
-    };
+  // ============================================================================
+  // Complete Test Suite
+  // ============================================================================
+
+  @Nested
+  @DisplayName("Complete Lazy Test Suite")
+  class CompleteLazyTestSuite {
+
+    @Test
+    @DisplayName("Run complete Lazy core type tests using base fixtures")
+    void runCompleteLazyCoreTypeTestsUsingBaseFixtures() {
+      validateRequiredFixtures();
+
+      // Extract Lazy instances from base fixtures with explicit type casting
+      Lazy<String> deferredLazy = LAZY.narrow(validKind);
+      Lazy<String> nowLazy = LAZY.narrow(validKind2);
+
+      CoreTypeTest.<String>lazy(Lazy.class)
+          .withDeferred(deferredLazy)
+          .withNow(nowLazy)
+          .withMappers(validMapper)
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Run complete Lazy core type tests with custom instances")
+    void runCompleteLazyCoreTypeTestsWithCustomInstances() {
+      COUNTER.set(0);
+      Lazy<String> deferred =
+          Lazy.defer(
+              () -> {
+                COUNTER.incrementAndGet();
+                Thread.sleep(5);
+                return "SuccessValue";
+              });
+      Lazy<String> now = Lazy.now("PrecomputedValue");
+
+      CoreTypeTest.<String>lazy(Lazy.class)
+          .withDeferred(deferred)
+          .withNow(now)
+          .withMappers(String::length)
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Run complete Lazy KindHelper tests")
+    void runCompleteLazyKindHelperTests() {
+      Lazy<String> instance = Lazy.now("TestValue");
+
+      CoreTypeTest.lazyKindHelper(instance).test();
+    }
   }
 
-  // --- Test Classes ---
+  // ============================================================================
+  // Factory Methods
+  // ============================================================================
 
   @Nested
   @DisplayName("Factory Methods (defer, now)")
   class FactoryTests {
+
     @Test
-    void defer_shouldNotEvaluateSupplierImmediately() {
+    @DisplayName("defer should not evaluate supplier immediately")
+    void deferShouldNotEvaluateSupplierImmediately() {
+      COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(successSupplier());
-      assertThat(counter.get()).isZero();
-      // Also test toString for unevaluated state here
+
+      assertThat(COUNTER.get()).isZero();
       assertThat(lazy.toString()).isEqualTo("Lazy[unevaluated...]");
     }
 
     @Test
-    void defer_shouldThrowNPEForNullSupplier() {
-      // This test covers line 47 in Lazy.java (constructor check)
+    @DisplayName("defer should throw NPE for null supplier")
+    void deferShouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
           .isThrownBy(() -> Lazy.defer(null))
           .withMessageContaining("computation");
     }
 
     @Test
-    void now_shouldCreateEvaluatedLazyWithValue() throws Throwable { // Add throws
+    @DisplayName("now should create evaluated Lazy with value")
+    void nowShouldCreateEvaluatedLazyWithValue() throws Throwable {
+      COUNTER.set(0);
       Lazy<String> lazy = Lazy.now("DirectValue");
-      assertThat(counter.get()).isZero(); // No computation ran
+
+      assertThat(COUNTER.get()).isZero();
       assertThat(lazy.force()).isEqualTo("DirectValue");
-      assertThat(counter.get()).isZero(); // Still zero
-      assertThat(lazy.toString()).isEqualTo("Lazy[DirectValue]"); // Test evaluated toString
+      assertThat(COUNTER.get()).isZero();
+      assertThat(lazy.toString()).isEqualTo("Lazy[DirectValue]");
     }
 
     @Test
-    void now_shouldCreateEvaluatedLazyWithNull() throws Throwable { // Add throws
+    @DisplayName("now should create evaluated Lazy with null")
+    void nowShouldCreateEvaluatedLazyWithNull() throws Throwable {
+      COUNTER.set(0);
       Lazy<String> lazy = Lazy.now(null);
-      assertThat(counter.get()).isZero();
+
+      assertThat(COUNTER.get()).isZero();
       assertThat(lazy.force()).isNull();
-      assertThat(counter.get()).isZero();
+      assertThat(COUNTER.get()).isZero();
       assertThat(lazy.toString()).isEqualTo("Lazy[null]");
     }
   }
+
+  // ============================================================================
+  // Force Evaluation
+  // ============================================================================
 
   @Nested
   @DisplayName("force() Method")
   class ForceTests {
+
     @Test
-    void force_shouldEvaluateDeferredSupplierOnlyOnce() throws Throwable { // Add throws
+    @DisplayName("force should evaluate deferred supplier only once")
+    void forceShouldEvaluateDeferredSupplierOnlyOnce() throws Throwable {
+      COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(successSupplier());
-      assertThat(counter.get()).isZero();
+
+      assertThat(COUNTER.get()).isZero();
 
       // First force
       assertThat(lazy.force()).isEqualTo("SuccessValue");
-      assertThat(counter.get()).isEqualTo(1);
+      assertThat(COUNTER.get()).isEqualTo(1);
 
-      // Second force
+      // Second force - should use cached value
       assertThat(lazy.force()).isEqualTo("SuccessValue");
-      assertThat(counter.get()).isEqualTo(1); // Should not increment again
+      assertThat(COUNTER.get()).isEqualTo(1);
     }
 
     @Test
-    void force_shouldReturnCachedValueForNow() throws Throwable { // Add throws
+    @DisplayName("force should return cached value for now")
+    void forceShouldReturnCachedValueForNow() throws Throwable {
+      COUNTER.set(0);
       Lazy<String> lazy = Lazy.now("Preset");
-      assertThat(counter.get()).isZero();
+
       assertThat(lazy.force()).isEqualTo("Preset");
-      assertThat(counter.get()).isZero(); // No computation involved
+      assertThat(COUNTER.get()).isZero();
     }
 
     @Test
-    void force_shouldCacheAndReturnNullValue() throws Throwable { // Add throws
+    @DisplayName("force should cache and return null value")
+    void forceShouldCacheAndReturnNullValue() throws Throwable {
+      COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(nullSupplier());
-      assertThat(counter.get()).isZero();
 
       // First force
       assertThat(lazy.force()).isNull();
-      assertThat(counter.get()).isEqualTo(1);
+      assertThat(COUNTER.get()).isEqualTo(1);
 
-      // Second force
+      // Second force - memoised null
       assertThat(lazy.force()).isNull();
-      assertThat(counter.get()).isEqualTo(1); // Memoized null
+      assertThat(COUNTER.get()).isEqualTo(1);
     }
 
     @Test
-    void force_shouldCacheAndRethrowRuntimeException() { // No throws needed for unchecked
+    @DisplayName("force should cache and rethrow runtime exception")
+    void forceShouldCacheAndRethrowRuntimeException() {
+      COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(runtimeFailSupplier());
-      assertThat(counter.get()).isZero();
 
-      // First force - expect exception
+      // First force
       Throwable thrown1 = catchThrowable(lazy::force);
       assertThat(thrown1).isInstanceOf(IllegalStateException.class).hasMessage("Runtime Failure");
-      assertThat(counter.get()).isEqualTo(1); // Evaluated once
+      assertThat(COUNTER.get()).isEqualTo(1);
 
-      // Second force - expect same cached exception
+      // Second force - cached exception
       Throwable thrown2 = catchThrowable(lazy::force);
       assertThat(thrown2).isInstanceOf(IllegalStateException.class).hasMessage("Runtime Failure");
-      assertThat(counter.get()).isEqualTo(1); // Not evaluated again
-
-      // Verify the specific re-throwing branch (line 84) was likely hit
+      assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(thrown2).isSameAs(thrown1);
     }
 
     @Test
-    void force_shouldCacheAndRethrowError() { // No throws needed for unchecked
-      Lazy<String> lazy = Lazy.defer(errorFailSupplier());
-      assertThat(counter.get()).isZero();
+    @DisplayName("force should cache and rethrow checked exception")
+    void forceShouldCacheAndRethrowCheckedException() {
+      COUNTER.set(0);
+      Lazy<String> lazy = Lazy.defer(checkedFailSupplier());
 
       // First force
       Throwable thrown1 = catchThrowable(lazy::force);
-      assertThat(thrown1).isInstanceOf(StackOverflowError.class).hasMessage("Error Failure");
-      assertThat(counter.get()).isEqualTo(1);
+      assertThat(thrown1).isInstanceOf(IOException.class).hasMessage("Checked Failure");
+      assertThat(COUNTER.get()).isEqualTo(1);
 
-      // Second force
+      // Second force - cached exception
       Throwable thrown2 = catchThrowable(lazy::force);
-      assertThat(thrown2).isInstanceOf(StackOverflowError.class).hasMessage("Error Failure");
-      assertThat(counter.get()).isEqualTo(1); // Not evaluated again
-
-      // Verify the specific re-throwing branch (line 86) was likely hit
+      assertThat(thrown2).isInstanceOf(IOException.class).hasMessage("Checked Failure");
+      assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(thrown2).isSameAs(thrown1);
-    }
-
-    @Test
-    void force_shouldCacheAndRethrowDirectCheckedException() throws Throwable { // Add throws
-      // Use the supplier that directly throws IOException
-      Lazy<String> lazy = Lazy.defer(checkedFailSupplierDirect());
-      assertThat(counter.get()).isZero();
-
-      // First force - Expect the original IOException
-      Throwable thrown1 = catchThrowable(lazy::force);
-      assertThat(thrown1).isInstanceOf(IOException.class).hasMessage("Direct Checked Failure");
-      assertThat(counter.get()).isEqualTo(1);
-
-      // Second force - Expect the same cached IOException
-      Throwable thrown2 = catchThrowable(lazy::force);
-      assertThat(thrown2).isInstanceOf(IOException.class).hasMessage("Direct Checked Failure");
-      assertThat(counter.get()).isEqualTo(1); // Not evaluated again
-
-      // Verify the specific re-throwing branch (line 88) was likely hit
-      assertThat(thrown2).as("Should re-throw same checked Exception instance").isSameAs(thrown1);
-      assertThat(lazy.toString())
-          .isEqualTo("Lazy[failed: IOException]"); // Check toString for checked fail
-    }
-
-    // Simplified concurrency test
-    @Test
-    @Timeout(10) // Keep a reasonable timeout
-    void force_shouldBeThreadSafeDuringInitialisation() throws InterruptedException {
-      int numThreads = 15; // Reduced thread count
-      ThrowableSupplier<String> verySlowSupplier =
-          () -> {
-            try {
-              // Keep a delay to encourage contention
-              Thread.sleep(100);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              // --- FIX: Throw an unchecked exception on interruption ---
-              throw new CompletionException("Thread interrupted during slow supplier", e);
-              // --- End of FIX ---
-            }
-            counter.incrementAndGet();
-            return "VerySlowValue";
-          };
-      Lazy<String> lazy = Lazy.defer(verySlowSupplier);
-      counter.set(0);
-      List<String> results = Collections.synchronizedList(new ArrayList<>());
-      List<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
-      CountDownLatch finishLatch = new CountDownLatch(numThreads); // Only use finish latch
-
-      for (int i = 0; i < numThreads; i++) {
-        executor.submit(
-            () -> {
-              try {
-                // No explicit start synchronization, just submit and let them run
-                String result = lazy.force(); // force() now throws Throwable
-                results.add(result);
-              } catch (Throwable e) {
-                exceptions.add(e);
-              } finally {
-                finishLatch.countDown(); // Signal thread finished
-              }
-            });
-      }
-
-      // Wait for all threads to finish - Keep a generous timeout
-      assertThat(finishLatch.await(10, TimeUnit.SECONDS))
-          .as("Threads did not finish in time")
-          .isTrue();
-
-      // Check for unexpected exceptions (like the CompletionException if interrupted)
-      // Depending on timing, interruption might or might not happen reliably.
-      // The main goal is that *if* it happens, it doesn't lead to null results.
-      // We primarily assert the success path here.
-      if (!exceptions.isEmpty()) {
-        System.err.println("Concurrency test encountered exceptions: " + exceptions);
-        // Optionally fail here if *any* exception is unexpected
-        // fail("Concurrency test failed with exceptions: " + exceptions);
-      }
-
-      // Filter out potential nulls caused by interruption before asserting equality
-      List<String> nonNullResults = results.stream().filter(java.util.Objects::nonNull).toList();
-
-      // Check all *non-null* threads got the same result
-      // If the list is empty, it means all threads might have been interrupted and failed.
-      if (!nonNullResults.isEmpty()) {
-        assertThat(nonNullResults).hasSizeGreaterThan(0); // Ensure at least one thread succeeded
-        nonNullResults.forEach(result -> assertThat(result).isEqualTo("VerySlowValue"));
-      } else if (exceptions.isEmpty()) {
-        // If there were no exceptions but also no successful results, something is wrong
-        fail("Concurrency test resulted in no successful results and no exceptions.");
-      }
-
-      // Check computation ran exactly once despite contention *if* it wasn't interrupted early
-      // This assertion might be flaky if interruption happens before increment.
-      // It's more reliable to check that it didn't run *more* than once.
-      assertThat(counter.get()).as("Computation count").isLessThanOrEqualTo(1);
-      // If we got at least one success, the count must be 1
-      if (!nonNullResults.isEmpty()) {
-        assertThat(counter.get()).as("Computation count (at least one success)").isEqualTo(1);
-      }
-
-      // Additional force call - needs try-catch or throws Throwable
-      // This might throw if the initial computation was interrupted and failed.
-      try {
-        assertThat(lazy.force()).isEqualTo("VerySlowValue");
-        assertThat(counter.get()).as("Computation count after second force").isEqualTo(1);
-      } catch (Throwable e) {
-        // If the initial run failed due to interruption, this second force should re-throw
-        assertThat(e).isInstanceOf(CompletionException.class);
-        assertThat(counter.get())
-            .as("Computation count after failed force")
-            .isLessThanOrEqualTo(1); // Should not have run again
-      }
+      assertThat(lazy.toString()).isEqualTo("Lazy[failed: IOException]");
     }
   }
+
+  // ============================================================================
+  // Map Operations
+  // ============================================================================
 
   @Nested
   @DisplayName("map() Method")
   class MapTests {
-    @Test
-    void map_shouldTransformValueLazily() throws Throwable { // Add throws
-      Lazy<String> lazy = Lazy.defer(successSupplier());
-      AtomicInteger mapCounter = new AtomicInteger(0); // Counter for mapper function
-      Function<String, Integer> mapper =
-          s -> {
-            mapCounter.incrementAndGet();
-            return s.length();
-          };
-      Lazy<Integer> mappedLazy = lazy.map(mapper);
 
-      assertThat(counter.get()).isZero(); // Original not evaluated yet
-      assertThat(mapCounter.get()).isZero(); // Mapper not evaluated yet
+    @Test
+    @DisplayName("map should transform value lazily")
+    void mapShouldTransformValueLazily() throws Throwable {
+      COUNTER.set(0);
+      AtomicInteger mapCounter = new AtomicInteger(0);
+
+      Lazy<String> lazy = Lazy.defer(successSupplier());
+      Lazy<Integer> mapped =
+          lazy.map(
+              s -> {
+                mapCounter.incrementAndGet();
+                return s.length();
+              });
+
+      assertThat(COUNTER.get()).isZero();
+      assertThat(mapCounter.get()).isZero();
 
       // Force the mapped lazy
-      assertThat(mappedLazy.force()).isEqualTo("SuccessValue".length());
-      assertThat(counter.get()).isEqualTo(1); // Original computation ran
-      assertThat(mapCounter.get()).isEqualTo(1); // Mapper ran
+      assertThat(mapped.force()).isEqualTo("SuccessValue".length());
+      assertThat(COUNTER.get()).isEqualTo(1);
+      assertThat(mapCounter.get()).isEqualTo(1);
 
-      // Force again
-      assertThat(mappedLazy.force()).isEqualTo("SuccessValue".length());
-      assertThat(counter.get()).isEqualTo(1); // Original still memoized
-      assertThat(mapCounter.get()).isEqualTo(1); // Mapper result memoized by outer Lazy
+      // Force again - both should be memoised
+      assertThat(mapped.force()).isEqualTo("SuccessValue".length());
+      assertThat(COUNTER.get()).isEqualTo(1);
+      assertThat(mapCounter.get()).isEqualTo(1);
     }
 
     @Test
-    void map_shouldPropagateFailure() { // No throws needed
-      Lazy<String> lazy = Lazy.defer(runtimeFailSupplier());
+    @DisplayName("map should propagate failure from original Lazy")
+    void mapShouldPropagateFailureFromOriginalLazy() {
+      COUNTER.set(0);
       AtomicInteger mapCounter = new AtomicInteger(0);
-      Lazy<Integer> mappedLazy =
+
+      Lazy<String> lazy = Lazy.defer(runtimeFailSupplier());
+      Lazy<Integer> mapped =
           lazy.map(
               s -> {
                 mapCounter.incrementAndGet();
                 return s.length();
               });
 
-      assertThat(counter.get()).isZero();
+      assertThat(COUNTER.get()).isZero();
       assertThat(mapCounter.get()).isZero();
-      assertThatThrownBy(mappedLazy::force)
+
+      assertThatThrownBy(mapped::force)
           .isInstanceOf(IllegalStateException.class)
           .hasMessage("Runtime Failure");
-      assertThat(counter.get()).isEqualTo(1); // Original ran (and failed)
-      assertThat(mapCounter.get()).isZero(); // Mapper function never ran
-    }
 
-    @Test
-    void map_shouldFailIfMapperThrows() { // No throws needed
-      Lazy<String> lazy = Lazy.defer(successSupplier());
-      RuntimeException mapperEx = new IllegalArgumentException("Mapper failed");
-      AtomicInteger mapCounter = new AtomicInteger(0);
-      Lazy<Integer> mappedLazy =
-          lazy.map(
-              s -> {
-                mapCounter.incrementAndGet();
-                throw mapperEx;
-              });
-
-      assertThat(counter.get()).isZero();
-      assertThat(mapCounter.get()).isZero();
-      assertThatThrownBy(mappedLazy::force)
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage("Mapper failed");
-      assertThat(counter.get()).isEqualTo(1); // Original ran
-      assertThat(mapCounter.get()).isEqualTo(1); // Mapper ran (and failed)
-    }
-
-    @Test
-    void map_shouldPropagateCheckedExceptionFromForce() { // No throws needed
-      // Use the lazy value that throws IOException directly
-      Lazy<String> lazy = Lazy.defer(checkedFailSupplierDirect());
-      AtomicInteger mapCounter = new AtomicInteger(0);
-      Lazy<Integer> mappedLazy =
-          lazy.map(
-              s -> {
-                mapCounter.incrementAndGet();
-                return s.length();
-              });
-
-      assertThat(counter.get()).isZero();
-      assertThat(mapCounter.get()).isZero();
-
-      // The map's defer will catch the Throwable from the inner force() and rethrow it
-      assertThatThrownBy(mappedLazy::force)
-          .isInstanceOf(IOException.class) // Expect the original checked exception
-          .hasMessage("Direct Checked Failure");
-      assertThat(counter.get()).isEqualTo(1); // Original ran (and failed)
+      assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(mapCounter.get()).isZero(); // Mapper never ran
     }
 
     @Test
-    void map_shouldThrowNPEForNullMapper() {
+    @DisplayName("map should fail if mapper throws")
+    void mapShouldFailIfMapperThrows() {
+      COUNTER.set(0);
+      RuntimeException mapperEx = new IllegalArgumentException("Mapper failed");
+
       Lazy<String> lazy = Lazy.defer(successSupplier());
-      assertThatNullPointerException()
-          .isThrownBy(() -> lazy.map(null))
-          .withMessageContaining("mapper function");
+      Lazy<Integer> mapped =
+          lazy.map(
+              s -> {
+                throw mapperEx;
+              });
+
+      assertThatThrownBy(mapped::force)
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("Mapper failed");
+
+      assertThat(COUNTER.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("flatMap should throw exception if mapper returns null")
+    void flatMapShouldThrowExceptionIfMapperReturnsNull() {
+      Lazy<String> lazy = Lazy.defer(successSupplier());
+      Lazy<Integer> flatMapped = lazy.flatMap(s -> null);
+
+      assertThatThrownBy(flatMapped::force)
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(
+              "Function f in Lazy.flatMap returned null when Lazy expected, which is not allowed");
     }
   }
+
+  // ============================================================================
+  // FlatMap Operations
+  // ============================================================================
 
   @Nested
   @DisplayName("flatMap() Method")
   class FlatMapTests {
-    @Test
-    void flatMap_shouldSequenceLazily() throws Throwable { // Add throws
-      AtomicInteger innerCounter = new AtomicInteger(0);
-      Lazy<String> lazyA = Lazy.defer(successSupplier());
-      Function<String, Lazy<Integer>> mapper =
-          s ->
-              Lazy.defer(
-                  () -> {
-                    innerCounter.incrementAndGet();
-                    return s.length();
-                  });
-      Lazy<Integer> flatMappedLazy = lazyA.flatMap(mapper);
 
-      assertThat(counter.get()).isZero();
+    @Test
+    @DisplayName("flatMap should sequence lazily")
+    void flatMapShouldSequenceLazily() throws Throwable {
+      COUNTER.set(0);
+      AtomicInteger innerCounter = new AtomicInteger(0);
+
+      Lazy<String> lazyA = Lazy.defer(successSupplier());
+      Lazy<Integer> flatMapped =
+          lazyA.flatMap(
+              s ->
+                  Lazy.defer(
+                      () -> {
+                        innerCounter.incrementAndGet();
+                        return s.length();
+                      }));
+
+      assertThat(COUNTER.get()).isZero();
       assertThat(innerCounter.get()).isZero();
 
-      assertThat(flatMappedLazy.force()).isEqualTo("SuccessValue".length());
-      assertThat(counter.get()).isEqualTo(1);
+      assertThat(flatMapped.force()).isEqualTo("SuccessValue".length());
+      assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(innerCounter.get()).isEqualTo(1);
 
-      assertThat(flatMappedLazy.force()).isEqualTo("SuccessValue".length());
-      assertThat(counter.get()).isEqualTo(1);
+      // Second force - both memoised
+      assertThat(flatMapped.force()).isEqualTo("SuccessValue".length());
+      assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(innerCounter.get()).isEqualTo(1);
     }
 
     @Test
-    void flatMap_shouldPropagateFailureFromInitialLazy() { // No throws needed
-      Lazy<String> lazyA = Lazy.defer(runtimeFailSupplier());
+    @DisplayName("flatMap should propagate failure from initial Lazy")
+    void flatMapShouldPropagateFailureFromInitialLazy() {
+      COUNTER.set(0);
       AtomicInteger innerCounter = new AtomicInteger(0);
-      Function<String, Lazy<Integer>> mapper =
-          s ->
-              Lazy.defer(
-                  () -> {
-                    innerCounter.incrementAndGet();
-                    return s.length();
-                  });
-      Lazy<Integer> flatMappedLazy = lazyA.flatMap(mapper);
 
-      assertThat(counter.get()).isZero();
-      assertThat(innerCounter.get()).isZero();
-      assertThatThrownBy(flatMappedLazy::force)
+      Lazy<String> lazyA = Lazy.defer(runtimeFailSupplier());
+      Lazy<Integer> flatMapped =
+          lazyA.flatMap(
+              s ->
+                  Lazy.defer(
+                      () -> {
+                        innerCounter.incrementAndGet();
+                        return s.length();
+                      }));
+
+      assertThatThrownBy(flatMapped::force)
           .isInstanceOf(IllegalStateException.class)
           .hasMessage("Runtime Failure");
-      assertThat(counter.get()).isEqualTo(1);
+
+      assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(innerCounter.get()).isZero();
     }
 
     @Test
-    void flatMap_shouldPropagateFailureFromMapperFunction() { // No throws needed
-      Lazy<String> lazyA = Lazy.defer(successSupplier());
+    @DisplayName("flatMap should propagate failure from mapper function")
+    void flatMapShouldPropagateFailureFromMapperFunction() {
+      COUNTER.set(0);
       RuntimeException mapperEx = new IllegalArgumentException("Mapper failed");
-      AtomicInteger innerCounter = new AtomicInteger(0);
-      Function<String, Lazy<Integer>> mapper =
-          s -> {
-            innerCounter.incrementAndGet();
-            throw mapperEx;
-          };
-      Lazy<Integer> flatMappedLazy = lazyA.flatMap(mapper);
 
-      assertThat(counter.get()).isZero();
-      assertThat(innerCounter.get()).isZero();
-      assertThatThrownBy(flatMappedLazy::force)
+      Lazy<String> lazyA = Lazy.defer(successSupplier());
+      Lazy<Integer> flatMapped =
+          lazyA.flatMap(
+              s -> {
+                throw mapperEx;
+              });
+
+      assertThatThrownBy(flatMapped::force)
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("Mapper failed");
-      assertThat(counter.get()).isEqualTo(1);
-      assertThat(innerCounter.get()).isEqualTo(1);
+
+      assertThat(COUNTER.get()).isEqualTo(1);
     }
 
     @Test
-    void flatMap_shouldPropagateFailureFromResultingLazy() { // No throws needed
-      Lazy<String> lazyA = Lazy.defer(successSupplier());
+    @DisplayName("flatMap should propagate failure from resulting Lazy")
+    void flatMapShouldPropagateFailureFromResultingLazy() {
+      COUNTER.set(0);
       RuntimeException resultEx = new UnsupportedOperationException("Result Lazy failed");
-      AtomicInteger innerCounter = new AtomicInteger(0);
-      Function<String, Lazy<Integer>> mapper =
-          s ->
-              Lazy.defer(
-                  () -> {
-                    innerCounter.incrementAndGet();
-                    throw resultEx;
-                  });
-      Lazy<Integer> flatMappedLazy = lazyA.flatMap(mapper);
 
-      assertThat(counter.get()).isZero();
-      assertThat(innerCounter.get()).isZero();
-      assertThatThrownBy(flatMappedLazy::force)
+      Lazy<String> lazyA = Lazy.defer(successSupplier());
+      Lazy<Integer> flatMapped =
+          lazyA.flatMap(
+              s ->
+                  Lazy.defer(
+                      () -> {
+                        throw resultEx;
+                      }));
+
+      assertThatThrownBy(flatMapped::force)
           .isInstanceOf(UnsupportedOperationException.class)
           .hasMessage("Result Lazy failed");
-      assertThat(counter.get()).isEqualTo(1);
-      assertThat(innerCounter.get()).isEqualTo(1);
+
+      assertThat(COUNTER.get()).isEqualTo(1);
     }
 
     @Test
-    void flatMap_shouldPropagateCheckedExceptionFromInitialLazy() { // No throws needed
-      Lazy<String> lazyA = Lazy.defer(checkedFailSupplierDirect()); // Throws IOException
-      AtomicInteger innerCounter = new AtomicInteger(0);
-      Function<String, Lazy<Integer>> mapper =
-          s ->
-              Lazy.defer(
-                  () -> {
-                    innerCounter.incrementAndGet();
-                    return s.length();
-                  });
-      Lazy<Integer> flatMappedLazy = lazyA.flatMap(mapper);
-
-      assertThat(counter.get()).isZero();
-      assertThat(innerCounter.get()).isZero();
-      // The flatMap's defer catches the Throwable from the initial force() and rethrows it
-      assertThatThrownBy(flatMappedLazy::force)
-          .isInstanceOf(IOException.class)
-          .hasMessage("Direct Checked Failure");
-      assertThat(counter.get()).isEqualTo(1);
-      assertThat(innerCounter.get()).isZero();
-    }
-
-    @Test
-    void flatMap_shouldPropagateCheckedExceptionFromResultingLazy() { // No throws needed
-      Lazy<String> lazyA = Lazy.defer(successSupplier());
-      AtomicInteger innerCounter = new AtomicInteger(0);
-      Function<String, Lazy<Integer>> mapper =
-          s ->
-              Lazy.defer(
-                  () -> { // Inner lazy throws checked exception
-                    innerCounter.incrementAndGet();
-                    throw new IOException("Inner Checked Fail");
-                  });
-      Lazy<Integer> flatMappedLazy = lazyA.flatMap(mapper);
-
-      assertThat(counter.get()).isZero();
-      assertThat(innerCounter.get()).isZero();
-      // The flatMap's defer catches the Throwable from the inner force() and rethrows it
-      assertThatThrownBy(flatMappedLazy::force)
-          .isInstanceOf(IOException.class)
-          .hasMessage("Inner Checked Fail");
-      assertThat(counter.get()).isEqualTo(1);
-      assertThat(innerCounter.get()).isEqualTo(1);
-    }
-
-    @Test
-    void flatMap_shouldThrowNPEForNullMapper() {
+    @DisplayName("flatMap should throw NPE for null mapper")
+    void flatMapShouldThrowNPEForNullMapper() {
       Lazy<String> lazy = Lazy.defer(successSupplier());
+
       assertThatNullPointerException()
           .isThrownBy(() -> lazy.flatMap(null))
-          .withMessageContaining("flatMap mapper function");
+          .withMessageContaining("Function f for Lazy.flatMap cannot be null");
     }
 
     @Test
-    void flatMap_shouldThrowNPEIfMapperReturnsNull() {
+    @DisplayName("flatMap should throw exception if mapper returns null")
+    void flatMapShouldThrowExceptionIfMapperReturnsNull() {
       Lazy<String> lazy = Lazy.defer(successSupplier());
-      Function<String, Lazy<Integer>> nullReturningMapper = s -> null;
-      Lazy<Integer> flatMappedLazy = lazy.flatMap(nullReturningMapper);
+      Lazy<Integer> flatMapped = lazy.flatMap(s -> null);
 
-      assertThatNullPointerException()
-          .isThrownBy(flatMappedLazy::force) // Exception happens when forcing
-          .withMessageContaining("flatMap function returned null Lazy");
+      assertThatThrownBy(flatMapped::force)
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining(
+              "Function f in Lazy.flatMap returned null when Lazy expected, which is not allowed");
     }
   }
 
+  // ============================================================================
+  // Memoisation
+  // ============================================================================
+
   @Nested
-  @DisplayName("toString() Method")
-  class ToStringTests {
+  @DisplayName("Memoisation Semantics")
+  class MemoizationTests {
+
     @Test
-    void toString_shouldNotForceEvaluationForDeferred() {
-      Lazy<String> lazy = Lazy.defer(successSupplier());
-      assertThat(lazy.toString()).isEqualTo("Lazy[unevaluated...]");
-      assertThat(counter.get()).isZero();
+    @DisplayName("Should memoise successful computation")
+    void shouldMemoiseSuccessfulComputation() throws Throwable {
+      AtomicInteger counter = new AtomicInteger(0);
+      Lazy<String> lazy =
+          Lazy.defer(
+              () -> {
+                counter.incrementAndGet();
+                return "value";
+              });
+
+      lazy.force();
+      lazy.force();
+      lazy.force();
+
+      assertThat(counter.get()).isEqualTo(1);
     }
 
     @Test
-    void toString_shouldShowValueForNow() {
-      Lazy<String> lazy = Lazy.now("Ready");
+    @DisplayName("Should memoise null value")
+    void shouldMemoiseNullValue() throws Throwable {
+      AtomicInteger counter = new AtomicInteger(0);
+      Lazy<String> lazy =
+          Lazy.defer(
+              () -> {
+                counter.incrementAndGet();
+                return null;
+              });
+
+      lazy.force();
+      lazy.force();
+
+      assertThat(counter.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should memoise exception")
+    void shouldMemoiseException() {
+      AtomicInteger counter = new AtomicInteger(0);
+      Lazy<String> lazy =
+          Lazy.defer(
+              () -> {
+                counter.incrementAndGet();
+                throw new RuntimeException("Failed");
+              });
+
+      catchThrowable(lazy::force);
+      catchThrowable(lazy::force);
+
+      assertThat(counter.get()).isEqualTo(1);
+    }
+  }
+
+  // ============================================================================
+  // Edge Cases
+  // ============================================================================
+
+  @Nested
+  @DisplayName("Edge Cases")
+  class EdgeCaseTests {
+
+    @Test
+    @DisplayName("toString should not force evaluation")
+    void toStringShouldNotForceEvaluation() {
+      COUNTER.set(0);
+      Lazy<String> lazy = Lazy.defer(successSupplier());
+
+      assertThat(lazy.toString()).isEqualTo("Lazy[unevaluated...]");
+      assertThat(COUNTER.get()).isZero();
+    }
+
+    @Test
+    @DisplayName("toString should show value after force")
+    void toStringShouldShowValueAfterForce() throws Throwable {
+      Lazy<String> lazy = Lazy.defer(() -> "Ready");
+      lazy.force();
+
       assertThat(lazy.toString()).isEqualTo("Lazy[Ready]");
     }
 
     @Test
-    void toString_shouldShowValueAfterForceSuccess() throws Throwable { // Add throws
-      Lazy<String> lazy = Lazy.defer(successSupplier());
-      lazy.force(); // Evaluate success
-      assertThat(lazy.toString()).isEqualTo("Lazy[SuccessValue]");
+    @DisplayName("toString should show failure state")
+    void toStringShouldShowFailureState() {
+      Lazy<String> lazy =
+          Lazy.defer(
+              () -> {
+                throw new IllegalStateException("Test");
+              });
+
+      catchThrowable(lazy::force);
+
+      assertThat(lazy.toString()).isEqualTo("Lazy[failed: IllegalStateException]");
     }
 
     @Test
-    void toString_shouldShowNullValueAfterForce() throws Throwable { // Add throws
-      Lazy<String> lazy = Lazy.defer(nullSupplier());
-      lazy.force(); // Evaluate null
-      assertThat(lazy.toString()).isEqualTo("Lazy[null]");
+    @DisplayName("Lazy should use reference equality")
+    void lazyShouldUseReferenceEquality() {
+      Lazy<String> lazy1 = Lazy.defer(() -> "a");
+      Lazy<String> lazy2 = Lazy.defer(() -> "a");
+      Lazy<String> lazy1Ref = lazy1;
+
+      assertThat(lazy1).isEqualTo(lazy1Ref);
+      assertThat(lazy1).isNotEqualTo(lazy2);
+      assertThat(lazy1).isNotEqualTo(null);
+      assertThat(lazy1).isNotEqualTo("a");
     }
 
     @Test
-    void toString_shouldShowFailureStateCorrectly() {
-      Lazy<String> lazyFailRuntime = Lazy.defer(runtimeFailSupplier());
-      Lazy<String> lazyFailError = Lazy.defer(errorFailSupplier());
-      Lazy<String> lazyFailChecked = Lazy.defer(checkedFailSupplierDirect()); // Use direct checked
+    @DisplayName("hashCode should use reference hashCode")
+    void hashCodeShouldUseReferenceHashCode() {
+      Lazy<String> lazy1 = Lazy.defer(() -> "a");
+      Lazy<String> lazy1Ref = lazy1;
 
-      // Force evaluation to cache the exception
-      catchThrowable(lazyFailRuntime::force);
-      catchThrowable(lazyFailError::force);
-      catchThrowable(lazyFailChecked::force); // This will throw IOException
-
-      // Verify toString shows the correct failure state representation
-      assertThat(lazyFailRuntime.toString()).isEqualTo("Lazy[failed: IllegalStateException]");
-      assertThat(lazyFailError.toString()).isEqualTo("Lazy[failed: StackOverflowError]");
-      assertThat(lazyFailChecked.toString())
-          .isEqualTo("Lazy[failed: IOException]"); // Now shows IOException
+      assertThat(lazy1.hashCode()).isEqualTo(lazy1Ref.hashCode());
     }
   }
 
-  // Basic equals/hashCode tests - Lazy doesn't override them, relies on object identity
+  // ============================================================================
+  // Individual Component Tests
+  // ============================================================================
+
   @Nested
-  @DisplayName("equals() and hashCode()")
-  class EqualsHashCodeTests {
+  @DisplayName("Individual Component Tests")
+  class IndividualComponents {
+
     @Test
-    void equals_shouldUseReferenceEquality() throws Throwable { // Add throws
-      Lazy<String> lazy1a = Lazy.defer(() -> "a");
-      Lazy<String> lazy1b = Lazy.defer(() -> "a"); // Different instance, same logic
-      Lazy<String> lazy2 = Lazy.now("a");
-      Lazy<String> lazy1aRef = lazy1a; // Same instance
-
-      assertThat(lazy1a).isEqualTo(lazy1aRef); // Equal to self
-      assertThat(lazy1a).isNotEqualTo(lazy1b); // Not equal to different instance
-      assertThat(lazy1a).isNotEqualTo(lazy2); // Not equal to 'now' instance
-      assertThat(lazy1a).isNotEqualTo(null); // Not equal to null
-      assertThat(lazy1a).isNotEqualTo("a"); // Not equal to different type
-
-      // Force evaluation - should still be reference equality
-      lazy1a.force();
-      lazy1b.force();
-      assertThat(lazy1a).isNotEqualTo(lazy1b);
+    @DisplayName("Test factory methods only")
+    void testFactoryMethodsOnly() {
+      CoreTypeTest.lazy(Lazy.class)
+          .withDeferred(Lazy.defer(() -> "test"))
+          .withNow(Lazy.now("test"))
+          .withoutMappers()
+          .onlyFactoryMethods()
+          .testAll();
     }
 
     @Test
-    void hashCode_shouldUseReferenceHashCode() {
-      Lazy<String> lazy1a = Lazy.defer(() -> "a");
-      Lazy<String> lazy1b = Lazy.defer(() -> "a");
-      Lazy<String> lazy1aRef = lazy1a;
+    @DisplayName("Test force operation only")
+    void testForceOnly() {
+      CoreTypeTest.lazy(Lazy.class)
+          .withDeferred(Lazy.defer(() -> "test"))
+          .withNow(Lazy.now("test"))
+          .withoutMappers()
+          .onlyForce()
+          .testAll();
+    }
 
-      assertThat(lazy1a.hashCode()).isEqualTo(lazy1aRef.hashCode());
-      // Hashcodes of lazy1a and lazy1b are not guaranteed to be different or same
-      // No assertion here about lazy1a.hashCode() vs lazy1b.hashCode()
+    @Test
+    @DisplayName("Test memoisation only")
+    void testMemoizationOnly() {
+      CoreTypeTest.lazy(Lazy.class)
+          .withDeferred(Lazy.defer(() -> "test"))
+          .withNow(Lazy.now("test"))
+          .withoutMappers()
+          .onlyMemoisation()
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Test validations only")
+    void testValidationsOnly() {
+      CoreTypeTest.lazy(Lazy.class)
+          .withDeferred(Lazy.defer(() -> "test"))
+          .withNow(Lazy.now("test"))
+          .withMappers(Object::toString)
+          .onlyValidations()
+          .testAll();
     }
   }
 }

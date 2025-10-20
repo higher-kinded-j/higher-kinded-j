@@ -3,11 +3,12 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -22,13 +23,15 @@ import org.jspecify.annotations.Nullable;
 public class StateApplicative<S> extends StateFunctor<S>
     implements Applicative<StateKind.Witness<S>> {
 
+  private static final Class<StateApplicative> STATE_APPLICATIVE_CLASS = StateApplicative.class;
+
   /**
-   * Lifts a value into a {@code State} context, represented as {@code Kind<StateKind.Witness, A>}.
-   * The state remains unchanged.
+   * Lifts a value into a {@code State} context, represented as {@code Kind<StateKind.Witness<S>,
+   * A>}. The state remains unchanged.
    *
    * @param <A> The type of the value.
    * @param value The value to lift. Can be {@code null}.
-   * @return A {@code Kind<StateKind.Witness, A>} representing {@code State.pure(value)}.
+   * @return A {@code Kind<StateKind.Witness<S>, A>} representing {@code State.pure(value)}.
    */
   @Override
   public <A> Kind<StateKind.Witness<S>, A> of(@Nullable A value) {
@@ -36,15 +39,16 @@ public class StateApplicative<S> extends StateFunctor<S>
   }
 
   /**
-   * Applies a function wrapped in a {@code Kind<StateKind.Witness, Function<A, B>>} (representing a
-   * {@code State<S, Function<A,B>>}) to a value wrapped in a {@code Kind<StateKind.Witness, A>}
-   * (representing a {@code State<S, A>}). The state is threaded through both computations.
+   * Applies a function wrapped in a {@code Kind<StateKind.Witness<S>, Function<A, B>>}
+   * (representing a {@code State<S, Function<A,B>>}) to a value wrapped in a {@code
+   * Kind<StateKind.Witness<S>, A>} (representing a {@code State<S, A>}). The state is threaded
+   * through both computations.
    *
    * @param <A> The input type of the function.
    * @param <B> The output type of the function.
-   * @param ff The {@code Kind<StateKind.Witness, Function<A, B>>} containing the function.
-   * @param fa The {@code Kind<StateKind.Witness, A>} containing the value.
-   * @return A new {@code Kind<StateKind.Witness, B>} resulting from the application.
+   * @param ff The {@code Kind<StateKind.Witness<S>, Function<A, B>>} containing the function.
+   * @param fa The {@code Kind<StateKind.Witness<S>, A>} containing the value.
+   * @return A new {@code Kind<StateKind.Witness<S>, B>} resulting from the application.
    * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function wrapped in
    *     the State is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
@@ -54,8 +58,8 @@ public class StateApplicative<S> extends StateFunctor<S>
   public <A, B> Kind<StateKind.Witness<S>, B> ap(
       Kind<StateKind.Witness<S>, ? extends Function<A, B>> ff, Kind<StateKind.Witness<S>, A> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    Validation.kind().requireNonNull(ff, STATE_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, STATE_APPLICATIVE_CLASS, AP, "argument");
 
     State<S, ? extends Function<A, B>> stateF = STATE.narrow(ff);
     State<S, A> stateA = STATE.narrow(fa);

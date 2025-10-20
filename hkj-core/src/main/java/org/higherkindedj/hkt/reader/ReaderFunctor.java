@@ -3,11 +3,12 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
  * Implements the {@link Functor} interface for the {@link Reader} type, using {@link
@@ -26,6 +27,8 @@ import org.higherkindedj.hkt.Kind;
  * @see ReaderKindHelper
  */
 public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
+
+  private static final Class<ReaderFunctor> READER_FUNCTOR_CLASS = ReaderFunctor.class;
 
   /**
    * Maps a function {@code f} over the value {@code A} contained within a {@code
@@ -48,11 +51,12 @@ public class ReaderFunctor<R> implements Functor<ReaderKind.Witness<R>> {
   @Override
   public <A, B> Kind<ReaderKind.Witness<R>, B> map(
       Function<? super A, ? extends B> f, Kind<ReaderKind.Witness<R>, A> fa) {
-    requireNonNullFunction(f, "function f for map");
-    requireNonNullKind(fa, "source Kind for map");
+
+    Validation.function().requireMapper(f, "f", READER_FUNCTOR_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, READER_FUNCTOR_CLASS, MAP);
 
     Reader<R, A> readerA = READER.narrow(fa);
-    Reader<R, B> readerB = readerA.map(f); // Delegates to Reader's own map method
+    Reader<R, B> readerB = readerA.map(f);
     return READER.widen(readerB);
   }
 }

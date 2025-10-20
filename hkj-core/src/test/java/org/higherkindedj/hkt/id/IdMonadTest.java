@@ -3,400 +3,489 @@
 package org.higherkindedj.hkt.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Identity Monad (Id) Tests")
-class IdMonadTest {
+/**
+ * Comprehensive test suite for IdMonad implementation.
+ *
+ * <p>Tests the Monad type class implementation for Id, including all inherited operations from
+ * Functor and Applicative, as well as Monad-specific operations and laws.
+ */
+@DisplayName("IdMonad Complete Test Suite")
+class IdMonadTest extends TypeClassTestBase<Id.Witness, Integer, String> {
 
-  private IdMonad idMonad;
+  private IdMonad monad;
+
+  @Override
+  protected Kind<Id.Witness, Integer> createValidKind() {
+    return ID.widen(Id.of(42));
+  }
+
+  @Override
+  protected Kind<Id.Witness, Integer> createValidKind2() {
+    return ID.widen(Id.of(24));
+  }
+
+  @Override
+  protected Function<Integer, String> createValidMapper() {
+    return Object::toString;
+  }
+
+  @Override
+  protected BiPredicate<Kind<Id.Witness, ?>, Kind<Id.Witness, ?>> createEqualityChecker() {
+    return (k1, k2) -> {
+      Id<?> id1 = ID.narrow(k1);
+      Id<?> id2 = ID.narrow(k2);
+      Object v1 = id1.value();
+      Object v2 = id2.value();
+      return v1 == null ? v2 == null : v1.equals(v2);
+    };
+  }
+
+  @Override
+  protected Function<Integer, Kind<Id.Witness, String>> createValidFlatMapper() {
+    return i -> ID.widen(Id.of(i.toString()));
+  }
+
+  @Override
+  protected Kind<Id.Witness, Function<Integer, String>> createValidFunctionKind() {
+    return ID.widen(Id.of(Object::toString));
+  }
+
+  @Override
+  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
+    return (a, b) -> a + "," + b;
+  }
+
+  @Override
+  protected Integer createTestValue() {
+    return 100;
+  }
+
+  @Override
+  protected Function<Integer, Kind<Id.Witness, String>> createTestFunction() {
+    return i -> ID.widen(Id.of("value:" + i));
+  }
+
+  @Override
+  protected Function<String, Kind<Id.Witness, String>> createChainFunction() {
+    return s -> ID.widen(Id.of(s.toUpperCase()));
+  }
 
   @BeforeEach
   void setUp() {
-    idMonad = IdMonad.instance();
-  }
-
-  // Minimal imposter Kind for testing ClassCastException in ID.narrow
-  private static class ImposterKind<A> implements Kind<Id.Witness, A> {
-    public ImposterKind(A value) {}
+    monad = IdMonad.instance();
   }
 
   @Nested
-  @DisplayName("Id Record Tests (formerly Id Class Tests)")
-  class IdRecordTests { // Renamed to reflect Id is now a record
+  @DisplayName("Complete Test Suite")
+  class CompleteTestSuite {
 
     @Test
-    @DisplayName("of() should create Id with given value")
-    void of_createsIdWithValue() {
-      Id<String> id1 = Id.of("test");
-      assertThat(id1.value()).isEqualTo("test");
-
-      Id<Integer> id2 = Id.of(123);
-      assertThat(id2.value()).isEqualTo(123);
+    @DisplayName("Run complete Monad test pattern")
+    void runCompleteMonadTestPattern() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind) // Explicitly specify B = String
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .testAll();
     }
 
     @Test
-    @DisplayName("of() should create Id with null value")
-    void of_createsIdWithNull() {
-      Id<String> idNull = Id.of(null);
-      assertThat(idNull.value()).isNull();
-    }
-
-    @Test
-    @DisplayName("record accessor value() should return the wrapped value")
-    void recordAccessor_value_returnsWrappedValue() { // Test the record's accessor
-      assertThat(Id.of("hello").value()).isEqualTo("hello");
-      assertThat(Id.of((Object) null).value()).isNull();
-    }
-
-    @Test
-    @DisplayName("record-generated equals() and hashCode() should follow contract")
-    void recordGenerated_equalsAndHashCode() { // Test record's generated methods
-      Id<String> id1a = Id.of("one");
-      Id<String> id1b = Id.of("one"); // Records are value objects
-      Id<String> id2 = Id.of("two");
-      Id<String> idNull1 = Id.of(null);
-      Id<String> idNull2 = Id.of(null);
-
-      // Reflexive
-      assertThat(id1a.equals(id1a)).isTrue();
-      assertThat(idNull1.equals(idNull1)).isTrue();
-
-      // Symmetric
-      assertThat(id1a.equals(id1b)).isTrue();
-      assertThat(id1b.equals(id1a)).isTrue();
-      assertThat(idNull1.equals(idNull2)).isTrue();
-      assertThat(idNull2.equals(idNull1)).isTrue();
-
-      // Non-nullity
-      assertThat(id1a.equals(null)).isFalse();
-      assertThat(idNull1.equals(null)).isFalse();
-
-      // Different values
-      assertThat(id1a.equals(id2)).isFalse();
-      assertThat(id1a.equals(idNull1)).isFalse();
-      assertThat(idNull1.equals(id1a)).isFalse();
-
-      // HashCode
-      assertThat(id1a.hashCode()).isEqualTo(id1b.hashCode());
-      assertThat(idNull1.hashCode()).isEqualTo(idNull2.hashCode());
-    }
-
-    @Test
-    @DisplayName("record-generated toString() should return correct format")
-    void recordGenerated_toString_returnsCorrectFormat() { // Test record's generated method
-      assertThat(Id.of("test").toString()).isEqualTo("Id[value=test]"); // Common record format
-      assertThat(Id.of(123).toString()).isEqualTo("Id[value=123]");
-      assertThat(Id.of(null).toString()).isEqualTo("Id[value=null]");
-    }
-
-    @Test
-    @DisplayName("instance map() should transform value")
-    void instanceMap_transformsValue() {
-      Id<Integer> idInt = Id.of(5);
-      Id<String> idString = idInt.map(i -> "Val:" + i);
-      assertThat(idString.value()).isEqualTo("Val:5");
-    }
-
-    @Test
-    @DisplayName("instance map() with null value should apply function to null")
-    void instanceMap_withNullValue() {
-      Id<Object> idNull = Id.of(null);
-      Id<String> idString = idNull.map(o -> "WasNull");
-      assertThat(idString.value()).isEqualTo("WasNull");
-    }
-
-    @Test
-    @DisplayName("instance map() should throw NPE for null function")
-    void instanceMap_throwsNPEForNullFunction() {
-      Id<Integer> idInt = Id.of(5);
-      assertThatThrownBy(() -> idInt.map(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("fn cannot be null");
-    }
-
-    @Test
-    @DisplayName("instance flatMap() should apply function returning Id")
-    void instanceFlatMap_appliesFunctionReturningId() {
-      Id<Integer> idInt = Id.of(5);
-      Id<String> idString = idInt.flatMap(i -> Id.of("FlatVal:" + (i * 2)));
-      assertThat(idString.value()).isEqualTo("FlatVal:10");
-    }
-
-    @Test
-    @DisplayName("instance flatMap() should throw if function returns null Id")
-    void instanceFlatMap_throwsIfFunctionReturnsNullId() {
-      Id<Integer> idInt = Id.of(5);
-      assertThatThrownBy(() -> idInt.flatMap(i -> null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function returned by flatMap cannot be null");
-    }
-
-    @Test
-    @DisplayName("instance flatMap() should throw NPE for null function")
-    void instanceFlatMap_throwsNPEForNullFunction() {
-      Id<Integer> idInt = Id.of(5);
-      assertThatThrownBy(() -> idInt.flatMap(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("fn for flatMap cannot be null");
-    }
-
-    @Test
-    @DisplayName("Witness class can be instantiated (for coverage)")
-    void witness_canBeInstantiated() {
-      // This test is primarily for JaCoCo coverage of the Witness inner class,
-      Id.Witness witnessInstance = new Id.Witness();
-      assertThat(witnessInstance).isNotNull();
+    @DisplayName("Run complete Monad test pattern with validation contexts")
+    void runCompleteMonadTestPatternWithValidationContexts() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind) // Explicitly specify B = String
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(IdMonad.class)
+          .withApFrom(IdMonad.class)
+          .withFlatMapFrom(IdMonad.class)
+          .testAll();
     }
   }
 
   @Nested
-  @DisplayName("IdKindHelper Tests")
-  class IdKindHelperTests {
+  @DisplayName("Operation Tests")
+  class OperationTests {
+
     @Test
-    @DisplayName("narrow() should cast Kind to Id for correct type")
-    void narrow_castsKindToId() {
-      Kind<Id.Witness, String> kind = Id.of("test");
-      Id<String> id = ID.narrow(kind);
-      assertThat(id.value()).isEqualTo("test");
-      assertThat(id).isInstanceOf(Id.class);
+    @DisplayName("Test Functor operations (map)")
+    void testFunctorOperations() {
+      TypeClassTest.<Id.Witness>functor(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMapper(validMapper)
+          .withEqualityChecker(equalityChecker)
+          .testOperations();
     }
 
     @Test
-    @DisplayName(
-        "narrow() should throw KindUnwrapException for wrong Kind implementation but correct"
-            + " Witness")
-    void narrow_throwsCKindImplementation() {
-      Kind<Id.Witness, String> imposterKind = new ImposterKind<>("imposter");
-      assertThatThrownBy(() -> ID.narrow(imposterKind)).isInstanceOf(KindUnwrapException.class);
+    @DisplayName("Test Applicative operations (of, ap, map2)")
+    void testApplicativeOperations() {
+      TypeClassTest.<Id.Witness>applicative(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
+          .testOperations();
     }
 
     @Test
-    @DisplayName("narrow() should throw KindUnwrapException if kind is null")
-    void narrow_throwsKUEIfKindIsNull() {
-      assertThatThrownBy(() -> ID.narrow(null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Cannot narrow null Kind for Id");
-    }
-
-    @Test
-    @DisplayName("widen() should cast Id to Kind")
-    void widen_castsIdToKind() {
-      Id<String> id = Id.of("test");
-      Kind<Id.Witness, String> kind = ID.widen(id);
-      assertThat(kind).isSameAs(id);
-      assertThat(ID.narrow(kind).value()).isEqualTo("test");
-    }
-
-    @Test
-    @DisplayName("widen() should throw NullPointerException if id is null")
-    void widen_throwsNullPointerExceptionIfIdIsNull() {
-      assertThatThrownBy(() -> ID.widen(null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Input Id cannot be null");
-    }
-
-    @Test
-    @DisplayName("unwrap() should return value from Kind")
-    void unwrap_returnsValueFromKind() {
-      Kind<Id.Witness, String> kind = Id.of("test");
-      assertThat(ID.unwrap(kind)).isEqualTo("test");
-
-      Kind<Id.Witness, Integer> kindNull = Id.of(null);
-      assertThat(ID.unwrap(kindNull)).isNull();
-    }
-
-    @Test
-    @DisplayName("unwrap() should throw KindUnwrapExceptionif kind is null")
-    void unwrap_throwsKUEIfKindIsNull() {
-      assertThatThrownBy(() -> ID.unwrap(null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Cannot narrow null Kind for Id");
-    }
-
-    @Test
-    @DisplayName("unwrap() should throw ClassCastException for wrong Kind implementation")
-    void unwrap_throwsKindUnwrapExceptionForWrongKindImplementation() {
-      Kind<Id.Witness, String> imposterKind = new ImposterKind<>("imposter");
-      assertThatThrownBy(() -> ID.unwrap(imposterKind)).isInstanceOf(KindUnwrapException.class);
+    @DisplayName("Test Monad operations (flatMap)")
+    void testMonadOperations() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .testOperations();
     }
   }
 
   @Nested
-  @DisplayName("IdentityMonad Instance Tests")
-  class IdMonadInstanceTests {
+  @DisplayName("Individual Components")
+  class IndividualComponents {
 
     @Test
-    @DisplayName("instance() should return singleton")
-    void instance_returnsSingleton() {
-      assertThat(IdMonad.instance()).isSameAs(IdMonad.instance());
+    @DisplayName("Test operations only")
+    void testOperationsOnly() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .selectTests()
+          .onlyOperations()
+          .test();
     }
 
     @Test
-    @DisplayName("of() should wrap value in Id Kind")
-    void of_wrapsValueInIdKind() {
-      Kind<Id.Witness, String> kind = idMonad.of("hello");
-      assertThat(ID.narrow(kind).value()).isEqualTo("hello");
-
-      Kind<Id.Witness, Object> kindNull = idMonad.of(null);
-      assertThat(ID.narrow(kindNull).value()).isNull();
+    @DisplayName("Test validations only")
+    void testValidationsOnly() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .testValidations();
     }
 
     @Test
-    @DisplayName("map() should transform value within Id Kind")
-    void map_transformsValueInIdKind() {
-      Kind<Id.Witness, Integer> kindInt = idMonad.of(10);
-      Kind<Id.Witness, String> kindString = idMonad.map(i -> "Num:" + i, kindInt);
-      assertThat(ID.narrow(kindString).value()).isEqualTo("Num:10");
+    @DisplayName("Test exception propagation only")
+    void testExceptionPropagationOnly() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .testExceptions();
     }
 
     @Test
-    @DisplayName("map() with null original value")
-    void map_withNullOriginalValue() {
-      Kind<Id.Witness, String> kindNull = idMonad.of(null);
-      Kind<Id.Witness, String> kindString = idMonad.map(s -> "WasNull", kindNull);
-      assertThat(ID.narrow(kindString).value()).isEqualTo("WasNull");
-    }
-
-    @Test
-    @DisplayName("map() should throw NPE for null function")
-    void map_throwsNPEForNullFunction() {
-      Kind<Id.Witness, Integer> kindInt = idMonad.of(10);
-      assertThatThrownBy(() -> idMonad.map(null, kindInt))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function f for map cannot be null");
-    }
-
-    @Test
-    @DisplayName("map() should throw NPE for null Kind")
-    void map_throwsNPEForNullKind() {
-      assertThatThrownBy(() -> idMonad.map(i -> "test", null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("source Kind for map cannot be null");
-    }
-
-    @Test
-    @DisplayName("ap() should apply wrapped function to wrapped value")
-    void ap_appliesWrappedFunction() {
-      Kind<Id.Witness, Function<Integer, String>> kindFn = idMonad.of(i -> "Res:" + (i * 2));
-      Kind<Id.Witness, Integer> kindVal = idMonad.of(5);
-      Kind<Id.Witness, String> result = idMonad.ap(kindFn, kindVal);
-      assertThat(ID.narrow(result).value()).isEqualTo("Res:10");
-    }
-
-    @Test
-    @DisplayName("ap() should throw NullPointerException if wrapped function is null")
-    void ap_throwsIfWrappedFunctionIsNull() {
-      Kind<Id.Witness, Function<Integer, String>> kindFnNull = idMonad.of(null);
-      Kind<Id.Witness, Integer> kindVal = idMonad.of(5);
-      assertThatThrownBy(() -> idMonad.ap(kindFnNull, kindVal))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function wrapped in Id cannot be null for ap");
-    }
-
-    @Test
-    @DisplayName("ap() should throw NPE for null function Kind")
-    void ap_throwsNPEForNullFunctionKind() {
-      Kind<Id.Witness, Integer> kindVal = idMonad.of(5);
-      assertThatThrownBy(() -> idMonad.ap(null, kindVal))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function Kind for ap cannot be null");
-    }
-
-    @Test
-    @DisplayName("ap() should throw NPE for null value Kind")
-    void ap_throwsNPEForNullValueKind() {
-      Kind<Id.Witness, Function<Integer, String>> kindFn = idMonad.of(i -> "test");
-      assertThatThrownBy(() -> idMonad.ap(kindFn, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("argument Kind for ap cannot be null");
-    }
-
-    @Test
-    @DisplayName("flatMap() should apply function returning Id Kind")
-    void flatMap_appliesFunctionReturningIdKind() {
-      Kind<Id.Witness, Integer> kindInt = idMonad.of(7);
-      Kind<Id.Witness, String> result = idMonad.flatMap(i -> Id.of("Flat:" + (i + 3)), kindInt);
-      assertThat(ID.narrow(result).value()).isEqualTo("Flat:10");
-    }
-
-    @Test
-    @DisplayName("flatMap() should throw NullPointerException if function returns null Kind")
-    void flatMap_throwsIfFunctionReturnsNullKind() {
-      Kind<Id.Witness, Integer> kindInt = idMonad.of(7);
-      Function<Integer, Kind<Id.Witness, String>> fnReturningNull = i -> null;
-      assertThatThrownBy(() -> idMonad.flatMap(fnReturningNull, kindInt))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function passed to flatMap returned null Kind");
-    }
-
-    @Test
-    @DisplayName("flatMap() should throw NPE for null function")
-    void flatMap_throwsNPEForNullFunction() {
-      Kind<Id.Witness, Integer> kindInt = idMonad.of(7);
-      assertThatThrownBy(() -> idMonad.flatMap(null, kindInt))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("function f for flatMap cannot be null");
-    }
-
-    @Test
-    @DisplayName("flatMap() should throw NPE for null Kind")
-    void flatMap_throwsNPEForNullKind() {
-      Function<Integer, Kind<Id.Witness, String>> fn = i -> Id.of("test");
-      assertThatThrownBy(() -> idMonad.flatMap(fn, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("source Kind for flatMap cannot be null");
+    @DisplayName("Test laws only")
+    void testLawsOnly() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .testLaws();
     }
   }
 
   @Nested
-  @DisplayName("Monad Laws")
-  class MonadLawsTests {
-    private Integer testValue;
-    private Kind<Id.Witness, Integer> m;
-    private Function<Integer, Kind<Id.Witness, String>> f;
-    private Function<String, Kind<Id.Witness, String>> g;
+  @DisplayName("Validation Tests")
+  class ValidationTests {
 
-    @BeforeEach
-    void setUpLaws() {
-      testValue = 42;
-      m = idMonad.of(testValue);
-      f = i -> idMonad.of("f(" + i + ")");
-      g = s -> idMonad.of("g(" + s + ")");
+    @Test
+    @DisplayName("Test null parameter validations")
+    void testAllNullParameterValidations() {
+      // Test default validation (no class context specified)
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .selectTests()
+          .onlyValidations()
+          .test();
     }
 
     @Test
-    @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      Kind<Id.Witness, String> leftSide = idMonad.flatMap(f, idMonad.of(testValue));
-      Kind<Id.Witness, String> rightSide = f.apply(testValue);
-
-      assertThat(ID.unwrap(leftSide)).isEqualTo(ID.unwrap(rightSide));
+    @DisplayName("Test validation with Functor context for map")
+    void testValidationWithFunctorContext() {
+      // Configure only map to use IdMonad context
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(IdMonad.class)
+          .testValidations();
     }
 
     @Test
-    @DisplayName("2. Right Identity: flatMap(m, of) == m")
-    void rightIdentity() {
-      Kind<Id.Witness, Integer> leftSide = idMonad.flatMap(idMonad::of, m);
-
-      assertThat(ID.unwrap(leftSide)).isEqualTo(ID.unwrap(m));
-      assertThat(leftSide).isEqualTo(m);
+    @DisplayName("Test validation with Monad context for flatMap")
+    void testValidationWithMonadContext() {
+      // Configure only flatMap to use IdMonad context
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withFlatMapFrom(IdMonad.class)
+          .testValidations();
     }
 
     @Test
-    @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-    void associativity() {
-      Kind<Id.Witness, String> leftSide = idMonad.flatMap(g, idMonad.flatMap(f, m));
-      Kind<Id.Witness, String> rightSide = idMonad.flatMap(x -> idMonad.flatMap(g, f.apply(x)), m);
-      assertThat(ID.unwrap(leftSide)).isEqualTo(ID.unwrap(rightSide));
+    @DisplayName("Test validation with full inheritance hierarchy")
+    void testValidationWithFullInheritanceHierarchy() {
+      // Configure all operations to use IdMonad context
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(IdMonad.class)
+          .withApFrom(IdMonad.class)
+          .withFlatMapFrom(IdMonad.class)
+          .testValidations();
+    }
+  }
+
+  @Nested
+  @DisplayName("Law Tests")
+  class LawTests {
+
+    @Test
+    @DisplayName("Test Functor laws (identity and composition)")
+    void testFunctorLaws() {
+      TypeClassTest.<Id.Witness>functor(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMapper(validMapper)
+          .withEqualityChecker(equalityChecker)
+          .testLaws();
+    }
+
+    @Test
+    @DisplayName("Test Applicative laws (identity, homomorphism, interchange)")
+    void testApplicativeLaws() {
+      TypeClassTest.<Id.Witness>applicative(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, validMapper, equalityChecker)
+          .testLaws();
+    }
+
+    @Test
+    @DisplayName("Test Monad laws (left identity, right identity, associativity)")
+    void testMonadLaws() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .selectTests()
+          .onlyLaws()
+          .test();
+    }
+  }
+
+  @Nested
+  @DisplayName("Edge Cases")
+  class EdgeCases {
+
+    @Test
+    @DisplayName("Test with null value")
+    void testWithNullValue() {
+      Kind<Id.Witness, Integer> nullKind = ID.widen(Id.of(null));
+
+      // Test that Id can hold null and basic operations work
+      Integer value = ID.narrow(nullKind).value();
+      assertThat(value).isNull();
+
+      // Test that of() works with null
+      Kind<Id.Witness, Integer> created = monad.of(null);
+      assertThat(ID.narrow(created).value()).isNull();
+
+      // Test with null-safe operations
+      Function<Integer, String> nullSafeMapper = i -> i == null ? "null" : i.toString();
+      Kind<Id.Witness, String> mapped = monad.map(nullSafeMapper, nullKind);
+      assertThat(ID.narrow(mapped).value()).isEqualTo("null");
+
+      Function<Integer, Kind<Id.Witness, String>> nullSafeFlatMapper =
+          i -> monad.of(i == null ? "null" : i.toString());
+      Kind<Id.Witness, String> flatMapped = monad.flatMap(nullSafeFlatMapper, nullKind);
+      assertThat(ID.narrow(flatMapped).value()).isEqualTo("null");
+    }
+
+    @Test
+    @DisplayName("Test map with identity function")
+    void testMapWithIdentityFunction() {
+      Function<Integer, Integer> identity = i -> i;
+      Kind<Id.Witness, Integer> mapped = monad.map(identity, validKind);
+
+      Integer originalValue = ID.narrow(validKind).value();
+      Integer mappedValue = ID.narrow(mapped).value();
+
+      assertThat(mappedValue).isEqualTo(originalValue);
+    }
+
+    @Test
+    @DisplayName("Test flatMap with of")
+    void testFlatMapWithOf() {
+      Function<Integer, Kind<Id.Witness, Integer>> ofFunc = monad::of;
+      Kind<Id.Witness, Integer> flatMapped = monad.flatMap(ofFunc, validKind);
+
+      assertThat(equalityChecker.test(flatMapped, validKind))
+          .as("flatMap with of should preserve identity")
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("Test multiple sequential operations")
+    void testMultipleSequentialOperations() {
+      Kind<Id.Witness, Integer> result =
+          monad.flatMap(
+              i -> monad.map(s -> s.length(), monad.flatMap(testFunction, monad.of(i))), validKind);
+
+      assertThat(result).isNotNull();
+      assertThat(ID.narrow(result).value()).isNotNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Exception Propagation")
+  class ExceptionPropagation {
+
+    @Test
+    @DisplayName("Test map propagates exceptions")
+    void testMapPropagatesExceptions() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .selectTests()
+          .onlyExceptions()
+          .test();
+    }
+
+    @Test
+    @DisplayName("Test flatMap propagates exceptions")
+    void testFlatMapPropagatesExceptions() {
+      RuntimeException testException = new RuntimeException("Test exception");
+      Function<Integer, Kind<Id.Witness, String>> throwingFlatMapper =
+          i -> {
+            throw testException;
+          };
+
+      org.assertj.core.api.Assertions.assertThatThrownBy(
+              () -> monad.flatMap(throwingFlatMapper, validKind))
+          .isSameAs(testException);
+    }
+
+    @Test
+    @DisplayName("Test ap propagates exceptions from function")
+    void testApPropagatesExceptionsFromFunction() {
+      RuntimeException testException = new RuntimeException("Test exception");
+      Function<Integer, String> throwingFunction =
+          i -> {
+            throw testException;
+          };
+      Kind<Id.Witness, Function<Integer, String>> throwingFunctionKind =
+          ID.widen(Id.of(throwingFunction));
+
+      org.assertj.core.api.Assertions.assertThatThrownBy(
+              () -> monad.ap(throwingFunctionKind, validKind))
+          .isSameAs(testException);
+    }
+  }
+
+  @Nested
+  @DisplayName("Selective Testing")
+  class SelectiveTesting {
+
+    @Test
+    @DisplayName("Skip operations")
+    void skipOperations() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .selectTests()
+          .skipOperations()
+          .test();
+    }
+
+    @Test
+    @DisplayName("Skip validations")
+    void skipValidations() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .selectTests()
+          .skipValidations()
+          .test();
+    }
+
+    @Test
+    @DisplayName("Skip exceptions")
+    void skipExceptions() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .selectTests()
+          .skipExceptions()
+          .test();
+    }
+
+    @Test
+    @DisplayName("Skip laws")
+    void skipLaws() {
+      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .selectTests()
+          .skipLaws()
+          .test();
     }
   }
 }

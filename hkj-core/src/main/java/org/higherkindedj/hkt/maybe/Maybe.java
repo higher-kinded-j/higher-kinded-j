@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
+import static org.higherkindedj.hkt.util.validation.Operation.JUST;
+
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -26,6 +28,8 @@ import org.jspecify.annotations.Nullable;
  */
 public sealed interface Maybe<T> permits Just, Nothing {
 
+  Class<Maybe> MAYBE_CLASS = Maybe.class;
+
   /**
    * Returns a {@code Maybe} describing the given non-null value.
    *
@@ -36,7 +40,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    * @throws NullPointerException if {@code value} is {@code null}.
    */
   static <T> Maybe<T> just(T value) {
-    Objects.requireNonNull(value, "Value for Just cannot be null");
+    Validation.coreType().requireValue(value, MAYBE_CLASS, JUST);
     return new Just<>(value);
   }
 

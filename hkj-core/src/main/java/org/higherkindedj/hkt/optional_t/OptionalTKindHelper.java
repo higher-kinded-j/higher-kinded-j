@@ -2,9 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional_t;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
-
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -17,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 public enum OptionalTKindHelper implements OptionalTConverterOps {
   OPTIONAL_T;
 
-  public static final String TYPE_NAME = "OptionalT";
+  private static final Class<OptionalT> OPTIONAL_T_CLASS = OptionalT.class;
 
   /**
    * Widens a concrete {@link OptionalT OptionalT&lt;F, A&gt;} instance into its higher-kinded
@@ -35,8 +34,7 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    */
   @Override
   public <F, A> Kind<OptionalTKind.Witness<F>, A> widen(OptionalT<F, A> optionalT) {
-    requireNonNullForWiden(optionalT, TYPE_NAME);
-    // optionalT is already an OptionalTKind<F, A>, which is a Kind<OptionalTKind.Witness<F>, A>.
+    Validation.kind().requireForWiden(optionalT, OPTIONAL_T_CLASS);
     return optionalT;
   }
 
@@ -53,6 +51,6 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    */
   @Override
   public <F, A> OptionalT<F, A> narrow(@Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
-    return narrowKindWithTypeCheck(kind, OptionalT.class, TYPE_NAME);
+    return Validation.kind().narrowWithTypeCheck(kind, OPTIONAL_T_CLASS);
   }
 }

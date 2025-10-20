@@ -2,366 +2,436 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
+import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.function.Function3;
-import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.higherkindedj.hkt.test.base.TypeClassTestBase;
+import org.higherkindedj.hkt.test.data.TestFunctions;
+import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
-import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Tests for WriterMonad<W, A>. Uses StringMonoid for W. */
-@DisplayName("WriterMonad Tests (W=String)")
-class WriterMonadTest {
+@DisplayName("WriterMonad Complete Test Suite")
+class WriterMonadTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, String> {
 
   private Monoid<String> stringMonoid;
-  private WriterMonad<String> writerMonad;
+  private WriterMonad<String> monad;
+
+  @Override
+  protected Kind<WriterKind.Witness<String>, Integer> createValidKind() {
+    return WRITER.widen(new Writer<>("Log1;", 42));
+  }
+
+  @Override
+  protected Kind<WriterKind.Witness<String>, Integer> createValidKind2() {
+    return WRITER.widen(new Writer<>("Log2;", 24));
+  }
+
+  @Override
+  protected Function<Integer, String> createValidMapper() {
+    return TestFunctions.INT_TO_STRING;
+  }
+
+  @Override
+  protected Function<Integer, Kind<WriterKind.Witness<String>, String>> createValidFlatMapper() {
+    return i -> WRITER.widen(new Writer<>("flat:" + i + ";", "flat:" + i));
+  }
+
+  @Override
+  protected Kind<WriterKind.Witness<String>, Function<Integer, String>> createValidFunctionKind() {
+    return WRITER.widen(new Writer<>("FuncLog;", TestFunctions.INT_TO_STRING));
+  }
+
+  @Override
+  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
+    return (a, b) -> "Result:" + a + "," + b;
+  }
+
+  @Override
+  protected Integer createTestValue() {
+    return 42;
+  }
+
+  @Override
+  protected Function<Integer, Kind<WriterKind.Witness<String>, String>> createTestFunction() {
+    return i -> WRITER.widen(new Writer<>("test:" + i + ";", "test:" + i));
+  }
+
+  @Override
+  protected Function<String, Kind<WriterKind.Witness<String>, String>> createChainFunction() {
+    return s -> WRITER.widen(new Writer<>("chain:" + s + ";", s + "!"));
+  }
+
+  @Override
+  protected BiPredicate<Kind<WriterKind.Witness<String>, ?>, Kind<WriterKind.Witness<String>, ?>>
+      createEqualityChecker() {
+    return (k1, k2) -> WRITER.narrow(k1).equals(WRITER.narrow(k2));
+  }
 
   @BeforeEach
-  void setUp() {
+  void setUpMonad() {
     stringMonoid = new StringMonoid();
-    writerMonad = new WriterMonad<>(stringMonoid);
-  }
-
-  // Helper to run and get the Writer record
-  private <A> Writer<String, A> runW(Kind<WriterKind.Witness<String>, A> kind) {
-    return WRITER.runWriter(kind);
-  }
-
-  // --- Basic Operations ---
-
-  @Nested
-  @DisplayName("Applicative 'of' tests")
-  class OfTests {
-    @Test
-    void of_shouldCreateWriterWithEmptyLog() {
-      var kind = writerMonad.of(10);
-      Writer<String, Integer> w = runW(kind);
-      assertThat(w.log()).isEqualTo(stringMonoid.empty());
-      assertThat(w.value()).isEqualTo(10);
-    }
-
-    @Test
-    void of_shouldAllowNullValue() {
-      Kind<WriterKind.Witness<String>, String> kind = writerMonad.of(null);
-      Writer<String, String> w = runW(kind);
-      assertThat(w.log()).isEqualTo(stringMonoid.empty());
-      assertThat(w.value()).isNull();
-    }
+    monad = new WriterMonad<>(stringMonoid);
+    validateMonadFixtures();
   }
 
   @Nested
-  @DisplayName("Functor 'map' tests")
-  class MapTests {
+  @DisplayName("Complete Monad Test Suite")
+  class CompleteMonadTestSuite {
+
     @Test
-    void map_shouldApplyFunctionToValueAndKeepLog() {
-      var initialKind = WRITER.widen(new Writer<>("Log1;", 5));
-      var mappedKind = writerMonad.map(i -> "v" + i, initialKind);
-      Writer<String, String> w = runW(mappedKind);
-      assertThat(w.log()).isEqualTo("Log1;");
-      assertThat(w.value()).isEqualTo("v5");
+    @DisplayName("Run complete Monad test pattern")
+    void runCompleteMonadTestPattern() {
+      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(WriterFunctor.class)
+          .withApFrom(WriterApplicative.class)
+          .withFlatMapFrom(WriterMonad.class)
+          .testAll();
     }
 
     @Test
-    void map_shouldWorkWithEmptyLog() {
-      var initialKind = writerMonad.of(5); // Uses 'of'
-      var mappedKind = writerMonad.map(i -> "v" + i, initialKind);
-      Writer<String, String> w = runW(mappedKind);
-      assertThat(w.log()).isEqualTo("");
-      assertThat(w.value()).isEqualTo("v5");
+    @DisplayName("Validate test structure follows standards")
+    void validateTestStructure() {
+      TestPatternValidator.ValidationResult result =
+          TestPatternValidator.validateAndReport(WriterMonadTest.class);
+
+      if (result.hasErrors()) {
+        result.printReport();
+        throw new AssertionError("Test structure validation failed");
+      }
     }
   }
 
   @Nested
-  @DisplayName("Applicative 'ap' tests")
-  class ApTests {
+  @DisplayName("Operation Tests")
+  class OperationTests {
+
     @Test
-    void ap_shouldApplyWriterFunctionToWriterValue() {
+    @DisplayName("flatMap() sequences computations and combines logs")
+    void flatMapSequencesComputationsAndCombinesLogs() {
+      Kind<WriterKind.Witness<String>, String> result = monad.flatMap(validFlatMapper, validKind);
+
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo("Log1;flat:42;");
+      assertThat(writer.value()).isEqualTo("flat:42");
+    }
+
+    @Test
+    @DisplayName("flatMap() can chain multiple operations")
+    void flatMapCanChainMultipleOperations() {
+      Kind<WriterKind.Witness<String>, String> result =
+          monad.flatMap(
+              s ->
+                  monad.flatMap(
+                      s2 -> WRITER.widen(new Writer<>("final;", s2 + "!")),
+                      WRITER.widen(new Writer<>("second;", s + "2"))),
+              WRITER.widen(new Writer<>("first;", "1")));
+
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo("first;second;final;");
+      assertThat(writer.value()).isEqualTo("12!");
+    }
+
+    @Test
+    @DisplayName("of() creates Writer with empty log")
+    void ofCreatesWriterWithEmptyLog() {
+      Kind<WriterKind.Witness<String>, String> result = monad.of("success");
+
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo(stringMonoid.empty());
+      assertThat(writer.value()).isEqualTo("success");
+    }
+
+    @Test
+    @DisplayName("of() allows null values")
+    void ofAllowsNullValues() {
+      Kind<WriterKind.Witness<String>, String> result = monad.of(null);
+
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo(stringMonoid.empty());
+      assertThat(writer.value()).isNull();
+    }
+
+    @Test
+    @DisplayName("map() applies function and preserves log")
+    void mapAppliesFunctionAndPreservesLog() {
+      Kind<WriterKind.Witness<String>, String> result = monad.map(validMapper, validKind);
+
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo("Log1;");
+      assertThat(writer.value()).isEqualTo("42");
+    }
+
+    @Test
+    @DisplayName("ap() applies function to value and combines logs")
+    void apAppliesFunctionAndCombinesLogs() {
       Kind<WriterKind.Witness<String>, Function<Integer, String>> funcKind =
-          WRITER.widen(new Writer<>("FuncLog;", i -> "Res:" + i));
+          monad.of(i -> "value:" + i);
+      Kind<WriterKind.Witness<String>, Integer> valueKind = monad.of(42);
 
-      // Writer<String, Integer>
-      var valKind = WRITER.widen(new Writer<>("ValLog;", 10));
+      Kind<WriterKind.Witness<String>, String> result = monad.ap(funcKind, valueKind);
 
-      var resultKind = writerMonad.ap(funcKind, valKind);
-      Writer<String, String> w = runW(resultKind);
-
-      assertThat(w.log()).isEqualTo("FuncLog;ValLog;"); // Logs combined
-      assertThat(w.value()).isEqualTo("Res:10"); // Function applied
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.value()).isEqualTo("value:42");
     }
 
     @Test
-    void ap_shouldCombineLogsEvenIfValueIsNull() {
-      Kind<WriterKind.Witness<String>, Function<Integer, String>> funcKind =
-          WRITER.widen(new Writer<>("FuncLog;", i -> "Res:" + i));
-      Kind<WriterKind.Witness<String>, Integer> valKind =
-          WRITER.widen(new Writer<>("ValLog;", null)); // Null value
+    @DisplayName("map2() combines two Writers")
+    void map2CombinesTwoWriters() {
+      Kind<WriterKind.Witness<String>, Integer> w1 = WRITER.widen(new Writer<>("L1;", 10));
+      Kind<WriterKind.Witness<String>, String> w2 = WRITER.widen(new Writer<>("L2;", "test"));
 
-      var resultKind = writerMonad.ap(funcKind, valKind);
-      Writer<String, String> w = runW(resultKind);
+      BiFunction<Integer, String, String> combiner = (i, s) -> s + ":" + i;
+      Kind<WriterKind.Witness<String>, String> result = monad.map2(w1, w2, combiner);
 
-      assertThat(w.log()).isEqualTo("FuncLog;ValLog;");
-      // Result depends on how the function handles null input
-      assertThat(w.value()).isEqualTo("Res:null");
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo("L1;L2;");
+      assertThat(writer.value()).isEqualTo("test:10");
     }
   }
 
   @Nested
-  @DisplayName("Monad 'flatMap' tests")
-  class FlatMapTests {
+  @DisplayName("Individual Components")
+  class IndividualComponents {
+
     @Test
-    void flatMap_shouldSequenceComputationsAndCombineLogs() {
-      Kind<WriterKind.Witness<String>, Integer> initialKind =
-          WRITER.widen(new Writer<>("Start;", 3));
-
-      // Function: Integer -> WriterKind<String, String>
-      Function<Integer, Kind<WriterKind.Witness<String>, String>> process =
-          i -> WRITER.widen(new Writer<>("Proc(" + i + ");", "Value=" + (i * 2)));
-
-      var resultKind = writerMonad.flatMap(process, initialKind);
-      Writer<String, String> w = runW(resultKind);
-
-      assertThat(w.log()).isEqualTo("Start;Proc(3);");
-      assertThat(w.value()).isEqualTo("Value=6");
+    @DisplayName("Test operations only")
+    void testOperationsOnly() {
+      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .testOperations();
     }
 
     @Test
-    void flatMap_withTell() {
-      Kind<WriterKind.Witness<String>, Integer> initialKind = writerMonad.of(5); // ("", 5)
-
-      Function<Integer, Kind<WriterKind.Witness<String>, Unit>> logValue =
-          i -> WRITER.tell("Logged:" + i + ";"); // ("Logged:5;", null)
-
-      // Function: Unit -> WriterKind<String, String>
-      Function<Unit, Kind<WriterKind.Witness<String>, String>> finalStep =
-          ignored -> WRITER.widen(new Writer<>("End;", "Complete")); // ("End;", "Complete")
-
-      // Chain: of(5) >>= logValue >>= finalStep
-      var resultKind =
-          writerMonad.flatMap(
-              finalStep, writerMonad.flatMap(logValue, initialKind) // Apply logValue to initial 5
-              );
-
-      Writer<String, String> w = runW(resultKind);
-      assertThat(w.log()).isEqualTo("Logged:5;End;");
-      assertThat(w.value()).isEqualTo("Complete");
-    }
-  }
-
-  // --- Law Tests ---
-
-  // Helper functions for laws
-  final Function<Integer, String> intToString = Object::toString;
-  final Function<String, String> appendWorld = s -> s + " world";
-
-  //  Kind<WriterKind.Witness<String>, Integer>
-  final Kind<WriterKind.Witness<String>, Integer> mValue = WRITER.widen(new Writer<>("mVal;", 5));
-  final Function<Integer, Kind<WriterKind.Witness<String>, String>> f =
-      i -> WRITER.widen(new Writer<>("f(" + i + ");", "v" + i));
-  final Function<String, Kind<WriterKind.Witness<String>, String>> g =
-      s -> WRITER.widen(new Writer<>("g(" + s + ");", s + "!"));
-
-  @Nested
-  @DisplayName("Functor Laws")
-  class FunctorLaws {
-    @Test
-    @DisplayName("1. Identity: map(id, fa) == fa")
-    void identity() {
-      Kind<WriterKind.Witness<String>, Integer> fa = WRITER.widen(new Writer<>("Log;", 10));
-      Kind<WriterKind.Witness<String>, Integer> result = writerMonad.map(Function.identity(), fa);
-      assertThat(runW(result)).isEqualTo(runW(fa));
+    @DisplayName("Test validations only")
+    void testValidationsOnly() {
+      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .configureValidation()
+          .useInheritanceValidation()
+          .withMapFrom(WriterFunctor.class)
+          .withApFrom(WriterApplicative.class)
+          .withFlatMapFrom(WriterMonad.class)
+          .testValidations();
     }
 
     @Test
-    @DisplayName("2. Composition: map(g.compose(f), fa) == map(g, map(f, fa))")
-    void composition() {
-      Kind<WriterKind.Witness<String>, Integer> fa = WRITER.widen(new Writer<>("Log;", 10));
-      Function<Integer, String> fMap = i -> "v" + i;
-      Function<String, String> gMap = s -> s + "!";
-      Function<Integer, String> gComposeF = gMap.compose(fMap);
+    @DisplayName("Test exception propagation only")
+    void testExceptionPropagationOnly() {
+      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .testExceptions();
+    }
 
-      var leftSide = writerMonad.map(gComposeF, fa);
-      var rightSide = writerMonad.map(gMap, writerMonad.map(fMap, fa));
-
-      // Logs should be the same, values should be the same
-      assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
+    @Test
+    @DisplayName("Test laws only")
+    void testLawsOnly() {
+      TypeClassTest.<WriterKind.Witness<String>>monad(WriterMonad.class)
+          .<Integer>instance(monad)
+          .<String>withKind(validKind)
+          .withMonadOperations(
+              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
+          .testLaws();
     }
   }
 
   @Nested
-  @DisplayName("Applicative Laws")
-  class ApplicativeLaws {
-    Kind<WriterKind.Witness<String>, Integer> v = WRITER.widen(new Writer<>("ValLog;", 5));
-    Kind<WriterKind.Witness<String>, Function<Integer, String>> fKind =
-        WRITER.widen(new Writer<>("FuncLog;", intToString));
-    Kind<WriterKind.Witness<String>, Function<String, String>> gKind =
-        WRITER.widen(new Writer<>("GFuncLog;", appendWorld));
+  @DisplayName("Core Type Tests")
+  class CoreTypeTests {
 
     @Test
-    @DisplayName("1. Identity: ap(of(id), v) == v")
-    void identity() {
-      Kind<WriterKind.Witness<String>, Function<Integer, Integer>> idFuncKind =
-          writerMonad.of(Function.identity()); // ("", id)
+    @DisplayName("Test Writer core operations")
+    void testWriterCoreOperations() {
+      Writer<String, Integer> writer = new Writer<>("TestLog;", 42);
+
+      CoreTypeTest.<String, Integer>writer(Writer.class)
+          .withWriter(writer)
+          .withMonoid(stringMonoid)
+          .withMappers(validMapper)
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Test WriterKindHelper operations")
+    void testWriterKindHelperOperations() {
+      Writer<String, Integer> writer = new Writer<>("TestLog;", 42);
+
+      CoreTypeTest.writerKindHelper(writer).test();
+    }
+  }
+
+  @Nested
+  @DisplayName("Edge Cases Tests")
+  class EdgeCasesTests {
+
+    @Test
+    @DisplayName("Deep flatMap chaining")
+    void deepFlatMapChaining() {
+      Kind<WriterKind.Witness<String>, Integer> start = WRITER.widen(new Writer<>("start;", 1));
+
+      Kind<WriterKind.Witness<String>, Integer> result = start;
+      for (int i = 0; i < 10; i++) {
+        final int increment = i;
+        result =
+            monad.flatMap(
+                x -> WRITER.widen(new Writer<>("step" + increment + ";", x + increment)), result);
+      }
+
+      Writer<String, Integer> writer = WRITER.narrow(result);
+      assertThat(writer.value()).isEqualTo(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
+      assertThat(writer.log()).contains("start;");
+      assertThat(writer.log()).contains("step0;");
+      assertThat(writer.log()).contains("step9;");
+    }
+
+    @Test
+    @DisplayName("flatMap with empty log preservation")
+    void flatMapWithEmptyLogPreservation() {
+      Kind<WriterKind.Witness<String>, Integer> start = monad.of(1);
+
+      Kind<WriterKind.Witness<String>, Integer> result = monad.flatMap(x -> monad.of(x + 1), start);
+
+      Writer<String, Integer> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo(stringMonoid.empty());
+      assertThat(writer.value()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Test log accumulation order")
+    void testLogAccumulationOrder() {
+      Kind<WriterKind.Witness<String>, Integer> w1 = WRITER.widen(new Writer<>("A;", 1));
+      Kind<WriterKind.Witness<String>, Integer> w2 = WRITER.widen(new Writer<>("B;", 2));
+      Kind<WriterKind.Witness<String>, Integer> w3 = WRITER.widen(new Writer<>("C;", 3));
+
       Kind<WriterKind.Witness<String>, Integer> result =
-          writerMonad.ap(idFuncKind, v); // ("", id) ap ("ValLog;", 5) -> ("ValLog;", 5)
-      assertThat(runW(result)).isEqualTo(runW(v));
+          monad.flatMap(x1 -> monad.flatMap(x2 -> monad.map(x3 -> x1 + x2 + x3, w3), w2), w1);
+
+      Writer<String, Integer> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo("A;B;C;");
+      assertThat(writer.value()).isEqualTo(6);
     }
 
     @Test
-    @DisplayName("2. Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      int x = 10;
-      Function<Integer, String> func = i -> "X" + i;
-      Kind<WriterKind.Witness<String>, Function<Integer, String>> apFunc =
-          writerMonad.of(func); // ("", func)
-      Kind<WriterKind.Witness<String>, Integer> apVal = writerMonad.of(x); // ("", 10)
+    @DisplayName("Test with null value in chain")
+    void testWithNullValueInChain() {
+      Kind<WriterKind.Witness<String>, Integer> nullWriter =
+          WRITER.widen(new Writer<>("null;", null));
 
-      var leftSide = writerMonad.ap(apFunc, apVal); // ("", "X10")
-      var rightSide = writerMonad.of(func.apply(x)); // ("", "X10")
+      Kind<WriterKind.Witness<String>, String> result =
+          monad.flatMap(i -> WRITER.widen(new Writer<>("process;", String.valueOf(i))), nullWriter);
 
-      assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo("null;process;");
+      assertThat(writer.value()).isEqualTo("null");
     }
 
     @Test
-    @DisplayName("3. Interchange: ap(fKind, of(y)) == ap(of(f -> f(y)), fKind)")
-    void interchange() {
-      int y = 20;
-      // Left: ("FuncLog;", f) ap ("", 20) -> ("FuncLog;", f(20))
-      var leftSide = writerMonad.ap(fKind, writerMonad.of(y));
+    @DisplayName("Test tell with flatMap")
+    void testTellWithFlatMap() {
+      Kind<WriterKind.Witness<String>, Integer> start = monad.of(5);
 
-      // Right: ("", fn->fn(y)) ap ("FuncLog;", f) -> ("FuncLog;", f(20))
-      Function<Function<Integer, String>, String> evalWithY = fn -> fn.apply(y);
-      Kind<WriterKind.Witness<String>, Function<Function<Integer, String>, String>> evalKind =
-          writerMonad.of(evalWithY);
-      var rightSide = writerMonad.ap(evalKind, fKind);
+      Kind<WriterKind.Witness<String>, String> result =
+          monad.flatMap(
+              i ->
+                  monad.flatMap(
+                      unit -> WRITER.widen(new Writer<>("end;", "complete")),
+                      WRITER.tell("logged:" + i + ";")),
+              start);
 
-      assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
-    }
-
-    @Test
-    @DisplayName("4. Composition: ap(ap(map(compose, gKind), fKind), v) == ap(gKind, ap(fKind, v))")
-    void composition() {
-      Function<
-              Function<String, String>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          composeMap = gg -> ff -> gg.compose(ff);
-
-      // Left side:
-      // map(composeMap, gKind) -> ("GFuncLog;", f -> g.compose(f))
-      Kind<
-              WriterKind.Witness<String>,
-              Function<Function<Integer, String>, Function<Integer, String>>>
-          mappedCompose = writerMonad.map(composeMap, gKind);
-      // ap(mappedCompose, fKind) -> ("GFuncLog;FuncLog;", g.compose(f))
-      Kind<WriterKind.Witness<String>, Function<Integer, String>> ap1 =
-          writerMonad.ap(mappedCompose, fKind);
-      // ap(ap1, v) -> ("GFuncLog;FuncLog;ValLog;", g(f(v)))
-      var leftSide = writerMonad.ap(ap1, v);
-
-      // Right side:
-      // ap(fKind, v) -> ("FuncLog;ValLog;", f(v))
-      var innerAp = writerMonad.ap(fKind, v);
-      // ap(gKind, innerAp) -> ("GFuncLog;FuncLog;ValLog;", g(f(v)))
-      var rightSide = writerMonad.ap(gKind, innerAp);
-
-      assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
+      Writer<String, String> writer = WRITER.narrow(result);
+      assertThat(writer.log()).isEqualTo("logged:5;end;");
+      assertThat(writer.value()).isEqualTo("complete");
     }
   }
 
   @Nested
-  @DisplayName("Monad Laws")
-  class MonadLaws {
-    @Test
-    @DisplayName("1. Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      int value = 5;
-      Kind<WriterKind.Witness<String>, Integer> ofValue = writerMonad.of(value); // ("", 5)
-      // Left: flatMap(f, ofValue) -> f(5) -> ("f(5);", "v5")
-      var leftSide = writerMonad.flatMap(f, ofValue);
-      // Right: f(5) -> ("f(5);", "v5")
-      var rightSide = f.apply(value);
+  @DisplayName("Performance Tests")
+  class PerformanceTests {
 
-      assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
+    @Test
+    @DisplayName("flatMap efficient with many operations")
+    void flatMapEfficientWithManyOperations() {
+      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
+        Kind<WriterKind.Witness<String>, Integer> start = WRITER.widen(new Writer<>("start;", 1));
+
+        Kind<WriterKind.Witness<String>, Integer> result = start;
+        for (int i = 0; i < 100; i++) {
+          final int increment = i;
+          result =
+              monad.flatMap(
+                  x -> WRITER.widen(new Writer<>("s" + increment + ";", x + increment)), result);
+        }
+
+        int expectedSum = 1 + (99 * 100) / 2;
+        Writer<String, Integer> writer = WRITER.narrow(result);
+        assertThat(writer.value()).isEqualTo(expectedSum);
+      }
     }
 
     @Test
-    @DisplayName("2. Right Identity: flatMap(m, of) == m")
-    void rightIdentity() {
-      Function<Integer, Kind<WriterKind.Witness<String>, Integer>> ofFunc =
-          i -> writerMonad.of(i); // i -> ("", i)
-      // flatMap(ofFunc, mValue) -> flatMap(i->("",i), ("mVal;", 5)) -> ("mVal;", 5)
-      Kind<WriterKind.Witness<String>, Integer> leftSide = writerMonad.flatMap(ofFunc, mValue);
-      assertThat(runW(leftSide)).isEqualTo(runW(mValue));
+    @DisplayName("Multiple map2 operations")
+    void multipleMap2Operations() {
+      Kind<WriterKind.Witness<String>, Integer> w1 = WRITER.widen(new Writer<>("A;", 10));
+      Kind<WriterKind.Witness<String>, Integer> w2 = WRITER.widen(new Writer<>("B;", 20));
+      Kind<WriterKind.Witness<String>, Integer> w3 = WRITER.widen(new Writer<>("C;", 30));
+
+      // Combine w1 and w2
+      Kind<WriterKind.Witness<String>, Integer> combined12 = monad.map2(w1, w2, Integer::sum);
+
+      // Combine result with w3
+      Kind<WriterKind.Witness<String>, Integer> combined123 =
+          monad.map2(combined12, w3, Integer::sum);
+
+      Writer<String, Integer> writer = WRITER.narrow(combined123);
+      assertThat(writer.log()).isEqualTo("A;B;C;");
+      assertThat(writer.value()).isEqualTo(60);
     }
 
     @Test
-    @DisplayName("3. Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-    void associativity() {
-      // Left Side: flatMap(g, flatMap(f, mValue))
-      // inner = flatMap(f, mValue) -> flatMap(i->("f(i);","vi"), ("mVal;", 5)) -> ("mVal;f(5);",
-      // "v5")
-      var innerFlatMap = writerMonad.flatMap(f, mValue);
-      // flatMap(g, inner) -> flatMap(s->("g(s);",s+"!"), ("mVal;f(5);", "v5")) ->
-      // ("mVal;f(5);g(v5);", "v5!")
-      var leftSide = writerMonad.flatMap(g, innerFlatMap);
+    @DisplayName("Complex nested operations maintain log order")
+    void complexNestedOperationsMaintainLogOrder() {
+      Kind<WriterKind.Witness<String>, Integer> start = monad.of(1);
 
-      // Right Side: flatMap(a -> flatMap(g, f(a)), mValue)
-      Function<Integer, Kind<WriterKind.Witness<String>, String>> rightSideFunc =
-          a -> {
-            var fa = f.apply(a); // ("f(a);", "va")
-            return writerMonad.flatMap(
-                g, fa); // flatMap(s->("g(s);",s+"!"), ("f(a);", "va")) -> ("f(a);g(va);", "va!")
-          };
-      // flatMap(rightSideFunc, mValue) -> flatMap(a -> ("f(a);g(va);", "va!"), ("mVal;", 5))
-      // -> ("mVal;" + "f(5);g(v5);", "v5!")
-      var rightSide = writerMonad.flatMap(rightSideFunc, mValue);
+      for (int i = 0; i < 5; i++) {
+        final int step = i;
+        Kind<WriterKind.Witness<String>, Function<Integer, Integer>> funcKind =
+            WRITER.widen(new Writer<>("Step" + step + ";", x -> x + 1));
+        start = monad.ap(funcKind, start);
+      }
 
-      assertThat(runW(leftSide)).isEqualTo(runW(rightSide));
-    }
-  }
-
-  // --- mapN Tests --- (Using default Applicative implementations)
-  @Nested
-  @DisplayName("mapN tests")
-  class MapNTests {
-    Kind<WriterKind.Witness<String>, Integer> w1 = WRITER.widen(new Writer<>("L1;", 1));
-    Kind<WriterKind.Witness<String>, String> w2 = WRITER.widen(new Writer<>("L2;", "A"));
-    Kind<WriterKind.Witness<String>, Double> w3 = WRITER.widen(new Writer<>("L3;", 1.5));
-    Kind<WriterKind.Witness<String>, Boolean> w4 = WRITER.widen(new Writer<>("L4;", true));
-
-    @Test
-    void map2_combinesLogsAndValues() {
-      var result = writerMonad.map2(w1, w2, (i, s) -> s + i);
-      Writer<String, String> w = runW(result);
-      assertThat(w.log()).isEqualTo("L1;L2;");
-      assertThat(w.value()).isEqualTo("A1");
-    }
-
-    @Test
-    void map3_combinesLogsAndValues() {
-      Function3<Integer, String, Double, String> f3 =
-          (i, s, d) -> String.format("%s%d-%.1f", s, i, d);
-      var result = writerMonad.map3(w1, w2, w3, f3);
-      Writer<String, String> w = runW(result);
-      assertThat(w.log()).isEqualTo("L1;L2;L3;");
-      assertThat(w.value()).isEqualTo("A1-1.5");
-    }
-
-    @Test
-    void map4_combinesLogsAndValues() {
-      Function4<Integer, String, Double, Boolean, String> f4 =
-          (i, s, d, b) -> String.format("%s%d-%.1f-%b", s, i, d, b);
-      var result = writerMonad.map4(w1, w2, w3, w4, f4);
-      Writer<String, String> w = runW(result);
-      assertThat(w.log()).isEqualTo("L1;L2;L3;L4;");
-      assertThat(w.value()).isEqualTo("A1-1.5-true");
+      Writer<String, Integer> writer = WRITER.narrow(start);
+      // ap combines logs as: function log + value log
+      // In the loop, the function is created fresh each time with its log,
+      // and start accumulates previous logs, so we get reverse order
+      assertThat(writer.log()).isEqualTo("Step4;Step3;Step2;Step1;Step0;");
+      assertThat(writer.value()).isEqualTo(6);
     }
   }
 }

@@ -2,13 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -31,6 +33,8 @@ import org.jspecify.annotations.Nullable;
 public class WriterApplicative<W> extends WriterFunctor<W>
     implements Applicative<WriterKind.Witness<W>> {
 
+  private static Class<WriterApplicative> WRITER_APPLICATIVE_CLASS = WriterApplicative.class;
+
   protected final Monoid<W> monoidW;
 
   /**
@@ -41,7 +45,8 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @throws NullPointerException if {@code monoidW} is null.
    */
   public WriterApplicative(Monoid<W> monoidW) {
-    this.monoidW = requireNonNullFunction(monoidW, "Monoid<W> for WriterApplicative");
+    Validation.function().requireMonoid(monoidW, "monoidW", WRITER_APPLICATIVE_CLASS, CONSTRUCTION);
+    this.monoidW = monoidW;
   }
 
   /**
@@ -83,8 +88,8 @@ public class WriterApplicative<W> extends WriterFunctor<W>
   public <A, B> Kind<WriterKind.Witness<W>, B> ap(
       Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff, Kind<WriterKind.Witness<W>, A> fa) {
 
-    requireNonNullKind(ff, "function Kind for ap");
-    requireNonNullKind(fa, "argument Kind for ap");
+    Validation.kind().requireNonNull(ff, WRITER_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, WRITER_APPLICATIVE_CLASS, AP, "argument");
 
     Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);
@@ -94,7 +99,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
     Function<A, B> func = writerF.value();
     A val = writerA.value();
 
-    requireNonNullFunction(func, "Function wrapped in Writer for ap");
+    Validation.function().requireFunction(func, "function", WRITER_APPLICATIVE_CLASS, AP);
     B resultValue = func.apply(val);
 
     return WRITER.widen(new Writer<>(combinedLog, resultValue));
