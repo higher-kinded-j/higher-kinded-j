@@ -9,6 +9,7 @@ import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -332,6 +333,37 @@ class ValidatedTest extends TypeClassTestBase<ValidatedKind.Witness<String>, Int
           .withApplicative(monad, validFlatMapper)
           .withFoldableOperations(intMonoid, i -> i)
           .testAll();
+    }
+  }
+
+  // Add this nested class to ValidatedTest.java after the Edge Cases Tests
+
+  @Nested
+  @DisplayName("toEither Conversion Tests")
+  class ToEitherConversionTests {
+
+    @Test
+    @DisplayName("Valid toEither produces Right")
+    void validToEitherProducesRight() {
+      Validated<String, Integer> valid = Validated.valid(42);
+
+      Either<String, Integer> either = valid.toEither();
+
+      assertThat(either.isRight()).isTrue();
+      assertThat(either.isLeft()).isFalse();
+      assertThat(either.getRight()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("Invalid toEither produces Left")
+    void invalidToEitherProducesLeft() {
+      Validated<String, Integer> invalid = Validated.invalid("error message");
+
+      Either<String, Integer> either = invalid.toEither();
+
+      assertThat(either.isLeft()).isTrue();
+      assertThat(either.isRight()).isFalse();
+      assertThat(either.getLeft()).isEqualTo("error message");
     }
   }
 }

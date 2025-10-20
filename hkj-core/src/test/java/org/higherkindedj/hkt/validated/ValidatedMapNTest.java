@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
@@ -14,6 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ValidatedMonad mapN Methods Complete Test Suite")
 class ValidatedMapNTest {
@@ -154,84 +158,68 @@ class ValidatedMapNTest {
   @DisplayName("map3 Tests")
   class Map3Tests {
 
-    @Test
-    @DisplayName("map3 combines three Valid values")
-    void map3CombinesThreeValidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
+    // Parameterized test for all 8 combinations of Valid/Invalid for 3 arguments
+    private static Stream<Arguments> map3CombinationProvider() {
+      return Stream.of(
+          // All valid
+          Arguments.of(true, true, true, "10+20+30", true),
+          // One invalid
+          Arguments.of(false, true, true, "E1", false),
+          Arguments.of(true, false, true, "E2", false),
+          Arguments.of(true, true, false, "E3", false),
+          // Two invalid
+          Arguments.of(false, false, true, "E1, E2", false),
+          Arguments.of(false, true, false, "E1, E3", false),
+          Arguments.of(true, false, false, "E2, E3", false),
+          // All invalid
+          Arguments.of(false, false, false, "E1, E2, E3", false));
+    }
+
+    @ParameterizedTest(name = "map3 with v1={0}, v2={1}, v3={2} should result in {3}")
+    @MethodSource("map3CombinationProvider")
+    @DisplayName("map3 handles all Valid/Invalid combinations")
+    void map3HandlesAllCombinations(
+        boolean v1Valid, boolean v2Valid, boolean v3Valid, String expected, boolean shouldBeValid) {
+      Kind<ValidatedKind.Witness<String>, Integer> v1 =
+          v1Valid ? VALIDATED.valid(10) : VALIDATED.invalid("E1");
+      Kind<ValidatedKind.Witness<String>, Integer> v2 =
+          v2Valid ? VALIDATED.valid(20) : VALIDATED.invalid("E2");
+      Kind<ValidatedKind.Witness<String>, Integer> v3 =
+          v3Valid ? VALIDATED.valid(30) : VALIDATED.invalid("E3");
 
       Kind<ValidatedKind.Witness<String>, String> result =
           monad.map3(v1, v2, v3, (a, b, c) -> a + "+" + b + "+" + c);
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("10+20+30");
+      if (shouldBeValid) {
+        assertThat(validated.isValid()).isTrue();
+        assertThat(validated.get()).isEqualTo(expected);
+      } else {
+        assertThat(validated.isInvalid()).isTrue();
+        assertThat(validated.getError()).isEqualTo(expected);
+      }
     }
 
-    @Test
-    @DisplayName("map3 accumulates three errors")
-    void map3AccumulatesThreeErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error1");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("error3");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map3(v1, v2, v3, (a, b, c) -> a + "+" + b + "+" + c);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2, error3");
+    // Parameterized test for null parameter validations
+    private static Stream<Arguments> map3NullParameterProvider() {
+      Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(10);
+      return Stream.of(
+          Arguments.of(null, valid, valid, "first"),
+          Arguments.of(valid, null, valid, "second"),
+          Arguments.of(valid, valid, null, "third"));
     }
 
-    @Test
-    @DisplayName("map3 accumulates only errors (mixed valid and invalid)")
-    void map3AccumulatesOnlyErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("error3");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map3(v1, v2, v3, (a, b, c) -> a + "+" + b + "+" + c);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error2, error3");
-    }
-
-    @Test
-    @DisplayName("map3 validates first Kind is non-null")
-    void map3ValidatesFirstKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
-
-      assertThatThrownBy(() -> monad.map3(null, v2, v3, (a, b, c) -> "test"))
+    @ParameterizedTest(name = "map3 validates {3} parameter is non-null")
+    @MethodSource("map3NullParameterProvider")
+    @DisplayName("map3 validates all parameters are non-null")
+    void map3ValidatesParametersAreNonNull(
+        Kind<ValidatedKind.Witness<String>, Integer> v1,
+        Kind<ValidatedKind.Witness<String>, Integer> v2,
+        Kind<ValidatedKind.Witness<String>, Integer> v3,
+        String paramName) {
+      assertThatThrownBy(() -> monad.map3(v1, v2, v3, (a, b, c) -> "test"))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("first")
-          .hasMessageContaining("map3");
-    }
-
-    @Test
-    @DisplayName("map3 validates second Kind is non-null")
-    void map3ValidatesSecondKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
-
-      assertThatThrownBy(() -> monad.map3(v1, null, v3, (a, b, c) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("second")
-          .hasMessageContaining("map3");
-    }
-
-    @Test
-    @DisplayName("map3 validates third Kind is non-null")
-    void map3ValidatesThirdKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-
-      assertThatThrownBy(() -> monad.map3(v1, v2, null, (a, b, c) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("third")
+          .hasMessageContaining(paramName)
           .hasMessageContaining("map3");
     }
 
@@ -269,103 +257,88 @@ class ValidatedMapNTest {
   @DisplayName("map4 Tests")
   class Map4Tests {
 
-    @Test
-    @DisplayName("map4 combines four Valid values")
-    void map4CombinesFourValidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
-
-      Kind<ValidatedKind.Witness<String>, Integer> result =
-          monad.map4(v1, v2, v3, v4, (a, b, c, d) -> a + b + c + d);
-
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(100);
+    // Parameterized test for all 16 combinations of Valid/Invalid for 4 arguments
+    private static Stream<Arguments> map4CombinationProvider() {
+      return Stream.of(
+          // All valid
+          Arguments.of(true, true, true, true, 100, true),
+          // One invalid
+          Arguments.of(false, true, true, true, "E1", false),
+          Arguments.of(true, false, true, true, "E2", false),
+          Arguments.of(true, true, false, true, "E3", false),
+          Arguments.of(true, true, true, false, "E4", false),
+          // Two invalid
+          Arguments.of(false, false, true, true, "E1, E2", false),
+          Arguments.of(false, true, false, true, "E1, E3", false),
+          Arguments.of(false, true, true, false, "E1, E4", false),
+          Arguments.of(true, false, false, true, "E2, E3", false),
+          Arguments.of(true, false, true, false, "E2, E4", false),
+          Arguments.of(true, true, false, false, "E3, E4", false),
+          // Three invalid
+          Arguments.of(false, false, false, true, "E1, E2, E3", false),
+          Arguments.of(false, false, true, false, "E1, E2, E4", false),
+          Arguments.of(false, true, false, false, "E1, E3, E4", false),
+          Arguments.of(true, false, false, false, "E2, E3, E4", false),
+          // All invalid
+          Arguments.of(false, false, false, false, "E1, E2, E3, E4", false));
     }
 
-    @Test
-    @DisplayName("map4 accumulates four errors")
-    void map4AccumulatesFourErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error1");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("error3");
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("error4");
+    @ParameterizedTest(name = "map4 with v1={0}, v2={1}, v3={2}, v4={3}")
+    @MethodSource("map4CombinationProvider")
+    @DisplayName("map4 handles all Valid/Invalid combinations")
+    void map4HandlesAllCombinations(
+        boolean v1Valid,
+        boolean v2Valid,
+        boolean v3Valid,
+        boolean v4Valid,
+        Object expected,
+        boolean shouldBeValid) {
+      Kind<ValidatedKind.Witness<String>, Integer> v1 =
+          v1Valid ? VALIDATED.valid(10) : VALIDATED.invalid("E1");
+      Kind<ValidatedKind.Witness<String>, Integer> v2 =
+          v2Valid ? VALIDATED.valid(20) : VALIDATED.invalid("E2");
+      Kind<ValidatedKind.Witness<String>, Integer> v3 =
+          v3Valid ? VALIDATED.valid(30) : VALIDATED.invalid("E3");
+      Kind<ValidatedKind.Witness<String>, Integer> v4 =
+          v4Valid ? VALIDATED.valid(40) : VALIDATED.invalid("E4");
 
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2, error3, error4");
+      if (shouldBeValid) {
+        Kind<ValidatedKind.Witness<String>, Integer> result =
+            monad.map4(v1, v2, v3, v4, (a, b, c, d) -> a + b + c + d);
+        Validated<String, Integer> validated = VALIDATED.narrow(result);
+        assertThat(validated.isValid()).isTrue();
+        assertThat(validated.get()).isEqualTo(expected);
+      } else {
+        Kind<ValidatedKind.Witness<String>, String> result =
+            monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
+        Validated<String, String> validated = VALIDATED.narrow(result);
+        assertThat(validated.isInvalid()).isTrue();
+        assertThat(validated.getError()).isEqualTo(expected);
+      }
     }
 
-    @Test
-    @DisplayName("map4 accumulates subset of errors")
-    void map4AccumulatesSubsetOfErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("error4");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error2, error4");
+    // Parameterized test for null parameter validations
+    private static Stream<Arguments> map4NullParameterProvider() {
+      Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(10);
+      return Stream.of(
+          Arguments.of(null, valid, valid, valid, "first"),
+          Arguments.of(valid, null, valid, valid, "second"),
+          Arguments.of(valid, valid, null, valid, "third"),
+          Arguments.of(valid, valid, valid, null, "fourth"));
     }
 
-    @Test
-    @DisplayName("map4 validates first Kind is non-null")
-    void map4ValidatesFirstKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
-
-      assertThatThrownBy(() -> monad.map4(null, v2, v3, v4, (a, b, c, d) -> "test"))
+    @ParameterizedTest(name = "map4 validates {4} parameter is non-null")
+    @MethodSource("map4NullParameterProvider")
+    @DisplayName("map4 validates all parameters are non-null")
+    void map4ValidatesParametersAreNonNull(
+        Kind<ValidatedKind.Witness<String>, Integer> v1,
+        Kind<ValidatedKind.Witness<String>, Integer> v2,
+        Kind<ValidatedKind.Witness<String>, Integer> v3,
+        Kind<ValidatedKind.Witness<String>, Integer> v4,
+        String paramName) {
+      assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test"))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("first")
-          .hasMessageContaining("map4");
-    }
-
-    @Test
-    @DisplayName("map4 validates second Kind is non-null")
-    void map4ValidatesSecondKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
-
-      assertThatThrownBy(() -> monad.map4(v1, null, v3, v4, (a, b, c, d) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("second")
-          .hasMessageContaining("map4");
-    }
-
-    @Test
-    @DisplayName("map4 validates third Kind is non-null")
-    void map4ValidatesThirdKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
-
-      assertThatThrownBy(() -> monad.map4(v1, v2, null, v4, (a, b, c, d) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("third")
-          .hasMessageContaining("map4");
-    }
-
-    @Test
-    @DisplayName("map4 validates fourth Kind is non-null")
-    void map4ValidatesFourthKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
-
-      assertThatThrownBy(() -> monad.map4(v1, v2, v3, null, (a, b, c, d) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("fourth")
+          .hasMessageContaining(paramName)
           .hasMessageContaining("map4");
     }
 
@@ -405,124 +378,92 @@ class ValidatedMapNTest {
   @DisplayName("map5 Tests")
   class Map5Tests {
 
-    @Test
-    @DisplayName("map5 combines five Valid values")
-    void map5CombinesFiveValidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(1);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(3);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
-
-      Kind<ValidatedKind.Witness<String>, Integer> result =
-          monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> a + b + c + d + e);
-
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(15);
+    // Parameterized test for selected combinations (testing all 32 would be excessive)
+    private static Stream<Arguments> map5CombinationProvider() {
+      return Stream.of(
+          // All valid
+          Arguments.of(true, true, true, true, true, 15, true),
+          // One invalid (test each position)
+          Arguments.of(false, true, true, true, true, "E1", false),
+          Arguments.of(true, false, true, true, true, "E2", false),
+          Arguments.of(true, true, false, true, true, "E3", false),
+          Arguments.of(true, true, true, false, true, "E4", false),
+          Arguments.of(true, true, true, true, false, "E5", false),
+          // Two invalid (test key combinations)
+          Arguments.of(false, false, true, true, true, "E1, E2", false),
+          Arguments.of(true, true, true, false, false, "E4, E5", false),
+          Arguments.of(false, true, false, true, false, "E1, E3, E5", false),
+          // Three invalid
+          Arguments.of(false, false, false, true, true, "E1, E2, E3", false),
+          Arguments.of(true, true, false, false, false, "E3, E4, E5", false),
+          // Four invalid
+          Arguments.of(false, false, false, false, true, "E1, E2, E3, E4", false),
+          Arguments.of(true, false, false, false, false, "E2, E3, E4, E5", false),
+          // All invalid
+          Arguments.of(false, false, false, false, false, "E1, E2, E3, E4, E5", false));
     }
 
-    @Test
-    @DisplayName("map5 accumulates five errors")
-    void map5AccumulatesFiveErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error1");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("error3");
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("error4");
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.invalid("error5");
+    @ParameterizedTest(name = "map5 with v1={0}, v2={1}, v3={2}, v4={3}, v5={4}")
+    @MethodSource("map5CombinationProvider")
+    @DisplayName("map5 handles Valid/Invalid combinations")
+    void map5HandlesAllCombinations(
+        boolean v1Valid,
+        boolean v2Valid,
+        boolean v3Valid,
+        boolean v4Valid,
+        boolean v5Valid,
+        Object expected,
+        boolean shouldBeValid) {
+      Kind<ValidatedKind.Witness<String>, Integer> v1 =
+          v1Valid ? VALIDATED.valid(1) : VALIDATED.invalid("E1");
+      Kind<ValidatedKind.Witness<String>, Integer> v2 =
+          v2Valid ? VALIDATED.valid(2) : VALIDATED.invalid("E2");
+      Kind<ValidatedKind.Witness<String>, Integer> v3 =
+          v3Valid ? VALIDATED.valid(3) : VALIDATED.invalid("E3");
+      Kind<ValidatedKind.Witness<String>, Integer> v4 =
+          v4Valid ? VALIDATED.valid(4) : VALIDATED.invalid("E4");
+      Kind<ValidatedKind.Witness<String>, Integer> v5 =
+          v5Valid ? VALIDATED.valid(5) : VALIDATED.invalid("E5");
 
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2, error3, error4, error5");
+      if (shouldBeValid) {
+        Kind<ValidatedKind.Witness<String>, Integer> result =
+            monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> a + b + c + d + e);
+        Validated<String, Integer> validated = VALIDATED.narrow(result);
+        assertThat(validated.isValid()).isTrue();
+        assertThat(validated.get()).isEqualTo(expected);
+      } else {
+        Kind<ValidatedKind.Witness<String>, String> result =
+            monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
+        Validated<String, String> validated = VALIDATED.narrow(result);
+        assertThat(validated.isInvalid()).isTrue();
+        assertThat(validated.getError()).isEqualTo(expected);
+      }
     }
 
-    @Test
-    @DisplayName("map5 accumulates only errors from invalid values")
-    void map5AccumulatesOnlyErrorsFromInvalidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(1);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(3);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("error4");
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error2, error4");
+    // Parameterized test for null parameter validations
+    private static Stream<Arguments> map5NullParameterProvider() {
+      Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(1);
+      return Stream.of(
+          Arguments.of(null, valid, valid, valid, valid, "first"),
+          Arguments.of(valid, null, valid, valid, valid, "second"),
+          Arguments.of(valid, valid, null, valid, valid, "third"),
+          Arguments.of(valid, valid, valid, null, valid, "fourth"),
+          Arguments.of(valid, valid, valid, valid, null, "fifth"));
     }
 
-    @Test
-    @DisplayName("map5 validates first Kind is non-null")
-    void map5ValidatesFirstKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(3);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
-
-      assertThatThrownBy(() -> monad.map5(null, v2, v3, v4, v5, (a, b, c, d, e) -> "test"))
+    @ParameterizedTest(name = "map5 validates {5} parameter is non-null")
+    @MethodSource("map5NullParameterProvider")
+    @DisplayName("map5 validates all parameters are non-null")
+    void map5ValidatesParametersAreNonNull(
+        Kind<ValidatedKind.Witness<String>, Integer> v1,
+        Kind<ValidatedKind.Witness<String>, Integer> v2,
+        Kind<ValidatedKind.Witness<String>, Integer> v3,
+        Kind<ValidatedKind.Witness<String>, Integer> v4,
+        Kind<ValidatedKind.Witness<String>, Integer> v5,
+        String paramName) {
+      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test"))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("first")
-          .hasMessageContaining("map5");
-    }
-
-    @Test
-    @DisplayName("map5 validates second Kind is non-null")
-    void map5ValidatesSecondKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(1);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(3);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
-
-      assertThatThrownBy(() -> monad.map5(v1, null, v3, v4, v5, (a, b, c, d, e) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("second")
-          .hasMessageContaining("map5");
-    }
-
-    @Test
-    @DisplayName("map5 validates third Kind is non-null")
-    void map5ValidatesThirdKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(1);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
-
-      assertThatThrownBy(() -> monad.map5(v1, v2, null, v4, v5, (a, b, c, d, e) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("third")
-          .hasMessageContaining("map5");
-    }
-
-    @Test
-    @DisplayName("map5 validates fourth Kind is non-null")
-    void map5ValidatesFourthKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(1);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(3);
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
-
-      assertThatThrownBy(() -> monad.map5(v1, v2, v3, null, v5, (a, b, c, d, e) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("fourth")
-          .hasMessageContaining("map5");
-    }
-
-    @Test
-    @DisplayName("map5 validates fifth Kind is non-null")
-    void map5ValidatesFifthKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(1);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(3);
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
-
-      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, null, (a, b, c, d, e) -> "test"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("fifth")
+          .hasMessageContaining(paramName)
           .hasMessageContaining("map5");
     }
 
@@ -595,6 +536,21 @@ class ValidatedMapNTest {
     }
 
     @Test
+    @DisplayName("map4 preserves error order")
+    void map4PreservesErrorOrder() {
+      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("E1");
+      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
+      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("E3");
+      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("E4");
+
+      Kind<ValidatedKind.Witness<String>, String> result =
+          monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
+
+      Validated<String, String> validated = VALIDATED.narrow(result);
+      assertThat(validated.getError()).isEqualTo("E1, E3, E4");
+    }
+
+    @Test
     @DisplayName("map5 preserves error order with interspersed valid values")
     void map5PreservesErrorOrderWithInterspersedValidValues() {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("E1");
@@ -621,10 +577,8 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
 
-      // First map2
       Kind<ValidatedKind.Witness<String>, Integer> combined = monad.map2(v1, v2, (a, b) -> a + b);
 
-      // Use result in map3
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
 
@@ -633,7 +587,7 @@ class ValidatedMapNTest {
 
       Validated<String, Integer> validated = VALIDATED.narrow(result);
       assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(100); // (10+20) + 30 + 40
+      assertThat(validated.get()).isEqualTo(100);
     }
 
     @Test
@@ -694,8 +648,8 @@ class ValidatedMapNTest {
     }
 
     @Test
-    @DisplayName("First semigroup keeps only first error")
-    void firstSemigroupKeepsOnlyFirstError() {
+    @DisplayName("First semigroup keeps only first error in map3")
+    void firstSemigroupKeepsOnlyFirstErrorInMap3() {
       Semigroup<String> firstSemigroup = Semigroups.first();
       ValidatedMonad<String> firstMonad = ValidatedMonad.instance(firstSemigroup);
 
@@ -712,21 +666,51 @@ class ValidatedMapNTest {
     }
 
     @Test
-    @DisplayName("Last semigroup keeps only last error")
-    void lastSemigroupKeepsOnlyLastError() {
+    @DisplayName("Last semigroup keeps only last error in map4")
+    void lastSemigroupKeepsOnlyLastErrorInMap4() {
       Semigroup<String> lastSemigroup = Semigroups.last();
       ValidatedMonad<String> lastMonad = ValidatedMonad.instance(lastSemigroup);
 
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error1");
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("error3");
+      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("error4");
 
       Kind<ValidatedKind.Witness<String>, String> result =
-          lastMonad.map3(v1, v2, v3, (a, b, c) -> "test");
+          lastMonad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
       assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error3");
+      assertThat(validated.getError()).isEqualTo("error4");
+    }
+
+    @Test
+    @DisplayName("Custom semigroup works with map5")
+    void customSemigroupWorksWithMap5() {
+      Semigroup<String> countingSemigroup =
+          new Semigroup<String>() {
+            private int count = 0;
+
+            @Override
+            public String combine(String a, String b) {
+              return "Error" + (++count) + ":" + a + "+" + b;
+            }
+          };
+      ValidatedMonad<String> customMonad = ValidatedMonad.instance(countingSemigroup);
+
+      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("A");
+      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("B");
+      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("C");
+      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
+      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.invalid("E");
+
+      Kind<ValidatedKind.Witness<String>, String> result =
+          customMonad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
+
+      Validated<String, String> validated = VALIDATED.narrow(result);
+      assertThat(validated.isInvalid()).isTrue();
+      // The exact format depends on semigroup implementation details
+      assertThat(validated.getError()).contains("A", "B", "C", "E");
     }
   }
 }
