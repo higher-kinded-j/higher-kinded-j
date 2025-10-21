@@ -2,19 +2,19 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
+
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Foldable;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,384 +23,353 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherTraverse Foldable Operations Complete Test Suite")
-class EitherFoldableTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
+class EitherFoldableTest extends EitherTypeClassTestBase {
 
-  private static final String ERROR_VALUE = "TestError";
-  private static final Integer SUCCESS_VALUE = 42;
+    private Foldable<EitherKind.Witness<String>> foldable;
+    private Monoid<String> validMonoid;
+    private Function<Integer, String> validFoldMapFunction;
 
-  private Foldable<EitherKind.Witness<String>> foldable;
-  private Kind<EitherKind.Witness<String>, Integer> rightKind;
-  private Kind<EitherKind.Witness<String>, Integer> leftKind;
-  private Monoid<String> validMonoid;
-  private Function<Integer, String> validFoldMapFunction;
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind() {
-    return EITHER.widen(Either.right(SUCCESS_VALUE));
-  }
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind2() {
-    return EITHER.widen(Either.right(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> EITHER.narrow(k1).equals(EITHER.narrow(k2));
-  }
-
-  @BeforeEach
-  void setUpFoldable() {
-    foldable = EitherTraverse.instance();
-    rightKind = validKind;
-    leftKind = EITHER.widen(Either.left(ERROR_VALUE));
-    validMonoid = Monoids.string();
-    validFoldMapFunction = TestFunctions.INT_TO_STRING;
-    validateRequiredFixtures();
-  }
-
-  @Nested
-  @DisplayName("Complete Foldable Test Suite")
-  class CompleteFoldableTestSuite {
-
-    @Test
-    @DisplayName("Run complete Foldable test pattern")
-    void runCompleteFoldableTestPattern() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(rightKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .testAll();
+    @BeforeEach
+    void setUpFoldable() {
+        foldable = EitherTraverse.instance();
+        validMonoid = Monoids.string();
+        validFoldMapFunction = TestFunctions.INT_TO_STRING;
+        validateRequiredFixtures();
     }
 
-    @Test
-    @DisplayName("Validate test structure follows standards")
-    void validateTestStructure() {
-      TestPatternValidator.ValidationResult result =
-          TestPatternValidator.validateAndReport(EitherFoldableTest.class);
+    @Nested
+    @DisplayName("Complete Foldable Test Suite")
+    class CompleteFoldableTestSuite {
 
-      if (result.hasErrors()) {
-        result.printReport();
-        throw new AssertionError("Test structure validation failed");
-      }
-    }
-  }
+        @Test
+        @DisplayName("Run complete Foldable test pattern")
+        void runCompleteFoldableTestPattern() {
+            TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+                    .<Integer>instance(foldable)
+                    .withKind(validKind)
+                    .withOperations(validMonoid, validFoldMapFunction)
+                    .testAll();
+        }
 
-  @Nested
-  @DisplayName("Operation Tests")
-  class OperationTests {
+        @Test
+        @DisplayName("Validate test structure follows standards")
+        void validateTestStructure() {
+            TestPatternValidator.ValidationResult result =
+                    TestPatternValidator.validateAndReport(EitherFoldableTest.class);
 
-    @Test
-    @DisplayName("foldMap() on Right applies function")
-    void foldMapOnRightAppliesFunction() {
-      Monoid<String> stringMonoid = Monoids.string();
-      Function<Integer, String> foldFunction = i -> "Value:" + i;
-
-      String result = foldable.foldMap(stringMonoid, foldFunction, rightKind);
-
-      assertThat(result).isEqualTo("Value:" + SUCCESS_VALUE);
-    }
-
-    @Test
-    @DisplayName("foldMap() on Left returns monoid empty")
-    void foldMapOnLeftReturnsEmpty() {
-      Monoid<String> stringMonoid = Monoids.string();
-      Function<Integer, String> foldFunction = i -> "Value:" + i;
-
-      String result = foldable.foldMap(stringMonoid, foldFunction, leftKind);
-
-      assertThat(result).isEqualTo(stringMonoid.empty());
-      assertThat(result).isEmpty();
+            if (result.hasErrors()) {
+                result.printReport();
+                throw new AssertionError("Test structure validation failed");
+            }
+        }
     }
 
-    @Test
-    @DisplayName("foldMap() with different monoids")
-    void foldMapWithDifferentMonoids() {
-      // Integer addition
-      Monoid<Integer> intAddition = Monoids.integerAddition();
-      Function<Integer, Integer> doubleFunc = i -> i * 2;
-      Integer intResult = foldable.foldMap(intAddition, doubleFunc, rightKind);
-      assertThat(intResult).isEqualTo(SUCCESS_VALUE * 2);
+    @Nested
+    @DisplayName("Operation Tests")
+    class OperationTests {
 
-      // Integer multiplication
-      Monoid<Integer> intMultiplication = Monoids.integerMultiplication();
-      Function<Integer, Integer> identityFunc = i -> i;
-      Integer multResult = foldable.foldMap(intMultiplication, identityFunc, rightKind);
-      assertThat(multResult).isEqualTo(SUCCESS_VALUE);
+        @Test
+        @DisplayName("foldMap() on Right applies function")
+        void foldMapOnRightAppliesFunction() {
+            Monoid<String> stringMonoid = Monoids.string();
+            Function<Integer, String> foldFunction = i -> "Value:" + i;
 
-      // Boolean AND
-      Monoid<Boolean> andMonoid = Monoids.booleanAnd();
-      Function<Integer, Boolean> isPositive = i -> i > 0;
-      Boolean andResult = foldable.foldMap(andMonoid, isPositive, rightKind);
-      assertThat(andResult).isTrue();
+            String result = foldable.foldMap(stringMonoid, foldFunction, validKind);
 
-      // Boolean OR
-      Monoid<Boolean> orMonoid = Monoids.booleanOr();
-      Function<Integer, Boolean> isNegative = i -> i < 0;
-      Boolean orResult = foldable.foldMap(orMonoid, isNegative, rightKind);
-      assertThat(orResult).isFalse();
-    }
-  }
+            assertThat(result).isEqualTo("Value:" + DEFAULT_RIGHT_VALUE);
+        }
 
-  @Nested
-  @DisplayName("Individual Test Components")
-  class IndividualComponents {
+        @Test
+        @DisplayName("foldMap() on Left returns monoid empty")
+        void foldMapOnLeftReturnsEmpty() {
+            var leftKind = leftKind(TestErrorType.DEFAULT);
+            Monoid<String> stringMonoid = Monoids.string();
+            Function<Integer, String> foldFunction = i -> "Value:" + i;
 
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(rightKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .testOperations();
-    }
+            String result = foldable.foldMap(stringMonoid, foldFunction, leftKind);
 
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(rightKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .testValidations();
-    }
+            assertThat(result).isEqualTo(stringMonoid.empty());
+            assertThat(result).isEmpty();
+        }
 
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(rightKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .testExceptions();
-    }
-  }
+        @Test
+        @DisplayName("foldMap() with different monoids")
+        void foldMapWithDifferentMonoids() {
+            // Integer addition
+            Monoid<Integer> intAddition = Monoids.integerAddition();
+            Function<Integer, Integer> doubleFunc = i -> i * 2;
+            Integer intResult = foldable.foldMap(intAddition, doubleFunc, validKind);
+            assertThat(intResult).isEqualTo(DEFAULT_RIGHT_VALUE * 2);
 
-  @Nested
-  @DisplayName("Monoid Properties Tests")
-  class MonoidPropertiesTests {
+            // Integer multiplication
+            Monoid<Integer> intMultiplication = Monoids.integerMultiplication();
+            Function<Integer, Integer> identityFunc = i -> i;
+            Integer multResult = foldable.foldMap(intMultiplication, identityFunc, validKind);
+            assertThat(multResult).isEqualTo(DEFAULT_RIGHT_VALUE);
 
-    @Test
-    @DisplayName("foldMap() respects monoid identity")
-    void foldMapRespectsMonoidIdentity() {
-      Monoid<String> stringMonoid = Monoids.string();
+            // Boolean AND
+            Monoid<Boolean> andMonoid = Monoids.booleanAnd();
+            Function<Integer, Boolean> isPositive = i -> i > 0;
+            Boolean andResult = foldable.foldMap(andMonoid, isPositive, validKind);
+            assertThat(andResult).isTrue();
 
-      // Left should always give identity
-      String leftResult = foldable.foldMap(stringMonoid, TestFunctions.INT_TO_STRING, leftKind);
-      assertThat(leftResult).isEqualTo(stringMonoid.empty());
-
-      // Multiple Left values should all give identity
-      Monoid<Integer> intMonoid = Monoids.integerAddition();
-      Kind<EitherKind.Witness<String>, Integer> left1 = EITHER.widen(Either.left("E1"));
-      Kind<EitherKind.Witness<String>, Integer> left2 = EITHER.widen(Either.left("E2"));
-
-      assertThat(foldable.foldMap(intMonoid, i -> i, left1)).isEqualTo(intMonoid.empty());
-      assertThat(foldable.foldMap(intMonoid, i -> i, left2)).isEqualTo(intMonoid.empty());
+            // Boolean OR
+            Monoid<Boolean> orMonoid = Monoids.booleanOr();
+            Function<Integer, Boolean> isNegative = i -> i < 0;
+            Boolean orResult = foldable.foldMap(orMonoid, isNegative, validKind);
+            assertThat(orResult).isFalse();
+        }
     }
 
-    @Test
-    @DisplayName("foldMap() with list monoid")
-    void foldMapWithListMonoid() {
-      Monoid<List<Integer>> listMonoid = Monoids.list();
-      Function<Integer, List<Integer>> singletonList = List::of;
+    @Nested
+    @DisplayName("Individual Test Components")
+    class IndividualComponents {
 
-      List<Integer> rightResult = foldable.foldMap(listMonoid, singletonList, rightKind);
-      assertThat(rightResult).containsExactly(SUCCESS_VALUE);
+        @Test
+        @DisplayName("Test operations only")
+        void testOperationsOnly() {
+            TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+                    .<Integer>instance(foldable)
+                    .withKind(validKind)
+                    .withOperations(validMonoid, validFoldMapFunction)
+                    .testOperations();
+        }
 
-      List<Integer> leftResult = foldable.foldMap(listMonoid, singletonList, leftKind);
-      assertThat(leftResult).isEmpty();
+        @Test
+        @DisplayName("Test validations only")
+        void testValidationsOnly() {
+            TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+                    .<Integer>instance(foldable)
+                    .withKind(validKind)
+                    .withOperations(validMonoid, validFoldMapFunction)
+                    .testValidations();
+        }
+
+        @Test
+        @DisplayName("Test exception propagation only")
+        void testExceptionPropagationOnly() {
+            TypeClassTest.<EitherKind.Witness<String>>foldable(EitherTraverse.class)
+                    .<Integer>instance(foldable)
+                    .withKind(validKind)
+                    .withOperations(validMonoid, validFoldMapFunction)
+                    .testExceptions();
+        }
     }
 
-    @Test
-    @DisplayName("foldMap() with set monoid")
-    void foldMapWithSetMonoid() {
-      Monoid<Set<Integer>> setMonoid = Monoids.set();
-      Function<Integer, Set<Integer>> singletonSet = Set::of;
+    @Nested
+    @DisplayName("Monoid Properties Tests")
+    class MonoidPropertiesTests {
 
-      Set<Integer> rightResult = foldable.foldMap(setMonoid, singletonSet, rightKind);
-      assertThat(rightResult).containsExactly(SUCCESS_VALUE);
+        @Test
+        @DisplayName("foldMap() respects monoid identity")
+        void foldMapRespectsMonoidIdentity() {
+            Monoid<String> stringMonoid = Monoids.string();
+            var leftKind = leftKind(TestErrorType.DEFAULT);
 
-      Set<Integer> leftResult = foldable.foldMap(setMonoid, singletonSet, leftKind);
-      assertThat(leftResult).isEmpty();
-    }
-  }
+            // Left should always give identity
+            String leftResult = foldable.foldMap(stringMonoid, TestFunctions.INT_TO_STRING, leftKind);
+            assertThat(leftResult).isEqualTo(stringMonoid.empty());
 
-  @Nested
-  @DisplayName("Edge Cases Tests")
-  class EdgeCasesTests {
+            // Multiple Left values should all give identity
+            Monoid<Integer> intMonoid = Monoids.integerAddition();
+            var left1 = leftKind(TestErrorType.ERROR_1);
+            var left2 = leftKind(TestErrorType.ERROR_2);
 
-    @Test
-    @DisplayName("foldMap() with null values in Right")
-    void foldMapWithNullValuesInRight() {
-      Kind<EitherKind.Witness<String>, Integer> rightNull = EITHER.widen(Either.right(null));
-      Monoid<String> stringMonoid = Monoids.string();
+            assertThat(foldable.foldMap(intMonoid, i -> i, left1)).isEqualTo(intMonoid.empty());
+            assertThat(foldable.foldMap(intMonoid, i -> i, left2)).isEqualTo(intMonoid.empty());
+        }
 
-      Function<Integer, String> nullSafeFunction = i -> i == null ? "null" : i.toString();
+        @Test
+        @DisplayName("foldMap() with list monoid")
+        void foldMapWithListMonoid() {
+            var leftKind = leftKind(TestErrorType.DEFAULT);
+            Monoid<List<Integer>> listMonoid = Monoids.list();
+            Function<Integer, List<Integer>> singletonList = List::of;
 
-      String result = foldable.foldMap(stringMonoid, nullSafeFunction, rightNull);
-      assertThat(result).isEqualTo("null");
-    }
+            List<Integer> rightResult = foldable.foldMap(listMonoid, singletonList, validKind);
+            assertThat(rightResult).containsExactly(DEFAULT_RIGHT_VALUE);
 
-    @Test
-    @DisplayName("foldMap() with null error in Left")
-    void foldMapWithNullErrorInLeft() {
-      Kind<EitherKind.Witness<String>, Integer> leftNull = EITHER.widen(Either.left(null));
-      Monoid<String> stringMonoid = Monoids.string();
+            List<Integer> leftResult = foldable.foldMap(listMonoid, singletonList, leftKind);
+            assertThat(leftResult).isEmpty();
+        }
 
-      String result = foldable.foldMap(stringMonoid, TestFunctions.INT_TO_STRING, leftNull);
-      assertThat(result).isEqualTo(stringMonoid.empty());
-    }
+        @Test
+        @DisplayName("foldMap() with set monoid")
+        void foldMapWithSetMonoid() {
+            var leftKind = leftKind(TestErrorType.DEFAULT);
+            Monoid<Set<Integer>> setMonoid = Monoids.set();
+            Function<Integer, Set<Integer>> singletonSet = Set::of;
 
-    @Test
-    @DisplayName("foldMap() with complex transformations")
-    void foldMapWithComplexTransformations() {
-      Monoid<String> stringMonoid = Monoids.string();
+            Set<Integer> rightResult = foldable.foldMap(setMonoid, singletonSet, validKind);
+            assertThat(rightResult).containsExactly(DEFAULT_RIGHT_VALUE);
 
-      Function<Integer, String> complexFunction =
-          i -> {
-            if (i < 0) return "negative,";
-            if (i == 0) return "zero,";
-            return "positive:" + i + ",";
-          };
-
-      String result = foldable.foldMap(stringMonoid, complexFunction, rightKind);
-      assertThat(result).isEqualTo("positive:" + SUCCESS_VALUE + ",");
-    }
-  }
-
-  @Nested
-  @DisplayName("Type Safety Tests")
-  class TypeSafetyTests {
-
-    @Test
-    @DisplayName("foldMap() with different error types")
-    void foldMapWithDifferentErrorTypes() {
-      record ComplexError(String code, int severity) {}
-
-      Foldable<EitherKind.Witness<ComplexError>> complexFoldable = EitherTraverse.instance();
-
-      Kind<EitherKind.Witness<ComplexError>, Integer> rightValue = EITHER.widen(Either.right(100));
-      Kind<EitherKind.Witness<ComplexError>, Integer> leftValue =
-          EITHER.widen(Either.left(new ComplexError("E500", 5)));
-
-      Monoid<Integer> intMonoid = Monoids.integerAddition();
-
-      assertThat(complexFoldable.foldMap(intMonoid, i -> i * 2, rightValue)).isEqualTo(200);
-      assertThat(complexFoldable.foldMap(intMonoid, i -> i * 2, leftValue)).isEqualTo(0);
+            Set<Integer> leftResult = foldable.foldMap(setMonoid, singletonSet, leftKind);
+            assertThat(leftResult).isEmpty();
+        }
     }
 
-    @Test
-    @DisplayName("foldMap() with nested structures")
-    void foldMapWithNestedStructures() {
-      Kind<EitherKind.Witness<String>, List<Integer>> listRight =
-          EITHER.widen(Either.right(List.of(1, 2, 3)));
+    @Nested
+    @DisplayName("Edge Cases Tests")
+    class EdgeCasesTests {
 
-      Foldable<EitherKind.Witness<String>> foldableList = EitherTraverse.instance();
-      Monoid<Integer> intMonoid = Monoids.integerAddition();
+        @Test
+        @DisplayName("foldMap() with null values in Right")
+        void foldMapWithNullValuesInRight() {
+            var rightNull = rightKind(null);
+            Monoid<String> stringMonoid = Monoids.string();
 
-      Function<List<Integer>, Integer> sumFunction =
-          list -> list.stream().mapToInt(Integer::intValue).sum();
+            Function<Integer, String> nullSafeFunction = i -> i == null ? "null" : i.toString();
 
-      Integer result = foldableList.foldMap(intMonoid, sumFunction, listRight);
-      assertThat(result).isEqualTo(6);
-    }
-  }
+            String result = foldable.foldMap(stringMonoid, nullSafeFunction, rightNull);
+            assertThat(result).isEqualTo("null");
+        }
 
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
+        @Test
+        @DisplayName("foldMap() with null error in Left")
+        void foldMapWithNullErrorInLeft() {
+            var leftNull = leftKind((String) null);
+            Monoid<String> stringMonoid = Monoids.string();
 
-    @Test
-    @DisplayName("foldMap() with large values")
-    void foldMapWithLargeValues() {
-      Kind<EitherKind.Witness<String>, Integer> largeRight = EITHER.widen(Either.right(1_000_000));
+            String result = foldable.foldMap(stringMonoid, TestFunctions.INT_TO_STRING, leftNull);
+            assertThat(result).isEqualTo(stringMonoid.empty());
+        }
 
-      Monoid<String> stringMonoid = Monoids.string();
-      Function<Integer, String> expensiveFunction = i -> "Value:" + i + ",";
+        @Test
+        @DisplayName("foldMap() with complex transformations")
+        void foldMapWithComplexTransformations() {
+            Monoid<String> stringMonoid = Monoids.string();
 
-      String result = foldable.foldMap(stringMonoid, expensiveFunction, largeRight);
-      assertThat(result).isEqualTo("Value:1000000,");
-    }
+            Function<Integer, String> complexFunction =
+                    i -> {
+                        if (i < 0) return "negative,";
+                        if (i == 0) return "zero,";
+                        return "positive:" + i + ",";
+                    };
 
-    @Test
-    @DisplayName("foldMap() with complex data structures")
-    void foldMapWithComplexDataStructures() {
-      java.util.Map<String, Integer> complexMap = java.util.Map.of("a", 1, "b", 2, "c", 3);
-
-      Kind<EitherKind.Witness<String>, java.util.Map<String, Integer>> mapRight =
-          EITHER.widen(Either.right(complexMap));
-
-      Foldable<EitherKind.Witness<String>> mapFoldable = EitherTraverse.instance();
-      Monoid<Integer> intMonoid = Monoids.integerAddition();
-
-      Function<java.util.Map<String, Integer>, Integer> sumValues =
-          map -> map.values().stream().mapToInt(Integer::intValue).sum();
-
-      Integer result = mapFoldable.foldMap(intMonoid, sumValues, mapRight);
-      assertThat(result).isEqualTo(6);
+            String result = foldable.foldMap(stringMonoid, complexFunction, validKind);
+            assertThat(result).isEqualTo("positive:" + DEFAULT_RIGHT_VALUE + ",");
+        }
     }
 
-    @Test
-    @DisplayName("foldMap() efficient with Left values")
-    void foldMapEfficientWithLeftValues() {
-      // Left values should not execute function, so even expensive functions are safe
-      Function<Integer, String> expensiveFunc =
-          i -> {
-            // Simulate expensive computation
-            return "expensive:" + i;
-          };
+    @Nested
+    @DisplayName("Type Safety Tests")
+    class TypeSafetyTests {
 
-      String result = foldable.foldMap(validMonoid, expensiveFunc, leftKind);
+        @Test
+        @DisplayName("foldMap() with different error types")
+        void foldMapWithDifferentErrorTypes() {
+            Foldable<EitherKind.Witness<ComplexTestError>> complexFoldable = EitherTraverse.instance();
 
-      // Should complete quickly without calling expensive function
-      assertThat(result).isEqualTo(validMonoid.empty());
+            var rightValue = EITHER.widen(Either.<ComplexTestError, Integer>right(100));
+            var leftValue = EITHER.widen(
+                    Either.<ComplexTestError, Integer>left(ComplexTestError.high("E500", "Server error")));
+
+            Monoid<Integer> intMonoid = Monoids.integerAddition();
+
+            assertThat(complexFoldable.foldMap(intMonoid, i -> i * 2, rightValue)).isEqualTo(200);
+            assertThat(complexFoldable.foldMap(intMonoid, i -> i * 2, leftValue)).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("foldMap() with nested structures")
+        void foldMapWithNestedStructures() {
+            var listRight = EITHER.widen(Either.<String, List<Integer>>right(List.of(1, 2, 3)));
+
+            Foldable<EitherKind.Witness<String>> foldableList = EitherTraverse.instance();
+            Monoid<Integer> intMonoid = Monoids.integerAddition();
+
+            Function<List<Integer>, Integer> sumFunction =
+                    list -> list.stream().mapToInt(Integer::intValue).sum();
+
+            Integer result = foldableList.foldMap(intMonoid, sumFunction, listRight);
+            assertThat(result).isEqualTo(6);
+        }
     }
-  }
 
-  @Nested
-  @DisplayName("Monoid Law Verification")
-  class MonoidLawTests {
+    @Nested
+    @DisplayName("Performance Tests")
+    class PerformanceTests {
 
-    @Test
-    @DisplayName("foldMap() preserves monoid associativity")
-    void foldMapPreservesMonoidAssociativity() {
-      // For Either, we can only test this with Right values since Left always returns empty
-      Monoid<String> stringMonoid = Monoids.string();
+        @Test
+        @DisplayName("foldMap() with large values")
+        void foldMapWithLargeValues() {
+            var largeRight = rightKind(1_000_000);
 
-      // Single Right value should equal itself
-      String single = foldable.foldMap(stringMonoid, i -> "test:" + i, rightKind);
-      assertThat(single).isEqualTo("test:" + SUCCESS_VALUE);
+            Monoid<String> stringMonoid = Monoids.string();
+            Function<Integer, String> expensiveFunction = i -> "Value:" + i + ",";
 
-      // Identity element behaviour
-      String identity = foldable.foldMap(stringMonoid, i -> stringMonoid.empty(), rightKind);
-      assertThat(identity).isEqualTo(stringMonoid.empty());
+            String result = foldable.foldMap(stringMonoid, expensiveFunction, largeRight);
+            assertThat(result).isEqualTo("Value:1000000,");
+        }
+
+        @Test
+        @DisplayName("foldMap() with complex data structures")
+        void foldMapWithComplexDataStructures() {
+            Map<String, Integer> complexMap = Map.of("a", 1, "b", 2, "c", 3);
+
+            var mapRight = EITHER.widen(Either.<String, Map<String, Integer>>right(complexMap));
+
+            Foldable<EitherKind.Witness<String>> mapFoldable = EitherTraverse.instance();
+            Monoid<Integer> intMonoid = Monoids.integerAddition();
+
+            Function<Map<String, Integer>, Integer> sumValues =
+                    map -> map.values().stream().mapToInt(Integer::intValue).sum();
+
+            Integer result = mapFoldable.foldMap(intMonoid, sumValues, mapRight);
+            assertThat(result).isEqualTo(6);
+        }
+
+        @Test
+        @DisplayName("foldMap() efficient with Left values")
+        void foldMapEfficientWithLeftValues() {
+            var leftKind = leftKind(TestErrorType.DEFAULT);
+            // Left values should not execute function, so even expensive functions are safe
+            Function<Integer, String> expensiveFunc = i -> "expensive:" + i;
+
+            String result = foldable.foldMap(validMonoid, expensiveFunc, leftKind);
+
+            // Should complete quickly without calling expensive function
+            assertThat(result).isEqualTo(validMonoid.empty());
+        }
     }
 
-    @Test
-    @DisplayName("foldMap() composition with different monoids")
-    void foldMapCompositionWithDifferentMonoids() {
-      // Test that different monoids produce consistent results
-      Function<Integer, Integer> mapper = i -> i + 10;
+    @Nested
+    @DisplayName("Monoid Law Verification")
+    class MonoidLawTests {
 
-      // Addition monoid
-      Monoid<Integer> addMonoid = Monoids.integerAddition();
-      Integer addResult = foldable.foldMap(addMonoid, mapper, rightKind);
-      assertThat(addResult).isEqualTo(SUCCESS_VALUE + 10);
+        @Test
+        @DisplayName("foldMap() preserves monoid associativity")
+        void foldMapPreservesMonoidAssociativity() {
+            // For Either, we can only test this with Right values since Left always returns empty
+            Monoid<String> stringMonoid = Monoids.string();
 
-      // Multiplication monoid
-      Monoid<Integer> multMonoid = Monoids.integerMultiplication();
-      Integer multResult = foldable.foldMap(multMonoid, mapper, rightKind);
-      assertThat(multResult).isEqualTo(SUCCESS_VALUE + 10);
+            // Single Right value should equal itself
+            String single = foldable.foldMap(stringMonoid, i -> "test:" + i, validKind);
+            assertThat(single).isEqualTo("test:" + DEFAULT_RIGHT_VALUE);
 
-      // Both should have same mapped value but different combination behaviour
-      assertThat(addResult).isEqualTo(multResult); // Since there's only one element
+            // Identity element behaviour
+            String identity = foldable.foldMap(stringMonoid, i -> stringMonoid.empty(), validKind);
+            assertThat(identity).isEqualTo(stringMonoid.empty());
+        }
+
+        @Test
+        @DisplayName("foldMap() composition with different monoids")
+        void foldMapCompositionWithDifferentMonoids() {
+            // Test that different monoids produce consistent results
+            Function<Integer, Integer> mapper = i -> i + 10;
+
+            // Addition monoid
+            Monoid<Integer> addMonoid = Monoids.integerAddition();
+            Integer addResult = foldable.foldMap(addMonoid, mapper, validKind);
+            assertThat(addResult).isEqualTo(DEFAULT_RIGHT_VALUE + 10);
+
+            // Multiplication monoid
+            Monoid<Integer> multMonoid = Monoids.integerMultiplication();
+            Integer multResult = foldable.foldMap(multMonoid, mapper, validKind);
+            assertThat(multResult).isEqualTo(DEFAULT_RIGHT_VALUE + 10);
+
+            // Both should have same mapped value but different combination behaviour
+            assertThat(addResult).isEqualTo(multResult); // Since there's only one element
+        }
     }
-  }
 }
