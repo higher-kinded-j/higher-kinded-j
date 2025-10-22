@@ -31,7 +31,9 @@ public enum KindValidator {
    * @throws KindUnwrapException if kind is null or narrowing fails
    */
   public <F, A, T> T narrow(
-      @Nullable Kind<F, A> kind, Class<T> targetType, Function<Kind<F, A>, T> narrower) {
+      @Nullable Kind<F, A> kind,
+      Class<T> targetType,
+      Function<? super Kind<F, A>, ? extends T> narrower) {
 
     var context = new KindContext(targetType, "narrow");
 

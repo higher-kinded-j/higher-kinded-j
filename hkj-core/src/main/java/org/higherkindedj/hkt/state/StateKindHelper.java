@@ -72,6 +72,7 @@ public enum StateKindHelper implements StateConverterOps {
    *     internal {@code stateInstance} is non-null.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
     return Validation.kind().narrow(kind, STATE_CLASS, this::extractState);
   }
