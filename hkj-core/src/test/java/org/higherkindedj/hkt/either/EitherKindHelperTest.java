@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherKindHelper Complete Test Suite")
-class EitherKindHelperTest extends EitherTypeClassTestBase {
+class EitherKindHelperTest extends EitherTestBase {
 
   @Nested
   @DisplayName("Complete KindHelper Test Suite")

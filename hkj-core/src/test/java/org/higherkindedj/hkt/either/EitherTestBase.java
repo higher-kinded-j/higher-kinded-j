@@ -29,7 +29,7 @@ import org.higherkindedj.hkt.test.data.TestFunctions;
  *   <li>{@link TestErrorType} - Standardised error types for different test scenarios
  * </ul>
  */
-abstract class EitherTypeClassTestBase
+abstract class EitherTestBase
     extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
 
   // ============================================================================

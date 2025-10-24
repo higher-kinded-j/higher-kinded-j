@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherMonad Applicative Operations Complete Test Suite")
-class EitherApplicativeTest extends EitherTypeClassTestBase {
+class EitherApplicativeTest extends EitherTestBase {
 
   private EitherMonad<String> applicative;
   private Applicative<EitherKind.Witness<String>> applicativeTyped;

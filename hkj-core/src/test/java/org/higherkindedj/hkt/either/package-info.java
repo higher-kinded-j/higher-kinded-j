@@ -8,8 +8,7 @@
  *
  * <ul>
  *   <li>{@link org.higherkindedj.hkt.either.EitherAssert} - Custom AssertJ assertions
- *   <li>{@link org.higherkindedj.hkt.either.EitherTypeClassTestBase} - Base class with test
- *       constants
+ *   <li>{@link org.higherkindedj.hkt.either.EitherTestBase} - Base class with test constants
  * </ul>
  *
  * @see org.higherkindedj.hkt.either.Either

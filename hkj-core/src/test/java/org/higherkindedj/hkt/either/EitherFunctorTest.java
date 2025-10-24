@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherFunctor Complete Test Suite")
-class EitherFunctorTest extends EitherTypeClassTestBase {
+class EitherFunctorTest extends EitherTestBase {
 
   private EitherFunctor<String> functor;
   private Functor<EitherKind.Witness<String>> functorTyped;

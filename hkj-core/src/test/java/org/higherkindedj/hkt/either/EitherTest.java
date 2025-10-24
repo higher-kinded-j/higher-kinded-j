@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * framework for consistent error handling.
  */
 @DisplayName("Either<L, R> Core Functionality - Standardised Test Suite")
-class EitherTest extends EitherTypeClassTestBase {
+class EitherTest extends EitherTestBase {
 
   private final String leftValue = "Error Message";
   private final Integer rightValue = 123;

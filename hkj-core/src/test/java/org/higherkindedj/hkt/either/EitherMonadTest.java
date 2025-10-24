@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherMonad Complete Test Suite")
-class EitherMonadTest extends EitherTypeClassTestBase {
+class EitherMonadTest extends EitherTestBase {
 
   private EitherMonad<String> monad;
 

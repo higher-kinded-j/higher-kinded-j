@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherMonad Error Handling Complete Test Suite")
-class EitherMonadErrorTest extends EitherTypeClassTestBase {
+class EitherMonadErrorTest extends EitherTestBase {
 
   private EitherMonad<String> monadError;
   private Function<String, Kind<EitherKind.Witness<String>, Integer>> validHandler;

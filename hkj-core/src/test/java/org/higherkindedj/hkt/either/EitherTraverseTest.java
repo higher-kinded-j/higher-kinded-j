@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherTraverse Complete Test Suite")
-class EitherTraverseTest extends EitherTypeClassTestBase {
+class EitherTraverseTest extends EitherTestBase {
 
   private Traverse<EitherKind.Witness<String>> traverse;
   private Applicative<MaybeKind.Witness> maybeApplicative;
