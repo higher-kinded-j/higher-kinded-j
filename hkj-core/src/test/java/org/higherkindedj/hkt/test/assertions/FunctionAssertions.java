@@ -237,13 +237,6 @@ public final class FunctionAssertions {
         () -> Validation.function().requireMonoid(null, monoidName, contextClass, operation));
   }
 
-  public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
-      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
-    return assertWithProductionValidator(
-        executable,
-        () -> Validation.function().requireMonoid(null, "monoid", contextClass, operation));
-  }
-
   /**
    * Asserts custom function validation with class context using production
    * Validation.functionValidator().

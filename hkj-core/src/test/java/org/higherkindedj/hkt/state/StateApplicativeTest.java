@@ -3,16 +3,15 @@
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,62 +19,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("StateApplicative<S> Complete Test Suite")
-class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, String> {
+class StateApplicativeTest extends StateTestBase<Integer> {
 
-  private final Integer initialState = 10;
   private StateApplicative<Integer> applicative;
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind() {
-    State<Integer, Integer> state = State.of(s -> new StateTuple<>(s + 1, s + 1));
-    return STATE.widen(state);
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind2() {
-    State<Integer, Integer> state = State.of(s -> new StateTuple<>(s * 2, s * 2));
-    return STATE.widen(state);
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Function<String, String> createSecondMapper() {
-    return String::toUpperCase;
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Function<Integer, String>> createValidFunctionKind() {
-    return STATE.widen(State.pure(validMapper));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (i1, i2) -> String.valueOf(i1 + i2);
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected Function<Integer, Kind<StateKind.Witness<Integer>, String>> createTestFunction() {
-    return i -> STATE.widen(State.pure(i.toString()));
-  }
-
-  @Override
-  protected BiPredicate<Kind<StateKind.Witness<Integer>, ?>, Kind<StateKind.Witness<Integer>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      StateTuple<Integer, ?> result1 = STATE.runState(k1, initialState);
-      StateTuple<Integer, ?> result2 = STATE.runState(k2, initialState);
-      return result1.equals(result2);
-    };
-  }
 
   @BeforeEach
   void setUpApplicative() {
@@ -114,9 +60,8 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
     void ofShouldLiftValue() {
       Kind<StateKind.Witness<Integer>, String> kind = applicative.of("test");
 
-      StateTuple<Integer, String> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isEqualTo("test");
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> result = runState(kind, getInitialState());
+      assertThatStateTuple(result).hasValue("test").hasState(getInitialState());
     }
 
     @Test
@@ -124,9 +69,8 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
     void ofShouldHandleNullValue() {
       Kind<StateKind.Witness<Integer>, String> kind = applicative.of(null);
 
-      StateTuple<Integer, String> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isNull();
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> result = runState(kind, getInitialState());
+      assertThatStateTuple(result).hasNullValue().hasState(getInitialState());
     }
 
     @Test
@@ -141,10 +85,9 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       Kind<StateKind.Witness<Integer>, String> result = applicative.ap(ff, fa);
 
-      StateTuple<Integer, String> tuple = STATE.runState(result, initialState);
+      StateTuple<Integer, String> tuple = runState(result, getInitialState());
       // First state runs: (func, 15), then second: (30, 25), then apply: "Value: 30"
-      assertThat(tuple.value()).isEqualTo("Value: 30");
-      assertThat(tuple.state()).isEqualTo(25);
+      assertThatStateTuple(tuple).hasValue("Value: 30").hasState(25);
     }
 
     @Test
@@ -153,9 +96,10 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
       Kind<StateKind.Witness<Integer>, String> result =
           applicative.ap(validFunctionKind, validKind);
 
-      StateTuple<Integer, String> tuple = STATE.runState(result, initialState);
-      assertThat(tuple.value()).isEqualTo("11"); // (10 + 1).toString()
-      assertThat(tuple.state()).isEqualTo(11);
+      StateTuple<Integer, String> tuple = runState(result, getInitialState());
+      assertThatStateTuple(tuple)
+          .hasValue("1") // (1).toString()
+          .hasState(getInitialState());
     }
 
     @Test
@@ -171,10 +115,9 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       Kind<StateKind.Witness<Integer>, String> result = applicative.map2(k1, k2, combiner);
 
-      StateTuple<Integer, String> tuple = STATE.runState(result, initialState);
+      StateTuple<Integer, String> tuple = runState(result, getInitialState());
       // state1: (15, 20), state2: (17, 30), combine: "Result: 15, 17"
-      assertThat(tuple.value()).isEqualTo("Result: 15, 17");
-      assertThat(tuple.state()).isEqualTo(30);
+      assertThatStateTuple(tuple).hasValue("Result: 15, 17").hasState(30);
     }
 
     @Test
@@ -190,9 +133,8 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       Kind<StateKind.Witness<Integer>, String> result = applicative.map2(k1, k2, combiner);
 
-      StateTuple<Integer, String> tuple = STATE.runState(result, 0);
-      assertThat(tuple.value()).isEqualTo("AB");
-      assertThat(tuple.state()).isEqualTo(3); // 0 + 1 + 2
+      StateTuple<Integer, String> tuple = runState(result, 0);
+      assertThatStateTuple(tuple).hasValue("AB").hasState(3); // 0 + 1 + 2
     }
   }
 
@@ -227,7 +169,7 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
       Kind<StateKind.Witness<Integer>, String> result = applicative.ap(ff, validKind);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> STATE.runState(result, initialState))
+          .isThrownBy(() -> runState(result, getInitialState()))
           .withMessageContaining("Function wrapped in State for 'ap' was null");
     }
 
@@ -278,7 +220,7 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       assertThat(result).as("ap should return successfully (lazy evaluation)").isNotNull();
 
-      assertThatThrownBy(() -> STATE.runState(result, initialState))
+      assertThatThrownBy(() -> runState(result, getInitialState()))
           .as("Exception should be thrown during run()")
           .isSameAs(testException);
     }
@@ -297,7 +239,7 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       assertThat(result).as("map2 should return successfully (lazy evaluation)").isNotNull();
 
-      assertThatThrownBy(() -> STATE.runState(result, initialState))
+      assertThatThrownBy(() -> runState(result, getInitialState()))
           .as("Exception should be thrown during run()")
           .isSameAs(testException);
     }
@@ -395,7 +337,7 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(state)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .testAll();
     }
@@ -407,7 +349,7 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(state)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .configureValidation()
           .useInheritanceValidation()
@@ -429,8 +371,8 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       Kind<StateKind.Witness<Integer>, String> result = applicative.ap(ff, validKind);
 
-      StateTuple<Integer, String> tuple = STATE.runState(result, initialState);
-      assertThat(tuple.value()).isEqualTo("Constant");
+      StateTuple<Integer, String> tuple = runState(result, getInitialState());
+      assertThatStateTuple(tuple).hasValue("Constant");
     }
 
     @Test
@@ -445,9 +387,10 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
 
       Kind<StateKind.Witness<Integer>, String> result = applicative.map2(k1, k2, combiner);
 
-      StateTuple<Integer, String> tuple = STATE.runState(result, 0);
-      assertThat(tuple.value()).isEqualTo("0,1"); // First gets 0, second gets 1
-      assertThat(tuple.state()).isEqualTo(2); // State incremented twice
+      StateTuple<Integer, String> tuple = runState(result, 0);
+      assertThatStateTuple(tuple)
+          .hasValue("0,1") // First gets 0, second gets 1
+          .hasState(2); // State incremented twice
     }
 
     @Test
@@ -462,9 +405,8 @@ class StateApplicativeTest extends TypeClassTestBase<StateKind.Witness<Integer>,
       Kind<StateKind.Witness<Integer>, Integer> sum12 = applicative.map2(k1, k2, sum);
       Kind<StateKind.Witness<Integer>, Integer> sum123 = applicative.map2(sum12, k3, sum);
 
-      StateTuple<Integer, Integer> result = STATE.runState(sum123, initialState);
-      assertThat(result.value()).isEqualTo(30);
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, Integer> result = runState(sum123, getInitialState());
+      assertThatStateTuple(result).hasValue(30).hasState(getInitialState());
     }
   }
 }

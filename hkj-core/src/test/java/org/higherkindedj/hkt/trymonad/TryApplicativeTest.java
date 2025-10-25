@@ -21,10 +21,6 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
 
   private TryApplicative applicative;
 
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
   @Override
   protected Kind<TryKind.Witness, String> createValidKind() {
     return TryKindHelper.TRY.widen(Try.success("test value"));

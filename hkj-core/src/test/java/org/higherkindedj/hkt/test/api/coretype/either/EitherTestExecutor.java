@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 
@@ -26,11 +27,11 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <R> The Right type
  * @param <S> The mapped type
  */
-final class EitherTestExecutor<L, R, S> {
-  private final Class<?> contextClass;
+final class EitherTestExecutor<L, R, S>
+    extends BaseCoreTypeTestExecutor<R, S, EitherValidationStage<L, R, S>> {
+
   private final Either<L, R> leftInstance;
   private final Either<L, R> rightInstance;
-  private final Function<R, S> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeGetters;
@@ -38,10 +39,6 @@ final class EitherTestExecutor<L, R, S> {
   private final boolean includeSideEffects;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final EitherValidationStage<L, R, S> validationStage;
 
   EitherTestExecutor(
       Class<?> contextClass,
@@ -87,30 +84,96 @@ final class EitherTestExecutor<L, R, S> {
       boolean includeEdgeCases,
       EitherValidationStage<L, R, S> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.leftInstance = leftInstance;
     this.rightInstance = rightInstance;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeGetters = includeGetters;
     this.includeFold = includeFold;
     this.includeSideEffects = includeSideEffects;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeGetters) testGetters();
     if (includeFold) testFold();
     if (includeSideEffects) testSideEffects();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    Function<L, String> leftMapper = l -> "Left: " + l;
+    Function<R, String> rightMapper = r -> "Right: " + r;
+    Consumer<L> leftAction = l -> {};
+    Consumer<R> rightAction = r -> {};
+
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Fold validations
+    builder.assertFunctionNull(
+        () -> leftInstance.fold(null, rightMapper), "leftMapper", contextClass, Operation.FOLD);
+    builder.assertFunctionNull(
+        () -> leftInstance.fold(leftMapper, null), "rightMapper", contextClass, Operation.FOLD);
+
+    // Map validations - test through the Functor interface if custom context provided
+    if (validationStage != null && validationStage.getMapContext() != null) {
+      EitherFunctor<L> functor = EitherFunctor.instance();
+      Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+    } else {
+      builder.assertMapperNull(
+          () -> rightInstance.map(null), "mapper", getMapContext(), Operation.MAP);
+    }
+
+    // FlatMap validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getFlatMapContext() != null) {
+      EitherMonad<L> monad = EitherMonad.instance();
+      Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> rightInstance.flatMap(null), "mapper", getFlatMapContext(), Operation.FLAT_MAP);
+    }
+
+    // Side effect validations
+    builder.assertFunctionNull(
+        () -> leftInstance.ifLeft(null), "action", contextClass, Operation.IF_LEFT);
+    builder.assertFunctionNull(
+        () -> rightInstance.ifRight(null), "action", contextClass, Operation.IF_RIGHT);
+
+    builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test with null values (if instances allow them)
+    Either<L, R> leftNull = Either.left(null);
+    assertThat(leftNull.isLeft()).isTrue();
+    assertThat(leftNull.getLeft()).isNull();
+
+    Either<L, R> rightNull = Either.right(null);
+    assertThat(rightNull.isRight()).isTrue();
+    assertThat(rightNull.getRight()).isNull();
+
+    // Test toString
+    assertThat(leftInstance.toString()).contains("Left(");
+    assertThat(rightInstance.toString()).contains("Right(");
+
+    // Test equals and hashCode
+    Either<L, R> anotherLeft = Either.left(leftInstance.getLeft());
+    assertThat(leftInstance).isEqualTo(anotherLeft);
+    assertThat(leftInstance.hashCode()).isEqualTo(anotherLeft.hashCode());
+
+    Either<L, R> anotherRight = Either.right(rightInstance.getRight());
+    assertThat(rightInstance).isEqualTo(anotherRight);
+    assertThat(rightInstance.hashCode()).isEqualTo(anotherRight.hashCode());
   }
 
   private void testFactoryMethods() {
@@ -228,88 +291,5 @@ final class EitherTestExecutor<L, R, S> {
 
     // Left should not call flatMapper
     assertThatCode(() -> leftInstance.flatMap(throwingFlatMapper)).doesNotThrowAnyException();
-  }
-
-  void testValidations() {
-    Function<L, String> leftMapper = l -> "Left: " + l;
-    Function<R, String> rightMapper = r -> "Right: " + r;
-    Consumer<L> leftAction = l -> {};
-    Consumer<R> rightAction = r -> {};
-
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Fold validations
-    builder.assertFunctionNull(
-        () -> leftInstance.fold(null, rightMapper), "leftMapper", contextClass, Operation.FOLD);
-    builder.assertFunctionNull(
-        () -> leftInstance.fold(leftMapper, null), "rightMapper", contextClass, Operation.FOLD);
-
-    // Map validations - test through the Functor interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      // Use the type class interface validation
-      EitherFunctor<L> functor = EitherFunctor.instance();
-      Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      // Use the instance method
-      builder.assertMapperNull(() -> rightInstance.map(null), "mapper", mapContext, Operation.MAP);
-    }
-
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      // Use the type class interface validation
-      EitherMonad<L> monad = EitherMonad.instance();
-      Kind<EitherKind.Witness<L>, R> kind = EitherKindHelper.EITHER.widen(rightInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
-    } else {
-      // Use the instance method
-      builder.assertFlatMapperNull(
-          () -> rightInstance.flatMap(null), "mapper", flatMapContext, Operation.FLAT_MAP);
-    }
-
-    // Side effect validations
-    builder.assertFunctionNull(
-        () -> leftInstance.ifLeft(null), "action", contextClass, Operation.IF_LEFT);
-    builder.assertFunctionNull(
-        () -> rightInstance.ifRight(null), "action", contextClass, Operation.IF_RIGHT);
-
-    builder.execute();
-  }
-
-  private void testEdgeCases() {
-    // Test with null values (if instances allow them)
-    Either<L, R> leftNull = Either.left(null);
-    assertThat(leftNull.isLeft()).isTrue();
-    assertThat(leftNull.getLeft()).isNull();
-
-    Either<L, R> rightNull = Either.right(null);
-    assertThat(rightNull.isRight()).isTrue();
-    assertThat(rightNull.getRight()).isNull();
-
-    // Test toString
-    assertThat(leftInstance.toString()).contains("Left(");
-    assertThat(rightInstance.toString()).contains("Right(");
-
-    // Test equals and hashCode
-    Either<L, R> anotherLeft = Either.left(leftInstance.getLeft());
-    assertThat(leftInstance).isEqualTo(anotherLeft);
-    assertThat(leftInstance.hashCode()).isEqualTo(anotherLeft.hashCode());
-
-    Either<L, R> anotherRight = Either.right(rightInstance.getRight());
-    assertThat(rightInstance).isEqualTo(anotherRight);
-    assertThat(rightInstance.hashCode()).isEqualTo(anotherRight.hashCode());
   }
 }

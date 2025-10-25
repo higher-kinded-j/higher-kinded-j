@@ -42,7 +42,7 @@ class InvalidTest {
           .withValid(anotherInvalid) // Use another Invalid, not Valid
           .withMappers(Object::toString)
           .configureValidation()
-          .useInheritanceValidation()
+          .withValidatedInheritanceValidation()
           .withMapFrom(Invalid.class)
           .withFlatMapFrom(Invalid.class)
           .withIfValidFrom(Invalid.class)

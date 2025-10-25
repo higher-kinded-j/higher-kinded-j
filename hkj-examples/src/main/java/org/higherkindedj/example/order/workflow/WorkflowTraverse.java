@@ -24,7 +24,6 @@ import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Demonstrates the power and use of the {@link org.higherkindedj.hkt.Traverse} typeclass.
@@ -53,21 +52,20 @@ import org.jspecify.annotations.NonNull;
  */
 public class WorkflowTraverse {
 
-  private final @NonNull Dependencies dependencies;
-  private final @NonNull OrderWorkflowSteps steps;
-  private final @NonNull MonadError<CompletableFutureKind.Witness, Throwable> futureMonad;
-  private final @NonNull
-      MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
+  private final Dependencies dependencies;
+  private final OrderWorkflowSteps steps;
+  private final MonadError<CompletableFutureKind.Witness, Throwable> futureMonad;
+  private final MonadError<
+          EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
       eitherTMonad;
-  private final @NonNull Applicative<ValidatedKind.Witness<DomainError>> validatedApplicative;
-  private final @NonNull ListTraverse listTraverse = ListTraverse.INSTANCE;
+  private final Applicative<ValidatedKind.Witness<DomainError>> validatedApplicative;
+  private final ListTraverse listTraverse = ListTraverse.INSTANCE;
 
   public WorkflowTraverse(
-      @NonNull Dependencies dependencies,
-      @NonNull OrderWorkflowSteps steps,
-      @NonNull MonadError<CompletableFutureKind.Witness, Throwable> futureMonad,
-      @NonNull
-          MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
+      Dependencies dependencies,
+      OrderWorkflowSteps steps,
+      MonadError<CompletableFutureKind.Witness, Throwable> futureMonad,
+      MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
           eitherTMonad) {
     this.dependencies = dependencies;
     this.steps = steps;
@@ -93,7 +91,7 @@ public class WorkflowTraverse {
    * is then widened to a {@code Kind} to be compatible with the {@code traverse} method signature.
    */
   private Kind<ValidatedKind.Witness<DomainError>, String> validatePromoCode(String code) {
-    if (code != null && code.startsWith("PROMO") && code.length() > 5) {
+    if (code.startsWith("PROMO") && code.length() > 5) {
       return VALIDATED.widen(Validated.valid(code));
     } else {
       return VALIDATED.widen(

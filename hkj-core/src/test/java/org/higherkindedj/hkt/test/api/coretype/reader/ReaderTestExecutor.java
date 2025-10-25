@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.reader.ReaderFunctor;
 import org.higherkindedj.hkt.reader.ReaderKind;
 import org.higherkindedj.hkt.reader.ReaderKindHelper;
 import org.higherkindedj.hkt.reader.ReaderMonad;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 
@@ -22,20 +23,16 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class ReaderTestExecutor<R, A, B> {
-  private final Class<?> contextClass;
+final class ReaderTestExecutor<R, A, B>
+    extends BaseCoreTypeTestExecutor<A, B, ReaderValidationStage<R, A, B>> {
+
   private final Reader<R, A> readerInstance;
   private final R environment;
-  private final Function<A, B> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeRun;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final ReaderValidationStage<R, A, B> validationStage;
 
   ReaderTestExecutor(
       Class<?> contextClass,
@@ -75,26 +72,68 @@ final class ReaderTestExecutor<R, A, B> {
       boolean includeEdgeCases,
       ReaderValidationStage<R, A, B> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.readerInstance = readerInstance;
     this.environment = environment;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeRun = includeRun;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeRun) testRun();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Map validations - test through the Functor interface if custom context provided
+    if (validationStage != null && validationStage.getMapContext() != null) {
+      ReaderFunctor<R> functor = new ReaderFunctor<>();
+      Kind<ReaderKind.Witness<R>, A> kind = ReaderKindHelper.READER.widen(readerInstance);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+    } else {
+      builder.assertMapperNull(() -> readerInstance.map(null), "f", getMapContext(), Operation.MAP);
+    }
+
+    // FlatMap validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getFlatMapContext() != null) {
+      ReaderMonad<R> monad = ReaderMonad.instance();
+      Kind<ReaderKind.Witness<R>, A> kind = ReaderKindHelper.READER.widen(readerInstance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> readerInstance.flatMap(null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    }
+
+    // Of validation
+    builder.assertFunctionNull(() -> Reader.of(null), "runFunction", contextClass, Operation.OF);
+
+    builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test ask identity
+    Reader<R, R> askReader = Reader.ask();
+    assertThat(askReader.run(environment)).isSameAs(environment);
+
+    // Test constant ignores environment
+    Reader<R, String> constantReader = Reader.constant("fixed");
+    R differentEnv = environment; // Using same for simplicity
+    assertThat(constantReader.run(differentEnv)).isEqualTo("fixed");
+
+    // Test map preserves environment threading
+    Reader<R, String> mappedAsk = Reader.<R>ask().map(Object::toString);
+    assertThat(mappedAsk.run(environment)).isNotNull();
   }
 
   private void testFactoryMethods() {
@@ -179,64 +218,5 @@ final class ReaderTestExecutor<R, A, B> {
         .hasMessageContaining(
             "Function f in Reader.flatMap returned null when Reader expected, which is not"
                 + " allowed");
-  }
-
-  void testValidations() {
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Map validations - test through the Functor interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      ReaderFunctor<R> functor = new ReaderFunctor<>();
-      Kind<ReaderKind.Witness<R>, A> kind = ReaderKindHelper.READER.widen(readerInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      builder.assertMapperNull(() -> readerInstance.map(null), "f", mapContext, Operation.MAP);
-    }
-
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      ReaderMonad<R> monad = ReaderMonad.instance();
-      Kind<ReaderKind.Witness<R>, A> kind = ReaderKindHelper.READER.widen(readerInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
-    } else {
-      builder.assertFlatMapperNull(
-          () -> readerInstance.flatMap(null), "f", flatMapContext, Operation.FLAT_MAP);
-    }
-
-    // Of validation
-    builder.assertFunctionNull(() -> Reader.of(null), "runFunction", contextClass, Operation.OF);
-
-    builder.execute();
-  }
-
-  private void testEdgeCases() {
-    // Test with null environment (if R allows nulls)
-    // Note: This depends on the specific Reader implementation and environment type
-
-    // Test ask identity
-    Reader<R, R> askReader = Reader.ask();
-    assertThat(askReader.run(environment)).isSameAs(environment);
-
-    // Test constant ignores environment
-    Reader<R, String> constantReader = Reader.constant("fixed");
-    R differentEnv = environment; // Using same for simplicity
-    assertThat(constantReader.run(differentEnv)).isEqualTo("fixed");
-
-    // Test map preserves environment threading
-    Reader<R, String> mappedAsk = Reader.<R>ask().map(Object::toString);
-    assertThat(mappedAsk.run(environment)).isNotNull();
   }
 }

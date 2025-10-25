@@ -35,10 +35,6 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
   private final Try<String> failureCheckedInstance = Try.failure(checkedException);
   private final Try<String> failureErrorInstance = Try.failure(error);
 
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
   @Override
   protected Kind<TryKind.Witness, String> createValidKind() {
     return TryKindHelper.TRY.widen(successInstance);

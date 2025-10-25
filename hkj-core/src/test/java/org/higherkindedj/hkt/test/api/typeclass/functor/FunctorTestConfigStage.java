@@ -124,10 +124,6 @@ public final class FunctorTestConfigStage<F, A, B> {
     build().executeLaws();
   }
 
-  // =============================================================================
-  // Internal Builder
-  // =============================================================================
-
   FunctorTestExecutor<F, A, B> build() {
     return new FunctorTestExecutor<>(
         contextClass,

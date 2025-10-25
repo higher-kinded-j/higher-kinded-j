@@ -146,10 +146,6 @@ public final class MonadErrorHandlerStage<F, E, A, B> {
             + "Use .withLawsTesting() to configure laws, or use .testOperationsAndValidations()");
   }
 
-  // =============================================================================
-  // Internal Builder
-  // =============================================================================
-
   MonadErrorTestExecutor<F, E, A, B> build(
       MonadErrorLawsStage<F, E, A, B> lawsStage,
       MonadErrorValidationStage<F, E, A, B> validationStage) {

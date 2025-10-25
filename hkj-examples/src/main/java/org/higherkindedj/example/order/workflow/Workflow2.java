@@ -16,7 +16,6 @@ import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.unit.Unit;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Implements an order processing workflow using {@link EitherT} over {@link CompletableFuture}.
@@ -44,12 +43,12 @@ import org.jspecify.annotations.NonNull;
  */
 public class Workflow2 {
 
-  private final @NonNull Dependencies dependencies;
-  private final @NonNull OrderWorkflowSteps steps;
+  private final Dependencies dependencies;
+  private final OrderWorkflowSteps steps;
 
-  private final @NonNull MonadError<CompletableFutureKind.Witness, Throwable> futureMonad;
-  private final @NonNull
-      MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
+  private final MonadError<CompletableFutureKind.Witness, Throwable> futureMonad;
+  private final MonadError<
+          EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
       eitherTMonad;
 
   /**
@@ -62,11 +61,10 @@ public class Workflow2 {
    *     CompletableFuture} and {@code DomainError}.
    */
   public Workflow2(
-      @NonNull Dependencies dependencies,
-      @NonNull OrderWorkflowSteps steps,
-      @NonNull MonadError<CompletableFutureKind.Witness, Throwable> futureMonad,
-      @NonNull
-          MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
+      Dependencies dependencies,
+      OrderWorkflowSteps steps,
+      MonadError<CompletableFutureKind.Witness, Throwable> futureMonad,
+      MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError>
           eitherTMonad) {
     this.dependencies = dependencies;
     this.steps = steps;
@@ -107,10 +105,7 @@ public class Workflow2 {
                                   new DomainError.ValidationError(throwable.getMessage()));
                   var validatedOrderET = EitherT.fromEither(futureMonad, eitherResult);
                   // The cast here helps the compiler with type inference for the EitherT
-                  return (Kind<
-                          EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>,
-                          WorkflowModels.WorkflowContext>)
-                      eitherTMonad.map(ctx1::withValidatedOrder, validatedOrderET);
+                  return eitherTMonad.map(ctx1::withValidatedOrder, validatedOrderET);
                 })
             // Step 2: Inventory Check
             .from(

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.test.api.coretype.writer;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
 import org.higherkindedj.hkt.writer.Writer;
 
 /**
@@ -16,19 +17,19 @@ import org.higherkindedj.hkt.writer.Writer;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class WriterTestConfigStage<W, A, B> {
+public final class WriterTestConfigStage<W, A, B>
+    extends BaseTestConfigStage<WriterTestConfigStage<W, A, B>> {
+
   private final Class<?> contextClass;
   private final Writer<W, A> writerInstance;
   private final Monoid<W> monoid;
   private final Function<A, B> mapper;
 
-  // Test selection flags
+  // Type-specific test selection flags
   private boolean includeFactoryMethods = true;
   private boolean includeRun = true;
   private boolean includeMap = true;
   private boolean includeFlatMap = true;
-  private boolean includeValidations = true;
-  private boolean includeEdgeCases = true;
 
   WriterTestConfigStage(
       Class<?> contextClass, Writer<W, A> writerInstance, Monoid<W> monoid, Function<A, B> mapper) {
@@ -39,7 +40,49 @@ public final class WriterTestConfigStage<W, A, B> {
   }
 
   // =============================================================================
-  // Test Selection Methods
+  // BaseTestConfigStage Implementation
+  // =============================================================================
+
+  @Override
+  protected WriterTestConfigStage<W, A, B> self() {
+    return this;
+  }
+
+  @Override
+  public void testAll() {
+    buildExecutor().executeAll();
+  }
+
+  @Override
+  public WriterValidationStage<W, A, B> configureValidation() {
+    return new WriterValidationStage<>(this);
+  }
+
+  @Override
+  public WriterTestConfigStage<W, A, B> onlyValidations() {
+    disableAll();
+    this.includeValidations = true;
+    return this;
+  }
+
+  @Override
+  public WriterTestConfigStage<W, A, B> onlyEdgeCases() {
+    disableAll();
+    this.includeEdgeCases = true;
+    return this;
+  }
+
+  @Override
+  protected void disableAll() {
+    super.disableAll();
+    includeFactoryMethods = false;
+    includeRun = false;
+    includeMap = false;
+    includeFlatMap = false;
+  }
+
+  // =============================================================================
+  // Type-Specific Test Selection Methods
   // =============================================================================
 
   public WriterTestConfigStage<W, A, B> skipFactoryMethods() {
@@ -59,16 +102,6 @@ public final class WriterTestConfigStage<W, A, B> {
 
   public WriterTestConfigStage<W, A, B> skipFlatMap() {
     this.includeFlatMap = false;
-    return this;
-  }
-
-  public WriterTestConfigStage<W, A, B> skipValidations() {
-    this.includeValidations = false;
-    return this;
-  }
-
-  public WriterTestConfigStage<W, A, B> skipEdgeCases() {
-    this.includeEdgeCases = false;
     return this;
   }
 
@@ -99,79 +132,6 @@ public final class WriterTestConfigStage<W, A, B> {
     this.includeFlatMap = true;
     return this;
   }
-
-  public WriterTestConfigStage<W, A, B> onlyValidations() {
-    disableAll();
-    this.includeValidations = true;
-    return this;
-  }
-
-  public WriterTestConfigStage<W, A, B> onlyEdgeCases() {
-    disableAll();
-    this.includeEdgeCases = true;
-    return this;
-  }
-
-  private void disableAll() {
-    includeFactoryMethods = false;
-    includeRun = false;
-    includeMap = false;
-    includeFlatMap = false;
-    includeValidations = false;
-    includeEdgeCases = false;
-  }
-
-  // =============================================================================
-  // Validation Configuration
-  // =============================================================================
-
-  /**
-   * Enters validation configuration mode.
-   *
-   * <p>Progressive disclosure: Shows validation context configuration options.
-   *
-   * @return Validation stage for configuring error message contexts
-   */
-  public WriterValidationStage<W, A, B> configureValidation() {
-    return new WriterValidationStage<>(this);
-  }
-
-  // =============================================================================
-  // Execution Methods
-  // =============================================================================
-
-  /**
-   * Executes all configured tests.
-   *
-   * <p>This is the most comprehensive test execution option.
-   */
-  public void testAll() {
-    WriterTestExecutor<W, A, B> executor = buildExecutor();
-    executor.executeAll();
-  }
-
-  /** Executes only core operation tests (no validations or edge cases). */
-  public void testOperations() {
-    includeValidations = false;
-    includeEdgeCases = false;
-    testAll();
-  }
-
-  /** Executes only validation tests. */
-  public void testValidations() {
-    onlyValidations();
-    testAll();
-  }
-
-  /** Executes only edge case tests. */
-  public void testEdgeCases() {
-    onlyEdgeCases();
-    testAll();
-  }
-
-  // =============================================================================
-  // Internal Builder
-  // =============================================================================
 
   private WriterTestExecutor<W, A, B> buildExecutor() {
     return new WriterTestExecutor<>(

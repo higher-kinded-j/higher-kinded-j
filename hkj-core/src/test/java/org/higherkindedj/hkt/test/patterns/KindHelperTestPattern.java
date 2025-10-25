@@ -38,10 +38,6 @@ public final class KindHelperTestPattern {
     throw new AssertionError("KindHelperTestPattern is a utility class");
   }
 
-  // =============================================================================
-  // Package-Private Helper Methods (Used by KindHelperTestConfig)
-  // =============================================================================
-
   /** Tests round-trip widen/narrow preserves identity. */
   public static <T, F, A> void testRoundTripWithHelper(
       T validInstance, KindHelper<T, F, A> helper) {
@@ -113,10 +109,6 @@ public final class KindHelperTestPattern {
         .as("narrowed result should be instance of target type")
         .isInstanceOf(targetType);
   }
-
-  // =============================================================================
-  // Public API Methods
-  // =============================================================================
 
   /** Validates that KindHelper implementation follows standardised patterns. */
   public static void validateImplementationStandards(Class<?> targetType, Class<?> helperClass) {

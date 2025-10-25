@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.trymonad.*;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -16,16 +17,13 @@ import org.higherkindedj.hkt.util.validation.Operation;
 /**
  * Internal executor for Try core type tests.
  *
- * <p>This class coordinates test execution by delegating to appropriate test methods.
- *
  * @param <T> The value type
  * @param <S> The mapped type
  */
-final class TryTestExecutor<T, S> {
-  private final Class<?> contextClass;
+final class TryTestExecutor<T, S> extends BaseCoreTypeTestExecutor<T, S, TryValidationStage<T, S>> {
+
   private final Try<T> successInstance;
   private final Try<T> failureInstance;
-  private final Function<T, S> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeGetters;
@@ -35,10 +33,6 @@ final class TryTestExecutor<T, S> {
   private final boolean includeFlatMap;
   private final boolean includeRecover;
   private final boolean includeToEither;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final TryValidationStage<T, S> validationStage;
 
   TryTestExecutor(
       Class<?> contextClass,
@@ -90,10 +84,10 @@ final class TryTestExecutor<T, S> {
       boolean includeEdgeCases,
       TryValidationStage<T, S> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.successInstance = successInstance;
     this.failureInstance = failureInstance;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeGetters = includeGetters;
     this.includeFold = includeFold;
@@ -102,22 +96,131 @@ final class TryTestExecutor<T, S> {
     this.includeFlatMap = includeFlatMap;
     this.includeRecover = includeRecover;
     this.includeToEither = includeToEither;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeGetters) testGetters();
     if (includeFold) testFold();
     if (includeOrElse) testOrElse();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
     if (includeRecover) testRecover();
     if (includeToEither) testToEither();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    Function<T, String> successMapper = t -> "Success: " + t;
+    Function<Throwable, String> failureMapper = t -> "Failure: " + t.getMessage();
+    Function<Throwable, T> recoveryFunction = t -> null;
+
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Fold validations
+    builder.assertFunctionNull(
+        () -> successInstance.fold(null, failureMapper),
+        "successMapper",
+        contextClass,
+        Operation.FOLD);
+    builder.assertFunctionNull(
+        () -> successInstance.fold(successMapper, null),
+        "failureMapper",
+        contextClass,
+        Operation.FOLD);
+
+    // Map validations - test through the Functor interface if custom context provided
+    if (validationStage != null && validationStage.getMapContext() != null) {
+      TryFunctor functor = new TryFunctor();
+      Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+    } else {
+      builder.assertMapperNull(
+          () -> successInstance.map(null), "mapper", getMapContext(), Operation.MAP);
+    }
+
+    // FlatMap validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getFlatMapContext() != null) {
+      TryMonad monad = TryMonad.INSTANCE;
+      Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> successInstance.flatMap(null), "mapper", getFlatMapContext(), Operation.FLAT_MAP);
+    }
+
+    // Recover validations
+    builder.assertFunctionNull(
+        () -> failureInstance.recover(null), "recoveryFunction", contextClass, Operation.RECOVER);
+    builder.assertFunctionNull(
+        () -> failureInstance.recoverWith(null),
+        "recoveryFunction",
+        contextClass,
+        Operation.RECOVER_WITH);
+
+    // OrElseGet validations
+    builder.assertFunctionNull(
+        () -> failureInstance.orElseGet(null), "supplier", contextClass, Operation.OR_ELSE_GET);
+
+    // ToEither validations
+    builder.assertFunctionNull(
+        () -> successInstance.toEither(null),
+        "failureToLeftMapper",
+        contextClass,
+        Operation.TO_EITHER);
+
+    builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test with null values (if instances allow them)
+    Try<T> successNull = Try.success(null);
+    assertThat(successNull.isSuccess()).isTrue();
+    assertThatCode(() -> successNull.get()).doesNotThrowAnyException();
+
+    try {
+      assertThat(successNull.get()).isNull();
+    } catch (Throwable t) {
+      fail("Should not throw for Success", t);
+    }
+
+    // Test toString
+    assertThat(successInstance.toString()).contains("Success(");
+    assertThat(failureInstance.toString()).contains("Failure(");
+
+    // Test equals and hashCode
+    try {
+      T value = successInstance.get();
+      Try<T> anotherSuccess = Try.success(value);
+      assertThat(successInstance).isEqualTo(anotherSuccess);
+      assertThat(successInstance.hashCode()).isEqualTo(anotherSuccess.hashCode());
+    } catch (Throwable t) {
+      fail("Should not throw for Success", t);
+    }
+
+    // Test match for side effects
+    AtomicBoolean successExecuted = new AtomicBoolean(false);
+    AtomicBoolean failureExecuted = new AtomicBoolean(false);
+
+    Consumer<T> successAction = t -> successExecuted.set(true);
+    Consumer<Throwable> failureAction = t -> failureExecuted.set(true);
+
+    // Test match on Success
+    successInstance.match(successAction, failureAction);
+    assertThat(successExecuted).isTrue();
+    assertThat(failureExecuted).isFalse();
+
+    // Reset and test Failure
+    successExecuted.set(false);
+    failureExecuted.set(false);
+
+    // Test match on Failure
+    failureInstance.match(successAction, failureAction);
+    assertThat(successExecuted).isFalse();
+    assertThat(failureExecuted).isTrue();
   }
 
   private void testFactoryMethods() {
@@ -255,132 +358,5 @@ final class TryTestExecutor<T, S> {
     Either<String, T> failureEither = failureInstance.toEither(failureToLeftMapper);
     assertThat(failureEither.isLeft()).isTrue();
     assertThat(failureEither.getLeft()).contains("Test exception");
-  }
-
-  void testValidations() {
-    Function<T, String> successMapper = t -> "Success: " + t;
-    Function<Throwable, String> failureMapper = t -> "Failure: " + t.getMessage();
-    Function<Throwable, T> recoveryFunction = t -> null;
-
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Fold validations
-    builder.assertFunctionNull(
-        () -> successInstance.fold(null, failureMapper),
-        "successMapper",
-        contextClass,
-        Operation.FOLD);
-    builder.assertFunctionNull(
-        () -> successInstance.fold(successMapper, null),
-        "failureMapper",
-        contextClass,
-        Operation.FOLD);
-
-    // Map validations - test through the Functor interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      // Use the type class interface validation
-      TryFunctor functor = new TryFunctor();
-      Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      // Use the instance method
-      builder.assertMapperNull(
-          () -> successInstance.map(null), "mapper", mapContext, Operation.MAP);
-    }
-
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      // Use the type class interface validation
-      TryMonad monad = TryMonad.INSTANCE;
-      Kind<TryKind.Witness, T> kind = TryKindHelper.TRY.widen(successInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
-    } else {
-      // Use the instance method
-      builder.assertFlatMapperNull(
-          () -> successInstance.flatMap(null), "mapper", flatMapContext, Operation.FLAT_MAP);
-    }
-
-    // Recover validations
-    builder.assertFunctionNull(
-        () -> failureInstance.recover(null), "recoveryFunction", contextClass, Operation.RECOVER);
-    builder.assertFunctionNull(
-        () -> failureInstance.recoverWith(null),
-        "recoveryFunction",
-        contextClass,
-        Operation.RECOVER_WITH);
-
-    // OrElseGet validations
-    builder.assertFunctionNull(
-        () -> failureInstance.orElseGet(null), "supplier", contextClass, Operation.OR_ELSE_GET);
-
-    // ToEither validations
-    builder.assertFunctionNull(
-        () -> successInstance.toEither(null),
-        "failureToLeftMapper",
-        contextClass,
-        Operation.TO_EITHER);
-
-    builder.execute();
-  }
-
-  private void testEdgeCases() {
-    // Test with null values (if instances allow them)
-    Try<T> successNull = Try.success(null);
-    assertThat(successNull.isSuccess()).isTrue();
-    assertThatCode(() -> successNull.get()).doesNotThrowAnyException();
-
-    try {
-      assertThat(successNull.get()).isNull();
-    } catch (Throwable t) {
-      fail("Should not throw for Success", t);
-    }
-
-    // Test toString
-    assertThat(successInstance.toString()).contains("Success(");
-    assertThat(failureInstance.toString()).contains("Failure(");
-
-    // Test equals and hashCode
-    try {
-      T value = successInstance.get();
-      Try<T> anotherSuccess = Try.success(value);
-      assertThat(successInstance).isEqualTo(anotherSuccess);
-      assertThat(successInstance.hashCode()).isEqualTo(anotherSuccess.hashCode());
-    } catch (Throwable t) {
-      fail("Should not throw for Success", t);
-    }
-
-    // Test match for side effects
-    AtomicBoolean successExecuted = new AtomicBoolean(false);
-    AtomicBoolean failureExecuted = new AtomicBoolean(false);
-
-    Consumer<T> successAction = t -> successExecuted.set(true);
-    Consumer<Throwable> failureAction = t -> failureExecuted.set(true);
-
-    // Test match on Success
-    successInstance.match(successAction, failureAction);
-    assertThat(successExecuted).isTrue();
-    assertThat(failureExecuted).isFalse();
-
-    // Reset and test Failure
-    successExecuted.set(false);
-    failureExecuted.set(false);
-
-    // Test match on Failure
-    failureInstance.match(successAction, failureAction);
-    assertThat(successExecuted).isFalse();
-    assertThat(failureExecuted).isTrue();
   }
 }

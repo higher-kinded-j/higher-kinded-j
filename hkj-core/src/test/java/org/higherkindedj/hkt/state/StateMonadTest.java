@@ -3,17 +3,15 @@
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,66 +19,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("StateMonad Complete Test Suite")
-class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, String> {
+@DisplayName("StateMonad<S> Complete Test Suite")
+class StateMonadTest extends StateTestBase<Integer> {
 
   private StateMonad<Integer> monad;
-  private final Integer initialState = 0;
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind() {
-    return STATE.widen(State.of(s -> new StateTuple<>(s + 1, s + 1)));
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind2() {
-    return STATE.widen(State.of(s -> new StateTuple<>(s * 2, s + 5)));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Function<Integer, Kind<StateKind.Witness<Integer>, String>> createValidFlatMapper() {
-    return i -> STATE.widen(State.of(s -> new StateTuple<>("flat:" + i, s + i)));
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Function<Integer, String>> createValidFunctionKind() {
-    return STATE.widen(State.of(s -> new StateTuple<>(TestFunctions.INT_TO_STRING, s + 1)));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> "Result:" + a + "," + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 5;
-  }
-
-  @Override
-  protected Function<Integer, Kind<StateKind.Witness<Integer>, String>> createTestFunction() {
-    return i -> STATE.widen(State.of(s -> new StateTuple<>("v" + i, s + i)));
-  }
-
-  @Override
-  protected Function<String, Kind<StateKind.Witness<Integer>, String>> createChainFunction() {
-    return str -> STATE.widen(State.of(s -> new StateTuple<>(str + "!", s + str.length())));
-  }
-
-  @Override
-  protected BiPredicate<Kind<StateKind.Witness<Integer>, ?>, Kind<StateKind.Witness<Integer>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      StateTuple<Integer, ?> res1 = STATE.runState(k1, initialState);
-      StateTuple<Integer, ?> res2 = STATE.runState(k2, initialState);
-      return res1.equals(res2);
-    };
-  }
 
   @BeforeEach
   void setUpMonad() {
@@ -132,64 +74,67 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
     @DisplayName("of() creates State returning value and unchanged state")
     void ofCreatesStateReturningValue() {
       Kind<StateKind.Witness<Integer>, String> kind = monad.of("constantValue");
-      StateTuple<Integer, String> result = STATE.runState(kind, initialState);
+      StateTuple<Integer, String> result = runState(kind, getInitialState());
 
-      assertThat(result.value()).isEqualTo("constantValue");
-      assertThat(result.state()).isEqualTo(initialState);
+      assertThatStateTuple(result).hasValue("constantValue").hasState(getInitialState());
     }
 
     @Test
     @DisplayName("of() allows null value")
     void ofAllowsNullValue() {
       Kind<StateKind.Witness<Integer>, String> kind = monad.of(null);
-      StateTuple<Integer, String> result = STATE.runState(kind, initialState);
+      StateTuple<Integer, String> result = runState(kind, getInitialState());
 
-      assertThat(result.value()).isNull();
-      assertThat(result.state()).isEqualTo(initialState);
+      assertThatStateTuple(result).hasNullValue().hasState(getInitialState());
     }
 
     @Test
     @DisplayName("map() applies function to result value and keeps state transition")
     void mapAppliesFunctionToResultValue() {
-      Kind<StateKind.Witness<Integer>, Integer> incKind =
-          STATE.widen(State.of((Integer s) -> new StateTuple<>(s + 1, s + 1)));
+      State<Integer, Integer> incrementState = State.of(s -> new StateTuple<>(s + 1, s + 1));
+      Kind<StateKind.Witness<Integer>, Integer> incKind = STATE.widen(incrementState);
 
       Kind<StateKind.Witness<Integer>, String> mappedKind = monad.map(i -> "Val:" + i, incKind);
 
-      StateTuple<Integer, String> result = STATE.runState(mappedKind, initialState);
-      assertThat(result.value()).isEqualTo("Val:1");
-      assertThat(result.state()).isEqualTo(1);
+      StateTuple<Integer, String> result = runState(mappedKind, getInitialState());
+      assertThatStateTuple(result)
+          .hasValue("Val:11") // getInitialState() + 1
+          .hasState(11); // getInitialState() + 1
     }
 
     @Test
     @DisplayName("map() chains functions correctly")
     void mapChainsFunctions() {
-      Kind<StateKind.Witness<Integer>, Integer> initialKind =
-          STATE.widen(State.of((Integer s) -> new StateTuple<>(s * 2, s + 5)));
+      State<Integer, Integer> initialState = State.of(s -> new StateTuple<>(s * 2, s + 5));
+      Kind<StateKind.Witness<Integer>, Integer> initialKind = STATE.widen(initialState);
 
       Kind<StateKind.Witness<Integer>, String> mappedKind =
           monad.map(value -> "Str:" + value, monad.map(val -> val / 2.0, initialKind));
 
-      StateTuple<Integer, String> result = STATE.runState(mappedKind, 10);
-      assertThat(result.value()).isEqualTo("Str:10.0");
-      assertThat(result.state()).isEqualTo(15);
+      StateTuple<Integer, String> result = runState(mappedKind, getInitialState());
+      assertThatStateTuple(result)
+          .hasValue("Str:10.0") // (10 * 2) / 2.0
+          .hasState(15); // 10 + 5
     }
 
     @Test
     @DisplayName("ap() applies State function to State value")
     void apAppliesStateFunctionToStateValue() {
-      Kind<StateKind.Witness<Integer>, Function<Integer, String>> funcKind =
-          STATE.widen(State.of((Integer s) -> new StateTuple<>(i -> "F" + i + s, s + 1)));
+      State<Integer, Function<Integer, String>> funcState =
+          State.of(s -> new StateTuple<>(i -> "F" + i + s, s + 1));
+      Kind<StateKind.Witness<Integer>, Function<Integer, String>> funcKind = STATE.widen(funcState);
 
-      Kind<StateKind.Witness<Integer>, Integer> valKind =
-          STATE.widen(State.of((Integer s) -> new StateTuple<>(s * 10, s + 2)));
+      State<Integer, Integer> valState = State.of(s -> new StateTuple<>(s * 10, s + 2));
+      Kind<StateKind.Witness<Integer>, Integer> valKind = STATE.widen(valState);
 
       Kind<StateKind.Witness<Integer>, String> resultKind = monad.ap(funcKind, valKind);
 
-      StateTuple<Integer, String> result = STATE.runState(resultKind, 10);
+      StateTuple<Integer, String> result = runState(resultKind, getInitialState());
 
-      assertThat(result.value()).isEqualTo("F11010");
-      assertThat(result.state()).isEqualTo(13);
+      // funcState runs first: (func, 11)
+      // valState runs second: (110, 13)
+      // func(110) with captured s=10 from funcState: "F11010"
+      assertThatStateTuple(result).hasValue("F11010").hasState(13);
     }
 
     @Test
@@ -200,9 +145,8 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
       Kind<StateKind.Witness<Integer>, Integer> valKind = monad.of(100);
       Kind<StateKind.Witness<Integer>, String> resultKind = monad.ap(funcKind, valKind);
 
-      StateTuple<Integer, String> result = STATE.runState(resultKind, 5);
-      assertThat(result.value()).isEqualTo("Num100");
-      assertThat(result.state()).isEqualTo(5);
+      StateTuple<Integer, String> result = runState(resultKind, 5);
+      assertThatStateTuple(result).hasValue("Num100").hasState(5);
     }
 
     @Test
@@ -219,36 +163,70 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
           originalStateValue ->
               STATE.widen(
                   State.of(
-                      (Integer currentState) ->
+                      currentState ->
                           new StateTuple<>("Val:" + (originalStateValue * 2), currentState + 10)));
 
       Kind<StateKind.Witness<Integer>, String> resultKind =
           monad.flatMap(processValueAndAdd10, getStateAndInc);
 
-      StateTuple<Integer, String> result = STATE.runState(resultKind, 10);
-      assertThat(result.value()).isEqualTo("Val:20");
-      assertThat(result.state()).isEqualTo(21);
+      StateTuple<Integer, String> result = runState(resultKind, getInitialState());
+      // getState: (10, 10), incState: (Unit, 11), map to: (10, 11)
+      // processValueAndAdd10(10): ("Val:20", 21)
+      assertThatStateTuple(result).hasValue("Val:20").hasState(21);
     }
 
     @Test
     @DisplayName("map2() combines State and values")
     void map2CombinesStateAndValues() {
-      Kind<StateKind.Witness<Integer>, Integer> st1 =
-          STATE.widen(State.of((Integer s) -> new StateTuple<>(s + 1, s + 1)));
-      Kind<StateKind.Witness<Integer>, String> st2 =
-          STATE.widen(State.of((Integer s) -> new StateTuple<>("S" + s, s * 2)));
+      State<Integer, Integer> st1 = State.of(s -> new StateTuple<>(s + 1, s + 1));
+      State<Integer, String> st2 = State.of(s -> new StateTuple<>("S" + s, s * 2));
+
+      Kind<StateKind.Witness<Integer>, Integer> k1 = STATE.widen(st1);
+      Kind<StateKind.Witness<Integer>, String> k2 = STATE.widen(st2);
 
       Kind<StateKind.Witness<Integer>, String> result =
-          monad.map2(st1, st2, (i, sVal) -> i + ":" + sVal);
+          monad.map2(k1, k2, (i, sVal) -> i + ":" + sVal);
 
-      StateTuple<Integer, String> res = STATE.runState(result, 10);
-      assertThat(res.value()).isEqualTo("11:S11");
-      assertThat(res.state()).isEqualTo(22);
+      StateTuple<Integer, String> res = runState(result, getInitialState());
+      // st1: (11, 11), st2: ("S11", 22)
+      assertThatStateTuple(res).hasValue("11:S11").hasState(22);
     }
   }
 
   @Nested
-  @DisplayName("Individual Components")
+  @DisplayName("Monad Validations")
+  class MonadValidations {
+
+    @Test
+    @DisplayName("flatMap should validate mapper is non-null")
+    void flatMapShouldValidateMapperIsNonNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monad.flatMap(null, validKind))
+          .withMessageContaining("Function f for StateMonad.flatMap cannot be null");
+    }
+
+    @Test
+    @DisplayName("flatMap should validate Kind is non-null")
+    void flatMapShouldValidateKindIsNonNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monad.flatMap(validFlatMapper, null))
+          .withMessageContaining("Kind for StateMonad.flatMap cannot be null");
+    }
+
+    @Test
+    @DisplayName("flatMap should throw if mapper returns null")
+    void flatMapShouldThrowIfMapperReturnsNull() {
+      Function<Integer, Kind<StateKind.Witness<Integer>, String>> nullReturningMapper = i -> null;
+      Kind<StateKind.Witness<Integer>, String> result =
+          monad.flatMap(nullReturningMapper, validKind);
+
+      assertThatThrownBy(() -> runState(result, getInitialState()))
+          .hasMessageContaining("Function f in StateMonad.flatMap returned null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Individual Test Components")
   class IndividualComponents {
 
     @Test
@@ -290,7 +268,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
             throw testException;
           };
       Kind<StateKind.Witness<Integer>, String> mappedResult = monad.map(throwingMapper, validKind);
-      assertThatThrownBy(() -> STATE.runState(mappedResult, initialState))
+      assertThatThrownBy(() -> runState(mappedResult, getInitialState()))
           .as("map should propagate function exceptions during execution")
           .isSameAs(testException);
 
@@ -301,7 +279,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
           };
       Kind<StateKind.Witness<Integer>, String> flatMappedResult =
           monad.flatMap(throwingFlatMapper, validKind);
-      assertThatThrownBy(() -> STATE.runState(flatMappedResult, initialState))
+      assertThatThrownBy(() -> runState(flatMappedResult, getInitialState()))
           .as("flatMap should propagate function exceptions during execution")
           .isSameAs(testException);
 
@@ -313,7 +291,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
                     throw testException;
                   }));
       Kind<StateKind.Witness<Integer>, String> apResult = monad.ap(throwingFuncKind, validKind);
-      assertThatThrownBy(() -> STATE.runState(apResult, initialState))
+      assertThatThrownBy(() -> runState(apResult, getInitialState()))
           .as("ap should propagate exceptions during execution")
           .isSameAs(testException);
     }
@@ -332,6 +310,54 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
   }
 
   @Nested
+  @DisplayName("Monad Laws")
+  class MonadLaws {
+
+    @Test
+    @DisplayName("Left identity: flatMap(of(a), f) == f(a)")
+    void leftIdentityLaw() {
+      Integer value = testValue;
+      Kind<StateKind.Witness<Integer>, Integer> ofValue = monad.of(value);
+      Kind<StateKind.Witness<Integer>, String> leftSide = monad.flatMap(testFunction, ofValue);
+      Kind<StateKind.Witness<Integer>, String> rightSide = testFunction.apply(value);
+
+      assertThat(equalityChecker.test(leftSide, rightSide))
+          .as("Monad Left Identity: flatMap(of(a), f) == f(a)")
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("Right identity: flatMap(m, of) == m")
+    void rightIdentityLaw() {
+      Function<Integer, Kind<StateKind.Witness<Integer>, Integer>> ofFunction = a -> monad.of(a);
+      Kind<StateKind.Witness<Integer>, Integer> leftSide = monad.flatMap(ofFunction, validKind);
+
+      assertThat(equalityChecker.test(leftSide, validKind))
+          .as("Monad Right Identity: flatMap(m, of) == m")
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+    void associativityLaw() {
+      // Left side: flatMap(flatMap(m, f), g)
+      Kind<StateKind.Witness<Integer>, String> intermediate =
+          monad.flatMap(testFunction, validKind);
+      Kind<StateKind.Witness<Integer>, String> leftSide =
+          monad.flatMap(chainFunction, intermediate);
+
+      // Right side: flatMap(m, a -> flatMap(f(a), g))
+      Function<Integer, Kind<StateKind.Witness<Integer>, String>> combined =
+          a -> monad.flatMap(chainFunction, testFunction.apply(a));
+      Kind<StateKind.Witness<Integer>, String> rightSide = monad.flatMap(combined, validKind);
+
+      assertThat(equalityChecker.test(leftSide, rightSide))
+          .as("Monad Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
+          .isTrue();
+    }
+  }
+
+  @Nested
   @DisplayName("Core Type Tests")
   class CoreTypeTests {
 
@@ -340,7 +366,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
     void testStateCoreOperations() {
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(State.get())
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(validMapper)
           .testAll();
     }
@@ -350,7 +376,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
     void testStateFactoryMethods() {
       CoreTypeTest.<Integer, String>state(State.class)
           .withState(State.pure("test"))
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withoutMappers()
           .onlyFactoryMethods()
           .testAll();
@@ -370,17 +396,17 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
     @Test
     @DisplayName("Deep flatMap chaining")
     void deepFlatMapChaining() {
-      Kind<StateKind.Witness<Integer>, Integer> start =
-          STATE.widen(State.of(s -> new StateTuple<>(1, s)));
+      State<Integer, Integer> start = State.of(s -> new StateTuple<>(1, s));
+      Kind<StateKind.Witness<Integer>, Integer> result = STATE.widen(start);
 
-      Kind<StateKind.Witness<Integer>, Integer> result = start;
       for (int i = 0; i < 10; i++) {
         final int increment = i;
         result = monad.flatMap(x -> monad.of(x + increment), result);
       }
 
-      StateTuple<Integer, Integer> finalResult = STATE.runState(result, initialState);
-      assertThat(finalResult.value()).isEqualTo(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
+      StateTuple<Integer, Integer> finalResult = runState(result, getInitialState());
+      // 1 + 0 + 1 + 2 + ... + 9 = 1 + 45 = 46
+      assertThatStateTuple(finalResult).hasValue(46).hasState(getInitialState());
     }
 
     @Test
@@ -390,44 +416,40 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
       State<Integer, String> threadedState =
           getInitial
               .flatMap(s -> State.pure("value"))
-              .flatMap(v -> State.set(initialState))
+              .flatMap(v -> State.set(getInitialState()))
               .flatMap(u -> State.get())
               .map(Object::toString);
 
       Kind<StateKind.Witness<Integer>, String> widened = STATE.widen(threadedState);
-      StateTuple<Integer, String> result = STATE.runState(widened, 10);
+      StateTuple<Integer, String> result = runState(widened, getInitialState());
 
-      assertThat(result.state()).isEqualTo(initialState);
-      assertThat(result.value()).isNotNull();
+      assertThatStateTuple(result).hasState(getInitialState()).hasValueNonNull();
     }
 
     @Test
     @DisplayName("Pure leaves state unchanged")
     void pureLeavesStateUnchanged() {
       State<Integer, String> pureState = State.pure("test");
-      StateTuple<Integer, String> result = pureState.run(initialState);
+      StateTuple<Integer, String> result = pureState.run(getInitialState());
 
-      assertThat(result.state()).isSameAs(initialState);
-      assertThat(result.value()).isEqualTo("test");
+      assertThatStateTuple(result).hasState(getInitialState()).hasValue("test");
     }
 
     @Test
     @DisplayName("Get returns current state")
     void getReturnsCurrentState() {
       State<Integer, Integer> getState = State.get();
-      StateTuple<Integer, Integer> result = getState.run(initialState);
+      StateTuple<Integer, Integer> result = getState.run(getInitialState());
 
-      assertThat(result.value()).isSameAs(initialState);
-      assertThat(result.state()).isSameAs(initialState);
+      assertThatStateTuple(result).hasValue(getInitialState()).hasState(getInitialState());
     }
 
     @Test
     @DisplayName("StateTuple factory method works correctly")
     void stateTupleFactoryMethodWorks() {
-      StateTuple<Integer, String> tuple = StateTuple.of(initialState, "value");
+      StateTuple<Integer, String> tuple = StateTuple.of(getInitialState(), "value");
 
-      assertThat(tuple.state()).isSameAs(initialState);
-      assertThat(tuple.value()).isEqualTo("value");
+      assertThatStateTuple(tuple).hasState(getInitialState()).hasValue("value");
     }
   }
 
@@ -439,25 +461,24 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
     @DisplayName("FlatMap efficient with many operations")
     void flatMapEfficientWithManyOperations() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<StateKind.Witness<Integer>, Integer> start =
-            STATE.widen(State.of(s -> new StateTuple<>(1, s)));
+        State<Integer, Integer> start = State.of(s -> new StateTuple<>(1, s));
+        Kind<StateKind.Witness<Integer>, Integer> result = STATE.widen(start);
 
-        Kind<StateKind.Witness<Integer>, Integer> result = start;
         for (int i = 0; i < 100; i++) {
           final int increment = i;
           result = monad.flatMap(x -> monad.of(x + increment), result);
         }
 
         int expectedSum = 1 + (99 * 100) / 2;
-        StateTuple<Integer, Integer> finalResult = STATE.runState(result, initialState);
-        assertThat(finalResult.value()).isEqualTo(expectedSum);
+        StateTuple<Integer, Integer> finalResult = runState(result, getInitialState());
+        assertThatStateTuple(finalResult).hasValue(expectedSum);
       }
     }
   }
 
   @Nested
-  @DisplayName("Exception Tests")
-  class ExceptionTests {
+  @DisplayName("Lazy Evaluation")
+  class LazyEvaluation {
 
     @Test
     @DisplayName("map() propagates exceptions during execution")
@@ -471,7 +492,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
       Kind<StateKind.Witness<Integer>, String> result = monad.map(throwingMapper, validKind);
 
       // Exception is thrown when we run the state computation, not when constructing it
-      assertThatThrownBy(() -> STATE.runState(result, initialState))
+      assertThatThrownBy(() -> runState(result, getInitialState()))
           .as("map should propagate function exceptions during execution")
           .isSameAs(testException);
     }
@@ -489,7 +510,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
           monad.flatMap(throwingFlatMapper, validKind);
 
       // Exception is thrown when we run the state computation, not when constructing it
-      assertThatThrownBy(() -> STATE.runState(result, initialState))
+      assertThatThrownBy(() -> runState(result, getInitialState()))
           .as("flatMap should propagate function exceptions during execution")
           .isSameAs(testException);
     }
@@ -508,7 +529,7 @@ class StateMonadTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integ
 
       Kind<StateKind.Witness<Integer>, String> result = monad.ap(throwingFuncKind, validKind);
 
-      assertThatThrownBy(() -> STATE.runState(result, initialState))
+      assertThatThrownBy(() -> runState(result, getInitialState()))
           .as("ap should propagate exceptions during execution")
           .isSameAs(testException);
     }

@@ -42,7 +42,7 @@ class ValidTest {
           .withValid(anotherValid) // Use another Valid instance
           .withMappers(Object::toString)
           .configureValidation()
-          .useInheritanceValidation()
+          .withValidatedInheritanceValidation()
           .withMapFrom(Valid.class)
           .withFlatMapFrom(Valid.class)
           .withIfValidFrom(Valid.class)

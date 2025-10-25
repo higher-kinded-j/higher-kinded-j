@@ -9,30 +9,24 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
  * Internal executor for Id core type tests.
  *
- * <p>This class coordinates test execution by delegating to appropriate test methods.
- *
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class IdTestExecutor<A, B> {
-  private final Class<?> contextClass;
+final class IdTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IdValidationStage<A, B>> {
+
   private final Id<A> instance;
-  private final Function<A, B> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeGetters;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final IdValidationStage<A, B> validationStage;
 
   IdTestExecutor(
       Class<?> contextClass,
@@ -69,25 +63,71 @@ final class IdTestExecutor<A, B> {
       boolean includeEdgeCases,
       IdValidationStage<A, B> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.instance = instance;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeGetters = includeGetters;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeGetters) testGetters();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Map validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getMapContext() != null) {
+      IdMonad monad = IdMonad.instance();
+      Kind<Id.Witness, A> kind = IdKindHelper.ID.widen(instance);
+      builder.assertMapperNull(() -> monad.map(null, kind), "f", getMapContext(), Operation.MAP);
+    } else {
+      builder.assertMapperNull(() -> instance.map(null), "fn", getMapContext(), Operation.MAP);
+    }
+
+    // FlatMap validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getFlatMapContext() != null) {
+      IdMonad monad = IdMonad.instance();
+      Kind<Id.Witness, A> kind = IdKindHelper.ID.widen(instance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> instance.flatMap(null), "fn", getFlatMapContext(), Operation.FLAT_MAP);
+    }
+
+    builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test with null value
+    Id<A> nullId = Id.of(null);
+    assertThat(nullId).isNotNull();
+    assertThat(nullId.value()).isNull();
+
+    // Test toString
+    assertThat(instance.toString()).contains("Id");
+
+    // Test equals and hashCode
+    A value = instance.value();
+    Id<A> another = Id.of(value);
+    assertThat(instance).isEqualTo(another);
+    assertThat(instance.hashCode()).isEqualTo(another.hashCode());
+
+    // Test that different values are not equal
+    if (value != null) {
+      Id<A> nullInstance = Id.of(null);
+      assertThat(instance).isNotEqualTo(nullInstance);
+    }
   }
 
   private void testFactoryMethods() {
@@ -149,69 +189,5 @@ final class IdTestExecutor<A, B> {
           throw testException;
         };
     assertThatThrownBy(() -> instance.flatMap(throwingFlatMapper)).isSameAs(testException);
-  }
-
-  void testValidations() {
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Map validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      // Use the type class interface validation
-      IdMonad monad = IdMonad.instance();
-      Kind<Id.Witness, A> kind = IdKindHelper.ID.widen(instance);
-      builder.assertMapperNull(() -> monad.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      // Use the instance method
-      builder.assertMapperNull(() -> instance.map(null), "fn", mapContext, Operation.MAP);
-    }
-
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      // Use the type class interface validation
-      IdMonad monad = IdMonad.instance();
-      Kind<Id.Witness, A> kind = IdKindHelper.ID.widen(instance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
-    } else {
-      // Use the instance method
-      builder.assertFlatMapperNull(
-          () -> instance.flatMap(null), "fn", flatMapContext, Operation.FLAT_MAP);
-    }
-
-    builder.execute();
-  }
-
-  private void testEdgeCases() {
-    // Test with null value
-    Id<A> nullId = Id.of(null);
-    assertThat(nullId).isNotNull();
-    assertThat(nullId.value()).isNull();
-
-    // Test toString
-    assertThat(instance.toString()).contains("Id");
-
-    // Test equals and hashCode
-    A value = instance.value();
-    Id<A> another = Id.of(value);
-    assertThat(instance).isEqualTo(another);
-    assertThat(instance.hashCode()).isEqualTo(another.hashCode());
-
-    // Test that different values are not equal
-    if (value != null) {
-      Id<A> nullInstance = Id.of(null);
-      assertThat(instance).isNotEqualTo(nullInstance);
-    }
   }
 }

@@ -3,15 +3,11 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.maybe.MaybeAssert.assertThatMaybe;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,60 +15,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeMonad Complete Test Suite")
-class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
+class MaybeMonadTest extends MaybeTestBase {
 
   private MaybeMonad monad;
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind() {
-    return MAYBE.widen(Maybe.just(42));
-  }
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
-    return MAYBE.widen(Maybe.just(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Function<Integer, Kind<MaybeKind.Witness, String>> createValidFlatMapper() {
-    return i -> MAYBE.widen(Maybe.just("flat:" + i));
-  }
-
-  @Override
-  protected Kind<MaybeKind.Witness, Function<Integer, String>> createValidFunctionKind() {
-    return MAYBE.widen(Maybe.just(TestFunctions.INT_TO_STRING));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> "Result:" + a + "," + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected Function<Integer, Kind<MaybeKind.Witness, String>> createTestFunction() {
-    return i -> MAYBE.widen(Maybe.just("test:" + i));
-  }
-
-  @Override
-  protected Function<String, Kind<MaybeKind.Witness, String>> createChainFunction() {
-    return s -> MAYBE.widen(Maybe.just(s + "!"));
-  }
-
-  @Override
-  protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
-  }
 
   @BeforeEach
   void setUpMonad() {
@@ -123,32 +68,27 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
     void flatMapOnJustAppliesFunction() {
       Kind<MaybeKind.Witness, String> result = monad.flatMap(validFlatMapper, validKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("flat:42");
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue("flat:" + DEFAULT_JUST_VALUE);
     }
 
     @Test
     @DisplayName("flatMap() on Just can return Nothing")
     void flatMapOnJustCanReturnNothing() {
-      Function<Integer, Kind<MaybeKind.Witness, String>> nothingMapper =
-          i -> MAYBE.widen(Maybe.nothing());
+      Function<Integer, Kind<MaybeKind.Witness, String>> nothingMapper = i -> nothingKind();
 
       Kind<MaybeKind.Witness, String> result = monad.flatMap(nothingMapper, validKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
     @DisplayName("flatMap() on Nothing returns Nothing")
     void flatMapOnNothingReturnsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
 
-      Kind<MaybeKind.Witness, String> result = monad.flatMap(validFlatMapper, nothingKind);
+      Kind<MaybeKind.Witness, String> result = monad.flatMap(validFlatMapper, nothing);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
@@ -156,9 +96,7 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
     void ofCreatesJustInstances() {
       Kind<MaybeKind.Witness, String> result = monad.of("success");
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("success");
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue("success");
     }
 
     @Test
@@ -166,8 +104,7 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
     void ofCreatesNothingForNull() {
       Kind<MaybeKind.Witness, String> result = monad.of(null);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
@@ -175,31 +112,27 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
     void apAppliesFunctionToValue() {
       Kind<MaybeKind.Witness, String> result = monad.ap(validFunctionKind, validKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("42");
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(String.valueOf(DEFAULT_JUST_VALUE));
     }
 
     @Test
     @DisplayName("ap() returns Nothing when function is Nothing")
     void apReturnsNothingWhenFunctionIsNothing() {
-      Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = nothingKind();
 
       Kind<MaybeKind.Witness, String> result = monad.ap(nothingFunc, validKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
     @DisplayName("ap() returns Nothing when argument is Nothing")
     void apReturnsNothingWhenArgumentIsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
 
-      Kind<MaybeKind.Witness, String> result = monad.ap(validFunctionKind, nothingKind);
+      Kind<MaybeKind.Witness, String> result = monad.ap(validFunctionKind, nothing);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
@@ -208,33 +141,31 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
       Kind<MaybeKind.Witness, String> result =
           monad.map2(validKind, validKind2, validCombiningFunction);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("Result:42,24");
+      assertThatMaybe(narrowToMaybe(result))
+          .isJust()
+          .hasValue("Result:" + DEFAULT_JUST_VALUE + "," + ALTERNATIVE_JUST_VALUE);
     }
 
     @Test
     @DisplayName("map2() returns Nothing if first argument is Nothing")
     void map2ReturnsNothingIfFirstIsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
 
       Kind<MaybeKind.Witness, String> result =
-          monad.map2(nothingKind, validKind2, validCombiningFunction);
+          monad.map2(nothing, validKind2, validCombiningFunction);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
     @DisplayName("map2() returns Nothing if second argument is Nothing")
     void map2ReturnsNothingIfSecondIsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
 
       Kind<MaybeKind.Witness, String> result =
-          monad.map2(validKind, nothingKind, validCombiningFunction);
+          monad.map2(validKind, nothing, validCombiningFunction);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
   }
 
@@ -300,7 +231,7 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
     @Test
     @DisplayName("Deep flatMap chaining")
     void deepFlatMapChaining() {
-      Kind<MaybeKind.Witness, Integer> start = MAYBE.widen(Maybe.just(1));
+      Kind<MaybeKind.Witness, Integer> start = justKind(1);
 
       Kind<MaybeKind.Witness, Integer> result = start;
       for (int i = 0; i < 10; i++) {
@@ -308,15 +239,13 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
         result = monad.flatMap(x -> monad.of(x + increment), result);
       }
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
     }
 
     @Test
     @DisplayName("flatMap with early Nothing short-circuits")
     void flatMapWithEarlyNothingShortCircuits() {
-      Kind<MaybeKind.Witness, Integer> start = MAYBE.widen(Maybe.just(1));
+      Kind<MaybeKind.Witness, Integer> start = justKind(1);
 
       Kind<MaybeKind.Witness, Integer> result = start;
       for (int i = 0; i < 10; i++) {
@@ -325,21 +254,20 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
             monad.flatMap(
                 x -> {
                   if (index == 5) {
-                    return MAYBE.widen(Maybe.nothing());
+                    return nothingKind();
                   }
                   return monad.of(x + index);
                 },
                 result);
       }
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
     @DisplayName("Chaining map and flatMap operations")
     void chainingMapAndFlatMap() {
-      Kind<MaybeKind.Witness, Integer> start = MAYBE.widen(Maybe.just(10));
+      Kind<MaybeKind.Witness, Integer> start = justKind(10);
 
       Kind<MaybeKind.Witness, String> result =
           monad.flatMap(
@@ -348,9 +276,7 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
                       str -> str.toUpperCase(), monad.map(x -> "value:" + x, monad.of(i * 2))),
               start);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("VALUE:20");
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue("VALUE:20");
     }
 
     @Test
@@ -358,13 +284,11 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
     void nestedMaybeHandling() {
       // Maybe<Maybe<Integer>> flattened to Maybe<Integer>
       Kind<MaybeKind.Witness, Kind<MaybeKind.Witness, Integer>> nested =
-          MAYBE.widen(Maybe.just(MAYBE.widen(Maybe.just(42))));
+          justKind(justKind(DEFAULT_JUST_VALUE));
 
       Kind<MaybeKind.Witness, Integer> flattened = monad.flatMap(inner -> inner, nested);
 
-      Maybe<Integer> maybe = MAYBE.narrow(flattened);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(42);
+      assertThatMaybe(narrowToMaybe(flattened)).isJust().hasValue(DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -389,7 +313,7 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
     @DisplayName("flatMap efficient with many operations")
     void flatMapEfficientWithManyOperations() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<MaybeKind.Witness, Integer> start = MAYBE.widen(Maybe.just(1));
+        Kind<MaybeKind.Witness, Integer> start = justKind(1);
 
         Kind<MaybeKind.Witness, Integer> result = start;
         for (int i = 0; i < 100; i++) {
@@ -398,17 +322,15 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
         }
 
         int expectedSum = 1 + (99 * 100) / 2;
-        Maybe<Integer> maybe = MAYBE.narrow(result);
-        assertThat(maybe.isJust()).isTrue();
-        assertThat(maybe.get()).isEqualTo(expectedSum);
+        assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(expectedSum);
       }
     }
 
     @Test
     @DisplayName("Nothing values don't process operations")
     void nothingValuesDontProcessOperations() {
-      Kind<MaybeKind.Witness, String> nothingStart = MAYBE.widen(Maybe.nothing());
-      Maybe<String> originalNothing = MAYBE.narrow(nothingStart);
+      Kind<MaybeKind.Witness, String> nothingStart = nothingKind();
+      Maybe<String> originalNothing = narrowToMaybe(nothingStart);
 
       Kind<MaybeKind.Witness, String> nothingResult = nothingStart;
       for (int i = 0; i < 1000; i++) {
@@ -416,7 +338,7 @@ class MaybeMonadTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Strin
         nothingResult = monad.flatMap(s -> monad.of(s + "_" + index), nothingResult);
       }
 
-      Maybe<String> finalNothing = MAYBE.narrow(nothingResult);
+      Maybe<String> finalNothing = narrowToMaybe(nothingResult);
       assertThat(finalNothing).isSameAs(originalNothing);
     }
   }

@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.coretype.either_t;
 
+import org.higherkindedj.hkt.test.api.coretype.common.BaseTransformerValidationStage;
+
 /**
  * Stage for configuring validation contexts in EitherT core type tests.
  *
@@ -13,80 +15,18 @@ package org.higherkindedj.hkt.test.api.coretype.either_t;
  * @param <R> The Right type
  * @param <S> The mapped type
  */
-public final class EitherTValidationStage<F, L, R, S> {
-  private final EitherTTestConfigStage<F, L, R, S> configStage;
+public final class EitherTValidationStage<F, L, R, S>
+    extends BaseTransformerValidationStage<EitherTValidationStage<F, L, R, S>> {
 
-  // Validation context class
-  private Class<?> validationContext;
+  private final EitherTTestConfigStage<F, L, R, S> configStage;
 
   EitherTValidationStage(EitherTTestConfigStage<F, L, R, S> configStage) {
     this.configStage = configStage;
   }
 
-  /**
-   * Uses inheritance-based validation with fluent configuration.
-   *
-   * <p>Specifies which implementation class is used for validation messages.
-   *
-   * <p>Example:
-   *
-   * <pre>{@code
-   * .configureValidation()
-   *     .useInheritanceValidation()
-   *         .withContextFrom(EitherT.class)
-   *     .testAll()
-   * }</pre>
-   *
-   * @return Fluent configuration builder
-   */
-  public InheritanceValidationBuilder useInheritanceValidation() {
-    return new InheritanceValidationBuilder();
-  }
-
-  /**
-   * Uses default validation (no class context).
-   *
-   * <p>Error messages will not include specific class names.
-   *
-   * @return This stage for further configuration or execution
-   */
-  public EitherTValidationStage<F, L, R, S> useDefaultValidation() {
-    this.validationContext = null;
+  @Override
+  protected EitherTValidationStage<F, L, R, S> self() {
     return this;
-  }
-
-  /** Fluent builder for inheritance-based validation configuration. */
-  public final class InheritanceValidationBuilder {
-
-    /**
-     * Specifies the class used for validation error messages.
-     *
-     * @param contextClass The class that implements the operations
-     * @return This builder for chaining
-     */
-    public InheritanceValidationBuilder withContextFrom(Class<?> contextClass) {
-      validationContext = contextClass;
-      return this;
-    }
-
-    /**
-     * Completes inheritance validation configuration.
-     *
-     * @return The parent validation stage for execution
-     */
-    public EitherTValidationStage<F, L, R, S> done() {
-      return EitherTValidationStage.this;
-    }
-
-    /** Executes all configured tests. */
-    public void testAll() {
-      EitherTValidationStage.this.testAll();
-    }
-
-    /** Executes only validation tests with configured contexts. */
-    public void testValidations() {
-      EitherTValidationStage.this.testValidations();
-    }
   }
 
   /**
@@ -94,20 +34,15 @@ public final class EitherTValidationStage<F, L, R, S> {
    *
    * <p>Includes all test categories with the configured validation contexts.
    */
+  @Override
   public void testAll() {
-    EitherTTestExecutor<F, L, R, S> executor = buildExecutor();
-    executor.executeAll();
+    buildExecutor().executeAll();
   }
 
   /** Executes only validation tests with configured contexts. */
+  @Override
   public void testValidations() {
-    EitherTTestExecutor<F, L, R, S> executor = buildExecutor();
-    executor.testValidations();
-  }
-
-  // Package-private getter
-  Class<?> getValidationContext() {
-    return validationContext;
+    buildExecutor().testValidations();
   }
 
   private EitherTTestExecutor<F, L, R, S> buildExecutor() {

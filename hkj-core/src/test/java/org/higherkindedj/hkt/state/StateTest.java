@@ -3,16 +3,12 @@
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
 
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.unit.Unit;
@@ -29,9 +25,8 @@ import org.junit.jupiter.api.Test;
  * framework for consistent error handling.
  */
 @DisplayName("State<S, A> Core Functionality - Standardised Test Suite")
-class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, String> {
+class StateTest extends StateTestBase<Integer> {
 
-  private final Integer initialState = 10;
   private final State<Integer, Integer> incrementState =
       State.of(s -> new StateTuple<>(s + 1, s + 1));
   private final State<Integer, String> initialValueState = State.pure("Start");
@@ -42,63 +37,13 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
   private StateFunctor<Integer> functor;
 
   @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind() {
-    return StateKindHelper.STATE.widen(incrementState);
+  protected Integer getInitialState() {
+    return DEFAULT_INITIAL_STATE;
   }
 
   @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind2() {
-    return StateKindHelper.STATE.widen(State.of(s -> new StateTuple<>(s * 2, s * 2)));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected BiPredicate<Kind<StateKind.Witness<Integer>, ?>, Kind<StateKind.Witness<Integer>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      StateTuple<Integer, ?> result1 = StateKindHelper.STATE.runState(k1, initialState);
-      StateTuple<Integer, ?> result2 = StateKindHelper.STATE.runState(k2, initialState);
-      return result1.equals(result2);
-    };
-  }
-
-  @Override
-  protected Function<String, String> createSecondMapper() {
-    return String::toUpperCase;
-  }
-
-  @Override
-  protected Function<Integer, Kind<StateKind.Witness<Integer>, String>> createValidFlatMapper() {
-    return i -> StateKindHelper.STATE.widen(State.pure(String.valueOf(i)));
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Function<Integer, String>> createValidFunctionKind() {
-    return StateKindHelper.STATE.widen(State.pure(validMapper));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (i1, i2) -> String.valueOf(i1 + i2);
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected Function<Integer, Kind<StateKind.Witness<Integer>, String>> createTestFunction() {
-    return i -> StateKindHelper.STATE.widen(State.pure(i.toString()));
-  }
-
-  @Override
-  protected Function<String, Kind<StateKind.Witness<Integer>, String>> createChainFunction() {
-    return s -> StateKindHelper.STATE.widen(State.pure(s + "!"));
+  protected Integer getAlternativeState() {
+    return ALTERNATIVE_INITIAL_STATE;
   }
 
   @BeforeEach
@@ -154,7 +99,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     void testAllStateCoreOperations() {
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(incrementState)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .testAll();
     }
@@ -164,7 +109,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     void testStateWithValidationConfiguration() {
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(incrementState)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .configureValidation()
           .useInheritanceValidation()
@@ -178,7 +123,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     void testStateSelectiveOperations() {
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(incrementState)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .onlyFactoryMethods()
           .testAll();
@@ -193,26 +138,30 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("of() creates State from function with all value types")
     void ofCreatesCorrectInstances() {
       // Standard function
-      Function<Integer, StateTuple<Integer, String>> f = s -> new StateTuple<>("Value:" + s, s + 1);
+      java.util.function.Function<Integer, StateTuple<Integer, String>> f =
+          s -> new StateTuple<>("Value:" + s, s + 1);
       State<Integer, String> state = State.of(f);
-      StateTuple<Integer, String> result = state.run(initialState);
-      assertThat(result.value()).isEqualTo("Value:10");
-      assertThat(result.state()).isEqualTo(11);
+      StateTuple<Integer, String> result = state.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue("Value:10").hasState(11);
 
       // Function returning null value
-      Function<Integer, StateTuple<Integer, String>> nullFunc = s -> new StateTuple<>(null, s);
+      java.util.function.Function<Integer, StateTuple<Integer, String>> nullFunc =
+          s -> new StateTuple<>(null, s);
       State<Integer, String> nullState = State.of(nullFunc);
-      StateTuple<Integer, String> nullResult = nullState.run(initialState);
-      assertThat(nullResult.value()).isNull();
-      assertThat(nullResult.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
+
+      assertThatStateTuple(nullResult).hasNullValue().hasState(getInitialState());
 
       // Complex state transformation
-      Function<Integer, StateTuple<Integer, List<Integer>>> listFunc =
+      java.util.function.Function<Integer, StateTuple<Integer, List<Integer>>> listFunc =
           s -> new StateTuple<>(List.of(s, s * 2), s + 5);
       State<Integer, List<Integer>> listState = State.of(listFunc);
-      StateTuple<Integer, List<Integer>> listResult = listState.run(initialState);
-      assertThat(listResult.value()).containsExactly(10, 20);
-      assertThat(listResult.state()).isEqualTo(15);
+      StateTuple<Integer, List<Integer>> listResult = listState.run(getInitialState());
+
+      assertThatStateTuple(listResult)
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(10, 20))
+          .hasState(15);
     }
 
     @Test
@@ -228,42 +177,44 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     void purePreservesStateCorrectly() {
       // Standard value
       State<Integer, String> state = State.pure("Result");
-      StateTuple<Integer, String> result = state.run(initialState);
-      assertThat(result.value()).isEqualTo("Result");
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> result = state.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue("Result").hasState(getInitialState());
 
       // Null value
       State<Integer, String> nullState = State.pure(null);
-      StateTuple<Integer, String> nullResult = nullState.run(initialState);
-      assertThat(nullResult.value()).isNull();
-      assertThat(nullResult.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
+
+      assertThatStateTuple(nullResult).hasNullValue().hasState(getInitialState());
 
       // Complex value
       List<String> list = List.of("a", "b", "c");
       State<Integer, List<String>> listState = State.pure(list);
-      StateTuple<Integer, List<String>> listResult = listState.run(initialState);
-      assertThat(listResult.value()).isSameAs(list);
-      assertThat(listResult.state()).isEqualTo(initialState);
+      StateTuple<Integer, List<String>> listResult = listState.run(getInitialState());
+
+      assertThatStateTuple(listResult)
+          .hasValueSatisfying(value -> assertThat(value).isSameAs(list))
+          .hasState(getInitialState());
 
       // Unit value
       State<Integer, Unit> unitState = State.pure(Unit.INSTANCE);
-      StateTuple<Integer, Unit> unitResult = unitState.run(initialState);
-      assertThat(unitResult.value()).isEqualTo(Unit.INSTANCE);
-      assertThat(unitResult.state()).isEqualTo(initialState);
+      StateTuple<Integer, Unit> unitResult = unitState.run(getInitialState());
+
+      assertThatStateTuple(unitResult).hasValue(Unit.INSTANCE).hasState(getInitialState());
     }
 
     @Test
     @DisplayName("get() returns current state as value and preserves state")
     void getReturnsCurrentState() {
       State<Integer, Integer> state = State.get();
-      StateTuple<Integer, Integer> result = state.run(initialState);
-      assertThat(result.value()).isEqualTo(initialState);
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, Integer> result = state.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue(getInitialState()).hasState(getInitialState());
 
       // Verify with different initial state
       StateTuple<Integer, Integer> result2 = state.run(42);
-      assertThat(result2.value()).isEqualTo(42);
-      assertThat(result2.state()).isEqualTo(42);
+
+      assertThatStateTuple(result2).hasValue(42).hasState(42);
     }
 
     @Test
@@ -271,13 +222,13 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     void setReplacesState() {
       Integer newState = 99;
       State<Integer, Unit> state = State.set(newState);
-      StateTuple<Integer, Unit> result = state.run(initialState);
-      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
-      assertThat(result.state()).isEqualTo(newState);
+      StateTuple<Integer, Unit> result = state.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue(Unit.INSTANCE).hasState(newState);
 
       // Verify old state is ignored
       StateTuple<Integer, Unit> result2 = state.run(1000);
-      assertThat(result2.state()).isEqualTo(newState);
+      assertThatStateTuple(result2).hasState(newState);
     }
 
     @Test
@@ -291,17 +242,18 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @Test
     @DisplayName("modify() applies function to state and returns Unit")
     void modifyTransformsState() {
-      Function<Integer, Integer> doubler = s -> s * 2;
+      java.util.function.Function<Integer, Integer> doubler = s -> s * 2;
       State<Integer, Unit> state = State.modify(doubler);
-      StateTuple<Integer, Unit> result = state.run(initialState);
-      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
-      assertThat(result.state()).isEqualTo(20);
+      StateTuple<Integer, Unit> result = state.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue(Unit.INSTANCE).hasState(20);
 
       // Complex modification
-      Function<Integer, Integer> complex = s -> (s + 5) * 3;
+      java.util.function.Function<Integer, Integer> complex = s -> (s + 5) * 3;
       State<Integer, Unit> complexState = State.modify(complex);
-      StateTuple<Integer, Unit> complexResult = complexState.run(initialState);
-      assertThat(complexResult.state()).isEqualTo(45);
+      StateTuple<Integer, Unit> complexResult = complexState.run(getInitialState());
+
+      assertThatStateTuple(complexResult).hasState(45);
     }
 
     @Test
@@ -315,23 +267,23 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @Test
     @DisplayName("inspect() applies function to state, returns result, preserves state")
     void inspectReadsStateWithoutModifying() {
-      Function<Integer, String> checkEven = s -> (s % 2 == 0) ? "Even" : "Odd";
+      java.util.function.Function<Integer, String> checkEven = s -> (s % 2 == 0) ? "Even" : "Odd";
       State<Integer, String> state = State.inspect(checkEven);
 
-      StateTuple<Integer, String> result = state.run(initialState);
-      assertThat(result.value()).isEqualTo("Even");
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> result = state.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue("Even").hasState(getInitialState());
 
       StateTuple<Integer, String> resultOdd = state.run(7);
-      assertThat(resultOdd.value()).isEqualTo("Odd");
-      assertThat(resultOdd.state()).isEqualTo(7);
+
+      assertThatStateTuple(resultOdd).hasValue("Odd").hasState(7);
 
       // Null-returning inspection
-      Function<Integer, String> nullReturning = s -> null;
+      java.util.function.Function<Integer, String> nullReturning = s -> null;
       State<Integer, String> nullState = State.inspect(nullReturning);
-      StateTuple<Integer, String> nullResult = nullState.run(initialState);
-      assertThat(nullResult.value()).isNull();
-      assertThat(nullResult.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
+
+      assertThatStateTuple(nullResult).hasNullValue().hasState(getInitialState());
     }
 
     @Test
@@ -350,12 +302,12 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @Test
     @DisplayName("run() executes state computation correctly")
     void runExecutesComputation() {
-      StateTuple<Integer, Integer> result = incrementState.run(initialState);
-      assertThat(result.value()).isEqualTo(11);
-      assertThat(result.state()).isEqualTo(11);
+      StateTuple<Integer, Integer> result = incrementState.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue(11).hasState(11);
 
       // Verify consistency
-      StateTuple<Integer, Integer> result2 = incrementState.run(initialState);
+      StateTuple<Integer, Integer> result2 = incrementState.run(getInitialState());
       assertThat(result2).isEqualTo(result);
     }
 
@@ -365,20 +317,18 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       State<Integer, String> computation = State.of(s -> new StateTuple<>("Step:" + s, s + 10));
 
       StateTuple<Integer, String> result1 = computation.run(0);
-      assertThat(result1.value()).isEqualTo("Step:0");
-      assertThat(result1.state()).isEqualTo(10);
+      assertThatStateTuple(result1).hasValue("Step:0").hasState(10);
 
       StateTuple<Integer, String> result2 = computation.run(result1.state());
-      assertThat(result2.value()).isEqualTo("Step:10");
-      assertThat(result2.state()).isEqualTo(20);
+      assertThatStateTuple(result2).hasValue("Step:10").hasState(20);
     }
 
     @Test
     @DisplayName("run() handles null values correctly")
     void runHandlesNullValues() {
-      StateTuple<Integer, Integer> result = nullValueState.run(initialState);
-      assertThat(result.value()).isNull();
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, Integer> result = nullValueState.run(getInitialState());
+
+      assertThatStateTuple(result).hasNullValue().hasState(getInitialState());
     }
   }
 
@@ -391,21 +341,23 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     void mapTransformsValue() {
       // Standard transformation
       State<Integer, String> mapped = incrementState.map(TestFunctions.INT_TO_STRING);
-      StateTuple<Integer, String> result = mapped.run(initialState);
-      assertThat(result.value()).isEqualTo("11");
-      assertThat(result.state()).isEqualTo(11);
+      StateTuple<Integer, String> result = mapped.run(getInitialState());
+
+      assertThatStateTuple(result).hasValue("11").hasState(11);
 
       // Complex transformation
       State<Integer, List<Integer>> listMapped = incrementState.map(i -> List.of(i, i * 2, i * 3));
-      StateTuple<Integer, List<Integer>> listResult = listMapped.run(initialState);
-      assertThat(listResult.value()).containsExactly(11, 22, 33);
-      assertThat(listResult.state()).isEqualTo(11);
+      StateTuple<Integer, List<Integer>> listResult = listMapped.run(getInitialState());
+
+      assertThatStateTuple(listResult)
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(11, 22, 33))
+          .hasState(11);
 
       // Null-safe transformation
       State<Integer, String> nullMapped = nullValueState.map(String::valueOf);
-      StateTuple<Integer, String> nullResult = nullMapped.run(initialState);
-      assertThat(nullResult.value()).isEqualTo("null");
-      assertThat(nullResult.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> nullResult = nullMapped.run(getInitialState());
+
+      assertThatStateTuple(nullResult).hasValue("null").hasState(getInitialState());
     }
 
     @Test
@@ -420,12 +372,13 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("map() handles exception propagation and chaining")
     void mapHandlesExceptionPropagation() {
       RuntimeException testException = new RuntimeException("Test exception: map test");
-      Function<Integer, String> throwingMapper = TestFunctions.throwingFunction(testException);
+      java.util.function.Function<Integer, String> throwingMapper =
+          TestFunctions.throwingFunction(testException);
 
       assertThatThrownBy(
               () -> {
                 State<Integer, String> throwing = incrementState.map(throwingMapper);
-                throwing.run(initialState);
+                throwing.run(getInitialState());
               })
           .isSameAs(testException);
 
@@ -435,19 +388,18 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
           start.map(i -> i + 10).map(i -> "Value:" + i).map(String::toUpperCase);
 
       StateTuple<Integer, String> result = chainResult.run(5);
-      assertThat(result.value()).isEqualTo("VALUE:20");
-      assertThat(result.state()).isEqualTo(6);
+      assertThatStateTuple(result).hasValue("VALUE:20").hasState(6);
     }
 
     @Test
     @DisplayName("map() handles null-returning functions")
     void mapHandlesNullReturningFunctions() {
-      Function<Integer, String> nullReturningMapper = TestFunctions.nullReturningFunction();
+      java.util.function.Function<Integer, String> nullReturningMapper =
+          TestFunctions.nullReturningFunction();
       State<Integer, String> result = incrementState.map(nullReturningMapper);
 
-      StateTuple<Integer, String> tuple = result.run(initialState);
-      assertThat(tuple.value()).isNull();
-      assertThat(tuple.state()).isEqualTo(11);
+      StateTuple<Integer, String> tuple = result.run(getInitialState());
+      assertThatStateTuple(tuple).hasNullValue().hasState(11);
     }
   }
 
@@ -463,14 +415,13 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
 
       // Step 2: State that takes the value, multiplies it by 2 for the result,
       // and adds 5 to the state it receives
-      Function<Integer, State<Integer, String>> state2Func =
+      java.util.function.Function<Integer, State<Integer, String>> state2Func =
           val -> State.of(s1 -> new StateTuple<>("Result:" + (val * 2), s1 + 5));
 
       State<Integer, String> composedState = state1.flatMap(state2Func);
-      StateTuple<Integer, String> result = composedState.run(initialState);
+      StateTuple<Integer, String> result = composedState.run(getInitialState());
 
-      assertThat(result.value()).isEqualTo("Result:22");
-      assertThat(result.state()).isEqualTo(16);
+      assertThatStateTuple(result).hasValue("Result:22").hasState(16);
     }
 
     @Test
@@ -485,10 +436,10 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @Test
     @DisplayName("flatMap() throws KindUnwrapException if mapper returns null")
     void flatMapThrowsIfMapperReturnsNull() {
-      Function<Integer, State<Integer, String>> nullReturningMapper = i -> null;
+      java.util.function.Function<Integer, State<Integer, String>> nullReturningMapper = i -> null;
       State<Integer, String> state = incrementState.flatMap(nullReturningMapper);
 
-      assertThatThrownBy(() -> state.run(initialState))
+      assertThatThrownBy(() -> state.run(getInitialState()))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
               "Function f in State.flatMap returned null when State expected, which is not"
@@ -512,8 +463,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       // step1: (10+6=16, 12)
       // step2: ("Value:16", 15)
       // step3: ("VALUE:16", 15)
-      assertThat(finalResult.value()).isEqualTo("VALUE:16");
-      assertThat(finalResult.state()).isEqualTo(15);
+      assertThatStateTuple(finalResult).hasValue("VALUE:16").hasState(15);
 
       // Mixed operations
       State<Integer, Integer> mixedResult =
@@ -523,20 +473,20 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
               .map(i -> i - 5);
 
       StateTuple<Integer, Integer> mixedFinal = mixedResult.run(5);
-      assertThat(mixedFinal.value()).isEqualTo(25); // (10+5)*2-5
+      assertThatStateTuple(mixedFinal).hasValue(25).hasState(16); // (10+5)*2-5, 6+10
     }
 
     @Test
     @DisplayName("flatMap() handles exception propagation")
     void flatMapHandlesExceptionPropagation() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap test");
-      Function<Integer, State<Integer, String>> throwingMapper =
+      java.util.function.Function<Integer, State<Integer, String>> throwingMapper =
           TestFunctions.throwingFunction(testException);
 
       assertThatThrownBy(
               () -> {
                 State<Integer, String> throwing = incrementState.flatMap(throwingMapper);
-                throwing.run(initialState);
+                throwing.run(getInitialState());
               })
           .isSameAs(testException);
     }
@@ -550,8 +500,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("StateTuple constructor allows null value")
     void constructorAllowsNullValue() {
       StateTuple<String, Integer> tuple = new StateTuple<>(null, "newState");
-      assertThat(tuple.value()).isNull();
-      assertThat(tuple.state()).isEqualTo("newState");
+      assertThatStateTuple(tuple).hasNullValue().hasState("newState");
     }
 
     @Test
@@ -566,13 +515,11 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("StateTuple.of() factory method creates tuples correctly")
     void ofFactoryCreatesCorrectly() {
       StateTuple<Integer, String> tuple = StateTuple.of(42, "test");
-      assertThat(tuple.value()).isEqualTo("test");
-      assertThat(tuple.state()).isEqualTo(42);
+      assertThatStateTuple(tuple).hasValue("test").hasState(42);
 
       // With null value
       StateTuple<Integer, String> nullTuple = StateTuple.of(42, null);
-      assertThat(nullTuple.value()).isNull();
-      assertThat(nullTuple.state()).isEqualTo(42);
+      assertThatStateTuple(nullTuple).hasNullValue().hasState(42);
     }
 
     @Test
@@ -629,8 +576,9 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       State<Integer, Double> result = start.map(i -> i * 2.0).map(d -> d + 0.5).map(Math::sqrt);
 
       StateTuple<Integer, Double> finalResult = result.run(5);
-      assertThat(finalResult.value()).isCloseTo(Math.sqrt(20.5), within(0.001));
-      assertThat(finalResult.state()).isEqualTo(6);
+      assertThatStateTuple(finalResult)
+          .hasValueSatisfying(d -> assertThat(d).isCloseTo(Math.sqrt(20.5), within(0.001)))
+          .hasState(6);
     }
 
     @Test
@@ -643,8 +591,9 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
           counter.flatMap(v1 -> counter.flatMap(v2 -> counter.map(v3 -> List.of(v1, v2, v3))));
 
       StateTuple<Integer, List<Integer>> result = threeIncrements.run(0);
-      assertThat(result.value()).containsExactly(0, 1, 2);
-      assertThat(result.state()).isEqualTo(3);
+      assertThatStateTuple(result)
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(0, 1, 2))
+          .hasState(3);
     }
 
     @Test
@@ -662,9 +611,19 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       Config initial = new Config("", 0, false);
       StateTuple<Config, Config> result = buildConfig.run(initial);
 
-      assertThat(result.value().name()).isEqualTo("MyApp");
-      assertThat(result.value().timeout()).isEqualTo(5000);
-      assertThat(result.value().debug()).isTrue();
+      assertThatStateTuple(result)
+          .hasValueSatisfying(
+              config -> {
+                assertThat(config.name()).isEqualTo("MyApp");
+                assertThat(config.timeout()).isEqualTo(5000);
+                assertThat(config.debug()).isTrue();
+              })
+          .hasStateSatisfying(
+              config -> {
+                assertThat(config.name()).isEqualTo("MyApp");
+                assertThat(config.timeout()).isEqualTo(5000);
+                assertThat(config.debug()).isTrue();
+              });
     }
 
     @Test
@@ -681,17 +640,17 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
                 };
               });
 
-      assertThat(computation.run(-5).value()).isEqualTo("Negative");
-      assertThat(computation.run(-5).state()).isEqualTo(0);
+      StateTuple<Integer, String> negativeResult = computation.run(-5);
+      assertThatStateTuple(negativeResult).hasValue("Negative").hasState(0);
 
-      assertThat(computation.run(0).value()).isEqualTo("Zero");
-      assertThat(computation.run(0).state()).isEqualTo(1);
+      StateTuple<Integer, String> zeroResult = computation.run(0);
+      assertThatStateTuple(zeroResult).hasValue("Zero").hasState(1);
 
-      assertThat(computation.run(50).value()).isEqualTo("Normal");
-      assertThat(computation.run(50).state()).isEqualTo(100);
+      StateTuple<Integer, String> normalResult = computation.run(50);
+      assertThatStateTuple(normalResult).hasValue("Normal").hasState(100);
 
-      assertThat(computation.run(200).value()).isEqualTo("Large");
-      assertThat(computation.run(200).state()).isEqualTo(100);
+      StateTuple<Integer, String> largeResult = computation.run(200);
+      assertThatStateTuple(largeResult).hasValue("Large").hasState(100);
     }
   }
 
@@ -727,7 +686,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
 
       // Should complete without memory issues
       StateTuple<Integer, Integer> finalResult = result.run(0);
-      assertThat(finalResult.value()).isEqualTo(1 + (999 * 1000) / 2);
+      assertThatStateTuple(finalResult).hasValue(1 + (999 * 1000) / 2);
     }
 
     @Test
@@ -741,8 +700,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
 
       assertThat(result1).isEqualTo(result2);
       assertThat(result1).isNotEqualTo(result3);
-      assertThat(result3.value()).isEqualTo(20);
-      assertThat(result3.state()).isEqualTo(11);
+      assertThatStateTuple(result3).hasValue(20).hasState(11);
     }
   }
 
@@ -756,7 +714,8 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       State<Integer, Number> numberState = State.of(s -> new StateTuple<>(42, s + 1));
       State<Integer, Integer> intState = numberState.flatMap(n -> State.pure(n.intValue()));
 
-      assertThat(intState.run(0).value()).isEqualTo(42);
+      StateTuple<Integer, Integer> result = intState.run(0);
+      assertThatStateTuple(result).hasValue(42);
     }
 
     @Test
@@ -767,7 +726,8 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
 
       State<Integer, Integer> summed = complexState.map(List::size);
 
-      assertThat(summed.run(0).value()).isEqualTo(3);
+      StateTuple<Integer, Integer> result = summed.run(0);
+      assertThatStateTuple(result).hasValue(3);
 
       // Map transformations
       State<Integer, java.util.Map<String, Integer>> mapState =
@@ -775,7 +735,9 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
 
       State<Integer, java.util.Set<String>> keySet = mapState.map(java.util.Map::keySet);
 
-      assertThat(keySet.run(0).value()).containsExactlyInAnyOrder("a", "b");
+      StateTuple<Integer, java.util.Set<String>> keySetResult = keySet.run(0);
+      assertThatStateTuple(keySetResult)
+          .hasValueSatisfying(keys -> assertThat(keys).containsExactlyInAnyOrder("a", "b"));
     }
   }
 
@@ -789,12 +751,14 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       // Very large strings
       String largeString = "x".repeat(10000);
       State<Integer, String> largeState = State.pure(largeString);
-      assertThat(largeState.run(0).value()).hasSize(10000);
+      StateTuple<Integer, String> largeResult = largeState.run(0);
+      assertThatStateTuple(largeResult).hasValueSatisfying(s -> assertThat(s).hasSize(10000));
 
       // Maximum/minimum integer values
       State<Integer, Integer> maxIntState = State.pure(Integer.MAX_VALUE);
       State<Integer, Long> promoted = maxIntState.map(i -> i.longValue() + 1);
-      assertThat(promoted.run(0).value()).isEqualTo((long) Integer.MAX_VALUE + 1);
+      StateTuple<Integer, Long> promotedResult = promoted.run(0);
+      assertThatStateTuple(promotedResult).hasValue((long) Integer.MAX_VALUE + 1);
 
       // Very nested structures
       State<Integer, State<Integer, State<Integer, Integer>>> tripleNested =
@@ -803,7 +767,8 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       State<Integer, Integer> flattened =
           tripleNested.flatMap(inner -> inner).flatMap(innerInner -> innerInner);
 
-      assertThat(flattened.run(0).value()).isEqualTo(42);
+      StateTuple<Integer, Integer> flattenedResult = flattened.run(0);
+      assertThatStateTuple(flattenedResult).hasValue(42);
     }
 
     @Test
@@ -811,33 +776,30 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     void stateOperationsAreStackSafe() {
       State<Integer, Integer> start = State.pure(0);
 
-      // TODO: When Trampoline is available in
-      // https://github.com/higher-kinded-j/higher-kinded-j/issues/120
-      // Then this can be better exercised
       // Create a moderately deep chain (not infinite, but realistic)
-      // Note: Pure functional State implementations in Java are not stack-safe
-      // for extremely deep chains due to JVM limitations
       State<Integer, Integer> result = start;
-      for (int i = 0; i < 100; i++) { // Reduced from 10000
+      for (int i = 0; i < 100; i++) {
         result = result.map(x -> x + 1);
       }
 
-      assertThat(result.run(0).value()).isEqualTo(100);
+      StateTuple<Integer, Integer> finalResult = result.run(0);
+      assertThatStateTuple(finalResult).hasValue(100);
 
       // Test with flatMap chains - these are more problematic
       State<Integer, Integer> flatMapResult = start;
-      for (int i = 0; i < 50; i++) { // Even more conservative
+      for (int i = 0; i < 50; i++) {
         flatMapResult = flatMapResult.flatMap(x -> State.pure(x + 1));
       }
 
-      assertThat(flatMapResult.run(0).value()).isEqualTo(50);
+      StateTuple<Integer, Integer> flatMapFinalResult = flatMapResult.run(0);
+      assertThatStateTuple(flatMapFinalResult).hasValue(50);
     }
 
     @Test
     @DisplayName("State maintains referential transparency")
     void stateMaintainsReferentialTransparency() {
       State<Integer, String> state = State.of(s -> new StateTuple<>("val:" + s, s + 1));
-      Function<Integer, String> transform = i -> "transformed:" + i;
+      java.util.function.Function<Integer, String> transform = i -> "transformed:" + i;
 
       State<Integer, String> result1 =
           state.map(x -> Integer.parseInt(x.substring(4))).map(transform);
@@ -848,8 +810,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       StateTuple<Integer, String> tuple2 = result2.run(5);
 
       assertThat(tuple1).isEqualTo(tuple2);
-      assertThat(tuple1.value()).isEqualTo("transformed:5");
-      assertThat(tuple1.state()).isEqualTo(6);
+      assertThatStateTuple(tuple1).hasValue("transformed:5").hasState(6);
     }
   }
 
@@ -861,7 +822,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("map defers exceptions until evaluation")
     void mapDefersExceptions() {
       RuntimeException testException = new RuntimeException("Test exception: map");
-      Function<Integer, String> throwingMapper =
+      java.util.function.Function<Integer, String> throwingMapper =
           i -> {
             throw testException;
           };
@@ -871,7 +832,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       assertThat(mapped).isNotNull();
 
       // Exception is thrown when run() evaluates the computation
-      assertThatThrownBy(() -> mapped.run(initialState))
+      assertThatThrownBy(() -> mapped.run(getInitialState()))
           .as("Exception should be thrown during run(), not during map()")
           .isSameAs(testException);
     }
@@ -880,7 +841,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
     @DisplayName("flatMap defers exceptions until evaluation")
     void flatMapDefersExceptions() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap");
-      Function<Integer, State<Integer, String>> throwingFlatMapper =
+      java.util.function.Function<Integer, State<Integer, String>> throwingFlatMapper =
           i -> {
             throw testException;
           };
@@ -890,7 +851,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
       assertThat(flatMapped).isNotNull();
 
       // Exception is thrown when run() evaluates the computation
-      assertThatThrownBy(() -> flatMapped.run(initialState))
+      assertThatThrownBy(() -> flatMapped.run(getInitialState()))
           .as("Exception should be thrown during run(), not during flatMap()")
           .isSameAs(testException);
     }
@@ -909,7 +870,7 @@ class StateTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, S
                   }) // This step will fail
               .map(String::valueOf); // This never executes
 
-      assertThatThrownBy(() -> computation.run(initialState)).isSameAs(testException);
+      assertThatThrownBy(() -> computation.run(getInitialState())).isSameAs(testException);
     }
   }
 }

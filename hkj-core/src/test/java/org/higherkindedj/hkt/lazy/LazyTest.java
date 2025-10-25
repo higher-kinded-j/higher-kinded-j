@@ -20,15 +20,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Lazy<A> Complete Test Suite")
 class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
 
-  // ============================================================================
-  // Test Fixtures
-  // ============================================================================
-
   private static final AtomicInteger COUNTER = new AtomicInteger(0);
-
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
 
   @Override
   protected Kind<LazyKind.Witness, String> createValidKind() {
@@ -99,10 +91,6 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       throw new IOException("Checked Failure");
     };
   }
-
-  // ============================================================================
-  // Complete Test Suite
-  // ============================================================================
 
   @Nested
   @DisplayName("Complete Lazy Test Suite")

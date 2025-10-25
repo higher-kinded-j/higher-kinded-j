@@ -2,15 +2,24 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.coretype.trymonad;
 
+import org.higherkindedj.hkt.test.api.coretype.common.BaseValidationStage;
+
 /**
  * Stage for configuring validation contexts in Try core type tests.
  *
  * <p>Allows specifying which implementation class should be used in validation error messages for
  * each operation, supporting inheritance hierarchies.
  *
+ * <h2>Purpose</h2>
+ *
+ * <p>This stage enables precise control over validation error messages when testing Try
+ * implementations that use inheritance. By specifying the exact class context for each operation,
+ * you ensure that validation failures reference the correct implementing class rather than a base
+ * class or interface.
+ *
  * <h2>Usage Examples:</h2>
  *
- * <h3>Configure Map Validation:</h3>
+ * <h3>Configure Map Validation Context:</h3>
  *
  * <pre>{@code
  * CoreTypeTest.tryType(Try.class)
@@ -18,12 +27,11 @@ package org.higherkindedj.hkt.test.api.coretype.trymonad;
  *     .withFailure(failureInstance)
  *     .withMappers(mapper)
  *     .configureValidation()
- *         .useInheritanceValidation()
- *             .withMapFrom(TryFunctor.class)
+ *         .useInheritanceValidation(TryMonad.class)
  *         .testValidations();
  * }</pre>
  *
- * <h3>Configure Full Monad Hierarchy:</h3>
+ * <h3>Configure Multiple Operation Contexts:</h3>
  *
  * <pre>{@code
  * CoreTypeTest.tryType(Try.class)
@@ -31,138 +39,88 @@ package org.higherkindedj.hkt.test.api.coretype.trymonad;
  *     .withFailure(failureInstance)
  *     .withMappers(mapper)
  *     .configureValidation()
- *         .useInheritanceValidation()
- *             .withMapFrom(TryFunctor.class)
- *             .withFlatMapFrom(TryMonad.class)
+ *         .withMapFrom(TryFunctor.class)
+ *         .withFlatMapFrom(TryMonad.class)
  *         .testAll();
  * }</pre>
  *
+ * <h3>Test Only Validations with Custom Contexts:</h3>
+ *
+ * <pre>{@code
+ * CoreTypeTest.tryType(Try.class)
+ *     .withSuccess(successInstance)
+ *     .withFailure(failureInstance)
+ *     .withMappers(mapper)
+ *     .configureValidation()
+ *         .withMapFrom(CustomTryFunctor.class)
+ *         .withFlatMapFrom(CustomTryMonad.class)
+ *         .testValidations();
+ * }</pre>
+ *
+ * <h2>When to Use Validation Configuration</h2>
+ *
+ * <p>Use validation configuration when:
+ *
+ * <ul>
+ *   <li>Your Try implementation uses inheritance hierarchies (e.g., separate Functor and Monad
+ *       classes)
+ *   <li>You want validation error messages to reference specific implementing classes
+ *   <li>Different operations are implemented in different classes
+ *   <li>You're testing that null validation occurs at the correct layer of abstraction
+ * </ul>
+ *
  * @param <T> The value type
  * @param <S> The mapped type
+ * @see org.higherkindedj.hkt.test.api.coretype.common.BaseValidationStage
+ * @see TryTestConfigStage
+ * @see TryTestExecutor
  */
-public final class TryValidationStage<T, S> {
-  private final TryTestConfigStage<T, S> configStage;
+public final class TryValidationStage<T, S> extends BaseValidationStage<TryValidationStage<T, S>> {
 
-  // Validation context classes
-  private Class<?> mapContext;
-  private Class<?> flatMapContext;
+  private final TryTestConfigStage<T, S> configStage;
 
   TryValidationStage(TryTestConfigStage<T, S> configStage) {
     this.configStage = configStage;
   }
 
-  /**
-   * Uses inheritance-based validation with fluent configuration.
-   *
-   * <p>This allows you to specify which class in the inheritance hierarchy should be used in
-   * validation error messages for each operation.
-   *
-   * <p>Example:
-   *
-   * <pre>{@code
-   * .configureValidation()
-   *     .useInheritanceValidation()
-   *         .withMapFrom(TryFunctor.class)
-   *         .withFlatMapFrom(TryMonad.class)
-   *     .testAll()
-   * }</pre>
-   *
-   * @return Fluent configuration builder
-   */
-  public InheritanceValidationBuilder useInheritanceValidation() {
-    return new InheritanceValidationBuilder();
-  }
-
-  /**
-   * Uses default validation (no class context).
-   *
-   * <p>Error messages will not include specific class names.
-   *
-   * @return This stage for further configuration or execution
-   */
-  public TryValidationStage<T, S> useDefaultValidation() {
-    this.mapContext = null;
-    this.flatMapContext = null;
+  @Override
+  protected TryValidationStage<T, S> self() {
     return this;
   }
 
-  /** Fluent builder for inheritance-based validation configuration. */
-  public final class InheritanceValidationBuilder {
-
-    /**
-     * Specifies the class used for map operation validation.
-     *
-     * <p>Error messages for map null validations will reference this class.
-     *
-     * @param contextClass The class that implements map (e.g., TryFunctor.class)
-     * @return This builder for chaining
-     */
-    public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
-      mapContext = contextClass;
-      return this;
-    }
-
-    /**
-     * Specifies the class used for flatMap operation validation.
-     *
-     * <p>Error messages for flatMap null validations will reference this class.
-     *
-     * @param contextClass The class that implements flatMap (e.g., TryMonad.class)
-     * @return This builder for chaining
-     */
-    public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
-      flatMapContext = contextClass;
-      return this;
-    }
-
-    /**
-     * Completes inheritance validation configuration.
-     *
-     * @return The parent validation stage for execution
-     */
-    public TryValidationStage<T, S> done() {
-      return TryValidationStage.this;
-    }
-
-    /**
-     * Executes all configured tests.
-     *
-     * <p>Includes all test categories with the configured validation contexts.
-     */
-    public void testAll() {
-      TryValidationStage.this.testAll();
-    }
-
-    /** Executes only validation tests with configured contexts. */
-    public void testValidations() {
-      TryValidationStage.this.testValidations();
-    }
+  /**
+   * Executes all configured tests with validation contexts applied.
+   *
+   * <p>This includes operation tests, validation tests with custom contexts, and edge case tests.
+   */
+  @Override
+  public void testAll() {
+    buildExecutor().executeAll();
   }
 
   /**
-   * Executes all configured tests.
+   * Executes only validation tests with configured contexts.
    *
-   * <p>Includes all test categories with the configured validation contexts.
+   * <p>Use this when you want to focus on testing null parameter validation without running other
+   * test categories. The validation tests will use the class contexts you configured via {@link
+   * #useInheritanceValidation(Class)} or the fluent methods from {@link BaseValidationStage}.
+   *
+   * <h3>Example:</h3>
+   *
+   * <pre>{@code
+   * CoreTypeTest.tryType(Try.class)
+   *     .withSuccess(successInstance)
+   *     .withFailure(failureInstance)
+   *     .withMappers(mapper)
+   *     .configureValidation()
+   *         .withMapFrom(TryFunctor.class)
+   *         .withFlatMapFrom(TryMonad.class)
+   *         .testValidations();  // Only runs validation tests
+   * }</pre>
    */
-  public void testAll() {
-    TryTestExecutor<T, S> executor = buildExecutor();
-    executor.executeAll();
-  }
-
-  /** Executes only validation tests with configured contexts. */
+  @Override
   public void testValidations() {
-    // Create executor with only validations enabled
-    TryTestExecutor<T, S> executor = buildExecutor();
-    executor.testValidations();
-  }
-
-  // Package-private getters
-  Class<?> getMapContext() {
-    return mapContext;
-  }
-
-  Class<?> getFlatMapContext() {
-    return flatMapContext;
+    buildExecutor().testValidations();
   }
 
   private TryTestExecutor<T, S> buildExecutor() {

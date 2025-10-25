@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.test.api.coretype.lazy;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.lazy.Lazy;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
 
 /**
  * Stage 4: Optional configuration and test execution.
@@ -14,19 +15,19 @@ import org.higherkindedj.hkt.lazy.Lazy;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class LazyTestConfigStage<A, B> {
+public final class LazyTestConfigStage<A, B>
+    extends BaseTestConfigStage<LazyTestConfigStage<A, B>> {
+
   private final Class<?> contextClass;
   private final Lazy<A> deferredInstance;
   private final Lazy<A> nowInstance;
   private final Function<A, B> mapper;
 
-  // Test selection flags
+  // Type-specific test selection flags
   private boolean includeFactoryMethods = true;
   private boolean includeForce = true;
   private boolean includeMap = true;
   private boolean includeFlatMap = true;
-  private boolean includeValidations = true;
-  private boolean includeEdgeCases = true;
   private boolean includeMemoisation = true;
   private boolean includeConcurrency = true;
 
@@ -39,7 +40,51 @@ public final class LazyTestConfigStage<A, B> {
   }
 
   // =============================================================================
-  // Test Selection Methods
+  // BaseTestConfigStage Implementation
+  // =============================================================================
+
+  @Override
+  protected LazyTestConfigStage<A, B> self() {
+    return this;
+  }
+
+  @Override
+  public void testAll() {
+    buildExecutor().executeAll();
+  }
+
+  @Override
+  public LazyValidationStage<A, B> configureValidation() {
+    return new LazyValidationStage<>(this);
+  }
+
+  @Override
+  public LazyTestConfigStage<A, B> onlyValidations() {
+    disableAll();
+    this.includeValidations = true;
+    return this;
+  }
+
+  @Override
+  public LazyTestConfigStage<A, B> onlyEdgeCases() {
+    disableAll();
+    this.includeEdgeCases = true;
+    return this;
+  }
+
+  @Override
+  protected void disableAll() {
+    super.disableAll();
+    includeFactoryMethods = false;
+    includeForce = false;
+    includeMap = false;
+    includeFlatMap = false;
+    includeMemoisation = false;
+    includeConcurrency = false;
+  }
+
+  // =============================================================================
+  // Type-Specific Test Selection Methods
   // =============================================================================
 
   public LazyTestConfigStage<A, B> skipFactoryMethods() {
@@ -59,16 +104,6 @@ public final class LazyTestConfigStage<A, B> {
 
   public LazyTestConfigStage<A, B> skipFlatMap() {
     this.includeFlatMap = false;
-    return this;
-  }
-
-  public LazyTestConfigStage<A, B> skipValidations() {
-    this.includeValidations = false;
-    return this;
-  }
-
-  public LazyTestConfigStage<A, B> skipEdgeCases() {
-    this.includeEdgeCases = false;
     return this;
   }
 
@@ -110,18 +145,6 @@ public final class LazyTestConfigStage<A, B> {
     return this;
   }
 
-  public LazyTestConfigStage<A, B> onlyValidations() {
-    disableAll();
-    this.includeValidations = true;
-    return this;
-  }
-
-  public LazyTestConfigStage<A, B> onlyEdgeCases() {
-    disableAll();
-    this.includeEdgeCases = true;
-    return this;
-  }
-
   public LazyTestConfigStage<A, B> onlyMemoisation() {
     disableAll();
     this.includeMemoisation = true;
@@ -133,69 +156,6 @@ public final class LazyTestConfigStage<A, B> {
     this.includeConcurrency = true;
     return this;
   }
-
-  private void disableAll() {
-    includeFactoryMethods = false;
-    includeForce = false;
-    includeMap = false;
-    includeFlatMap = false;
-    includeValidations = false;
-    includeEdgeCases = false;
-    includeMemoisation = false;
-    includeConcurrency = false;
-  }
-
-  // =============================================================================
-  // Validation Configuration
-  // =============================================================================
-
-  /**
-   * Enters validation configuration mode.
-   *
-   * <p>Progressive disclosure: Shows validation context configuration options.
-   *
-   * @return Validation stage for configuring error message contexts
-   */
-  public LazyValidationStage<A, B> configureValidation() {
-    return new LazyValidationStage<>(this);
-  }
-
-  // =============================================================================
-  // Execution Methods
-  // =============================================================================
-
-  /**
-   * Executes all configured tests.
-   *
-   * <p>This is the most comprehensive test execution option.
-   */
-  public void testAll() {
-    LazyTestExecutor<A, B> executor = buildExecutor();
-    executor.executeAll();
-  }
-
-  /** Executes only core operation tests (no validations or edge cases). */
-  public void testOperations() {
-    includeValidations = false;
-    includeEdgeCases = false;
-    testAll();
-  }
-
-  /** Executes only validation tests. */
-  public void testValidations() {
-    onlyValidations();
-    testAll();
-  }
-
-  /** Executes only edge case tests. */
-  public void testEdgeCases() {
-    onlyEdgeCases();
-    testAll();
-  }
-
-  // =============================================================================
-  // Internal Builder
-  // =============================================================================
 
   private LazyTestExecutor<A, B> buildExecutor() {
     return new LazyTestExecutor<>(

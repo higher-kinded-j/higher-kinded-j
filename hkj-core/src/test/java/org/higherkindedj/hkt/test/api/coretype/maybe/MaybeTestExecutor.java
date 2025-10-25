@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 
@@ -25,21 +26,17 @@ import org.higherkindedj.hkt.util.validation.Operation;
  * @param <T> The value type
  * @param <S> The mapped type
  */
-final class MaybeTestExecutor<T, S> {
-  private final Class<?> contextClass;
+final class MaybeTestExecutor<T, S>
+    extends BaseCoreTypeTestExecutor<T, S, MaybeValidationStage<T, S>> {
+
   private final Maybe<T> justInstance;
   private final Maybe<T> nothingInstance;
-  private final Function<T, S> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeGetters;
   private final boolean includeOrElse;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final MaybeValidationStage<T, S> validationStage;
 
   MaybeTestExecutor(
       Class<?> contextClass,
@@ -55,69 +52,51 @@ final class MaybeTestExecutor<T, S> {
       boolean includeEdgeCases,
       MaybeValidationStage<T, S> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.justInstance = justInstance;
     this.nothingInstance = nothingInstance;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeGetters = includeGetters;
     this.includeOrElse = includeOrElse;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeGetters) testGetters();
     if (includeOrElse) testOrElse();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
   }
 
-  void testValidations() {
+  @Override
+  protected void executeValidationTests() {
     T defaultValue = justInstance.get();
-
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
 
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
     // Map validations - test through the Functor interface if custom context provided
     if (validationStage != null && validationStage.getMapContext() != null) {
-      // Use the type class interface validation
       MaybeFunctor functor = MaybeFunctor.INSTANCE;
       Kind<MaybeKind.Witness, T> kind = MaybeKindHelper.MAYBE.widen(justInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
     } else {
-      // Use the instance method
-      builder.assertMapperNull(() -> justInstance.map(null), "mapper", mapContext, Operation.MAP);
+      builder.assertMapperNull(
+          () -> justInstance.map(null), "mapper", getMapContext(), Operation.MAP);
     }
 
     // FlatMap validations - test through the Monad interface if custom context provided
     if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      // Use the type class interface validation
       MaybeMonad monad = MaybeMonad.INSTANCE;
       Kind<MaybeKind.Witness, T> kind = MaybeKindHelper.MAYBE.widen(justInstance);
       builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
     } else {
-      // Use the instance method
       builder.assertFlatMapperNull(
-          () -> justInstance.flatMap(null), "mapper", flatMapContext, Operation.FLAT_MAP);
+          () -> justInstance.flatMap(null), "mapper", getFlatMapContext(), Operation.FLAT_MAP);
     }
 
     // OrElseGet validation (only on Nothing, as Just doesn't call supplier)
@@ -128,6 +107,28 @@ final class MaybeTestExecutor<T, S> {
         Operation.OR_ELSE_GET);
 
     builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test toString
+    assertThat(justInstance.toString()).contains("Just(");
+    assertThat(nothingInstance.toString()).isEqualTo("Nothing");
+
+    // Test equals and hashCode
+    Maybe<T> anotherJust = Maybe.just(justInstance.get());
+    assertThat(justInstance).isEqualTo(anotherJust);
+    assertThat(justInstance.hashCode()).isEqualTo(anotherJust.hashCode());
+
+    Maybe<T> anotherNothing = Maybe.nothing();
+    assertThat(nothingInstance).isEqualTo(anotherNothing);
+    assertThat(nothingInstance.hashCode()).isEqualTo(anotherNothing.hashCode());
+
+    // Nothing should be a singleton
+    assertThat(nothingInstance).isSameAs(anotherNothing);
+
+    // Test that Just and Nothing are not equal
+    assertThat(justInstance).isNotEqualTo(nothingInstance);
   }
 
   private void testFactoryMethods() {
@@ -255,26 +256,5 @@ final class MaybeTestExecutor<T, S> {
 
     // Nothing should not call flatMapper
     assertThatCode(() -> nothingInstance.flatMap(throwingFlatMapper)).doesNotThrowAnyException();
-  }
-
-  private void testEdgeCases() {
-    // Test toString
-    assertThat(justInstance.toString()).contains("Just(");
-    assertThat(nothingInstance.toString()).isEqualTo("Nothing");
-
-    // Test equals and hashCode
-    Maybe<T> anotherJust = Maybe.just(justInstance.get());
-    assertThat(justInstance).isEqualTo(anotherJust);
-    assertThat(justInstance.hashCode()).isEqualTo(anotherJust.hashCode());
-
-    Maybe<T> anotherNothing = Maybe.nothing();
-    assertThat(nothingInstance).isEqualTo(anotherNothing);
-    assertThat(nothingInstance.hashCode()).isEqualTo(anotherNothing.hashCode());
-
-    // Nothing should be a singleton
-    assertThat(nothingInstance).isSameAs(anotherNothing);
-
-    // Test that Just and Nothing are not equal
-    assertThat(justInstance).isNotEqualTo(nothingInstance);
   }
 }

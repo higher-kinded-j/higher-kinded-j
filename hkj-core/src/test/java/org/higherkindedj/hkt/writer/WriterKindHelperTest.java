@@ -4,46 +4,21 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.writerKindHelper;
+import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
 
 import java.util.List;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.typeclass.StringMonoid;
 import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("WriterKindHelper Complete Test Suite")
-class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, String> {
+class WriterKindHelperTest extends WriterTestBase {
 
   private static final WriterKindHelper WRITER = WriterKindHelper.WRITER;
-  private static final Monoid<String> STRING_MONOID = new StringMonoid();
-
-  @Override
-  protected Kind<WriterKind.Witness<String>, Integer> createValidKind() {
-    return WRITER.widen(Writer.value(STRING_MONOID, 42));
-  }
-
-  @Override
-  protected Kind<WriterKind.Witness<String>, Integer> createValidKind2() {
-    return WRITER.widen(Writer.value(STRING_MONOID, 24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected BiPredicate<Kind<WriterKind.Witness<String>, ?>, Kind<WriterKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> WRITER.narrow(k1).equals(WRITER.narrow(k2));
-  }
 
   @Nested
   @DisplayName("Complete KindHelper Test Suite")
@@ -52,7 +27,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Run complete KindHelper test suite for Writer")
     void completeKindHelperTestSuite() {
-      Writer<String, Integer> validInstance = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> validInstance = valueWriter(42);
 
       writerKindHelper(validInstance).test();
     }
@@ -62,10 +37,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     void completeTestSuiteWithMultipleTypes() {
       List<Writer<String, Integer>> testInstances =
           List.of(
-              Writer.value(STRING_MONOID, 42),
-              new Writer<>("Log;", 10),
-              Writer.value(STRING_MONOID, null),
-              new Writer<>("NullLog;", null));
+              valueWriter(42), writerOf("Log;", 10), valueWriter(null), writerOf("NullLog;", null));
 
       for (Writer<String, Integer> instance : testInstances) {
         writerKindHelper(instance).test();
@@ -75,7 +47,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Comprehensive test with implementation validation")
     void comprehensiveTestWithImplementationValidation() {
-      Writer<String, Integer> validInstance = Writer.value(STRING_MONOID, 100);
+      Writer<String, Integer> validInstance = valueWriter(100);
 
       writerKindHelper(validInstance).testWithValidation(WriterKindHelper.class);
     }
@@ -88,7 +60,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Test round-trip widen/narrow operations")
     void testRoundTripOperations() {
-      Writer<String, Integer> validInstance = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> validInstance = valueWriter(42);
 
       writerKindHelper(validInstance)
           .skipValidations()
@@ -101,7 +73,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Test null parameter validations")
     void testNullParameterValidations() {
-      writerKindHelper(Writer.value(STRING_MONOID, 42))
+      writerKindHelper(valueWriter(42))
           .skipRoundTrip()
           .skipInvalidType()
           .skipIdempotency()
@@ -112,7 +84,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Test invalid Kind type handling")
     void testInvalidKindType() {
-      writerKindHelper(Writer.value(STRING_MONOID, 42))
+      writerKindHelper(valueWriter(42))
           .skipRoundTrip()
           .skipValidations()
           .skipIdempotency()
@@ -123,7 +95,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Test idempotency of operations")
     void testIdempotency() {
-      Writer<String, Integer> validInstance = new Writer<>("Log;", 10);
+      Writer<String, Integer> validInstance = writerOf("Log;", 10);
 
       writerKindHelper(validInstance)
           .skipRoundTrip()
@@ -136,7 +108,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Test edge cases and boundary conditions")
     void testEdgeCases() {
-      Writer<String, Integer> validInstance = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> validInstance = valueWriter(42);
 
       writerKindHelper(validInstance)
           .skipRoundTrip()
@@ -154,18 +126,18 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Both value and tell instances work correctly")
     void testValueAndTellInstances() {
-      Writer<String, Integer> valueWriter = Writer.value(STRING_MONOID, 42);
-      Writer<String, Unit> tellWriter = Writer.tell("Log message");
+      Writer<String, Integer> valueWriterInstance = valueWriter(42);
+      Writer<String, Unit> tellWriterInstance = tellWriter("Log message");
 
-      writerKindHelper(valueWriter).test();
-      writerKindHelper(tellWriter).test();
+      writerKindHelper(valueWriterInstance).test();
+      writerKindHelper(tellWriterInstance).test();
     }
 
     @Test
     @DisplayName("Null values in Writer are preserved")
     void testNullValuesPreserved() {
-      Writer<String, Integer> nullValue = Writer.value(STRING_MONOID, null);
-      Writer<String, String> nullString = new Writer<>("Log;", null);
+      Writer<String, Integer> nullValue = valueWriter(null);
+      Writer<String, String> nullString = writerOf("Log;", null);
 
       writerKindHelper(nullValue).test();
       writerKindHelper(nullString).test();
@@ -200,7 +172,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Type safety across different generic parameters")
     void testTypeSafetyAcrossDifferentGenerics() {
-      Writer<String, Integer> intWriter = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> intWriter = valueWriter(42);
       Writer<List<String>, Integer> listLogWriter = new Writer<>(List.of("log1", "log2"), 42);
 
       writerKindHelper(intWriter).test();
@@ -210,15 +182,16 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Complex value types with nested generics")
     void testComplexValueTypes() {
-      Writer<String, List<Integer>> complexValue = Writer.value(STRING_MONOID, List.of(1, 2, 3));
+      Writer<String, List<Integer>> complexValue = valueWriter(List.of(1, 2, 3));
       Writer<String, java.util.Map<String, Integer>> mapValue =
-          new Writer<>("Log;", java.util.Map.of("a", 1, "b", 2));
+          writerOf("Log;", java.util.Map.of("a", 1, "b", 2));
 
       writerKindHelper(complexValue).test();
       writerKindHelper(mapValue).test();
 
-      assertThat(complexValue.value()).containsExactly(1, 2, 3);
-      assertThat(mapValue.value()).containsEntry("a", 1).containsEntry("b", 2);
+      assertThatWriter(complexValue).satisfiesValue(v -> assertThat(v).containsExactly(1, 2, 3));
+      assertThatWriter(mapValue)
+          .satisfiesValue(v -> assertThat(v).containsEntry("a", 1).containsEntry("b", 2));
     }
   }
 
@@ -229,7 +202,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Holder creates minimal overhead")
     void testMinimalOverhead() {
-      Writer<String, Integer> original = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> original = valueWriter(42);
 
       writerKindHelper(original).skipPerformance().test();
     }
@@ -237,7 +210,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Multiple operations are idempotent")
     void testIdempotentOperations() {
-      Writer<String, Integer> original = new Writer<>("Log;", 10);
+      Writer<String, Integer> original = writerOf("Log;", 10);
 
       writerKindHelper(original)
           .skipRoundTrip()
@@ -251,7 +224,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @DisplayName("Performance characteristics test")
     void testPerformanceCharacteristics() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Writer<String, Integer> testInstance = Writer.value(STRING_MONOID, 42);
+        Writer<String, Integer> testInstance = valueWriter(42);
 
         writerKindHelper(testInstance).withPerformanceTests().test();
       }
@@ -261,7 +234,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @DisplayName("Memory efficiency test")
     void testMemoryEfficiency() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Writer<String, Integer> testInstance = Writer.value(STRING_MONOID, 42);
+        Writer<String, Integer> testInstance = valueWriter(42);
 
         writerKindHelper(testInstance).withPerformanceTests().test();
       }
@@ -276,11 +249,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @DisplayName("All combinations of null values")
     void testAllNullValueCombinations() {
       List<Writer<String, Integer>> nullInstances =
-          List.of(
-              Writer.value(STRING_MONOID, null),
-              new Writer<>("Log;", null),
-              new Writer<>("", 42),
-              Writer.value(STRING_MONOID, 0));
+          List.of(valueWriter(null), writerOf("Log;", null), writerOf("", 42), valueWriter(0));
 
       for (Writer<String, Integer> instance : nullInstances) {
         writerKindHelper(instance).test();
@@ -296,7 +265,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @DisplayName("Concurrent access test")
     void testConcurrentAccess() {
       if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
-        Writer<String, Integer> testInstance = Writer.value(STRING_MONOID, 42);
+        Writer<String, Integer> testInstance = valueWriter(42);
 
         writerKindHelper(testInstance).withConcurrencyTests().test();
       }
@@ -305,7 +274,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Quick test for fast test suites")
     void testQuickValidation() {
-      Writer<String, Integer> testInstance = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> testInstance = valueWriter(42);
 
       writerKindHelper(testInstance).test();
     }
@@ -319,10 +288,10 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
               Writer.<String, Object>value(STRING_MONOID, "simple_string"),
               Writer.<String, Object>value(STRING_MONOID, 42),
               Writer.<String, Object>value(STRING_MONOID, List.of(1, 2, 3)),
-              new Writer<>("Log;", java.util.Map.of("key", "value")),
-              Writer.tell("Tell message"),
+              writerOf("Log;", java.util.Map.of("key", "value")),
+              tellWriter("Tell message"),
               Writer.<String, Object>value(STRING_MONOID, null),
-              new Writer<>("", "empty log"));
+              writerOf("", "empty log"));
 
       for (Writer<String, ?> instance : complexInstances) {
         writerKindHelper(instance).test();
@@ -339,12 +308,12 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     void testAllWriterTypesAndStates() {
       List<Writer<String, Integer>> allStates =
           List.of(
-              Writer.value(STRING_MONOID, 42),
-              Writer.value(STRING_MONOID, 0),
-              Writer.value(STRING_MONOID, null),
-              new Writer<>("Log;", 10),
-              new Writer<>("", 10),
-              new Writer<>("Log;", null));
+              valueWriter(42),
+              valueWriter(0),
+              valueWriter(null),
+              writerOf("Log;", 10),
+              writerOf("", 10),
+              writerOf("Log;", null));
 
       for (Writer<String, Integer> state : allStates) {
         writerKindHelper(state).test();
@@ -354,11 +323,11 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Full lifecycle test")
     void testFullLifecycle() {
-      Writer<String, Integer> original = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> original = valueWriter(42);
 
       writerKindHelper(original).test();
 
-      Writer<String, Unit> tellOriginal = Writer.tell("Lifecycle test");
+      Writer<String, Unit> tellOriginal = tellWriter("Lifecycle test");
 
       writerKindHelper(tellOriginal).test();
     }
@@ -371,7 +340,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("run() extracts value from Writer Kind")
     void runExtractsValueFromWriterKind() {
-      Writer<String, Integer> writer = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> writer = valueWriter(42);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
       Integer result = WRITER.run(kind);
@@ -382,7 +351,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("run() handles null values correctly")
     void runHandlesNullValuesCorrectly() {
-      Writer<String, Integer> writer = Writer.value(STRING_MONOID, null);
+      Writer<String, Integer> writer = valueWriter(null);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
       Integer result = WRITER.run(kind);
@@ -393,7 +362,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("run() extracts Unit from tell Writers")
     void runExtractsUnitFromTellWriters() {
-      Writer<String, Unit> writer = Writer.tell("Log message");
+      Writer<String, Unit> writer = tellWriter("Log message");
       Kind<WriterKind.Witness<String>, Unit> kind = WRITER.widen(writer);
 
       Unit result = WRITER.run(kind);
@@ -405,7 +374,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @DisplayName("run() works with complex value types")
     void runWorksWithComplexValueTypes() {
       List<Integer> complexValue = List.of(1, 2, 3);
-      Writer<String, List<Integer>> writer = Writer.value(STRING_MONOID, complexValue);
+      Writer<String, List<Integer>> writer = valueWriter(complexValue);
       Kind<WriterKind.Witness<String>, List<Integer>> kind = WRITER.widen(writer);
 
       List<Integer> result = WRITER.run(kind);
@@ -416,7 +385,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("exec() extracts log from Writer Kind")
     void execExtractsLogFromWriterKind() {
-      Writer<String, Integer> writer = new Writer<>("TestLog;", 42);
+      Writer<String, Integer> writer = writerOf("TestLog;", 42);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
       String result = WRITER.exec(kind);
@@ -427,7 +396,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("exec() returns empty log when log is empty")
     void execReturnsEmptyLogWhenLogIsEmpty() {
-      Writer<String, Integer> writer = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> writer = valueWriter(42);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
       String result = WRITER.exec(kind);
@@ -438,7 +407,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("exec() works with tell Writers")
     void execWorksWithTellWriters() {
-      Writer<String, Unit> writer = Writer.tell("Important log");
+      Writer<String, Unit> writer = tellWriter("Important log");
       Kind<WriterKind.Witness<String>, Unit> kind = WRITER.widen(writer);
 
       String result = WRITER.exec(kind);
@@ -481,56 +450,52 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("runWriter() returns complete Writer record")
     void runWriterReturnsCompleteWriterRecord() {
-      Writer<String, Integer> original = new Writer<>("TestLog;", 42);
+      Writer<String, Integer> original = writerOf("TestLog;", 42);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(original);
 
       Writer<String, Integer> result = WRITER.runWriter(kind);
 
       assertThat(result).isEqualTo(original);
-      assertThat(result.log()).isEqualTo("TestLog;");
-      assertThat(result.value()).isEqualTo(42);
+      assertThatWriter(result).hasLog("TestLog;").hasValue(42);
     }
 
     @Test
     @DisplayName("runWriter() preserves both log and value")
     void runWriterPreservesBothLogAndValue() {
-      Writer<String, Integer> writer = Writer.value(STRING_MONOID, 42);
+      Writer<String, Integer> writer = valueWriter(42);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
       Writer<String, Integer> result = WRITER.runWriter(kind);
 
-      assertThat(result.log()).isEqualTo(STRING_MONOID.empty());
-      assertThat(result.value()).isEqualTo(42);
+      assertThatWriter(result).hasEmptyLog().hasValue(42);
     }
 
     @Test
     @DisplayName("runWriter() works with null values")
     void runWriterWorksWithNullValues() {
-      Writer<String, Integer> writer = new Writer<>("NullLog;", null);
+      Writer<String, Integer> writer = writerOf("NullLog;", null);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
       Writer<String, Integer> result = WRITER.runWriter(kind);
 
-      assertThat(result.log()).isEqualTo("NullLog;");
-      assertThat(result.value()).isNull();
+      assertThatWriter(result).hasLog("NullLog;").hasNullValue();
     }
 
     @Test
     @DisplayName("runWriter() works with tell Writers")
     void runWriterWorksWithTellWriters() {
-      Writer<String, Unit> writer = Writer.tell("Tell log");
+      Writer<String, Unit> writer = tellWriter("Tell log");
       Kind<WriterKind.Witness<String>, Unit> kind = WRITER.widen(writer);
 
       Writer<String, Unit> result = WRITER.runWriter(kind);
 
-      assertThat(result.log()).isEqualTo("Tell log");
-      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
+      assertThatWriter(result).hasLog("Tell log").hasValue(Unit.INSTANCE);
     }
 
     @Test
     @DisplayName("Runner methods are consistent with each other")
     void runnerMethodsAreConsistentWithEachOther() {
-      Writer<String, Integer> writer = new Writer<>("ConsistencyLog;", 42);
+      Writer<String, Integer> writer = writerOf("ConsistencyLog;", 42);
       Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
       // Extract using different methods
@@ -547,7 +512,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Runner methods maintain type safety")
     void runnerMethodsMaintainTypeSafety() {
-      Writer<String, Number> numberWriter = Writer.value(STRING_MONOID, (Number) 42);
+      Writer<String, Number> numberWriter = valueWriter((Number) 42);
       Kind<WriterKind.Witness<String>, Number> kind = WRITER.widen(numberWriter);
 
       Number value = WRITER.run(kind);
@@ -556,7 +521,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
 
       assertThat(value).isInstanceOf(Number.class);
       assertThat(log).isInstanceOf(String.class);
-      assertThat(complete.value()).isEqualTo(42);
+      assertThatWriter(complete).hasValue(42);
     }
   }
 
@@ -567,12 +532,11 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Runner methods work with monadic operations")
     void runnerMethodsWorkWithMonadicOperations() {
-      Monoid<String> monoid = new StringMonoid();
-      Kind<WriterKind.Witness<String>, Integer> kind1 = WRITER.widen(new Writer<>("Log1;", 10));
-      Kind<WriterKind.Witness<String>, Integer> kind2 = WRITER.widen(new Writer<>("Log2;", 20));
+      Kind<WriterKind.Witness<String>, Integer> kind1 = WRITER.widen(writerOf("Log1;", 10));
+      Kind<WriterKind.Witness<String>, Integer> kind2 = WRITER.widen(writerOf("Log2;", 20));
 
       // Use WriterMonad to combine
-      WriterMonad<String> monad = new WriterMonad<>(monoid);
+      WriterMonad<String> monad = new WriterMonad<>(STRING_MONOID);
       Kind<WriterKind.Witness<String>, Integer> combined = monad.map2(kind1, kind2, Integer::sum);
 
       // Extract results using runner methods
@@ -582,15 +546,14 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
 
       assertThat(value).isEqualTo(30);
       assertThat(log).isEqualTo("Log1;Log2;");
-      assertThat(complete.log()).isEqualTo("Log1;Log2;");
-      assertThat(complete.value()).isEqualTo(30);
+      assertThatWriter(complete).hasLog("Log1;Log2;").hasValue(30);
     }
 
     @Test
     @DisplayName("Runner methods work with functor operations")
     void runnerMethodsWorkWithFunctorOperations() {
       WriterFunctor<String> functor = new WriterFunctor<>();
-      Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(new Writer<>("Original;", 10));
+      Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writerOf("Original;", 10));
 
       Kind<WriterKind.Witness<String>, String> mapped = functor.map(i -> "Value:" + i, kind);
 
@@ -604,13 +567,12 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
     @Test
     @DisplayName("Runner methods work after flatMap operations")
     void runnerMethodsWorkAfterFlatMapOperations() {
-      Monoid<String> monoid = new StringMonoid();
-      WriterMonad<String> monad = new WriterMonad<>(monoid);
+      WriterMonad<String> monad = new WriterMonad<>(STRING_MONOID);
 
-      Kind<WriterKind.Witness<String>, Integer> start = WRITER.widen(new Writer<>("Start;", 5));
+      Kind<WriterKind.Witness<String>, Integer> start = WRITER.widen(writerOf("Start;", 5));
 
       Kind<WriterKind.Witness<String>, String> result =
-          monad.flatMap(i -> WRITER.widen(new Writer<>("Mapped:" + i + ";", "Result:" + i)), start);
+          monad.flatMap(i -> WRITER.widen(writerOf("Mapped:" + i + ";", "Result:" + i)), start);
 
       String value = WRITER.run(result);
       String log = WRITER.exec(result);
@@ -618,23 +580,20 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
 
       assertThat(value).isEqualTo("Result:5");
       assertThat(log).isEqualTo("Start;Mapped:5;");
-      assertThat(complete.log()).isEqualTo("Start;Mapped:5;");
-      assertThat(complete.value()).isEqualTo("Result:5");
+      assertThatWriter(complete).hasLog("Start;Mapped:5;").hasValue("Result:5");
     }
 
     @Test
     @DisplayName("Runner methods work with deep operation chains")
     void runnerMethodsWorkWithDeepOperationChains() {
-      Monoid<String> monoid = new StringMonoid();
-      WriterMonad<String> monad = new WriterMonad<>(monoid);
+      WriterMonad<String> monad = new WriterMonad<>(STRING_MONOID);
 
       Kind<WriterKind.Witness<String>, Integer> start = monad.of(1);
 
       Kind<WriterKind.Witness<String>, Integer> result = start;
       for (int i = 0; i < 5; i++) {
         final int step = i;
-        result =
-            monad.flatMap(x -> WRITER.widen(new Writer<>("Step" + step + ";", x + step)), result);
+        result = monad.flatMap(x -> WRITER.widen(writerOf("Step" + step + ";", x + step)), result);
       }
 
       Integer value = WRITER.run(result);
@@ -673,7 +632,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
   @Test
   @DisplayName("Runner methods have predictable performance")
   void runnerMethodsHavePredictablePerformance() {
-    Writer<String, Integer> writer = Writer.value(STRING_MONOID, 42);
+    Writer<String, Integer> writer = valueWriter(42);
     Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
 
     long startRun = System.nanoTime();
@@ -704,7 +663,7 @@ class WriterKindHelperTest extends TypeClassTestBase<WriterKind.Witness<String>,
   @DisplayName("Runner methods maintain performance with complex types")
   void runnerMethodsMaintainPerformanceWithComplexTypes() {
     List<Integer> complexValue = List.of(1, 2, 3, 4, 5);
-    Writer<String, List<Integer>> writer = new Writer<>("ComplexLog;", complexValue);
+    Writer<String, List<Integer>> writer = writerOf("ComplexLog;", complexValue);
     Kind<WriterKind.Witness<String>, List<Integer>> kind = WRITER.widen(writer);
 
     long start = System.nanoTime();

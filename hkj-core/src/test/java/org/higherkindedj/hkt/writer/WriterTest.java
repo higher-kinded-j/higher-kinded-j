@@ -4,18 +4,15 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.writer;
+import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.data.TestFunctions;
-import org.higherkindedj.hkt.typeclass.StringMonoid;
 import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,80 +27,15 @@ import org.junit.jupiter.api.Test;
  * framework for consistent error handling.
  */
 @DisplayName("Writer<W, A> Core Functionality - Standardised Test Suite")
-class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, String> {
-
-  private final Monoid<String> stringMonoid = new StringMonoid();
-  private final Writer<String, Integer> valueWriter = new Writer<>("Log;", 10);
-  private final Writer<String, Unit> tellWriter = Writer.tell("Tell;");
-  private final Writer<String, Integer> emptyLogWriter = Writer.value(stringMonoid, 42);
-  private final Writer<String, Integer> nullValueWriter = new Writer<>("NullLog;", null);
+class WriterTest extends WriterTestBase {
 
   // Type class testing fixtures
   private WriterMonad<String> monad;
   private WriterFunctor<String> functor;
 
-  @Override
-  protected Kind<WriterKind.Witness<String>, Integer> createValidKind() {
-    return WriterKindHelper.WRITER.widen(valueWriter);
-  }
-
-  @Override
-  protected Kind<WriterKind.Witness<String>, Integer> createValidKind2() {
-    return WriterKindHelper.WRITER.widen(Writer.value(stringMonoid, 24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected java.util.function.BiPredicate<
-          Kind<WriterKind.Witness<String>, ?>, Kind<WriterKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) ->
-        WriterKindHelper.WRITER.narrow(k1).equals(WriterKindHelper.WRITER.narrow(k2));
-  }
-
-  @Override
-  protected Function<String, String> createSecondMapper() {
-    return s -> s; // String -> String for law testing
-  }
-
-  @Override
-  protected Function<Integer, Kind<WriterKind.Witness<String>, String>> createValidFlatMapper() {
-    return i ->
-        WriterKindHelper.WRITER.widen(new Writer<>(stringMonoid.empty(), String.valueOf(i)));
-  }
-
-  @Override
-  protected Kind<WriterKind.Witness<String>, Function<Integer, String>> createValidFunctionKind() {
-    return WriterKindHelper.WRITER.widen(new Writer<>(stringMonoid.empty(), validMapper));
-  }
-
-  @Override
-  protected java.util.function.BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (i1, i2) -> String.valueOf(i1 + i2);
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 10;
-  }
-
-  @Override
-  protected Function<Integer, Kind<WriterKind.Witness<String>, String>> createTestFunction() {
-    return i -> WriterKindHelper.WRITER.widen(new Writer<>(stringMonoid.empty(), i.toString()));
-  }
-
-  @Override
-  protected Function<String, Kind<WriterKind.Witness<String>, String>> createChainFunction() {
-    return s -> WriterKindHelper.WRITER.widen(new Writer<>(stringMonoid.empty(), s + "!"));
-  }
-
   @BeforeEach
   void setUpWriter() {
-    monad = new WriterMonad<>(stringMonoid);
+    monad = new WriterMonad<>(STRING_MONOID);
     functor = new WriterFunctor<>();
   }
 
@@ -142,15 +74,15 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
   }
 
   @Nested
-  @DisplayName("Core Type Testing with TypeClassTest API")
+  @DisplayName("Core Type Testing with CoreTypeTest API")
   class CoreTypeTestingSuite {
 
     @Test
     @DisplayName("Test all Writer core operations")
     void testAllWriterCoreOperations() {
       CoreTypeTest.<String, Integer>writer(Writer.class)
-          .withWriter(valueWriter)
-          .withMonoid(stringMonoid)
+          .withWriter(defaultWriter())
+          .withMonoid(STRING_MONOID)
           .withMappers(TestFunctions.INT_TO_STRING)
           .testAll();
     }
@@ -159,8 +91,8 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("Test Writer with validation configuration")
     void testWriterWithValidationConfiguration() {
       CoreTypeTest.<String, Integer>writer(Writer.class)
-          .withWriter(valueWriter)
-          .withMonoid(stringMonoid)
+          .withWriter(defaultWriter())
+          .withMonoid(STRING_MONOID)
           .withMappers(TestFunctions.INT_TO_STRING)
           .configureValidation()
           .useInheritanceValidation()
@@ -173,8 +105,8 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("Test Writer selective operations")
     void testWriterSelectiveOperations() {
       CoreTypeTest.<String, Integer>writer(Writer.class)
-          .withWriter(valueWriter)
-          .withMonoid(stringMonoid)
+          .withWriter(defaultWriter())
+          .withMonoid(STRING_MONOID)
           .withMappers(TestFunctions.INT_TO_STRING)
           .onlyFactoryMethods()
           .testAll();
@@ -189,62 +121,55 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("value() creates correct instances with empty log")
     void valueCreatesCorrectInstances() {
       // Non-null values
-      Writer<String, Integer> w1 = Writer.value(stringMonoid, 42);
-      assertThat(w1.log()).isEqualTo(stringMonoid.empty());
-      assertThat(w1.value()).isEqualTo(42);
+      Writer<String, Integer> w1 = valueWriter(42);
+      assertThatWriter(w1).hasEmptyLog().hasValue(42);
 
       // Null values
-      Writer<String, Integer> w2 = Writer.value(stringMonoid, null);
-      assertThat(w2.log()).isEqualTo(stringMonoid.empty());
-      assertThat(w2.value()).isNull();
+      Writer<String, Integer> w2 = valueWriter(null);
+      assertThatWriter(w2).hasEmptyLog().hasNullValue();
 
       // Complex types
-      Writer<String, String> w3 = Writer.value(stringMonoid, "test");
-      assertThat(w3.log()).isEqualTo(stringMonoid.empty());
-      assertThat(w3.value()).isEqualTo("test");
+      Writer<String, String> w3 = valueWriter("test");
+      assertThatWriter(w3).hasEmptyLog().hasValue("test");
     }
 
     @Test
     @DisplayName("tell() creates correct instances with Unit value")
     void tellCreatesCorrectInstances() {
       // Non-empty log
-      Writer<String, Unit> w1 = Writer.tell("Message");
-      assertThat(w1.log()).isEqualTo("Message");
-      assertThat(w1.value()).isEqualTo(Unit.INSTANCE);
+      Writer<String, Unit> w1 = tellWriter("Message");
+      assertThatWriter(w1).hasLog("Message").hasValue(Unit.INSTANCE);
 
       // Empty string log
-      Writer<String, Unit> w2 = Writer.tell("");
-      assertThat(w2.log()).isEmpty();
-      assertThat(w2.value()).isEqualTo(Unit.INSTANCE);
+      Writer<String, Unit> w2 = tellWriter("");
+      assertThatWriter(w2).hasEmptyLog().hasValue(Unit.INSTANCE);
     }
 
     @Test
     @DisplayName("Constructor creates correct instances")
     void constructorCreatesCorrectInstances() {
       // Standard case
-      Writer<String, Integer> w1 = new Writer<>("Log", 10);
-      assertThat(w1.log()).isEqualTo("Log");
-      assertThat(w1.value()).isEqualTo(10);
+      Writer<String, Integer> w1 = writerOf("Log", 10);
+      assertThatWriter(w1).hasLog("Log").hasValue(10);
 
       // Null value
-      Writer<String, Integer> w2 = new Writer<>("Log", null);
-      assertThat(w2.log()).isEqualTo("Log");
-      assertThat(w2.value()).isNull();
+      Writer<String, Integer> w2 = writerOf("Log", null);
+      assertThatWriter(w2).hasLog("Log").hasNullValue();
     }
 
     @Test
     @DisplayName("Factory methods type inference works correctly")
     void factoryMethodsTypeInference() {
       // Test that type inference works without explicit type parameters
-      var valueWriter = Writer.value(stringMonoid, 42);
-      var tellWriter = Writer.tell("log");
+      var valueWriterLocal = valueWriter(42);
+      var tellWriterLocal = tellWriter("log");
 
       // Should be able to assign to properly typed variables
-      Writer<String, Integer> valueAssignment = valueWriter;
-      Writer<String, Unit> tellAssignment = tellWriter;
+      Writer<String, Integer> valueAssignment = valueWriterLocal;
+      Writer<String, Unit> tellAssignment = tellWriterLocal;
 
-      assertThat(valueAssignment.value()).isEqualTo(42);
-      assertThat(tellAssignment.log()).isEqualTo("log");
+      assertThatWriter(valueAssignment).hasValue(42);
+      assertThatWriter(tellAssignment).hasLog("log");
     }
   }
 
@@ -256,50 +181,50 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("log() returns correct log for all Writer types")
     void logReturnsCorrectValue() {
       // Standard case
-      assertThat(valueWriter.log()).isEqualTo("Log;");
+      assertThatWriter(defaultWriter()).hasLog(DEFAULT_LOG);
 
       // Empty log
-      assertThat(emptyLogWriter.log()).isEqualTo(stringMonoid.empty());
+      assertThatWriter(valueWriter(DEFAULT_VALUE)).hasEmptyLog();
 
       // Tell writer
-      assertThat(tellWriter.log()).isEqualTo("Tell;");
+      assertThatWriter(tellWriter("Tell;")).hasLog("Tell;");
 
       // Null value writer still has log
-      assertThat(nullValueWriter.log()).isEqualTo("NullLog;");
+      assertThatWriter(writerOf("NullLog;", null)).hasLog("NullLog;");
     }
 
     @Test
     @DisplayName("value() returns correct value for all Writer types")
     void valueReturnsCorrectValue() {
       // Standard case
-      assertThat(valueWriter.value()).isEqualTo(10);
+      assertThatWriter(defaultWriter()).hasValue(DEFAULT_VALUE);
 
       // Empty log writer
-      assertThat(emptyLogWriter.value()).isEqualTo(42);
+      assertThatWriter(valueWriter(42)).hasValue(42);
 
       // Tell writer returns Unit
-      assertThat(tellWriter.value()).isEqualTo(Unit.INSTANCE);
+      assertThatWriter(tellWriter("Tell;")).hasValue(Unit.INSTANCE);
 
       // Null value
-      assertThat(nullValueWriter.value()).isNull();
+      assertThatWriter(writerOf("NullLog;", null)).hasNullValue();
     }
 
     @Test
     @DisplayName("run() returns value for all Writer types")
     void runReturnsValue() {
-      assertThat(valueWriter.run()).isEqualTo(10);
-      assertThat(emptyLogWriter.run()).isEqualTo(42);
-      assertThat(tellWriter.run()).isEqualTo(Unit.INSTANCE);
-      assertThat(nullValueWriter.run()).isNull();
+      assertThat(defaultWriter().run()).isEqualTo(DEFAULT_VALUE);
+      assertThat(valueWriter(42).run()).isEqualTo(42);
+      assertThat(tellWriter("Tell;").run()).isEqualTo(Unit.INSTANCE);
+      assertThat(writerOf("NullLog;", null).run()).isNull();
     }
 
     @Test
     @DisplayName("exec() returns log for all Writer types")
     void execReturnsLog() {
-      assertThat(valueWriter.exec()).isEqualTo("Log;");
-      assertThat(emptyLogWriter.exec()).isEqualTo(stringMonoid.empty());
-      assertThat(tellWriter.exec()).isEqualTo("Tell;");
-      assertThat(nullValueWriter.exec()).isEqualTo("NullLog;");
+      assertThat(defaultWriter().exec()).isEqualTo(DEFAULT_LOG);
+      assertThat(valueWriter(42).exec()).isEqualTo(STRING_MONOID.empty());
+      assertThat(tellWriter("Tell;").exec()).isEqualTo("Tell;");
+      assertThat(writerOf("NullLog;", null).exec()).isEqualTo("NullLog;");
     }
   }
 
@@ -311,40 +236,35 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("map() applies function to value and preserves log")
     void mapAppliesFunctionToValue() {
       // Standard transformation
-      Writer<String, String> result = valueWriter.map(TestFunctions.INT_TO_STRING);
-      assertThat(result.log()).isEqualTo("Log;");
-      assertThat(result.value()).isEqualTo("10");
+      Writer<String, String> result = defaultWriter().map(TestFunctions.INT_TO_STRING);
+      assertThatWriter(result).hasLog(DEFAULT_LOG).hasValue(String.valueOf(DEFAULT_VALUE));
 
       // Complex transformation
-      Writer<String, Integer> doubled = valueWriter.map(i -> i * 2);
-      assertThat(doubled.log()).isEqualTo("Log;");
-      assertThat(doubled.value()).isEqualTo(20);
+      Writer<String, Integer> doubled = defaultWriter().map(i -> i * 2);
+      assertThatWriter(doubled).hasLog(DEFAULT_LOG).hasValue(DEFAULT_VALUE * 2);
 
       // Transformation to different type
-      Writer<String, Boolean> isPositive = valueWriter.map(i -> i > 0);
-      assertThat(isPositive.log()).isEqualTo("Log;");
-      assertThat(isPositive.value()).isTrue();
+      Writer<String, Boolean> isPositive = defaultWriter().map(i -> i > 0);
+      assertThatWriter(isPositive).hasLog(DEFAULT_LOG).hasValue(true);
     }
 
     @Test
     @DisplayName("map() handles null values correctly")
     void mapHandlesNullValues() {
       // Mapping null value
-      Writer<String, String> result = nullValueWriter.map(i -> String.valueOf(i));
-      assertThat(result.log()).isEqualTo("NullLog;");
-      assertThat(result.value()).isEqualTo("null");
+      Writer<String, String> result = writerOf("NullLog;", null).map(i -> String.valueOf(i));
+      assertThatWriter(result).hasLog("NullLog;").hasValue("null");
 
       // Mapping to null
-      Writer<String, Integer> toNull = valueWriter.map(i -> null);
-      assertThat(toNull.log()).isEqualTo("Log;");
-      assertThat(toNull.value()).isNull();
+      Writer<String, Integer> toNull = defaultWriter().map(i -> null);
+      assertThatWriter(toNull).hasLog(DEFAULT_LOG).hasNullValue();
     }
 
     @Test
     @DisplayName("map() validates null mapper using standardised validation")
     void mapValidatesNullMapper() {
       ValidationTestBuilder.create()
-          .assertMapperNull(() -> valueWriter.map(null), "f", Writer.class, Operation.MAP)
+          .assertMapperNull(() -> defaultWriter().map(null), "f", Writer.class, Operation.MAP)
           .execute();
     }
 
@@ -355,28 +275,28 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
       Function<Integer, String> throwingMapper = TestFunctions.throwingFunction(testException);
 
       // Exception should propagate
-      assertThatThrownBy(() -> valueWriter.map(throwingMapper)).isSameAs(testException);
+      assertThatThrownBy(() -> defaultWriter().map(throwingMapper)).isSameAs(testException);
 
       // Test chaining
-      Writer<String, Integer> start = Writer.value(stringMonoid, 10);
+      Writer<String, Integer> start = valueWriter(10);
       Writer<String, String> chainResult =
           start.map(i -> i * 2).map(i -> "Value: " + i).map(String::toUpperCase);
 
-      assertThat(chainResult.log()).isEqualTo(stringMonoid.empty());
-      assertThat(chainResult.value()).isEqualTo("VALUE: 20");
+      assertThatWriter(chainResult).hasEmptyLog().hasValue("VALUE: 20");
     }
 
     @Test
     @DisplayName("map() preserves log through multiple transformations")
     void mapPreservesLogThroughChaining() {
       Writer<String, String> result =
-          valueWriter
-              .map(i -> i + 5) // 15
-              .map(i -> i * 2) // 30
-              .map(Object::toString); // "30"
+          defaultWriter()
+              .map(i -> i + 5) // 47
+              .map(i -> i * 2) // 94
+              .map(Object::toString); // "94"
 
-      assertThat(result.log()).isEqualTo("Log;");
-      assertThat(result.value()).isEqualTo("30");
+      assertThatWriter(result)
+          .hasLog(DEFAULT_LOG)
+          .hasValue(String.valueOf((DEFAULT_VALUE + 5) * 2));
     }
   }
 
@@ -388,57 +308,59 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("flatMap() applies function and combines logs")
     void flatMapAppliesFunctionAndCombinesLogs() {
       Function<Integer, Writer<String, String>> mapper =
-          i -> new Writer<>("Mapped(" + i + ");", "Value: " + i);
+          i -> writerOf("Mapped(" + i + ");", "Value: " + i);
 
-      Writer<String, String> result = valueWriter.flatMap(stringMonoid, mapper);
+      Writer<String, String> result = defaultWriter().flatMap(STRING_MONOID, mapper);
 
-      assertThat(result.log()).isEqualTo("Log;Mapped(10);");
-      assertThat(result.value()).isEqualTo("Value: 10");
+      assertThatWriter(result)
+          .hasLog(DEFAULT_LOG + "Mapped(" + DEFAULT_VALUE + ");")
+          .hasValue("Value: " + DEFAULT_VALUE);
     }
 
     @Test
     @DisplayName("flatMap() works with tell for logging")
     void flatMapWorksWithTell() {
-      Writer<String, Integer> start = Writer.value(stringMonoid, 10);
+      Writer<String, Integer> start = valueWriter(10);
 
       Writer<String, String> result =
           start
-              .flatMap(stringMonoid, i -> Writer.tell("Logged " + i + ";"))
-              .flatMap(stringMonoid, v -> new Writer<>("Final;", "Done"));
+              .flatMap(STRING_MONOID, i -> tellWriter("Logged " + i + ";"))
+              .flatMap(STRING_MONOID, v -> writerOf("Final;", "Done"));
 
-      assertThat(result.log()).isEqualTo("Logged 10;Final;");
-      assertThat(result.value()).isEqualTo("Done");
+      assertThatWriter(result).hasLog("Logged 10;Final;").hasValue("Done");
     }
 
     @Test
     @DisplayName("flatMap() supports complex chaining patterns")
     void flatMapSupportsComplexChaining() {
-      Writer<String, Integer> start = Writer.value(stringMonoid, 5);
+      Writer<String, Integer> start = valueWriter(5);
 
       Writer<String, String> result =
           start
-              .flatMap(stringMonoid, i -> new Writer<>("Double;", i * 2))
-              .flatMap(stringMonoid, i -> new Writer<>("Add;", i + 10))
-              .flatMap(stringMonoid, i -> new Writer<>("Result;", "Final: " + i));
+              .flatMap(STRING_MONOID, i -> writerOf("Double;", i * 2))
+              .flatMap(STRING_MONOID, i -> writerOf("Add;", i + 10))
+              .flatMap(STRING_MONOID, i -> writerOf("Result;", "Final: " + i));
 
-      assertThat(result.log()).isEqualTo("Double;Add;Result;");
-      assertThat(result.value()).isEqualTo("Final: 20");
+      assertThatWriter(result).hasLog("Double;Add;Result;").hasValue("Final: 20");
     }
 
     @Test
     @DisplayName("flatMap() validates parameters using standardised validation")
     void flatMapValidatesParameters() {
       Function<Integer, Writer<String, String>> validMapper =
-          i -> new Writer<>(stringMonoid.empty(), String.valueOf(i));
+          i -> writerOf(STRING_MONOID.empty(), String.valueOf(i));
 
       ValidationTestBuilder.create()
           .assertMonoidNull(
-              () -> valueWriter.flatMap(null, validMapper),
+              () -> defaultWriter().flatMap(null, validMapper),
               "monoidW",
               Writer.class,
               Operation.FLAT_MAP)
           .assertFlatMapperNull(
-              () -> valueWriter.flatMap(stringMonoid, null), "f", Writer.class, Operation.FLAT_MAP)
+              () -> defaultWriter().flatMap(STRING_MONOID, null),
+              "f",
+              Writer.class,
+              Operation.FLAT_MAP)
           .execute();
     }
 
@@ -447,7 +369,7 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     void flatMapValidatesNonNullResults() {
       Function<Integer, Writer<String, String>> nullReturningMapper = i -> null;
 
-      assertThatThrownBy(() -> valueWriter.flatMap(stringMonoid, nullReturningMapper))
+      assertThatThrownBy(() -> defaultWriter().flatMap(STRING_MONOID, nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
               "Function f in Writer.flatMap returned null when Writer expected, which is not"
@@ -461,7 +383,7 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
       Function<Integer, Writer<String, String>> throwingMapper =
           TestFunctions.throwingFunction(testException);
 
-      assertThatThrownBy(() -> valueWriter.flatMap(stringMonoid, throwingMapper))
+      assertThatThrownBy(() -> defaultWriter().flatMap(STRING_MONOID, throwingMapper))
           .isSameAs(testException);
     }
 
@@ -469,12 +391,12 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @DisplayName("flatMap() handles null values correctly")
     void flatMapHandlesNullValues() {
       Function<Integer, Writer<String, String>> mapper =
-          i -> new Writer<>("Null;", i == null ? "was null" : "was " + i);
+          i -> writerOf("Null;", i == null ? "was null" : "was " + i);
 
-      Writer<String, String> result = nullValueWriter.flatMap(stringMonoid, mapper);
+      Writer<String, Integer> nullWriter = writerOf("NullLog;", null);
+      Writer<String, String> result = nullWriter.flatMap(STRING_MONOID, mapper);
 
-      assertThat(result.log()).isEqualTo("NullLog;Null;");
-      assertThat(result.value()).isEqualTo("was null");
+      assertThatWriter(result).hasLog("NullLog;Null;").hasValue("was null");
     }
   }
 
@@ -485,38 +407,44 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @Test
     @DisplayName("toString() provides meaningful representations")
     void toStringProvidesMeaningfulRepresentations() {
-      assertThat(valueWriter.toString()).contains("Writer").contains("Log;").contains("10");
-
-      assertThat(tellWriter.toString()).contains("Writer").contains("Tell;").contains("()");
-
-      assertThat(nullValueWriter.toString())
+      assertThat(defaultWriter().toString())
           .contains("Writer")
-          .contains("NullLog;")
-          .contains("null");
+          .contains(DEFAULT_LOG)
+          .contains(String.valueOf(DEFAULT_VALUE));
+
+      assertThat(tellWriter("Tell;").toString())
+          .contains("Writer")
+          .contains("Tell;")
+          .contains("()");
+
+      Writer<String, Integer> nullWriter = writerOf("NullLog;", null);
+      assertThat(nullWriter.toString()).contains("Writer").contains("NullLog;").contains("null");
     }
 
     @Test
     @DisplayName("equals() and hashCode() work correctly")
     void equalsAndHashCodeWorkCorrectly() {
+      Writer<String, Integer> writer1 = defaultWriter();
+
       // Same instances
-      assertThat(valueWriter).isEqualTo(valueWriter);
+      assertThat(writer1).isEqualTo(writer1);
 
       // Equal instances
-      Writer<String, Integer> another = new Writer<>("Log;", 10);
-      assertThat(valueWriter).isEqualTo(another);
-      assertThat(valueWriter.hashCode()).isEqualTo(another.hashCode());
+      Writer<String, Integer> another = writerOf(DEFAULT_LOG, DEFAULT_VALUE);
+      assertThat(writer1).isEqualTo(another);
+      assertThat(writer1.hashCode()).isEqualTo(another.hashCode());
 
       // Different log
-      Writer<String, Integer> differentLog = new Writer<>("Other;", 10);
-      assertThat(valueWriter).isNotEqualTo(differentLog);
+      Writer<String, Integer> differentLog = writerOf("Other;", DEFAULT_VALUE);
+      assertThat(writer1).isNotEqualTo(differentLog);
 
       // Different value
-      Writer<String, Integer> differentValue = new Writer<>("Log;", 20);
-      assertThat(valueWriter).isNotEqualTo(differentValue);
+      Writer<String, Integer> differentValue = writerOf(DEFAULT_LOG, 20);
+      assertThat(writer1).isNotEqualTo(differentValue);
 
       // Null handling
-      Writer<String, Integer> nullValue1 = new Writer<>("Log;", null);
-      Writer<String, Integer> nullValue2 = new Writer<>("Log;", null);
+      Writer<String, Integer> nullValue1 = writerOf("Log;", null);
+      Writer<String, Integer> nullValue2 = writerOf("Log;", null);
       assertThat(nullValue1).isEqualTo(nullValue2);
       assertThat(nullValue1.hashCode()).isEqualTo(nullValue2.hashCode());
     }
@@ -529,25 +457,25 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @Test
     @DisplayName("Writer as functor maintains structure")
     void writerAsFunctorMaintainsStructure() {
-      Writer<String, Integer> start = new Writer<>("Init;", 5);
+      Writer<String, Integer> start = writerOf("Init;", 5);
 
       Writer<String, Double> result = start.map(i -> i * 2.0).map(d -> d + 0.5).map(Math::sqrt);
 
-      assertThat(result.log()).isEqualTo("Init;");
-      assertThat(result.value()).isCloseTo(Math.sqrt(10.5), within(0.001));
+      assertThatWriter(result)
+          .hasLog("Init;")
+          .satisfiesValue(value -> assertThat(value).isCloseTo(Math.sqrt(10.5), within(0.001)));
     }
 
     @Test
     @DisplayName("Writer for computation logging")
     void writerForComputationLogging() {
       Writer<String, Integer> computation =
-          Writer.value(stringMonoid, 10)
-              .flatMap(stringMonoid, i -> new Writer<>("Start: " + i + "; ", i))
-              .flatMap(stringMonoid, i -> new Writer<>("Double: " + (i * 2) + "; ", i * 2))
-              .flatMap(stringMonoid, i -> new Writer<>("Add 5: " + (i + 5) + "; ", i + 5));
+          valueWriter(10)
+              .flatMap(STRING_MONOID, i -> writerOf("Start: " + i + "; ", i))
+              .flatMap(STRING_MONOID, i -> writerOf("Double: " + (i * 2) + "; ", i * 2))
+              .flatMap(STRING_MONOID, i -> writerOf("Add 5: " + (i + 5) + "; ", i + 5));
 
-      assertThat(computation.log()).isEqualTo("Start: 10; Double: 20; Add 5: 25; ");
-      assertThat(computation.value()).isEqualTo(25);
+      assertThatWriter(computation).hasLog("Start: 10; Double: 20; Add 5: 25; ").hasValue(25);
     }
 
     @Test
@@ -556,28 +484,27 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
       AtomicInteger counter = new AtomicInteger(0);
 
       Writer<String, Integer> tracked =
-          Writer.value(stringMonoid, 1)
+          valueWriter(1)
               .flatMap(
-                  stringMonoid,
+                  STRING_MONOID,
                   i -> {
                     int step = counter.incrementAndGet();
-                    return new Writer<>("Step " + step + ": " + i + "; ", i * 2);
+                    return writerOf("Step " + step + ": " + i + "; ", i * 2);
                   })
               .flatMap(
-                  stringMonoid,
+                  STRING_MONOID,
                   i -> {
                     int step = counter.incrementAndGet();
-                    return new Writer<>("Step " + step + ": " + i + "; ", i + 10);
+                    return writerOf("Step " + step + ": " + i + "; ", i + 10);
                   })
               .flatMap(
-                  stringMonoid,
+                  STRING_MONOID,
                   i -> {
                     int step = counter.incrementAndGet();
-                    return new Writer<>("Step " + step + ": " + i + "; ", i * 3);
+                    return writerOf("Step " + step + ": " + i + "; ", i * 3);
                   });
 
-      assertThat(tracked.log()).isEqualTo("Step 1: 1; Step 2: 2; Step 3: 12; ");
-      assertThat(tracked.value()).isEqualTo(36);
+      assertThatWriter(tracked).hasLog("Step 1: 1; Step 2: 2; Step 3: 12; ").hasValue(36);
     }
 
     @Test
@@ -595,10 +522,12 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
                 case Writer(String log, _) -> "Null value (logged: " + log + ")";
               };
 
-      assertThat(processWriter.apply(valueWriter)).isEqualTo("Positive: 10 (logged: Log;)");
-      assertThat(processWriter.apply(new Writer<>("Neg;", -5)))
+      assertThat(processWriter.apply(defaultWriter()))
+          .isEqualTo("Positive: " + DEFAULT_VALUE + " (logged: " + DEFAULT_LOG + ")");
+      assertThat(processWriter.apply(writerOf("Neg;", -5)))
           .isEqualTo("Negative: -5 (logged: Neg;)");
-      assertThat(processWriter.apply(nullValueWriter)).isEqualTo("Null value (logged: NullLog;)");
+      assertThat(processWriter.apply(writerOf("NullLog;", null)))
+          .isEqualTo("Null value (logged: NullLog;)");
     }
   }
 
@@ -609,11 +538,11 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @Test
     @DisplayName("Writer operations have predictable performance")
     void writerOperationsHavePredictablePerformance() {
-      Writer<String, Integer> test = Writer.value(stringMonoid, 42);
+      Writer<String, Integer> test = valueWriter(42);
 
       long start = System.nanoTime();
       for (int i = 0; i < 10000; i++) {
-        test.map(x -> x + 1).flatMap(stringMonoid, x -> Writer.value(stringMonoid, x * 2)).value();
+        test.map(x -> x + 1).flatMap(STRING_MONOID, x -> valueWriter(x * 2)).value();
       }
       long duration = System.nanoTime() - start;
 
@@ -624,16 +553,21 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @Test
     @DisplayName("Log concatenation is efficient")
     void logConcatenationIsEfficient() {
-      Writer<String, Integer> start = Writer.value(stringMonoid, 1);
+      Writer<String, Integer> start = valueWriter(1);
 
       Writer<String, Integer> result = start;
       for (int i = 0; i < 100; i++) {
         final int iteration = i;
-        result = result.flatMap(stringMonoid, x -> new Writer<>("Step " + iteration + ";", x + 1));
+        result = result.flatMap(STRING_MONOID, x -> writerOf("Step " + iteration + ";", x + 1));
       }
 
-      assertThat(result.value()).isEqualTo(101);
-      assertThat(result.log()).contains("Step 0;").contains("Step 99;");
+      assertThatWriter(result)
+          .hasValue(101)
+          .satisfiesLog(
+              log -> {
+                assertThat(log).contains("Step 0;");
+                assertThat(log).contains("Step 99;");
+              });
     }
   }
 
@@ -644,23 +578,22 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     @Test
     @DisplayName("Writer maintains type safety across operations")
     void writerMaintainsTypeSafety() {
-      Writer<String, Number> numberWriter = Writer.value(stringMonoid, 42);
+      Writer<String, Number> numberWriter = valueWriter(42);
       Writer<String, Integer> intWriter =
-          numberWriter.flatMap(stringMonoid, n -> Writer.value(stringMonoid, n.intValue()));
+          numberWriter.flatMap(STRING_MONOID, n -> valueWriter(n.intValue()));
 
-      assertThat(intWriter.value()).isEqualTo(42);
+      assertThatWriter(intWriter).hasValue(42);
     }
 
     @Test
     @DisplayName("Writer works with complex generic types")
     void writerWorksWithComplexGenericTypes() {
-      Writer<String, java.util.List<Integer>> listWriter =
-          Writer.value(stringMonoid, java.util.List.of(1, 2, 3));
+      Writer<String, java.util.List<Integer>> listWriter = valueWriter(java.util.List.of(1, 2, 3));
 
       Writer<String, Integer> sumWriter =
           listWriter.map(list -> list.stream().mapToInt(Integer::intValue).sum());
 
-      assertThat(sumWriter.value()).isEqualTo(6);
+      assertThatWriter(sumWriter).hasValue(6);
     }
   }
 
@@ -673,40 +606,40 @@ class WriterTest extends TypeClassTestBase<WriterKind.Witness<String>, Integer, 
     void writerHandlesExtremeValuesCorrectly() {
       // Very large log
       String largeLog = "x".repeat(10000);
-      Writer<String, Integer> largeLogWriter = new Writer<>(largeLog, 42);
-      assertThat(largeLogWriter.log()).hasSize(10000);
+      Writer<String, Integer> largeLogWriter = writerOf(largeLog, 42);
+      assertThatWriter(largeLogWriter).satisfiesLog(log -> assertThat(log).hasSize(10000));
 
       // Maximum integer
-      Writer<String, Integer> maxIntWriter = Writer.value(stringMonoid, Integer.MAX_VALUE);
+      Writer<String, Integer> maxIntWriter = valueWriter(Integer.MAX_VALUE);
       Writer<String, Long> promoted = maxIntWriter.map(i -> i.longValue() + 1);
-      assertThat(promoted.value()).isEqualTo((long) Integer.MAX_VALUE + 1);
+      assertThatWriter(promoted).hasValue((long) Integer.MAX_VALUE + 1);
     }
 
     @Test
     @DisplayName("Writer operations are stack-safe for deep chains")
     void writerOperationsAreStackSafe() {
-      Writer<String, Integer> start = Writer.value(stringMonoid, 0);
+      Writer<String, Integer> start = valueWriter(0);
 
       Writer<String, Integer> result = start;
       for (int i = 0; i < 10000; i++) {
         result = result.map(x -> x + 1);
       }
 
-      assertThat(result.value()).isEqualTo(10000);
+      assertThatWriter(result).hasValue(10000);
     }
 
     @Test
     @DisplayName("Writer maintains referential transparency")
     void writerMaintainsReferentialTransparency() {
-      Writer<String, Integer> writer = Writer.value(stringMonoid, 42);
+      Writer<String, Integer> writer = valueWriter(42);
       Function<Integer, String> transform = i -> "value:" + i;
 
       Writer<String, String> result1 = writer.map(transform);
       Writer<String, String> result2 = writer.map(transform);
 
       assertThat(result1).isEqualTo(result2);
-      assertThat(result1.value()).isEqualTo(result2.value());
-      assertThat(result1.log()).isEqualTo(result2.log());
+      assertThatWriter(result1).isEqualTo(result2);
+      assertThatWriter(result1).isPure();
     }
   }
 }

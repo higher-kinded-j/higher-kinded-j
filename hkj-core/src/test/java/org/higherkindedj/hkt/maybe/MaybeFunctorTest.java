@@ -3,16 +3,13 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.maybe.MaybeAssert.assertThatMaybe;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,30 +17,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeFunctor Complete Test Suite")
-class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
+class MaybeFunctorTest extends MaybeTestBase {
   private MaybeFunctor functor;
   private Functor<MaybeKind.Witness> functorTyped;
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind() {
-    return MAYBE.widen(Maybe.just(42));
-  }
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
-    return MAYBE.widen(Maybe.just(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
-  }
 
   @BeforeEach
   void setUpFunctor() {
@@ -87,20 +63,17 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
     void mapOnJustAppliesFunction() {
       Kind<MaybeKind.Witness, String> result = functor.map(validMapper, validKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("42");
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(String.valueOf(DEFAULT_JUST_VALUE));
     }
 
     @Test
     @DisplayName("map() on Nothing returns Nothing")
     void mapOnNothingReturnsNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> nothingKind = nothingKind();
 
       Kind<MaybeKind.Witness, String> result = functor.map(validMapper, nothingKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
@@ -110,8 +83,7 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
 
       Kind<MaybeKind.Witness, String> result = functor.map(nullMapper, validKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
@@ -120,9 +92,7 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
       Kind<MaybeKind.Witness, String> result =
           functor.map(validMapper.andThen(String::toUpperCase), validKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("42");
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(String.valueOf(DEFAULT_JUST_VALUE));
     }
   }
 
@@ -178,16 +148,15 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
     @Test
     @DisplayName("map() preserves Nothing through chains")
     void mapPreservesNothingThroughChains() {
-      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
 
       Function<Integer, Integer> doubleFunc = i -> i * 2;
       Function<Integer, String> stringFunc = i -> "Value: " + i;
 
-      Kind<MaybeKind.Witness, Integer> intermediate = functor.map(doubleFunc, nothingKind);
+      Kind<MaybeKind.Witness, Integer> intermediate = functor.map(doubleFunc, nothing);
       Kind<MaybeKind.Witness, String> result = functor.map(stringFunc, intermediate);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(narrowToMaybe(result)).isNothing();
     }
 
     @Test
@@ -201,8 +170,7 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
           };
 
       Kind<MaybeKind.Witness, String> result = functor.map(complexMapper, validKind);
-      Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.get()).isEqualTo("positive:42");
+      assertThatMaybe(narrowToMaybe(result)).isJust().hasValue("positive:" + DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -212,7 +180,7 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
 
       Kind<MaybeKind.Witness, Integer> result = functor.map(identity, validKind);
 
-      assertThat(MAYBE.narrow(result)).isEqualTo(MAYBE.narrow(validKind));
+      assertThat(narrowToMaybe(result)).isEqualTo(narrowToMaybe(validKind));
     }
   }
 
@@ -239,7 +207,7 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
     @Test
     @DisplayName("Nothing optimisation - map not called")
     void nothingOptimisationMapNotCalled() {
-      Kind<MaybeKind.Witness, Integer> nothingKind = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
       AtomicBoolean called = new AtomicBoolean(false);
 
       Function<Integer, String> tracker =
@@ -248,7 +216,7 @@ class MaybeFunctorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, Str
             return i.toString();
           };
 
-      functor.map(tracker, nothingKind);
+      functor.map(tracker, nothing);
 
       assertThat(called).as("Mapper should not be called for Nothing").isFalse();
     }
