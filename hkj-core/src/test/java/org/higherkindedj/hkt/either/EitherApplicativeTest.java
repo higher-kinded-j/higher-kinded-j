@@ -220,7 +220,7 @@ class EitherApplicativeTest extends EitherTestBase {
     void mapNShortCircuitsOnFirstLeft() {
       Kind<EitherKind.Witness<String>, Integer> l1 = leftKind(TestErrorType.ERROR_1);
       Kind<EitherKind.Witness<String>, String> l2 = leftKind(TestErrorType.ERROR_2);
-      Kind<EitherKind.Witness<String>, Double> l3 = EITHER.widen(Either.left("E3"));
+      Kind<EitherKind.Witness<String>, Double> l3 = leftKind(TestErrorType.ERROR_3);
 
       Function3<Integer, String, Double, String> combiner = (i, s, d) -> "result";
 

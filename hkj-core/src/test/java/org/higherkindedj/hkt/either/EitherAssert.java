@@ -15,7 +15,7 @@ import org.assertj.core.api.AbstractAssert;
  * <h2>Usage Examples:</h2>
  *
  * <pre>{@code
- * import static org.higherkindedj.hkt.either.EitherAssert.assertThat;
+ * import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
  *
  * Either<String, Integer> right = Either.right(42);
  * assertThat(right)

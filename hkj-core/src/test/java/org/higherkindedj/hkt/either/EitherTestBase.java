@@ -59,7 +59,7 @@ abstract class EitherTestBase
     ERROR_1("E1"),
 
     /** Second error in a sequence - use for testing error propagation. */
-    ERROR_2("E2"),
+    ERROR_2("E2"), ERROR_3("E3"),
 
     /** Error that can be recovered from - use for error handling tests. */
     RECOVERABLE("RECOVERABLE_ERROR"),
