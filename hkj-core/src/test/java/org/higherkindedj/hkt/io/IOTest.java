@@ -4,15 +4,13 @@ package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.io.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.coverage.TestCoverageReporter;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,57 +18,32 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("IO Complete Test Suite")
-class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
+/**
+ * Comprehensive test suite for IO using standardised patterns.
+ *
+ * <p>Coverage includes factory methods, Functor/Monad operations, utility methods, object methods,
+ * algebraic laws, and performance characteristics.
+ */
+@DisplayName("IO<T> Complete Test Suite")
+class IOTest extends IOTestBase {
+
+  private final String testString = "Test Value";
+  private final IO<String> testIO = IO.delay(() -> testString);
+  private final RuntimeException testException = new RuntimeException("Test exception");
+  private final IO<String> failingTestIO =
+      IO.delay(
+          () -> {
+            throw testException;
+          });
 
   private IOMonad monad;
   private IOFunctor functor;
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind() {
-    return IO_OP.widen(IO.delay(() -> 42));
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind2() {
-    return IO_OP.widen(IO.delay(() -> 24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<IOKind.Witness, ?>, Kind<IOKind.Witness, ?>> createEqualityChecker() {
-    return (k1, k2) -> {
-      // Execute both IOs and compare their results using Object.equals()
-      // This works because we're comparing the actual values, not the types
-      Object v1 = IO_OP.narrow(castKind(k1)).unsafeRunSync();
-      Object v2 = IO_OP.narrow(castKind(k2)).unsafeRunSync();
-      return v1.equals(v2);
-    };
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <A> Kind<IOKind.Witness, A> castKind(Kind<IOKind.Witness, ?> kind) {
-    return (Kind<IOKind.Witness, A>) kind;
-  }
-
-  @Override
-  protected Function<Integer, Kind<IOKind.Witness, String>> createValidFlatMapper() {
-    return i -> IO_OP.widen(IO.delay(() -> "flat:" + i));
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, Function<Integer, String>> createValidFunctionKind() {
-    return IO_OP.widen(IO.delay(() -> TestFunctions.INT_TO_STRING));
-  }
 
   @BeforeEach
   void setUpIO() {
     monad = IOMonad.INSTANCE;
     functor = new IOFunctor();
+    validateRequiredFixtures();
   }
 
   @Nested
@@ -81,7 +54,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("Run complete IO test pattern")
     void runCompleteIOTestPattern() {
       CoreTypeTest.<Integer>io(IO.class)
-          .withIO(IO.delay(() -> 42))
+          .withIO(IO.delay(() -> DEFAULT_IO_VALUE))
           .withMapper(TestFunctions.INT_TO_STRING)
           .testAll();
     }
@@ -103,32 +76,31 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
                 return "executed";
               });
 
+      assertThatIO(lazyIO).isNotExecutedYet();
       assertThat(executed.get()).as("IO computation should not execute on creation").isFalse();
 
-      String result = lazyIO.unsafeRunSync();
-
+      assertThatIO(lazyIO).hasValue("executed");
       assertThat(executed.get())
           .as("IO computation should execute when unsafeRunSync is called")
           .isTrue();
-      assertThat(result).isEqualTo("executed");
     }
 
     @Test
     @DisplayName("Test IO map transforms result")
     void testMapTransformsResult() {
-      IO<Integer> io = IO.delay(() -> 42);
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
       IO<String> mapped = io.map(Object::toString);
 
-      assertThat(mapped.unsafeRunSync()).isEqualTo("42");
+      assertThatIO(mapped).hasValue(String.valueOf(DEFAULT_IO_VALUE));
     }
 
     @Test
     @DisplayName("Test IO flatMap chains computations")
     void testFlatMapChainsComputations() {
-      IO<Integer> io = IO.delay(() -> 42);
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
       IO<String> flatMapped = io.flatMap(i -> IO.delay(() -> "Result: " + i));
 
-      assertThat(flatMapped.unsafeRunSync()).isEqualTo("Result: 42");
+      assertThatIO(flatMapped).hasValue("Result: " + DEFAULT_IO_VALUE);
     }
 
     @Test
@@ -141,7 +113,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
           IO.delay(
               () -> {
                 executed1.set(true);
-                return 42;
+                return DEFAULT_IO_VALUE;
               });
 
       IO<String> io2 =
@@ -153,64 +125,54 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
                         return "Value: " + i;
                       }));
 
+      assertThatIO(io2).isNotExecutedYet();
       assertThat(executed1.get()).isFalse();
       assertThat(executed2.get()).isFalse();
 
-      String result = io2.unsafeRunSync();
-
+      assertThatIO(io2).hasValue("Value: " + DEFAULT_IO_VALUE);
       assertThat(executed1.get()).isTrue();
       assertThat(executed2.get()).isTrue();
-      assertThat(result).isEqualTo("Value: 42");
     }
 
     @Test
     @DisplayName("Test IO can return null")
     void testIOCanReturnNull() {
       IO<String> nullIO = IO.delay(() -> null);
-      assertThat(nullIO.unsafeRunSync()).isNull();
+      assertThatIO(nullIO).hasValueNull();
     }
 
     @Test
     @DisplayName("Test IO map propagates exceptions")
     void testMapPropagatesExceptions() {
-      IO<Integer> io = IO.delay(() -> 42);
-      RuntimeException testException = new RuntimeException("Test exception");
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
 
-      IO<String> mapped =
-          io.map(
-              i -> {
-                throw testException;
-              });
+      IO<String> mapped = io.map(TestFunctions.throwingFunction(testException));
 
-      assertThatThrownBy(mapped::unsafeRunSync).isSameAs(testException);
+      assertThatIO(mapped).throwsException(RuntimeException.class).withMessage("Test exception");
     }
 
     @Test
     @DisplayName("Test IO flatMap propagates exceptions")
     void testFlatMapPropagatesExceptions() {
-      IO<Integer> io = IO.delay(() -> 42);
-      RuntimeException testException = new RuntimeException("Test exception");
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
 
-      IO<String> flatMapped =
-          io.flatMap(
-              i -> {
-                throw testException;
-              });
+      IO<String> flatMapped = io.flatMap(TestFunctions.throwingFunction(testException));
 
-      assertThatThrownBy(flatMapped::unsafeRunSync).isSameAs(testException);
+      assertThatIO(flatMapped)
+          .throwsException(RuntimeException.class)
+          .withMessage("Test exception");
     }
 
     @Test
     @DisplayName("Test IO flatMap validates non-null result")
     void testFlatMapValidatesNonNullResult() {
-      IO<Integer> io = IO.delay(() -> 42);
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
 
       IO<String> flatMapped = io.flatMap(i -> null);
 
-      assertThatThrownBy(flatMapped::unsafeRunSync)
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in IO.flatMap returned null when IO expected, which is not allowed");
+      assertThatIO(flatMapped)
+          .throwsException(KindUnwrapException.class)
+          .withMessageContaining("flatMap returned null");
     }
   }
 
@@ -224,25 +186,22 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       Kind<IOKind.Witness, String> result = functor.map(validMapper, validKind);
 
       assertThat(result).isNotNull();
-      assertThat(IO_OP.narrow(result).unsafeRunSync()).isEqualTo("42");
+      assertThatIO(narrowToIO(result)).hasValue(String.valueOf(DEFAULT_IO_VALUE));
     }
 
     @Test
     @DisplayName("Test functor map composition")
     void testFunctorMapComposition() {
-      Function<String, Integer> secondMapper = String::length;
-
       Kind<IOKind.Witness, String> mapped1 = functor.map(validMapper, validKind);
-      Kind<IOKind.Witness, Integer> mapped2 = functor.map(secondMapper, mapped1);
+      Kind<IOKind.Witness, Integer> mapped2 = functor.map(String::length, mapped1);
 
-      assertThat(IO_OP.narrow(mapped2).unsafeRunSync()).isEqualTo(2);
+      assertThatIO(narrowToIO(mapped2)).hasValue(String.valueOf(DEFAULT_IO_VALUE).length());
     }
 
     @Test
     @DisplayName("Test functor identity law")
     void testFunctorIdentityLaw() {
-      Function<Integer, Integer> identity = i -> i;
-      Kind<IOKind.Witness, Integer> mapped = functor.map(identity, validKind);
+      Kind<IOKind.Witness, Integer> mapped = functor.map(i -> i, validKind);
 
       assertThat(equalityChecker.test(mapped, validKind))
           .as("Functor identity law: map(id, fa) == fa")
@@ -252,15 +211,13 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("Test functor composition law")
     void testFunctorCompositionLaw() {
-      Function<String, Integer> g = String::length;
-
       // Left side: map(g ∘ f, fa)
-      Function<Integer, Integer> composed = validMapper.andThen(g);
-      Kind<IOKind.Witness, Integer> leftSide = functor.map(composed, validKind);
+      Kind<IOKind.Witness, Integer> leftSide =
+          functor.map(validMapper.andThen(String::length), validKind);
 
       // Right side: map(g, map(f, fa))
       Kind<IOKind.Witness, String> intermediate = functor.map(validMapper, validKind);
-      Kind<IOKind.Witness, Integer> rightSide = functor.map(g, intermediate);
+      Kind<IOKind.Witness, Integer> rightSide = functor.map(String::length, intermediate);
 
       assertThat(equalityChecker.test(leftSide, rightSide))
           .as("Functor composition law: map(g ∘ f, fa) == map(g, map(f, fa))")
@@ -278,17 +235,16 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       Kind<IOKind.Witness, String> result = monad.flatMap(validFlatMapper, validKind);
 
       assertThat(result).isNotNull();
-      assertThat(IO_OP.narrow(result).unsafeRunSync()).isEqualTo("flat:42");
+      assertThatIO(narrowToIO(result)).hasValue("flat:" + DEFAULT_IO_VALUE);
     }
 
     @Test
     @DisplayName("Test monad left identity law")
     void testMonadLeftIdentityLaw() {
-      Integer testValue = 42;
-      Kind<IOKind.Witness, Integer> ofValue = monad.of(testValue);
+      Kind<IOKind.Witness, Integer> ofValue = monad.of(DEFAULT_IO_VALUE);
 
       Kind<IOKind.Witness, String> leftSide = monad.flatMap(validFlatMapper, ofValue);
-      Kind<IOKind.Witness, String> rightSide = validFlatMapper.apply(testValue);
+      Kind<IOKind.Witness, String> rightSide = validFlatMapper.apply(DEFAULT_IO_VALUE);
 
       assertThat(equalityChecker.test(leftSide, rightSide))
           .as("Monad left identity law: flatMap(of(a), f) == f(a)")
@@ -298,8 +254,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("Test monad right identity law")
     void testMonadRightIdentityLaw() {
-      Function<Integer, Kind<IOKind.Witness, Integer>> ofFunc = monad::of;
-      Kind<IOKind.Witness, Integer> leftSide = monad.flatMap(ofFunc, validKind);
+      Kind<IOKind.Witness, Integer> leftSide = monad.flatMap(monad::of, validKind);
 
       assertThat(equalityChecker.test(leftSide, validKind))
           .as("Monad right identity law: flatMap(m, of) == m")
@@ -309,17 +264,13 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("Test monad associativity law")
     void testMonadAssociativityLaw() {
-      Function<String, Kind<IOKind.Witness, String>> chainFunction =
-          s -> IO_OP.widen(IO.delay(() -> s + "!"));
-
       // Left side: flatMap(flatMap(m, f), g)
       Kind<IOKind.Witness, String> innerFlatMap = monad.flatMap(validFlatMapper, validKind);
       Kind<IOKind.Witness, String> leftSide = monad.flatMap(chainFunction, innerFlatMap);
 
       // Right side: flatMap(m, x -> flatMap(f(x), g))
-      Function<Integer, Kind<IOKind.Witness, String>> rightSideFunc =
-          i -> monad.flatMap(chainFunction, validFlatMapper.apply(i));
-      Kind<IOKind.Witness, String> rightSide = monad.flatMap(rightSideFunc, validKind);
+      Kind<IOKind.Witness, String> rightSide =
+          monad.flatMap(i -> monad.flatMap(chainFunction, validFlatMapper.apply(i)), validKind);
 
       assertThat(equalityChecker.test(leftSide, rightSide)).as("Monad associativity law").isTrue();
     }
@@ -341,7 +292,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("Test IO.map validates null mapper")
     void testMapValidatesNullMapper() {
-      IO<Integer> io = IO.delay(() -> 42);
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
 
       assertThatThrownBy(() -> io.map(null))
           .isInstanceOf(NullPointerException.class)
@@ -351,7 +302,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("Test IO.flatMap validates null mapper")
     void testFlatMapValidatesNullMapper() {
-      IO<Integer> io = IO.delay(() -> 42);
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
 
       assertThatThrownBy(() -> io.flatMap(null))
           .isInstanceOf(NullPointerException.class)
@@ -400,7 +351,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("Test widen/narrow round-trip preserves identity")
     void testRoundTripPreservesIdentity() {
-      IO<Integer> original = IO.delay(() -> 42);
+      IO<Integer> original = IO.delay(() -> DEFAULT_IO_VALUE);
       Kind<IOKind.Witness, Integer> widened = IO_OP.widen(original);
       IO<Integer> narrowed = IO_OP.narrow(widened);
 
@@ -419,7 +370,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("Test narrow validates null Kind")
     void testNarrowValidatesNullKind() {
       assertThatThrownBy(() -> IO_OP.narrow(null))
-          .isInstanceOf(org.higherkindedj.hkt.exception.KindUnwrapException.class)
+          .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("IO");
     }
 
@@ -429,17 +380,17 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       Kind<IOKind.Witness, String> kind = IO_OP.delay(() -> "test");
 
       assertThat(kind).isNotNull();
-      assertThat(IO_OP.unsafeRunSync(kind)).isEqualTo("test");
+      assertThatIO(narrowToIO(kind)).hasValue("test");
     }
 
     @Test
     @DisplayName("Test unsafeRunSync helper executes IO")
     void testUnsafeRunSyncHelperExecutesIO() {
-      Kind<IOKind.Witness, Integer> kind = IO_OP.widen(IO.delay(() -> 42));
+      Kind<IOKind.Witness, Integer> kind = IO_OP.widen(IO.delay(() -> DEFAULT_IO_VALUE));
 
       Integer result = IO_OP.unsafeRunSync(kind);
 
-      assertThat(result).isEqualTo(42);
+      assertThat(result).isEqualTo(DEFAULT_IO_VALUE);
     }
   }
 
@@ -450,11 +401,9 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("Test nested IO execution")
     void testNestedIOExecution() {
-      IO<IO<Integer>> nested = IO.delay(() -> IO.delay(() -> 42));
-      IO<Integer> inner = nested.unsafeRunSync();
-      Integer result = inner.unsafeRunSync();
-
-      assertThat(result).isEqualTo(42);
+      IO<IO<Integer>> nested = IO.delay(() -> IO.delay(() -> DEFAULT_IO_VALUE));
+      assertThatIO(nested)
+          .hasValueSatisfying(inner -> assertThatIO(inner).hasValue(DEFAULT_IO_VALUE));
     }
 
     @Test
@@ -470,12 +419,12 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThat(executed.get()).isFalse();
 
-      io.unsafeRunSync();
+      assertThatIO(io).hasValue("executed");
       assertThat(executed.get()).isTrue();
 
       // Reset and run again
       executed.set(false);
-      io.unsafeRunSync();
+      assertThatIO(io).hasValue("executed");
       assertThat(executed.get()).isTrue();
     }
 
@@ -488,17 +437,15 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
           IO.delay(
               () -> {
                 executed.set(true);
-                return 42;
+                return DEFAULT_IO_VALUE;
               });
 
       IO<String> mapped = io.map(Object::toString).map(s -> s + "!");
 
       assertThat(executed.get()).isFalse();
 
-      String result = mapped.unsafeRunSync();
-
+      assertThatIO(mapped).hasValue(DEFAULT_IO_VALUE + "!");
       assertThat(executed.get()).isTrue();
-      assertThat(result).isEqualTo("42!");
     }
 
     @Test
@@ -511,7 +458,7 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
           IO.delay(
               () -> {
                 executed1.set(true);
-                return 42;
+                return DEFAULT_IO_VALUE;
               });
 
       IO<String> chained =
@@ -527,11 +474,90 @@ class IOTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       assertThat(executed1.get()).isFalse();
       assertThat(executed2.get()).isFalse();
 
-      String result = chained.unsafeRunSync();
-
+      assertThatIO(chained).hasValue(DEFAULT_IO_VALUE + "!");
       assertThat(executed1.get()).isTrue();
       assertThat(executed2.get()).isTrue();
-      assertThat(result).isEqualTo("42!");
+    }
+
+    @Test
+    @DisplayName("Test IO is repeatable")
+    void testIOIsRepeatable() {
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
+      assertThatIO(io).isRepeatable();
+
+      IO<String> mappedIO = io.map(Object::toString);
+      assertThatIO(mappedIO).isRepeatable();
+    }
+
+    @Test
+    @DisplayName("Test IO with exceptions is consistently failing")
+    void testIOWithExceptionsIsConsistentlyFailing() {
+      assertThatIO(failingTestIO)
+          .throwsException(RuntimeException.class)
+          .withMessage("Test exception");
+
+      // Should throw same exception on second execution
+      assertThatIO(failingTestIO)
+          .throwsException(RuntimeException.class)
+          .withMessage("Test exception");
+    }
+  }
+
+  @Nested
+  @DisplayName("IOAssert Verification Tests")
+  class IOAssertVerificationTests {
+
+    @Test
+    @DisplayName("IOAssert whenExecuted works correctly")
+    void testWhenExecuted() {
+      assertThatIO(testIO).whenExecuted().hasValue(testString);
+    }
+
+    @Test
+    @DisplayName("IOAssert hasValueSatisfying works correctly")
+    void testHasValueSatisfying() {
+      assertThatIO(testIO)
+          .hasValueSatisfying(
+              value -> {
+                assertThat(value).isEqualTo(testString);
+                assertThat(value).isNotEmpty();
+              });
+    }
+
+    @Test
+    @DisplayName("IOAssert hasValueNonNull works correctly")
+    void testHasValueNonNull() {
+      assertThatIO(testIO).hasValueNonNull();
+    }
+
+    @Test
+    @DisplayName("IOAssert completesSuccessfully works correctly")
+    void testCompletesSuccessfully() {
+      assertThatIO(testIO).completesSuccessfully();
+    }
+
+    @Test
+    @DisplayName("IOAssert throwsException works correctly")
+    void testThrowsException() {
+      assertThatIO(failingTestIO).throwsException(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("IOAssert withMessageContaining works correctly")
+    void testWithMessageContaining() {
+      assertThatIO(failingTestIO)
+          .throwsException(RuntimeException.class)
+          .withMessageContaining("Test");
+    }
+
+    @Test
+    @DisplayName("IOAssert getValue and getException work correctly")
+    void testGetValueAndGetException() {
+      assertThatIO(testIO).whenExecuted();
+      assertThat(assertThatIO(testIO).getValue()).isEqualTo(testString);
+
+      assertThatIO(failingTestIO).whenExecuted();
+      assertThat(assertThatIO(failingTestIO).getException()).isInstanceOf(RuntimeException.class);
     }
   }
 

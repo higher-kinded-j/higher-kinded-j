@@ -90,7 +90,7 @@ final class IOTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IOValida
 
     // Map validations - test through the Functor interface if custom context provided
     if (validationStage != null && validationStage.getMapContext() != null) {
-      IOFunctor functor = new IOFunctor();
+      IOFunctor functor = IOFunctor.INSTANCE;
       Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
       builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
     } else {

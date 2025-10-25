@@ -28,13 +28,12 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
 
   private static final Class<IOApplicative> IO_APPLICATIVE_CLASS = IOApplicative.class;
 
-  /**
-   * Constructs a new {@code IOApplicative} instance. This constructor is public to allow
-   * instantiation where needed, although typically applicative operations are accessed via an
-   * {@link IOMonad} instance.
-   */
-  public IOApplicative() {
-    // Default constructor
+  /** Singleton instance of {@code IOMonad}. */
+  public static final IOApplicative INSTANCE = new IOApplicative();
+
+  /** Private constructor to enforce the singleton pattern. */
+  protected IOApplicative() {
+    super();
   }
 
   /**
