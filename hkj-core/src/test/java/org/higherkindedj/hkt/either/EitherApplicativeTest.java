@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
-import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
