@@ -3,23 +3,21 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("LazyKindHelper Complete Test Suite")
-class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
+class LazyKindHelperTest extends LazyTestBase {
 
   private static final ThrowableSupplier<String> BASE_COMPUTATION = () -> "Result";
   private static final Lazy<String> BASE_LAZY = Lazy.defer(BASE_COMPUTATION);
@@ -38,37 +36,6 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
   private static final Lazy<String> CHECKED_FAILING_LAZY =
       Lazy.defer(CHECKED_EXCEPTION_COMPUTATION);
 
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind() {
-    return LAZY.widen(Lazy.defer(() -> "TestValue"));
-  }
-
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind2() {
-    return LAZY.widen(Lazy.defer(() -> "TestValue2"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected BiPredicate<Kind<LazyKind.Witness, ?>, Kind<LazyKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      try {
-        Lazy<?> lazy1 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k1);
-        Lazy<?> lazy2 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k2);
-        Object v1 = lazy1.force();
-        Object v2 = lazy2.force();
-        return v1 != null ? v1.equals(v2) : v2 == null;
-      } catch (Throwable e) {
-        return false;
-      }
-    };
-  }
-
   @Nested
   @DisplayName("Complete LazyKindHelper Test Suite")
   class CompleteLazyKindHelperTestSuite {
@@ -78,7 +45,7 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     void runCompleteLazyKindHelperTestsUsingBaseFixtures() {
       validateRequiredFixtures();
 
-      Lazy<String> instance = LAZY.narrow(validKind);
+      Lazy<Integer> instance = narrowToLazy(validKind);
       CoreTypeTest.lazyKindHelper(instance).test();
     }
 
@@ -101,10 +68,6 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     }
   }
 
-  // ============================================================================
-  // Widen Operations
-  // ============================================================================
-
   @Nested
   @DisplayName("widen() Operations")
   class WidenTests {
@@ -115,7 +78,7 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
       Kind<LazyKind.Witness, String> kind = LAZY.widen(BASE_LAZY);
 
       assertThat(kind).isInstanceOf(LazyKindHelper.LazyHolder.class);
-      assertThat(LAZY.narrow(kind)).isSameAs(BASE_LAZY);
+      assertThat(narrowToLazy(kind)).isSameAs(BASE_LAZY);
     }
 
     @Test
@@ -141,15 +104,11 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
 
       assertThat(counter.get()).isZero();
 
-      String result = LAZY.force(widened);
+      String result = forceLazy(widened);
       assertThat(result).isEqualTo("test");
       assertThat(counter.get()).isEqualTo(1);
     }
   }
-
-  // ============================================================================
-  // Narrow Operations
-  // ============================================================================
 
   @Nested
   @DisplayName("narrow() Operations")
@@ -160,13 +119,13 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     void narrowShouldReturnOriginalLazy() {
       Kind<LazyKind.Witness, String> kind = LAZY.widen(BASE_LAZY);
 
-      assertThat(LAZY.narrow(kind)).isSameAs(BASE_LAZY);
+      assertThat(narrowToLazy(kind)).isSameAs(BASE_LAZY);
     }
 
     @Test
     @DisplayName("narrow should throw for null input")
     void narrowShouldThrowForNullInput() {
-      assertThatThrownBy(() -> LAZY.narrow(null))
+      assertThatThrownBy(() -> narrowToLazy(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("Lazy"));
     }
@@ -177,7 +136,7 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
       record DummyOtherKind<A>() implements Kind<LazyKind.Witness, A> {}
       Kind<LazyKind.Witness, String> unknownKind = new DummyOtherKind<>();
 
-      assertThatThrownBy(() -> LAZY.narrow(unknownKind))
+      assertThatThrownBy(() -> narrowToLazy(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
               "Kind instance cannot be narrowed to " + Lazy.class.getSimpleName());
@@ -188,16 +147,12 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     void narrowShouldPreserveComputationState() throws Throwable {
       Lazy<String> original = Lazy.now("PreComputed");
       Kind<LazyKind.Witness, String> widened = LAZY.widen(original);
-      Lazy<String> narrowed = LAZY.narrow(widened);
+      Lazy<String> narrowed = narrowToLazy(widened);
 
       assertThat(narrowed.toString()).contains("PreComputed");
-      assertThat(narrowed.force()).isEqualTo("PreComputed");
+      assertThatLazy(narrowed).hasValue("PreComputed");
     }
   }
-
-  // ============================================================================
-  // Helper Factory Methods
-  // ============================================================================
 
   @Nested
   @DisplayName("Helper Factory Methods")
@@ -217,12 +172,12 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
 
       assertThat(counter.get()).isZero();
 
-      Lazy<Integer> lazy = LAZY.narrow(kind);
-      assertThat(lazy.force()).isEqualTo(42);
+      Lazy<Integer> lazy = narrowToLazy(kind);
+      assertThatLazy(lazy).whenForcedHasValue(42);
       assertThat(counter.get()).isEqualTo(1);
 
       // Second force should use memoised value
-      assertThat(lazy.force()).isEqualTo(42);
+      assertThatLazy(lazy).whenForcedHasValue(42);
       assertThat(counter.get()).isEqualTo(1);
     }
 
@@ -242,8 +197,8 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
 
       assertThat(counter.get()).isZero();
 
-      Lazy<String> lazy = LAZY.narrow(kind);
-      assertThat(lazy.force()).isEqualTo("Precomputed");
+      Lazy<String> lazy = narrowToLazy(kind);
+      assertThatLazy(lazy).whenForcedHasValue("Precomputed");
       assertThat(counter.get()).isZero();
     }
 
@@ -251,15 +206,11 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     @DisplayName("now should wrap null value")
     void nowShouldWrapNullValue() throws Throwable {
       Kind<LazyKind.Witness, String> kind = LAZY.now(null);
-      Lazy<String> lazy = LAZY.narrow(kind);
+      Lazy<String> lazy = narrowToLazy(kind);
 
       assertThat(lazy.force()).isNull();
     }
   }
-
-  // ============================================================================
-  // Force Operations
-  // ============================================================================
 
   @Nested
   @DisplayName("force() Operations")
@@ -277,11 +228,11 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
               });
 
       assertThat(counter.get()).isZero();
-      assertThat(LAZY.force(kind)).isEqualTo("Executed");
+      assertThat(forceLazy(kind)).isEqualTo("Executed");
       assertThat(counter.get()).isEqualTo(1);
 
       // Second force should use memoised value
-      assertThat(LAZY.force(kind)).isEqualTo("Executed");
+      assertThat(forceLazy(kind)).isEqualTo("Executed");
       assertThat(counter.get()).isEqualTo(1);
     }
 
@@ -290,7 +241,7 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     void forceShouldPropagateRuntimeExceptionFromLazy() {
       Kind<LazyKind.Witness, String> failingKind = LAZY.widen(FAILING_LAZY);
 
-      assertThatThrownBy(() -> LAZY.force(failingKind))
+      assertThatThrownBy(() -> forceLazy(failingKind))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(TEST_EXCEPTION);
     }
@@ -300,7 +251,7 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     void forceShouldPropagateCheckedExceptionFromLazy() {
       Kind<LazyKind.Witness, String> checkedFailingKind = LAZY.widen(CHECKED_FAILING_LAZY);
 
-      Throwable thrown = catchThrowable(() -> LAZY.force(checkedFailingKind));
+      Throwable thrown = catchThrowable(() -> forceLazy(checkedFailingKind));
       assertThat(thrown).isInstanceOf(IOException.class).hasMessage("Checked IO Failure");
     }
 
@@ -315,13 +266,9 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     void forceShouldHandleNullResultsCorrectly() throws Throwable {
       Kind<LazyKind.Witness, String> kind = LAZY.defer(() -> null);
 
-      assertThat(LAZY.force(kind)).isNull();
+      assertThat(forceLazy(kind)).isNull();
     }
   }
-
-  // ============================================================================
-  // Round-Trip Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Round-Trip Tests")
@@ -331,7 +278,7 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
     @DisplayName("Round-trip should preserve identity")
     void roundTripShouldPreserveIdentity() {
       Kind<LazyKind.Witness, String> widened = LAZY.widen(BASE_LAZY);
-      Lazy<String> narrowed = LAZY.narrow(widened);
+      Lazy<String> narrowed = narrowToLazy(widened);
 
       assertThat(narrowed).isSameAs(BASE_LAZY);
     }
@@ -343,16 +290,12 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
 
       for (int i = 0; i < 5; i++) {
         Kind<LazyKind.Witness, String> widened = LAZY.widen(current);
-        current = LAZY.narrow(widened);
+        current = narrowToLazy(widened);
       }
 
       assertThat(current).isSameAs(BASE_LAZY);
     }
   }
-
-  // ============================================================================
-  // Edge Cases
-  // ============================================================================
 
   @Nested
   @DisplayName("Edge Cases")
@@ -372,10 +315,10 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
       Kind<LazyKind.Witness, String> kind = LAZY.widen(lazy);
       assertThat(sideEffect.get()).isZero();
 
-      LAZY.force(kind);
+      forceLazy(kind);
       assertThat(sideEffect.get()).isEqualTo(1);
 
-      LAZY.force(kind);
+      forceLazy(kind);
       assertThat(sideEffect.get()).isEqualTo(1); // Side effect only once
     }
 
@@ -394,18 +337,14 @@ class LazyKindHelperTest extends TypeClassTestBase<LazyKind.Witness, String, Int
 
       Kind<LazyKind.Witness, String> kind = LAZY.widen(lazy);
 
-      String first = LAZY.force(kind);
-      String second = LAZY.force(kind);
+      String first = forceLazy(kind);
+      String second = forceLazy(kind);
 
       assertThat(first).isEqualTo("result");
       assertThat(second).isEqualTo("result");
       assertThat(callCount.get()).isEqualTo(1);
     }
   }
-
-  // ============================================================================
-  // Individual Component Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Individual Component Tests")
