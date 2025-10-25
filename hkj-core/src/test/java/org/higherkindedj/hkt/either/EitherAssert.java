@@ -46,7 +46,7 @@ public class EitherAssert<L, R> extends AbstractAssert<EitherAssert<L, R>, Eithe
    * <p>This is the entry point for all Either assertions. Import statically for best readability:
    *
    * <pre>{@code
-   * import static org.higherkindedj.hkt.either.EitherAssert.assertThat;
+   * import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
    * }</pre>
    *
    * @param <L> The type of the Left value
