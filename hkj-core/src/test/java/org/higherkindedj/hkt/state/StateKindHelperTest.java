@@ -3,89 +3,28 @@
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.*;
 import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("StateKindHelper Tests")
-class StateKindHelperTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, String> {
+class StateKindHelperTest extends StateTestBase<Integer> {
 
   // Simple Integer state for testing
-  private final Integer initialState = 100;
-  // Explicitly type lambda parameter 's' to ensure it's Integer
+  // Uses getInitialState() which returns 10 by default
   private final State<Integer, String> baseState =
       State.of((Integer s) -> new StateTuple<>("V:" + s, s + 1));
 
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind() {
-    return STATE.widen(State.of((Integer s) -> new StateTuple<>(s + 1, s + 1)));
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind2() {
-    return STATE.widen(State.of((Integer s) -> new StateTuple<>(s * 2, s * 2)));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected BiPredicate<Kind<StateKind.Witness<Integer>, ?>, Kind<StateKind.Witness<Integer>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      StateTuple<Integer, ?> result1 = STATE.runState(k1, initialState);
-      StateTuple<Integer, ?> result2 = STATE.runState(k2, initialState);
-      return result1.equals(result2);
-    };
-  }
-
-  @Override
-  protected Function<String, String> createSecondMapper() {
-    return String::toUpperCase;
-  }
-
-  @Override
-  protected Function<Integer, Kind<StateKind.Witness<Integer>, String>> createValidFlatMapper() {
-    return i -> STATE.widen(State.pure(String.valueOf(i)));
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Function<Integer, String>> createValidFunctionKind() {
-    return STATE.widen(State.pure(validMapper));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (i1, i2) -> String.valueOf(i1 + i2);
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected Function<Integer, Kind<StateKind.Witness<Integer>, String>> createTestFunction() {
-    return i -> STATE.widen(State.pure(i.toString()));
-  }
-
-  @Override
-  protected Function<String, Kind<StateKind.Witness<Integer>, String>> createChainFunction() {
-    return s -> STATE.widen(State.pure(s + "!"));
-  }
+  // No need to override getInitialState() or getAlternativeState()
+  // We use the defaults from StateTestBase
 
   @Nested
   @DisplayName("STATE.widen()")
@@ -147,18 +86,18 @@ class StateKindHelperTest extends TypeClassTestBase<StateKind.Witness<Integer>, 
     @DisplayName("pure should wrap State.pure")
     void pureShouldWrapStatePure() {
       Kind<StateKind.Witness<Integer>, String> kind = STATE.pure("pureValue");
-      StateTuple<Integer, String> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isEqualTo("pureValue");
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> result = runState(kind, getInitialState());
+
+      assertThatStateTuple(result).hasValue("pureValue").hasState(getInitialState());
     }
 
     @Test
     @DisplayName("get should wrap State.get")
     void getShouldWrapStateGet() {
       Kind<StateKind.Witness<Integer>, Integer> kind = STATE.get();
-      StateTuple<Integer, Integer> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isEqualTo(initialState);
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, Integer> result = runState(kind, getInitialState());
+
+      assertThatStateTuple(result).hasValue(getInitialState()).hasState(getInitialState());
     }
 
     @Test
@@ -166,29 +105,31 @@ class StateKindHelperTest extends TypeClassTestBase<StateKind.Witness<Integer>, 
     void setShouldWrapStateSet() {
       Integer newState = 555;
       Kind<StateKind.Witness<Integer>, Unit> kind = STATE.set(newState);
-      StateTuple<Integer, Unit> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
-      assertThat(result.state()).isEqualTo(newState);
+      StateTuple<Integer, Unit> result = runState(kind, getInitialState());
+
+      assertThatStateTuple(result).hasValue(Unit.INSTANCE).hasState(newState);
     }
 
     @Test
     @DisplayName("modify should wrap State.modify")
     void modifyShouldWrapStateModify() {
-      Function<Integer, Integer> tripler = s -> s * 3;
+      java.util.function.Function<Integer, Integer> tripler = s -> s * 3;
       Kind<StateKind.Witness<Integer>, Unit> kind = STATE.modify(tripler);
-      StateTuple<Integer, Unit> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isEqualTo(Unit.INSTANCE);
-      assertThat(result.state()).isEqualTo(300);
+      StateTuple<Integer, Unit> result = runState(kind, getInitialState());
+
+      assertThatStateTuple(result).hasValue(Unit.INSTANCE).hasState(30); // 10 * 3 = 30
     }
 
     @Test
     @DisplayName("inspect should wrap State.inspect")
     void inspectShouldWrapStateInspect() {
-      Function<Integer, String> describe = s -> "State is " + s;
+      java.util.function.Function<Integer, String> describe = s -> "State is " + s;
       Kind<StateKind.Witness<Integer>, String> kind = STATE.inspect(describe);
-      StateTuple<Integer, String> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isEqualTo("State is 100");
-      assertThat(result.state()).isEqualTo(initialState);
+      StateTuple<Integer, String> result = runState(kind, getInitialState());
+
+      assertThatStateTuple(result)
+          .hasValue("State is 10") // getInitialState() = 10
+          .hasState(getInitialState());
     }
   }
 
@@ -201,43 +142,45 @@ class StateKindHelperTest extends TypeClassTestBase<StateKind.Witness<Integer>, 
     @Test
     @DisplayName("runState should execute and return tuple")
     void runStateShouldExecuteAndReturnTuple() {
-      StateTuple<Integer, String> result = STATE.runState(kind, initialState);
-      assertThat(result.value()).isEqualTo("V:100");
-      assertThat(result.state()).isEqualTo(101);
+      StateTuple<Integer, String> result = runState(kind, getInitialState());
+
+      assertThatStateTuple(result)
+          .hasValue("V:10") // getInitialState() = 10
+          .hasState(11); // 10 + 1 = 11
     }
 
     @Test
     @DisplayName("evalState should execute and return value")
     void evalStateShouldExecuteAndReturnValue() {
-      String value = STATE.evalState(kind, initialState);
-      assertThat(value).isEqualTo("V:100");
+      String value = evalState(kind, getInitialState());
+      assertThat(value).isEqualTo("V:10");
     }
 
     @Test
     @DisplayName("execState should execute and return state")
     void execStateShouldExecuteAndReturnState() {
-      Integer finalState = STATE.execState(kind, initialState);
-      assertThat(finalState).isEqualTo(101);
+      Integer finalState = execState(kind, getInitialState());
+      assertThat(finalState).isEqualTo(11); // 10 + 1 = 11
     }
 
     @Test
     @DisplayName("runState should throw if Kind is invalid")
     void runStateShouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> STATE.runState(null, initialState))
+      assertThatThrownBy(() -> runState(null, getInitialState()))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("evalState should throw if Kind is invalid")
     void evalStateShouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> STATE.evalState(null, initialState))
+      assertThatThrownBy(() -> evalState(null, getInitialState()))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("execState should throw if Kind is invalid")
     void execStateShouldThrowIfKindIsInvalid() {
-      assertThatThrownBy(() -> STATE.execState(null, initialState))
+      assertThatThrownBy(() -> execState(null, getInitialState()))
           .isInstanceOf(NullPointerException.class);
     }
   }
