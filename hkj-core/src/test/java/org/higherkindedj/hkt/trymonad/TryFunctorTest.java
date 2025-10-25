@@ -3,60 +3,26 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.trymonad.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("TryFunctor Complete Test Suite")
-class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
+class TryFunctorTest extends TryTestBase {
 
   private TryFunctor functor;
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind() {
-    return TryKindHelper.TRY.widen(Try.success("test value"));
-  }
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind2() {
-    return TryKindHelper.TRY.widen(Try.success("second value"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected BiPredicate<Kind<TryKind.Witness, ?>, Kind<TryKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Try<?> t1 = TryKindHelper.TRY.narrow(k1);
-      Try<?> t2 = TryKindHelper.TRY.narrow(k2);
-      return t1.equals(t2);
-    };
-  }
-
-  @Override
-  protected Function<Integer, String> createSecondMapper() {
-    return Object::toString;
-  }
 
   @BeforeEach
   void setUpFunctor() {
     functor = new TryFunctor();
   }
-
-  // ============================================================================
-  // Complete Test Suite Using Framework
-  // ============================================================================
 
   @Nested
   @DisplayName("Complete Test Suite")
@@ -96,10 +62,6 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
           .testValidations();
     }
   }
-
-  // ============================================================================
-  // Individual Component Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Individual Components")
@@ -152,10 +114,6 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
     }
   }
 
-  // ============================================================================
-  // Operation Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Operation Tests")
   class OperationTests {
@@ -163,42 +121,39 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
     @Test
     @DisplayName("map() on Success should transform value")
     void map_onSuccess_shouldTransformValue() {
-      Kind<TryKind.Witness, String> success = TryKindHelper.TRY.widen(Try.success("hello"));
+      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("hello"));
       Kind<TryKind.Witness, Integer> result = functor.map(String::length, success);
 
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(5)).doesNotThrowAnyException();
+      Try<Integer> tryResult = TRY.narrow(result);
+      assertThatTry(tryResult).isSuccess().hasValue(5);
     }
 
     @Test
     @DisplayName("map() on Failure should preserve Failure")
     void map_onFailure_shouldPreserveFailure() {
       RuntimeException exception = new RuntimeException("Test failure");
-      Kind<TryKind.Witness, String> failure = TryKindHelper.TRY.widen(Try.failure(exception));
+      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
       Kind<TryKind.Witness, Integer> result = functor.map(String::length, failure);
 
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(exception);
+      Try<Integer> tryResult = TRY.narrow(result);
+      assertThatTry(tryResult).isFailure().hasException(exception);
     }
 
     @Test
     @DisplayName("map() should return Success with null if mapper returns null")
     void map_shouldReturnSuccessWithNullIfMapperReturnsNull() {
-      Kind<TryKind.Witness, String> success = TryKindHelper.TRY.widen(Try.success("test"));
+      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("test"));
       Function<String, Integer> nullMapper = s -> null;
       Kind<TryKind.Witness, Integer> result = functor.map(nullMapper, success);
 
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isNull()).doesNotThrowAnyException();
+      Try<Integer> tryResult = TRY.narrow(result);
+      assertThatTry(tryResult).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
     }
 
     @Test
     @DisplayName("map() should capture exception thrown by mapper")
     void map_shouldCaptureExceptionThrownByMapper() {
-      Kind<TryKind.Witness, String> success = TryKindHelper.TRY.widen(Try.success("test"));
+      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("test"));
       RuntimeException mapperException = new RuntimeException("Mapper failed");
       Function<String, Integer> throwingMapper =
           s -> {
@@ -206,16 +161,11 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
           };
 
       Kind<TryKind.Witness, Integer> result = functor.map(throwingMapper, success);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(mapperException);
+      assertThatTry(tryResult).isFailure().hasException(mapperException);
     }
   }
-
-  // ============================================================================
-  // Validation Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Validation Tests")
@@ -238,10 +188,6 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
     }
   }
 
-  // ============================================================================
-  // Exception Propagation Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Exception Propagation Tests")
   class ExceptionPropagationTests {
@@ -256,10 +202,9 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
           };
 
       Kind<TryKind.Witness, Integer> result = functor.map(throwingMapper, validKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(testException);
+      assertThatTry(tryResult).isFailure().hasException(testException);
     }
 
     @Test
@@ -272,17 +217,16 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
           };
 
       Kind<TryKind.Witness, Integer> result = functor.map(throwingMapper, validKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(testError);
+      assertThatTry(tryResult).isFailure().hasException(testError);
     }
 
     @Test
     @DisplayName("map() on Failure should not invoke mapper")
     void map_onFailure_shouldNotInvokeMapper() {
       RuntimeException exception = new RuntimeException("Original failure");
-      Kind<TryKind.Witness, String> failure = TryKindHelper.TRY.widen(Try.failure(exception));
+      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
 
       RuntimeException mapperException = new RuntimeException("Mapper should not be called");
       Function<String, Integer> throwingMapper =
@@ -291,16 +235,11 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
           };
 
       Kind<TryKind.Witness, Integer> result = functor.map(throwingMapper, failure);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(exception);
+      assertThatTry(tryResult).isFailure().hasException(exception);
     }
   }
-
-  // ============================================================================
-  // Law Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Functor Law Tests")
@@ -340,7 +279,7 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
     @DisplayName("Identity law holds for Failure")
     void identityLaw_onFailure() {
       RuntimeException exception = new RuntimeException("Test failure");
-      Kind<TryKind.Witness, String> failure = TryKindHelper.TRY.widen(Try.failure(exception));
+      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
 
       Function<String, String> identity = s -> s;
       Kind<TryKind.Witness, String> mapped = functor.map(identity, failure);
@@ -354,7 +293,7 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
     @DisplayName("Composition law holds for Failure")
     void compositionLaw_onFailure() {
       RuntimeException exception = new RuntimeException("Test failure");
-      Kind<TryKind.Witness, String> failure = TryKindHelper.TRY.widen(Try.failure(exception));
+      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
 
       Function<String, Integer> f = String::length;
       Function<Integer, String> g = Object::toString;
@@ -371,10 +310,6 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
     }
   }
 
-  // ============================================================================
-  // Edge Case Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Edge Case Tests")
   class EdgeCaseTests {
@@ -382,43 +317,39 @@ class TryFunctorTest extends TypeClassTestBase<TryKind.Witness, String, Integer>
     @Test
     @DisplayName("map() should handle Success with null value")
     void map_shouldHandleSuccessWithNullValue() {
-      Kind<TryKind.Witness, String> successNull = TryKindHelper.TRY.widen(Try.success(null));
+      Kind<TryKind.Witness, String> successNull = TRY.widen(Try.success(null));
       Function<String, Integer> safeMapper = s -> s == null ? -1 : s.length();
 
       Kind<TryKind.Witness, Integer> result = functor.map(safeMapper, successNull);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(-1)).doesNotThrowAnyException();
+      assertThatTry(tryResult).isSuccess().hasValue(-1);
     }
 
     @Test
     @DisplayName("map() should handle mapper that accepts null")
     void map_shouldHandleMapperThatAcceptsNull() {
-      Kind<TryKind.Witness, String> successNull = TryKindHelper.TRY.widen(Try.success(null));
+      Kind<TryKind.Witness, String> successNull = TRY.widen(Try.success(null));
       Function<String, String> nullSafeMapper = s -> "Length: " + (s == null ? 0 : s.length());
 
       Kind<TryKind.Witness, String> result = functor.map(nullSafeMapper, successNull);
-      Try<String> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<String> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo("Length: 0"))
-          .doesNotThrowAnyException();
+      assertThatTry(tryResult).isSuccess().hasValue("Length: 0");
     }
 
     @Test
     @DisplayName("map() should preserve Failure type through multiple mappings")
     void map_shouldPreserveFailureTypeThroughMultipleMappings() {
       RuntimeException exception = new RuntimeException("Original failure");
-      Kind<TryKind.Witness, String> failure = TryKindHelper.TRY.widen(Try.failure(exception));
+      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
 
       Kind<TryKind.Witness, Integer> result1 = functor.map(String::length, failure);
       Kind<TryKind.Witness, String> result2 = functor.map(Object::toString, result1);
       Kind<TryKind.Witness, Integer> result3 = functor.map(String::length, result2);
 
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result3);
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(exception);
+      Try<Integer> tryResult = TRY.narrow(result3);
+      assertThatTry(tryResult).isFailure().hasException(exception);
     }
   }
 }

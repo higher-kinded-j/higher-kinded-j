@@ -11,14 +11,13 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("TryFoldable Complete Test Suite")
-class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String> {
+class TryFoldableTest extends TryTestBase {
 
   private static final Monoid<String> STRING_MONOID = Monoids.string();
   private static final Monoid<Integer> SUM_MONOID = Monoids.integerAddition();
@@ -30,31 +29,6 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     foldable = TryTraverse.INSTANCE;
   }
 
-  @Override
-  protected Kind<TryKind.Witness, Integer> createValidKind() {
-    return TRY.widen(Try.success(42));
-  }
-
-  @Override
-  protected Kind<TryKind.Witness, Integer> createValidKind2() {
-    return TRY.widen(Try.success(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected java.util.function.BiPredicate<Kind<TryKind.Witness, ?>, Kind<TryKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Try<?> t1 = TRY.narrow(k1);
-      Try<?> t2 = TRY.narrow(k2);
-      return t1.equals(t2);
-    };
-  }
-
   @Nested
   @DisplayName("Complete Foldable Test Suite")
   class CompleteFoldableTestSuite {
@@ -63,9 +37,9 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @DisplayName("Run complete Foldable test pattern")
     void runCompleteFoldableTestPattern() {
       TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
-          .<Integer>instance(foldable)
+          .<String>instance(foldable)
           .withKind(validKind)
-          .withOperations(STRING_MONOID, validMapper)
+          .withOperations(SUM_MONOID, validMapper)
           .testAll();
     }
   }
@@ -77,30 +51,30 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @Test
     @DisplayName("foldMap on Success should apply function and return result")
     void foldMapOnSuccessShouldApplyFunction() {
-      Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
 
-      String result = foldable.foldMap(STRING_MONOID, Object::toString, successKind);
+      Integer result = foldable.foldMap(SUM_MONOID, String::length, successKind);
 
-      assertThat(result).isEqualTo("42");
+      assertThat(result).isEqualTo(DEFAULT_SUCCESS_VALUE.length());
     }
 
     @Test
     @DisplayName("foldMap on Failure should return monoid identity")
     void foldMapOnFailureShouldReturnIdentity() {
-      Kind<TryKind.Witness, Integer> failureKind =
+      Kind<TryKind.Witness, String> failureKind =
           TRY.widen(Try.failure(new RuntimeException("Test failure")));
 
-      String result = foldable.foldMap(STRING_MONOID, Object::toString, failureKind);
+      Integer result = foldable.foldMap(SUM_MONOID, String::length, failureKind);
 
-      assertThat(result).isEqualTo("");
+      assertThat(result).isEqualTo(0); // SUM_MONOID identity is 0
     }
 
     @Test
     @DisplayName("foldMap with null value in Success should work correctly")
     void foldMapWithNullValueShouldWork() {
-      Kind<TryKind.Witness, Integer> successNullKind = TRY.widen(Try.success(null));
+      Kind<TryKind.Witness, String> successNullKind = TRY.widen(Try.success(null));
 
-      String result = foldable.foldMap(STRING_MONOID, i -> "null", successNullKind);
+      String result = foldable.foldMap(STRING_MONOID, s -> "null", successNullKind);
 
       assertThat(result).isEqualTo("null");
     }
@@ -108,11 +82,11 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @Test
     @DisplayName("foldMap with custom monoid should use monoid operations")
     void foldMapWithCustomMonoidShouldUseMonoidOperations() {
-      Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(5));
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success("Hello"));
 
-      Integer result = foldable.foldMap(SUM_MONOID, i -> i * 2, successKind);
+      Integer result = foldable.foldMap(SUM_MONOID, s -> s.length() * 2, successKind);
 
-      assertThat(result).isEqualTo(10);
+      assertThat(result).isEqualTo(10); // "Hello".length() * 2 = 10
     }
   }
 
@@ -124,9 +98,9 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @DisplayName("Test foldMap operations only")
     void testOperationsOnly() {
       TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
-          .<Integer>instance(foldable)
+          .<String>instance(foldable)
           .withKind(validKind)
-          .withOperations(STRING_MONOID, validMapper)
+          .withOperations(SUM_MONOID, validMapper)
           .testOperations();
     }
 
@@ -134,9 +108,9 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @DisplayName("Test foldMap validations only")
     void testValidationsOnly() {
       TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
-          .<Integer>instance(foldable)
+          .<String>instance(foldable)
           .withKind(validKind)
-          .withOperations(STRING_MONOID, validMapper)
+          .withOperations(SUM_MONOID, validMapper)
           .testValidations();
     }
 
@@ -144,9 +118,9 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
       TypeClassTest.<TryKind.Witness>foldable(TryTraverse.class)
-          .<Integer>instance(foldable)
+          .<String>instance(foldable)
           .withKind(validKind)
-          .withOperations(STRING_MONOID, validMapper)
+          .withOperations(SUM_MONOID, validMapper)
           .testExceptions();
     }
   }
@@ -158,24 +132,23 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @Test
     @DisplayName("foldMap preserves Success/Failure distinction")
     void foldMapPreservesDistinction() {
-      Kind<TryKind.Witness, Integer> success = TRY.widen(Try.success(42));
-      Kind<TryKind.Witness, Integer> failure =
-          TRY.widen(Try.failure(new RuntimeException("Error")));
+      Kind<TryKind.Witness, String> success = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
+      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(new RuntimeException("Error")));
 
-      String successResult = foldable.foldMap(STRING_MONOID, Object::toString, success);
-      String failureResult = foldable.foldMap(STRING_MONOID, Object::toString, failure);
+      Integer successResult = foldable.foldMap(SUM_MONOID, String::length, success);
+      Integer failureResult = foldable.foldMap(SUM_MONOID, String::length, failure);
 
       assertThat(successResult).isNotEqualTo(failureResult);
-      assertThat(successResult).isEqualTo("42");
-      assertThat(failureResult).isEqualTo("");
+      assertThat(successResult).isEqualTo(DEFAULT_SUCCESS_VALUE.length());
+      assertThat(failureResult).isEqualTo(0); // monoid identity
     }
 
     @Test
     @DisplayName("foldMap with function returning empty should work")
     void foldMapWithEmptyReturningFunction() {
-      Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
 
-      String result = foldable.foldMap(STRING_MONOID, i -> "", successKind);
+      String result = foldable.foldMap(STRING_MONOID, s -> "", successKind);
 
       assertThat(result).isEqualTo("");
     }
@@ -183,13 +156,13 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @Test
     @DisplayName("Multiple foldMap operations should be independent")
     void multipleFoldMapOperationsAreIndependent() {
-      Kind<TryKind.Witness, Integer> kind = TRY.widen(Try.success(42));
+      Kind<TryKind.Witness, String> kind = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
 
-      String result1 = foldable.foldMap(STRING_MONOID, Object::toString, kind);
-      String result2 = foldable.foldMap(STRING_MONOID, i -> "different", kind);
+      Integer result1 = foldable.foldMap(SUM_MONOID, String::length, kind);
+      Integer result2 = foldable.foldMap(SUM_MONOID, s -> s.length() * 2, kind);
 
-      assertThat(result1).isEqualTo("42");
-      assertThat(result2).isEqualTo("different");
+      assertThat(result1).isEqualTo(DEFAULT_SUCCESS_VALUE.length());
+      assertThat(result2).isEqualTo(DEFAULT_SUCCESS_VALUE.length() * 2);
     }
   }
 
@@ -200,36 +173,36 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @Test
     @DisplayName("foldMap should propagate function exceptions on Success")
     void foldMapShouldPropagateExceptionsFromFunction() {
-      Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
       RuntimeException testException = new RuntimeException("Test exception in foldMap");
 
-      Function<Integer, String> throwingFunction =
-          i -> {
+      Function<String, Integer> throwingFunction =
+          s -> {
             throw testException;
           };
 
-      assertThatThrownBy(() -> foldable.foldMap(STRING_MONOID, throwingFunction, successKind))
+      assertThatThrownBy(() -> foldable.foldMap(SUM_MONOID, throwingFunction, successKind))
           .isSameAs(testException);
     }
 
     @Test
     @DisplayName("foldMap should not call function on Failure")
     void foldMapShouldNotCallFunctionOnFailure() {
-      Kind<TryKind.Witness, Integer> failureKind =
+      Kind<TryKind.Witness, String> failureKind =
           TRY.widen(Try.failure(new RuntimeException("Original failure")));
       RuntimeException testException = new RuntimeException("Function should not be called");
 
-      Function<Integer, String> throwingFunction =
-          i -> {
+      Function<String, Integer> throwingFunction =
+          s -> {
             throw testException;
           };
 
       // Should not throw because function should not be called
-      assertThatCode(() -> foldable.foldMap(STRING_MONOID, throwingFunction, failureKind))
+      assertThatCode(() -> foldable.foldMap(SUM_MONOID, throwingFunction, failureKind))
           .doesNotThrowAnyException();
 
-      String result = foldable.foldMap(STRING_MONOID, throwingFunction, failureKind);
-      assertThat(result).isEqualTo("");
+      Integer result = foldable.foldMap(SUM_MONOID, throwingFunction, failureKind);
+      assertThat(result).isEqualTo(0); // monoid identity
     }
   }
 
@@ -240,14 +213,14 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     @Test
     @DisplayName("foldMap with identity should behave correctly")
     void foldMapWithIdentity() {
-      Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(42));
-      Kind<TryKind.Witness, Integer> failureKind =
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
+      Kind<TryKind.Witness, String> failureKind =
           TRY.widen(Try.failure(new RuntimeException("Error")));
 
       String successResult =
-          foldable.foldMap(STRING_MONOID, i -> STRING_MONOID.empty(), successKind);
+          foldable.foldMap(STRING_MONOID, s -> STRING_MONOID.empty(), successKind);
       String failureResult =
-          foldable.foldMap(STRING_MONOID, i -> STRING_MONOID.empty(), failureKind);
+          foldable.foldMap(STRING_MONOID, s -> STRING_MONOID.empty(), failureKind);
 
       assertThat(successResult).isEqualTo(STRING_MONOID.empty());
       assertThat(failureResult).isEqualTo(STRING_MONOID.empty());
@@ -258,12 +231,73 @@ class TryFoldableTest extends TypeClassTestBase<TryKind.Witness, Integer, String
     void foldMapRespectsMonoidCombine() {
       // For Success, result should be the mapped value
       // For Failure, result should be identity
-      Kind<TryKind.Witness, Integer> successKind = TRY.widen(Try.success(5));
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success("12345"));
 
       // Using SUM_MONOID: empty() = 0, combine(a,b) = a+b
-      Integer result = foldable.foldMap(SUM_MONOID, i -> i * 3, successKind);
+      Integer result = foldable.foldMap(SUM_MONOID, s -> s.length() * 3, successKind);
 
-      assertThat(result).isEqualTo(15);
+      assertThat(result).isEqualTo(15); // 5 * 3 = 15
+    }
+
+    @Test
+    @DisplayName("foldMap with string concatenation monoid")
+    void foldMapWithStringConcatenation() {
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success("test"));
+
+      String result = foldable.foldMap(STRING_MONOID, s -> s.toUpperCase(), successKind);
+
+      assertThat(result).isEqualTo("TEST");
+    }
+  }
+
+  @Nested
+  @DisplayName("Null Handling Tests")
+  class NullHandlingTests {
+
+    @Test
+    @DisplayName("foldMap should handle null value in Success")
+    void foldMapShouldHandleNullValueInSuccess() {
+      Kind<TryKind.Witness, String> successNull = TRY.widen(Try.success(null));
+
+      String result = foldable.foldMap(STRING_MONOID, s -> s == null ? "NULL" : s, successNull);
+
+      assertThat(result).isEqualTo("NULL");
+    }
+
+    @Test
+    @DisplayName("foldMap should return null when function returns null on Success")
+    void foldMapShouldHandleFunctionReturningNull() {
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
+
+      // When the function returns null for a single element, foldMap just returns that null
+      // (no combine operation happens with a single element)
+      String result = foldable.foldMap(STRING_MONOID, s -> null, successKind);
+
+      assertThat(result).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Type Safety Tests")
+  class TypeSafetyTests {
+
+    @Test
+    @DisplayName("foldMap should work with different monoid types")
+    void foldMapShouldWorkWithDifferentMonoidTypes() {
+      Kind<TryKind.Witness, String> successKind = TRY.widen(Try.success("hello"));
+
+      // Test with Integer monoid
+      Integer intResult = foldable.foldMap(SUM_MONOID, String::length, successKind);
+      assertThat(intResult).isEqualTo(5);
+
+      // Test with String monoid
+      String strResult = foldable.foldMap(STRING_MONOID, s -> s.toUpperCase(), successKind);
+      assertThat(strResult).isEqualTo("HELLO");
+
+      // Test with Boolean monoid
+      Monoid<Boolean> booleanAnd = Monoids.booleanAnd();
+      Boolean boolResult = foldable.foldMap(booleanAnd, s -> s.length() > 3, successKind);
+      assertThat(boolResult).isTrue();
     }
   }
 }
