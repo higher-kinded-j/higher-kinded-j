@@ -26,14 +26,9 @@ public class IOFunctor implements Functor<IOKind.Witness> {
 
   private static final Class<IOFunctor> IO_FUNCTOR_CLASS = IOFunctor.class;
 
-  /**
-   * Constructs a new {@code IOFunctor} instance. This constructor is public to allow instantiation
-   * where needed, although typically functor operations are accessed via an {@link IOMonad}
-   * instance.
-   */
-  public IOFunctor() {
-    // Default constructor
-  }
+  public static final IOFunctor INSTANCE = new IOFunctor();
+
+  protected IOFunctor() {}
 
   /**
    * Applies a function to the result of an IO computation, creating a new IO computation that will

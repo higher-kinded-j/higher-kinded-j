@@ -3,14 +3,13 @@
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,42 +17,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("StateFunctor<S> Complete Test Suite")
-class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Integer, String> {
+class StateFunctorTest extends StateTestBase<Integer> {
 
-  private final Integer initialState = 10;
   private StateFunctor<Integer> functor;
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind() {
-    State<Integer, Integer> state = State.of(s -> new StateTuple<>(s + 1, s + 1));
-    return STATE.widen(state);
-  }
-
-  @Override
-  protected Kind<StateKind.Witness<Integer>, Integer> createValidKind2() {
-    State<Integer, Integer> state = State.of(s -> new StateTuple<>(s * 2, s * 2));
-    return STATE.widen(state);
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Function<String, String> createSecondMapper() {
-    return String::toUpperCase;
-  }
-
-  @Override
-  protected BiPredicate<Kind<StateKind.Witness<Integer>, ?>, Kind<StateKind.Witness<Integer>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      StateTuple<Integer, ?> result1 = STATE.runState(k1, initialState);
-      StateTuple<Integer, ?> result2 = STATE.runState(k2, initialState);
-      return result1.equals(result2);
-    };
-  }
 
   @BeforeEach
   void setUpFunctor() {
@@ -91,9 +57,10 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(validMapper, kind);
 
-      StateTuple<Integer, String> result = STATE.runState(mapped, initialState);
-      assertThat(result.value()).isEqualTo("15"); // initialState + 5
-      assertThat(result.state()).isEqualTo(20); // initialState * 2
+      StateTuple<Integer, String> result = runState(mapped, getInitialState());
+      assertThatStateTuple(result)
+          .hasValue("15") // getInitialState() (10) + 5
+          .hasState(20); // getInitialState() (10) * 2
     }
 
     @Test
@@ -102,8 +69,8 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
       Kind<StateKind.Witness<Integer>, String> mapped =
           functor.<String, String>map(secondMapper, functor.map(validMapper, validKind));
 
-      StateTuple<Integer, String> result = STATE.runState(mapped, initialState);
-      assertThat(result.value()).isEqualTo("11"); // (10 + 1).toString().toUpperCase()
+      StateTuple<Integer, String> result = runState(mapped, getInitialState());
+      assertThatStateTuple(result).hasValue("1"); // (1).toString().toUpperCase()
     }
 
     @Test
@@ -125,9 +92,10 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(validMapper, kind);
 
-      StateTuple<Integer, String> result = STATE.runState(mapped, initialState);
-      assertThat(result.value()).isEqualTo("10");
-      assertThat(result.state()).isEqualTo(20);
+      StateTuple<Integer, String> result = runState(mapped, getInitialState());
+      assertThatStateTuple(result)
+          .hasValue("10") // getInitialState() = 10
+          .hasState(20); // 10 + 10
     }
   }
 
@@ -168,7 +136,7 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(throwingMapper, validKind);
       assertThat(mapped).as("map should return successfully (lazy evaluation)").isNotNull();
 
-      assertThatThrownBy(() -> STATE.runState(mapped, initialState))
+      assertThatThrownBy(() -> runState(mapped, getInitialState()))
           .as("Exception should be thrown during run()")
           .isSameAs(testException);
     }
@@ -190,8 +158,8 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
       assertThat(computation).isNotNull();
 
       // Evaluation produces correct result
-      StateTuple<Integer, Integer> result = STATE.runState(computation, initialState);
-      assertThat(result.value()).isEqualTo(9); // "Value: 22".length()
+      StateTuple<Integer, Integer> result = runState(computation, getInitialState());
+      assertThatStateTuple(result).hasValue(8); // "Value: 2".length() = 8
     }
   }
 
@@ -237,9 +205,11 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(validMapper, kind);
 
-      StateTuple<Integer, String> result = STATE.runState(mapped, initialState);
-      assertThat(result.value()).isEqualTo("42");
-      assertThat(result.state()).as("State should be preserved by map").isEqualTo(100);
+      StateTuple<Integer, String> result = runState(mapped, getInitialState());
+      assertThatStateTuple(result)
+          .hasValue("42")
+          .hasStateSatisfying(
+              s -> assertThat(s).as("State should be preserved by map").isEqualTo(100));
     }
   }
 
@@ -254,7 +224,7 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(state)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .testAll();
     }
@@ -266,7 +236,7 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(state)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .configureValidation()
           .useInheritanceValidation()
@@ -282,7 +252,7 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       CoreTypeTest.<Integer, Integer>state(State.class)
           .withState(state)
-          .withInitialState(initialState)
+          .withInitialState(getInitialState())
           .withMappers(TestFunctions.INT_TO_STRING)
           .onlyFactoryMethods()
           .testAll();
@@ -299,9 +269,8 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
       Function<Integer, String> nullMapper = i -> null;
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(nullMapper, validKind);
 
-      StateTuple<Integer, String> result = STATE.runState(mapped, initialState);
-      assertThat(result.value()).isNull();
-      assertThat(result.state()).isNotNull();
+      StateTuple<Integer, String> result = runState(mapped, getInitialState());
+      assertThatStateTuple(result).hasNullValue().hasStateNonNull();
     }
 
     @Test
@@ -312,13 +281,12 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(validMapper, kind);
 
-      StateTuple<Integer, String> result1 = STATE.runState(mapped, 10);
-      StateTuple<Integer, String> result2 = STATE.runState(mapped, 100);
+      StateTuple<Integer, String> result1 = runState(mapped, 10);
+      StateTuple<Integer, String> result2 = runState(mapped, 100);
 
-      assertThat(result1.value()).isEqualTo("42");
-      assertThat(result2.value()).isEqualTo("42");
-      assertThat(result1.state()).isEqualTo(10);
-      assertThat(result2.state()).isEqualTo(100);
+      assertThatStateTuple(result1).hasValue("42").hasState(10);
+
+      assertThatStateTuple(result2).hasValue("42").hasState(100);
     }
 
     @Test
@@ -329,9 +297,8 @@ class StateFunctorTest extends TypeClassTestBase<StateKind.Witness<Integer>, Int
 
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(i -> "Square: " + i, kind);
 
-      StateTuple<Integer, String> result = STATE.runState(mapped, 5);
-      assertThat(result.value()).isEqualTo("Square: 25");
-      assertThat(result.state()).isEqualTo(6);
+      StateTuple<Integer, String> result = runState(mapped, 5);
+      assertThatStateTuple(result).hasValue("Square: 25").hasState(6);
     }
   }
 }

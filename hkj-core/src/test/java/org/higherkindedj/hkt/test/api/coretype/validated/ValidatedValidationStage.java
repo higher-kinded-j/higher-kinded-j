@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.coretype.validated;
 
+import org.higherkindedj.hkt.test.api.coretype.common.BaseValidationStage;
+
 /**
  * Stage for configuring validation contexts in Validated core type tests.
  *
@@ -18,7 +20,7 @@ package org.higherkindedj.hkt.test.api.coretype.validated;
  *     .withValid(validInstance)
  *     .withMappers(mapper)
  *     .configureValidation()
- *         .useInheritanceValidation()
+ *         .useExtendedInheritanceValidation()
  *             .withMapFrom(ValidatedMonad.class)
  *         .testValidations();
  * }</pre>
@@ -31,7 +33,7 @@ package org.higherkindedj.hkt.test.api.coretype.validated;
  *     .withValid(validInstance)
  *     .withMappers(mapper)
  *     .configureValidation()
- *         .useInheritanceValidation()
+ *         .useExtendedInheritanceValidation()
  *             .withMapFrom(ValidatedMonad.class)
  *             .withFlatMapFrom(ValidatedMonad.class)
  *         .testAll();
@@ -41,12 +43,12 @@ package org.higherkindedj.hkt.test.api.coretype.validated;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class ValidatedValidationStage<E, A, B> {
+public final class ValidatedValidationStage<E, A, B>
+    extends BaseValidationStage<ValidatedValidationStage<E, A, B>> {
+
   private final ValidatedTestConfigStage<E, A, B> configStage;
 
-  // Validation context classes
-  private Class<?> mapContext;
-  private Class<?> flatMapContext;
+  // Additional validation context classes beyond base class
   private Class<?> ifValidContext;
   private Class<?> ifInvalidContext;
 
@@ -54,53 +56,50 @@ public final class ValidatedValidationStage<E, A, B> {
     this.configStage = configStage;
   }
 
-  /**
-   * Uses inheritance-based validation with fluent configuration.
-   *
-   * <p>This allows you to specify which class in the inheritance hierarchy should be used in
-   * validation error messages for each operation.
-   *
-   * <p>Example:
-   *
-   * <pre>{@code
-   * .configureValidation()
-   *     .useInheritanceValidation()
-   *         .withMapFrom(ValidatedMonad.class)
-   *         .withFlatMapFrom(ValidatedMonad.class)
-   *     .testAll()
-   * }</pre>
-   *
-   * @return Fluent configuration builder
-   */
-  public InheritanceValidationBuilder useInheritanceValidation() {
-    return new InheritanceValidationBuilder();
-  }
-
-  /**
-   * Uses default validation (no class context).
-   *
-   * <p>Error messages will not include specific class names.
-   *
-   * @return This stage for further configuration or execution
-   */
-  public ValidatedValidationStage<E, A, B> useDefaultValidation() {
-    this.mapContext = null;
-    this.flatMapContext = null;
+  @Override
+  protected ValidatedValidationStage<E, A, B> self() {
     return this;
   }
 
-  /** Fluent builder for inheritance-based validation configuration. */
-  public final class InheritanceValidationBuilder {
+  @Override
+  public void testAll() {
+    buildExecutor().executeAll();
+  }
+
+  @Override
+  public void testValidations() {
+    buildExecutor().testValidations();
+  }
+
+  /**
+   * Uses inheritance-based validation with fluent configuration.
+   *
+   * <p>This method provides access to Validated-specific validation contexts including ifValid and
+   * ifInvalid operations, in addition to the standard map and flatMap contexts.
+   *
+   * <p>For Validated types, always use this method instead of the base class's {@code
+   * useInheritanceValidation()}, as it provides access to all validation contexts.
+   *
+   * @return Fluent configuration builder with all Validated validation options
+   */
+  public ValidatedInheritanceValidationBuilder withValidatedInheritanceValidation() {
+    return new ValidatedInheritanceValidationBuilder();
+  }
+
+  /**
+   * Fluent builder for Validated-specific inheritance-based validation configuration.
+   *
+   * <p>This builder provides all validation context methods needed for Validated types.
+   */
+  public final class ValidatedInheritanceValidationBuilder {
 
     /**
      * Specifies the class used for map operation validation.
      *
-     * <p>Error messages for map null validations will reference this class.
-     *
-     * @param contextClass The class that implements map (e.g., ValidatedMonad.class)
+     * @param contextClass The class that implements map
      * @return This builder for chaining
      */
-    public InheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
+    public ValidatedInheritanceValidationBuilder withMapFrom(Class<?> contextClass) {
       mapContext = contextClass;
       return this;
     }
@@ -108,22 +107,32 @@ public final class ValidatedValidationStage<E, A, B> {
     /**
      * Specifies the class used for flatMap operation validation.
      *
-     * <p>Error messages for flatMap null validations will reference this class.
-     *
-     * @param contextClass The class that implements flatMap (e.g., ValidatedMonad.class)
+     * @param contextClass The class that implements flatMap
      * @return This builder for chaining
      */
-    public InheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
+    public ValidatedInheritanceValidationBuilder withFlatMapFrom(Class<?> contextClass) {
       flatMapContext = contextClass;
       return this;
     }
 
-    public InheritanceValidationBuilder withIfValidFrom(Class<?> contextClass) {
+    /**
+     * Specifies the class used for ifValid operation validation.
+     *
+     * @param contextClass The class that implements ifValid
+     * @return This builder for chaining
+     */
+    public ValidatedInheritanceValidationBuilder withIfValidFrom(Class<?> contextClass) {
       ifValidContext = contextClass;
       return this;
     }
 
-    public InheritanceValidationBuilder withIfInvalidFrom(Class<?> contextClass) {
+    /**
+     * Specifies the class used for ifInvalid operation validation.
+     *
+     * @param contextClass The class that implements ifInvalid
+     * @return This builder for chaining
+     */
+    public ValidatedInheritanceValidationBuilder withIfInvalidFrom(Class<?> contextClass) {
       ifInvalidContext = contextClass;
       return this;
     }
@@ -137,11 +146,7 @@ public final class ValidatedValidationStage<E, A, B> {
       return ValidatedValidationStage.this;
     }
 
-    /**
-     * Executes all configured tests.
-     *
-     * <p>Includes all test categories with the configured validation contexts.
-     */
+    /** Executes all configured tests. */
     public void testAll() {
       ValidatedValidationStage.this.testAll();
     }
@@ -150,32 +155,6 @@ public final class ValidatedValidationStage<E, A, B> {
     public void testValidations() {
       ValidatedValidationStage.this.testValidations();
     }
-  }
-
-  /**
-   * Executes all configured tests.
-   *
-   * <p>Includes all test categories with the configured validation contexts.
-   */
-  public void testAll() {
-    ValidatedTestExecutor<E, A, B> executor = buildExecutor();
-    executor.executeAll();
-  }
-
-  /** Executes only validation tests with configured contexts. */
-  public void testValidations() {
-    // Create executor with only validations enabled
-    ValidatedTestExecutor<E, A, B> executor = buildExecutor();
-    executor.testValidations();
-  }
-
-  // Package-private getters
-  Class<?> getMapContext() {
-    return mapContext;
-  }
-
-  Class<?> getFlatMapContext() {
-    return flatMapContext;
   }
 
   Class<?> getIfValidContext() {

@@ -3,24 +3,22 @@
 package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.io.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.ioKindHelper;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("IOKindHelper Complete Test Suite")
-class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String> {
+class IOKindHelperTest extends IOTestBase {
 
   // Simple IO action for testing
   private final IO<String> baseIO = IO.delay(() -> "Result");
@@ -30,36 +28,6 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
           () -> {
             throw testException;
           });
-
-  @Override
-  protected Kind<IOKind.Witness, String> createValidKind() {
-    return IO_OP.widen(IO.delay(() -> "Success"));
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, String> createValidKind2() {
-    return IO_OP.widen(IO.delay(() -> "Another"));
-  }
-
-  @Override
-  protected Function<String, String> createValidMapper() {
-    return String::toUpperCase;
-  }
-
-  @Override
-  protected BiPredicate<Kind<IOKind.Witness, ?>, Kind<IOKind.Witness, ?>> createEqualityChecker() {
-    return (k1, k2) -> {
-      // Execute both IOs and compare their results
-      Object v1 = IO_OP.narrow(castKind(k1)).unsafeRunSync();
-      Object v2 = IO_OP.narrow(castKind(k2)).unsafeRunSync();
-      return v1.equals(v2);
-    };
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <A> Kind<IOKind.Witness, A> castKind(Kind<IOKind.Witness, ?> kind) {
-    return (Kind<IOKind.Witness, A>) kind;
-  }
 
   @Nested
   @DisplayName("Complete KindHelper Test Suite")
@@ -195,7 +163,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       ioKindHelper(nullIO).test();
 
       // Verify null is preserved
-      assertThat(nullIO.unsafeRunSync()).isNull();
+      assertThatIO(nullIO).hasValueNull();
     }
 
     @Test
@@ -208,17 +176,16 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
 
       ioKindHelper(complexIO).test();
 
-      assertThat(complexIO.unsafeRunSync()).isEqualTo("base_mapped_flatMapped");
+      assertThatIO(complexIO).hasValue("base_mapped_flatMapped");
     }
 
     @Test
     @DisplayName("Type safety across different generic parameters")
     void testTypeSafetyAcrossDifferentGenerics() {
       IO<String> stringIO = IO.delay(() -> "string");
-      IO<Integer> intIO = IO.delay(() -> 42);
+      IO<Integer> intIO = IO.delay(() -> DEFAULT_IO_VALUE);
 
       ioKindHelper(stringIO).test();
-
       ioKindHelper(intIO).test();
     }
 
@@ -229,7 +196,8 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
 
       ioKindHelper(complexIO).test();
 
-      assertThat(complexIO.unsafeRunSync()).containsExactly("a", "b", "c");
+      assertThatIO(complexIO)
+          .hasValueSatisfying(list -> assertThat(list).containsExactly("a", "b", "c"));
     }
   }
 
@@ -251,6 +219,27 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       assertThatNullPointerException()
           .isThrownBy(() -> IO_OP.widen(null))
           .withMessageContaining("Input IO cannot be null");
+    }
+
+    @Test
+    @DisplayName("widen preserves IO laziness")
+    void widenPreservesIOLaziness() {
+      AtomicInteger counter = new AtomicInteger(0);
+      IO<Integer> io =
+          IO.delay(
+              () -> {
+                counter.incrementAndGet();
+                return DEFAULT_IO_VALUE;
+              });
+
+      Kind<IOKind.Witness, Integer> kind = IO_OP.widen(io);
+
+      // Should not execute during widening
+      assertThat(counter.get()).isZero();
+
+      // Execute and verify
+      assertThatIO(narrowToIO(kind)).hasValue(DEFAULT_IO_VALUE);
+      assertThat(counter.get()).isEqualTo(1);
     }
   }
 
@@ -283,6 +272,17 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Kind instance cannot be narrowed to " + IO.class.getSimpleName());
     }
+
+    @Test
+    @DisplayName("narrow preserves IO identity")
+    void narrowPreservesIOIdentity() {
+      IO<String> original = IO.delay(() -> "test");
+      Kind<IOKind.Witness, String> widened = IO_OP.widen(original);
+      IO<String> narrowed = IO_OP.narrow(widened);
+
+      assertThat(narrowed).isSameAs(original);
+      assertThatIO(narrowed).hasValue("test");
+    }
   }
 
   @Nested
@@ -295,7 +295,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       Supplier<Integer> supplier =
           () -> {
             counter.incrementAndGet();
-            return 42;
+            return DEFAULT_IO_VALUE;
           };
       Kind<IOKind.Witness, Integer> kind = IO_OP.delay(supplier);
 
@@ -303,12 +303,11 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       assertThat(counter.get()).isZero();
 
       // Unwrap and run
-      IO<Integer> io = IO_OP.narrow(kind);
-      assertThat(io.unsafeRunSync()).isEqualTo(42);
+      assertThatIO(narrowToIO(kind)).hasValue(DEFAULT_IO_VALUE);
       assertThat(counter.get()).isEqualTo(1);
 
       // Running again executes again
-      assertThat(io.unsafeRunSync()).isEqualTo(42);
+      assertThatIO(narrowToIO(kind)).hasValue(DEFAULT_IO_VALUE);
       assertThat(counter.get()).isEqualTo(2);
     }
 
@@ -318,6 +317,15 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       assertThatNullPointerException()
           .isThrownBy(() -> IO_OP.delay(null))
           .withMessageContaining("thunk"); // Message from IO.delay check
+    }
+
+    @Test
+    @DisplayName("delay maintains referential transparency")
+    void delayMaintainsReferentialTransparency() {
+      Supplier<String> supplier = () -> "constant";
+      Kind<IOKind.Witness, String> kind = IO_OP.delay(supplier);
+
+      assertThatIO(narrowToIO(kind)).isRepeatable();
     }
   }
 
@@ -359,6 +367,14 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
     void unsafeRunSyncShouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> IO_OP.unsafeRunSync(null))
           .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
+    }
+
+    @Test
+    @DisplayName("unsafeRunSync handles null results correctly")
+    void unsafeRunSyncHandlesNullResults() {
+      Kind<IOKind.Witness, String> nullKind = IO_OP.delay(() -> null);
+
+      assertThat(IO_OP.unsafeRunSync(nullKind)).isNull();
     }
   }
 
@@ -405,6 +421,22 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
         ioKindHelper(testInstance).withPerformanceTests().test();
       }
     }
+
+    @Test
+    @DisplayName("Widen/narrow operations have constant overhead")
+    void testConstantOverhead() {
+      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
+
+      long start = System.nanoTime();
+      for (int i = 0; i < 10000; i++) {
+        Kind<IOKind.Witness, Integer> kind = IO_OP.widen(io);
+        IO<Integer> narrowed = IO_OP.narrow(kind);
+      }
+      long duration = System.nanoTime() - start;
+
+      // Should be very fast (< 10ms for 10k operations)
+      assertThat(duration).isLessThan(10_000_000L);
+    }
   }
 
   @Nested
@@ -418,6 +450,28 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       for (IO<String> instance : nullInstances) {
         ioKindHelper(instance).test();
       }
+    }
+
+    @Test
+    @DisplayName("Nested IO structures work correctly")
+    void testNestedIOStructures() {
+      IO<IO<String>> nested = IO.delay(() -> IO.delay(() -> "nested"));
+
+      Kind<IOKind.Witness, IO<String>> kind = IO_OP.widen(nested);
+      IO<IO<String>> narrowed = IO_OP.narrow(kind);
+
+      assertThatIO(narrowed).hasValueSatisfying(inner -> assertThatIO(inner).hasValue("nested"));
+    }
+
+    @Test
+    @DisplayName("Complex generic types are handled correctly")
+    void testComplexGenericTypes() {
+      IO<List<Integer>> complexIO = IO.delay(() -> List.of(1, 2, 3));
+
+      Kind<IOKind.Witness, List<Integer>> kind = IO_OP.widen(complexIO);
+      IO<List<Integer>> narrowed = IO_OP.narrow(kind);
+
+      assertThatIO(narrowed).hasValueSatisfying(list -> assertThat(list).containsExactly(1, 2, 3));
     }
   }
 
@@ -454,7 +508,7 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       List<IO<Object>> complexInstances =
           List.of(
               IO.delay(() -> "simple_string"),
-              IO.delay(() -> 42),
+              IO.delay(() -> DEFAULT_IO_VALUE),
               IO.delay(() -> List.of(1, 2, 3)),
               IO.delay(() -> java.util.Map.of("key", "value")),
               IO.delay(() -> null));
@@ -485,6 +539,63 @@ class IOKindHelperTest extends TypeClassTestBase<IOKind.Witness, String, String>
       IO<String> original = IO.delay(() -> "lifecycle_test");
 
       ioKindHelper(original).test();
+    }
+
+    @Test
+    @DisplayName("Verify operations preserve laziness")
+    void testOperationsPreserveLaziness() {
+      AtomicInteger counter = new AtomicInteger(0);
+      IO<Integer> io =
+          IO.delay(
+              () -> {
+                counter.incrementAndGet();
+                return DEFAULT_IO_VALUE;
+              });
+
+      Kind<IOKind.Witness, Integer> kind = IO_OP.widen(io);
+
+      // Multiple widen/narrow operations should not execute
+      for (int i = 0; i < 5; i++) {
+        IO<Integer> narrowed = IO_OP.narrow(kind);
+        kind = IO_OP.widen(narrowed);
+      }
+
+      assertThat(counter.get()).as("IO should not execute during widen/narrow").isZero();
+
+      // Finally execute
+      assertThatIO(narrowToIO(kind)).hasValue(DEFAULT_IO_VALUE);
+      assertThat(counter.get()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("IOAssert Integration Tests")
+  class IOAssertIntegrationTests {
+    @Test
+    @DisplayName("IOAssert works with narrowed IOs")
+    void testIOAssertWithNarrowedIOs() {
+      Kind<IOKind.Witness, String> kind = ioKind("test");
+      IO<String> narrowed = narrowToIO(kind);
+
+      assertThatIO(narrowed).hasValue("test");
+    }
+
+    @Test
+    @DisplayName("IOAssert detects failures correctly")
+    void testIOAssertDetectsFailures() {
+      Kind<IOKind.Witness, String> failingKind = failingIO(testException);
+      IO<String> narrowed = narrowToIO(failingKind);
+
+      assertThatIO(narrowed).throwsException(RuntimeException.class).withMessage("IO Failure");
+    }
+
+    @Test
+    @DisplayName("IOAssert verifies repeatability")
+    void testIOAssertVerifiesRepeatability() {
+      Kind<IOKind.Witness, Integer> kind = ioKind(DEFAULT_IO_VALUE);
+      IO<Integer> narrowed = narrowToIO(kind);
+
+      assertThatIO(narrowed).isRepeatable();
     }
   }
 }

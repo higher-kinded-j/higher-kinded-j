@@ -13,30 +13,24 @@ import org.higherkindedj.hkt.io.IOFunctor;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.hkt.io.IOMonad;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
  * Internal executor for IO core type tests.
  *
- * <p>This class coordinates test execution by delegating to appropriate test methods.
- *
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class IOTestExecutor<A, B> {
-  private final Class<?> contextClass;
+final class IOTestExecutor<A, B> extends BaseCoreTypeTestExecutor<A, B, IOValidationStage<A, B>> {
+
   private final IO<A> ioInstance;
-  private final Function<A, B> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeExecution;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final IOValidationStage<A, B> validationStage;
 
   IOTestExecutor(
       Class<?> contextClass,
@@ -73,25 +67,84 @@ final class IOTestExecutor<A, B> {
       boolean includeEdgeCases,
       IOValidationStage<A, B> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.ioInstance = ioInstance;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeExecution = includeExecution;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeExecution) testExecution();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Map validations - test through the Functor interface if custom context provided
+    if (validationStage != null && validationStage.getMapContext() != null) {
+      IOFunctor functor = IOFunctor.INSTANCE;
+      Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
+      builder.assertMapperNull(() -> functor.map(null, kind), "f", getMapContext(), Operation.MAP);
+    } else {
+      builder.assertMapperNull(() -> ioInstance.map(null), "f", getMapContext(), Operation.MAP);
+    }
+
+    // FlatMap validations - test through the Monad interface if custom context provided
+    if (validationStage != null && validationStage.getFlatMapContext() != null) {
+      IOMonad monad = IOMonad.INSTANCE;
+      Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> ioInstance.flatMap(null), "f", getFlatMapContext(), Operation.FLAT_MAP);
+    }
+
+    // Delay validation
+    builder.assertFunctionNull(() -> IO.delay(null), "thunk", contextClass, Operation.DELAY);
+
+    builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test IO that returns null
+    IO<A> nullIO = IO.delay(() -> null);
+    assertThat(nullIO.unsafeRunSync()).isNull();
+
+    // Test nested IO execution
+    IO<IO<A>> nestedIO = IO.delay(() -> ioInstance);
+    IO<A> innerIO = nestedIO.unsafeRunSync();
+    assertThat(innerIO).isNotNull();
+    assertThat(innerIO.unsafeRunSync()).isNotNull();
+
+    // Test that IO is truly lazy - no execution until unsafeRunSync
+    AtomicBoolean sideEffect = new AtomicBoolean(false);
+    IO<String> lazyWithSideEffect =
+        IO.delay(
+            () -> {
+              sideEffect.set(true);
+              return "executed";
+            });
+
+    // Create derived IOs - none should execute yet
+    IO<Integer> mapped = lazyWithSideEffect.map(String::length);
+    IO<String> flatMapped = lazyWithSideEffect.flatMap(s -> IO.delay(() -> s.toUpperCase()));
+
+    assertThat(sideEffect).isFalse();
+
+    // Only when we call unsafeRunSync should execution happen
+    String result = lazyWithSideEffect.unsafeRunSync();
+    assertThat(sideEffect).isTrue();
+    assertThat(result).isEqualTo("executed");
   }
 
   private void testFactoryMethods() {
@@ -182,82 +235,5 @@ final class IOTestExecutor<A, B> {
         .isInstanceOf(KindUnwrapException.class)
         .hasMessageContaining(
             "Function f in IO.flatMap returned null when IO expected, which is not allowed");
-  }
-
-  void testValidations() {
-    // Determine which class context to use for map
-    Class<?> mapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : contextClass;
-
-    // Determine which class context to use for flatMap
-    Class<?> flatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : contextClass;
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Map validations - test through the Functor interface if custom context provided
-    if (validationStage != null && validationStage.getMapContext() != null) {
-      // Use the type class interface validation
-      IOFunctor functor = new IOFunctor();
-      Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
-      builder.assertMapperNull(() -> functor.map(null, kind), "f", mapContext, Operation.MAP);
-    } else {
-      // Use the instance method
-      builder.assertMapperNull(() -> ioInstance.map(null), "f", mapContext, Operation.MAP);
-    }
-
-    // FlatMap validations - test through the Monad interface if custom context provided
-    if (validationStage != null && validationStage.getFlatMapContext() != null) {
-      // Use the type class interface validation
-      IOMonad monad = IOMonad.INSTANCE;
-      Kind<IOKind.Witness, A> kind = IOKindHelper.IO_OP.widen(ioInstance);
-      builder.assertFlatMapperNull(
-          () -> monad.flatMap(null, kind), "f", flatMapContext, Operation.FLAT_MAP);
-    } else {
-      // Use the instance method
-      builder.assertFlatMapperNull(
-          () -> ioInstance.flatMap(null), "f", flatMapContext, Operation.FLAT_MAP);
-    }
-
-    // Delay validation
-    builder.assertFunctionNull(() -> IO.delay(null), "thunk", contextClass, Operation.DELAY);
-
-    builder.execute();
-  }
-
-  private void testEdgeCases() {
-    // Test IO that returns null
-    IO<A> nullIO = IO.delay(() -> null);
-    assertThat(nullIO.unsafeRunSync()).isNull();
-
-    // Test nested IO execution
-    IO<IO<A>> nestedIO = IO.delay(() -> ioInstance);
-    IO<A> innerIO = nestedIO.unsafeRunSync();
-    assertThat(innerIO).isNotNull();
-    assertThat(innerIO.unsafeRunSync()).isNotNull();
-
-    // Test that IO is truly lazy - no execution until unsafeRunSync
-    AtomicBoolean sideEffect = new AtomicBoolean(false);
-    IO<String> lazyWithSideEffect =
-        IO.delay(
-            () -> {
-              sideEffect.set(true);
-              return "executed";
-            });
-
-    // Create derived IOs - none should execute yet
-    IO<Integer> mapped = lazyWithSideEffect.map(String::length);
-    IO<String> flatMapped = lazyWithSideEffect.flatMap(s -> IO.delay(() -> s.toUpperCase()));
-
-    assertThat(sideEffect).isFalse();
-
-    // Only when we call unsafeRunSync should execution happen
-    String result = lazyWithSideEffect.unsafeRunSync();
-    assertThat(sideEffect).isTrue();
-    assertThat(result).isEqualTo("executed");
   }
 }

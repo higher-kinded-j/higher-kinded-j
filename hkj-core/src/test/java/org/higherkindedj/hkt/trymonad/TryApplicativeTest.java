@@ -3,87 +3,27 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.trymonad.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("TryApplicative Complete Test Suite")
-class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
+class TryApplicativeTest extends TryTestBase {
 
   private TryApplicative applicative;
-
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind() {
-    return TryKindHelper.TRY.widen(Try.success("test value"));
-  }
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind2() {
-    return TryKindHelper.TRY.widen(Try.success("second value"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected BiPredicate<Kind<TryKind.Witness, ?>, Kind<TryKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Try<?> t1 = TryKindHelper.TRY.narrow(k1);
-      Try<?> t2 = TryKindHelper.TRY.narrow(k2);
-      return t1.equals(t2);
-    };
-  }
-
-  @Override
-  protected Function<Integer, String> createSecondMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected Kind<TryKind.Witness, Function<String, Integer>> createValidFunctionKind() {
-    Function<String, Integer> func = String::length;
-    return TryKindHelper.TRY.widen(Try.success(func));
-  }
-
-  @Override
-  protected BiFunction<String, String, Integer> createValidCombiningFunction() {
-    return (s1, s2) -> s1.length() + s2.length();
-  }
-
-  @Override
-  protected String createTestValue() {
-    return "test";
-  }
-
-  @Override
-  protected Function<String, Kind<TryKind.Witness, Integer>> createTestFunction() {
-    return s -> TryKindHelper.TRY.widen(Try.success(s.length()));
-  }
 
   @BeforeEach
   void setUpApplicative() {
     applicative = new TryApplicative();
   }
-
-  // ============================================================================
-  // Complete Test Suite Using Framework
-  // ============================================================================
 
   @Nested
   @DisplayName("Complete Test Suite")
@@ -129,10 +69,6 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
           .testValidations();
     }
   }
-
-  // ============================================================================
-  // Individual Component Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Individual Components")
@@ -189,10 +125,6 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
     }
   }
 
-  // ============================================================================
-  // Operation Tests - of()
-  // ============================================================================
-
   @Nested
   @DisplayName("of() Operation Tests")
   class OfOperationTests {
@@ -201,27 +133,20 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
     @DisplayName("of() should wrap value in Success")
     void of_shouldWrapValueInSuccess() {
       Kind<TryKind.Witness, String> result = applicative.of("test");
-      Try<String> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<String> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo("test"))
-          .doesNotThrowAnyException();
+      assertThatTry(tryResult).isSuccess().hasValue("test");
     }
 
     @Test
     @DisplayName("of() should allow null value")
     void of_shouldAllowNullValue() {
       Kind<TryKind.Witness, String> result = applicative.of(null);
-      Try<String> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<String> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isNull()).doesNotThrowAnyException();
+      assertThatTry(tryResult).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
     }
   }
-
-  // ============================================================================
-  // Operation Tests - ap()
-  // ============================================================================
 
   @Nested
   @DisplayName("ap() Operation Tests")
@@ -231,46 +156,40 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
     @DisplayName("ap() with Success function and Success value should apply function")
     void ap_withSuccessAndSuccess_shouldApplyFunction() {
       Function<String, Integer> func = String::length;
-      Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.success(func));
-      Kind<TryKind.Witness, String> valueKind = TryKindHelper.TRY.widen(Try.success("hello"));
+      Kind<TryKind.Witness, Function<String, Integer>> funcKind = TRY.widen(Try.success(func));
+      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.success("hello"));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(5)).doesNotThrowAnyException();
+      assertThatTry(tryResult).isSuccess().hasValue(5);
     }
 
     @Test
     @DisplayName("ap() with Failure function should return Failure")
     void ap_withFailureFunction_shouldReturnFailure() {
       RuntimeException exception = new RuntimeException("Function failure");
-      Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.failure(exception));
-      Kind<TryKind.Witness, String> valueKind = TryKindHelper.TRY.widen(Try.success("hello"));
+      Kind<TryKind.Witness, Function<String, Integer>> funcKind = TRY.widen(Try.failure(exception));
+      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.success("hello"));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(exception);
+      assertThatTry(tryResult).isFailure().hasException(exception);
     }
 
     @Test
     @DisplayName("ap() with Success function and Failure value should return Failure")
     void ap_withSuccessFunctionAndFailureValue_shouldReturnFailure() {
       Function<String, Integer> func = String::length;
-      Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.success(func));
+      Kind<TryKind.Witness, Function<String, Integer>> funcKind = TRY.widen(Try.success(func));
       RuntimeException exception = new RuntimeException("Value failure");
-      Kind<TryKind.Witness, String> valueKind = TryKindHelper.TRY.widen(Try.failure(exception));
+      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.failure(exception));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(exception);
+      assertThatTry(tryResult).isFailure().hasException(exception);
     }
 
     @Test
@@ -278,16 +197,14 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
     void ap_withBothFailure_shouldReturnFirstFailure() {
       RuntimeException funcException = new RuntimeException("Function failure");
       Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.failure(funcException));
+          TRY.widen(Try.failure(funcException));
       RuntimeException valueException = new RuntimeException("Value failure");
-      Kind<TryKind.Witness, String> valueKind =
-          TryKindHelper.TRY.widen(Try.failure(valueException));
+      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.failure(valueException));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(funcException);
+      assertThatTry(tryResult).isFailure().hasException(funcException);
     }
 
     @Test
@@ -299,20 +216,15 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
             throw funcException;
           };
       Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.success(throwingFunc));
-      Kind<TryKind.Witness, String> valueKind = TryKindHelper.TRY.widen(Try.success("test"));
+          TRY.widen(Try.success(throwingFunc));
+      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.success("test"));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(funcException);
+      assertThatTry(tryResult).isFailure().hasException(funcException);
     }
   }
-
-  // ============================================================================
-  // Validation Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Validation Tests")
@@ -335,10 +247,6 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
     }
   }
 
-  // ============================================================================
-  // Exception Propagation Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Exception Propagation Tests")
   class ExceptionPropagationTests {
@@ -352,13 +260,12 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
             throw testException;
           };
       Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.success(throwingFunc));
+          TRY.widen(Try.success(throwingFunc));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, validKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(testException);
+      assertThatTry(tryResult).isFailure().hasException(testException);
     }
 
     @Test
@@ -370,19 +277,14 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
             throw testError;
           };
       Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.success(throwingFunc));
+          TRY.widen(Try.success(throwingFunc));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, validKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(testError);
+      assertThatTry(tryResult).isFailure().hasException(testError);
     }
   }
-
-  // ============================================================================
-  // Applicative Law Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Applicative Law Tests")
@@ -443,10 +345,6 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
     }
   }
 
-  // ============================================================================
-  // Edge Case Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Edge Case Tests")
   class EdgeCaseTests {
@@ -455,30 +353,26 @@ class TryApplicativeTest extends TypeClassTestBase<TryKind.Witness, String, Inte
     @DisplayName("ap() should handle function returning null")
     void ap_shouldHandleFunctionReturningNull() {
       Function<String, Integer> nullFunc = s -> null;
-      Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.success(nullFunc));
-      Kind<TryKind.Witness, String> valueKind = TryKindHelper.TRY.widen(Try.success("test"));
+      Kind<TryKind.Witness, Function<String, Integer>> funcKind = TRY.widen(Try.success(nullFunc));
+      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.success("test"));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isNull()).doesNotThrowAnyException();
+      assertThatTry(tryResult).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
     }
 
     @Test
     @DisplayName("ap() should handle null value")
     void ap_shouldHandleNullValue() {
       Function<String, Integer> safeFunc = s -> s == null ? -1 : s.length();
-      Kind<TryKind.Witness, Function<String, Integer>> funcKind =
-          TryKindHelper.TRY.widen(Try.success(safeFunc));
-      Kind<TryKind.Witness, String> valueKind = TryKindHelper.TRY.widen(Try.success(null));
+      Kind<TryKind.Witness, Function<String, Integer>> funcKind = TRY.widen(Try.success(safeFunc));
+      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.success(null));
 
       Kind<TryKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Try<Integer> tryResult = TryKindHelper.TRY.narrow(result);
+      Try<Integer> tryResult = TRY.narrow(result);
 
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(tryResult.get()).isEqualTo(-1)).doesNotThrowAnyException();
+      assertThatTry(tryResult).isSuccess().hasValue(-1);
     }
   }
 }

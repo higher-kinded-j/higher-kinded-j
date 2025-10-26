@@ -2,19 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,53 +18,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherMonad Applicative Operations Complete Test Suite")
-class EitherApplicativeTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
-
-  record TestError(String code) {}
+class EitherApplicativeTest extends EitherTestBase {
 
   private EitherMonad<String> applicative;
   private Applicative<EitherKind.Witness<String>> applicativeTyped;
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind() {
-    return EITHER.widen(Either.right(42));
-  }
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind2() {
-    return EITHER.widen(Either.right(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Function<Integer, String>> createValidFunctionKind() {
-    return EITHER.widen(Either.right(TestFunctions.INT_TO_STRING));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> "Result:" + a + "," + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected Function<String, String> createSecondMapper() {
-    return s -> "Transformed:" + s;
-  }
-
-  @Override
-  protected BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> EITHER.narrow(k1).equals(EITHER.narrow(k2));
-  }
 
   @BeforeEach
   void setUpApplicative() {
@@ -118,71 +71,67 @@ class EitherApplicativeTest extends TypeClassTestBase<EitherKind.Witness<String>
     void apAppliesFunctionToValue() {
       Kind<EitherKind.Witness<String>, Function<Integer, String>> funcKind =
           applicative.of(i -> "value:" + i);
-      Kind<EitherKind.Witness<String>, Integer> valueKind = applicative.of(42);
+      Kind<EitherKind.Witness<String>, Integer> valueKind = applicative.of(DEFAULT_RIGHT_VALUE);
 
-      Kind<EitherKind.Witness<String>, String> result = applicative.ap(funcKind, valueKind);
+      var result = applicative.ap(funcKind, valueKind);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getRight()).isEqualTo("value:42");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("value:42");
     }
 
     @Test
     @DisplayName("ap() propagates Left from function")
     void apPropagatesLeftFromFunction() {
       Kind<EitherKind.Witness<String>, Function<Integer, String>> funcKind =
-          EITHER.widen(Either.left("FUNC_ERR"));
-      Kind<EitherKind.Witness<String>, Integer> valueKind = applicative.of(42);
+          leftKind(TestErrorType.FUNCTION_ERROR);
+      Kind<EitherKind.Witness<String>, Integer> valueKind = applicative.of(DEFAULT_RIGHT_VALUE);
 
-      Kind<EitherKind.Witness<String>, String> result = applicative.ap(funcKind, valueKind);
+      var result = applicative.ap(funcKind, valueKind);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getLeft()).isEqualTo("FUNC_ERR");
+      assertThatEither(narrowToEither(result))
+          .isLeft()
+          .hasLeft(TestErrorType.FUNCTION_ERROR.message());
     }
 
     @Test
     @DisplayName("map2() combines two Right values")
     void map2CombinesTwoRightValues() {
-      Kind<EitherKind.Witness<String>, Integer> r1 = applicative.of(10);
-      Kind<EitherKind.Witness<String>, String> r2 = applicative.of("test");
+      var r1 = applicative.of(10);
+      var r2 = applicative.of("test");
 
-      BiFunction<Integer, String, String> combiner = (i, s) -> s + ":" + i;
-      Kind<EitherKind.Witness<String>, String> result = applicative.map2(r1, r2, combiner);
+      var result = applicative.map2(r1, r2, (i, s) -> s + ":" + i);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getRight()).isEqualTo("test:10");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("test:10");
     }
 
     @Test
     @DisplayName("map3() combines three Right values")
     void map3CombinesThreeRightValues() {
-      Kind<EitherKind.Witness<String>, Integer> r1 = applicative.of(1);
-      Kind<EitherKind.Witness<String>, String> r2 = applicative.of("test");
-      Kind<EitherKind.Witness<String>, Double> r3 = applicative.of(3.14);
+      var r1 = applicative.of(1);
+      var r2 = applicative.of("test");
+      var r3 = applicative.of(3.14);
 
       Function3<Integer, String, Double, String> combiner =
           (i, s, d) -> String.format("%s:%d:%.2f", s, i, d);
 
-      Kind<EitherKind.Witness<String>, String> result = applicative.map3(r1, r2, r3, combiner);
+      var result = applicative.map3(r1, r2, r3, combiner);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getRight()).isEqualTo("test:1:3.14");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("test:1:3.14");
     }
 
     @Test
     @DisplayName("map4() combines four Right values")
     void map4CombinesFourRightValues() {
-      Kind<EitherKind.Witness<String>, Integer> r1 = applicative.of(1);
-      Kind<EitherKind.Witness<String>, String> r2 = applicative.of("test");
-      Kind<EitherKind.Witness<String>, Double> r3 = applicative.of(3.14);
-      Kind<EitherKind.Witness<String>, Boolean> r4 = applicative.of(true);
+      var r1 = applicative.of(1);
+      var r2 = applicative.of("test");
+      var r3 = applicative.of(3.14);
+      var r4 = applicative.of(true);
 
       Function4<Integer, String, Double, Boolean, String> combiner =
           (i, s, d, b) -> String.format("%s:%d:%.2f:%b", s, i, d, b);
 
-      Kind<EitherKind.Witness<String>, String> result = applicative.map4(r1, r2, r3, r4, combiner);
+      var result = applicative.map4(r1, r2, r3, r4, combiner);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getRight()).isEqualTo("test:1:3.14:true");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("test:1:3.14:true");
     }
   }
 
@@ -238,15 +187,11 @@ class EitherApplicativeTest extends TypeClassTestBase<EitherKind.Witness<String>
     @Test
     @DisplayName("Test Functor composition law with both mappers")
     void testFunctorCompositionLaw() {
-      // Composed: Integer -> String -> String
-      Function<Integer, String> composed = validMapper.andThen(secondMapper);
-      Kind<EitherKind.Witness<String>, String> leftSide = applicative.map(composed, validKind);
+      var composed = validMapper.andThen(secondMapper);
+      var leftSide = applicative.map(composed, validKind);
 
-      // Separate: map(secondMapper, map(validMapper, validKind))
-      Kind<EitherKind.Witness<String>, String> intermediate =
-          applicative.map(validMapper, validKind);
-      Kind<EitherKind.Witness<String>, String> rightSide =
-          applicative.map(secondMapper, intermediate);
+      var intermediate = applicative.map(validMapper, validKind);
+      var rightSide = applicative.map(secondMapper, intermediate);
 
       assertThat(equalityChecker.test(leftSide, rightSide)).as("Functor Composition Law").isTrue();
     }
@@ -259,32 +204,27 @@ class EitherApplicativeTest extends TypeClassTestBase<EitherKind.Witness<String>
     @Test
     @DisplayName("mapN operations with null values in Right")
     void mapNWithNullValuesInRight() {
-      Kind<EitherKind.Witness<String>, Integer> rightNull = applicative.of(null);
-      Kind<EitherKind.Witness<String>, String> rightValue = applicative.of("test");
+      var rightNull = applicative.of(null);
+      var rightValue = applicative.of("test");
 
-      BiFunction<Integer, String, String> nullSafeFunc =
-          (i, s) -> (i == null ? "null" : i.toString()) + ":" + s;
+      var result =
+          applicative.map2(
+              rightNull, rightValue, (i, s) -> (i == null ? "null" : i.toString()) + ":" + s);
 
-      Kind<EitherKind.Witness<String>, String> result =
-          applicative.map2(rightNull, rightValue, nullSafeFunc);
-
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getRight()).isEqualTo("null:test");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("null:test");
     }
 
     @Test
     @DisplayName("mapN operations short-circuit on first Left")
     void mapNShortCircuitsOnFirstLeft() {
-      Kind<EitherKind.Witness<String>, Integer> l1 = EITHER.widen(Either.left("E1"));
-      Kind<EitherKind.Witness<String>, String> l2 = EITHER.widen(Either.left("E2"));
-      Kind<EitherKind.Witness<String>, Double> l3 = EITHER.widen(Either.left("E3"));
+      Kind<EitherKind.Witness<String>, Integer> l1 = leftKind(TestErrorType.ERROR_1);
+      Kind<EitherKind.Witness<String>, String> l2 = leftKind(TestErrorType.ERROR_2);
+      Kind<EitherKind.Witness<String>, Double> l3 = leftKind(TestErrorType.ERROR_3);
 
       Function3<Integer, String, Double, String> combiner = (i, s, d) -> "result";
 
       Kind<EitherKind.Witness<String>, String> result = applicative.map3(l1, l2, l3, combiner);
-
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getLeft()).isEqualTo("E1");
+      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.ERROR_1.message());
     }
 
     @Test
@@ -292,15 +232,13 @@ class EitherApplicativeTest extends TypeClassTestBase<EitherKind.Witness<String>
     void complexNestedApplicativeOperations() {
       Kind<EitherKind.Witness<String>, Function<Integer, Function<String, String>>> nestedFunc =
           applicative.of(i -> s -> s + ":" + i);
-      Kind<EitherKind.Witness<String>, Integer> intKind = applicative.of(42);
+      Kind<EitherKind.Witness<String>, Integer> intKind = applicative.of(DEFAULT_RIGHT_VALUE);
       Kind<EitherKind.Witness<String>, String> stringKind = applicative.of("test");
 
-      Kind<EitherKind.Witness<String>, Function<String, String>> partialFunc =
-          applicative.ap(nestedFunc, intKind);
-      Kind<EitherKind.Witness<String>, String> result = applicative.ap(partialFunc, stringKind);
+      var partialFunc = applicative.ap(nestedFunc, intKind);
+      var result = applicative.ap(partialFunc, stringKind);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getRight()).isEqualTo("test:42");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("test:42");
     }
   }
 
@@ -312,17 +250,16 @@ class EitherApplicativeTest extends TypeClassTestBase<EitherKind.Witness<String>
     @DisplayName("Efficient with many map2 operations")
     void efficientWithManyMap2Operations() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<EitherKind.Witness<String>, Integer> start = applicative.of(1);
+        var start = applicative.of(1);
 
-        Kind<EitherKind.Witness<String>, Integer> result = start;
+        var result = start;
         for (int i = 0; i < 100; i++) {
-          Kind<EitherKind.Witness<String>, Integer> incrementKind = applicative.of(i);
+          var incrementKind = applicative.of(i);
           result = applicative.map2(result, incrementKind, (a, b) -> a + b);
         }
 
         int expectedSum = 1 + (99 * 100) / 2;
-        Either<String, Integer> either = EITHER.narrow(result);
-        assertThat(either.getRight()).isEqualTo(expectedSum);
+        assertThatEither(narrowToEither(result)).isRight().hasRight(expectedSum);
       }
     }
   }

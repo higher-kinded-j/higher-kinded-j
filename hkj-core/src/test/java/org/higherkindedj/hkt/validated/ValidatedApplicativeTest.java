@@ -2,65 +2,23 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ValidatedApplicative Complete Test Suite")
-class ValidatedApplicativeTest
-    extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
+class ValidatedApplicativeTest extends ValidatedTestBase {
 
   private Applicative<ValidatedKind.Witness<String>> applicative;
   private Semigroup<String> stringSemigroup;
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind() {
-    return VALIDATED.widen(Validated.valid(42));
-  }
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind2() {
-    return VALIDATED.widen(Validated.valid(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Function<Integer, String>>
-      createValidFunctionKind() {
-    Function<Integer, String> fn = n -> "Value: " + n;
-    return VALIDATED.widen(Validated.valid(fn));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> a + "+" + b;
-  }
-
-  @Override
-  protected BiPredicate<
-          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Validated<String, ?> v1 = VALIDATED.narrow(k1);
-      Validated<String, ?> v2 = VALIDATED.narrow(k2);
-      return v1.equals(v2);
-    };
-  }
 
   @BeforeEach
   void setUpApplicative() {
@@ -79,7 +37,7 @@ class ValidatedApplicativeTest
           .<Integer>instance(applicative)
           .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(42, Object::toString, equalityChecker)
+          .withLawsTesting(DEFAULT_VALID_VALUE, validMapper, equalityChecker)
           .testAll();
     }
   }
@@ -91,11 +49,10 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Of wraps value in Valid")
     void ofWrapsValueInValid() {
-      Kind<ValidatedKind.Witness<String>, Integer> result = applicative.of(42);
+      Kind<ValidatedKind.Witness<String>, Integer> result = applicative.of(DEFAULT_VALID_VALUE);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(42);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
@@ -104,13 +61,12 @@ class ValidatedApplicativeTest
       Function<Integer, String> fn = n -> "Value: " + n;
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> fnKind =
           VALIDATED.widen(Validated.valid(fn));
-      Kind<ValidatedKind.Witness<String>, Integer> valueKind = VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> valueKind = validKind(DEFAULT_VALID_VALUE);
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("Value: 42");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue("Value: 42");
     }
 
     @Test
@@ -118,28 +74,25 @@ class ValidatedApplicativeTest
     void apAccumulatesErrorsFromBothInvalidFunctionAndInvalidValue() {
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> fnKind =
           VALIDATED.widen(Validated.invalid("error1"));
-      Kind<ValidatedKind.Witness<String>, Integer> valueKind =
-          VALIDATED.widen(Validated.invalid("error2"));
+      Kind<ValidatedKind.Witness<String>, Integer> valueKind = invalidKind("error2");
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("error1, error2");
     }
 
     @Test
     @DisplayName("Ap propagates Invalid function")
     void apPropagatesInvalidFunction() {
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> fnKind =
-          VALIDATED.widen(Validated.invalid("error"));
-      Kind<ValidatedKind.Witness<String>, Integer> valueKind = VALIDATED.widen(Validated.valid(42));
+          VALIDATED.widen(Validated.invalid(DEFAULT_ERROR));
+      Kind<ValidatedKind.Witness<String>, Integer> valueKind = validKind(DEFAULT_VALID_VALUE);
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
@@ -148,44 +101,38 @@ class ValidatedApplicativeTest
       Function<Integer, String> fn = n -> "Value: " + n;
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> fnKind =
           VALIDATED.widen(Validated.valid(fn));
-      Kind<ValidatedKind.Witness<String>, Integer> valueKind =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> valueKind = invalidKind(DEFAULT_ERROR);
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
     @DisplayName("Map2 combines two Valid values")
     void map2CombinesTwoValidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind1 = VALIDATED.widen(Validated.valid(10));
-      Kind<ValidatedKind.Witness<String>, Integer> kind2 = VALIDATED.widen(Validated.valid(20));
+      Kind<ValidatedKind.Witness<String>, Integer> kind1 = validKind(10);
+      Kind<ValidatedKind.Witness<String>, Integer> kind2 = validKind(20);
 
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map2(kind1, kind2, (a, b) -> a + "+" + b);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("10+20");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue("10+20");
     }
 
     @Test
     @DisplayName("Map2 accumulates errors from both Invalid values")
     void map2AccumulatesErrorsFromBothInvalidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind1 =
-          VALIDATED.widen(Validated.invalid("error1"));
-      Kind<ValidatedKind.Witness<String>, Integer> kind2 =
-          VALIDATED.widen(Validated.invalid("error2"));
+      Kind<ValidatedKind.Witness<String>, Integer> kind1 = invalidKind("error1");
+      Kind<ValidatedKind.Witness<String>, Integer> kind2 = invalidKind("error2");
 
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map2(kind1, kind2, (a, b) -> a + "+" + b);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("error1, error2");
     }
   }
 
@@ -230,7 +177,7 @@ class ValidatedApplicativeTest
           .<Integer>instance(applicative)
           .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(42, Object::toString, equalityChecker)
+          .withLawsTesting(DEFAULT_VALID_VALUE, validMapper, equalityChecker)
           .testLaws();
     }
   }
@@ -262,57 +209,47 @@ class ValidatedApplicativeTest
     @Test
     @DisplayName("Map3 accumulates three errors")
     void map3AccumulatesThreeErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind1 =
-          VALIDATED.widen(Validated.invalid("error1"));
-      Kind<ValidatedKind.Witness<String>, Integer> kind2 =
-          VALIDATED.widen(Validated.invalid("error2"));
-      Kind<ValidatedKind.Witness<String>, Integer> kind3 =
-          VALIDATED.widen(Validated.invalid("error3"));
+      Kind<ValidatedKind.Witness<String>, Integer> kind1 = invalidKind("error1");
+      Kind<ValidatedKind.Witness<String>, Integer> kind2 = invalidKind("error2");
+      Kind<ValidatedKind.Witness<String>, Integer> kind3 = invalidKind("error3");
 
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map3(kind1, kind2, kind3, (a, b, c) -> a + "+" + b + "+" + c);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2, error3");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("error1, error2, error3");
     }
 
     @Test
     @DisplayName("Map4 accumulates four errors")
     void map4AccumulatesFourErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind1 =
-          VALIDATED.widen(Validated.invalid("error1"));
-      Kind<ValidatedKind.Witness<String>, Integer> kind2 =
-          VALIDATED.widen(Validated.invalid("error2"));
-      Kind<ValidatedKind.Witness<String>, Integer> kind3 =
-          VALIDATED.widen(Validated.invalid("error3"));
-      Kind<ValidatedKind.Witness<String>, Integer> kind4 =
-          VALIDATED.widen(Validated.invalid("error4"));
+      Kind<ValidatedKind.Witness<String>, Integer> kind1 = invalidKind("error1");
+      Kind<ValidatedKind.Witness<String>, Integer> kind2 = invalidKind("error2");
+      Kind<ValidatedKind.Witness<String>, Integer> kind3 = invalidKind("error3");
+      Kind<ValidatedKind.Witness<String>, Integer> kind4 = invalidKind("error4");
 
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map4(
               kind1, kind2, kind3, kind4, (a, b, c, d) -> a + "+" + b + "+" + c + "+" + d);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2, error3, error4");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("error1, error2, error3, error4");
     }
 
     @Test
     @DisplayName("Map5 combines valid values correctly")
     void map5CombinesValidValuesCorrectly() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind1 = VALIDATED.widen(Validated.valid(1));
-      Kind<ValidatedKind.Witness<String>, Integer> kind2 = VALIDATED.widen(Validated.valid(2));
-      Kind<ValidatedKind.Witness<String>, Integer> kind3 = VALIDATED.widen(Validated.valid(3));
-      Kind<ValidatedKind.Witness<String>, Integer> kind4 = VALIDATED.widen(Validated.valid(4));
-      Kind<ValidatedKind.Witness<String>, Integer> kind5 = VALIDATED.widen(Validated.valid(5));
+      Kind<ValidatedKind.Witness<String>, Integer> kind1 = validKind(1);
+      Kind<ValidatedKind.Witness<String>, Integer> kind2 = validKind(2);
+      Kind<ValidatedKind.Witness<String>, Integer> kind3 = validKind(3);
+      Kind<ValidatedKind.Witness<String>, Integer> kind4 = validKind(4);
+      Kind<ValidatedKind.Witness<String>, Integer> kind5 = validKind(5);
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           applicative.map5(kind1, kind2, kind3, kind4, kind5, (a, b, c, d, e) -> a + b + c + d + e);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(15);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(15);
     }
   }
 
@@ -336,17 +273,14 @@ class ValidatedApplicativeTest
       Applicative<ValidatedKind.Witness<String>> reverseApplicative =
           ValidatedMonad.instance(reverseSemigroup);
 
-      Kind<ValidatedKind.Witness<String>, Integer> kind1 =
-          VALIDATED.widen(Validated.invalid("error1"));
-      Kind<ValidatedKind.Witness<String>, Integer> kind2 =
-          VALIDATED.widen(Validated.invalid("error2"));
+      Kind<ValidatedKind.Witness<String>, Integer> kind1 = invalidKind("error1");
+      Kind<ValidatedKind.Witness<String>, Integer> kind2 = invalidKind("error2");
 
       Kind<ValidatedKind.Witness<String>, String> result =
           reverseApplicative.map2(kind1, kind2, (a, b) -> a + "+" + b);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error2, error1");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("error2, error1");
     }
   }
 }

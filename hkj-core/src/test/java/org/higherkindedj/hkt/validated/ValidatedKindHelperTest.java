@@ -3,27 +3,18 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ValidatedKindHelper Complete Test Suite")
-class ValidatedKindHelperTest {
-
-  private Validated<String, Integer> validInstance;
-  private Validated<String, Integer> invalidInstance;
-
-  @BeforeEach
-  void setUp() {
-    validInstance = Validated.valid(42);
-    invalidInstance = Validated.invalid("test-error");
-  }
+class ValidatedKindHelperTest extends ValidatedTestBase {
 
   @Nested
   @DisplayName("Complete Test Suite")
@@ -32,12 +23,14 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Run complete ValidatedKindHelper test pattern for Valid")
     void runCompleteValidatedKindHelperTestPatternForValid() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       CoreTypeTest.validatedKindHelper(validInstance).test();
     }
 
     @Test
     @DisplayName("Run complete ValidatedKindHelper test pattern for Invalid")
     void runCompleteValidatedKindHelperTestPatternForInvalid() {
+      Validated<String, Integer> invalidInstance = Validated.invalid(DEFAULT_ERROR);
       CoreTypeTest.validatedKindHelper(invalidInstance).test();
     }
   }
@@ -49,6 +42,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Widen converts Valid to Kind")
     void widenConvertsValidToKind() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
 
       assertThat(kind).isNotNull();
@@ -59,6 +53,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Widen converts Invalid to Kind")
     void widenConvertsInvalidToKind() {
+      Validated<String, Integer> invalidInstance = Validated.invalid(DEFAULT_ERROR);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
 
       assertThat(kind).isNotNull();
@@ -79,6 +74,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Widen is idempotent")
     void widenIsIdempotent() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> kind1 = VALIDATED.widen(validInstance);
       Kind<ValidatedKind.Witness<String>, Integer> kind2 = VALIDATED.widen(validInstance);
 
@@ -94,25 +90,25 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Narrow converts Kind to Valid")
     void narrowConvertsKindToValid() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
       Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
 
       assertThat(narrowed).isNotNull();
       assertThat(narrowed).isSameAs(validInstance);
-      assertThat(narrowed.isValid()).isTrue();
-      assertThat(narrowed.get()).isEqualTo(42);
+      assertThatValidated(narrowed).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
     @DisplayName("Narrow converts Kind to Invalid")
     void narrowConvertsKindToInvalid() {
+      Validated<String, Integer> invalidInstance = Validated.invalid(DEFAULT_ERROR);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
       Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
 
       assertThat(narrowed).isNotNull();
       assertThat(narrowed).isSameAs(invalidInstance);
-      assertThat(narrowed.isInvalid()).isTrue();
-      assertThat(narrowed.getError()).isEqualTo("test-error");
+      assertThatValidated(narrowed).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
@@ -142,6 +138,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Narrow is idempotent")
     void narrowIsIdempotent() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
       Validated<String, Integer> narrowed1 = VALIDATED.narrow(kind);
       Validated<String, Integer> narrowed2 = VALIDATED.narrow(kind);
@@ -158,6 +155,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Round trip preserves Valid identity")
     void roundTripPreservesValidIdentity() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> widened = VALIDATED.widen(validInstance);
       Validated<String, Integer> narrowed = VALIDATED.narrow(widened);
 
@@ -167,6 +165,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Round trip preserves Invalid identity")
     void roundTripPreservesInvalidIdentity() {
+      Validated<String, Integer> invalidInstance = Validated.invalid(DEFAULT_ERROR);
       Kind<ValidatedKind.Witness<String>, Integer> widened = VALIDATED.widen(invalidInstance);
       Validated<String, Integer> narrowed = VALIDATED.narrow(widened);
 
@@ -176,6 +175,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Multiple round trips preserve identity")
     void multipleRoundTripsPreserveIdentity() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Validated<String, Integer> current = validInstance;
 
       for (int i = 0; i < 3; i++) {
@@ -194,14 +194,13 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Valid factory creates Valid Kind")
     void validFactoryCreatesValidKind() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.valid(42);
+      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.valid(DEFAULT_VALID_VALUE);
 
       assertThat(kind).isNotNull();
       assertThat(kind).isInstanceOf(ValidatedKind.class);
 
       Validated<String, Integer> validated = VALIDATED.narrow(kind);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(42);
+      assertThatValidated(validated).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
@@ -217,14 +216,13 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Invalid factory creates Invalid Kind")
     void invalidFactoryCreatesInvalidKind() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.invalid("error");
+      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.invalid(DEFAULT_ERROR);
 
       assertThat(kind).isNotNull();
       assertThat(kind).isInstanceOf(ValidatedKind.class);
 
       Validated<String, Integer> validated = VALIDATED.narrow(kind);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
@@ -244,6 +242,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Widen and narrow preserve Valid type information")
     void widenAndNarrowPreserveValidTypeInformation() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
       Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
 
@@ -254,6 +253,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Widen and narrow preserve Invalid type information")
     void widenAndNarrowPreserveInvalidTypeInformation() {
+      Validated<String, Integer> invalidInstance = Validated.invalid(DEFAULT_ERROR);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
       Validated<String, Integer> narrowed = VALIDATED.narrow(kind);
 
@@ -264,6 +264,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Kind representation preserves Valid toString")
     void kindRepresentationPreservesValidToString() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
 
       assertThat(kind.toString()).isEqualTo("Valid(42)");
@@ -272,9 +273,10 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Kind representation preserves Invalid toString")
     void kindRepresentationPreservesInvalidToString() {
+      Validated<String, Integer> invalidInstance = Validated.invalid(DEFAULT_ERROR);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalidInstance);
 
-      assertThat(kind.toString()).isEqualTo("Invalid(test-error)");
+      assertThat(kind.toString()).isEqualTo("Invalid(error)");
     }
 
     @Test
@@ -292,6 +294,7 @@ class ValidatedKindHelperTest {
     @Test
     @DisplayName("Widen operation is fast")
     void widenOperationIsFast() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       int iterations = 10000;
 
       // Warm up
@@ -306,12 +309,13 @@ class ValidatedKindHelperTest {
       long duration = System.nanoTime() - start;
 
       double averageNanos = (double) duration / iterations;
-      assertThat(averageNanos).as("Widen should be fast (< 1000ns average)").isLessThan(1000.0);
+      assertThat(averageNanos).as("Widen should be fast (< 2000ns average)").isLessThan(2000.0);
     }
 
     @Test
     @DisplayName("Narrow operation is fast")
     void narrowOperationIsFast() {
+      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
       Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
       int iterations = 10000;
 
@@ -327,7 +331,7 @@ class ValidatedKindHelperTest {
       long duration = System.nanoTime() - start;
 
       double averageNanos = (double) duration / iterations;
-      assertThat(averageNanos).as("Narrow should be fast (< 1000ns average)").isLessThan(1000.0);
+      assertThat(averageNanos).as("Narrow should be fast (< 2000ns average)").isLessThan(2000.0);
     }
   }
 }

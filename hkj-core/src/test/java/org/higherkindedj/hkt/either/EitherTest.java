@@ -3,19 +3,15 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -31,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * framework for consistent error handling.
  */
 @DisplayName("Either<L, R> Core Functionality - Standardised Test Suite")
-class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
+class EitherTest extends EitherTestBase {
 
   private final String leftValue = "Error Message";
   private final Integer rightValue = 123;
@@ -43,63 +39,6 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
   // Type class testing fixtures
   private EitherMonad<String> monad;
   private EitherFunctor<String> functor;
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind() {
-    return EitherKindHelper.EITHER.widen(rightInstance);
-  }
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind2() {
-    return EitherKindHelper.EITHER.widen(Either.right(456));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) ->
-        EitherKindHelper.EITHER.narrow(k1).equals(EitherKindHelper.EITHER.narrow(k2));
-  }
-
-  @Override
-  protected Function<String, String> createSecondMapper() {
-    return s -> s; // String -> String for law testing
-  }
-
-  @Override
-  protected Function<Integer, Kind<EitherKind.Witness<String>, String>> createValidFlatMapper() {
-    return i -> EitherKindHelper.EITHER.widen(Either.right(String.valueOf(i)));
-  }
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Function<Integer, String>> createValidFunctionKind() {
-    return EitherKindHelper.EITHER.widen(Either.right(validMapper));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (i1, i2) -> String.valueOf(i1 + i2);
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return rightValue;
-  }
-
-  @Override
-  protected Function<Integer, Kind<EitherKind.Witness<String>, String>> createTestFunction() {
-    return i -> EitherKindHelper.EITHER.widen(Either.right(i.toString()));
-  }
-
-  @Override
-  protected Function<String, Kind<EitherKind.Witness<String>, String>> createChainFunction() {
-    return s -> EitherKindHelper.EITHER.widen(Either.right(s + "!"));
-  }
 
   @BeforeEach
   void setUpEither() {
@@ -114,7 +53,6 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @Test
     @DisplayName("Run complete Monad test pattern")
     void runCompleteMonadTestPattern() {
-      // Test complete Monad behaviour using available methods
       TypeClassTest.<EitherKind.Witness<String>>monad(EitherMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
@@ -191,23 +129,20 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void leftCreatesCorrectInstances() {
       // Non-null values
       assertThat(leftInstance).isInstanceOf(Either.Left.class);
-      assertThat(leftInstance.isLeft()).isTrue();
-      assertThat(leftInstance.isRight()).isFalse();
-      assertThat(leftInstance.getLeft()).isEqualTo(leftValue);
+      assertThatEither(leftInstance).isLeft().hasLeftNonNull().hasLeft(leftValue);
 
       // Null values
       assertThat(leftNullInstance).isInstanceOf(Either.Left.class);
-      assertThat(leftNullInstance.isLeft()).isTrue();
-      assertThat(leftNullInstance.getLeft()).isNull();
+      assertThatEither(leftNullInstance).isLeft().hasLeftNull();
 
       // Complex types
       Exception exception = new RuntimeException("test");
       Either<Exception, String> exceptionLeft = Either.left(exception);
-      assertThat(exceptionLeft.getLeft()).isSameAs(exception);
+      assertThatEither(exceptionLeft).isLeft().hasLeftNonNull().hasLeft(exception);
 
       // Empty string
       Either<String, Integer> emptyLeft = Either.left("");
-      assertThat(emptyLeft.getLeft()).isEmpty();
+      assertThatEither(emptyLeft).isLeft().hasLeftNonNull().hasLeft("");
     }
 
     @Test
@@ -215,23 +150,20 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void rightCreatesCorrectInstances() {
       // Non-null values
       assertThat(rightInstance).isInstanceOf(Either.Right.class);
-      assertThat(rightInstance.isRight()).isTrue();
-      assertThat(rightInstance.isLeft()).isFalse();
-      assertThat(rightInstance.getRight()).isEqualTo(rightValue);
+      assertThatEither(rightInstance).isRight().hasRightNonNull().hasRight(rightValue);
 
       // Null values
       assertThat(rightNullInstance).isInstanceOf(Either.Right.class);
-      assertThat(rightNullInstance.isRight()).isTrue();
-      assertThat(rightNullInstance.getRight()).isNull();
+      assertThatEither(rightNullInstance).isRight().hasRightNull();
 
       // Complex types
       List<String> list = List.of("a", "b", "c");
       Either<String, List<String>> listRight = Either.right(list);
-      assertThat(listRight.getRight()).isSameAs(list);
+      assertThatEither(listRight).isRight().hasRightNonNull().hasRight(list);
 
       // Primitives and wrappers
       Either<String, Boolean> boolRight = Either.right(true);
-      assertThat(boolRight.getRight()).isTrue();
+      assertThatEither(boolRight).isRight().hasRightNonNull().hasRight(true);
     }
 
     @Test
@@ -245,8 +177,8 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       Either<String, Object> leftAssignment = stringLeft;
       Either<Object, Integer> rightAssignment = intRight;
 
-      assertThat(leftAssignment.getLeft()).isEqualTo("error");
-      assertThat(rightAssignment.getRight()).isEqualTo(42);
+      assertThatEither(leftAssignment).isLeft().hasLeftNonNull().hasLeft("error");
+      assertThatEither(rightAssignment).isRight().hasRightNonNull().hasRight(42);
     }
   }
 
@@ -259,6 +191,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void getLeftWorksCorrectly() {
       // Standard case
       assertThat(leftInstance.getLeft()).isEqualTo(leftValue);
+      assertThatEither(leftInstance).hasLeftNonNull();
 
       // Null case
       assertThat(leftNullInstance.getLeft()).isNull();
@@ -267,11 +200,13 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       RuntimeException exception = new RuntimeException("Test exception: test");
       Either<RuntimeException, String> exceptionLeft = Either.left(exception);
       assertThat(exceptionLeft.getLeft()).isSameAs(exception);
+      assertThatEither(exceptionLeft).hasLeftNonNull();
 
       // Generic types
       List<String> errorList = List.of("error1", "error2");
       Either<List<String>, Integer> listLeft = Either.left(errorList);
       assertThat(listLeft.getLeft()).isSameAs(errorList);
+      assertThatEither(listLeft).hasLeftNonNull();
     }
 
     @Test
@@ -299,6 +234,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void getRightWorksCorrectly() {
       // Standard case
       assertThat(rightInstance.getRight()).isEqualTo(rightValue);
+      assertThatEither(rightInstance).hasRightNonNull();
 
       // Null case
       assertThat(rightNullInstance.getRight()).isNull();
@@ -307,11 +243,13 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       List<String> resultList = List.of("a", "b", "c");
       Either<String, List<String>> listRight = Either.right(resultList);
       assertThat(listRight.getRight()).isSameAs(resultList);
+      assertThatEither(listRight).hasRightNonNull();
 
       // Nested Either (Either as value)
       Either<String, Integer> nested = Either.right(99);
       Either<String, Either<String, Integer>> nestedRight = Either.right(nested);
       assertThat(nestedRight.getRight()).isSameAs(nested);
+      assertThatEither(nestedRight).hasRightNonNull();
     }
 
     @Test
@@ -340,25 +278,24 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
   @DisplayName("fold() Method - Complete Validation and Edge Cases")
   class FoldMethodTests {
 
-    private final Function<String, String> leftMapper = l -> "Left mapped: " + l;
-    private final Function<Integer, String> rightMapper = r -> "Right mapped: " + r;
-
     @Test
     @DisplayName("fold() applies correct mapper based on Either type")
     void foldAppliesCorrectMapper() {
       // Left mapping
-      String leftResult = leftInstance.fold(leftMapper, rightMapper);
+      String leftResult = leftInstance.fold(l -> "Left mapped: " + l, r -> "Right mapped: " + r);
       assertThat(leftResult).isEqualTo("Left mapped: " + leftValue);
 
       // Right mapping
-      String rightResult = rightInstance.fold(leftMapper, rightMapper);
+      String rightResult = rightInstance.fold(l -> "Left mapped: " + l, r -> "Right mapped: " + r);
       assertThat(rightResult).isEqualTo("Right mapped: " + rightValue);
 
       // Null value handling
-      String leftNullResult = leftNullInstance.fold(leftMapper, rightMapper);
+      String leftNullResult =
+          leftNullInstance.fold(l -> "Left mapped: " + l, r -> "Right mapped: " + r);
       assertThat(leftNullResult).isEqualTo("Left mapped: null");
 
-      String rightNullResult = rightNullInstance.fold(leftMapper, rightMapper);
+      String rightNullResult =
+          rightNullInstance.fold(l -> "Left mapped: " + l, r -> "Right mapped: " + r);
       assertThat(rightNullResult).isEqualTo("Right mapped: null");
     }
 
@@ -367,12 +304,12 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void foldValidatesNullMappers() {
       ValidationTestBuilder.create()
           .assertFunctionNull(
-              () -> leftInstance.fold(null, rightMapper),
+              () -> leftInstance.fold(null, r -> "Right mapped: " + r),
               "leftMapper",
               Either.class,
               Operation.FOLD)
           .assertFunctionNull(
-              () -> rightInstance.fold(leftMapper, null),
+              () -> rightInstance.fold(l -> "Left mapped: " + l, null),
               "rightMapper",
               Either.class,
               Operation.FOLD)
@@ -385,22 +322,26 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @DisplayName("fold() handles exception propagation correctly")
     void foldHandlesExceptionPropagation() {
       RuntimeException testException = new RuntimeException("Test exception: fold test");
-      Function<String, String> throwingLeftMapper = TestFunctions.throwingFunction(testException);
-      Function<Integer, String> throwingRightMapper = TestFunctions.throwingFunction(testException);
 
       // Left instance should call left mapper and propagate exception
-      assertThatThrownBy(() -> leftInstance.fold(throwingLeftMapper, rightMapper))
+      assertThatThrownBy(
+              () -> leftInstance.fold(TestFunctions.throwingFunction(testException), r -> "Right"))
           .isSameAs(testException);
 
       // Right instance should call right mapper and propagate exception
-      assertThatThrownBy(() -> rightInstance.fold(leftMapper, throwingRightMapper))
+      assertThatThrownBy(
+              () -> rightInstance.fold(l -> "Left", TestFunctions.throwingFunction(testException)))
           .isSameAs(testException);
 
       // Non-throwing mapper shouldn't be called
-      String leftResult = leftInstance.fold(leftMapper, throwingRightMapper);
+      String leftResult =
+          leftInstance.fold(
+              l -> "Left mapped: " + l, TestFunctions.throwingFunction(testException));
       assertThat(leftResult).isEqualTo("Left mapped: " + leftValue);
 
-      String rightResult = rightInstance.fold(throwingLeftMapper, rightMapper);
+      String rightResult =
+          rightInstance.fold(
+              TestFunctions.throwingFunction(testException), r -> "Right mapped: " + r);
       assertThat(rightResult).isEqualTo("Right mapped: " + rightValue);
     }
 
@@ -435,17 +376,21 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void mapAppliesFunctionToRight() {
       // Standard transformation
       Either<String, String> result = rightInstance.map(TestFunctions.INT_TO_STRING);
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isEqualTo("123");
+      assertThatEither(result).isRight().hasRightNonNull().hasRight("123");
 
       // Complex transformation
       Either<String, List<Integer>> listResult = rightInstance.map(i -> List.of(i, i * 2));
-      assertThat(listResult.getRight()).containsExactly(123, 246);
+      assertThatEither(listResult)
+          .isRight()
+          .hasRightNonNull()
+          .hasRightSatisfying(
+              list -> {
+                assertThat(list).containsExactly(123, 246);
+              });
 
       // Null-safe transformation
-      Either<String, String> nullResult = rightNullInstance.map(i -> String.valueOf(i));
-      assertThat(nullResult.isRight()).isTrue();
-      assertThat(nullResult.getRight()).isEqualTo("null");
+      Either<String, String> nullResult = rightNullInstance.map(String::valueOf);
+      assertThatEither(nullResult).isRight().hasRightNonNull().hasRight("null");
     }
 
     @Test
@@ -454,14 +399,12 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       // Standard Left
       Either<String, String> result = leftInstance.map(TestFunctions.INT_TO_STRING);
       assertThat(result).isSameAs(leftInstance);
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isEqualTo(leftValue);
+      assertThatEither(result).isLeft().hasLeftNonNull().hasLeft(leftValue);
 
       // Left with null
       Either<String, String> nullResult = leftNullInstance.map(TestFunctions.INT_TO_STRING);
       assertThat(nullResult).isSameAs(leftNullInstance);
-      assertThat(nullResult.isLeft()).isTrue();
-      assertThat(nullResult.getLeft()).isNull();
+      assertThatEither(nullResult).isLeft().hasLeftNull();
 
       // Complex Left type
       RuntimeException exception = new RuntimeException("Test exception: test");
@@ -484,37 +427,47 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @DisplayName("map() handles exception propagation and chaining")
     void mapHandlesExceptionPropagation() {
       RuntimeException testException = new RuntimeException("Test exception: map test");
-      Function<Integer, String> throwingMapper = TestFunctions.throwingFunction(testException);
 
       // Right instances should propagate exceptions
-      assertThatThrownBy(() -> rightInstance.map(throwingMapper)).isSameAs(testException);
+      assertThatThrownBy(() -> rightInstance.map(TestFunctions.throwingFunction(testException)))
+          .isSameAs(testException);
 
       // Left instances should not call mapper
-      Either<String, String> leftResult = leftInstance.map(throwingMapper);
+      Either<String, String> leftResult =
+          leftInstance.map(TestFunctions.throwingFunction(testException));
       assertThat(leftResult).isSameAs(leftInstance);
 
       // Test chaining
       Either<String, Integer> start = Either.right(10);
       Either<String, String> chainResult =
           start.map(i -> i * 2).map(i -> "Value: " + i).map(String::toUpperCase);
-      assertThat(chainResult.getRight()).isEqualTo("VALUE: 20");
+      assertThatEither(chainResult).isRight().hasRightNonNull().hasRight("VALUE: 20");
 
       // Test chaining with Left short-circuit
       Either<String, Integer> leftStart = Either.left("error");
       Either<String, String> leftChainResult =
           leftStart.map(i -> i * 2).map(i -> "Value: " + i).map(String::toUpperCase);
-      assertThat(leftChainResult.isLeft()).isTrue();
-      assertThat(leftChainResult.getLeft()).isEqualTo("error");
+      assertThatEither(leftChainResult).isLeft().hasLeftNonNull().hasLeft("error");
     }
 
     @Test
     @DisplayName("map() handles null-returning functions")
     void mapHandlesNullReturningFunctions() {
-      Function<Integer, String> nullReturningMapper = TestFunctions.nullReturningFunction();
+      Either<String, String> result = rightInstance.map(TestFunctions.nullReturningFunction());
+      assertThatEither(result).isRight().hasRightNull();
+    }
 
-      Either<String, String> result = rightInstance.map(nullReturningMapper);
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isNull();
+    @Test
+    @DisplayName("map() operations preserve non-null values")
+    void mapOperationsPreserveNonNull() {
+      Either<String, String> right = Either.right("test");
+      assertThatEither(right).hasRightNonNull();
+
+      Either<String, Integer> mapped = right.map(String::length);
+      assertThatEither(mapped).isRight().hasRightNonNull();
+
+      Either<String, String> remapped = mapped.map(i -> "length:" + i);
+      assertThatEither(remapped).isRight().hasRightNonNull();
     }
   }
 
@@ -528,25 +481,23 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       AtomicBoolean executed = new AtomicBoolean(false);
       AtomicBoolean correctValue = new AtomicBoolean(false);
 
-      Consumer<String> action =
+      leftInstance.ifLeft(
           s -> {
             executed.set(true);
             correctValue.set(leftValue.equals(s));
-          };
+          });
 
-      leftInstance.ifLeft(action);
       assertThat(executed).isTrue();
       assertThat(correctValue).isTrue();
 
       // Test with null value
       AtomicBoolean nullExecuted = new AtomicBoolean(false);
-      Consumer<String> nullAction =
+      leftNullInstance.ifLeft(
           s -> {
             nullExecuted.set(true);
             assertThat(s).isNull();
-          };
+          });
 
-      leftNullInstance.ifLeft(nullAction);
       assertThat(nullExecuted).isTrue();
     }
 
@@ -554,12 +505,11 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @DisplayName("ifLeft() does not execute action on Right instances")
     void ifLeftDoesNotExecuteOnRight() {
       AtomicBoolean shouldNotExecute = new AtomicBoolean(false);
-      Consumer<String> action = s -> shouldNotExecute.set(true);
 
-      rightInstance.ifLeft(action);
+      rightInstance.ifLeft(s -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
 
-      rightNullInstance.ifLeft(action);
+      rightNullInstance.ifLeft(s -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
     }
 
@@ -569,25 +519,23 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       AtomicBoolean executed = new AtomicBoolean(false);
       AtomicBoolean correctValue = new AtomicBoolean(false);
 
-      Consumer<Integer> action =
+      rightInstance.ifRight(
           i -> {
             executed.set(true);
             correctValue.set(rightValue.equals(i));
-          };
+          });
 
-      rightInstance.ifRight(action);
       assertThat(executed).isTrue();
       assertThat(correctValue).isTrue();
 
       // Test with null value
       AtomicBoolean nullExecuted = new AtomicBoolean(false);
-      Consumer<Integer> nullAction =
+      rightNullInstance.ifRight(
           i -> {
             nullExecuted.set(true);
             assertThat(i).isNull();
-          };
+          });
 
-      rightNullInstance.ifRight(nullAction);
       assertThat(nullExecuted).isTrue();
     }
 
@@ -595,12 +543,11 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @DisplayName("ifRight() does not execute action on Left instances")
     void ifRightDoesNotExecuteOnLeft() {
       AtomicBoolean shouldNotExecute = new AtomicBoolean(false);
-      Consumer<Integer> action = i -> shouldNotExecute.set(true);
 
-      leftInstance.ifRight(action);
+      leftInstance.ifRight(i -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
 
-      leftNullInstance.ifRight(action);
+      leftNullInstance.ifRight(i -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
     }
 
@@ -623,24 +570,40 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @DisplayName("Side effect methods handle exceptions in actions")
     void sideEffectMethodsHandleExceptions() {
       RuntimeException testException = new RuntimeException("Test exception: side effect test");
-      Consumer<String> throwingLeftAction =
-          s -> {
-            throw testException;
-          };
-      Consumer<Integer> throwingRightAction =
-          i -> {
-            throw testException;
-          };
 
       // Exceptions should propagate from actions
-      assertThatThrownBy(() -> leftInstance.ifLeft(throwingLeftAction)).isSameAs(testException);
+      assertThatThrownBy(
+              () ->
+                  leftInstance.ifLeft(
+                      s -> {
+                        throw testException;
+                      }))
+          .isSameAs(testException);
 
-      assertThatThrownBy(() -> rightInstance.ifRight(throwingRightAction)).isSameAs(testException);
+      assertThatThrownBy(
+              () ->
+                  rightInstance.ifRight(
+                      i -> {
+                        throw testException;
+                      }))
+          .isSameAs(testException);
 
       // Non-matching sides should not call actions
-      assertThatCode(() -> rightInstance.ifLeft(throwingLeftAction)).doesNotThrowAnyException();
+      assertThatCode(
+              () ->
+                  rightInstance.ifLeft(
+                      s -> {
+                        throw testException;
+                      }))
+          .doesNotThrowAnyException();
 
-      assertThatCode(() -> leftInstance.ifRight(throwingRightAction)).doesNotThrowAnyException();
+      assertThatCode(
+              () ->
+                  leftInstance.ifRight(
+                      i -> {
+                        throw testException;
+                      }))
+          .doesNotThrowAnyException();
     }
   }
 
@@ -651,29 +614,21 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @Test
     @DisplayName("flatMap() applies function to Right values")
     void flatMapAppliesFunctionToRight() {
-      Function<Integer, Either<String, String>> mapper = i -> Either.right("Value: " + i);
-
-      Either<String, String> result = rightInstance.flatMap(mapper);
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isEqualTo("Value: 123");
+      Either<String, String> result = rightInstance.flatMap(i -> Either.right("Value: " + i));
+      assertThatEither(result).isRight().hasRightNonNull().hasRight("Value: 123");
 
       // Test returning Left from flatMap
-      Function<Integer, Either<String, String>> errorMapper =
-          i -> Either.left("Converted to error");
-      Either<String, String> errorResult = rightInstance.flatMap(errorMapper);
-      assertThat(errorResult.isLeft()).isTrue();
-      assertThat(errorResult.getLeft()).isEqualTo("Converted to error");
+      Either<String, String> errorResult =
+          rightInstance.flatMap(i -> Either.left("Converted to error"));
+      assertThatEither(errorResult).isLeft().hasLeftNonNull().hasLeft("Converted to error");
     }
 
     @Test
     @DisplayName("flatMap() preserves Left instances unchanged")
     void flatMapPreservesLeftInstances() {
-      Function<Integer, Either<String, String>> mapper = i -> Either.right("Value: " + i);
-
-      Either<String, String> result = leftInstance.flatMap(mapper);
+      Either<String, String> result = leftInstance.flatMap(i -> Either.right("Value: " + i));
       assertThat(result).isSameAs(leftInstance);
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isEqualTo(leftValue);
+      assertThatEither(result).isLeft().hasLeftNonNull().hasLeft(leftValue);
     }
 
     @Test
@@ -690,11 +645,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @Test
     @DisplayName("flatMap() validates non-null results")
     void flatMapValidatesNonNullResults() {
-      Function<Integer, Either<String, String>> nullReturningMapper = i -> null;
-
-      // The Validation.functionValidator().requireNonNullResult throws KindUnwrapException, not
-      // NullPointerException
-      assertThatThrownBy(() -> rightInstance.flatMap(nullReturningMapper))
+      assertThatThrownBy(() -> rightInstance.flatMap(i -> null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
               "Function mapper in Either.flatMap returned null when Either expected, which is not"
@@ -711,7 +662,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
               .flatMap(i -> Either.right(i * 2))
               .flatMap(i -> Either.right("Value: " + i))
               .flatMap(s -> Either.right(s.toUpperCase()));
-      assertThat(result.getRight()).isEqualTo("VALUE: 20");
+      assertThatEither(result).isRight().hasRightNonNull().hasRight("VALUE: 20");
 
       // Failure in middle of chain
       Either<String, String> failureResult =
@@ -719,8 +670,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
               .flatMap(i -> Either.right(i * 2))
               .flatMap(i -> Either.left("Error occurred"))
               .flatMap(i -> Either.right("Should not reach"));
-      assertThat(failureResult.isLeft()).isTrue();
-      assertThat(failureResult.getLeft()).isEqualTo("Error occurred");
+      assertThatEither(failureResult).isLeft().hasLeftNonNull().hasLeft("Error occurred");
 
       // Mixed operations
       Either<String, Integer> mixedResult =
@@ -728,22 +678,35 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
               .map(i -> i + 5) // 15
               .flatMap(i -> Either.right(i * 2)) // 30
               .map(i -> i - 10); // 20
-      assertThat(mixedResult.getRight()).isEqualTo(20);
+      assertThatEither(mixedResult).isRight().hasRightNonNull().hasRight(20);
     }
 
     @Test
     @DisplayName("flatMap() handles exception propagation")
     void flatMapHandlesExceptionPropagation() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap test");
-      Function<Integer, Either<String, String>> throwingMapper =
-          TestFunctions.throwingFunction(testException);
 
       // Right instances should propagate exceptions
-      assertThatThrownBy(() -> rightInstance.flatMap(throwingMapper)).isSameAs(testException);
+      assertThatThrownBy(() -> rightInstance.flatMap(TestFunctions.throwingFunction(testException)))
+          .isSameAs(testException);
 
       // Left instances should not call mapper
-      Either<String, String> leftResult = leftInstance.flatMap(throwingMapper);
+      Either<String, String> leftResult =
+          leftInstance.flatMap(TestFunctions.throwingFunction(testException));
       assertThat(leftResult).isSameAs(leftInstance);
+    }
+
+    @Test
+    @DisplayName("flatMap() preserves non-null values through chains")
+    void flatMapPreservesNonNullThroughChains() {
+      Either<String, String> start = Either.right("test");
+      assertThatEither(start).hasRightNonNull();
+
+      Either<String, Integer> step1 = start.flatMap(s -> Either.right(s.length()));
+      assertThatEither(step1).isRight().hasRightNonNull();
+
+      Either<String, String> step2 = step1.flatMap(i -> Either.right("length:" + i));
+      assertThatEither(step2).isRight().hasRightNonNull();
     }
   }
 
@@ -804,14 +767,17 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @Test
     @DisplayName("Either as functor maintains structure")
     void eitherAsFunctorMaintainsStructure() {
-      // Multiple transformations should maintain Either structure
       Either<String, Integer> start = Either.right(5);
 
-      Either<String, Double> result =
-          start.map(i -> i * 2.0).map(d -> d + 0.5).map(d -> Math.sqrt(d));
+      Either<String, Double> result = start.map(i -> i * 2.0).map(d -> d + 0.5).map(Math::sqrt);
 
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isCloseTo(Math.sqrt(10.5), within(0.001));
+      assertThatEither(result)
+          .isRight()
+          .hasRightNonNull()
+          .hasRightSatisfying(
+              value -> {
+                assertThat(value).isCloseTo(Math.sqrt(10.5), within(0.001));
+              });
     }
 
     @Test
@@ -819,28 +785,29 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void eitherForRailwayOrientedProgramming() {
       // Simulate a pipeline where each step can fail
       Function<String, Either<String, Integer>> parseInteger =
-          s -> {
+          (String s) -> {
             try {
-              return Either.right(Integer.parseInt(s));
+              return Either.<String, Integer>right(Integer.parseInt(s));
             } catch (NumberFormatException e) {
-              return Either.left("Invalid number: " + s);
+              return Either.<String, Integer>left("Invalid number: " + s);
             }
           };
 
       Function<Integer, Either<String, Double>> squareRoot =
-          i -> {
+          (Integer i) -> {
             if (i < 0) {
-              return Either.left("Cannot take square root of negative number: " + i);
+              return Either.<String, Double>left(
+                  "Cannot take square root of negative number: " + i);
             }
-            return Either.right(Math.sqrt(i));
+            return Either.<String, Double>right(Math.sqrt(i));
           };
 
       Function<Double, Either<String, String>> formatResult =
-          d -> {
+          (Double d) -> {
             if (d > 100) {
-              return Either.left("Result too large: " + d);
+              return Either.<String, String>left("Result too large: " + d);
             }
-            return Either.right(String.format("%.2f", d));
+            return Either.<String, String>right(String.format("%.2f", d));
           };
 
       Either<String, String> success =
@@ -848,7 +815,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
               .flatMap(parseInteger)
               .flatMap(squareRoot)
               .flatMap(formatResult);
-      assertThat(success.getRight()).isEqualTo("4.00");
+      assertThatEither(success).isRight().hasRightNonNull().hasRight("4.00");
 
       // Failure paths
       Either<String, String> parseFailure =
@@ -856,14 +823,26 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
               .flatMap(parseInteger)
               .flatMap(squareRoot)
               .flatMap(formatResult);
-      assertThat(parseFailure.getLeft()).contains("Invalid number");
+      assertThatEither(parseFailure)
+          .isLeft()
+          .hasLeftNonNull()
+          .hasLeftSatisfying(
+              error -> {
+                assertThat(error).contains("Invalid number");
+              });
 
       Either<String, String> negativeFailure =
           Either.<String, String>right("-4")
               .flatMap(parseInteger)
               .flatMap(squareRoot)
               .flatMap(formatResult);
-      assertThat(negativeFailure.getLeft()).contains("Cannot take square root");
+      assertThatEither(negativeFailure)
+          .isLeft()
+          .hasLeftNonNull()
+          .hasLeftSatisfying(
+              error -> {
+                assertThat(error).contains("Cannot take square root");
+              });
     }
 
     @Test
@@ -877,22 +856,22 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       }
 
       Function<String, Either<String, Resource>> openResource =
-          name -> {
+          (String name) -> {
             if (name.equals("invalid")) {
-              return Either.left("Cannot open resource: " + name);
+              return Either.<String, Resource>left("Cannot open resource: " + name);
             }
-            return Either.right(new Resource(name, true));
+            return Either.<String, Resource>right(new Resource(name, true));
           };
 
       Function<Resource, Either<String, String>> processResource =
-          resource -> {
+          (Resource resource) -> {
             if (!resource.open()) {
-              return Either.left("Resource is closed");
+              return Either.<String, String>left("Resource is closed");
             }
             if (resource.name().equals("fail")) {
-              return Either.left("Processing failed");
+              return Either.<String, String>left("Processing failed");
             }
-            return Either.right("Processed: " + resource.name());
+            return Either.<String, String>right("Processed: " + resource.name());
           };
 
       // Success case
@@ -907,7 +886,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
                     return processed;
                   });
 
-      assertThat(result.getRight()).isEqualTo("Processed: test");
+      assertThatEither(result).isRight().hasRightNonNull().hasRight("Processed: test");
 
       // Failure case
       Either<String, String> failureResult =
@@ -921,7 +900,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
                     return processed;
                   });
 
-      assertThat(failureResult.getLeft()).isEqualTo("Processing failed");
+      assertThatEither(failureResult).isLeft().hasLeftNonNull().hasLeft("Processing failed");
     }
 
     @Test
@@ -929,7 +908,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     void eitherPatternMatchingWithSwitch() {
       // Test exhaustive pattern matching
       Function<Either<String, Integer>, String> processEither =
-          either ->
+          (Either<String, Integer> either) ->
               switch (either) {
                 case Either.Left<String, Integer>(var error) -> "Error: " + error;
                 case Either.Right<String, Integer>(var value) -> "Success: " + value;
@@ -962,8 +941,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
     @Test
     @DisplayName("Either operations have predictable performance")
     void eitherOperationsHavePredictablePerformance() {
-      // Test that basic operations are fast
-      Either<String, Integer> test = Either.right(42);
+      Either<String, Integer> test = Either.right(DEFAULT_RIGHT_VALUE);
 
       // Simple operations should be very fast
       long start = System.nanoTime();
@@ -1008,7 +986,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       }
 
       // Should complete without memory issues
-      assertThat(result.getRight()).isEqualTo(1 + (999 * 1000) / 2);
+      assertThatEither(result).isRight().hasRightNonNull().hasRight(1 + (999 * 1000) / 2);
 
       // Left chains should be even more efficient
       Either<String, Integer> leftStart = Either.left("error");
@@ -1033,13 +1011,19 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       // Test covariance in Right type
       Either<String, Number> numberEither = Either.right(42);
       Either<String, Integer> intEither = numberEither.flatMap(n -> Either.right(n.intValue()));
-      assertThat(intEither.getRight()).isEqualTo(42);
+      assertThatEither(intEither).isRight().hasRightNonNull().hasRight(42);
 
       Either<Exception, String> exceptionEither = Either.left(new RuntimeException("test"));
 
       Either<Exception, String> processedEither =
           exceptionEither.flatMap(s -> Either.right(s.toUpperCase()));
-      assertThat(processedEither.getLeft()).isInstanceOf(RuntimeException.class);
+      assertThatEither(processedEither)
+          .isLeft()
+          .hasLeftNonNull()
+          .hasLeftSatisfying(
+              ex -> {
+                assertThat(ex).isInstanceOf(RuntimeException.class);
+              });
 
       Either<RuntimeException, String> runtimeEither;
       if (exceptionEither.isLeft() && exceptionEither.getLeft() instanceof RuntimeException) {
@@ -1050,7 +1034,13 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
 
       Either<RuntimeException, String> processedRuntime =
           runtimeEither.flatMap(s -> Either.right(s.toUpperCase()));
-      assertThat(processedRuntime.getLeft()).isInstanceOf(RuntimeException.class);
+      assertThatEither(processedRuntime)
+          .isLeft()
+          .hasLeftNonNull()
+          .hasLeftSatisfying(
+              ex -> {
+                assertThat(ex).isInstanceOf(RuntimeException.class);
+              });
     }
 
     @Test
@@ -1061,14 +1051,20 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
 
       Either<List<String>, Integer> summed =
           complexEither.map(list -> list.stream().mapToInt(Integer::intValue).sum());
-      assertThat(summed.getRight()).isEqualTo(6);
+      assertThatEither(summed).isRight().hasRightNonNull().hasRight(6);
 
       // Map transformations
       Either<String, java.util.Map<String, Integer>> mapEither =
           Either.right(java.util.Map.of("a", 1, "b", 2));
 
       Either<String, java.util.Set<String>> keySet = mapEither.map(map -> map.keySet());
-      assertThat(keySet.getRight()).containsExactlyInAnyOrder("a", "b");
+      assertThatEither(keySet)
+          .isRight()
+          .hasRightNonNull()
+          .hasRightSatisfying(
+              keys -> {
+                assertThat(keys).containsExactlyInAnyOrder("a", "b");
+              });
     }
 
     @Test
@@ -1098,12 +1094,12 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       // Very large strings
       String largeString = "x".repeat(10000);
       Either<String, String> largeRight = Either.right(largeString);
-      assertThat(largeRight.map(String::length).getRight()).isEqualTo(10000);
+      assertThatEither(largeRight.map(String::length)).isRight().hasRightNonNull().hasRight(10000);
 
       // Maximum/minimum integer values
       Either<String, Integer> maxInt = Either.right(Integer.MAX_VALUE);
       Either<String, Long> promoted = maxInt.map(i -> i.longValue() + 1);
-      assertThat(promoted.getRight()).isEqualTo((long) Integer.MAX_VALUE + 1);
+      assertThatEither(promoted).isRight().hasRightNonNull().hasRight((long) Integer.MAX_VALUE + 1);
 
       // Very nested structures
       Either<String, Either<String, Either<String, Integer>>> tripleNested =
@@ -1111,7 +1107,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
 
       Either<String, Integer> flattened =
           tripleNested.flatMap(inner -> inner.flatMap(innerInner -> innerInner));
-      assertThat(flattened.getRight()).isEqualTo(42);
+      assertThatEither(flattened).isRight().hasRightNonNull().hasRight(42);
     }
 
     @Test
@@ -1126,7 +1122,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
         result = result.map(x -> x + 1);
       }
 
-      assertThat(result.getRight()).isEqualTo(10000);
+      assertThatEither(result).isRight().hasRightNonNull().hasRight(10000);
 
       // Test with flatMap chains
       Either<String, Integer> flatMapResult = start;
@@ -1134,7 +1130,7 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
         flatMapResult = flatMapResult.flatMap(x -> Either.right(x + 1));
       }
 
-      assertThat(flatMapResult.getRight()).isEqualTo(1000);
+      assertThatEither(flatMapResult).isRight().hasRightNonNull().hasRight(1000);
     }
 
     @Test
@@ -1146,23 +1142,22 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
 
       // Even if the contained list is mutable, Either operations should be safe
       Either<String, Integer> sizeEither = listEither.map(List::size);
-      assertThat(sizeEither.getRight()).isEqualTo(3);
+      assertThatEither(sizeEither).isRight().hasRightNonNull().hasRight(3);
 
       // Modifying original list shouldn't affect Either operations
       listEither.getRight().add(4);
       Either<String, Integer> newSizeEither = listEither.map(List::size);
-      assertThat(newSizeEither.getRight()).isEqualTo(4);
+      assertThatEither(newSizeEither).isRight().hasRightNonNull().hasRight(4);
     }
 
     @Test
     @DisplayName("Either maintains referential transparency")
     void eitherMaintainsReferentialTransparency() {
       // Same operations should always produce same results
-      Either<String, Integer> either = Either.right(42);
-      Function<Integer, String> transform = i -> "value:" + i;
+      Either<String, Integer> either = Either.right(DEFAULT_RIGHT_VALUE);
 
-      Either<String, String> result1 = either.map(transform);
-      Either<String, String> result2 = either.map(transform);
+      Either<String, String> result1 = either.map(i -> "value:" + i);
+      Either<String, String> result2 = either.map(i -> "value:" + i);
 
       assertThat(result1).isEqualTo(result2);
       assertThat(result1.getRight()).isEqualTo(result2.getRight());
@@ -1172,6 +1167,20 @@ class EitherTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, 
       Either<String, String> flatMapResult2 = either.flatMap(i -> Either.right("flat:" + i));
 
       assertThat(flatMapResult1).isEqualTo(flatMapResult2);
+    }
+
+    @Test
+    @DisplayName("Complex types remain non-null through operations")
+    void complexTypesRemainNonNullThroughOperations() {
+      Either<String, List<Integer>> listRight = Either.right(List.of(1, 2, 3));
+      assertThatEither(listRight).hasRightNonNull();
+
+      Either<String, Integer> summed =
+          listRight.map(list -> list.stream().mapToInt(Integer::intValue).sum());
+      assertThatEither(summed).isRight().hasRightNonNull();
+
+      Either<String, String> formatted = summed.map(sum -> "Total: " + sum);
+      assertThatEither(formatted).isRight().hasRightNonNull();
     }
   }
 }

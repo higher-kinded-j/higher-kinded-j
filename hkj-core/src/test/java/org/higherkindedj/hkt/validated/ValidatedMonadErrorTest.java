@@ -2,84 +2,21 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ValidatedMonadError Complete Test Suite")
-class ValidatedMonadErrorTest
-    extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
+class ValidatedMonadErrorTest extends ValidatedTestBase {
 
   private MonadError<ValidatedKind.Witness<String>, String> monadError;
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind() {
-    return VALIDATED.widen(Validated.valid(42));
-  }
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind2() {
-    return VALIDATED.widen(Validated.valid(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected Function<Integer, Kind<ValidatedKind.Witness<String>, String>> createValidFlatMapper() {
-    return n -> VALIDATED.widen(Validated.valid("Mapped: " + n));
-  }
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Function<Integer, String>>
-      createValidFunctionKind() {
-    Function<Integer, String> fn = n -> "Function: " + n;
-    return VALIDATED.widen(Validated.valid(fn));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> "Combined: " + a + "," + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 100;
-  }
-
-  @Override
-  protected Function<Integer, Kind<ValidatedKind.Witness<String>, String>> createTestFunction() {
-    return n -> VALIDATED.widen(Validated.valid("Test: " + n));
-  }
-
-  @Override
-  protected Function<String, Kind<ValidatedKind.Witness<String>, String>> createChainFunction() {
-    return s -> VALIDATED.widen(Validated.valid("[" + s + "]"));
-  }
-
-  @Override
-  protected BiPredicate<
-          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Validated<String, ?> v1 = VALIDATED.narrow(k1);
-      Validated<String, ?> v2 = VALIDATED.narrow(k2);
-      return v1.equals(v2);
-    };
-  }
 
   @BeforeEach
   void setUpMonadError() {
@@ -95,8 +32,8 @@ class ValidatedMonadErrorTest
     @DisplayName("Run complete MonadError test pattern")
     void runCompleteMonadErrorTestPattern() {
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.valid(0));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback = VALIDATED.widen(Validated.valid(-1));
+          error -> validKind(0);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
       TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
@@ -115,98 +52,87 @@ class ValidatedMonadErrorTest
     @Test
     @DisplayName("RaiseError creates Invalid")
     void raiseErrorCreatesInvalid() {
-      Kind<ValidatedKind.Witness<String>, Integer> result = monadError.raiseError("test-error");
+      Kind<ValidatedKind.Witness<String>, Integer> result = monadError.raiseError(DEFAULT_ERROR);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("test-error");
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
     @DisplayName("HandleErrorWith recovers from Invalid")
     void handleErrorWithRecoversFromInvalid() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.valid(99));
+          error -> validKind(99);
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monadError.handleErrorWith(invalid, handler);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(99);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(99);
     }
 
     @Test
     @DisplayName("HandleErrorWith passes through Valid")
     void handleErrorWithPassesThroughValid() {
-      Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> valid = validKind(DEFAULT_VALID_VALUE);
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.valid(99));
+          error -> validKind(99);
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monadError.handleErrorWith(valid, handler);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(42);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
     @DisplayName("HandleError recovers with pure value")
     void handleErrorRecoversWithPureValue() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
       Function<String, Integer> handler = error -> 100;
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monadError.handleError(invalid, handler);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(100);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(100);
     }
 
     @Test
     @DisplayName("RecoverWith uses fallback for Invalid")
     void recoverWithUsesFallbackForInvalid() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback = VALIDATED.widen(Validated.valid(50));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(50);
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monadError.recoverWith(invalid, fallback);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(50);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(50);
     }
 
     @Test
     @DisplayName("RecoverWith ignores fallback for Valid")
     void recoverWithIgnoresFallbackForValid() {
-      Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.widen(Validated.valid(42));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback = VALIDATED.widen(Validated.valid(50));
+      Kind<ValidatedKind.Witness<String>, Integer> valid = validKind(DEFAULT_VALID_VALUE);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(50);
 
       Kind<ValidatedKind.Witness<String>, Integer> result = monadError.recoverWith(valid, fallback);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(42);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
     @DisplayName("Recover uses pure value for Invalid")
     void recoverUsesPureValueForInvalid() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
 
       Kind<ValidatedKind.Witness<String>, Integer> result = monadError.recover(invalid, 75);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(75);
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue(75);
     }
   }
 
@@ -218,13 +144,13 @@ class ValidatedMonadErrorTest
     @DisplayName("Test operations only")
     void testOperationsOnly() {
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.valid(0));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback = VALIDATED.widen(Validated.valid(-1));
+          error -> validKind(0);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
       TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind) // Fixed
+          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(handler, fallback)
           .testOperations();
     }
@@ -233,8 +159,8 @@ class ValidatedMonadErrorTest
     @DisplayName("Test validations only")
     void testValidationsOnly() {
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.valid(0));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback = VALIDATED.widen(Validated.valid(-1));
+          error -> validKind(0);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
       TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
@@ -248,8 +174,8 @@ class ValidatedMonadErrorTest
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.valid(0));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback = VALIDATED.widen(Validated.valid(-1));
+          error -> validKind(0);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
       TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
@@ -267,14 +193,13 @@ class ValidatedMonadErrorTest
     @Test
     @DisplayName("Test with inheritance-based validation")
     void testWithInheritanceBasedValidation() {
-      Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          _ -> VALIDATED.widen(Validated.valid(0));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback = VALIDATED.widen(Validated.valid(-1));
+      Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler = _ -> validKind(0);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = validKind(-1);
 
       TypeClassTest.<ValidatedKind.Witness<String>, String>monadError(ValidatedMonad.class)
           .<Integer>instance(monadError)
           .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind) // Fixed
+          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
           .withErrorHandling(handler, fallback)
           .configureValidation()
           .useInheritanceValidation()
@@ -293,38 +218,34 @@ class ValidatedMonadErrorTest
     @Test
     @DisplayName("Handler can transform error into different error")
     void handlerCanTransformErrorIntoDifferentError() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("original-error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind("original-error");
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.invalid("transformed-error"));
+          error -> invalidKind("transformed-error");
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monadError.handleErrorWith(invalid, handler);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("transformed-error");
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("transformed-error");
     }
 
     @Test
     @DisplayName("Multiple error recovery operations can be chained")
     void multipleErrorRecoveryOperationsCanBeChained() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error1"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind("error1");
 
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler1 =
-          error -> VALIDATED.widen(Validated.invalid("error2"));
+          error -> invalidKind("error2");
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler2 =
-          error -> VALIDATED.widen(Validated.valid(42));
+          error -> validKind(DEFAULT_VALID_VALUE);
 
       Kind<ValidatedKind.Witness<String>, Integer> step1 =
           monadError.handleErrorWith(invalid, handler1);
       Kind<ValidatedKind.Witness<String>, Integer> step2 =
           monadError.handleErrorWith(step1, handler2);
 
-      Validated<String, Integer> result = VALIDATED.narrow(step2);
-      assertThat(result.isValid()).isTrue();
-      assertThat(result.get()).isEqualTo(42);
+      Validated<String, Integer> result = narrowToValidated(step2);
+      assertThatValidated(result).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
   }
 
@@ -335,40 +256,34 @@ class ValidatedMonadErrorTest
     @Test
     @DisplayName("HandleErrorWith with handler returning Invalid preserves error")
     void handleErrorWithWithHandlerReturningInvalidPreservesError() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("original"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind("original");
       Function<String, Kind<ValidatedKind.Witness<String>, Integer>> handler =
-          error -> VALIDATED.widen(Validated.invalid("handled"));
+          error -> invalidKind("handled");
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monadError.handleErrorWith(invalid, handler);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("handled");
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("handled");
     }
 
     @Test
     @DisplayName("RecoverWith with Invalid fallback results in Invalid")
     void recoverWithWithInvalidFallbackResultsInInvalid() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
-      Kind<ValidatedKind.Witness<String>, Integer> fallback =
-          VALIDATED.widen(Validated.invalid("fallback-error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
+      Kind<ValidatedKind.Witness<String>, Integer> fallback = invalidKind("fallback-error");
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monadError.recoverWith(invalid, fallback);
 
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("fallback-error");
+      Validated<String, Integer> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("fallback-error");
     }
 
     @Test
     @DisplayName("Recover with null value throws exception")
     void recoverWithNullValueThrowsException() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
 
       // Recover would use monad.of(null) internally, which doesn't allow null
       assertThatThrownBy(() -> monadError.recover(invalid, null))

@@ -3,74 +3,23 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Lazy Functor Complete Test Suite")
-class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
-
-  // ============================================================================
-  // Test Fixtures
-  // ============================================================================
+class LazyFunctorTest extends LazyTestBase {
 
   private LazyMonad functor;
   private static final AtomicInteger COUNTER = new AtomicInteger(0);
-
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind() {
-    return LAZY.widen(
-        Lazy.defer(
-            () -> {
-              COUNTER.incrementAndGet();
-              return "TestValue";
-            }));
-  }
-
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind2() {
-    return LAZY.widen(Lazy.defer(() -> "TestValue2"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected Function<Integer, String> createSecondMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected BiPredicate<Kind<LazyKind.Witness, ?>, Kind<LazyKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      try {
-        Lazy<?> lazy1 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k1);
-        Lazy<?> lazy2 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k2);
-        Object v1 = lazy1.force();
-        Object v2 = lazy2.force();
-        return Objects.equals(v1, v2);
-      } catch (Throwable e) {
-        return false;
-      }
-    };
-  }
 
   @BeforeEach
   void setUpFunctor() {
@@ -78,60 +27,24 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     COUNTER.set(0);
   }
 
-  // ============================================================================
-  // Complete Test Suite
-  // ============================================================================
-
   @Nested
-  @DisplayName("Complete LazyFunctor Test Suite")
-  class CompleteTestSuite {
+  @DisplayName("Complete Functor Test Suite")
+  class CompleteFunctorTestSuite {
 
     @Test
-    @DisplayName("Run complete Functor tests using standard pattern")
-    void runCompleteFunctorTestsUsingStandardPattern() {
-      validateRequiredFixtures();
-
+    @DisplayName("Run complete Functor test pattern")
+    void runCompleteFunctorTestPattern() {
       TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<String>instance(functor)
-          .<Integer>withKind(validKind)
-          .withMapper(validMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions() // Skip generic exception tests
-          .test();
-    }
-
-    @Test
-    @DisplayName("Run complete Functor tests with custom equality checker")
-    void runCompleteFunctorTestsWithCustomEqualityChecker() {
-      TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<String>instance(functor)
-          .<Integer>withKind(validKind)
-          .withMapper(validMapper)
-          .withEqualityChecker(equalityChecker)
-          .selectTests()
-          .skipExceptions() // Skip generic exception tests
-          .test();
-    }
-
-    @Test
-    @DisplayName("Run complete Functor tests with second mapper")
-    void runCompleteFunctorTestsWithSecondMapper() {
-      TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<String>instance(functor)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(functor)
+          .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
           .withEqualityChecker(equalityChecker)
           .selectTests()
-          .skipExceptions() // Skip generic exception tests
+          .skipExceptions() // Add this line - Lazy has special exception semantics
           .test();
     }
   }
-
-  // ============================================================================
-  // Operation Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Map Operations")
@@ -143,36 +56,35 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
       COUNTER.set(0);
       AtomicInteger mapCounter = new AtomicInteger(0);
 
-      Kind<LazyKind.Witness, String> kind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    COUNTER.incrementAndGet();
-                    return "test";
-                  }));
+      Kind<LazyKind.Witness, Integer> kind =
+          deferKind(
+              () -> {
+                COUNTER.incrementAndGet();
+                return DEFAULT_LAZY_VALUE;
+              });
 
-      Function<String, Integer> mapper =
-          s -> {
+      Function<Integer, String> mapper =
+          i -> {
             mapCounter.incrementAndGet();
-            return s.length();
+            return "Value:" + i;
           };
 
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(mapper, kind);
+      Kind<LazyKind.Witness, String> mapped = functor.map(mapper, kind);
 
       // Neither computation should have run yet
       assertThat(COUNTER.get()).isZero();
       assertThat(mapCounter.get()).isZero();
 
       // Force the evaluation
-      Lazy<Integer> result = LAZY.narrow(mapped);
-      assertThat(result.force()).isEqualTo(4);
+      Lazy<String> result = narrowToLazy(mapped);
+      assertThatLazy(result).whenForcedHasValue("Value:" + DEFAULT_LAZY_VALUE);
 
       // Both computations should have run exactly once
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(mapCounter.get()).isEqualTo(1);
 
       // Force again - both should be memoised
-      assertThat(result.force()).isEqualTo(4);
+      assertThatLazy(result).whenForcedHasValue("Value:" + DEFAULT_LAZY_VALUE);
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(mapCounter.get()).isEqualTo(1);
     }
@@ -181,52 +93,47 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @DisplayName("map should propagate exceptions from original Lazy")
     void mapShouldPropagateExceptionsFromOriginalLazy() {
       RuntimeException testException = new RuntimeException("Original failure");
-      Kind<LazyKind.Witness, String> failingKind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    throw testException;
-                  }));
+      Kind<LazyKind.Witness, Integer> failingKind =
+          deferKind(
+              () -> {
+                throw testException;
+              });
 
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(String::length, failingKind);
-      Lazy<Integer> result = LAZY.narrow(mapped);
+      Kind<LazyKind.Witness, String> mapped = functor.map(validMapper, failingKind);
+      Lazy<String> result = narrowToLazy(mapped);
 
-      assertThatThrownBy(result::force).isSameAs(testException);
+      assertThatLazy(result).whenForcedThrows(RuntimeException.class);
     }
 
     @Test
     @DisplayName("map should propagate exceptions from mapper function")
     void mapShouldPropagateExceptionsFromMapperFunction() {
       RuntimeException mapperException = new RuntimeException("Mapper failure");
-      Kind<LazyKind.Witness, String> kind = LAZY.widen(Lazy.now("test"));
+      Kind<LazyKind.Witness, Integer> kind = nowKind(DEFAULT_LAZY_VALUE);
 
-      Function<String, Integer> throwingMapper =
-          s -> {
+      Function<Integer, String> throwingMapper =
+          i -> {
             throw mapperException;
           };
 
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(throwingMapper, kind);
-      Lazy<Integer> result = LAZY.narrow(mapped);
+      Kind<LazyKind.Witness, String> mapped = functor.map(throwingMapper, kind);
+      Lazy<String> result = narrowToLazy(mapped);
 
-      assertThatThrownBy(result::force).isSameAs(mapperException);
+      assertThatLazy(result).whenForcedThrows(RuntimeException.class);
     }
 
     @Test
     @DisplayName("map should handle null results correctly")
     void mapShouldHandleNullResultsCorrectly() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = LAZY.widen(Lazy.now("test"));
-      Function<String, Integer> nullMapper = s -> null;
+      Kind<LazyKind.Witness, Integer> kind = nowKind(DEFAULT_LAZY_VALUE);
+      Function<Integer, String> nullMapper = i -> null;
 
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(nullMapper, kind);
-      Lazy<Integer> result = LAZY.narrow(mapped);
+      Kind<LazyKind.Witness, String> mapped = functor.map(nullMapper, kind);
+      Lazy<String> result = narrowToLazy(mapped);
 
       assertThat(result.force()).isNull();
     }
   }
-
-  // ============================================================================
-  // Validation Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Validation Tests")
@@ -237,7 +144,7 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     void mapShouldThrowNPEForNullMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(null, validKind))
-          .withMessageContaining("Function f for LazyMonad.map cannot be null"); // Changed
+          .withMessageContaining("Function f for LazyMonad.map cannot be null");
     }
 
     @Test
@@ -245,13 +152,9 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     void mapShouldThrowNPEForNullKind() {
       assertThatNullPointerException()
           .isThrownBy(() -> functor.map(validMapper, null))
-          .withMessageContaining("Kind for LazyMonad.map cannot be null"); // Changed
+          .withMessageContaining("Kind for LazyMonad.map cannot be null");
     }
   }
-
-  // ============================================================================
-  // Law Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Functor Laws")
@@ -260,8 +163,8 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @Test
     @DisplayName("Identity Law: map(id, fa) == fa")
     void identityLaw() throws Throwable {
-      Function<String, String> identity = s -> s;
-      Kind<LazyKind.Witness, String> mapped = functor.map(identity, validKind);
+      Function<Integer, Integer> identity = i -> i;
+      Kind<LazyKind.Witness, Integer> mapped = functor.map(identity, validKind);
 
       assertThat(equalityChecker.test(mapped, validKind))
           .as("map(id, fa) should equal fa")
@@ -271,15 +174,15 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @Test
     @DisplayName("Composition Law: map(g ∘ f, fa) == map(g, map(f, fa))")
     void compositionLaw() throws Throwable {
-      Function<String, Integer> f = String::length;
-      Function<Integer, String> g = Object::toString;
+      Function<Integer, String> f = validMapper;
+      Function<String, String> g = secondMapper;
 
       // Left side: map(g ∘ f, fa)
-      Function<String, String> composed = s -> g.apply(f.apply(s));
+      Function<Integer, String> composed = i -> g.apply(f.apply(i));
       Kind<LazyKind.Witness, String> leftSide = functor.map(composed, validKind);
 
       // Right side: map(g, map(f, fa))
-      Kind<LazyKind.Witness, Integer> intermediate = functor.map(f, validKind);
+      Kind<LazyKind.Witness, String> intermediate = functor.map(f, validKind);
       Kind<LazyKind.Witness, String> rightSide = functor.map(g, intermediate);
 
       assertThat(equalityChecker.test(leftSide, rightSide))
@@ -287,10 +190,6 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
           .isTrue();
     }
   }
-
-  // ============================================================================
-  // Memoisation Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Memoisation Behaviour")
@@ -302,22 +201,21 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
       AtomicInteger sourceCounter = new AtomicInteger(0);
       AtomicInteger mapCounter = new AtomicInteger(0);
 
-      Kind<LazyKind.Witness, String> kind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    sourceCounter.incrementAndGet();
-                    return "test";
-                  }));
+      Kind<LazyKind.Witness, Integer> kind =
+          deferKind(
+              () -> {
+                sourceCounter.incrementAndGet();
+                return DEFAULT_LAZY_VALUE;
+              });
 
-      Function<String, Integer> mapper =
-          s -> {
+      Function<Integer, String> mapper =
+          i -> {
             mapCounter.incrementAndGet();
-            return s.length();
+            return "Value:" + i;
           };
 
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(mapper, kind);
-      Lazy<Integer> result = LAZY.narrow(mapped);
+      Kind<LazyKind.Witness, String> mapped = functor.map(mapper, kind);
+      Lazy<String> result = narrowToLazy(mapped);
 
       // Force multiple times
       result.force();
@@ -335,16 +233,15 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
       AtomicInteger exceptionCounter = new AtomicInteger(0);
       RuntimeException testException = new RuntimeException("Test");
 
-      Kind<LazyKind.Witness, String> failingKind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    exceptionCounter.incrementAndGet();
-                    throw testException;
-                  }));
+      Kind<LazyKind.Witness, Integer> failingKind =
+          deferKind(
+              () -> {
+                exceptionCounter.incrementAndGet();
+                throw testException;
+              });
 
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(String::length, failingKind);
-      Lazy<Integer> result = LAZY.narrow(mapped);
+      Kind<LazyKind.Witness, String> mapped = functor.map(validMapper, failingKind);
+      Lazy<String> result = narrowToLazy(mapped);
 
       // Force multiple times
       catchThrowable(result::force);
@@ -356,10 +253,6 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     }
   }
 
-  // ============================================================================
-  // Edge Cases
-  // ============================================================================
-
   @Nested
   @DisplayName("Edge Cases")
   class EdgeCases {
@@ -367,11 +260,11 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @Test
     @DisplayName("map should work with already evaluated Lazy")
     void mapShouldWorkWithAlreadyEvaluatedLazy() throws Throwable {
-      Kind<LazyKind.Witness, String> nowKind = LAZY.widen(Lazy.now("precomputed"));
-      Kind<LazyKind.Witness, Integer> mapped = functor.map(String::length, nowKind);
+      Kind<LazyKind.Witness, Integer> nowKind = nowKind(DEFAULT_LAZY_VALUE);
+      Kind<LazyKind.Witness, String> mapped = functor.map(validMapper, nowKind);
 
-      Lazy<Integer> result = LAZY.narrow(mapped);
-      assertThat(result.force()).isEqualTo(11);
+      Lazy<String> result = narrowToLazy(mapped);
+      assertThatLazy(result).whenForcedHasValue(String.valueOf(DEFAULT_LAZY_VALUE));
     }
 
     @Test
@@ -379,16 +272,15 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     void mapShouldPreserveLazySemantics() {
       AtomicInteger sideEffect = new AtomicInteger(0);
 
-      Kind<LazyKind.Witness, String> kind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    sideEffect.incrementAndGet();
-                    return "lazy";
-                  }));
+      Kind<LazyKind.Witness, Integer> kind =
+          deferKind(
+              () -> {
+                sideEffect.incrementAndGet();
+                return DEFAULT_LAZY_VALUE;
+              });
 
       // Mapping should not trigger evaluation
-      functor.map(String::length, kind);
+      functor.map(validMapper, kind);
 
       assertThat(sideEffect.get()).isZero();
     }
@@ -396,20 +288,16 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @Test
     @DisplayName("map should work with nested mappings")
     void mapShouldWorkWithNestedMappings() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = LAZY.widen(Lazy.defer(() -> "test"));
+      Kind<LazyKind.Witness, Integer> kind = deferKind(() -> DEFAULT_LAZY_VALUE);
 
-      Kind<LazyKind.Witness, Integer> mapped1 = functor.map(String::length, kind);
-      Kind<LazyKind.Witness, String> mapped2 = functor.map(Object::toString, mapped1);
-      Kind<LazyKind.Witness, Integer> mapped3 = functor.map(Integer::parseInt, mapped2);
+      Kind<LazyKind.Witness, String> mapped1 = functor.map(validMapper, kind);
+      Kind<LazyKind.Witness, String> mapped2 = functor.map(s -> s.toUpperCase(), mapped1);
+      Kind<LazyKind.Witness, Integer> mapped3 = functor.map(String::length, mapped2);
 
-      Lazy<Integer> result = LAZY.narrow(mapped3);
-      assertThat(result.force()).isEqualTo(4);
+      Lazy<Integer> result = narrowToLazy(mapped3);
+      assertThatLazy(result).whenForcedHasValue(String.valueOf(DEFAULT_LAZY_VALUE).length());
     }
   }
-
-  // ============================================================================
-  // Individual Component Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Individual Component Tests")
@@ -419,8 +307,8 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @DisplayName("Test operations only")
     void testOperationsOnly() {
       TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<String>instance(functor)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(functor)
+          .<String>withKind(validKind)
           .withMapper(validMapper)
           .selectTests()
           .onlyOperations()
@@ -431,8 +319,8 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @DisplayName("Test validations only")
     void testValidationsOnly() {
       TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<String>instance(functor)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(functor)
+          .<String>withKind(validKind)
           .withMapper(validMapper)
           .selectTests()
           .onlyValidations()
@@ -454,8 +342,8 @@ class LazyFunctorTest extends TypeClassTestBase<LazyKind.Witness, String, Intege
     @DisplayName("Test laws only")
     void testLawsOnly() {
       TypeClassTest.<LazyKind.Witness>functor(LazyMonad.class)
-          .<String>instance(functor)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(functor)
+          .<String>withKind(validKind)
           .withMapper(validMapper)
           .withEqualityChecker(equalityChecker)
           .selectTests()

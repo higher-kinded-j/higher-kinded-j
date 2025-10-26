@@ -3,18 +3,15 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.Set;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,9 +20,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeTraverse Foldable Operations Complete Test Suite")
-class MaybeFoldableTest extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
-
-  private static final Integer SUCCESS_VALUE = 42;
+class MaybeFoldableTest extends MaybeTestBase {
 
   private Foldable<MaybeKind.Witness> foldable;
   private Kind<MaybeKind.Witness, Integer> justKind;
@@ -33,32 +28,11 @@ class MaybeFoldableTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
   private Monoid<String> validMonoid;
   private Function<Integer, String> validFoldMapFunction;
 
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind() {
-    return MAYBE.widen(Maybe.just(SUCCESS_VALUE));
-  }
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
-    return MAYBE.widen(Maybe.just(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
-  }
-
   @BeforeEach
   void setUpFoldable() {
     foldable = MaybeTraverse.INSTANCE;
     justKind = validKind;
-    nothingKind = MAYBE.widen(Maybe.nothing());
+    nothingKind = nothingKind();
     validMonoid = Monoids.string();
     validFoldMapFunction = TestFunctions.INT_TO_STRING;
     validateRequiredFixtures();
@@ -103,7 +77,7 @@ class MaybeFoldableTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
 
       String result = foldable.foldMap(stringMonoid, foldFunction, justKind);
 
-      assertThat(result).isEqualTo("Value:" + SUCCESS_VALUE);
+      assertThat(result).isEqualTo("Value:" + DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -125,13 +99,13 @@ class MaybeFoldableTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
       Monoid<Integer> intAddition = Monoids.integerAddition();
       Function<Integer, Integer> doubleFunc = i -> i * 2;
       Integer intResult = foldable.foldMap(intAddition, doubleFunc, justKind);
-      assertThat(intResult).isEqualTo(SUCCESS_VALUE * 2);
+      assertThat(intResult).isEqualTo(DEFAULT_JUST_VALUE * 2);
 
       // Integer multiplication
       Monoid<Integer> intMultiplication = Monoids.integerMultiplication();
       Function<Integer, Integer> identityFunc = i -> i;
       Integer multResult = foldable.foldMap(intMultiplication, identityFunc, justKind);
-      assertThat(multResult).isEqualTo(SUCCESS_VALUE);
+      assertThat(multResult).isEqualTo(DEFAULT_JUST_VALUE);
 
       // Boolean AND
       Monoid<Boolean> andMonoid = Monoids.booleanAnd();
@@ -204,7 +178,7 @@ class MaybeFoldableTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
       Function<Integer, List<Integer>> singletonList = List::of;
 
       List<Integer> justResult = foldable.foldMap(listMonoid, singletonList, justKind);
-      assertThat(justResult).containsExactly(SUCCESS_VALUE);
+      assertThat(justResult).containsExactly(DEFAULT_JUST_VALUE);
 
       List<Integer> nothingResult = foldable.foldMap(listMonoid, singletonList, nothingKind);
       assertThat(nothingResult).isEmpty();
@@ -217,7 +191,7 @@ class MaybeFoldableTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
       Function<Integer, Set<Integer>> singletonSet = Set::of;
 
       Set<Integer> justResult = foldable.foldMap(setMonoid, singletonSet, justKind);
-      assertThat(justResult).containsExactly(SUCCESS_VALUE);
+      assertThat(justResult).containsExactly(DEFAULT_JUST_VALUE);
 
       Set<Integer> nothingResult = foldable.foldMap(setMonoid, singletonSet, nothingKind);
       assertThat(nothingResult).isEmpty();
@@ -241,13 +215,13 @@ class MaybeFoldableTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
           };
 
       String result = foldable.foldMap(stringMonoid, complexFunction, justKind);
-      assertThat(result).isEqualTo("positive:" + SUCCESS_VALUE + ",");
+      assertThat(result).isEqualTo("positive:" + DEFAULT_JUST_VALUE + ",");
     }
 
     @Test
     @DisplayName("foldMap() with nested structures")
     void foldMapWithNestedStructures() {
-      Kind<MaybeKind.Witness, List<Integer>> listJust = MAYBE.widen(Maybe.just(List.of(1, 2, 3)));
+      Kind<MaybeKind.Witness, List<Integer>> listJust = justKind(List.of(1, 2, 3));
 
       Foldable<MaybeKind.Witness> foldableList = MaybeTraverse.INSTANCE;
       Monoid<Integer> intMonoid = Monoids.integerAddition();

@@ -3,50 +3,20 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.trymonad.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.io.IOException;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("TryKindHelper Complete Test Suite")
-class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
+class TryKindHelperTest extends TryTestBase {
 
-  private final String successValue = "Test Value";
   private final RuntimeException testException = new RuntimeException("Test failure");
-  private final Try<String> successInstance = Try.success(successValue);
-  private final Try<String> failureInstance = Try.failure(testException);
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind() {
-    return TRY.widen(successInstance);
-  }
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind2() {
-    return TRY.widen(Try.success("Second Value"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected BiPredicate<Kind<TryKind.Witness, ?>, Kind<TryKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Try<?> t1 = TRY.narrow(k1);
-      Try<?> t2 = TRY.narrow(k2);
-      return t1.equals(t2);
-    };
-  }
 
   @Nested
   @DisplayName("Complete Test Suite")
@@ -55,18 +25,21 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Run complete KindHelper tests")
     void runCompleteKindHelperTests() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance).test();
     }
 
     @Test
     @DisplayName("Run KindHelper tests with performance validation")
     void runWithPerformanceTests() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance).withPerformanceTests().test();
     }
 
     @Test
     @DisplayName("Run KindHelper tests with concurrency validation")
     void runWithConcurrencyTests() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance).withConcurrencyTests().test();
     }
   }
@@ -78,6 +51,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Test round-trip only")
     void testRoundTripOnly() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance)
           .skipValidations()
           .skipInvalidType()
@@ -89,6 +63,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipInvalidType()
@@ -100,6 +75,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Test invalid type handling only")
     void testInvalidTypeOnly() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipValidations()
@@ -111,6 +87,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Test idempotency only")
     void testIdempotencyOnly() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipValidations()
@@ -122,6 +99,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Test edge cases only")
     void testEdgeCasesOnly() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       CoreTypeTest.tryKindHelper(successInstance)
           .skipRoundTrip()
           .skipValidations()
@@ -131,10 +109,6 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     }
   }
 
-  // ============================================================================
-  // Widen Operation Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Widen Operations")
   class WidenOperations {
@@ -142,6 +116,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("widen() should create holder for Success")
     void widen_shouldCreateHolderForSuccess() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       Kind<TryKind.Witness, String> kind = TRY.widen(successInstance);
 
       assertThat(kind).as("widen should return non-null Kind").isNotNull();
@@ -154,6 +129,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("widen() should create holder for Failure")
     void widen_shouldCreateHolderForFailure() {
+      Try<String> failureInstance = Try.failure(testException);
       Kind<TryKind.Witness, String> kind = TRY.widen(failureInstance);
 
       assertThat(kind).as("widen should return non-null Kind").isNotNull();
@@ -183,10 +159,6 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     }
   }
 
-  // ============================================================================
-  // Narrow Operation Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Narrow Operations")
   class NarrowOperations {
@@ -194,6 +166,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("narrow() should return original Success")
     void narrow_shouldReturnOriginalSuccess() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       Kind<TryKind.Witness, String> kind = TRY.widen(successInstance);
       Try<String> result = TRY.narrow(kind);
 
@@ -203,6 +176,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("narrow() should return original Failure")
     void narrow_shouldReturnOriginalFailure() {
+      Try<String> failureInstance = Try.failure(testException);
       Kind<TryKind.Witness, String> kind = TRY.widen(failureInstance);
       Try<String> result = TRY.narrow(kind);
 
@@ -239,13 +213,10 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("success() should create Success Kind")
     void success_shouldCreateSuccessKind() {
-      Kind<TryKind.Witness, String> kind = TRY.success(successValue);
+      Kind<TryKind.Witness, String> kind = TRY.success(DEFAULT_SUCCESS_VALUE);
       Try<String> result = TRY.narrow(kind);
 
-      assertThat(result.isSuccess()).as("should be Success").isTrue();
-
-      assertThatCode(() -> assertThat(result.get()).isEqualTo(successValue))
-          .doesNotThrowAnyException();
+      assertThatTry(result).isSuccess().hasValue(DEFAULT_SUCCESS_VALUE);
     }
 
     @Test
@@ -254,9 +225,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
       Kind<TryKind.Witness, String> kind = TRY.success(null);
       Try<String> result = TRY.narrow(kind);
 
-      assertThat(result.isSuccess()).as("should be Success").isTrue();
-
-      assertThatCode(() -> assertThat(result.get()).isNull()).doesNotThrowAnyException();
+      assertThatTry(result).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
     }
 
     @Test
@@ -266,9 +235,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
       Kind<TryKind.Witness, String> kind = TRY.failure(ioException);
       Try<String> result = TRY.narrow(kind);
 
-      assertThat(result.isFailure()).as("should be Failure").isTrue();
-
-      assertThatThrownBy(result::get).isSameAs(ioException);
+      assertThatTry(result).isFailure().hasException(ioException);
     }
 
     @Test
@@ -285,9 +252,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
       Kind<TryKind.Witness, Integer> kind = TRY.tryOf(() -> 10 / 2);
       Try<Integer> result = TRY.narrow(kind);
 
-      assertThat(result.isSuccess()).as("should be Success").isTrue();
-
-      assertThatCode(() -> assertThat(result.get()).isEqualTo(5)).doesNotThrowAnyException();
+      assertThatTry(result).isSuccess().hasValue(5);
     }
 
     @Test
@@ -301,9 +266,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
               });
       Try<Integer> result = TRY.narrow(kind);
 
-      assertThat(result.isFailure()).as("should be Failure").isTrue();
-
-      assertThatThrownBy(result::get).isSameAs(arithmeticException);
+      assertThatTry(result).isFailure().hasException(arithmeticException);
     }
 
     @Test
@@ -315,10 +278,6 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     }
   }
 
-  // ============================================================================
-  // Edge Cases
-  // ============================================================================
-
   @Nested
   @DisplayName("Edge Cases")
   class EdgeCases {
@@ -326,6 +285,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Multiple widen operations should be idempotent")
     void multipleWidenOperationsShouldBeIdempotent() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       Kind<TryKind.Witness, String> kind1 = TRY.widen(successInstance);
       Kind<TryKind.Witness, String> kind2 = TRY.widen(successInstance);
 
@@ -337,6 +297,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Multiple round-trips should preserve identity")
     void multipleRoundTripsShouldPreserveIdentity() {
+      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
       Try<String> current = successInstance;
 
       for (int i = 0; i < 5; i++) {
@@ -352,6 +313,7 @@ class TryKindHelperTest extends TypeClassTestBase<TryKind.Witness, String, Integ
     @Test
     @DisplayName("Round-trip with Failure should preserve exception")
     void roundTripWithFailureShouldPreserveException() {
+      Try<String> failureInstance = Try.failure(testException);
       Kind<TryKind.Witness, String> kind = TRY.widen(failureInstance);
       Try<String> result = TRY.narrow(kind);
 

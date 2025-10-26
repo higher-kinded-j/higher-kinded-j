@@ -4,19 +4,17 @@ package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.io.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,53 +22,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("IOApplicative Complete Test Suite")
-class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
+class IOApplicativeTest extends IOTestBase {
 
-  private IOApplicative applicative;
+  private final IOApplicative applicative = IOApplicative.INSTANCE;
   private Applicative<IOKind.Witness> applicativeTyped;
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind() {
-    return IO_OP.widen(IO.delay(() -> 42));
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind2() {
-    return IO_OP.widen(IO.delay(() -> 24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, Function<Integer, String>> createValidFunctionKind() {
-    return IO_OP.widen(IO.delay(() -> TestFunctions.INT_TO_STRING));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> "Result:" + a + "," + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected BiPredicate<Kind<IOKind.Witness, ?>, Kind<IOKind.Witness, ?>> createEqualityChecker() {
-    return (k1, k2) -> {
-      Object v1 = IO_OP.narrow(k1).unsafeRunSync();
-      Object v2 = IO_OP.narrow(k2).unsafeRunSync();
-      return java.util.Objects.equals(v1, v2);
-    };
-  }
 
   @BeforeEach
   void setUpApplicative() {
-    applicative = new IOApplicative();
     applicativeTyped = applicative;
     validateApplicativeFixtures();
   }
@@ -119,8 +77,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
     void ofCreatesPureIO() {
       Kind<IOKind.Witness, String> result = applicative.of("pure");
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("pure");
+      assertThatIO(narrowToIO(result)).hasValue("pure");
     }
 
     @Test
@@ -128,8 +85,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
     void ofWithNullValue() {
       Kind<IOKind.Witness, String> result = applicative.of(null);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isNull();
+      assertThatIO(narrowToIO(result)).hasValueNull();
     }
 
     @Test
@@ -143,20 +99,18 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
       // Note: of() eagerly captures the value, but wraps it in a lazy IO
       assertThat(sideEffect.get()).isEqualTo(1);
 
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(1);
+      assertThatIO(narrowToIO(result)).hasValue(1);
     }
 
     @Test
     @DisplayName("ap() applies function to value")
     void apAppliesFunctionToValue() {
       Kind<IOKind.Witness, Function<Integer, String>> funcKind = applicative.of(i -> "value:" + i);
-      Kind<IOKind.Witness, Integer> valueKind = applicative.of(42);
+      Kind<IOKind.Witness, Integer> valueKind = applicative.of(DEFAULT_IO_VALUE);
 
       Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("value:42");
+      assertThatIO(narrowToIO(result)).hasValue("value:" + DEFAULT_IO_VALUE);
     }
 
     @Test
@@ -175,7 +129,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
           IO.delay(
               () -> {
                 log.append("value;");
-                return 42;
+                return DEFAULT_IO_VALUE;
               });
 
       Kind<IOKind.Witness, Function<Integer, String>> funcKind = IO_OP.widen(funcIO);
@@ -184,9 +138,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
       Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
       // Execute
-      String value = IO_OP.unsafeRunSync(result);
-
-      assertThat(value).isEqualTo("result:42");
+      assertThatIO(narrowToIO(result)).hasValue("result:" + DEFAULT_IO_VALUE);
       assertThat(log.toString()).isEqualTo("function;value;");
     }
 
@@ -199,8 +151,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
       BiFunction<Integer, String, String> combiner = (i, s) -> s + ":" + i;
       Kind<IOKind.Witness, String> result = applicative.map2(io1, io2, combiner);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("test:10");
+      assertThatIO(narrowToIO(result)).hasValue("test:10");
     }
 
     @Test
@@ -233,8 +184,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
 
       Kind<IOKind.Witness, Integer> result = applicative.map2(kind1, kind2, combiner);
 
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(3);
+      assertThatIO(narrowToIO(result)).hasValue(3);
       assertThat(log.toString()).isEqualTo("first;second;combine;");
     }
 
@@ -250,8 +200,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
 
       Kind<IOKind.Witness, String> result = applicative.map3(io1, io2, io3, combiner);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("test:1:3.14");
+      assertThatIO(narrowToIO(result)).hasValue("test:1:3.14");
     }
 
     @Test
@@ -267,8 +216,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
 
       Kind<IOKind.Witness, String> result = applicative.map4(io1, io2, io3, io4, combiner);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("test:1:3.14:true");
+      assertThatIO(narrowToIO(result)).hasValue("test:1:3.14:true");
     }
   }
 
@@ -345,20 +293,18 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
 
       Kind<IOKind.Witness, String> result = applicative.map2(nullIO, valueIO, nullSafeFunc);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("null:test");
+      assertThatIO(narrowToIO(result)).hasValue("null:test");
     }
 
     @Test
     @DisplayName("ap() with function that returns null")
     void apWithFunctionReturningNull() {
       Kind<IOKind.Witness, Function<Integer, String>> funcKind = applicative.of(i -> null);
-      Kind<IOKind.Witness, Integer> valueKind = applicative.of(42);
+      Kind<IOKind.Witness, Integer> valueKind = applicative.of(DEFAULT_IO_VALUE);
 
       Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isNull();
+      assertThatIO(narrowToIO(result)).hasValueNull();
     }
 
     @Test
@@ -366,15 +312,14 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
     void complexNestedApplicativeOperations() {
       Kind<IOKind.Witness, Function<Integer, Function<String, String>>> nestedFunc =
           applicative.of(i -> s -> s + ":" + i);
-      Kind<IOKind.Witness, Integer> intKind = applicative.of(42);
+      Kind<IOKind.Witness, Integer> intKind = applicative.of(DEFAULT_IO_VALUE);
       Kind<IOKind.Witness, String> stringKind = applicative.of("test");
 
       Kind<IOKind.Witness, Function<String, String>> partialFunc =
           applicative.ap(nestedFunc, intKind);
       Kind<IOKind.Witness, String> result = applicative.ap(partialFunc, stringKind);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("test:42");
+      assertThatIO(narrowToIO(result)).hasValue("test:" + DEFAULT_IO_VALUE);
     }
 
     @Test
@@ -383,10 +328,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
       BiFunction<Integer, Integer, String> combiner = (a, b) -> a + "+" + b;
       Kind<IOKind.Witness, String> result = applicative.map2(validKind, validKind2, combiner);
 
-      String first = IO_OP.unsafeRunSync(result);
-      String second = IO_OP.unsafeRunSync(result);
-
-      assertThat(first).isEqualTo(second).isEqualTo("42+24");
+      assertThatIO(narrowToIO(result)).isRepeatable();
     }
 
     @Test
@@ -400,11 +342,13 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
               });
 
       Kind<IOKind.Witness, Function<Integer, String>> funcKind = IO_OP.widen(failingFunc);
-      Kind<IOKind.Witness, Integer> valueKind = applicative.of(42);
+      Kind<IOKind.Witness, Integer> valueKind = applicative.of(DEFAULT_IO_VALUE);
 
       Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("Function failed");
     }
 
     @Test
@@ -422,7 +366,9 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
 
       Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("Value failed");
     }
   }
 
@@ -442,8 +388,7 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
         }
 
         int expectedSum = (100 * 101) / 2; // Sum of 1 to 100
-        Integer value = IO_OP.unsafeRunSync(result);
-        assertThat(value).isEqualTo(expectedSum);
+        assertThatIO(narrowToIO(result)).hasValue(expectedSum);
       }
     }
 
@@ -472,9 +417,117 @@ class IOApplicativeTest extends TypeClassTestBase<IOKind.Witness, Integer, Strin
       assertThat(executeCount.get()).isZero();
 
       // Execute once
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(51);
+      assertThatIO(narrowToIO(result)).hasValue(51);
       assertThat(executeCount.get()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Validation Tests")
+  class ValidationTests {
+    @Test
+    @DisplayName("ap() validates null function Kind")
+    void apValidatesNullFunctionKind() {
+      assertThatThrownBy(() -> applicative.ap(null, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("function");
+    }
+
+    @Test
+    @DisplayName("ap() validates null argument Kind")
+    void apValidatesNullArgumentKind() {
+      assertThatThrownBy(() -> applicative.ap(validFunctionKind, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("argument");
+    }
+
+    @Test
+    @DisplayName("map2() validates null arguments")
+    void map2ValidatesNullArguments() {
+      BiFunction<Integer, Integer, String> combiner = (a, b) -> a + ":" + b;
+
+      assertThatThrownBy(() -> applicative.map2(null, validKind2, combiner))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind<F, A> fa for map2 cannot be null");
+
+      assertThatThrownBy(() -> applicative.map2(validKind, null, combiner))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind<F, B> fb for map2 cannot be null");
+
+      assertThatThrownBy(
+              () ->
+                  applicative.map2(
+                      validKind, validKind2, (BiFunction<Integer, Integer, String>) null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("combining function for map2 cannot be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("IOAssert Integration Tests")
+  class IOAssertIntegrationTests {
+    @Test
+    @DisplayName("IOAssert works with applicative operations")
+    void testIOAssertWithApplicativeOperations() {
+      Kind<IOKind.Witness, String> result =
+          applicative.map2(validKind, validKind2, validCombiningFunction);
+
+      assertThatIO(narrowToIO(result))
+          .hasValueNonNull()
+          .hasValueSatisfying(
+              v ->
+                  assertThat(v)
+                      .isEqualTo("Result:" + DEFAULT_IO_VALUE + "," + ALTERNATIVE_IO_VALUE));
+    }
+
+    @Test
+    @DisplayName("IOAssert verifies laziness in ap operations")
+    void testIOAssertVerifiesLazinessInAp() {
+      AtomicInteger funcCounter = new AtomicInteger(0);
+      AtomicInteger valueCounter = new AtomicInteger(0);
+
+      Kind<IOKind.Witness, Function<Integer, String>> funcKind =
+          IO_OP.widen(
+              IO.delay(
+                  () -> {
+                    funcCounter.incrementAndGet();
+                    return i -> "value:" + i;
+                  }));
+
+      Kind<IOKind.Witness, Integer> valueKind =
+          IO_OP.widen(
+              IO.delay(
+                  () -> {
+                    valueCounter.incrementAndGet();
+                    return DEFAULT_IO_VALUE;
+                  }));
+
+      Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
+
+      // Should not have executed yet
+      assertThat(funcCounter.get()).isZero();
+      assertThat(valueCounter.get()).isZero();
+
+      // Execute and verify
+      assertThatIO(narrowToIO(result)).hasValue("value:" + DEFAULT_IO_VALUE);
+      assertThat(funcCounter.get()).isEqualTo(1);
+      assertThat(valueCounter.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("IOAssert detects exceptions in applicative chains")
+    void testIOAssertDetectsExceptionsInChains() {
+      RuntimeException exception = new RuntimeException("Chain failure");
+      Kind<IOKind.Witness, Integer> failingKind = failingIO(exception);
+
+      Kind<IOKind.Witness, String> result =
+          applicative.map2(failingKind, validKind2, validCombiningFunction);
+
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessageContaining("Chain failure");
     }
   }
 }

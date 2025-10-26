@@ -3,84 +3,24 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ValidatedMonad Complete Test Suite")
-class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
+class ValidatedMonadTest extends ValidatedTestBase {
 
   private ValidatedMonad<String> monad;
   private Semigroup<String> stringSemigroup;
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind() {
-    return VALIDATED.widen(Validated.valid(42));
-  }
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind2() {
-    return VALIDATED.widen(Validated.valid(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected Function<Integer, Kind<ValidatedKind.Witness<String>, String>> createValidFlatMapper() {
-    return n -> VALIDATED.widen(Validated.valid("Value: " + n));
-  }
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Function<Integer, String>>
-      createValidFunctionKind() {
-    Function<Integer, String> fn = n -> "Result: " + n;
-    return VALIDATED.widen(Validated.valid(fn));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> a + " and " + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 100;
-  }
-
-  @Override
-  protected Function<Integer, Kind<ValidatedKind.Witness<String>, String>> createTestFunction() {
-    return n -> VALIDATED.widen(Validated.valid("Test: " + n));
-  }
-
-  @Override
-  protected Function<String, Kind<ValidatedKind.Witness<String>, String>> createChainFunction() {
-    return s -> VALIDATED.widen(Validated.valid(s + " [chained]"));
-  }
-
-  @Override
-  protected BiPredicate<
-          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Validated<String, ?> v1 = VALIDATED.narrow(k1);
-      Validated<String, ?> v2 = VALIDATED.narrow(k2);
-      return v1.equals(v2);
-    };
-  }
 
   @BeforeEach
   void setUpMonad() {
@@ -112,61 +52,56 @@ class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>
     @Test
     @DisplayName("FlatMap chains Valid computations")
     void flatMapChainsValidComputations() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> fn =
           n -> VALIDATED.widen(Validated.valid("Value: " + n));
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.flatMap(fn, kind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("Value: 42");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue("Value: 42");
     }
 
     @Test
     @DisplayName("FlatMap propagates Invalid from source")
     void flatMapPropagatesInvalidFromSource() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind =
-          VALIDATED.widen(Validated.invalid("source-error"));
+      Kind<ValidatedKind.Witness<String>, Integer> kind = invalidKind("source-error");
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> fn =
           n -> VALIDATED.widen(Validated.valid("Value: " + n));
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.flatMap(fn, kind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("source-error");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("source-error");
     }
 
     @Test
     @DisplayName("FlatMap uses result from function on Valid")
     void flatMapUsesResultFromFunctionOnValid() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> fn =
           n -> VALIDATED.widen(Validated.invalid("function-error"));
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.flatMap(fn, kind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("function-error");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("function-error");
     }
 
     @Test
     @DisplayName("FlatMap chains multiple operations")
     void flatMapChainsMultipleOperations() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(Validated.valid(10));
+      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(10);
 
       Kind<ValidatedKind.Witness<String>, Integer> step1 =
-          monad.flatMap(n -> VALIDATED.widen(Validated.valid(n * 2)), kind);
+          monad.flatMap(n -> validKind(n * 2), kind);
       Kind<ValidatedKind.Witness<String>, Integer> step2 =
-          monad.flatMap(n -> VALIDATED.widen(Validated.valid(n + 5)), step1);
+          monad.flatMap(n -> validKind(n + 5), step1);
       Kind<ValidatedKind.Witness<String>, String> step3 =
           monad.flatMap(n -> VALIDATED.widen(Validated.valid("Result: " + n)), step2);
 
-      Validated<String, String> result = VALIDATED.narrow(step3);
-      assertThat(result.isValid()).isTrue();
-      assertThat(result.get()).isEqualTo("Result: 25");
+      Validated<String, String> result = narrowToValidated(step3);
+      assertThatValidated(result).isValid().hasValue("Result: 25");
     }
   }
 
@@ -248,7 +183,7 @@ class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>
     @Test
     @DisplayName("Left identity law holds")
     void leftIdentityLawHolds() {
-      Integer value = 42;
+      Integer value = DEFAULT_VALID_VALUE;
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> fn =
           n -> VALIDATED.widen(Validated.valid("Value: " + n));
 
@@ -262,7 +197,7 @@ class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>
     @Test
     @DisplayName("Right identity law holds")
     void rightIdentityLawHolds() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
       Function<Integer, Kind<ValidatedKind.Witness<String>, Integer>> ofFunc = monad::of;
 
       Kind<ValidatedKind.Witness<String>, Integer> result = monad.flatMap(ofFunc, kind);
@@ -273,7 +208,7 @@ class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>
     @Test
     @DisplayName("Associativity law holds")
     void associativityLawHolds() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(Validated.valid(10));
+      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(10);
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> f =
           n -> VALIDATED.widen(Validated.valid("Step1: " + n));
       Function<String, Kind<ValidatedKind.Witness<String>, String>> g =
@@ -299,7 +234,7 @@ class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>
     @Test
     @DisplayName("FlatMap with function returning null Kind fails appropriately")
     void flatMapWithFunctionReturningNullKindFailsAppropriately() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(Validated.valid(42));
+      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> nullReturningFn = n -> null;
 
       org.junit.jupiter.api.Assertions.assertThrows(
@@ -311,14 +246,12 @@ class ValidatedMonadTest extends TypeClassTestBase<ValidatedKind.Witness<String>
     void apStillAccumulatesErrorsDespiteFlatMapFailFastBehaviour() {
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> fnKind =
           VALIDATED.widen(Validated.invalid("error1"));
-      Kind<ValidatedKind.Witness<String>, Integer> valueKind =
-          VALIDATED.widen(Validated.invalid("error2"));
+      Kind<ValidatedKind.Witness<String>, Integer> valueKind = invalidKind("error2");
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.ap(fnKind, valueKind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isInvalid().hasError("error1, error2");
     }
   }
 }

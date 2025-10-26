@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.validated;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
 import org.higherkindedj.hkt.validated.Validated;
 
 /**
@@ -15,21 +16,21 @@ import org.higherkindedj.hkt.validated.Validated;
  * @param <A> The value type
  * @param <B> The mapped type
  */
-public final class ValidatedTestConfigStage<E, A, B> {
+public final class ValidatedTestConfigStage<E, A, B>
+    extends BaseTestConfigStage<ValidatedTestConfigStage<E, A, B>> {
+
   private final Class<?> contextClass;
   private final Validated<E, A> invalidInstance;
   private final Validated<E, A> validInstance;
   private final Function<A, B> mapper;
 
-  // Test selection flags
+  // Type-specific test selection flags
   private boolean includeFactoryMethods = true;
   private boolean includeGetters = true;
   private boolean includeFold = true;
   private boolean includeSideEffects = true;
   private boolean includeMap = true;
   private boolean includeFlatMap = true;
-  private boolean includeValidations = true;
-  private boolean includeEdgeCases = true;
 
   ValidatedTestConfigStage(
       Class<?> contextClass,
@@ -43,7 +44,51 @@ public final class ValidatedTestConfigStage<E, A, B> {
   }
 
   // =============================================================================
-  // Test Selection Methods
+  // BaseTestConfigStage Implementation
+  // =============================================================================
+
+  @Override
+  protected ValidatedTestConfigStage<E, A, B> self() {
+    return this;
+  }
+
+  @Override
+  public void testAll() {
+    buildExecutor().executeAll();
+  }
+
+  @Override
+  public ValidatedValidationStage<E, A, B> configureValidation() {
+    return new ValidatedValidationStage<>(this);
+  }
+
+  @Override
+  public ValidatedTestConfigStage<E, A, B> onlyValidations() {
+    disableAll();
+    this.includeValidations = true;
+    return this;
+  }
+
+  @Override
+  public ValidatedTestConfigStage<E, A, B> onlyEdgeCases() {
+    disableAll();
+    this.includeEdgeCases = true;
+    return this;
+  }
+
+  @Override
+  protected void disableAll() {
+    super.disableAll();
+    includeFactoryMethods = false;
+    includeGetters = false;
+    includeFold = false;
+    includeSideEffects = false;
+    includeMap = false;
+    includeFlatMap = false;
+  }
+
+  // =============================================================================
+  // Type-Specific Test Selection Methods
   // =============================================================================
 
   public ValidatedTestConfigStage<E, A, B> skipFactoryMethods() {
@@ -73,16 +118,6 @@ public final class ValidatedTestConfigStage<E, A, B> {
 
   public ValidatedTestConfigStage<E, A, B> skipFlatMap() {
     this.includeFlatMap = false;
-    return this;
-  }
-
-  public ValidatedTestConfigStage<E, A, B> skipValidations() {
-    this.includeValidations = false;
-    return this;
-  }
-
-  public ValidatedTestConfigStage<E, A, B> skipEdgeCases() {
-    this.includeEdgeCases = false;
     return this;
   }
 
@@ -125,81 +160,6 @@ public final class ValidatedTestConfigStage<E, A, B> {
     this.includeFlatMap = true;
     return this;
   }
-
-  public ValidatedTestConfigStage<E, A, B> onlyValidations() {
-    disableAll();
-    this.includeValidations = true;
-    return this;
-  }
-
-  public ValidatedTestConfigStage<E, A, B> onlyEdgeCases() {
-    disableAll();
-    this.includeEdgeCases = true;
-    return this;
-  }
-
-  private void disableAll() {
-    includeFactoryMethods = false;
-    includeGetters = false;
-    includeFold = false;
-    includeSideEffects = false;
-    includeMap = false;
-    includeFlatMap = false;
-    includeValidations = false;
-    includeEdgeCases = false;
-  }
-
-  // =============================================================================
-  // Validation Configuration
-  // =============================================================================
-
-  /**
-   * Enters validation configuration mode.
-   *
-   * <p>Progressive disclosure: Shows validation context configuration options.
-   *
-   * @return Validation stage for configuring error message contexts
-   */
-  public ValidatedValidationStage<E, A, B> configureValidation() {
-    return new ValidatedValidationStage<>(this);
-  }
-
-  // =============================================================================
-  // Execution Methods
-  // =============================================================================
-
-  /**
-   * Executes all configured tests.
-   *
-   * <p>This is the most comprehensive test execution option.
-   */
-  public void testAll() {
-    ValidatedTestExecutor<E, A, B> executor = buildExecutor();
-    executor.executeAll();
-  }
-
-  /** Executes only core operation tests (no validations or edge cases). */
-  public void testOperations() {
-    includeValidations = false;
-    includeEdgeCases = false;
-    testAll();
-  }
-
-  /** Executes only validation tests. */
-  public void testValidations() {
-    onlyValidations();
-    testAll();
-  }
-
-  /** Executes only edge case tests. */
-  public void testEdgeCases() {
-    onlyEdgeCases();
-    testAll();
-  }
-
-  // =============================================================================
-  // Internal Builder
-  // =============================================================================
 
   private ValidatedTestExecutor<E, A, B> buildExecutor() {
     return new ValidatedTestExecutor<>(

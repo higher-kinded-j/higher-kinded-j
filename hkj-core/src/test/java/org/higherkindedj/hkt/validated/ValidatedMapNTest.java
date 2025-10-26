@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.stream.Stream;
@@ -45,8 +45,7 @@ class ValidatedMapNTest {
           monad.map2(v1, v2, (a, b) -> a + "+" + b);
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("10+20");
+      assertThatValidated(validated).isValid().hasValue("10+20");
     }
 
     @Test
@@ -59,8 +58,7 @@ class ValidatedMapNTest {
           monad.map2(v1, v2, (a, b) -> a + "+" + b);
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1, error2");
+      assertThatValidated(validated).isInvalid().hasError("error1, error2");
     }
 
     @Test
@@ -73,8 +71,7 @@ class ValidatedMapNTest {
           monad.map2(v1, v2, (a, b) -> a + "+" + b);
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      assertThatValidated(validated).isInvalid().hasError("error");
     }
 
     @Test
@@ -87,8 +84,7 @@ class ValidatedMapNTest {
           monad.map2(v1, v2, (a, b) -> a + "+" + b);
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      assertThatValidated(validated).isInvalid().hasError("error");
     }
 
     @Test
@@ -149,8 +145,7 @@ class ValidatedMapNTest {
           monad.map2(v1, v2, (num, str) -> num + "-" + str);
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("10-test");
+      assertThatValidated(validated).isValid().hasValue("10-test");
     }
   }
 
@@ -192,11 +187,9 @@ class ValidatedMapNTest {
 
       Validated<String, String> validated = VALIDATED.narrow(result);
       if (shouldBeValid) {
-        assertThat(validated.isValid()).isTrue();
-        assertThat(validated.get()).isEqualTo(expected);
+        assertThatValidated(validated).isValid().hasValue(expected);
       } else {
-        assertThat(validated.isInvalid()).isTrue();
-        assertThat(validated.getError()).isEqualTo(expected);
+        assertThatValidated(validated).isInvalid().hasError(expected);
       }
     }
 
@@ -306,14 +299,12 @@ class ValidatedMapNTest {
         Kind<ValidatedKind.Witness<String>, Integer> result =
             monad.map4(v1, v2, v3, v4, (a, b, c, d) -> a + b + c + d);
         Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThat(validated.isValid()).isTrue();
-        assertThat(validated.get()).isEqualTo(expected);
+        assertThatValidated(validated).isValid().hasValue((Integer) expected);
       } else {
         Kind<ValidatedKind.Witness<String>, String> result =
             monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
         Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThat(validated.isInvalid()).isTrue();
-        assertThat(validated.getError()).isEqualTo(expected);
+        assertThatValidated(validated).isInvalid().hasError((String) expected);
       }
     }
 
@@ -429,14 +420,12 @@ class ValidatedMapNTest {
         Kind<ValidatedKind.Witness<String>, Integer> result =
             monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> a + b + c + d + e);
         Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThat(validated.isValid()).isTrue();
-        assertThat(validated.get()).isEqualTo(expected);
+        assertThatValidated(validated).isValid().hasValue((Integer) expected);
       } else {
         Kind<ValidatedKind.Witness<String>, String> result =
             monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
         Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThat(validated.isInvalid()).isTrue();
-        assertThat(validated.getError()).isEqualTo(expected);
+        assertThatValidated(validated).isInvalid().hasError((String) expected);
       }
     }
 
@@ -518,7 +507,7 @@ class ValidatedMapNTest {
           reverseMonad.map2(v1, v2, (a, b) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.getError()).isEqualTo("second before first");
+      assertThatValidated(validated).isInvalid().hasError("second before first");
     }
 
     @Test
@@ -532,7 +521,7 @@ class ValidatedMapNTest {
           monad.map3(v1, v2, v3, (a, b, c) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.getError()).isEqualTo("A, B, C");
+      assertThatValidated(validated).isInvalid().hasError("A, B, C");
     }
 
     @Test
@@ -547,7 +536,7 @@ class ValidatedMapNTest {
           monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.getError()).isEqualTo("E1, E3, E4");
+      assertThatValidated(validated).isInvalid().hasError("E1, E3, E4");
     }
 
     @Test
@@ -563,7 +552,7 @@ class ValidatedMapNTest {
           monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.getError()).isEqualTo("E1, E3, E5");
+      assertThatValidated(validated).isInvalid().hasError("E1, E3, E5");
     }
   }
 
@@ -586,8 +575,7 @@ class ValidatedMapNTest {
           monad.map3(combined, v3, v4, (a, b, c) -> a + b + c);
 
       Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(100);
+      assertThatValidated(validated).isValid().hasValue(100);
     }
 
     @Test
@@ -601,9 +589,11 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Person> result = monad.map2(name, age, Person::new);
 
       Validated<String, Person> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get().name()).isEqualTo("Alice");
-      assertThat(validated.get().age()).isEqualTo(30);
+      assertThatValidated(validated)
+          .isValid()
+          .hasValueSatisfying(
+              person -> person.name().equals("Alice") && person.age() == 30,
+              "Person has correct name and age");
     }
 
     @Test
@@ -619,8 +609,7 @@ class ValidatedMapNTest {
           monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error, error, error, error, error");
+      assertThatValidated(validated).isInvalid().hasError("error, error, error, error, error");
     }
   }
 
@@ -643,8 +632,11 @@ class ValidatedMapNTest {
           listMonad.map2(v1, v2, (a, b) -> "test");
 
       Validated<java.util.List<String>, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).containsExactly("error1", "error2");
+      assertThatValidated(validated)
+          .isInvalid()
+          .hasErrorSatisfying(
+              errors -> errors.containsAll(java.util.List.of("error1", "error2")),
+              "contains both errors");
     }
 
     @Test
@@ -661,8 +653,7 @@ class ValidatedMapNTest {
           firstMonad.map3(v1, v2, v3, (a, b, c) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error1");
+      assertThatValidated(validated).isInvalid().hasError("error1");
     }
 
     @Test
@@ -680,8 +671,7 @@ class ValidatedMapNTest {
           lastMonad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error4");
+      assertThatValidated(validated).isInvalid().hasError("error4");
     }
 
     @Test
@@ -708,9 +698,15 @@ class ValidatedMapNTest {
           customMonad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
 
       Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      // The exact format depends on semigroup implementation details
-      assertThat(validated.getError()).contains("A", "B", "C", "E");
+      assertThatValidated(validated)
+          .isInvalid()
+          .hasErrorSatisfying(
+              error ->
+                  error.contains("A")
+                      && error.contains("B")
+                      && error.contains("C")
+                      && error.contains("E"),
+              "contains all errors A, B, C, and E");
     }
   }
 }

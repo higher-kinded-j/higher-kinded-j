@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,7 +43,7 @@ class ValidTest {
           .withValid(anotherValid) // Use another Valid instance
           .withMappers(Object::toString)
           .configureValidation()
-          .useInheritanceValidation()
+          .withValidatedInheritanceValidation()
           .withMapFrom(Valid.class)
           .withFlatMapFrom(Valid.class)
           .withIfValidFrom(Valid.class)
@@ -77,9 +78,7 @@ class ValidTest {
     void factoryMethodCreatesValidInstance() {
       Validated<String, Integer> validated = Validated.valid(42);
 
-      assertThat(validated).isInstanceOf(Valid.class);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(42);
+      assertThatValidated(validated).isValid().hasValue(42).hasValueOfType(Integer.class);
     }
   }
 
@@ -90,7 +89,7 @@ class ValidTest {
     @Test
     @DisplayName("IsValid returns true")
     void isValidReturnsTrue() {
-      assertThat(validInstance.isValid()).isTrue();
+      assertThatValidated(validInstance).isValid();
     }
 
     @Test
@@ -102,7 +101,7 @@ class ValidTest {
     @Test
     @DisplayName("Get returns the encapsulated value")
     void getReturnsTheEncapsulatedValue() {
-      assertThat(validInstance.get()).isEqualTo(42);
+      assertThatValidated(validInstance).hasValue(42);
     }
 
     @Test
@@ -245,8 +244,7 @@ class ValidTest {
     void mapTransformsTheValue() {
       Validated<String, String> result = validInstance.map(Object::toString);
 
-      assertThat(result.isValid()).isTrue();
-      assertThat(result.get()).isEqualTo("42");
+      assertThatValidated(result).isValid().hasValue("42").hasValueOfType(String.class);
     }
 
     @Test
@@ -272,8 +270,7 @@ class ValidTest {
     void flatMapChainsComputations() {
       Validated<String, String> result = validInstance.flatMap(i -> Validated.valid(i.toString()));
 
-      assertThat(result.isValid()).isTrue();
-      assertThat(result.get()).isEqualTo("42");
+      assertThatValidated(result).isValid().hasValue("42");
     }
 
     @Test
@@ -282,8 +279,7 @@ class ValidTest {
       Validated<String, String> result =
           validInstance.flatMap(i -> Validated.invalid("computed error"));
 
-      assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("computed error");
+      assertThatValidated(result).isInvalid().hasError("computed error");
     }
 
     @Test
@@ -321,8 +317,7 @@ class ValidTest {
 
       Validated<String, String> result = validInstance.ap(fnValidated, semigroup);
 
-      assertThat(result.isValid()).isTrue();
-      assertThat(result.get()).isEqualTo("42");
+      assertThatValidated(result).isValid().hasValue("42");
     }
 
     @Test
@@ -333,8 +328,7 @@ class ValidTest {
 
       Validated<String, String> result = validInstance.ap(fnValidated, semigroup);
 
-      assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("function error");
+      assertThatValidated(result).isInvalid().hasError("function error");
     }
 
     @Test
@@ -410,8 +404,8 @@ class ValidTest {
       Valid<String, Integer> same = new Valid<>(42);
       Valid<String, Integer> different = new Valid<>(43);
 
-      assertThat(validInstance).isEqualTo(same);
-      assertThat(validInstance).isNotEqualTo(different);
+      assertThatValidated(validInstance).isEqualTo(same);
+      assertThatValidated(validInstance).isNotEqualTo(different);
       assertThat(validInstance).isNotEqualTo(null);
       assertThat(validInstance).isNotEqualTo("not a Valid");
     }

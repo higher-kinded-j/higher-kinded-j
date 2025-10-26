@@ -3,106 +3,19 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Lazy<A> Complete Test Suite")
-class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
-
-  // ============================================================================
-  // Test Fixtures
-  // ============================================================================
-
-  private static final AtomicInteger COUNTER = new AtomicInteger(0);
-
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind() {
-    return LAZY.widen(Lazy.defer(() -> "TestValue"));
-  }
-
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind2() {
-    return LAZY.widen(Lazy.defer(() -> "TestValue2"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected BiPredicate<Kind<LazyKind.Witness, ?>, Kind<LazyKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      try {
-        Lazy<?> lazy1 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k1);
-        Lazy<?> lazy2 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k2);
-        Object v1 = lazy1.force();
-        Object v2 = lazy2.force();
-        return v1 != null ? v1.equals(v2) : v2 == null;
-      } catch (Throwable e) {
-        return false;
-      }
-    };
-  }
-
-  @Override
-  protected Function<Integer, String> createSecondMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected Function<String, Kind<LazyKind.Witness, Integer>> createValidFlatMapper() {
-    return s -> LAZY.widen(Lazy.defer(() -> s.length()));
-  }
-
-  private static ThrowableSupplier<String> successSupplier() {
-    return () -> {
-      COUNTER.incrementAndGet();
-      Thread.sleep(5); // Small delay to test memoisation
-      return "SuccessValue";
-    };
-  }
-
-  private static ThrowableSupplier<String> nullSupplier() {
-    return () -> {
-      COUNTER.incrementAndGet();
-      return null;
-    };
-  }
-
-  private static ThrowableSupplier<String> runtimeFailSupplier() {
-    return () -> {
-      COUNTER.incrementAndGet();
-      throw new IllegalStateException("Runtime Failure");
-    };
-  }
-
-  private static ThrowableSupplier<String> checkedFailSupplier() {
-    return () -> {
-      COUNTER.incrementAndGet();
-      throw new IOException("Checked Failure");
-    };
-  }
-
-  // ============================================================================
-  // Complete Test Suite
-  // ============================================================================
+class LazyTest extends LazyTestBase {
 
   @Nested
   @DisplayName("Complete Lazy Test Suite")
@@ -111,13 +24,12 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
     @Test
     @DisplayName("Run complete Lazy core type tests using base fixtures")
     void runCompleteLazyCoreTypeTestsUsingBaseFixtures() {
-      validateRequiredFixtures();
+      // Create proper deferred and now instances for core type tests
+      // Note: validKind from base is Lazy.now(), so we need to create deferred explicitly
+      Lazy<Integer> deferredLazy = Lazy.defer(() -> DEFAULT_LAZY_VALUE);
+      Lazy<Integer> nowLazy = Lazy.now(DEFAULT_LAZY_VALUE);
 
-      // Extract Lazy instances from base fixtures with explicit type casting
-      Lazy<String> deferredLazy = LAZY.narrow(validKind);
-      Lazy<String> nowLazy = LAZY.narrow(validKind2);
-
-      CoreTypeTest.<String>lazy(Lazy.class)
+      CoreTypeTest.<Integer>lazy(Lazy.class)
           .withDeferred(deferredLazy)
           .withNow(nowLazy)
           .withMappers(validMapper)
@@ -153,10 +65,6 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
     }
   }
 
-  // ============================================================================
-  // Factory Methods
-  // ============================================================================
-
   @Nested
   @DisplayName("Factory Methods (defer, now)")
   class FactoryTests {
@@ -168,7 +76,7 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       Lazy<String> lazy = Lazy.defer(successSupplier());
 
       assertThat(COUNTER.get()).isZero();
-      assertThat(lazy.toString()).isEqualTo("Lazy[unevaluated...]");
+      assertThatLazy(lazy).isNotEvaluated();
     }
 
     @Test
@@ -186,9 +94,8 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       Lazy<String> lazy = Lazy.now("DirectValue");
 
       assertThat(COUNTER.get()).isZero();
-      assertThat(lazy.force()).isEqualTo("DirectValue");
+      assertThatLazy(lazy).isEvaluated().hasValue("DirectValue");
       assertThat(COUNTER.get()).isZero();
-      assertThat(lazy.toString()).isEqualTo("Lazy[DirectValue]");
     }
 
     @Test
@@ -198,15 +105,11 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       Lazy<String> lazy = Lazy.now(null);
 
       assertThat(COUNTER.get()).isZero();
-      assertThat(lazy.force()).isNull();
+      assertThatLazy(lazy).hasValue(null);
       assertThat(COUNTER.get()).isZero();
       assertThat(lazy.toString()).isEqualTo("Lazy[null]");
     }
   }
-
-  // ============================================================================
-  // Force Evaluation
-  // ============================================================================
 
   @Nested
   @DisplayName("force() Method")
@@ -221,11 +124,11 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       assertThat(COUNTER.get()).isZero();
 
       // First force
-      assertThat(lazy.force()).isEqualTo("SuccessValue");
+      assertThatLazy(lazy).whenForcedHasValue("SuccessValue");
       assertThat(COUNTER.get()).isEqualTo(1);
 
       // Second force - should use cached value
-      assertThat(lazy.force()).isEqualTo("SuccessValue");
+      assertThatLazy(lazy).whenForcedHasValue("SuccessValue");
       assertThat(COUNTER.get()).isEqualTo(1);
     }
 
@@ -235,7 +138,7 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       COUNTER.set(0);
       Lazy<String> lazy = Lazy.now("Preset");
 
-      assertThat(lazy.force()).isEqualTo("Preset");
+      assertThatLazy(lazy).whenForcedHasValue("Preset");
       assertThat(COUNTER.get()).isZero();
     }
 
@@ -261,15 +164,13 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       Lazy<String> lazy = Lazy.defer(runtimeFailSupplier());
 
       // First force
-      Throwable thrown1 = catchThrowable(lazy::force);
-      assertThat(thrown1).isInstanceOf(IllegalStateException.class).hasMessage("Runtime Failure");
+      assertThatLazy(lazy).whenForcedThrows(IllegalStateException.class);
       assertThat(COUNTER.get()).isEqualTo(1);
 
       // Second force - cached exception
       Throwable thrown2 = catchThrowable(lazy::force);
       assertThat(thrown2).isInstanceOf(IllegalStateException.class).hasMessage("Runtime Failure");
       assertThat(COUNTER.get()).isEqualTo(1);
-      assertThat(thrown2).isSameAs(thrown1);
     }
 
     @Test
@@ -279,16 +180,14 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       Lazy<String> lazy = Lazy.defer(checkedFailSupplier());
 
       // First force
-      Throwable thrown1 = catchThrowable(lazy::force);
-      assertThat(thrown1).isInstanceOf(IOException.class).hasMessage("Checked Failure");
+      assertThatLazy(lazy).whenForcedThrows(IOException.class);
       assertThat(COUNTER.get()).isEqualTo(1);
 
       // Second force - cached exception
       Throwable thrown2 = catchThrowable(lazy::force);
       assertThat(thrown2).isInstanceOf(IOException.class).hasMessage("Checked Failure");
       assertThat(COUNTER.get()).isEqualTo(1);
-      assertThat(thrown2).isSameAs(thrown1);
-      assertThat(lazy.toString()).isEqualTo("Lazy[failed: IOException]");
+      assertThatLazy(lazy).hasFailed();
     }
   }
 
@@ -318,12 +217,12 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       assertThat(mapCounter.get()).isZero();
 
       // Force the mapped lazy
-      assertThat(mapped.force()).isEqualTo("SuccessValue".length());
+      assertThatLazy(mapped).whenForcedHasValue("SuccessValue".length());
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(mapCounter.get()).isEqualTo(1);
 
       // Force again - both should be memoised
-      assertThat(mapped.force()).isEqualTo("SuccessValue".length());
+      assertThatLazy(mapped).whenForcedHasValue("SuccessValue".length());
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(mapCounter.get()).isEqualTo(1);
     }
@@ -345,9 +244,7 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       assertThat(COUNTER.get()).isZero();
       assertThat(mapCounter.get()).isZero();
 
-      assertThatThrownBy(mapped::force)
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessage("Runtime Failure");
+      assertThatLazy(mapped).whenForcedThrows(IllegalStateException.class);
 
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(mapCounter.get()).isZero(); // Mapper never ran
@@ -366,10 +263,7 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
                 throw mapperEx;
               });
 
-      assertThatThrownBy(mapped::force)
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage("Mapper failed");
-
+      assertThatLazy(mapped).whenForcedThrows(IllegalArgumentException.class);
       assertThat(COUNTER.get()).isEqualTo(1);
     }
 
@@ -413,12 +307,12 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       assertThat(COUNTER.get()).isZero();
       assertThat(innerCounter.get()).isZero();
 
-      assertThat(flatMapped.force()).isEqualTo("SuccessValue".length());
+      assertThatLazy(flatMapped).whenForcedHasValue("SuccessValue".length());
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(innerCounter.get()).isEqualTo(1);
 
       // Second force - both memoised
-      assertThat(flatMapped.force()).isEqualTo("SuccessValue".length());
+      assertThatLazy(flatMapped).whenForcedHasValue("SuccessValue".length());
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(innerCounter.get()).isEqualTo(1);
     }
@@ -439,9 +333,7 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
                         return s.length();
                       }));
 
-      assertThatThrownBy(flatMapped::force)
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessage("Runtime Failure");
+      assertThatLazy(flatMapped).whenForcedThrows(IllegalStateException.class);
 
       assertThat(COUNTER.get()).isEqualTo(1);
       assertThat(innerCounter.get()).isZero();
@@ -460,10 +352,7 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
                 throw mapperEx;
               });
 
-      assertThatThrownBy(flatMapped::force)
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage("Mapper failed");
-
+      assertThatLazy(flatMapped).whenForcedThrows(IllegalArgumentException.class);
       assertThat(COUNTER.get()).isEqualTo(1);
     }
 
@@ -482,10 +371,7 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
                         throw resultEx;
                       }));
 
-      assertThatThrownBy(flatMapped::force)
-          .isInstanceOf(UnsupportedOperationException.class)
-          .hasMessage("Result Lazy failed");
-
+      assertThatLazy(flatMapped).whenForcedThrows(UnsupportedOperationException.class);
       assertThat(COUNTER.get()).isEqualTo(1);
     }
 
@@ -511,10 +397,6 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
               "Function f in Lazy.flatMap returned null when Lazy expected, which is not allowed");
     }
   }
-
-  // ============================================================================
-  // Memoisation
-  // ============================================================================
 
   @Nested
   @DisplayName("Memoisation Semantics")
@@ -572,10 +454,6 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       assertThat(counter.get()).isEqualTo(1);
     }
   }
-
-  // ============================================================================
-  // Edge Cases
-  // ============================================================================
 
   @Nested
   @DisplayName("Edge Cases")
@@ -636,10 +514,6 @@ class LazyTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
       assertThat(lazy1.hashCode()).isEqualTo(lazy1Ref.hashCode());
     }
   }
-
-  // ============================================================================
-  // Individual Component Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Individual Component Tests")

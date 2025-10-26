@@ -3,15 +3,14 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.reader.ReaderAssert.assertThatReader;
 
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,61 +23,10 @@ import org.junit.jupiter.api.Test;
  * semantics.
  */
 @DisplayName("ReaderApplicative<R> Type Class - Standardised Test Suite")
-class ReaderApplicativeTest
-    extends TypeClassTestBase<ReaderKind.Witness<ReaderApplicativeTest.Config>, String, Integer> {
+class ReaderApplicativeTest extends ReaderTestBase {
 
-  // Simple environment type for testing
-  public record Config(String dbUrl, int timeout) {}
-
-  private final Config testConfig = new Config("jdbc:test", 5000);
-
-  private ReaderApplicative<Config> applicative;
-  private ReaderFunctor<Config> functor;
-
-  @Override
-  protected Kind<ReaderKind.Witness<Config>, String> createValidKind() {
-    return ReaderKindHelper.READER.widen(Reader.of(Config::dbUrl));
-  }
-
-  @Override
-  protected Kind<ReaderKind.Witness<Config>, String> createValidKind2() {
-    return ReaderKindHelper.READER.widen(Reader.of(cfg -> cfg.dbUrl() + "_copy"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected BiPredicate<Kind<ReaderKind.Witness<Config>, ?>, Kind<ReaderKind.Witness<Config>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Reader<Config, ?> r1 = ReaderKindHelper.READER.narrow(k1);
-      Reader<Config, ?> r2 = ReaderKindHelper.READER.narrow(k2);
-      return r1.run(testConfig).equals(r2.run(testConfig));
-    };
-  }
-
-  @Override
-  protected Function<Integer, String> createSecondMapper() {
-    return i -> "Length: " + i;
-  }
-
-  @Override
-  protected Kind<ReaderKind.Witness<Config>, Function<String, Integer>> createValidFunctionKind() {
-    return ReaderKindHelper.READER.widen(Reader.constant(String::length));
-  }
-
-  @Override
-  protected BiFunction<String, String, Integer> createValidCombiningFunction() {
-    return (s1, s2) -> s1.length() + s2.length();
-  }
-
-  @Override
-  protected String createTestValue() {
-    return "test";
-  }
+  private ReaderApplicative<TestConfig> applicative;
+  private ReaderFunctor<TestConfig> functor;
 
   @BeforeEach
   void setUpApplicative() {
@@ -93,9 +41,9 @@ class ReaderApplicativeTest
     @Test
     @DisplayName("Run complete Applicative test pattern")
     void runCompleteApplicativeTestPattern() {
-      TypeClassTest.<ReaderKind.Witness<Config>>applicative(ReaderApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, validMapper, equalityChecker)
           .configureValidation()
@@ -117,70 +65,77 @@ class ReaderApplicativeTest
     @DisplayName("of() lifts pure value into Reader context")
     void ofLiftsPureValue() {
       String testValue = "pure value";
-      Kind<ReaderKind.Witness<Config>, String> result = applicative.of(testValue);
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.of(testValue);
 
-      Reader<Config, String> reader = ReaderKindHelper.READER.narrow(result);
-      assertThat(reader.run(testConfig)).isEqualTo(testValue);
-      assertThat(reader.run(new Config("different", 999))).isEqualTo(testValue);
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader).whenRunWith(TEST_CONFIG).produces(testValue);
+      assertThatReader(reader).isConstantFor(TEST_CONFIG, ALTERNATIVE_CONFIG);
     }
 
     @Test
     @DisplayName("ap() applies function Reader to value Reader")
     void apAppliesFunctionReaderToValueReader() {
-      Function<String, Integer> func = String::length;
-      Kind<ReaderKind.Witness<Config>, Function<String, Integer>> funcKind =
+      Function<Integer, String> func = i -> "Connections: " + i;
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           ReaderKindHelper.READER.widen(Reader.constant(func));
 
-      Kind<ReaderKind.Witness<Config>, Integer> result = applicative.ap(funcKind, validKind);
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThat(reader.run(testConfig)).isEqualTo("jdbc:test".length());
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader)
+          .whenRunWith(TEST_CONFIG)
+          .produces("Connections: " + DEFAULT_MAX_CONNECTIONS);
     }
 
     @Test
     @DisplayName("ap() runs both readers with same environment")
     void apRunsBothReadersWithSameEnvironment() {
       // Function reader that captures the environment
-      Reader<Config, Function<String, String>> funcReader =
-          Reader.of(cfg -> s -> s + ":" + cfg.timeout());
-      Kind<ReaderKind.Witness<Config>, Function<String, String>> funcKind =
+      Reader<TestConfig, Function<Integer, String>> funcReader =
+          Reader.of(cfg -> i -> cfg.url() + ":" + i);
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           ReaderKindHelper.READER.widen(funcReader);
 
-      Kind<ReaderKind.Witness<Config>, String> result = applicative.ap(funcKind, validKind);
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
 
-      Reader<Config, String> reader = ReaderKindHelper.READER.narrow(result);
-      assertThat(reader.run(testConfig)).isEqualTo("jdbc:test:5000");
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader)
+          .whenRunWith(TEST_CONFIG)
+          .produces(DEFAULT_URL + ":" + DEFAULT_MAX_CONNECTIONS);
     }
 
     @Test
     @DisplayName("map2() combines two Readers with combining function")
     void map2CombinesTwoReaders() {
-      BiFunction<String, String, String> combiner = (s1, s2) -> s1 + " + " + s2;
+      BiFunction<Integer, Integer, String> combiner = (a, b) -> a + " + " + b;
 
-      Kind<ReaderKind.Witness<Config>, String> result =
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
           applicative.map2(validKind, validKind2, combiner);
 
-      Reader<Config, String> reader = ReaderKindHelper.READER.narrow(result);
-      assertThat(reader.run(testConfig)).isEqualTo("jdbc:test + jdbc:test_copy");
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader)
+          .whenRunWith(TEST_CONFIG)
+          .produces(DEFAULT_MAX_CONNECTIONS + " + " + (DEFAULT_MAX_CONNECTIONS * 2));
     }
 
     @Test
     @DisplayName("map2() passes same environment to both readers")
     void map2PassesSameEnvironmentToBothReaders() {
-      Kind<ReaderKind.Witness<Config>, String> urlReader = validKind;
-      Kind<ReaderKind.Witness<Config>, Integer> timeoutReader =
-          ReaderKindHelper.READER.widen(Reader.of(Config::timeout));
+      Kind<ReaderKind.Witness<TestConfig>, String> urlReaderKind = urlKind();
+      Kind<ReaderKind.Witness<TestConfig>, Integer> maxConnectionsReaderKind = maxConnectionsKind();
 
       BiFunction<String, Integer, String> combiner =
-          (url, timeout) -> url + " with timeout " + timeout;
+          (url, maxConns) -> url + " with maxConnections " + maxConns;
 
       @SuppressWarnings("unchecked")
-      Kind<ReaderKind.Witness<Config>, String> result =
-          (Kind<ReaderKind.Witness<Config>, String>)
-              (Kind<?, ?>) applicative.map2(urlReader, timeoutReader, combiner);
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
+          (Kind<ReaderKind.Witness<TestConfig>, String>)
+              (Kind<?, ?>) applicative.map2(urlReaderKind, maxConnectionsReaderKind, combiner);
 
-      Reader<Config, String> reader = ReaderKindHelper.READER.narrow(result);
-      assertThat(reader.run(testConfig)).isEqualTo("jdbc:test with timeout 5000");
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader)
+          .whenRunWith(TEST_CONFIG)
+          .produces(DEFAULT_URL + " with maxConnections " + DEFAULT_MAX_CONNECTIONS);
     }
   }
 
@@ -191,9 +146,9 @@ class ReaderApplicativeTest
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<Config>>applicative(ReaderApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .selectTests()
           .onlyOperations()
@@ -203,9 +158,9 @@ class ReaderApplicativeTest
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<ReaderKind.Witness<Config>>applicative(ReaderApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .configureValidation()
           .useInheritanceValidation()
@@ -218,9 +173,9 @@ class ReaderApplicativeTest
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<ReaderKind.Witness<Config>>applicative(ReaderApplicative.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+      TypeClassTest.<ReaderKind.Witness<TestConfig>>applicative(ReaderApplicative.class)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, validMapper, equalityChecker)
           .selectTests()
@@ -237,19 +192,19 @@ class ReaderApplicativeTest
     @DisplayName("ap() propagates exceptions from function Reader when run")
     void apPropagatesFunctionReaderExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: function reader");
-      Reader<Config, Function<String, Integer>> throwingFuncReader =
+      Reader<TestConfig, Function<Integer, String>> throwingFuncReader =
           Reader.of(
               cfg -> {
                 throw testException;
               });
 
-      Kind<ReaderKind.Witness<Config>, Function<String, Integer>> funcKind =
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           ReaderKindHelper.READER.widen(throwingFuncReader);
 
-      Kind<ReaderKind.Witness<Config>, Integer> result = applicative.ap(funcKind, validKind);
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThatThrownBy(() -> reader.run(testConfig))
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .as("ap should propagate function Reader exceptions when run")
           .isSameAs(testException);
     }
@@ -258,20 +213,20 @@ class ReaderApplicativeTest
     @DisplayName("ap() propagates exceptions from value Reader when run")
     void apPropagatesValueReaderExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: value reader");
-      Reader<Config, String> throwingValueReader =
+      Reader<TestConfig, Integer> throwingValueReader =
           Reader.of(
               cfg -> {
                 throw testException;
               });
 
-      Kind<ReaderKind.Witness<Config>, String> valueKind =
+      Kind<ReaderKind.Witness<TestConfig>, Integer> valueKind =
           ReaderKindHelper.READER.widen(throwingValueReader);
 
-      Kind<ReaderKind.Witness<Config>, Integer> result =
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
           applicative.ap(validFunctionKind, valueKind);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThatThrownBy(() -> reader.run(testConfig))
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .as("ap should propagate value Reader exceptions when run")
           .isSameAs(testException);
     }
@@ -280,18 +235,18 @@ class ReaderApplicativeTest
     @DisplayName("ap() propagates exceptions from applied function when run")
     void apPropagatesAppliedFunctionExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: applied function");
-      Function<String, Integer> throwingFunc =
-          s -> {
+      Function<Integer, String> throwingFunc =
+          i -> {
             throw testException;
           };
 
-      Kind<ReaderKind.Witness<Config>, Function<String, Integer>> funcKind =
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           ReaderKindHelper.READER.widen(Reader.constant(throwingFunc));
 
-      Kind<ReaderKind.Witness<Config>, Integer> result = applicative.ap(funcKind, validKind);
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThatThrownBy(() -> reader.run(testConfig))
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .as("ap should propagate applied function exceptions when run")
           .isSameAs(testException);
     }
@@ -300,20 +255,20 @@ class ReaderApplicativeTest
     @DisplayName("map2() propagates exceptions from first Reader when run")
     void map2PropagatesFirstReaderExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: first reader");
-      Reader<Config, String> throwingReader =
+      Reader<TestConfig, Integer> throwingReader =
           Reader.of(
               cfg -> {
                 throw testException;
               });
 
-      Kind<ReaderKind.Witness<Config>, String> throwingKind =
+      Kind<ReaderKind.Witness<TestConfig>, Integer> throwingKind =
           ReaderKindHelper.READER.widen(throwingReader);
 
-      Kind<ReaderKind.Witness<Config>, Integer> result =
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
           applicative.map2(throwingKind, validKind2, validCombiningFunction);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThatThrownBy(() -> reader.run(testConfig))
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .as("map2 should propagate first Reader exceptions when run")
           .isSameAs(testException);
     }
@@ -322,20 +277,20 @@ class ReaderApplicativeTest
     @DisplayName("map2() propagates exceptions from second Reader when run")
     void map2PropagatesSecondReaderExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: second reader");
-      Reader<Config, String> throwingReader =
+      Reader<TestConfig, Integer> throwingReader =
           Reader.of(
               cfg -> {
                 throw testException;
               });
 
-      Kind<ReaderKind.Witness<Config>, String> throwingKind =
+      Kind<ReaderKind.Witness<TestConfig>, Integer> throwingKind =
           ReaderKindHelper.READER.widen(throwingReader);
 
-      Kind<ReaderKind.Witness<Config>, Integer> result =
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
           applicative.map2(validKind, throwingKind, validCombiningFunction);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThatThrownBy(() -> reader.run(testConfig))
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .as("map2 should propagate second Reader exceptions when run")
           .isSameAs(testException);
     }
@@ -344,16 +299,16 @@ class ReaderApplicativeTest
     @DisplayName("map2() propagates exceptions from combining function when run")
     void map2PropagatesCombiningFunctionExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: combining function");
-      BiFunction<String, String, Integer> throwingCombiner =
-          (s1, s2) -> {
+      BiFunction<Integer, Integer, String> throwingCombiner =
+          (i1, i2) -> {
             throw testException;
           };
 
-      Kind<ReaderKind.Witness<Config>, Integer> result =
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
           applicative.map2(validKind, validKind2, throwingCombiner);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThatThrownBy(() -> reader.run(testConfig))
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .as("map2 should propagate combining function exceptions when run")
           .isSameAs(testException);
     }
@@ -366,22 +321,22 @@ class ReaderApplicativeTest
     @Test
     @DisplayName("of() with null value creates Reader that returns null")
     void ofWithNullValueCreatesReaderThatReturnsNull() {
-      Kind<ReaderKind.Witness<Config>, String> result = applicative.of(null);
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.of(null);
 
-      Reader<Config, String> reader = ReaderKindHelper.READER.narrow(result);
-      assertThat(reader.run(testConfig)).isNull();
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader).whenRunWith(TEST_CONFIG).producesNull();
     }
 
     @Test
     @DisplayName("ap() with null function throws when run")
     void apWithNullFunctionThrowsWhenRun() {
-      Kind<ReaderKind.Witness<Config>, Function<String, Integer>> funcKind =
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           ReaderKindHelper.READER.widen(Reader.constant(null));
 
-      Kind<ReaderKind.Witness<Config>, Integer> result = applicative.ap(funcKind, validKind);
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
 
-      Reader<Config, Integer> reader = ReaderKindHelper.READER.narrow(result);
-      assertThatThrownBy(() -> reader.run(testConfig))
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Function extracted from Reader for 'ap' was null");
     }
@@ -390,21 +345,55 @@ class ReaderApplicativeTest
     @DisplayName("Applicative operations preserve environment threading")
     void applicativeOperationsPreserveEnvironmentThreading() {
       // Create readers that both access the same environment
-      Reader<Config, String> urlReader = Reader.of(cfg -> "URL:" + cfg.dbUrl());
-      Reader<Config, String> timeoutReader = Reader.of(cfg -> "Timeout:" + cfg.timeout());
+      Reader<TestConfig, String> urlReader = Reader.of(cfg -> "URL:" + cfg.url());
+      Reader<TestConfig, String> maxConnectionsReader =
+          Reader.of(cfg -> "MaxConnections:" + cfg.maxConnections());
 
-      Kind<ReaderKind.Witness<Config>, String> urlKind = ReaderKindHelper.READER.widen(urlReader);
-      Kind<ReaderKind.Witness<Config>, String> timeoutKind =
-          ReaderKindHelper.READER.widen(timeoutReader);
+      Kind<ReaderKind.Witness<TestConfig>, String> urlKindLocal =
+          ReaderKindHelper.READER.widen(urlReader);
+      Kind<ReaderKind.Witness<TestConfig>, String> maxConnectionsKindLocal =
+          ReaderKindHelper.READER.widen(maxConnectionsReader);
 
       // Use map2 to combine them - both should receive the same environment
-      BiFunction<String, String, String> combiner = (url, timeout) -> url + " and " + timeout;
+      BiFunction<String, String, String> combiner = (url, maxConns) -> url + " and " + maxConns;
 
-      Kind<ReaderKind.Witness<Config>, String> result =
-          applicative.map2(urlKind, timeoutKind, combiner);
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
+          applicative.map2(urlKindLocal, maxConnectionsKindLocal, combiner);
 
-      Reader<Config, String> reader = ReaderKindHelper.READER.narrow(result);
-      assertThat(reader.run(testConfig)).isEqualTo("URL:jdbc:test and Timeout:5000");
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader)
+          .whenRunWith(TEST_CONFIG)
+          .produces("URL:" + DEFAULT_URL + " and MaxConnections:" + DEFAULT_MAX_CONNECTIONS);
+    }
+
+    @Test
+    @DisplayName("of() creates constant readers that ignore environment")
+    void ofCreatesConstantReadersThatIgnoreEnvironment() {
+      String constantValue = "I am constant";
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.of(constantValue);
+
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader).isConstantFor(TEST_CONFIG, ALTERNATIVE_CONFIG);
+      assertThatReader(reader).whenRunWith(TEST_CONFIG).produces(constantValue);
+      assertThatReader(reader).whenRunWith(ALTERNATIVE_CONFIG).produces(constantValue);
+    }
+
+    @Test
+    @DisplayName("map2() with constant and environment-dependent readers")
+    void map2WithConstantAndEnvironmentDependentReaders() {
+      Kind<ReaderKind.Witness<TestConfig>, String> constantKind = applicative.of("Prefix:");
+      Kind<ReaderKind.Witness<TestConfig>, String> envKind = urlKind();
+
+      BiFunction<String, String, String> combiner = (prefix, url) -> prefix + url;
+
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
+          applicative.map2(constantKind, envKind, combiner);
+
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader).whenRunWith(TEST_CONFIG).produces("Prefix:" + DEFAULT_URL);
+      assertThatReader(reader)
+          .whenRunWith(ALTERNATIVE_CONFIG)
+          .produces("Prefix:" + ALTERNATIVE_URL);
     }
   }
 
@@ -415,9 +404,47 @@ class ReaderApplicativeTest
     @Test
     @DisplayName("Test ReaderKindHelper with Applicative operations")
     void testReaderKindHelperWithApplicativeOperations() {
-      Reader<Config, String> reader = Reader.constant("test");
+      Reader<TestConfig, String> reader = constantReader("test");
 
       CoreTypeTest.readerKindHelper(reader).test();
+    }
+  }
+
+  @Nested
+  @DisplayName("Purity and Referential Transparency")
+  class PurityTests {
+
+    @Test
+    @DisplayName("of() produces pure readers")
+    void ofProducesPureReaders() {
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.of("pure");
+
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader).isPureWhenRunWith(TEST_CONFIG);
+    }
+
+    @Test
+    @DisplayName("ap() produces pure readers when given pure readers")
+    void apProducesPureReadersWhenGivenPureReaders() {
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
+          applicative.of(i -> "Value: " + i);
+
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
+
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader).isPureWhenRunWith(TEST_CONFIG);
+    }
+
+    @Test
+    @DisplayName("map2() produces pure readers when given pure readers")
+    void map2ProducesPureReadersWhenGivenPureReaders() {
+      BiFunction<Integer, Integer, String> combiner = (a, b) -> "Sum: " + (a + b);
+
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
+          applicative.map2(validKind, validKind2, combiner);
+
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatReader(reader).isPureWhenRunWith(TEST_CONFIG);
     }
   }
 }

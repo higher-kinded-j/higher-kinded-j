@@ -8,6 +8,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.higherkindedj.hkt.validated.*;
@@ -15,19 +16,15 @@ import org.higherkindedj.hkt.validated.*;
 /**
  * Internal executor for Validated core type tests.
  *
- * <p>This class coordinates test execution by delegating to appropriate test methods.
- *
  * @param <E> The error type
  * @param <A> The value type
  * @param <B> The mapped type
  */
-final class ValidatedTestExecutor<E, A, B> {
-  private static final Class<Validated> VALIDATED_CLASS = Validated.class;
+final class ValidatedTestExecutor<E, A, B>
+    extends BaseCoreTypeTestExecutor<A, B, ValidatedValidationStage<E, A, B>> {
 
-  private final Class<?> contextClass;
   private final Validated<E, A> invalidInstance;
   private final Validated<E, A> validInstance;
-  private final Function<A, B> mapper;
 
   private final boolean includeFactoryMethods;
   private final boolean includeGetters;
@@ -35,10 +32,6 @@ final class ValidatedTestExecutor<E, A, B> {
   private final boolean includeSideEffects;
   private final boolean includeMap;
   private final boolean includeFlatMap;
-  private final boolean includeValidations;
-  private final boolean includeEdgeCases;
-
-  private final ValidatedValidationStage<E, A, B> validationStage;
 
   ValidatedTestExecutor(
       Class<?> contextClass,
@@ -84,30 +77,110 @@ final class ValidatedTestExecutor<E, A, B> {
       boolean includeEdgeCases,
       ValidatedValidationStage<E, A, B> validationStage) {
 
-    this.contextClass = contextClass;
+    super(contextClass, mapper, includeValidations, includeEdgeCases, validationStage);
+
     this.invalidInstance = invalidInstance;
     this.validInstance = validInstance;
-    this.mapper = mapper;
     this.includeFactoryMethods = includeFactoryMethods;
     this.includeGetters = includeGetters;
     this.includeFold = includeFold;
     this.includeSideEffects = includeSideEffects;
     this.includeMap = includeMap;
     this.includeFlatMap = includeFlatMap;
-    this.includeValidations = includeValidations;
-    this.includeEdgeCases = includeEdgeCases;
-    this.validationStage = validationStage;
   }
 
-  void executeAll() {
+  @Override
+  protected void executeOperationTests() {
     if (includeFactoryMethods) testFactoryMethods();
     if (includeGetters) testGetters();
     if (includeFold) testFold();
     if (includeSideEffects) testSideEffects();
-    if (includeMap && mapper != null) testMap();
-    if (includeFlatMap && mapper != null) testFlatMap();
-    if (includeValidations) testValidations();
-    if (includeEdgeCases) testEdgeCases();
+    if (includeMap && hasMapper()) testMap();
+    if (includeFlatMap && hasMapper()) testFlatMap();
+  }
+
+  @Override
+  protected void executeValidationTests() {
+    Function<E, String> errorMapper = e -> "Invalid: " + e;
+    Function<A, String> valueMapper = a -> "Valid: " + a;
+    Consumer<E> errorAction = e -> {};
+    Consumer<A> valueAction = a -> {};
+
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Fold validations (uses Validated interface, so always use contextClass)
+    builder.assertFunctionNull(
+        () -> invalidInstance.fold(null, valueMapper),
+        "invalidMapper",
+        contextClass,
+        Operation.FOLD);
+    builder.assertFunctionNull(
+        () -> invalidInstance.fold(errorMapper, null), "validMapper", contextClass, Operation.FOLD);
+
+    // Determine contexts for concrete implementations
+    Class<?> validMapContext =
+        (validationStage != null && validationStage.getMapContext() != null)
+            ? validationStage.getMapContext()
+            : Invalid.class; // Default to Invalid.class since we're testing Invalid
+
+    Class<?> validFlatMapContext =
+        (validationStage != null && validationStage.getFlatMapContext() != null)
+            ? validationStage.getFlatMapContext()
+            : Invalid.class; // Default to Invalid.class
+
+    Class<?> validIfValidContext =
+        (validationStage != null && validationStage.getIfValidContext() != null)
+            ? validationStage.getIfValidContext()
+            : Invalid.class; // Default to Invalid.class
+
+    Class<?> validIfInvalidContext =
+        (validationStage != null && validationStage.getIfInvalidContext() != null)
+            ? validationStage.getIfInvalidContext()
+            : Invalid.class; // Default to Invalid.class
+
+    // Map validations
+    builder.assertMapperNull(() -> invalidInstance.map(null), "fn", validMapContext, Operation.MAP);
+
+    // FlatMap validations
+    builder.assertFlatMapperNull(
+        () -> invalidInstance.flatMap(null), "fn", validFlatMapContext, Operation.FLAT_MAP);
+
+    // Side effect validations
+    builder.assertFunctionNull(
+        () -> invalidInstance.ifInvalid(null),
+        "consumer",
+        validIfInvalidContext,
+        Operation.IF_INVALID);
+
+    builder.assertFunctionNull(
+        () -> invalidInstance.ifValid(null), "consumer", validIfValidContext, Operation.IF_VALID);
+
+    builder.execute();
+  }
+
+  @Override
+  protected void executeEdgeCaseTests() {
+    // Test with null values (if instances allow them)
+    Validated<E, A> invalidNull = Validated.invalid(null);
+    assertThat(invalidNull.isInvalid()).isTrue();
+    assertThat(invalidNull.getError()).isNull();
+
+    Validated<E, A> validNull = Validated.valid(null);
+    assertThat(validNull.isValid()).isTrue();
+    assertThat(validNull.get()).isNull();
+
+    // Test toString
+    assertThat(invalidInstance.toString()).contains("Invalid(");
+    assertThat(validInstance.toString()).contains("Valid(");
+
+    // Test equals and hashCode
+    Validated<E, A> anotherInvalid = Validated.invalid(invalidInstance.getError());
+    assertThat(invalidInstance).isEqualTo(anotherInvalid);
+    assertThat(invalidInstance.hashCode()).isEqualTo(anotherInvalid.hashCode());
+
+    Validated<E, A> anotherValid = Validated.valid(validInstance.get());
+    assertThat(validInstance).isEqualTo(anotherValid);
+    assertThat(validInstance.hashCode()).isEqualTo(anotherValid.hashCode());
   }
 
   private void testFactoryMethods() {
@@ -225,87 +298,5 @@ final class ValidatedTestExecutor<E, A, B> {
 
     // Invalid should not call flatMapper
     assertThatCode(() -> invalidInstance.flatMap(throwingFlatMapper)).doesNotThrowAnyException();
-  }
-
-  void testValidations() {
-    Function<E, String> errorMapper = e -> "Invalid: " + e;
-    Function<A, String> valueMapper = a -> "Valid: " + a;
-    Consumer<E> errorAction = e -> {};
-    Consumer<A> valueAction = a -> {};
-
-    ValidationTestBuilder builder = ValidationTestBuilder.create();
-
-    // Fold validations (uses Validated interface, so always use contextClass)
-    builder.assertFunctionNull(
-        () -> invalidInstance.fold(null, valueMapper),
-        "invalidMapper",
-        contextClass,
-        Operation.FOLD);
-    builder.assertFunctionNull(
-        () -> invalidInstance.fold(errorMapper, null), "validMapper", contextClass, Operation.FOLD);
-
-    // Determine contexts for concrete implementations
-    Class<?> validMapContext =
-        (validationStage != null && validationStage.getMapContext() != null)
-            ? validationStage.getMapContext()
-            : Invalid.class; // Default to Invalid.class since we're testing Invalid
-
-    Class<?> validFlatMapContext =
-        (validationStage != null && validationStage.getFlatMapContext() != null)
-            ? validationStage.getFlatMapContext()
-            : Invalid.class; // Default to Invalid.class
-
-    Class<?> validIfValidContext =
-        (validationStage != null && validationStage.getIfValidContext() != null)
-            ? validationStage.getIfValidContext()
-            : Invalid.class; // Default to Invalid.class
-
-    Class<?> validIfInvalidContext =
-        (validationStage != null && validationStage.getIfInvalidContext() != null)
-            ? validationStage.getIfInvalidContext()
-            : Invalid.class; // Default to Invalid.class
-
-    // Map validations
-    builder.assertMapperNull(() -> invalidInstance.map(null), "fn", validMapContext, Operation.MAP);
-
-    // FlatMap validations
-    builder.assertFlatMapperNull(
-        () -> invalidInstance.flatMap(null), "fn", validFlatMapContext, Operation.FLAT_MAP);
-
-    // Side effect validations
-    builder.assertFunctionNull(
-        () -> invalidInstance.ifInvalid(null),
-        "consumer",
-        validIfInvalidContext,
-        Operation.IF_INVALID);
-
-    builder.assertFunctionNull(
-        () -> invalidInstance.ifValid(null), "consumer", validIfValidContext, Operation.IF_VALID);
-
-    builder.execute();
-  }
-
-  private void testEdgeCases() {
-    // Test with null values (if instances allow them)
-    Validated<E, A> invalidNull = Validated.invalid(null);
-    assertThat(invalidNull.isInvalid()).isTrue();
-    assertThat(invalidNull.getError()).isNull();
-
-    Validated<E, A> validNull = Validated.valid(null);
-    assertThat(validNull.isValid()).isTrue();
-    assertThat(validNull.get()).isNull();
-
-    // Test toString
-    assertThat(invalidInstance.toString()).contains("Invalid(");
-    assertThat(validInstance.toString()).contains("Valid(");
-
-    // Test equals and hashCode
-    Validated<E, A> anotherInvalid = Validated.invalid(invalidInstance.getError());
-    assertThat(invalidInstance).isEqualTo(anotherInvalid);
-    assertThat(invalidInstance.hashCode()).isEqualTo(anotherInvalid.hashCode());
-
-    Validated<E, A> anotherValid = Validated.valid(validInstance.get());
-    assertThat(validInstance).isEqualTo(anotherValid);
-    assertThat(validInstance.hashCode()).isEqualTo(anotherValid.hashCode());
   }
 }

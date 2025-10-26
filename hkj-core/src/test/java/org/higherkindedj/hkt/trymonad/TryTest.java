@@ -3,25 +3,29 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.trymonad.TryAssert.assertThatTry;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Comprehensive test suite for Try using standardised patterns.
+ *
+ * <p>Coverage includes factory methods, Functor/Monad operations, utility methods, object methods,
+ * algebraic laws, and performance characteristics.
+ */
 @DisplayName("Try<T> Complete Test Suite")
-class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
+class TryTest extends TryTestBase {
 
   private final String successValue = "Success Value";
   private final RuntimeException failureException =
@@ -35,49 +39,6 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
   private final Try<String> failureCheckedInstance = Try.failure(checkedException);
   private final Try<String> failureErrorInstance = Try.failure(error);
 
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind() {
-    return TryKindHelper.TRY.widen(successInstance);
-  }
-
-  @Override
-  protected Kind<TryKind.Witness, String> createValidKind2() {
-    return TryKindHelper.TRY.widen(Try.success("Second Value"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected BiPredicate<Kind<TryKind.Witness, ?>, Kind<TryKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Try<?> t1 = TryKindHelper.TRY.narrow(k1);
-      Try<?> t2 = TryKindHelper.TRY.narrow(k2);
-      return t1.equals(t2);
-    };
-  }
-
-  @Override
-  protected Function<Integer, String> createSecondMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected Function<String, Kind<TryKind.Witness, Integer>> createValidFlatMapper() {
-    return s -> TryKindHelper.TRY.widen(Try.success(s.length()));
-  }
-
-  // ============================================================================
-  // Comprehensive Test Suite Using Framework
-  // ============================================================================
-
   @Nested
   @DisplayName("Complete Test Suite")
   class CompleteTestSuite {
@@ -88,7 +49,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
       CoreTypeTest.<String>tryType(Try.class)
           .withSuccess(successInstance)
           .withFailure(failureInstance)
-          .withMappers(validMapper)
+          .withMappers(stringToIntMapper())
           .testAll();
     }
 
@@ -104,14 +65,10 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
       CoreTypeTest.<String>tryType(Try.class)
           .withSuccess(successInstance)
           .withFailure(failureInstance)
-          .withMappers(validMapper)
+          .withMappers(stringToIntMapper())
           .testOperations();
     }
   }
-
-  // ============================================================================
-  // Factory Methods
-  // ============================================================================
 
   @Nested
   @DisplayName("Factory Methods")
@@ -120,53 +77,39 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     @Test
     @DisplayName("success() should create Success instance")
     void success_shouldCreateSuccessInstance() {
-      assertThat(successInstance).isInstanceOf(Try.Success.class);
-      assertThat(successInstance.isSuccess()).isTrue();
-      assertThat(successInstance.isFailure()).isFalse();
-      assertThatCode(() -> successInstance.get()).doesNotThrowAnyException();
-      assertThatCode(() -> assertThat(successInstance.get()).isEqualTo(successValue))
-          .doesNotThrowAnyException();
+      assertThatTry(successInstance).isSuccess().hasValue(successValue);
     }
 
     @Test
     @DisplayName("success() should allow null value")
     void success_shouldAllowNullValue() {
-      assertThat(successNullInstance).isInstanceOf(Try.Success.class);
-      assertThat(successNullInstance.isSuccess()).isTrue();
-      assertThatCode(() -> successNullInstance.get()).doesNotThrowAnyException();
-      assertThatCode(() -> assertThat(successNullInstance.get()).isNull())
-          .doesNotThrowAnyException();
+      assertThatTry(successNullInstance)
+          .isSuccess()
+          .hasValueSatisfying(value -> assertThat(value).isNull());
     }
 
     @Test
     @DisplayName("failure() should create Failure instance")
     void failure_shouldCreateFailureInstance() {
-      assertThat(failureInstance).isInstanceOf(Try.Failure.class);
-      assertThat(failureInstance.isFailure()).isTrue();
-      assertThat(failureInstance.isSuccess()).isFalse();
-      assertThatThrownBy(failureInstance::get)
-          .isInstanceOf(RuntimeException.class)
-          .isSameAs(failureException);
+      assertThatTry(failureInstance).isFailure().hasException(failureException);
     }
 
     @Test
     @DisplayName("failure() should create Failure instance with checked exception")
     void failure_shouldCreateFailureInstanceWithCheckedException() {
-      assertThat(failureCheckedInstance).isInstanceOf(Try.Failure.class);
-      assertThat(failureCheckedInstance.isFailure()).isTrue();
-      assertThatThrownBy(failureCheckedInstance::get)
-          .isInstanceOf(IOException.class)
-          .isSameAs(checkedException);
+      assertThatTry(failureCheckedInstance)
+          .isFailure()
+          .hasException(checkedException)
+          .hasExceptionOfType(IOException.class);
     }
 
     @Test
     @DisplayName("failure() should create Failure instance with Error")
     void failure_shouldCreateFailureInstanceWithError() {
-      assertThat(failureErrorInstance).isInstanceOf(Try.Failure.class);
-      assertThat(failureErrorInstance.isFailure()).isTrue();
-      assertThatThrownBy(failureErrorInstance::get)
-          .isInstanceOf(StackOverflowError.class)
-          .isSameAs(error);
+      assertThatTry(failureErrorInstance)
+          .isFailure()
+          .hasException(error)
+          .hasExceptionOfType(StackOverflowError.class);
     }
 
     @Test
@@ -182,7 +125,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     void of_shouldCreateSuccessForNormalExecution() {
       Supplier<String> supplier = () -> successValue;
       Try<String> tryResult = Try.of(supplier);
-      assertThat(tryResult).isEqualTo(successInstance);
+      assertThatTry(tryResult).isSuccess().hasValue(successValue);
     }
 
     @Test
@@ -190,7 +133,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     void of_shouldCreateSuccessForNullReturn() {
       Supplier<String> supplier = () -> null;
       Try<String> tryResult = Try.of(supplier);
-      assertThat(tryResult).isEqualTo(successNullInstance);
+      assertThatTry(tryResult).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
     }
 
     @Test
@@ -201,8 +144,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
             throw failureException;
           };
       Try<String> tryResult = Try.of(supplier);
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(failureException);
+      assertThatTry(tryResult).isFailure().hasException(failureException);
     }
 
     @Test
@@ -213,8 +155,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
             throw error;
           };
       Try<String> tryResult = Try.of(supplier);
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isSameAs(error);
+      assertThatTry(tryResult).isFailure().hasException(error);
     }
 
     @Test
@@ -225,8 +166,10 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
             return sneakyThrow(checkedException);
           };
       Try<String> tryResult = Try.of(supplier);
-      assertThat(tryResult.isFailure()).isTrue();
-      assertThatThrownBy(tryResult::get).isInstanceOf(IOException.class).isSameAs(checkedException);
+      assertThatTry(tryResult)
+          .isFailure()
+          .hasException(checkedException)
+          .hasExceptionOfType(IOException.class);
     }
 
     @Test
@@ -237,10 +180,6 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
           .withMessageContaining("Function supplier for Try.of cannot be null");
     }
   }
-
-  // ============================================================================
-  // Getters and Checks
-  // ============================================================================
 
   @Nested
   @DisplayName("Getters and Checks")
@@ -549,27 +488,24 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     @DisplayName("map() on Success should apply mapper and return Success")
     void map_onSuccess_shouldApplyMapperAndReturnSuccess() {
       Try<Integer> result = successInstance.map(mapper);
-      assertThat(result.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(result.get()).isEqualTo(successValue.length()))
-          .doesNotThrowAnyException();
+      assertThatTry(result).isSuccess().hasValue(successValue.length());
     }
 
     @Test
     @DisplayName("map() on Success should apply mapper returning null and return Success")
     void map_onSuccess_shouldApplyMapperReturningNullAndReturnSuccess() {
       Try<String> result = successInstance.map(mapperToNull);
-      assertThat(result.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(result.get()).isNull()).doesNotThrowAnyException();
+      assertThatTry(result).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
     }
 
     @Test
     @DisplayName("map() on Success should return Failure if mapper throws")
     void map_onSuccess_shouldReturnFailureIfMapperThrows() {
       Try<Integer> result = successInstance.map(throwingMapper);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get)
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Mapper failed");
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionOfType(IllegalArgumentException.class)
+          .hasExceptionSatisfying(ex -> assertThat(ex).hasMessageContaining("Mapper failed"));
     }
 
     @Test
@@ -577,8 +513,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     void map_onFailure_shouldReturnSameFailureInstance() {
       Try<Integer> result = failureInstance.map(mapper);
       assertThat(result).isSameAs(failureInstance);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get).isSameAs(failureException);
+      assertThatTry(result).isFailure().hasException(failureException);
     }
 
     @Test
@@ -613,25 +548,25 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     @DisplayName("flatMap() on Success should apply mapper and return result")
     void flatMap_onSuccess_shouldApplyMapperAndReturnResult() {
       Try<Integer> resultSuccess = successInstance.flatMap(mapperSuccess);
-      assertThat(resultSuccess.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(resultSuccess.get()).isEqualTo(successValue.length()))
-          .doesNotThrowAnyException();
+      assertThatTry(resultSuccess).isSuccess().hasValue(successValue.length());
 
       Try<Integer> resultFailure = successInstance.flatMap(mapperFailure);
-      assertThat(resultFailure.isFailure()).isTrue();
-      assertThatThrownBy(resultFailure::get)
-          .isInstanceOf(IOException.class)
-          .hasMessageContaining("Inner flatMap failure");
+      assertThatTry(resultFailure)
+          .isFailure()
+          .hasExceptionOfType(IOException.class)
+          .hasExceptionSatisfying(
+              ex -> assertThat(ex).hasMessageContaining("Inner flatMap failure"));
     }
 
     @Test
     @DisplayName("flatMap() on Success should return Failure if mapper func throws")
     void flatMap_onSuccess_shouldReturnFailureIfMapperFuncThrows() {
       Try<Integer> result = successInstance.flatMap(mapperThrows);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get)
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("FlatMap mapper func failed");
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionOfType(IllegalStateException.class)
+          .hasExceptionSatisfying(
+              ex -> assertThat(ex).hasMessageContaining("FlatMap mapper func failed"));
     }
 
     @Test
@@ -639,8 +574,7 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     void flatMap_onFailure_shouldReturnSameFailureInstance() {
       Try<Integer> result = failureInstance.flatMap(mapperSuccess);
       assertThat(result).isSameAs(failureInstance);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get).isSameAs(failureException);
+      assertThatTry(result).isFailure().hasException(failureException);
     }
 
     @Test
@@ -692,19 +626,12 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     @DisplayName("recover() on Failure should apply recovery func and return Success")
     void recover_onFailure_shouldApplyRecoveryFuncAndReturnSuccess() {
       Try<String> result = failureInstance.recover(recoveryFunc);
-      assertThat(result.isSuccess()).isTrue();
-      assertThatCode(
-              () ->
-                  assertThat(result.get()).isEqualTo("Recovered: " + failureException.getMessage()))
-          .doesNotThrowAnyException();
+      assertThatTry(result).isSuccess().hasValue("Recovered: " + failureException.getMessage());
 
       Try<String> resultChecked = failureCheckedInstance.recover(recoveryFunc);
-      assertThat(resultChecked.isSuccess()).isTrue();
-      assertThatCode(
-              () ->
-                  assertThat(resultChecked.get())
-                      .isEqualTo("Recovered: " + checkedException.getMessage()))
-          .doesNotThrowAnyException();
+      assertThatTry(resultChecked)
+          .isSuccess()
+          .hasValue("Recovered: " + checkedException.getMessage());
     }
 
     @Test
@@ -712,18 +639,17 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
         "recover() on Failure should return Success with null if recovery func returns null")
     void recover_onFailure_shouldReturnSuccessWithNullIfRecoveryFuncReturnsNull() {
       Try<String> result = failureInstance.recover(nullReturningRecoveryFunc);
-      assertThat(result.isSuccess()).isTrue();
-      assertThatCode(() -> assertThat(result.get()).isNull()).doesNotThrowAnyException();
+      assertThatTry(result).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
     }
 
     @Test
     @DisplayName("recover() on Failure should return Failure if recovery func throws")
     void recover_onFailure_shouldReturnFailureIfRecoveryFuncThrows() {
       Try<String> result = failureInstance.recover(throwingRecoveryFunc);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get)
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Recovery failed");
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionOfType(IllegalStateException.class)
+          .hasExceptionSatisfying(ex -> assertThat(ex).hasMessageContaining("Recovery failed"));
     }
 
     @Test
@@ -768,28 +694,26 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
     @DisplayName("recoverWith() on Failure should apply recovery func and return its result")
     void recoverWith_onFailure_shouldApplyRecoveryFuncAndReturnItsResult() {
       Try<String> resultSuccess = failureInstance.recoverWith(recoveryFuncSuccess);
-      assertThat(resultSuccess.isSuccess()).isTrue();
-      assertThatCode(
-              () ->
-                  assertThat(resultSuccess.get())
-                      .isEqualTo("Recovered: " + failureException.getMessage()))
-          .doesNotThrowAnyException();
+      assertThatTry(resultSuccess)
+          .isSuccess()
+          .hasValue("Recovered: " + failureException.getMessage());
 
       Try<String> resultFailure = failureInstance.recoverWith(recoveryFuncFailure);
-      assertThat(resultFailure.isFailure()).isTrue();
-      assertThatThrownBy(resultFailure::get)
-          .isInstanceOf(IOException.class)
-          .hasMessageContaining("Recovery with failure");
+      assertThatTry(resultFailure)
+          .isFailure()
+          .hasExceptionOfType(IOException.class)
+          .hasExceptionSatisfying(
+              ex -> assertThat(ex).hasMessageContaining("Recovery with failure"));
     }
 
     @Test
     @DisplayName("recoverWith() on Failure should return Failure if recovery func throws")
     void recoverWith_onFailure_shouldReturnFailureIfRecoveryFuncThrows() {
       Try<String> result = failureInstance.recoverWith(throwingRecoveryFunc);
-      assertThat(result.isFailure()).isTrue();
-      assertThatThrownBy(result::get)
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("RecoveryWith failed");
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionOfType(IllegalStateException.class)
+          .hasExceptionSatisfying(ex -> assertThat(ex).hasMessageContaining("RecoveryWith failed"));
     }
 
     @Test
@@ -966,10 +890,6 @@ class TryTest extends TypeClassTestBase<TryKind.Witness, String, Integer> {
       assertThat(failure1).isNotEqualTo(ex1);
     }
   }
-
-  // ============================================================================
-  // Helper Methods
-  // ============================================================================
 
   @SuppressWarnings("unchecked")
   private static <T, E extends Throwable> T sneakyThrow(Throwable t) throws E {

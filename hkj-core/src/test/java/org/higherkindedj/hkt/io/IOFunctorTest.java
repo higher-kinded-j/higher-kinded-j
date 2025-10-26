@@ -4,15 +4,13 @@ package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.io.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,40 +19,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("IOFunctor Complete Test Suite")
-class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
+class IOFunctorTest extends IOTestBase {
 
-  private IOFunctor functor;
-  private Functor<IOKind.Witness> functorTyped;
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind() {
-    return IO_OP.widen(IO.delay(() -> 42));
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind2() {
-    return IO_OP.widen(IO.delay(() -> 24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<IOKind.Witness, ?>, Kind<IOKind.Witness, ?>> createEqualityChecker() {
-    // IO equality compares results after execution
-    return (k1, k2) -> {
-      Object v1 = IO_OP.narrow(k1).unsafeRunSync();
-      Object v2 = IO_OP.narrow(k2).unsafeRunSync();
-      return java.util.Objects.equals(v1, v2);
-    };
-  }
+  private final IOFunctor functor = IOFunctor.INSTANCE;
 
   @BeforeEach
   void setUpFunctor() {
-    functor = new IOFunctor();
-    functorTyped = functor;
     validateRequiredFixtures();
   }
 
@@ -67,7 +37,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       // IO has lazy evaluation, so we skip default exception tests
       // and provide our own in ExceptionPropagationTests
       TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functorTyped)
+          .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
@@ -103,7 +73,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
           IO.delay(
               () -> {
                 executeCount.incrementAndGet();
-                return 42;
+                return DEFAULT_IO_VALUE;
               });
 
       Kind<IOKind.Witness, Integer> kind = IO_OP.widen(io);
@@ -113,8 +83,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       assertThat(executeCount.get()).isZero();
 
       // Execute and verify
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("42");
+      assertThatIO(narrowToIO(result)).hasValue(String.valueOf(DEFAULT_IO_VALUE));
       assertThat(executeCount.get()).isEqualTo(1);
     }
 
@@ -130,13 +99,12 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @Test
     @DisplayName("map() with null value in IO")
     void mapWithNullValueInIO() {
-      Kind<IOKind.Witness, Integer> nullKind = IO_OP.widen(IO.delay(() -> null));
+      Kind<IOKind.Witness, Integer> nullKind = ioKind(null);
       Function<Integer, String> nullSafeMapper = i -> String.valueOf(i);
 
       Kind<IOKind.Witness, String> result = functor.map(nullSafeMapper, nullKind);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("null");
+      assertThatIO(narrowToIO(result)).hasValue("null");
     }
 
     @Test
@@ -147,8 +115,29 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       Kind<IOKind.Witness, String> intermediate = functor.map(validMapper, validKind);
       Kind<IOKind.Witness, Integer> result = functor.map(stringLength, intermediate);
 
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(2); // "42".length() == 2
+      assertThatIO(narrowToIO(result)).hasValue(String.valueOf(DEFAULT_IO_VALUE).length());
+    }
+
+    @Test
+    @DisplayName("map() applies function to value")
+    void mapAppliesFunctionToValue() {
+      Kind<IOKind.Witness, String> result = functor.map(validMapper, validKind);
+
+      assertThatIO(narrowToIO(result)).hasValue(String.valueOf(DEFAULT_IO_VALUE));
+    }
+
+    @Test
+    @DisplayName("map() with complex transformations")
+    void mapWithComplexTransformations() {
+      Function<Integer, String> complexMapper =
+          i -> {
+            if (i < 0) return "negative";
+            if (i == 0) return "zero";
+            return "positive:" + i;
+          };
+
+      Kind<IOKind.Witness, String> result = functor.map(complexMapper, validKind);
+      assertThatIO(narrowToIO(result)).hasValue("positive:" + DEFAULT_IO_VALUE);
     }
   }
 
@@ -159,7 +148,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("Test operations only")
     void testOperationsOnly() {
       TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functorTyped)
+          .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .testOperations();
@@ -169,7 +158,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("Test validations only")
     void testValidationsOnly() {
       TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functorTyped)
+          .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .testValidations();
@@ -179,7 +168,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
       // Note: Default exception tests don't work with IO's lazy evaluation
-      // See ExceptionPropagationTests nested class for IO-specific exception tests
+      // See EdgeCasesTests nested class for IO-specific exception tests
       // This test intentionally empty - use EdgeCasesTests for exception verification
     }
 
@@ -187,7 +176,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("Test laws only")
     void testLawsOnly() {
       TypeClassTest.<IOKind.Witness>functor(IOFunctor.class)
-          .<Integer>instance(functorTyped)
+          .<Integer>instance(functor)
           .<String>withKind(validKind)
           .withMapper(validMapper)
           .withSecondMapper(secondMapper)
@@ -203,47 +192,28 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("map() propagates exceptions from mapper function")
     void mapPropagatesExceptionsFromMapper() {
       RuntimeException testException = new RuntimeException("Mapper failed");
-      Function<Integer, String> throwingMapper =
-          i -> {
-            throw testException;
-          };
+      Function<Integer, String> throwingMapper = TestFunctions.throwingFunction(testException);
 
       Kind<IOKind.Witness, String> result = functor.map(throwingMapper, validKind);
 
       // Exception is thrown when IO is executed
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(testException);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("Mapper failed");
     }
 
     @Test
     @DisplayName("map() propagates exceptions from source IO")
     void mapPropagatesExceptionsFromSourceIO() {
       RuntimeException testException = new RuntimeException("Source IO failed");
-      IO<Integer> failingIO =
-          IO.delay(
-              () -> {
-                throw testException;
-              });
+      Kind<IOKind.Witness, Integer> failingKind = failingIO(testException);
 
-      Kind<IOKind.Witness, Integer> kind = IO_OP.widen(failingIO);
-      Kind<IOKind.Witness, String> result = functor.map(validMapper, kind);
+      Kind<IOKind.Witness, String> result = functor.map(validMapper, failingKind);
 
       // Exception is thrown when IO is executed
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(testException);
-    }
-
-    @Test
-    @DisplayName("map() with complex transformations")
-    void mapWithComplexTransformations() {
-      Function<Integer, String> complexMapper =
-          i -> {
-            if (i < 0) return "negative";
-            if (i == 0) return "zero";
-            return "positive:" + i;
-          };
-
-      Kind<IOKind.Witness, String> result = functor.map(complexMapper, validKind);
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("positive:42");
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("Source IO failed");
     }
 
     @Test
@@ -255,7 +225,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
           IO.delay(
               () -> {
                 log.append("original;");
-                return 42;
+                return DEFAULT_IO_VALUE;
               });
 
       Function<Integer, String> mapper =
@@ -268,7 +238,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       Kind<IOKind.Witness, String> result = functor.map(mapper, kind);
 
       // Execute
-      IO_OP.unsafeRunSync(result);
+      executeIO(result);
 
       assertThat(log.toString()).isEqualTo("original;mapped;");
     }
@@ -278,23 +248,19 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void mapIsRepeatable() {
       Kind<IOKind.Witness, String> result = functor.map(validMapper, validKind);
 
-      String first = IO_OP.unsafeRunSync(result);
-      String second = IO_OP.unsafeRunSync(result);
-
-      assertThat(first).isEqualTo(second).isEqualTo("42");
+      assertThatIO(narrowToIO(result)).isRepeatable();
     }
 
     @Test
     @DisplayName("map() with nested IO structures")
     void mapWithNestedIOStructures() {
-      IO<IO<Integer>> nested = IO.delay(() -> IO.delay(() -> 42));
+      IO<IO<Integer>> nested = IO.delay(() -> IO.delay(() -> DEFAULT_IO_VALUE));
       Kind<IOKind.Witness, IO<Integer>> kind = IO_OP.widen(nested);
 
       Function<IO<Integer>, Integer> unwrapper = IO::unsafeRunSync;
       Kind<IOKind.Witness, Integer> result = functor.map(unwrapper, kind);
 
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(42);
+      assertThatIO(narrowToIO(result)).hasValue(DEFAULT_IO_VALUE);
     }
   }
 
@@ -312,8 +278,7 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
           result = functor.map(x -> x + 1, result);
         }
 
-        Integer value = IO_OP.unsafeRunSync(result);
-        assertThat(value).isEqualTo(142); // 42 + 100
+        assertThatIO(narrowToIO(result)).hasValue(DEFAULT_IO_VALUE + 100);
       }
     }
 
@@ -341,9 +306,69 @@ class IOFunctorTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       assertThat(executeCount.get()).isZero();
 
       // Execute once
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(51);
+      assertThatIO(narrowToIO(result)).hasValue(51);
       assertThat(executeCount.get()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Validation Tests")
+  class ValidationTests {
+    @Test
+    @DisplayName("map() validates null mapper")
+    void mapValidatesNullMapper() {
+      assertThatThrownBy(() -> functor.map(null, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function f for IOFunctor.map cannot be null");
+    }
+
+    @Test
+    @DisplayName("map() validates null Kind")
+    void mapValidatesNullKind() {
+      assertThatThrownBy(() -> functor.map(validMapper, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("map");
+    }
+  }
+
+  @Nested
+  @DisplayName("IOAssert Integration Tests")
+  class IOAssertIntegrationTests {
+    @Test
+    @DisplayName("IOAssert works with mapped IOs")
+    void testIOAssertWithMappedIOs() {
+      Kind<IOKind.Witness, String> result = functor.map(validMapper, validKind);
+
+      assertThatIO(narrowToIO(result))
+          .hasValueNonNull()
+          .hasValueSatisfying(v -> assertThat(v).isEqualTo(String.valueOf(DEFAULT_IO_VALUE)));
+    }
+
+    @Test
+    @DisplayName("IOAssert verifies laziness of mapped IOs")
+    void testIOAssertVerifiesLaziness() {
+      AtomicInteger counter = new AtomicInteger(0);
+      Kind<IOKind.Witness, Integer> kind =
+          ioKind(
+              counter.incrementAndGet()); // Note: of() captures value eagerly but wraps in lazy IO
+
+      Kind<IOKind.Witness, String> result = functor.map(validMapper, kind);
+
+      // The IO itself is lazy, even though the value was captured
+      assertThatIO(narrowToIO(result)).hasValue("1");
+    }
+
+    @Test
+    @DisplayName("IOAssert detects exceptions in mapped IOs")
+    void testIOAssertDetectsExceptions() {
+      RuntimeException exception = new RuntimeException("Map failure");
+      Kind<IOKind.Witness, String> result =
+          functor.map(TestFunctions.throwingFunction(exception), validKind);
+
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessageContaining("Map failure");
     }
   }
 }

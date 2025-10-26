@@ -3,9 +3,9 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -13,43 +13,19 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ValidatedTraverse Complete Test Suite")
-class ValidatedTraverseTest
-    extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
+class ValidatedTraverseTest extends ValidatedTestBase {
 
   private static final MaybeKindHelper MAYBE = MaybeKindHelper.MAYBE;
 
   private ValidatedTraverse<String> traverse;
   private MaybeMonad applicative;
   private Monoid<String> monoid;
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind() {
-    return VALIDATED.widen(Validated.valid(42));
-  }
-
-  @Override
-  protected Kind<ValidatedKind.Witness<String>, Integer> createValidKind2() {
-    return VALIDATED.widen(Validated.valid(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return Object::toString;
-  }
-
-  @Override
-  protected BiPredicate<
-          Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> VALIDATED.narrow(k1).equals(VALIDATED.narrow(k2));
-  }
 
   @BeforeEach
   void setUpTraverse() {
@@ -84,22 +60,22 @@ class ValidatedTraverseTest
     void mapTransformsValidValues() {
       Kind<ValidatedKind.Witness<String>, String> result = traverse.map(validMapper, validKind);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("42");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated).isValid().hasValue("42").hasValueOfType(String.class);
     }
 
     @Test
     @DisplayName("Map preserves Invalid values")
     void mapPreservesInvalidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
 
       Kind<ValidatedKind.Witness<String>, String> result = traverse.map(validMapper, invalid);
 
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      Validated<String, String> validated = narrowToValidated(result);
+      assertThatValidated(validated)
+          .isInvalid()
+          .hasError(DEFAULT_ERROR)
+          .hasErrorOfType(String.class);
     }
 
     @Test
@@ -138,8 +114,7 @@ class ValidatedTraverseTest
     @Test
     @DisplayName("FoldMap returns empty for Invalid")
     void foldMapReturnsEmptyForInvalid() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
 
       String result = traverse.foldMap(monoid, Object::toString, invalid);
 
@@ -193,16 +168,14 @@ class ValidatedTraverseTest
       Maybe<Kind<ValidatedKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
 
-      Validated<String, String> validated = VALIDATED.narrow(maybe.get());
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo("42");
+      Validated<String, String> validated = narrowToValidated(maybe.get());
+      assertThatValidated(validated).isValid().hasValue("42");
     }
 
     @Test
     @DisplayName("Traverse lifts Invalid into applicative")
     void traverseLiftsInvalidIntoApplicative() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
 
       Function<Integer, Kind<MaybeKind.Witness, String>> f =
           i -> MAYBE.widen(Maybe.just(i.toString()));
@@ -213,9 +186,8 @@ class ValidatedTraverseTest
       Maybe<Kind<ValidatedKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
 
-      Validated<String, String> validated = VALIDATED.narrow(maybe.get());
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      Validated<String, String> validated = narrowToValidated(maybe.get());
+      assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
@@ -381,14 +353,13 @@ class ValidatedTraverseTest
 
       Integer result = traverse.foldMap(intMonoid, identity, validKind);
 
-      assertThat(result).isEqualTo(42);
+      assertThat(result).isEqualTo(DEFAULT_VALID_VALUE);
     }
 
     @Test
     @DisplayName("FoldMap with identity function returns empty for Invalid")
     void foldMapWithIdentityFunctionReturnsEmptyForInvalid() {
-      Kind<ValidatedKind.Witness<String>, Integer> invalid =
-          VALIDATED.widen(Validated.invalid("error"));
+      Kind<ValidatedKind.Witness<String>, Integer> invalid = invalidKind(DEFAULT_ERROR);
       Monoid<Integer> intMonoid = Monoids.integerAddition();
       Function<Integer, Integer> identity = i -> i;
 
@@ -433,9 +404,8 @@ class ValidatedTraverseTest
       Maybe<Kind<ValidatedKind.Witness<String>, Integer>> maybe2 = MAYBE.narrow(result2);
       assertThat(maybe2.isJust()).isTrue();
 
-      Validated<String, Integer> validated2 = VALIDATED.narrow(maybe2.get());
-      assertThat(validated2.isValid()).isTrue();
-      assertThat(validated2.get()).isEqualTo(2); // "42".length()
+      Validated<String, Integer> validated2 = narrowToValidated(maybe2.get());
+      assertThatValidated(validated2).isValid().hasValue(2); // "42".length()
     }
   }
 
@@ -461,8 +431,7 @@ class ValidatedTraverseTest
       assertThat(maybe.isJust()).isTrue();
 
       Validated<Integer, Integer> validated = VALIDATED.narrow(maybe.get());
-      assertThat(validated.isValid()).isTrue();
-      assertThat(validated.get()).isEqualTo(4);
+      assertThatValidated(validated).isValid().hasValue(4);
     }
 
     @Test

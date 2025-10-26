@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -17,7 +18,6 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,10 +26,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherTraverse Complete Test Suite")
-class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
-
-  private static final String ERROR_VALUE = "TestError";
-  private static final Integer SUCCESS_VALUE = 42;
+class EitherTraverseTest extends EitherTestBase {
 
   private Traverse<EitherKind.Witness<String>> traverse;
   private Applicative<MaybeKind.Witness> maybeApplicative;
@@ -40,33 +37,12 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
   private Function<Integer, String> validFoldMapFunction;
   private BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> maybeEqualityChecker;
 
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind() {
-    return EITHER.widen(Either.right(SUCCESS_VALUE));
-  }
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind2() {
-    return EITHER.widen(Either.right(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> EITHER.narrow(k1).equals(EITHER.narrow(k2));
-  }
-
   @BeforeEach
   void setUpTraverse() {
     traverse = EitherTraverse.instance();
     maybeApplicative = MaybeMonad.INSTANCE;
-    rightKind = createValidKind();
-    leftKind = EITHER.widen(Either.left(ERROR_VALUE));
+    rightKind = validKind;
+    leftKind = leftKind(TestErrorType.DEFAULT);
     validTraverseFunction = i -> MAYBE.widen(Maybe.just("Traversed:" + i));
     validMonoid = Monoids.string();
     validFoldMapFunction = TestFunctions.INT_TO_STRING;
@@ -86,7 +62,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
           .withOperations(validMapper)
-          .withApplicative(maybeApplicative, validTraverseFunction) // G inferred here
+          .withApplicative(maybeApplicative, validTraverseFunction)
           .withFoldableOperations(validMonoid, validFoldMapFunction)
           .withEqualityChecker(maybeEqualityChecker)
           .testAll();
@@ -121,9 +97,9 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
       Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
 
-      Either<String, String> either = EITHER.narrow(maybe.get());
-      assertThat(either.isRight()).isTrue();
-      assertThat(either.getRight()).isEqualTo("Traversed:" + SUCCESS_VALUE);
+      assertThatEither(narrowToEither(maybe.get()))
+          .isRight()
+          .hasRight("Traversed:" + DEFAULT_RIGHT_VALUE);
     }
 
     @Test
@@ -151,9 +127,9 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
       Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
 
-      Either<String, String> either = EITHER.narrow(maybe.get());
-      assertThat(either.isLeft()).isTrue();
-      assertThat(either.getLeft()).isEqualTo(ERROR_VALUE);
+      assertThatEither(narrowToEither(maybe.get()))
+          .isLeft()
+          .hasLeft(TestErrorType.DEFAULT.message());
     }
 
     @Test
@@ -164,7 +140,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
 
       String result = traverse.foldMap(stringMonoid, foldFunction, rightKind);
 
-      assertThat(result).isEqualTo("Value:" + SUCCESS_VALUE);
+      assertThat(result).isEqualTo("Value:" + DEFAULT_RIGHT_VALUE);
     }
 
     @Test
@@ -191,7 +167,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
           .withOperations(validMapper)
-          .withApplicative(maybeApplicative, validTraverseFunction) // G inferred here
+          .withApplicative(maybeApplicative, validTraverseFunction)
           .withFoldableOperations(validMonoid, validFoldMapFunction)
           .testOperations();
     }
@@ -203,7 +179,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
           .withOperations(validMapper)
-          .withApplicative(maybeApplicative, validTraverseFunction) // G inferred here
+          .withApplicative(maybeApplicative, validTraverseFunction)
           .withFoldableOperations(validMonoid, validFoldMapFunction)
           .testValidations();
     }
@@ -215,7 +191,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
           .withOperations(validMapper)
-          .withApplicative(maybeApplicative, validTraverseFunction) // G inferred here
+          .withApplicative(maybeApplicative, validTraverseFunction)
           .withFoldableOperations(validMonoid, validFoldMapFunction)
           .testExceptions();
     }
@@ -227,7 +203,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           .<Integer>instance(traverse)
           .<String>withKind(rightKind)
           .withOperations(validMapper)
-          .withApplicative(maybeApplicative, validTraverseFunction) // G inferred here
+          .withApplicative(maybeApplicative, validTraverseFunction)
           .withFoldableOperations(validMonoid, validFoldMapFunction)
           .withEqualityChecker(maybeEqualityChecker)
           .testLaws();
@@ -241,7 +217,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
     @Test
     @DisplayName("traverse() with null values in Right")
     void traverseWithNullValuesInRight() {
-      Kind<EitherKind.Witness<String>, Integer> rightNull = EITHER.widen(Either.right(null));
+      Kind<EitherKind.Witness<String>, Integer> rightNull = rightKind(null);
 
       Function<Integer, Kind<MaybeKind.Witness, String>> nullSafeTraverse =
           i -> MAYBE.widen(Maybe.just(i == null ? "null" : i.toString()));
@@ -250,7 +226,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           traverse.traverse(maybeApplicative, nullSafeTraverse, rightNull);
 
       Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
-      assertThat(EITHER.<String, String>narrow(maybe.get()).getRight()).isEqualTo("null");
+      assertThatEither(narrowToEither(maybe.get())).isRight().hasRight("null");
     }
 
     @Test
@@ -265,13 +241,13 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
       assertThat(MAYBE.narrow(failResult).isNothing()).isTrue();
 
       // Should succeed with value > 50
-      Kind<EitherKind.Witness<String>, Integer> bigRight = EITHER.widen(Either.right(100));
+      Kind<EitherKind.Witness<String>, Integer> bigRight = rightKind(100);
       Kind<MaybeKind.Witness, Kind<EitherKind.Witness<String>, String>> successResult =
           traverse.traverse(maybeApplicative, conditionalFunc, bigRight);
 
       Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(successResult);
       assertThat(maybe.isJust()).isTrue();
-      assertThat(EITHER.<String, String>narrow(maybe.get()).getRight()).isEqualTo("100");
+      assertThatEither(narrowToEither(maybe.get())).isRight().hasRight("100");
     }
 
     @Test
@@ -281,7 +257,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
       Monoid<Integer> intAddition = Monoids.integerAddition();
       Function<Integer, Integer> doubleFunc = i -> i * 2;
       Integer intResult = traverse.foldMap(intAddition, doubleFunc, rightKind);
-      assertThat(intResult).isEqualTo(SUCCESS_VALUE * 2);
+      assertThat(intResult).isEqualTo(DEFAULT_RIGHT_VALUE * 2);
 
       // Boolean AND
       Monoid<Boolean> andMonoid = Monoids.booleanAnd();
@@ -293,7 +269,7 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
     @Test
     @DisplayName("sequenceA() turns Right<Just<A>> into Just<Right<A>>")
     void sequenceRightJustToJustRight() {
-      Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.just(SUCCESS_VALUE));
+      Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.just(DEFAULT_RIGHT_VALUE));
       Kind<EitherKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> input =
           EITHER.widen(Either.right(maybeKind));
 
@@ -303,26 +279,23 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
       Maybe<Kind<EitherKind.Witness<String>, Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
 
-      Either<String, Integer> either = EITHER.narrow(maybe.get());
-      assertThat(either.isRight()).isTrue();
-      assertThat(either.getRight()).isEqualTo(SUCCESS_VALUE);
+      assertThatEither(narrowToEither(maybe.get())).isRight().hasRight(DEFAULT_RIGHT_VALUE);
     }
 
     @Test
     @DisplayName("sequenceA() preserves Left values")
     void sequenceLeftPreservesError() {
       Kind<EitherKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> leftInput =
-          EITHER.widen(Either.left(ERROR_VALUE));
+          EITHER.widen(Either.left(TestErrorType.DEFAULT.message()));
 
       Kind<MaybeKind.Witness, Kind<EitherKind.Witness<String>, Integer>> result =
           traverse.sequenceA(maybeApplicative, leftInput);
 
       Maybe<Kind<EitherKind.Witness<String>, Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
-
-      Either<String, Integer> either = EITHER.narrow(maybe.get());
-      assertThat(either.isLeft()).isTrue();
-      assertThat(either.getLeft()).isEqualTo(ERROR_VALUE);
+      assertThatEither(narrowToEither(maybe.get()))
+          .isLeft()
+          .hasLeft(TestErrorType.DEFAULT.message());
     }
   }
 
@@ -343,7 +316,9 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
 
         // Should complete quickly without calling expensive function
         Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
-        assertThat(EITHER.<String, String>narrow(maybe.get()).getLeft()).isEqualTo(ERROR_VALUE);
+        assertThatEither(narrowToEither(maybe.get()))
+            .isLeft()
+            .hasLeft(TestErrorType.DEFAULT.message());
       }
     }
   }
@@ -367,8 +342,9 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           traverse.traverse(maybeApplicative, traverseFunc, mapped);
 
       Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
-      assertThat(EITHER.<String, String>narrow(maybe.get()).getRight())
-          .isEqualTo("MAPPED:" + SUCCESS_VALUE);
+      assertThatEither(narrowToEither(maybe.get()))
+          .isRight()
+          .hasRight("MAPPED:" + DEFAULT_RIGHT_VALUE);
     }
 
     @Test
@@ -388,8 +364,9 @@ class EitherTraverseTest extends TypeClassTestBase<EitherKind.Witness<String>, I
           traverse.traverse(maybeApplicative, traverseFunc, foldedKind);
 
       Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
-      assertThat(EITHER.<String, String>narrow(maybe.get()).getRight())
-          .isEqualTo("traversed:fold:" + SUCCESS_VALUE);
+      assertThatEither(narrowToEither(maybe.get()))
+          .isRight()
+          .hasRight("traversed:fold:" + DEFAULT_RIGHT_VALUE);
     }
   }
 }

@@ -4,15 +4,10 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.higherkindedj.hkt.unit.Unit;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,62 +21,11 @@ import org.junit.jupiter.api.Test;
  * <p>Demonstrates migration to the new fluent API whilst maintaining full test coverage.
  */
 @DisplayName("MaybeMonad Error Handling Complete Test Suite")
-class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
+class MaybeMonadErrorTest extends MaybeTestBase {
 
   private MaybeMonad monadError;
   private Function<Unit, Kind<MaybeKind.Witness, Integer>> validHandler;
   private Kind<MaybeKind.Witness, Integer> validFallback;
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind() {
-    return MAYBE.widen(Maybe.just(42));
-  }
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
-    return MAYBE.widen(Maybe.just(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Function<Integer, Kind<MaybeKind.Witness, String>> createValidFlatMapper() {
-    return i -> MAYBE.widen(Maybe.just("flat:" + i));
-  }
-
-  @Override
-  protected Kind<MaybeKind.Witness, Function<Integer, String>> createValidFunctionKind() {
-    return MAYBE.widen(Maybe.just(TestFunctions.INT_TO_STRING));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> "Result:" + a + "," + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected Function<Integer, Kind<MaybeKind.Witness, String>> createTestFunction() {
-    return i -> MAYBE.widen(Maybe.just("test:" + i));
-  }
-
-  @Override
-  protected Function<String, Kind<MaybeKind.Witness, String>> createChainFunction() {
-    return s -> MAYBE.widen(Maybe.just(s + "!"));
-  }
-
-  @Override
-  protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
-  }
 
   @BeforeEach
   void setUpMonadError() {
@@ -89,11 +33,6 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
     validHandler = unit -> monadError.of(-1);
     validFallback = monadError.of(-999);
     validateMonadFixtures();
-  }
-
-  // Helper method to create a Nothing value for error testing
-  private Kind<MaybeKind.Witness, Integer> nothingKind() {
-    return MAYBE.widen(Maybe.nothing());
   }
 
   @Nested
@@ -175,7 +114,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       Kind<MaybeKind.Witness, Integer> result =
           monadError.handleErrorWith(nothingValue, validHandler);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(-1);
     }
@@ -186,9 +125,9 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       Kind<MaybeKind.Witness, Integer> result = monadError.handleErrorWith(validKind, validHandler);
 
       assertThat(result).isSameAs(validKind);
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(42);
+      assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -196,7 +135,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
     void raiseErrorCreatesNothing() {
       Kind<MaybeKind.Witness, Integer> result = monadError.raiseError(Unit.INSTANCE);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isNothing()).isTrue();
     }
 
@@ -205,7 +144,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
     void raiseErrorWithNullCreatesNothing() {
       Kind<MaybeKind.Witness, Integer> result = monadError.raiseError(null);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isNothing()).isTrue();
     }
 
@@ -217,7 +156,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       Kind<MaybeKind.Witness, Integer> result = monadError.recoverWith(nothingValue, validFallback);
 
       assertThat(result).isSameAs(validFallback);
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(-999);
     }
@@ -237,7 +176,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
 
       Kind<MaybeKind.Witness, Integer> result = monadError.recover(nothingValue, 100);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(100);
     }
@@ -248,9 +187,9 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       Kind<MaybeKind.Witness, Integer> result = monadError.recover(validKind, 100);
 
       // recover uses handleError which creates a new Maybe
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(42);
+      assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -260,7 +199,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
 
       Kind<MaybeKind.Witness, Integer> result = monadError.recover(nothingValue, null);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isNothing()).isTrue(); // fromNullable(null) creates Nothing
     }
 
@@ -272,7 +211,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       Function<Unit, Integer> errorHandler = unit -> 999;
       Kind<MaybeKind.Witness, Integer> result = monadError.handleError(nothingValue, errorHandler);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(999);
     }
@@ -282,7 +221,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
     void zeroReturnsNothing() {
       Kind<MaybeKind.Witness, Integer> zero = monadError.zero();
 
-      Maybe<Integer> maybe = MAYBE.narrow(zero);
+      Maybe<Integer> maybe = narrowToMaybe(zero);
       assertThat(maybe.isNothing()).isTrue();
     }
   }
@@ -356,7 +295,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
 
       Kind<MaybeKind.Witness, Integer> result = monadError.handleErrorWith(nothing, handler);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(0);
     }
@@ -364,7 +303,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
     @Test
     @DisplayName("Chained error recovery")
     void chainedErrorRecovery() {
-      Kind<MaybeKind.Witness, Integer> start = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Integer> start = nothingKind();
 
       Kind<MaybeKind.Witness, Integer> result =
           monadError.handleErrorWith(
@@ -377,7 +316,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
                 return monadError.handleErrorWith(firstAttempt, u -> monadError.of(999));
               });
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(999);
     }
@@ -400,7 +339,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
     @Test
     @DisplayName("Mixing map, flatMap, and error recovery")
     void mixingMapFlatMapAndErrorRecovery() {
-      Kind<MaybeKind.Witness, Integer> start = MAYBE.widen(Maybe.just(10));
+      Kind<MaybeKind.Witness, Integer> start = justKind(10);
 
       Kind<MaybeKind.Witness, String> result =
           monadError.flatMap(
@@ -414,7 +353,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
 
       result = monadError.handleErrorWith(result, unit -> monadError.of("Recovered"));
 
-      Maybe<String> maybe = MAYBE.narrow(result);
+      Maybe<String> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo("Value:20");
     }
@@ -438,7 +377,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
                 });
       }
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(100);
     }
@@ -453,7 +392,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
           monadError.recoverWith(nothingValue, nothingFallback);
 
       assertThat(result).isSameAs(nothingFallback);
-      Maybe<Integer> maybe = MAYBE.narrow(result);
+      Maybe<Integer> maybe = narrowToMaybe(result);
       assertThat(maybe.isNothing()).isTrue();
     }
 
@@ -473,9 +412,9 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       // Strategy 3: recover
       Kind<MaybeKind.Witness, Integer> strategy3 = monadError.recover(nothingValue, 3);
 
-      assertThat(MAYBE.narrow(strategy1).get()).isEqualTo(1);
-      assertThat(MAYBE.narrow(strategy2).get()).isEqualTo(2);
-      assertThat(MAYBE.narrow(strategy3).get()).isEqualTo(3);
+      assertThat(narrowToMaybe(strategy1).get()).isEqualTo(1);
+      assertThat(narrowToMaybe(strategy2).get()).isEqualTo(2);
+      assertThat(narrowToMaybe(strategy3).get()).isEqualTo(3);
     }
   }
 
@@ -584,8 +523,8 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
           result = monadError.handleErrorWith(result, validHandler);
         }
 
-        Maybe<Integer> maybe = MAYBE.narrow(result);
-        assertThat(maybe.get()).isEqualTo(42); // Should still be original value
+        Maybe<Integer> maybe = narrowToMaybe(result);
+        assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE); // Should still be original value
       }
     }
 
@@ -594,7 +533,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
     void nothingPropagationIsEfficient() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
         Kind<MaybeKind.Witness, Integer> nothingStart = nothingKind();
-        Maybe<Integer> originalNothing = MAYBE.narrow(nothingStart);
+        Maybe<Integer> originalNothing = narrowToMaybe(nothingStart);
 
         Kind<MaybeKind.Witness, Integer> result = nothingStart;
         for (int i = 0; i < 1000; i++) {
@@ -602,7 +541,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
           result = monadError.flatMap(x -> monadError.of(x + index), result);
         }
 
-        Maybe<Integer> finalNothing = MAYBE.narrow(result);
+        Maybe<Integer> finalNothing = narrowToMaybe(result);
         assertThat(finalNothing).isSameAs(originalNothing);
       }
     }
@@ -618,8 +557,8 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       Kind<MaybeKind.Witness, Integer> zero = monadError.zero();
       Kind<MaybeKind.Witness, Integer> raised = monadError.raiseError(Unit.INSTANCE);
 
-      Maybe<Integer> zeroMaybe = MAYBE.narrow(zero);
-      Maybe<Integer> raisedMaybe = MAYBE.narrow(raised);
+      Maybe<Integer> zeroMaybe = narrowToMaybe(zero);
+      Maybe<Integer> raisedMaybe = narrowToMaybe(raised);
 
       assertThat(zeroMaybe.isNothing()).isTrue();
       assertThat(raisedMaybe.isNothing()).isTrue();
@@ -634,7 +573,7 @@ class MaybeMonadErrorTest extends TypeClassTestBase<MaybeKind.Witness, Integer, 
       Kind<MaybeKind.Witness, Integer> recovered =
           monadError.handleErrorWith(zero, unit -> monadError.of(0));
 
-      Maybe<Integer> maybe = MAYBE.narrow(recovered);
+      Maybe<Integer> maybe = narrowToMaybe(recovered);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(0);
     }

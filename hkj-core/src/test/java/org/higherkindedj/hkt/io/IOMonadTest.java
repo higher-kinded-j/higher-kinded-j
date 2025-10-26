@@ -4,18 +4,17 @@ package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.io.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,63 +23,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("IOMonad Complete Test Suite")
-class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
+class IOMonadTest extends IOTestBase {
 
   private IOMonad monad;
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind() {
-    return IO_OP.widen(IO.delay(() -> 42));
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, Integer> createValidKind2() {
-    return IO_OP.widen(IO.delay(() -> 24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected Function<Integer, Kind<IOKind.Witness, String>> createValidFlatMapper() {
-    return i -> IO_OP.widen(IO.delay(() -> "flat:" + i));
-  }
-
-  @Override
-  protected Kind<IOKind.Witness, Function<Integer, String>> createValidFunctionKind() {
-    return IO_OP.widen(IO.delay(() -> TestFunctions.INT_TO_STRING));
-  }
-
-  @Override
-  protected BiFunction<Integer, Integer, String> createValidCombiningFunction() {
-    return (a, b) -> "Result:" + a + "," + b;
-  }
-
-  @Override
-  protected Integer createTestValue() {
-    return 42;
-  }
-
-  @Override
-  protected Function<Integer, Kind<IOKind.Witness, String>> createTestFunction() {
-    return i -> IO_OP.widen(IO.delay(() -> "test:" + i));
-  }
-
-  @Override
-  protected Function<String, Kind<IOKind.Witness, String>> createChainFunction() {
-    return s -> IO_OP.widen(IO.delay(() -> s + "!"));
-  }
-
-  @Override
-  protected BiPredicate<Kind<IOKind.Witness, ?>, Kind<IOKind.Witness, ?>> createEqualityChecker() {
-    return (k1, k2) -> {
-      Object v1 = IO_OP.narrow(k1).unsafeRunSync();
-      Object v2 = IO_OP.narrow(k2).unsafeRunSync();
-      return java.util.Objects.equals(v1, v2);
-    };
-  }
 
   @BeforeEach
   void setUpMonad() {
@@ -133,8 +78,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void ofCreatesPureIO() {
       Kind<IOKind.Witness, String> result = monad.of("pureValue");
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("pureValue");
+      assertThatIO(narrowToIO(result)).hasValue("pureValue");
     }
 
     @Test
@@ -142,8 +86,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void ofWithNullValue() {
       Kind<IOKind.Witness, String> result = monad.of(null);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isNull();
+      assertThatIO(narrowToIO(result)).hasValueNull();
     }
 
     @Test
@@ -163,8 +106,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThat(executeCount.get()).isZero();
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("Val:10");
+      assertThatIO(narrowToIO(result)).hasValue("Val:10");
       assertThat(executeCount.get()).isEqualTo(1);
     }
 
@@ -196,8 +138,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       assertThat(log.toString()).isEmpty();
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("Val10");
+      assertThatIO(narrowToIO(result)).hasValue("Val10");
       assertThat(log.toString()).isEqualTo("Effect1;Effect2(5);");
     }
 
@@ -205,12 +146,11 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("ap() applies function to value")
     void apAppliesFunctionToValue() {
       Kind<IOKind.Witness, Function<Integer, String>> funcKind = monad.of(i -> "value:" + i);
-      Kind<IOKind.Witness, Integer> valueKind = monad.of(42);
+      Kind<IOKind.Witness, Integer> valueKind = monad.of(DEFAULT_IO_VALUE);
 
       Kind<IOKind.Witness, String> result = monad.ap(funcKind, valueKind);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("value:42");
+      assertThatIO(narrowToIO(result)).hasValue("value:" + DEFAULT_IO_VALUE);
     }
 
     @Test
@@ -222,8 +162,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       BiFunction<Integer, String, String> combiner = (i, s) -> s + ":" + i;
       Kind<IOKind.Witness, String> result = monad.map2(io1, io2, combiner);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("test:10");
+      assertThatIO(narrowToIO(result)).hasValue("test:10");
     }
 
     @Test
@@ -238,8 +177,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       Kind<IOKind.Witness, String> result = monad.map3(io1, io2, io3, combiner);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("test:1:3.14");
+      assertThatIO(narrowToIO(result)).hasValue("test:1:3.14");
     }
 
     @Test
@@ -255,8 +193,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       Kind<IOKind.Witness, String> result = monad.map4(io1, io2, io3, io4, combiner);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("test:1:3.14:true");
+      assertThatIO(narrowToIO(result)).hasValue("test:1:3.14:true");
     }
   }
 
@@ -318,16 +255,13 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     @DisplayName("map() propagates exception from original IO")
     void mapPropagatesExceptionFromOriginalIO() {
       RuntimeException exception = new RuntimeException("OriginalFail");
-      IO<Integer> failingIO =
-          IO.delay(
-              () -> {
-                throw exception;
-              });
+      Kind<IOKind.Witness, Integer> failingKind = failingIO(exception);
 
-      Kind<IOKind.Witness, Integer> kind = IO_OP.widen(failingIO);
-      Kind<IOKind.Witness, String> result = monad.map(i -> "Val:" + i, kind);
+      Kind<IOKind.Witness, String> result = monad.map(i -> "Val:" + i, failingKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("OriginalFail");
     }
 
     @Test
@@ -335,13 +269,11 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void mapPropagatesExceptionFromMapper() {
       RuntimeException exception = new RuntimeException("MapperFail");
       Kind<IOKind.Witness, String> result =
-          monad.map(
-              i -> {
-                throw exception;
-              },
-              validKind);
+          monad.map(TestFunctions.throwingFunction(exception), validKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("MapperFail");
     }
 
     @Test
@@ -359,25 +291,24 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       Kind<IOKind.Witness, String> result = monad.ap(funcKind, valueKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("FuncFail");
     }
 
     @Test
     @DisplayName("ap() propagates exception from value IO")
     void apPropagatesExceptionFromValueIO() {
       RuntimeException exception = new RuntimeException("ValFail");
-      IO<Integer> failingValue =
-          IO.delay(
-              () -> {
-                throw exception;
-              });
+      Kind<IOKind.Witness, Integer> failingValueKind = failingIO(exception);
 
       Kind<IOKind.Witness, Function<Integer, String>> funcKind = monad.of(i -> "F(" + i + ")");
-      Kind<IOKind.Witness, Integer> valueKind = IO_OP.widen(failingValue);
 
-      Kind<IOKind.Witness, String> result = monad.ap(funcKind, valueKind);
+      Kind<IOKind.Witness, String> result = monad.ap(funcKind, failingValueKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("ValFail");
     }
 
     @Test
@@ -385,31 +316,25 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void apPropagatesExceptionFromFunctionApplication() {
       RuntimeException exception = new RuntimeException("ApplyFail");
       Kind<IOKind.Witness, Function<Integer, String>> funcKind =
-          monad.of(
-              i -> {
-                throw exception;
-              });
+          monad.of(TestFunctions.throwingFunction(exception));
       Kind<IOKind.Witness, Integer> valueKind = monad.of(20);
 
       Kind<IOKind.Witness, String> result = monad.ap(funcKind, valueKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("ApplyFail");
     }
 
     @Test
     @DisplayName("flatMap() propagates exception from initial IO")
     void flatMapPropagatesExceptionFromInitialIO() {
       RuntimeException exception = new RuntimeException("Fail1");
-      IO<Integer> failingIO =
-          IO.delay(
-              () -> {
-                throw exception;
-              });
+      Kind<IOKind.Witness, Integer> failingKind = failingIO(exception);
 
-      Kind<IOKind.Witness, Integer> kind = IO_OP.widen(failingIO);
-      Kind<IOKind.Witness, String> result = monad.flatMap(validFlatMapper, kind);
+      Kind<IOKind.Witness, String> result = monad.flatMap(validFlatMapper, failingKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result)).throwsException(RuntimeException.class).withMessage("Fail1");
     }
 
     @Test
@@ -417,32 +342,24 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void flatMapPropagatesExceptionFromFunctionApplication() {
       RuntimeException exception = new RuntimeException("FuncApplyFail");
       Function<Integer, Kind<IOKind.Witness, String>> throwingFunc =
-          i -> {
-            throw exception;
-          };
+          TestFunctions.throwingFunction(exception);
 
       Kind<IOKind.Witness, String> result = monad.flatMap(throwingFunc, validKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessage("FuncApplyFail");
     }
 
     @Test
     @DisplayName("flatMap() propagates exception from resulting IO")
     void flatMapPropagatesExceptionFromResultingIO() {
       RuntimeException exception = new RuntimeException("Fail2");
-      Function<Integer, Kind<IOKind.Witness, String>> failingMapper =
-          i -> {
-            IO<String> failingIO =
-                IO.delay(
-                    () -> {
-                      throw exception;
-                    });
-            return IO_OP.widen(failingIO);
-          };
+      Function<Integer, Kind<IOKind.Witness, String>> failingMapper = i -> failingIO(exception);
 
       Kind<IOKind.Witness, String> result = monad.flatMap(failingMapper, validKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result)).isSameAs(exception);
+      assertThatIO(narrowToIO(result)).throwsException(RuntimeException.class).withMessage("Fail2");
     }
 
     @Test
@@ -452,11 +369,9 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       Kind<IOKind.Witness, String> result = monad.flatMap(nullReturningMapper, validKind);
 
-      assertThatThrownBy(() -> IO_OP.unsafeRunSync(result))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function f in IOMonad.flatMap returned null when Kind expected, which is not"
-                  + " allowed");
+      assertThatIO(narrowToIO(result))
+          .throwsException(KindUnwrapException.class)
+          .withMessageContaining("flatMap returned null");
     }
   }
 
@@ -478,10 +393,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       Kind<IOKind.Witness, String> leftSide = monad.flatMap(fLaw, ofValue);
       Kind<IOKind.Witness, String> rightSide = fLaw.apply(value);
 
-      String leftResult = IO_OP.unsafeRunSync(leftSide);
-      String rightResult = IO_OP.unsafeRunSync(rightSide);
-
-      assertThat(leftResult).isEqualTo(rightResult);
+      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
     }
 
     @Test
@@ -493,10 +405,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       Kind<IOKind.Witness, Integer> leftSide = monad.flatMap(ofFunc, mValue);
 
-      Integer leftResult = IO_OP.unsafeRunSync(leftSide);
-      Integer rightResult = IO_OP.unsafeRunSync(mValue);
-
-      assertThat(leftResult).isEqualTo(rightResult);
+      assertThat(equalityChecker.test(leftSide, mValue)).isTrue();
     }
 
     @Test
@@ -507,15 +416,13 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       // Left side: flatMap(flatMap(m, f), g)
       Kind<IOKind.Witness, String> innerLeft = monad.flatMap(fLaw, mValue);
       Kind<IOKind.Witness, String> leftSide = monad.flatMap(gLaw, innerLeft);
-      String leftResult = IO_OP.unsafeRunSync(leftSide);
 
       // Right side: flatMap(m, a -> flatMap(f(a), g))
       Function<Integer, Kind<IOKind.Witness, String>> rightSideFunc =
           a -> monad.flatMap(gLaw, fLaw.apply(a));
       Kind<IOKind.Witness, String> rightSide = monad.flatMap(rightSideFunc, mValue);
-      String rightResult = IO_OP.unsafeRunSync(rightSide);
 
-      assertThat(leftResult).isEqualTo(rightResult);
+      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
     }
   }
 
@@ -533,8 +440,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
         result = monad.flatMap(x -> monad.of(x + increment), result);
       }
 
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
+      assertThatIO(narrowToIO(result)).hasValue(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
     }
 
     @Test
@@ -546,8 +452,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
 
       Kind<IOKind.Witness, String> result = monad.flatMap(nullSafeMapper, nullKind);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("null");
+      assertThatIO(narrowToIO(result)).hasValue("null");
     }
 
     @Test
@@ -559,8 +464,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       Kind<IOKind.Witness, String> result =
           monad.flatMap(a -> monad.flatMap(b -> monad.of("Sum:" + (a + b)), io2), io1);
 
-      String value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo("Sum:30");
+      assertThatIO(narrowToIO(result)).hasValue("Sum:30");
     }
 
     @Test
@@ -568,10 +472,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
     void flatMapIsRepeatable() {
       Kind<IOKind.Witness, String> result = monad.flatMap(validFlatMapper, validKind);
 
-      String first = IO_OP.unsafeRunSync(result);
-      String second = IO_OP.unsafeRunSync(result);
-
-      assertThat(first).isEqualTo(second).isEqualTo("flat:42");
+      assertThatIO(narrowToIO(result)).isRepeatable();
     }
   }
 
@@ -591,8 +492,7 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
         }
 
         int expectedSum = 1 + (99 * 100) / 2;
-        Integer value = IO_OP.unsafeRunSync(result);
-        assertThat(value).isEqualTo(expectedSum);
+        assertThatIO(narrowToIO(result)).hasValue(expectedSum);
       }
     }
 
@@ -621,9 +521,99 @@ class IOMonadTest extends TypeClassTestBase<IOKind.Witness, Integer, String> {
       assertThat(executeCount.get()).isZero();
 
       // Execute once
-      Integer value = IO_OP.unsafeRunSync(result);
-      assertThat(value).isEqualTo(1226); // 1 + 0 + 1 + ... + 49
+      assertThatIO(narrowToIO(result)).hasValue(1226); // 1 + 0 + 1 + ... + 49
       assertThat(executeCount.get()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Validation Tests")
+  class ValidationTests {
+    @Test
+    @DisplayName("flatMap() validates null function")
+    void flatMapValidatesNullFunction() {
+      assertThatThrownBy(() -> monad.flatMap(null, validKind))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Function f for IOMonad.flatMap cannot be null");
+    }
+
+    @Test
+    @DisplayName("flatMap() validates null Kind")
+    void flatMapValidatesNullKind() {
+      assertThatThrownBy(() -> monad.flatMap(validFlatMapper, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("Kind")
+          .hasMessageContaining("flatMap");
+    }
+  }
+
+  @Nested
+  @DisplayName("IOAssert Integration Tests")
+  class IOAssertIntegrationTests {
+    @Test
+    @DisplayName("IOAssert works with flatMapped IOs")
+    void testIOAssertWithFlatMappedIOs() {
+      Kind<IOKind.Witness, String> result = monad.flatMap(validFlatMapper, validKind);
+
+      assertThatIO(narrowToIO(result))
+          .hasValueNonNull()
+          .hasValueSatisfying(v -> assertThat(v).isEqualTo("flat:" + DEFAULT_IO_VALUE));
+    }
+
+    @Test
+    @DisplayName("IOAssert verifies laziness in flatMap operations")
+    void testIOAssertVerifiesLazinessInFlatMap() {
+      AtomicInteger outerCounter = new AtomicInteger(0);
+      AtomicInteger innerCounter = new AtomicInteger(0);
+
+      Kind<IOKind.Witness, Integer> outerKind =
+          IO_OP.widen(
+              IO.delay(
+                  () -> {
+                    outerCounter.incrementAndGet();
+                    return 10;
+                  }));
+
+      Function<Integer, Kind<IOKind.Witness, String>> flatMapper =
+          i ->
+              IO_OP.widen(
+                  IO.delay(
+                      () -> {
+                        innerCounter.incrementAndGet();
+                        return "value:" + i;
+                      }));
+
+      Kind<IOKind.Witness, String> result = monad.flatMap(flatMapper, outerKind);
+
+      // Should not have executed yet
+      assertThat(outerCounter.get()).isZero();
+      assertThat(innerCounter.get()).isZero();
+
+      // Execute and verify
+      assertThatIO(narrowToIO(result)).hasValue("value:10");
+      assertThat(outerCounter.get()).isEqualTo(1);
+      assertThat(innerCounter.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("IOAssert detects exceptions in flatMap chains")
+    void testIOAssertDetectsExceptionsInFlatMapChains() {
+      RuntimeException exception = new RuntimeException("FlatMap failure");
+      Function<Integer, Kind<IOKind.Witness, String>> failingMapper = i -> failingIO(exception);
+
+      Kind<IOKind.Witness, String> result = monad.flatMap(failingMapper, validKind);
+
+      assertThatIO(narrowToIO(result))
+          .throwsException(RuntimeException.class)
+          .withMessageContaining("FlatMap failure");
+    }
+
+    @Test
+    @DisplayName("IOAssert verifies repeatability of monad operations")
+    void testIOAssertVerifiesRepeatability() {
+      Kind<IOKind.Witness, String> result = monad.flatMap(validFlatMapper, validKind);
+
+      assertThatIO(narrowToIO(result)).isRepeatable();
     }
   }
 }

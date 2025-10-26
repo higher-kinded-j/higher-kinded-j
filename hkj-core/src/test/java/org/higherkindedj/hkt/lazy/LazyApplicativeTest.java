@@ -3,90 +3,31 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Lazy Applicative Complete Test Suite")
-class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, Integer> {
-
-  // ============================================================================
-  // Test Fixtures
-  // ============================================================================
+class LazyApplicativeTest extends LazyTestBase {
 
   private LazyMonad applicative;
   private static final AtomicInteger COUNTER = new AtomicInteger(0);
-
-  // ============================================================================
-  // TypeClassTestBase Implementation
-  // ============================================================================
-
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind() {
-    return LAZY.widen(
-        Lazy.defer(
-            () -> {
-              COUNTER.incrementAndGet();
-              return "TestValue";
-            }));
-  }
-
-  @Override
-  protected Kind<LazyKind.Witness, String> createValidKind2() {
-    return LAZY.widen(Lazy.defer(() -> "TestValue2"));
-  }
-
-  @Override
-  protected Function<String, Integer> createValidMapper() {
-    return String::length;
-  }
-
-  @Override
-  protected Kind<LazyKind.Witness, Function<String, Integer>> createValidFunctionKind() {
-    return LAZY.widen(Lazy.defer(() -> String::length));
-  }
-
-  @Override
-  protected BiFunction<String, String, Integer> createValidCombiningFunction() {
-    return (s1, s2) -> s1.length() + s2.length();
-  }
-
-  @Override
-  protected BiPredicate<Kind<LazyKind.Witness, ?>, Kind<LazyKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      try {
-        Lazy<?> lazy1 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k1);
-        Lazy<?> lazy2 = LAZY.narrow((Kind<LazyKind.Witness, Object>) k2);
-        Object v1 = lazy1.force();
-        Object v2 = lazy2.force();
-        return v1 != null ? v1.equals(v2) : v2 == null;
-      } catch (Throwable e) {
-        return false;
-      }
-    };
-  }
 
   @BeforeEach
   void setUpApplicative() {
     applicative = LazyMonad.INSTANCE;
     COUNTER.set(0);
   }
-
-  // ============================================================================
-  // Complete Test Suite
-  // ============================================================================
 
   @Nested
   @DisplayName("Complete LazyApplicative Test Suite")
@@ -98,8 +39,8 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
       validateApplicativeFixtures();
 
       TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .selectTests()
           .skipExceptions() // Skip generic exception tests - Lazy has special semantics
@@ -114,10 +55,10 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
       validateApplicativeFixtures();
 
       TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting("test", String::length, equalityChecker)
+          .withLawsTesting(testValue, validMapper, equalityChecker)
           .selectTests()
           .skipExceptions() // Skip generic exception tests - Lazy has special semantics
           .skipValidations() // Skip generic validations - tested in ValidationTests with correct
@@ -126,10 +67,6 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     }
   }
 
-  // ============================================================================
-  // Operation Tests
-  // ============================================================================
-
   @Nested
   @DisplayName("Of Operation")
   class OfOperation {
@@ -137,18 +74,18 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @Test
     @DisplayName("of should create already evaluated Lazy")
     void ofShouldCreateAlreadyEvaluatedLazy() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = applicative.of("pure");
-      Lazy<String> lazy = LAZY.narrow(kind);
+      Kind<LazyKind.Witness, Integer> kind = applicative.of(DEFAULT_LAZY_VALUE);
+      Lazy<Integer> lazy = narrowToLazy(kind);
 
-      assertThat(lazy.force()).isEqualTo("pure");
-      assertThat(lazy.toString()).contains("pure");
+      assertThatLazy(lazy).whenForcedHasValue(DEFAULT_LAZY_VALUE);
+      assertThatLazy(lazy).isEvaluated();
     }
 
     @Test
     @DisplayName("of should handle null values")
     void ofShouldHandleNullValues() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = applicative.of(null);
-      Lazy<String> lazy = LAZY.narrow(kind);
+      Kind<LazyKind.Witness, Integer> kind = applicative.of(null);
+      Lazy<Integer> lazy = narrowToLazy(kind);
 
       assertThat(lazy.force()).isNull();
     }
@@ -157,7 +94,7 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @DisplayName("of should not trigger side effects")
     void ofShouldNotTriggerSideEffects() {
       AtomicInteger sideEffect = new AtomicInteger(0);
-      Kind<LazyKind.Witness, String> kind = applicative.of("value");
+      Kind<LazyKind.Witness, Integer> kind = applicative.of(DEFAULT_LAZY_VALUE);
 
       // Creating the Kind should not cause evaluation
       assertThat(sideEffect.get()).isZero();
@@ -174,38 +111,36 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
       AtomicInteger funcCounter = new AtomicInteger(0);
       AtomicInteger valueCounter = new AtomicInteger(0);
 
-      Kind<LazyKind.Witness, Function<String, Integer>> funcKind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    funcCounter.incrementAndGet();
-                    return String::length;
-                  }));
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
+          deferKind(
+              () -> {
+                funcCounter.incrementAndGet();
+                return validMapper;
+              });
 
-      Kind<LazyKind.Witness, String> valueKind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    valueCounter.incrementAndGet();
-                    return "test";
-                  }));
+      Kind<LazyKind.Witness, Integer> valueKind =
+          deferKind(
+              () -> {
+                valueCounter.incrementAndGet();
+                return DEFAULT_LAZY_VALUE;
+              });
 
-      Kind<LazyKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
+      Kind<LazyKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
       // Nothing should be evaluated yet
       assertThat(funcCounter.get()).isZero();
       assertThat(valueCounter.get()).isZero();
 
       // Force evaluation
-      Lazy<Integer> lazy = LAZY.narrow(result);
-      assertThat(lazy.force()).isEqualTo(4);
+      Lazy<String> lazy = narrowToLazy(result);
+      assertThatLazy(lazy).whenForcedHasValue(String.valueOf(DEFAULT_LAZY_VALUE));
 
       // Both should have been evaluated
       assertThat(funcCounter.get()).isEqualTo(1);
       assertThat(valueCounter.get()).isEqualTo(1);
 
       // Force again - both should be memoised
-      assertThat(lazy.force()).isEqualTo(4);
+      assertThatLazy(lazy).whenForcedHasValue(String.valueOf(DEFAULT_LAZY_VALUE));
       assertThat(funcCounter.get()).isEqualTo(1);
       assertThat(valueCounter.get()).isEqualTo(1);
     }
@@ -214,57 +149,53 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @DisplayName("ap should propagate exceptions from function Lazy")
     void apShouldPropagateExceptionsFromFunctionLazy() {
       RuntimeException funcException = new RuntimeException("Function failure");
-      Kind<LazyKind.Witness, Function<String, Integer>> funcKind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    throw funcException;
-                  }));
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
+          deferKind(
+              () -> {
+                throw funcException;
+              });
 
-      Kind<LazyKind.Witness, String> valueKind = LAZY.widen(Lazy.now("test"));
-      Kind<LazyKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
+      Kind<LazyKind.Witness, Integer> valueKind = nowKind(DEFAULT_LAZY_VALUE);
+      Kind<LazyKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      Lazy<Integer> lazy = LAZY.narrow(result);
-      assertThatThrownBy(lazy::force).isSameAs(funcException);
+      Lazy<String> lazy = narrowToLazy(result);
+      assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
     }
 
     @Test
     @DisplayName("ap should propagate exceptions from value Lazy")
     void apShouldPropagateExceptionsFromValueLazy() {
       RuntimeException valueException = new RuntimeException("Value failure");
-      Kind<LazyKind.Witness, Function<String, Integer>> funcKind =
-          LAZY.widen(Lazy.now(String::length));
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind = nowKind(validMapper);
 
-      Kind<LazyKind.Witness, String> valueKind =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    throw valueException;
-                  }));
+      Kind<LazyKind.Witness, Integer> valueKind =
+          deferKind(
+              () -> {
+                throw valueException;
+              });
 
-      Kind<LazyKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
+      Kind<LazyKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      Lazy<Integer> lazy = LAZY.narrow(result);
-      assertThatThrownBy(lazy::force).isSameAs(valueException);
+      Lazy<String> lazy = narrowToLazy(result);
+      assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
     }
 
     @Test
     @DisplayName("ap should propagate exceptions from function application")
     void apShouldPropagateExceptionsFromFunctionApplication() {
       RuntimeException applyException = new RuntimeException("Apply failure");
-      Function<String, Integer> throwingFunc =
-          s -> {
+      Function<Integer, String> throwingFunc =
+          i -> {
             throw applyException;
           };
 
-      Kind<LazyKind.Witness, Function<String, Integer>> funcKind =
-          LAZY.widen(Lazy.now(throwingFunc));
-      Kind<LazyKind.Witness, String> valueKind = LAZY.widen(Lazy.now("test"));
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind = nowKind(throwingFunc);
+      Kind<LazyKind.Witness, Integer> valueKind = nowKind(DEFAULT_LAZY_VALUE);
 
-      Kind<LazyKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
+      Kind<LazyKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      Lazy<Integer> lazy = LAZY.narrow(result);
-      assertThatThrownBy(lazy::force).isSameAs(applyException);
+      Lazy<String> lazy = narrowToLazy(result);
+      assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
     }
   }
 
@@ -278,39 +209,37 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
       AtomicInteger counter1 = new AtomicInteger(0);
       AtomicInteger counter2 = new AtomicInteger(0);
 
-      Kind<LazyKind.Witness, String> kind1 =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    counter1.incrementAndGet();
-                    return "hello";
-                  }));
+      Kind<LazyKind.Witness, Integer> kind1 =
+          deferKind(
+              () -> {
+                counter1.incrementAndGet();
+                return DEFAULT_LAZY_VALUE;
+              });
 
-      Kind<LazyKind.Witness, String> kind2 =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    counter2.incrementAndGet();
-                    return "world";
-                  }));
+      Kind<LazyKind.Witness, Integer> kind2 =
+          deferKind(
+              () -> {
+                counter2.incrementAndGet();
+                return ALTERNATIVE_LAZY_VALUE;
+              });
 
-      BiFunction<String, String, Integer> combiner = (s1, s2) -> s1.length() + s2.length();
-      Kind<LazyKind.Witness, Integer> result = applicative.map2(kind1, kind2, combiner);
+      BiFunction<Integer, Integer, String> combiner = (i1, i2) -> i1 + "," + i2;
+      Kind<LazyKind.Witness, String> result = applicative.map2(kind1, kind2, combiner);
 
       // Nothing evaluated yet
       assertThat(counter1.get()).isZero();
       assertThat(counter2.get()).isZero();
 
       // Force evaluation
-      Lazy<Integer> lazy = LAZY.narrow(result);
-      assertThat(lazy.force()).isEqualTo(10);
+      Lazy<String> lazy = narrowToLazy(result);
+      assertThatLazy(lazy).whenForcedHasValue(DEFAULT_LAZY_VALUE + "," + ALTERNATIVE_LAZY_VALUE);
 
       // Both evaluated
       assertThat(counter1.get()).isEqualTo(1);
       assertThat(counter2.get()).isEqualTo(1);
 
       // Force again - both memoised
-      assertThat(lazy.force()).isEqualTo(10);
+      assertThatLazy(lazy).whenForcedHasValue(DEFAULT_LAZY_VALUE + "," + ALTERNATIVE_LAZY_VALUE);
       assertThat(counter1.get()).isEqualTo(1);
       assertThat(counter2.get()).isEqualTo(1);
     }
@@ -319,64 +248,58 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @DisplayName("map2 should propagate exceptions from first Lazy")
     void map2ShouldPropagateExceptionsFromFirstLazy() {
       RuntimeException exception1 = new RuntimeException("First failure");
-      Kind<LazyKind.Witness, String> kind1 =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    throw exception1;
-                  }));
+      Kind<LazyKind.Witness, Integer> kind1 =
+          deferKind(
+              () -> {
+                throw exception1;
+              });
 
-      Kind<LazyKind.Witness, String> kind2 = LAZY.widen(Lazy.now("world"));
-      BiFunction<String, String, Integer> combiner = (s1, s2) -> s1.length() + s2.length();
+      Kind<LazyKind.Witness, Integer> kind2 = nowKind(ALTERNATIVE_LAZY_VALUE);
+      BiFunction<Integer, Integer, String> combiner = (i1, i2) -> i1 + "," + i2;
 
-      Kind<LazyKind.Witness, Integer> result = applicative.map2(kind1, kind2, combiner);
-      Lazy<Integer> lazy = LAZY.narrow(result);
+      Kind<LazyKind.Witness, String> result = applicative.map2(kind1, kind2, combiner);
+      Lazy<String> lazy = narrowToLazy(result);
 
-      assertThatThrownBy(lazy::force).isSameAs(exception1);
+      assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
     }
 
     @Test
     @DisplayName("map2 should propagate exceptions from second Lazy")
     void map2ShouldPropagateExceptionsFromSecondLazy() {
       RuntimeException exception2 = new RuntimeException("Second failure");
-      Kind<LazyKind.Witness, String> kind1 = LAZY.widen(Lazy.now("hello"));
-      Kind<LazyKind.Witness, String> kind2 =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    throw exception2;
-                  }));
+      Kind<LazyKind.Witness, Integer> kind1 = nowKind(DEFAULT_LAZY_VALUE);
+      Kind<LazyKind.Witness, Integer> kind2 =
+          deferKind(
+              () -> {
+                throw exception2;
+              });
 
-      BiFunction<String, String, Integer> combiner = (s1, s2) -> s1.length() + s2.length();
+      BiFunction<Integer, Integer, String> combiner = (i1, i2) -> i1 + "," + i2;
 
-      Kind<LazyKind.Witness, Integer> result = applicative.map2(kind1, kind2, combiner);
-      Lazy<Integer> lazy = LAZY.narrow(result);
+      Kind<LazyKind.Witness, String> result = applicative.map2(kind1, kind2, combiner);
+      Lazy<String> lazy = narrowToLazy(result);
 
-      assertThatThrownBy(lazy::force).isSameAs(exception2);
+      assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
     }
 
     @Test
     @DisplayName("map2 should propagate exceptions from combining function")
     void map2ShouldPropagateExceptionsFromCombiningFunction() {
       RuntimeException combinerException = new RuntimeException("Combiner failure");
-      Kind<LazyKind.Witness, String> kind1 = LAZY.widen(Lazy.now("hello"));
-      Kind<LazyKind.Witness, String> kind2 = LAZY.widen(Lazy.now("world"));
+      Kind<LazyKind.Witness, Integer> kind1 = nowKind(DEFAULT_LAZY_VALUE);
+      Kind<LazyKind.Witness, Integer> kind2 = nowKind(ALTERNATIVE_LAZY_VALUE);
 
-      BiFunction<String, String, Integer> throwingCombiner =
-          (s1, s2) -> {
+      BiFunction<Integer, Integer, String> throwingCombiner =
+          (i1, i2) -> {
             throw combinerException;
           };
 
-      Kind<LazyKind.Witness, Integer> result = applicative.map2(kind1, kind2, throwingCombiner);
-      Lazy<Integer> lazy = LAZY.narrow(result);
+      Kind<LazyKind.Witness, String> result = applicative.map2(kind1, kind2, throwingCombiner);
+      Lazy<String> lazy = narrowToLazy(result);
 
-      assertThatThrownBy(lazy::force).isSameAs(combinerException);
+      assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
     }
   }
-
-  // ============================================================================
-  // Validation Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Validation Tests")
@@ -422,15 +345,11 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
           .isThrownBy(
               () ->
                   applicative.map2(
-                      validKind, validKind2, (BiFunction<String, String, Integer>) null))
+                      validKind, validKind2, (BiFunction<Integer, Integer, String>) null))
           .withMessageContaining("combining function")
           .withMessageContaining("map2");
     }
   }
-
-  // ============================================================================
-  // Applicative Laws
-  // ============================================================================
 
   @Nested
   @DisplayName("Applicative Laws")
@@ -439,9 +358,9 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @Test
     @DisplayName("Identity Law: ap(of(id), fa) == fa")
     void identityLaw() throws Throwable {
-      Function<String, String> identity = s -> s;
-      Kind<LazyKind.Witness, Function<String, String>> idFunc = applicative.of(identity);
-      Kind<LazyKind.Witness, String> result = applicative.ap(idFunc, validKind);
+      Function<Integer, Integer> identity = i -> i;
+      Kind<LazyKind.Witness, Function<Integer, Integer>> idFunc = applicative.of(identity);
+      Kind<LazyKind.Witness, Integer> result = applicative.ap(idFunc, validKind);
 
       assertThat(equalityChecker.test(result, validKind))
           .as("ap(of(id), fa) should equal fa")
@@ -451,17 +370,17 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @Test
     @DisplayName("Homomorphism Law: ap(of(f), of(x)) == of(f(x))")
     void homomorphismLaw() throws Throwable {
-      String testValue = "test";
-      Function<String, Integer> testFunction = String::length;
+      Integer testValue = DEFAULT_LAZY_VALUE;
+      Function<Integer, String> testFunction = validMapper;
 
-      Kind<LazyKind.Witness, Function<String, Integer>> funcKind = applicative.of(testFunction);
-      Kind<LazyKind.Witness, String> valueKind = applicative.of(testValue);
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind = applicative.of(testFunction);
+      Kind<LazyKind.Witness, Integer> valueKind = applicative.of(testValue);
 
       // Left side: ap(of(f), of(x))
-      Kind<LazyKind.Witness, Integer> leftSide = applicative.ap(funcKind, valueKind);
+      Kind<LazyKind.Witness, String> leftSide = applicative.ap(funcKind, valueKind);
 
       // Right side: of(f(x))
-      Kind<LazyKind.Witness, Integer> rightSide = applicative.of(testFunction.apply(testValue));
+      Kind<LazyKind.Witness, String> rightSide = applicative.of(testFunction.apply(testValue));
 
       assertThat(equalityChecker.test(leftSide, rightSide))
           .as("ap(of(f), of(x)) should equal of(f(x))")
@@ -471,29 +390,25 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @Test
     @DisplayName("Interchange Law: ap(ff, of(x)) == ap(of(f -> f(x)), ff)")
     void interchangeLaw() throws Throwable {
-      String testValue = "test";
-      Function<String, Integer> testFunction = String::length;
-      Kind<LazyKind.Witness, Function<String, Integer>> funcKind = applicative.of(testFunction);
-      Kind<LazyKind.Witness, String> valueKind = applicative.of(testValue);
+      Integer testValue = DEFAULT_LAZY_VALUE;
+      Function<Integer, String> testFunction = validMapper;
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind = applicative.of(testFunction);
+      Kind<LazyKind.Witness, Integer> valueKind = applicative.of(testValue);
 
       // Left side: ap(ff, of(x))
-      Kind<LazyKind.Witness, Integer> leftSide = applicative.ap(funcKind, valueKind);
+      Kind<LazyKind.Witness, String> leftSide = applicative.ap(funcKind, valueKind);
 
       // Right side: ap(of(f -> f(x)), ff)
-      Function<Function<String, Integer>, Integer> applyToValue = f -> f.apply(testValue);
-      Kind<LazyKind.Witness, Function<Function<String, Integer>, Integer>> applyFunc =
+      Function<Function<Integer, String>, String> applyToValue = f -> f.apply(testValue);
+      Kind<LazyKind.Witness, Function<Function<Integer, String>, String>> applyFunc =
           applicative.of(applyToValue);
-      Kind<LazyKind.Witness, Integer> rightSide = applicative.ap(applyFunc, funcKind);
+      Kind<LazyKind.Witness, String> rightSide = applicative.ap(applyFunc, funcKind);
 
       assertThat(equalityChecker.test(leftSide, rightSide))
           .as("ap(ff, of(x)) should equal ap(of(f -> f(x)), ff)")
           .isTrue();
     }
   }
-
-  // ============================================================================
-  // Edge Cases
-  // ============================================================================
 
   @Nested
   @DisplayName("Edge Cases")
@@ -502,14 +417,13 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     @Test
     @DisplayName("ap should work with already evaluated Lazies")
     void apShouldWorkWithAlreadyEvaluatedLazies() throws Throwable {
-      Kind<LazyKind.Witness, Function<String, Integer>> funcKind =
-          LAZY.widen(Lazy.now(String::length));
-      Kind<LazyKind.Witness, String> valueKind = LAZY.widen(Lazy.now("precomputed"));
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind = nowKind(validMapper);
+      Kind<LazyKind.Witness, Integer> valueKind = nowKind(DEFAULT_LAZY_VALUE);
 
-      Kind<LazyKind.Witness, Integer> result = applicative.ap(funcKind, valueKind);
-      Lazy<Integer> lazy = LAZY.narrow(result);
+      Kind<LazyKind.Witness, String> result = applicative.ap(funcKind, valueKind);
+      Lazy<String> lazy = narrowToLazy(result);
 
-      assertThat(lazy.force()).isEqualTo(11);
+      assertThatLazy(lazy).whenForcedHasValue(String.valueOf(DEFAULT_LAZY_VALUE));
     }
 
     @Test
@@ -517,32 +431,26 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
     void map2ShouldPreserveLazySemantics() {
       AtomicInteger sideEffect = new AtomicInteger(0);
 
-      Kind<LazyKind.Witness, String> kind1 =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    sideEffect.incrementAndGet();
-                    return "test1";
-                  }));
+      Kind<LazyKind.Witness, Integer> kind1 =
+          deferKind(
+              () -> {
+                sideEffect.incrementAndGet();
+                return DEFAULT_LAZY_VALUE;
+              });
 
-      Kind<LazyKind.Witness, String> kind2 =
-          LAZY.widen(
-              Lazy.defer(
-                  () -> {
-                    sideEffect.incrementAndGet();
-                    return "test2";
-                  }));
+      Kind<LazyKind.Witness, Integer> kind2 =
+          deferKind(
+              () -> {
+                sideEffect.incrementAndGet();
+                return ALTERNATIVE_LAZY_VALUE;
+              });
 
       // Creating map2 should not trigger evaluation
-      applicative.map2(kind1, kind2, (s1, s2) -> s1.length() + s2.length());
+      applicative.map2(kind1, kind2, (i1, i2) -> i1 + "," + i2);
 
       assertThat(sideEffect.get()).isZero();
     }
   }
-
-  // ============================================================================
-  // Individual Component Tests
-  // ============================================================================
 
   @Nested
   @DisplayName("Individual Component Tests")
@@ -554,8 +462,8 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
       validateApplicativeFixtures();
 
       TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .selectTests()
           .onlyOperations()
@@ -572,8 +480,8 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
       // to use the same class context. Since LazyMonad implements both map and ap operations,
       // we need to configure validation to use LazyMonad.class for all operations.
       TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .configureValidation()
           .useInheritanceValidation()
@@ -602,10 +510,10 @@ class LazyApplicativeTest extends TypeClassTestBase<LazyKind.Witness, String, In
       validateApplicativeFixtures();
 
       TypeClassTest.<LazyKind.Witness>applicative(LazyMonad.class)
-          .<String>instance(applicative)
-          .<Integer>withKind(validKind)
+          .<Integer>instance(applicative)
+          .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting("test", String::length, equalityChecker)
+          .withLawsTesting(testValue, validMapper, equalityChecker)
           .selectTests()
           .onlyLaws()
           .test();

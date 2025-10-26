@@ -3,53 +3,21 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.reader.ReaderAssert.assertThatReader;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.readerKindHelper;
 
 import java.util.List;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ReaderKindHelper Complete Test Suite")
-class ReaderKindHelperTest
-    extends TypeClassTestBase<
-        ReaderKind.Witness<ReaderKindHelperTest.TestEnv>, ReaderKindHelperTest.TestEnv, String> {
-
-  public record TestEnv(String value) {}
+class ReaderKindHelperTest extends ReaderTestBase {
 
   // Helper constant for cleaner type references
   private static final ReaderKindHelper READER = ReaderKindHelper.READER;
-  private static final TestEnv TEST_ENV = new TestEnv("test-environment");
-
-  @Override
-  protected Kind<ReaderKind.Witness<TestEnv>, TestEnv> createValidKind() {
-    return READER.widen(Reader.ask());
-  }
-
-  @Override
-  protected Kind<ReaderKind.Witness<TestEnv>, TestEnv> createValidKind2() {
-    return READER.widen(Reader.constant(TEST_ENV));
-  }
-
-  @Override
-  protected Function<TestEnv, String> createValidMapper() {
-    return TestEnv::value;
-  }
-
-  @Override
-  protected BiPredicate<Kind<ReaderKind.Witness<TestEnv>, ?>, Kind<ReaderKind.Witness<TestEnv>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> {
-      Reader<TestEnv, ?> r1 = READER.narrow(k1);
-      Reader<TestEnv, ?> r2 = READER.narrow(k2);
-      return r1.run(TEST_ENV).equals(r2.run(TEST_ENV));
-    };
-  }
 
   @Nested
   @DisplayName("Complete KindHelper Test Suite")
@@ -58,7 +26,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Run complete KindHelper test suite for Reader")
     void completeKindHelperTestSuite() {
-      Reader<TestEnv, String> validInstance = Reader.of(TestEnv::value);
+      Reader<TestConfig, String> validInstance = Reader.of(TestConfig::url);
 
       readerKindHelper(validInstance).test();
     }
@@ -66,14 +34,14 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Complete test suite with multiple Reader types")
     void completeTestSuiteWithMultipleTypes() {
-      List<Reader<TestEnv, String>> testInstances =
+      List<Reader<TestConfig, String>> testInstances =
           List.of(
-              Reader.of(TestEnv::value),
+              Reader.of(TestConfig::url),
               Reader.constant("constant-value"),
-              Reader.<TestEnv>ask().map(TestEnv::value), // Add explicit type parameter
+              Reader.<TestConfig>ask().map(TestConfig::url),
               Reader.of(env -> null));
 
-      for (Reader<TestEnv, String> instance : testInstances) {
+      for (Reader<TestConfig, String> instance : testInstances) {
         readerKindHelper(instance).test();
       }
     }
@@ -81,7 +49,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Comprehensive test with implementation validation")
     void comprehensiveTestWithImplementationValidation() {
-      Reader<TestEnv, String> validInstance = Reader.of(TestEnv::value);
+      Reader<TestConfig, String> validInstance = Reader.of(TestConfig::url);
 
       readerKindHelper(validInstance).testWithValidation(ReaderKindHelper.class);
     }
@@ -94,7 +62,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Test round-trip widen/narrow operations")
     void testRoundTripOperations() {
-      Reader<TestEnv, String> validInstance = Reader.of(TestEnv::value);
+      Reader<TestConfig, String> validInstance = Reader.of(TestConfig::url);
 
       readerKindHelper(validInstance)
           .skipValidations()
@@ -107,7 +75,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Test null parameter validations")
     void testNullParameterValidations() {
-      readerKindHelper(Reader.<TestEnv>ask())
+      readerKindHelper(Reader.<TestConfig>ask())
           .skipRoundTrip()
           .skipInvalidType()
           .skipIdempotency()
@@ -118,7 +86,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Test invalid Kind type handling")
     void testInvalidKindType() {
-      readerKindHelper(Reader.<TestEnv, String>constant("test"))
+      readerKindHelper(Reader.<TestConfig, String>constant("test"))
           .skipRoundTrip()
           .skipValidations()
           .skipIdempotency()
@@ -129,7 +97,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Test idempotency of operations")
     void testIdempotency() {
-      Reader<TestEnv, String> validInstance = Reader.of(env -> env.value() + "-idempotent");
+      Reader<TestConfig, String> validInstance = Reader.of(env -> env.url() + "-idempotent");
 
       readerKindHelper(validInstance)
           .skipRoundTrip()
@@ -142,7 +110,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Test edge cases and boundary conditions")
     void testEdgeCases() {
-      Reader<TestEnv, String> validInstance = Reader.constant("edge-case");
+      Reader<TestConfig, String> validInstance = Reader.constant("edge-case");
 
       readerKindHelper(validInstance)
           .skipRoundTrip()
@@ -160,9 +128,9 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("All Reader factory methods work correctly")
     void testAllFactoryMethods() {
-      Reader<TestEnv, String> ofReader = Reader.of(TestEnv::value);
-      Reader<TestEnv, String> constantReader = Reader.constant("constant");
-      Reader<TestEnv, TestEnv> askReader = Reader.ask();
+      Reader<TestConfig, String> ofReader = Reader.of(TestConfig::url);
+      Reader<TestConfig, String> constantReader = Reader.constant("constant");
+      Reader<TestConfig, TestConfig> askReader = Reader.ask();
 
       readerKindHelper(ofReader).test();
       readerKindHelper(constantReader).test();
@@ -172,8 +140,8 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Null values in Reader are preserved")
     void testNullValuesPreserved() {
-      Reader<TestEnv, String> nullReader = Reader.of(env -> null);
-      Reader<TestEnv, String> constantNull = Reader.constant(null);
+      Reader<TestConfig, String> nullReader = Reader.of(env -> null);
+      Reader<TestConfig, String> constantNull = Reader.constant(null);
 
       readerKindHelper(nullReader).test();
       readerKindHelper(constantNull).test();
@@ -196,14 +164,14 @@ class ReaderKindHelperTest
           ReaderKindHelper.READER.widen(complexReader);
       Reader<ComplexEnv, String> narrowed = ReaderKindHelper.READER.narrow(widened);
 
-      assertThat(narrowed.run(complexEnv)).isEqualTo("complex");
+      assertThatReader(narrowed).whenRunWith(complexEnv).produces("complex");
     }
 
     @Test
     @DisplayName("Type safety across different generic parameters")
     void testTypeSafetyAcrossDifferentGenerics() {
-      Reader<TestEnv, Integer> intReader = Reader.constant(42);
-      Reader<TestEnv, String> stringReader = Reader.of(TestEnv::value);
+      Reader<TestConfig, Integer> intReader = Reader.constant(42);
+      Reader<TestConfig, String> stringReader = Reader.of(TestConfig::url);
       Reader<String, String> differentEnvReader = Reader.ask();
 
       readerKindHelper(intReader).test();
@@ -214,18 +182,21 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Complex result values with nested generics")
     void testComplexResultValues() {
-      Reader<TestEnv, java.util.List<String>> listReader =
+      Reader<TestConfig, java.util.List<String>> listReader =
           Reader.constant(java.util.List.of("a", "b", "c"));
-      Reader<TestEnv, java.util.Map<String, Integer>> mapReader =
+      Reader<TestConfig, java.util.Map<String, Integer>> mapReader =
           Reader.constant(java.util.Map.of("key", 42));
 
       readerKindHelper(listReader).test();
       readerKindHelper(mapReader).test();
 
-      Kind<ReaderKind.Witness<TestEnv>, java.util.List<String>> widened = READER.widen(listReader);
-      Reader<TestEnv, java.util.List<String>> narrowed = READER.narrow(widened);
+      Kind<ReaderKind.Witness<TestConfig>, java.util.List<String>> widened =
+          READER.widen(listReader);
+      Reader<TestConfig, java.util.List<String>> narrowed = READER.narrow(widened);
 
-      assertThat(narrowed.run(TEST_ENV)).containsExactly("a", "b", "c");
+      assertThatReader(narrowed)
+          .whenRunWith(TEST_CONFIG)
+          .satisfies(result -> assertThat(result).containsExactly("a", "b", "c"));
     }
   }
 
@@ -236,7 +207,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Holder creates minimal overhead")
     void testMinimalOverhead() {
-      Reader<TestEnv, String> original = Reader.of(TestEnv::value);
+      Reader<TestConfig, String> original = Reader.of(TestConfig::url);
 
       readerKindHelper(original).skipPerformance().test();
     }
@@ -244,7 +215,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Multiple operations are idempotent")
     void testIdempotentOperations() {
-      Reader<TestEnv, String> original = Reader.constant("idempotent");
+      Reader<TestConfig, String> original = Reader.constant("idempotent");
 
       readerKindHelper(original)
           .skipRoundTrip()
@@ -258,7 +229,7 @@ class ReaderKindHelperTest
     @DisplayName("Performance characteristics test")
     void testPerformanceCharacteristics() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Reader<TestEnv, String> testInstance = Reader.of(env -> env.value() + "-performance");
+        Reader<TestConfig, String> testInstance = Reader.of(env -> env.url() + "-performance");
 
         readerKindHelper(testInstance).withPerformanceTests().test();
       }
@@ -268,7 +239,7 @@ class ReaderKindHelperTest
     @DisplayName("Memory efficiency test")
     void testMemoryEfficiency() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Reader<TestEnv, String> testInstance = Reader.constant("memory-test");
+        Reader<TestConfig, String> testInstance = Reader.constant("memory-test");
 
         readerKindHelper(testInstance).withPerformanceTests().test();
       }
@@ -282,14 +253,14 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("All combinations of null values")
     void testAllNullValueCombinations() {
-      Reader<TestEnv, String> nullFromFunction = Reader.of(env -> null);
-      Reader<TestEnv, String> nullFromConstant = Reader.constant(null);
-      Reader<TestEnv, String> nullFromMap = Reader.<TestEnv>ask().map(env -> (String) null);
+      Reader<TestConfig, String> nullFromFunction = Reader.of(env -> null);
+      Reader<TestConfig, String> nullFromConstant = Reader.constant(null);
+      Reader<TestConfig, String> nullFromMap = Reader.<TestConfig>ask().map(env -> (String) null);
 
-      List<Reader<TestEnv, String>> nullInstances =
+      List<Reader<TestConfig, String>> nullInstances =
           List.of(nullFromFunction, nullFromConstant, nullFromMap);
 
-      for (Reader<TestEnv, String> instance : nullInstances) {
+      for (Reader<TestConfig, String> instance : nullInstances) {
         readerKindHelper(instance).test();
       }
     }
@@ -307,7 +278,7 @@ class ReaderKindHelperTest
           ReaderKindHelper.READER.widen(emptyReader);
       Reader<EmptyEnv, String> narrowed = ReaderKindHelper.READER.narrow(widened);
 
-      assertThat(narrowed.run(new EmptyEnv())).isEqualTo("no-env-needed");
+      assertThatReader(narrowed).whenRunWith(new EmptyEnv()).produces("no-env-needed");
     }
   }
 
@@ -319,7 +290,7 @@ class ReaderKindHelperTest
     @DisplayName("Concurrent access test")
     void testConcurrentAccess() {
       if (Boolean.parseBoolean(System.getProperty("test.concurrency", "false"))) {
-        Reader<TestEnv, String> testInstance = Reader.of(TestEnv::value);
+        Reader<TestConfig, String> testInstance = Reader.of(TestConfig::url);
 
         readerKindHelper(testInstance).withConcurrencyTests().test();
       }
@@ -335,7 +306,7 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Quick test for fast test suites")
     void testQuickValidation() {
-      Reader<TestEnv, String> testInstance = Reader.<TestEnv>ask().map(TestEnv::value);
+      Reader<TestConfig, String> testInstance = Reader.<TestConfig>ask().map(TestConfig::url);
 
       readerKindHelper(testInstance).test();
     }
@@ -344,16 +315,16 @@ class ReaderKindHelperTest
     @DisplayName("Stress test with complex scenarios")
     void testComplexStressScenarios() {
       // Create readers separately with explicit types to avoid type inference issues
-      Reader<TestEnv, Object> simpleString = Reader.constant("simple_string");
-      Reader<TestEnv, Object> simpleInt = Reader.constant(42);
-      Reader<TestEnv, Object> simpleList = Reader.constant(java.util.List.of(1, 2, 3));
-      Reader<TestEnv, Object> simpleMap = Reader.constant(java.util.Map.of("key", "value"));
-      Reader<TestEnv, Object> fromValue = Reader.of(env -> (Object) env.value());
-      Reader<TestEnv, Object> fromAsk = Reader.<TestEnv>ask().map(env -> (Object) env);
-      Reader<TestEnv, Object> constantNull = Reader.constant(null);
-      Reader<TestEnv, Object> functionNull = Reader.of(env -> null);
+      Reader<TestConfig, Object> simpleString = Reader.constant("simple_string");
+      Reader<TestConfig, Object> simpleInt = Reader.constant(42);
+      Reader<TestConfig, Object> simpleList = Reader.constant(java.util.List.of(1, 2, 3));
+      Reader<TestConfig, Object> simpleMap = Reader.constant(java.util.Map.of("key", "value"));
+      Reader<TestConfig, Object> fromValue = Reader.of(env -> (Object) env.url());
+      Reader<TestConfig, Object> fromAsk = Reader.<TestConfig>ask().map(env -> (Object) env);
+      Reader<TestConfig, Object> constantNull = Reader.constant(null);
+      Reader<TestConfig, Object> functionNull = Reader.of(env -> null);
 
-      List<Reader<TestEnv, Object>> complexInstances =
+      List<Reader<TestConfig, Object>> complexInstances =
           List.of(
               simpleString,
               simpleInt,
@@ -364,7 +335,7 @@ class ReaderKindHelperTest
               constantNull,
               functionNull);
 
-      for (Reader<TestEnv, Object> instance : complexInstances) {
+      for (Reader<TestConfig, Object> instance : complexInstances) {
         readerKindHelper(instance).test();
       }
     }
@@ -377,17 +348,17 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("All Reader types and states")
     void testAllReaderTypesAndStates() {
-      List<Reader<TestEnv, String>> allStates =
+      List<Reader<TestConfig, String>> allStates =
           List.of(
-              Reader.of(TestEnv::value),
+              Reader.of(TestConfig::url),
               Reader.constant("constant"),
-              Reader.<TestEnv>ask().map(TestEnv::value), // Add explicit type parameter
+              Reader.<TestConfig>ask().map(TestConfig::url),
               Reader.of(env -> ""),
               Reader.constant(""),
               Reader.of(env -> null),
               Reader.constant(null));
 
-      for (Reader<TestEnv, String> state : allStates) {
+      for (Reader<TestConfig, String> state : allStates) {
         readerKindHelper(state).test();
       }
     }
@@ -395,11 +366,11 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Full lifecycle test")
     void testFullLifecycle() {
-      Reader<TestEnv, String> original = Reader.of(env -> env.value() + "-lifecycle");
+      Reader<TestConfig, String> original = Reader.of(env -> env.url() + "-lifecycle");
 
       readerKindHelper(original).test();
 
-      Reader<TestEnv, String> constantOriginal = Reader.constant("lifecycle-constant");
+      Reader<TestConfig, String> constantOriginal = Reader.constant("lifecycle-constant");
 
       readerKindHelper(constantOriginal).test();
     }
@@ -407,14 +378,14 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("Composition and transformation preservation")
     void testCompositionPreservation() {
-      Reader<TestEnv, String> base = Reader.of(TestEnv::value);
-      Reader<TestEnv, String> composed =
+      Reader<TestConfig, String> base = Reader.of(TestConfig::url);
+      Reader<TestConfig, String> composed =
           base.map(String::toUpperCase).flatMap(s -> Reader.constant(s + "!"));
 
-      Kind<ReaderKind.Witness<TestEnv>, String> widened = READER.widen(composed);
-      Reader<TestEnv, String> narrowed = READER.narrow(widened);
+      Kind<ReaderKind.Witness<TestConfig>, String> widened = READER.widen(composed);
+      Reader<TestConfig, String> narrowed = READER.narrow(widened);
 
-      assertThat(narrowed.run(TEST_ENV)).isEqualTo("TEST-ENVIRONMENT!");
+      assertThatReader(narrowed).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL.toUpperCase() + "!");
     }
   }
 
@@ -425,49 +396,52 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("reader() factory method works correctly")
     void testReaderFactoryMethod() {
-      java.util.function.Function<TestEnv, String> func = TestEnv::value;
-      Kind<ReaderKind.Witness<TestEnv>, String> kind = READER.reader(func);
+      java.util.function.Function<TestConfig, String> func = TestConfig::url;
+      Kind<ReaderKind.Witness<TestConfig>, String> kind = READER.reader(func);
 
       assertThat(kind).isNotNull();
-      Reader<TestEnv, String> narrowed = READER.narrow(kind);
-      assertThat(narrowed.run(TEST_ENV)).isEqualTo("test-environment");
+      Reader<TestConfig, String> narrowed = READER.narrow(kind);
+      assertThatReader(narrowed).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL);
     }
 
     @Test
     @DisplayName("constant() factory method works correctly")
     void testConstantFactoryMethod() {
-      Kind<ReaderKind.Witness<TestEnv>, String> kind = READER.constant("fixed");
+      Kind<ReaderKind.Witness<TestConfig>, String> kind = READER.constant("fixed");
 
       assertThat(kind).isNotNull();
-      Reader<TestEnv, String> narrowed = READER.narrow(kind);
-      assertThat(narrowed.run(TEST_ENV)).isEqualTo("fixed");
-      assertThat(narrowed.run(new TestEnv("other"))).isEqualTo("fixed");
+      Reader<TestConfig, String> narrowed = READER.narrow(kind);
+      assertThatReader(narrowed).whenRunWith(TEST_CONFIG).produces("fixed");
+      assertThatReader(narrowed).whenRunWith(ALTERNATIVE_CONFIG).produces("fixed");
+      assertThatReader(narrowed).isConstantFor(TEST_CONFIG, ALTERNATIVE_CONFIG);
     }
 
     @Test
     @DisplayName("ask() factory method works correctly")
     void testAskFactoryMethod() {
-      Kind<ReaderKind.Witness<TestEnv>, TestEnv> kind = READER.ask();
+      Kind<ReaderKind.Witness<TestConfig>, TestConfig> kind = READER.ask();
 
       assertThat(kind).isNotNull();
-      Reader<TestEnv, TestEnv> narrowed = READER.narrow(kind);
-      assertThat(narrowed.run(TEST_ENV)).isSameAs(TEST_ENV);
+      Reader<TestConfig, TestConfig> narrowed = READER.narrow(kind);
+      assertThatReader(narrowed)
+          .whenRunWith(TEST_CONFIG)
+          .satisfies(result -> assertThat(result).isSameAs(TEST_CONFIG));
     }
 
     @Test
     @DisplayName("runReader() executes correctly")
     void testRunReaderMethod() {
-      Reader<TestEnv, String> reader = Reader.of(TestEnv::value);
-      Kind<ReaderKind.Witness<TestEnv>, String> kind = READER.widen(reader);
+      Reader<TestConfig, String> reader = Reader.of(TestConfig::url);
+      Kind<ReaderKind.Witness<TestConfig>, String> kind = READER.widen(reader);
 
-      String result = READER.runReader(kind, TEST_ENV);
-      assertThat(result).isEqualTo("test-environment");
+      String result = READER.runReader(kind, TEST_CONFIG);
+      assertThat(result).isEqualTo(DEFAULT_URL);
     }
 
     @Test
     @DisplayName("runReader() validates null Kind")
     void testRunReaderValidatesNullKind() {
-      assertThatThrownBy(() -> READER.runReader(null, TEST_ENV))
+      assertThatThrownBy(() -> READER.runReader(null, TEST_CONFIG))
           .isInstanceOf(NullPointerException.class);
     }
   }
@@ -493,8 +467,8 @@ class ReaderKindHelperTest
     @Test
     @DisplayName("narrow() validates invalid Kind type")
     void testNarrowValidatesInvalidType() {
-      Kind<ReaderKind.Witness<TestEnv>, String> invalidKind =
-          new Kind<ReaderKind.Witness<TestEnv>, String>() {};
+      Kind<ReaderKind.Witness<TestConfig>, String> invalidKind =
+          new Kind<ReaderKind.Witness<TestConfig>, String>() {};
 
       assertThatThrownBy(() -> READER.narrow(invalidKind)).hasMessageContaining("Reader");
     }

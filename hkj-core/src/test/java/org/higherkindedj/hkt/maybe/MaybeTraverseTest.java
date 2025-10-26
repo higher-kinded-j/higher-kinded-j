@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -13,8 +12,6 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
@@ -26,9 +23,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeTraverse Complete Test Suite")
-class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
-
-  private static final Integer SUCCESS_VALUE = 42;
+class MaybeTraverseTest extends MaybeTestBase {
 
   private Traverse<MaybeKind.Witness> traverse;
   private Applicative<ValidatedKind.Witness<String>> validatedApplicative;
@@ -41,39 +36,18 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
           Kind<ValidatedKind.Witness<String>, ?>, Kind<ValidatedKind.Witness<String>, ?>>
       validatedEqualityChecker;
 
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind() {
-    return MAYBE.widen(Maybe.just(SUCCESS_VALUE));
-  }
-
-  @Override
-  protected Kind<MaybeKind.Witness, Integer> createValidKind2() {
-    return MAYBE.widen(Maybe.just(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> MAYBE.narrow(k1).equals(MAYBE.narrow(k2));
-  }
-
   @BeforeEach
   void setUpTraverse() {
     Traverse<MaybeKind.Witness> traverseInstance = MaybeTraverse.INSTANCE;
     traverse = traverseInstance;
 
     validatedApplicative = ValidatedMonad.instance(Monoids.string());
-    justKind = createValidKind();
-    nothingKind = MAYBE.widen(Maybe.nothing());
+    justKind = validKind;
+    nothingKind = nothingKind();
     validTraverseFunction =
         i -> ValidatedKindHelper.VALIDATED.widen(Validated.valid("Traversed:" + i));
     validMonoid = Monoids.string();
-    validFoldMapFunction = TestFunctions.INT_TO_STRING;
+    validFoldMapFunction = validMapper;
     validatedEqualityChecker =
         (k1, k2) ->
             ValidatedKindHelper.VALIDATED
@@ -130,9 +104,9 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
           ValidatedKindHelper.VALIDATED.narrow(result);
       assertThat(validated.isValid()).isTrue();
 
-      Maybe<String> maybe = MAYBE.narrow(validated.get());
+      Maybe<String> maybe = narrowToMaybe(validated.get());
       assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("Traversed:" + SUCCESS_VALUE);
+      assertThat(maybe.get()).isEqualTo("Traversed:" + DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -163,7 +137,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
           ValidatedKindHelper.VALIDATED.narrow(result);
       assertThat(validated.isValid()).isTrue();
 
-      Maybe<String> maybe = MAYBE.narrow(validated.get());
+      Maybe<String> maybe = narrowToMaybe(validated.get());
       assertThat(maybe.isNothing()).isTrue();
     }
 
@@ -175,7 +149,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
 
       String result = traverse.foldMap(stringMonoid, foldFunction, justKind);
 
-      assertThat(result).isEqualTo("Value:" + SUCCESS_VALUE);
+      assertThat(result).isEqualTo("Value:" + DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -195,9 +169,9 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
     void mapAppliesFunctionToJust() {
       Kind<MaybeKind.Witness, String> result = traverse.map(validMapper, justKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
+      Maybe<String> maybe = narrowToMaybe(result);
       assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(SUCCESS_VALUE.toString());
+      assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE.toString());
     }
 
     @Test
@@ -205,7 +179,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
     void mapPreservesNothing() {
       Kind<MaybeKind.Witness, String> result = traverse.map(validMapper, nothingKind);
 
-      Maybe<String> maybe = MAYBE.narrow(result);
+      Maybe<String> maybe = narrowToMaybe(result);
       assertThat(maybe.isNothing()).isTrue();
     }
   }
@@ -277,7 +251,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
                   ? ValidatedKindHelper.VALIDATED.widen(Validated.valid(i.toString()))
                   : ValidatedKindHelper.VALIDATED.widen(Validated.invalid("Value too small"));
 
-      // Should fail because 42 <= 50
+      // Should fail because DEFAULT_JUST_VALUE (42) <= 50
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, String>> failResult =
           traverse.traverse(validatedApplicative, conditionalFunc, justKind);
       Validated<String, Kind<MaybeKind.Witness, String>> failValidated =
@@ -286,14 +260,14 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
       assertThat(failValidated.getError()).isEqualTo("Value too small");
 
       // Should succeed with value > 50
-      Kind<MaybeKind.Witness, Integer> bigJust = MAYBE.widen(Maybe.just(100));
+      Kind<MaybeKind.Witness, Integer> bigJust = justKind(100);
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, String>> successResult =
           traverse.traverse(validatedApplicative, conditionalFunc, bigJust);
 
       Validated<String, Kind<MaybeKind.Witness, String>> successValidated =
           ValidatedKindHelper.VALIDATED.narrow(successResult);
       assertThat(successValidated.isValid()).isTrue();
-      assertThat(MAYBE.narrow(successValidated.get()).get()).isEqualTo("100");
+      assertThat(narrowToMaybe(successValidated.get()).get()).isEqualTo("100");
     }
 
     @Test
@@ -303,7 +277,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
       Monoid<Integer> intAddition = Monoids.integerAddition();
       Function<Integer, Integer> doubleFunc = i -> i * 2;
       Integer intResult = traverse.foldMap(intAddition, doubleFunc, justKind);
-      assertThat(intResult).isEqualTo(SUCCESS_VALUE * 2);
+      assertThat(intResult).isEqualTo(DEFAULT_JUST_VALUE * 2);
 
       // Nothing case returns empty
       Integer nothingResult = traverse.foldMap(intAddition, doubleFunc, nothingKind);
@@ -321,9 +295,9 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
     @DisplayName("sequenceA() turns Just<Valid<A>> into Valid<Just<A>>")
     void sequenceJustValidToValidJust() {
       Kind<ValidatedKind.Witness<String>, Integer> validatedKind =
-          ValidatedKindHelper.VALIDATED.widen(Validated.valid(SUCCESS_VALUE));
+          ValidatedKindHelper.VALIDATED.widen(Validated.valid(DEFAULT_JUST_VALUE));
       Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, Integer>> input =
-          MAYBE.widen(Maybe.just(validatedKind));
+          justKind(validatedKind);
 
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> result =
           traverse.sequenceA(validatedApplicative, input);
@@ -332,9 +306,9 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
           ValidatedKindHelper.VALIDATED.narrow(result);
       assertThat(validated.isValid()).isTrue();
 
-      Maybe<Integer> maybe = MAYBE.narrow(validated.get());
+      Maybe<Integer> maybe = narrowToMaybe(validated.get());
       assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(SUCCESS_VALUE);
+      assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -343,7 +317,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
       Kind<ValidatedKind.Witness<String>, Integer> invalidKind =
           ValidatedKindHelper.VALIDATED.widen(Validated.invalid("Error"));
       Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, Integer>> input =
-          MAYBE.widen(Maybe.just(invalidKind));
+          justKind(invalidKind);
 
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> result =
           traverse.sequenceA(validatedApplicative, input);
@@ -358,7 +332,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
     @DisplayName("sequenceA() preserves Nothing values")
     void sequenceNothingPreservesNothing() {
       Kind<MaybeKind.Witness, Kind<ValidatedKind.Witness<String>, Integer>> nothingInput =
-          MAYBE.widen(Maybe.nothing());
+          nothingKind();
 
       Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, Integer>> result =
           traverse.sequenceA(validatedApplicative, nothingInput);
@@ -367,7 +341,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
           ValidatedKindHelper.VALIDATED.narrow(result);
       assertThat(validated.isValid()).isTrue();
 
-      Maybe<Integer> maybe = MAYBE.narrow(validated.get());
+      Maybe<Integer> maybe = narrowToMaybe(validated.get());
       assertThat(maybe.isNothing()).isTrue();
     }
   }
@@ -390,7 +364,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
         // Should complete quickly without calling expensive function
         Validated<String, Kind<MaybeKind.Witness, String>> validated =
             ValidatedKindHelper.VALIDATED.narrow(result);
-        assertThat(MAYBE.narrow(validated.get()).isNothing()).isTrue();
+        assertThat(narrowToMaybe(validated.get()).isNothing()).isTrue();
       }
     }
   }
@@ -415,7 +389,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
 
       Validated<String, Kind<MaybeKind.Witness, String>> validated =
           ValidatedKindHelper.VALIDATED.narrow(result);
-      assertThat(MAYBE.narrow(validated.get()).get()).isEqualTo("MAPPED:" + SUCCESS_VALUE);
+      assertThat(narrowToMaybe(validated.get()).get()).isEqualTo("MAPPED:" + DEFAULT_JUST_VALUE);
     }
 
     @Test
@@ -426,7 +400,7 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
       // First fold, then traverse the result
       String folded = traverse.foldMap(stringMonoid, i -> "fold:" + i, justKind);
 
-      Kind<MaybeKind.Witness, String> foldedKind = MAYBE.widen(Maybe.just(folded));
+      Kind<MaybeKind.Witness, String> foldedKind = justKind(folded);
 
       Function<String, Kind<ValidatedKind.Witness<String>, String>> traverseFunc =
           s -> ValidatedKindHelper.VALIDATED.widen(Validated.valid("traversed:" + s));
@@ -436,7 +410,8 @@ class MaybeTraverseTest extends TypeClassTestBase<MaybeKind.Witness, Integer, St
 
       Validated<String, Kind<MaybeKind.Witness, String>> validated =
           ValidatedKindHelper.VALIDATED.narrow(result);
-      assertThat(MAYBE.narrow(validated.get()).get()).isEqualTo("traversed:fold:" + SUCCESS_VALUE);
+      assertThat(narrowToMaybe(validated.get()).get())
+          .isEqualTo("traversed:fold:" + DEFAULT_JUST_VALUE);
     }
   }
 }

@@ -3,15 +3,13 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
-import org.higherkindedj.hkt.test.base.TypeClassTestBase;
-import org.higherkindedj.hkt.test.data.TestFunctions;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,31 +17,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherFunctor Complete Test Suite")
-class EitherFunctorTest extends TypeClassTestBase<EitherKind.Witness<String>, Integer, String> {
+class EitherFunctorTest extends EitherTestBase {
 
   private EitherFunctor<String> functor;
   private Functor<EitherKind.Witness<String>> functorTyped;
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind() {
-    return EITHER.widen(Either.right(42));
-  }
-
-  @Override
-  protected Kind<EitherKind.Witness<String>, Integer> createValidKind2() {
-    return EITHER.widen(Either.right(24));
-  }
-
-  @Override
-  protected Function<Integer, String> createValidMapper() {
-    return TestFunctions.INT_TO_STRING;
-  }
-
-  @Override
-  protected BiPredicate<Kind<EitherKind.Witness<String>, ?>, Kind<EitherKind.Witness<String>, ?>>
-      createEqualityChecker() {
-    return (k1, k2) -> EITHER.narrow(k1).equals(EITHER.narrow(k2));
-  }
 
   @BeforeEach
   void setUpFunctor() {
@@ -85,36 +62,30 @@ class EitherFunctorTest extends TypeClassTestBase<EitherKind.Witness<String>, In
     @Test
     @DisplayName("map() on Right applies function")
     void mapOnRightAppliesFunction() {
-      Kind<EitherKind.Witness<String>, String> result = functor.map(validMapper, validKind);
+      var result = functor.map(validMapper, validKind);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.isRight()).isTrue();
-      assertThat(either.getRight()).isEqualTo("42");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("42");
     }
 
     @Test
     @DisplayName("map() on Left passes through unchanged")
     void mapOnLeftPassesThrough() {
-      Kind<EitherKind.Witness<String>, Integer> leftKind = EITHER.widen(Either.left("E1"));
+      Kind<EitherKind.Witness<String>, Integer> leftKind = leftKind(TestErrorType.ERROR_1);
 
-      Kind<EitherKind.Witness<String>, String> result = functor.map(validMapper, leftKind);
+      var result = functor.map(validMapper, leftKind);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.isLeft()).isTrue();
-      assertThat(either.getLeft()).isEqualTo("E1");
+      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.ERROR_1.message());
     }
 
     @Test
     @DisplayName("map() with null values in Right")
     void mapWithNullValuesInRight() {
-      Kind<EitherKind.Witness<String>, Integer> rightNull = EITHER.widen(Either.right(null));
+      Kind<EitherKind.Witness<String>, Integer> rightNull = rightKind((Integer) null);
       Function<Integer, String> nullSafeMapper = i -> String.valueOf(i);
 
-      Kind<EitherKind.Witness<String>, String> result = functor.map(nullSafeMapper, rightNull);
+      var result = functor.map(nullSafeMapper, rightNull);
 
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.isRight()).isTrue();
-      assertThat(either.getRight()).isEqualTo("null");
+      assertThatEither(narrowToEither(result)).isRight().hasRight("null");
     }
   }
 
@@ -170,19 +141,17 @@ class EitherFunctorTest extends TypeClassTestBase<EitherKind.Witness<String>, In
     @Test
     @DisplayName("Test with different error types")
     void testWithDifferentErrorTypes() {
-      record ComplexError(String code, int severity) {}
+      EitherFunctor<ComplexTestError> complexFunctor = new EitherFunctor<>();
+      Functor<EitherKind.Witness<ComplexTestError>> complexFunctorTyped = complexFunctor;
+      var complexKind = EITHER.widen(Either.<ComplexTestError, Integer>right(100));
 
-      EitherFunctor<ComplexError> complexFunctor = new EitherFunctor<>();
-      Functor<EitherKind.Witness<ComplexError>> complexFunctorTyped = complexFunctor;
-      Kind<EitherKind.Witness<ComplexError>, Integer> complexKind = EITHER.widen(Either.right(100));
-
-      TypeClassTest.<EitherKind.Witness<ComplexError>>functor(EitherFunctor.class)
+      TypeClassTest.<EitherKind.Witness<ComplexTestError>>functor(EitherFunctor.class)
           .<Integer>instance(complexFunctorTyped)
           .<String>withKind(complexKind)
           .withMapper(validMapper)
           .testOperations();
 
-      TypeClassTest.<EitherKind.Witness<ComplexError>>functor(EitherFunctor.class)
+      TypeClassTest.<EitherKind.Witness<ComplexTestError>>functor(EitherFunctor.class)
           .<Integer>instance(complexFunctorTyped)
           .<String>withKind(complexKind)
           .withMapper(validMapper)
@@ -199,9 +168,9 @@ class EitherFunctorTest extends TypeClassTestBase<EitherKind.Witness<String>, In
             return "positive:" + i;
           };
 
-      Kind<EitherKind.Witness<String>, String> result = functor.map(complexMapper, validKind);
-      Either<String, String> either = EITHER.narrow(result);
-      assertThat(either.getRight()).isEqualTo("positive:42");
+      var result = functor.map(complexMapper, validKind);
+
+      assertThatEither(narrowToEither(result)).isRight().hasRight("positive:42");
     }
   }
 
@@ -212,10 +181,10 @@ class EitherFunctorTest extends TypeClassTestBase<EitherKind.Witness<String>, In
     @DisplayName("Test performance characteristics")
     void testPerformanceCharacteristics() {
       if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<EitherKind.Witness<String>, Integer> start = validKind;
+        var start = validKind;
 
         long startTime = System.nanoTime();
-        Kind<EitherKind.Witness<String>, Integer> result = start;
+        var result = start;
         for (int i = 0; i < 10000; i++) {
           result = functor.map(x -> x + 1, result);
         }

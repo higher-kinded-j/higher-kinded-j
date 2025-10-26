@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,7 +43,7 @@ class InvalidTest {
           .withValid(anotherInvalid) // Use another Invalid, not Valid
           .withMappers(Object::toString)
           .configureValidation()
-          .useInheritanceValidation()
+          .withValidatedInheritanceValidation()
           .withMapFrom(Invalid.class)
           .withFlatMapFrom(Invalid.class)
           .withIfValidFrom(Invalid.class)
@@ -76,9 +77,7 @@ class InvalidTest {
     void factoryMethodCreatesInvalidInstance() {
       Validated<String, Integer> validated = Validated.invalid("error");
 
-      assertThat(validated).isInstanceOf(Invalid.class);
-      assertThat(validated.isInvalid()).isTrue();
-      assertThat(validated.getError()).isEqualTo("error");
+      assertThatValidated(validated).isInvalid().hasError("error").hasErrorOfType(String.class);
     }
   }
 
@@ -95,7 +94,7 @@ class InvalidTest {
     @Test
     @DisplayName("IsInvalid returns true")
     void isInvalidReturnsTrue() {
-      assertThat(invalidInstance.isInvalid()).isTrue();
+      assertThatValidated(invalidInstance).isInvalid();
     }
 
     @Test
@@ -110,7 +109,7 @@ class InvalidTest {
     @Test
     @DisplayName("GetError returns the encapsulated error")
     void getErrorReturnsTheEncapsulatedError() {
-      assertThat(invalidInstance.getError()).isEqualTo("test-error");
+      assertThatValidated(invalidInstance).hasError("test-error");
     }
   }
 
@@ -249,8 +248,7 @@ class InvalidTest {
       Validated<String, String> result = invalidInstance.map(Object::toString);
 
       assertThat(result).isSameAs(invalidInstance);
-      assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("test-error");
+      assertThatValidated(result).isInvalid().hasError("test-error");
     }
 
     @Test
@@ -270,8 +268,7 @@ class InvalidTest {
           invalidInstance.flatMap(i -> Validated.valid(i.toString()));
 
       assertThat(result).isSameAs(invalidInstance);
-      assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("test-error");
+      assertThatValidated(result).isInvalid().hasError("test-error");
     }
 
     @Test
@@ -297,8 +294,7 @@ class InvalidTest {
 
       Validated<String, String> result = invalidInstance.ap(fnValidated, semigroup);
 
-      assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("function error,test-error");
+      assertThatValidated(result).isInvalid().hasError("function error,test-error");
     }
 
     @Test
@@ -310,8 +306,7 @@ class InvalidTest {
       Validated<String, String> result = invalidInstance.ap(fnValidated, semigroup);
 
       assertThat(result).isSameAs(invalidInstance);
-      assertThat(result.isInvalid()).isTrue();
-      assertThat(result.getError()).isEqualTo("test-error");
+      assertThatValidated(result).isInvalid().hasError("test-error");
     }
 
     @Test
@@ -380,8 +375,8 @@ class InvalidTest {
       Invalid<String, Integer> same = new Invalid<>("test-error");
       Invalid<String, Integer> different = new Invalid<>("other-error");
 
-      assertThat(invalidInstance).isEqualTo(same);
-      assertThat(invalidInstance).isNotEqualTo(different);
+      assertThatValidated(invalidInstance).isEqualTo(same);
+      assertThatValidated(invalidInstance).isNotEqualTo(different);
       assertThat(invalidInstance).isNotEqualTo(null);
       assertThat(invalidInstance).isNotEqualTo("not an Invalid");
     }

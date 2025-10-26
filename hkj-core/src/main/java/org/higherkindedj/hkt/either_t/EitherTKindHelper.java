@@ -33,10 +33,9 @@ public enum EitherTKindHelper implements EitherTConverterOps {
    * @throws NullPointerException if {@code eitherT} is null.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <F, L, R> Kind<EitherTKind.Witness<F, L>, R> widen(EitherT<F, L, R> eitherT) {
     Validation.kind().requireForWiden(eitherT, EITHER_T_CLASS);
-    return (Kind<EitherTKind.Witness<F, L>, R>) eitherT;
+    return eitherT;
   }
 
   /**
@@ -52,6 +51,7 @@ public enum EitherTKindHelper implements EitherTConverterOps {
    *     {@link EitherT} instance.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <F, L, R> EitherT<F, L, R> narrow(@Nullable Kind<EitherTKind.Witness<F, L>, R> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, EITHER_T_CLASS);
   }
