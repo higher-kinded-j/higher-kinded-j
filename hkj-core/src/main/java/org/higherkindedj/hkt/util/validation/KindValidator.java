@@ -45,8 +45,6 @@ public enum KindValidator {
       default -> {
         try {
           yield narrower.apply(kind);
-        } catch (ClassCastException e) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind), e);
         } catch (Exception e) {
           throw new KindUnwrapException(context.invalidTypeMessage(kind), e);
         }
@@ -116,7 +114,7 @@ public enum KindValidator {
       @Nullable Kind<F, A> kind,
       Class<T> targetType,
       Class<H> holderType,
-      Function<H, T> extractor) {
+      Function<? super H, ? extends T> extractor) {
 
     var context = new KindContext(targetType, "narrow");
 
@@ -267,8 +265,8 @@ public enum KindValidator {
 
     /** Enhanced error message that includes the actual type received. */
     public String invalidTypeMessage(Kind<?, ?> actualKind) {
-        return "Kind instance cannot be narrowed to %s (received: %s)"
-                .formatted(targetType.getSimpleName(), actualKind.getClass().getSimpleName());
+      return "Kind instance cannot be narrowed to %s (received: %s)"
+          .formatted(targetType.getSimpleName(), actualKind.getClass().getSimpleName());
     }
   }
 }

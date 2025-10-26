@@ -71,9 +71,7 @@ public enum EitherKindHelper implements EitherConverterOps {
             kind,
             EITHER_CLASS,
             EitherHolder.class,
-            holder -> {
-              // Safe cast due to type erasure and holder validation
-              return ((EitherHolder<L, R>) holder).either();
-            });
+            // Safe cast due to type erasure and holder validation
+            holder -> ((EitherHolder<L, R>) holder).either());
   }
 }

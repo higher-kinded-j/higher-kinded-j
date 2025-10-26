@@ -127,7 +127,9 @@ class MaybeTKindHelperTest {
 
       assertThatThrownBy(() -> MAYBE_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage("Kind instance cannot be narrowed to %s (received: %s)".formatted(MaybeT.class.getSimpleName(), OtherKind.class.getSimpleName()));
+          .hasMessage(
+              "Kind instance cannot be narrowed to %s (received: %s)"
+                  .formatted(MaybeT.class.getSimpleName(), OtherKind.class.getSimpleName()));
     }
   }
 
