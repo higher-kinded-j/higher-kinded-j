@@ -116,10 +116,10 @@ public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, 
     Validation.function().requireFunction(fnValidated, "fnValidated", VALID_CLASS, AP);
     Validation.coreType().requireValue(semigroup, "semigroup", VALID_CLASS, AP);
 
-    return fnValidated.fold(
-        Validated::invalid, // Propagate the error from the function
-        this::map // Apply the function to this value
-        );
+    return switch (fnValidated) {
+      case Invalid<E, Function<? super A, ? extends B>>(var error) -> Validated.invalid(error);
+      case Valid<E, Function<? super A, ? extends B>>(var function) -> this.map(function);
+    };
   }
 
   @Override

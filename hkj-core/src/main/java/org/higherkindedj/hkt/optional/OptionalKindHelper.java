@@ -58,6 +58,9 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    * Narrows a {@code Kind<OptionalKind.Witness, A>} back to its concrete {@link Optional}{@code<A>}
    * type. Implements {@link OptionalConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <A> The type of the value potentially held by the {@code Optional}.
    * @param kind The {@code Kind<OptionalKind.Witness, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Optional}{@code <A>} instance.
@@ -65,22 +68,13 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    *     null} or not an instance of {@code OptionalHolder}.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
-    return Validation.kind().narrow(kind, OPTIONAL_CLASS, this::extractOptional);
-  }
-
-  /**
-   * Internal extraction method that retrieves the Optional from the Kind.
-   *
-   * @param <A> The type of the value potentially held by the {@code Optional}.
-   * @param kind The {@code Kind} to extract from.
-   * @return The extracted {@code Optional}.
-   * @throws ClassCastException if the kind is not an {@code OptionalHolder}.
-   */
-  private <A> Optional<A> extractOptional(Kind<OptionalKind.Witness, A> kind) {
-    return switch (kind) {
-      case OptionalHolder<A> holder -> holder.optional();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
-    };
+    return Validation.kind()
+        .narrowWithPattern(
+            kind,
+            OPTIONAL_CLASS,
+            OptionalHolder.class,
+            holder -> ((OptionalHolder<A>) holder).optional());
   }
 }

@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -54,25 +53,27 @@ public enum EitherKindHelper implements EitherConverterOps {
    * Narrows a {@code Kind<EitherKind.Witness<L>, R>} back to its concrete {@code Either<L, R>}
    * type. Implements {@link EitherConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <L> The type of the "Left" value of the target {@code Either}.
    * @param <R> The type of the "Right" value of the target {@code Either}.
    * @param kind The {@code Kind<EitherKind.Witness<L>, R>} instance to narrow. May be {@code null}.
    * @return The underlying {@code Either<L, R>} instance. Never null.
-   * @throws KindUnwrapException if the input {@code kind} is {@code null} or not a representation
-   *     of an {@code Either<L,R>}.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null} or not a representation of an {@code Either<L,R>}.
    */
   @Override
   @SuppressWarnings("unchecked")
   public <L, R> Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind) {
-    return Validation.kind().narrow(kind, EITHER_CLASS, this::extractEither);
-  }
-
-  private <L, R> Either<L, R> extractEither(Kind<EitherKind.Witness<L>, R> kind) {
-    return switch (kind) {
-      case EitherHolder<L, R> holder -> holder.either();
-      default ->
-          throw new KindUnwrapException(
-              "Expected EitherHolder but got %s".formatted(kind.getClass().getName()));
-    };
+    return Validation.kind()
+        .narrowWithPattern(
+            kind,
+            EITHER_CLASS,
+            EitherHolder.class,
+            holder -> {
+              // Safe cast due to type erasure and holder validation
+              return ((EitherHolder<L, R>) holder).either();
+            });
   }
 }

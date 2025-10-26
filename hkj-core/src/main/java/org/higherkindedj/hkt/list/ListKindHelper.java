@@ -21,6 +21,15 @@ public enum ListKindHelper implements ListConverterOps {
   private static final Class<List> LIST_CLASS = List.class;
 
   /**
+   * Concrete implementation of {@link ListKind<A>}. This record wraps a {@code java.util.List<A>}
+   * to make it a {@code ListKind<A>}.
+   *
+   * @param <A> The element type of the list.
+   * @param list The list.
+   */
+  record ListHolder<A>(List<A> list) implements ListKind<A> {}
+
+  /**
    * Widens a standard {@link java.util.List} into its higher-kinded representation, {@code
    * Kind<ListKind.Witness, A>}.
    *
@@ -39,6 +48,9 @@ public enum ListKindHelper implements ListConverterOps {
    * Narrows a higher-kinded representation of a list, {@code Kind<ListKind.Witness, A>}, back to a
    * standard {@link java.util.List}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param kind The higher-kinded representation of the list. May be null.
    * @param <A> The element type of the list.
    * @return The underlying {@link java.util.List}. Never null.
@@ -46,8 +58,11 @@ public enum ListKindHelper implements ListConverterOps {
    *     ListKind representation.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
-    return Validation.kind().narrow(kind, LIST_CLASS, this::extractList);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind, LIST_CLASS, ListHolder.class, holder -> ((ListHolder<A>) holder).list());
   }
 
   /**
@@ -70,29 +85,7 @@ public enum ListKindHelper implements ListConverterOps {
   }
 
   /**
-   * Internal extraction method for narrowing operations.
-   *
-   * @throws ClassCastException if kind is not a ListKind (will be caught and wrapped by
-   *     KindValidator)
-   */
-  private <A> List<A> extractList(Kind<ListKind.Witness, A> kind) {
-    return switch (kind) {
-      case ListHolder<A> listKind -> listKind.list();
-      default -> throw new ClassCastException();
-    };
-  }
-
-  /**
-   * Concrete implementation of {@link ListKind<A>}. This record wraps a {@code java.util.List<A>}
-   * to make it a {@code ListKind<A>}.
-   *
-   * @param <A> The element type of the list.
-   * @param list The list.
-   */
-  record ListHolder<A>(List<A> list) implements ListKind<A> {}
-
-  /**
-   * Factory method to create a {@code ListKind<A>} (specifically a {@code ListView<A>}) from a
+   * Factory method to create a {@code ListKind<A>} (specifically a {@code ListHolder<A>}) from a
    * standard {@link java.util.List}.
    *
    * @param list The list to wrap.
@@ -100,6 +93,6 @@ public enum ListKindHelper implements ListConverterOps {
    * @return A new {@code ListKind<A>} instance.
    */
   public <A> ListKind<A> of(List<A> list) {
-    return new ListKindHelper.ListHolder<>(list);
+    return new ListHolder<>(list);
   }
 }

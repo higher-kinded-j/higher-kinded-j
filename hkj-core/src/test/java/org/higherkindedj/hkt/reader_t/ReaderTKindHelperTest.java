@@ -116,7 +116,7 @@ class ReaderTKindHelperTest {
 
       assertThatThrownBy(() -> READER_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage("Kind instance cannot be narrowed to " + ReaderT.class.getSimpleName());
+          .hasMessage("Kind instance cannot be narrowed to %s (received: %s)".formatted(ReaderT.class.getSimpleName(), OtherKind.class.getSimpleName()));
     }
   }
 

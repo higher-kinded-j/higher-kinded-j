@@ -49,6 +49,9 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * Narrows a {@link Kind}&lt;{@link MaybeKind.Witness}, A&gt; back to its concrete {@link
    * Maybe}&lt;A&gt; representation. Implements {@link MaybeConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <A> The element type of the {@code Maybe}.
    * @param kind The {@code Kind} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Maybe}&lt;A&gt; instance.
@@ -57,15 +60,11 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    *     internally contains a {@code null} {@link Maybe} instance.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
-    return Validation.kind().narrow(kind, MAYBE_CLASS, this::extractMaybe);
-  }
-
-  private <A> Maybe<A> extractMaybe(Kind<MaybeKind.Witness, A> kind) {
-    return switch (kind) {
-      case MaybeHolder<A> holder -> holder.maybe();
-      default -> throw new ClassCastException(); // Caught by KindValidator
-    };
+    return Validation.kind()
+        .narrowWithPattern(
+            kind, MAYBE_CLASS, MaybeHolder.class, holder -> ((MaybeHolder<A>) holder).maybe());
   }
 
   /**

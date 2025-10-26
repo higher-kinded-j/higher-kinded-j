@@ -121,7 +121,7 @@ class EitherTKindHelperTest {
 
       assertThatThrownBy(() -> EITHER_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage("Kind instance cannot be narrowed to EitherT");
+          .hasMessage("Kind instance cannot be narrowed to %s (received: %s)".formatted(EitherT.class.getSimpleName(), OtherKind.class.getSimpleName()));
     }
   }
 

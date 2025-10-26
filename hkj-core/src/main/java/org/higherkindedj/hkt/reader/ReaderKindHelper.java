@@ -64,6 +64,9 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    * Narrows a {@code Kind<ReaderKind.Witness<R>, A>} back to its concrete {@link Reader
    * Reader&lt;R, A&gt;} type. Implements {@link ReaderConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <R> The type of the environment required by the {@code Reader}.
    * @param <A> The type of the value produced by the {@code Reader}.
    * @param kind The {@code Kind<ReaderKind.Witness<R>, A>} instance to narrow. May be {@code null}.
@@ -73,8 +76,14 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    *     internal {@code reader} is non-null.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
-    return Validation.kind().narrow(kind, READER_CLASS, this::extractReader);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind,
+            READER_CLASS,
+            ReaderHolder.class,
+            holder -> ((ReaderHolder<R, A>) holder).reader());
   }
 
   /**
@@ -138,14 +147,5 @@ public enum ReaderKindHelper implements ReaderConverterOps {
     // Note: We don't validate environment as null here since Reader interface allows @NonNull R
     // but the specific nullability contract depends on the design of the environment type R
     return this.narrow(kind).run(environment);
-  }
-
-  /** Internal narrowing implementation that performs the actual type checking and extraction. */
-  @SuppressWarnings("unchecked")
-  private <R, A> Reader<R, A> extractReader(Kind<ReaderKind.Witness<R>, A> kind) {
-    return switch (kind) {
-      case ReaderKindHelper.ReaderHolder<?, ?> holder -> (Reader<R, A>) holder.reader();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
-    };
   }
 }

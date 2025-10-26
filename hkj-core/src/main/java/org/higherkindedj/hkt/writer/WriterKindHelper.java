@@ -58,6 +58,9 @@ public enum WriterKindHelper implements WriterConverterOps {
    * Narrows a {@code Kind<WriterKind.Witness<W>, A>} back to its concrete {@link Writer
    * Writer&lt;W, A&gt;} type.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
    * @param kind The {@code Kind<WriterKind.Witness<W>, A>} instance to narrow. May be {@code null}.
@@ -67,8 +70,14 @@ public enum WriterKindHelper implements WriterConverterOps {
    *     internal {@code writer} is non-null.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
-    return Validation.kind().narrow(kind, WRITER_CLASS, this::extractWriter);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind,
+            WRITER_CLASS,
+            WriterHolder.class,
+            holder -> ((WriterHolder<W, A>) holder).writer());
   }
 
   /**
@@ -148,18 +157,5 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   public <W, A> W exec(Kind<WriterKind.Witness<W>, A> kind) {
     return this.narrow(kind).exec();
-  }
-
-  /**
-   * Internal extraction method for narrowing operations.
-   *
-   * @throws ClassCastException if kind is not a WriterHolder (will be caught and wrapped by
-   *     KindValidator)
-   */
-  private <W, A> Writer<W, A> extractWriter(Kind<WriterKind.Witness<W>, A> kind) {
-    return switch (kind) {
-      case WriterHolder<W, A> holder -> holder.writer();
-      default -> throw new ClassCastException();
-    };
   }
 }
