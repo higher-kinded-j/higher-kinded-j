@@ -50,6 +50,9 @@ public enum LazyKindHelper implements LazyConverterOps {
    * Narrows a {@code Kind<LazyKind.Witness, A>} back to its concrete {@link Lazy<A>} type.
    * Implements {@link LazyConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <A> The result type of the {@code Lazy} computation.
    * @param kind The {@code Kind<LazyKind.Witness, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Lazy<A>} instance.
@@ -57,8 +60,11 @@ public enum LazyKindHelper implements LazyConverterOps {
    *     null}, or not an instance of the expected underlying holder type for Lazy.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind) {
-    return Validation.kind().narrow(kind, LAZY_CLASS, this::extractLazy);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind, LAZY_CLASS, LazyHolder.class, holder -> ((LazyHolder<A>) holder).lazyInstance());
   }
 
   /**
@@ -101,12 +107,5 @@ public enum LazyKindHelper implements LazyConverterOps {
    */
   public <A> @Nullable A force(Kind<LazyKind.Witness, A> kind) throws Throwable {
     return this.narrow(kind).force();
-  }
-
-  private <A> Lazy<A> extractLazy(Kind<LazyKind.Witness, A> kind) {
-    return switch (kind) {
-      case LazyHolder<A> holder -> holder.lazyInstance();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
-    };
   }
 }

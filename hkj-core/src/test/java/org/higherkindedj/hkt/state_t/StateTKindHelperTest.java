@@ -117,7 +117,9 @@ class StateTKindHelperTest {
 
       assertThatThrownBy(() -> STATE_T.narrow(kindToTest))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage("Kind instance cannot be narrowed to " + StateT.class.getSimpleName());
+          .hasMessage(
+              "Kind instance cannot be narrowed to %s (received: %s)"
+                  .formatted(StateT.class.getSimpleName(), OtherKind.class.getSimpleName()));
     }
   }
 

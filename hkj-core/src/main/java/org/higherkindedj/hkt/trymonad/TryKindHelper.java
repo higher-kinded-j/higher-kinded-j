@@ -50,6 +50,9 @@ public enum TryKindHelper implements TryConverterOps {
    * Narrows a {@link Kind}&lt;{@link TryKind.Witness}, A&gt; back to its concrete {@link
    * Try}&lt;A&gt; representation.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <A> The result type of the {@code Try} computation.
    * @param kind The {@code Kind<TryKind.Witness, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Try}&lt;A&gt; instance.
@@ -58,8 +61,11 @@ public enum TryKindHelper implements TryConverterOps {
    *     wrong type or invalid internal state).
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
-    return Validation.kind().narrow(kind, TRY_CLASS, this::extractTry);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind, TRY_CLASS, TryHolder.class, holder -> ((TryHolder<A>) holder).tryInstance());
   }
 
   /**
@@ -98,18 +104,5 @@ public enum TryKindHelper implements TryConverterOps {
    */
   public <A> Kind<TryKind.Witness, A> tryOf(Supplier<? extends A> supplier) {
     return this.widen(Try.of(supplier));
-  }
-
-  /**
-   * Internal extraction method for narrowing operations.
-   *
-   * @throws ClassCastException if kind is not a TryHolder (will be caught and wrapped by
-   *     KindValidator)
-   */
-  private <A> Try<A> extractTry(Kind<TryKind.Witness, A> kind) {
-    return switch (kind) {
-      case TryHolder<A> holder -> holder.tryInstance();
-      default -> throw new ClassCastException();
-    };
   }
 }

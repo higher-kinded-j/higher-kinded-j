@@ -63,6 +63,9 @@ public enum StateKindHelper implements StateConverterOps {
    * StateKind}&lt;S, A&gt;) back to its concrete {@link State}{@code <S, A>} type. Implements
    * {@link StateConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <S> The type of the state. This is often inferred.
    * @param <A> The type of the computed value associated with the {@code Kind}.
    * @param kind The {@code Kind<StateKind.Witness<S>, A>} instance to narrow. May be {@code null}.
@@ -74,7 +77,12 @@ public enum StateKindHelper implements StateConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
-    return Validation.kind().narrow(kind, STATE_CLASS, this::extractState);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind,
+            STATE_CLASS,
+            StateHolder.class,
+            holder -> ((StateHolder<S, A>) holder).stateInstance());
   }
 
   /**
@@ -188,14 +196,5 @@ public enum StateKindHelper implements StateConverterOps {
    */
   public <S, A> S execState(@Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
     return this.runState(kind, initialState).state();
-  }
-
-  /** Internal narrowing implementation that performs the actual type checking and extraction. */
-  @SuppressWarnings("unchecked")
-  private <S, A> State<S, A> extractState(Kind<StateKind.Witness<S>, A> kind) {
-    return switch (kind) {
-      case StateKindHelper.StateHolder<?, ?> holder -> (State<S, A>) holder.stateInstance();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
-    };
   }
 }

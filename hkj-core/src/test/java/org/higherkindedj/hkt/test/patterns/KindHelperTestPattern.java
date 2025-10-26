@@ -71,16 +71,11 @@ public final class KindHelperTestPattern {
               assertThat(message)
                   .as("Error message should indicate invalid Kind type")
                   .satisfiesAnyOf(
-                      // New format from KindValidator.narrow
                       msg ->
                           assertThat(msg)
                               .contains(
                                   "Kind instance cannot be narrowed to "
-                                      + targetType.getSimpleName()),
-                      // Alternative format
-                      msg ->
-                          assertThat(msg)
-                              .contains("Expected " + targetType.getSimpleName() + "Holder"));
+                                      + targetType.getSimpleName()));
             });
   }
 

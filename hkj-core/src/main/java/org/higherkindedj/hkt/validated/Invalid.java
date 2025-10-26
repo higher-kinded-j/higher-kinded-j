@@ -115,11 +115,13 @@ public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E
     Validation.function().requireNonNullResult(fnValidated, "fnValidated", VALIDATED_CLASS, AP);
     Validation.coreType().requireValue(semigroup, "semigroup", Invalid.class, AP);
 
-    if (fnValidated.isInvalid()) {
-      E combinedError = semigroup.combine(fnValidated.getError(), this.error);
-      return Validated.invalid(combinedError);
-    }
-    return (Validated<E, B>) this;
+    return switch (fnValidated) {
+      case Invalid<E, Function<? super A, ? extends B>>(var otherError) -> {
+        E combinedError = semigroup.combine(otherError, this.error);
+        yield Validated.invalid(combinedError);
+      }
+      case Valid<E, Function<? super A, ? extends B>> ignored -> (Validated<E, B>) this;
+    };
   }
 
   @Override

@@ -51,6 +51,9 @@ public enum IOKindHelper implements IOConverterOps {
    * Narrows a {@code Kind<IOKind.Witness, A>} back to its concrete {@link IO<A>} type. Implements
    * {@link IOConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <A> The result type of the {@code IO} computation.
    * @param kind The {@code Kind<IOKind.Witness, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link IO<A>} instance.
@@ -58,8 +61,11 @@ public enum IOKindHelper implements IOConverterOps {
    *     null}, or not an instance of the expected underlying holder type for IO.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind) {
-    return Validation.kind().narrow(kind, IO_CLASS, this::extractIO);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind, IO_CLASS, IOHolder.class, holder -> ((IOHolder<A>) holder).ioInstance());
   }
 
   /**
@@ -87,12 +93,5 @@ public enum IOKindHelper implements IOConverterOps {
    */
   public <A> A unsafeRunSync(Kind<IOKind.Witness, A> kind) {
     return this.narrow(kind).unsafeRunSync();
-  }
-
-  private <A> IO<A> extractIO(Kind<IOKind.Witness, A> kind) {
-    return switch (kind) {
-      case IOHolder<A> holder -> holder.ioInstance();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
-    };
   }
 }

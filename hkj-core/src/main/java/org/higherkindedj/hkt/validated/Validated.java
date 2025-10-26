@@ -144,23 +144,24 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
 
   /**
    * Applies one of two functions depending on whether this instance is {@link Invalid} or {@link
-   * Valid}.
+   * Valid}, using modern switch expression pattern matching.
    *
    * @param invalidMapper The non-null function to apply if this is an {@link Invalid}.
    * @param validMapper The non-null function to apply if this is a {@link Valid}.
    * @param <T> The target type to which both paths will be mapped.
    * @return The result of applying the appropriate mapping function.
+   * @throws NullPointerException if either {@code invalidMapper} or {@code validMapper} is null.
    */
   default <T> T fold(
       Function<? super E, ? extends T> invalidMapper,
       Function<? super A, ? extends T> validMapper) {
     Validation.function().requireFunction(invalidMapper, "invalidMapper", VALIDATED_CLASS, FOLD);
     Validation.function().requireFunction(validMapper, "validMapper", VALIDATED_CLASS, FOLD);
-    if (isInvalid()) {
-      return invalidMapper.apply(getError());
-    } else {
-      return validMapper.apply(get());
-    }
+
+    return switch (this) {
+      case Invalid<E, A>(var error) -> invalidMapper.apply(error);
+      case Valid<E, A>(var value) -> validMapper.apply(value);
+    };
   }
 
   /**

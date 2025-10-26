@@ -282,6 +282,9 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
    * Performs one of two actions depending on whether this is a {@link Success} or a {@link
    * Failure}, using pattern matching. This is primarily for side effects.
    *
+   * <p>Note: Any exceptions thrown by the consumer actions are caught and logged to avoid
+   * propagating errors from side-effect operations.
+   *
    * @param successAction The non-null action to perform if this is a {@link Success}.
    * @param failureAction The non-null action to perform if this is a {@link Failure}.
    * @throws NullPointerException if either {@code successAction} or {@code failureAction} is null.
@@ -290,21 +293,14 @@ public sealed interface Try<T> permits Try.Success, Try.Failure {
     Validation.function().requireFunction(successAction, "successAction", TRY_CLASS, MATCH);
     Validation.function().requireFunction(failureAction, "failureAction", TRY_CLASS, MATCH);
 
-    switch (this) {
-      case Success<T>(var value) -> {
-        try {
-          successAction.accept(value);
-        } catch (Throwable t) {
-          System.err.println("Exception in Try.Success successAction: " + t.getMessage());
-        }
+    try {
+      switch (this) {
+        case Success<T>(var value) -> successAction.accept(value);
+        case Failure<T>(var cause) -> failureAction.accept(cause);
       }
-      case Failure<T>(var cause) -> {
-        try {
-          failureAction.accept(cause);
-        } catch (Throwable t) {
-          System.err.println("Exception in Try.Failure failureAction: " + t.getMessage());
-        }
-      }
+    } catch (Throwable t) {
+      // Catch any exceptions from consumer actions to prevent propagation from side effects
+      System.err.println("Exception in Try.match() consumer: " + t.getMessage());
     }
   }
 

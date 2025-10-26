@@ -21,6 +21,9 @@ public enum KindValidator {
   /**
    * Validates and narrows a Kind with rich type context using a custom narrower function.
    *
+   * <p>This method uses modern switch expressions to handle null and type checking in a consistent
+   * manner. The narrower function should use pattern matching where appropriate.
+   *
    * @param kind The Kind to narrow, may be null
    * @param targetType The target type class for type-safe error messaging
    * @param narrower Function to perform the actual narrowing
@@ -37,20 +40,23 @@ public enum KindValidator {
 
     var context = new KindContext(targetType, "narrow");
 
-    if (kind == null) {
-      throw new KindUnwrapException(context.nullParameterMessage());
-    }
-
-    try {
-      return narrower.apply(kind);
-    } catch (Exception e) {
-      throw new KindUnwrapException(context.invalidTypeMessage(), e);
-    }
+    return switch (kind) {
+      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      default -> {
+        try {
+          yield narrower.apply(kind);
+        } catch (Exception e) {
+          throw new KindUnwrapException(context.invalidTypeMessage(kind), e);
+        }
+      }
+    };
   }
 
   /**
-   * Validates and narrows using instanceof type checking. This is the preferred method when you
-   * don't need custom narrowing logic.
+   * Validates and narrows using instanceof type checking. This is the preferred method for types
+   * that directly implement the Kind interface (e.g., transformers, Id, Validated).
+   *
+   * <p>This method uses modern switch expressions with pattern matching for cleaner code.
    *
    * @param kind The Kind to narrow, may be null
    * @param targetType The target type class
@@ -64,15 +70,63 @@ public enum KindValidator {
 
     var context = new KindContext(targetType, "narrow");
 
-    if (kind == null) {
-      throw new KindUnwrapException(context.nullParameterMessage());
-    }
+    return switch (kind) {
+      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      default -> {
+        if (!targetType.isInstance(kind)) {
+          throw new KindUnwrapException(context.invalidTypeMessage(kind));
+        }
+        yield targetType.cast(kind);
+      }
+    };
+  }
 
-    if (!targetType.isInstance(kind)) {
-      throw new KindUnwrapException(context.invalidTypeMessage());
-    }
+  /**
+   * Specialized narrowing for holder-based Kind implementations using pattern matching. This
+   * provides a consistent approach for types that wrap their concrete implementation in an internal
+   * holder record.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * public <A> SomeType<A> narrow(@Nullable Kind<...> kind) {
+   *   return Validation.kind().narrowWithPattern(
+   *     kind,
+   *     SOME_CLASS,
+   *     SomeHolder.class,
+   *     holder -> holder.value()
+   *   );
+   * }
+   * }</pre>
+   *
+   * @param kind The Kind to narrow, may be null
+   * @param targetType The target type class for error messaging
+   * @param holderType The holder type class for pattern matching
+   * @param extractor Function to extract the value from the holder
+   * @param <F> The witness type of the Kind
+   * @param <A> The value type of the Kind
+   * @param <T> The target type to narrow to
+   * @param <H> The holder type
+   * @return The narrowed result
+   * @throws KindUnwrapException if kind is null or not of the expected holder type
+   */
+  public <F, A, T, H extends Kind<F, A>> T narrowWithPattern(
+      @Nullable Kind<F, A> kind,
+      Class<T> targetType,
+      Class<H> holderType,
+      Function<? super H, ? extends T> extractor) {
 
-    return targetType.cast(kind);
+    var context = new KindContext(targetType, "narrow");
+
+    return switch (kind) {
+      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      default -> {
+        if (!holderType.isInstance(kind)) {
+          throw new KindUnwrapException(context.invalidTypeMessage(kind));
+        }
+        yield extractor.apply(holderType.cast(kind));
+      }
+    };
   }
 
   /**
@@ -187,6 +241,9 @@ public enum KindValidator {
     return Objects.requireNonNull(kind, "Kind for " + contextMessage + " cannot be null");
   }
 
+  /**
+   * Context record for Kind validation operations. Provides consistent error message generation.
+   */
   public record KindContext(Class<?> targetType, String operation) {
 
     public KindContext {
@@ -204,6 +261,12 @@ public enum KindValidator {
 
     public String invalidTypeMessage() {
       return "Kind instance cannot be narrowed to " + targetType.getSimpleName();
+    }
+
+    /** Enhanced error message that includes the actual type received. */
+    public String invalidTypeMessage(Kind<?, ?> actualKind) {
+      return "Kind instance cannot be narrowed to %s (received: %s)"
+          .formatted(targetType.getSimpleName(), actualKind.getClass().getSimpleName());
     }
   }
 }

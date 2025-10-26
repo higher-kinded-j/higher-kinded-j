@@ -54,6 +54,9 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    * Narrows a {@code Kind<CompletableFutureKind.Witness, A>} back to its concrete {@link
    * CompletableFuture<A>} type. Implements {@link CompletableFutureConverterOps#narrow}.
    *
+   * <p>This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
    * @param <A> The result type of the {@code CompletableFuture}.
    * @param kind The {@code Kind<CompletableFutureKind.Witness, A>} instance to narrow. May be
    *     {@code null}.
@@ -63,8 +66,14 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    *     contains a {@code null} future.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
-    return Validation.kind().narrow(kind, COMPLETABLE_FUTURE_CLASS, this::extractCompletableFuture);
+    return Validation.kind()
+        .narrowWithPattern(
+            kind,
+            COMPLETABLE_FUTURE_CLASS,
+            CompletableFutureHolder.class,
+            holder -> ((CompletableFutureHolder<A>) holder).future());
   }
 
   /**
@@ -96,13 +105,5 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
       }
       throw e; // otherwise, throw the original CompletionException
     }
-  }
-
-  private <A> CompletableFuture<A> extractCompletableFuture(
-      Kind<CompletableFutureKind.Witness, A> kind) {
-    return switch (kind) {
-      case CompletableFutureHolder<A> holder -> holder.future();
-      default -> throw new ClassCastException(); // Will be caught and wrapped by KindValidator
-    };
   }
 }
