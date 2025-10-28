@@ -33,14 +33,14 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see Monad
  * @see ReaderApplicative
  */
-public final class ReaderMonad<R> extends ReaderApplicative<R>
+public class ReaderMonad<R> extends ReaderApplicative<R>
     implements Monad<ReaderKind.Witness<R>> {
 
   private static final Class<ReaderMonad> READER_MONAD_CLASS = ReaderMonad.class;
 
   private static final ReaderMonad<?> INSTANCE = new ReaderMonad<>();
 
-  private ReaderMonad() {
+  protected ReaderMonad() {
     // Private constructor to enforce singleton-per-type pattern
   }
 
