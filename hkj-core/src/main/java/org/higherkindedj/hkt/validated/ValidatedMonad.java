@@ -33,13 +33,13 @@ import org.higherkindedj.hkt.util.validation.*;
  * @param <E> The type of the error value. For ValidatedMonad, this error type E is expected to be
  *     non-null.
  */
-public final class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E> {
+public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E> {
 
   private Class<ValidatedMonad> VALIDATED_MONAD_CLASS = ValidatedMonad.class;
 
   private final Semigroup<E> semigroup;
 
-  private ValidatedMonad(Semigroup<E> semigroup) {
+  protected ValidatedMonad(Semigroup<E> semigroup) {
     this.semigroup =
         Validation.coreType().requireValue(semigroup, VALIDATED_MONAD_CLASS, CONSTRUCTION);
   }

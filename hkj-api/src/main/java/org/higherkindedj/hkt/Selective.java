@@ -79,7 +79,6 @@ import org.jspecify.annotations.NullMarked;
  *     context (e.g., {@code OptionalKind.Witness}, {@code ListKind.Witness}).
  * @see Applicative
  * @see Monad
-
  * @see Kind
  */
 @NullMarked
@@ -159,16 +158,13 @@ public interface Selective<F> extends Applicative<F> {
                         choice ->
                                 choice.isLeft()
                                         ? new SimpleChoice<>(true, choice.getLeft(), null)
-                                        : new SimpleChoice<>(false, null, new SimpleChoice<>(true, choice.getRight(), null)),
+                                        : new SimpleChoice<>(
+                                        false, null, new SimpleChoice<>(true, choice.getRight(), null)),
                         fab);
 
         // Step 2: Create a function that handles A -> Choice<B, C> by applying fl
         Kind<F, Function<A, Choice<B, C>>> leftHandler =
-                map(
-                        f ->
-                                (Function<A, Choice<B, C>>)
-                                        a -> new SimpleChoice<>(false, null, f.apply(a)),
-                        fl);
+                map(f -> (Function<A, Choice<B, C>>) a -> new SimpleChoice<>(false, null, f.apply(a)), fl);
 
         // Step 3: First select - resolves the outer choice
         Kind<F, Choice<B, C>> intermediate = select(transformed, leftHandler);
@@ -215,18 +211,23 @@ public interface Selective<F> extends Applicative<F> {
         }
 
         @Override
-        public <T> T fold(Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
+        public <T> T fold(
+                Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
             return isLeft ? leftMapper.apply(left) : rightMapper.apply(right);
         }
 
         @Override
         public <R2> Choice<L, R2> map(Function<? super R, ? extends R2> mapper) {
-            return isLeft ? new SimpleChoice<>(true, left, null) : new SimpleChoice<>(false, null, mapper.apply(right));
+            return isLeft
+                    ? new SimpleChoice<>(true, left, null)
+                    : new SimpleChoice<>(false, null, mapper.apply(right));
         }
 
         @Override
         public <L2> Choice<L2, R> mapLeft(Function<? super L, ? extends L2> mapper) {
-            return isLeft ? new SimpleChoice<>(true, mapper.apply(left), null) : new SimpleChoice<>(false, null, right);
+            return isLeft
+                    ? new SimpleChoice<>(true, mapper.apply(left), null)
+                    : new SimpleChoice<>(false, null, right);
         }
 
         @Override
@@ -396,16 +397,24 @@ public interface Selective<F> extends Applicative<F> {
      */
     private <E, A> Kind<F, Choice<E, A>> selectOrElse(
             Kind<F, Choice<E, A>> first, Kind<F, Choice<E, A>> second) {
-        // If first is Right(a), return it
-        // If first is Left(e), evaluate and return second
-        Kind<F, Function<E, Choice<E, A>>> getSecond =
+        // Transform first: Choice<E, A> -> Choice<E, Choice<E, A>>
+        // If first is Right(a), we want Right(Right(a))
+        // If first is Left(e), we want Left(e) which will trigger the function
+        Kind<F, Choice<E, Choice<E, A>>> transformed =
                 map(
-                        choiceA ->
-                                (Function<E, Choice<E, A>>)
-                                        e -> choiceA, // Return the second choice regardless of error value
-                        second);
+                        choice ->
+                                choice.isRight()
+                                        ? new SimpleChoice<E, Choice<E, A>>(
+                                        false, null, new SimpleChoice<>(false, null, choice.getRight()))
+                                        : new SimpleChoice<E, Choice<E, A>>(true, choice.getLeft(), null),
+                        first);
 
-        return select(first, getSecond);
+        // Create a function that returns the second choice when applied
+        Kind<F, Function<E, Choice<E, A>>> getSecond =
+                map(choiceA -> (Function<E, Choice<E, A>>) e -> choiceA, second);
+
+        // Select with the transformed choice
+        return select(transformed, getSecond);
     }
 
     /**
@@ -430,7 +439,7 @@ public interface Selective<F> extends Applicative<F> {
      * @param initial A non-null {@link Kind Kind&lt;F, Choice&lt;E, A&gt;&gt;} representing the
      *     initial value.
      * @param functions A non-null {@link java.util.List} of {@link Kind Kind&lt;F, Function&lt;A,
-     *     Choice&lt;E, A&gt;&gt;&gt;} representing the functions to apply in sequence.
+     *     Choice&lt;E, A&gt;&gt;} representing the functions to apply in sequence.
      * @param <E> The error type.
      * @param <A> The value type.
      * @return A non-null {@link Kind Kind&lt;F, Choice&lt;E, A&gt;&gt;} representing the result after
@@ -443,8 +452,21 @@ public interface Selective<F> extends Applicative<F> {
 
         Kind<F, Choice<E, A>> result = initial;
         for (Kind<F, Function<A, Choice<E, A>>> func : functions) {
-            // Use select to apply the function only if the current result is successful
-            result = select(result, func);
+            // Transform Choice<E, A> -> Choice<A, Choice<E, A>>
+            // If Right(a), transform to Left(a) so the function gets applied
+            // If Left(e), transform to Right(Left(e)) to short-circuit
+            Kind<F, Choice<A, Choice<E, A>>> transformed =
+                    map(
+                            choice ->
+                                    choice.isRight()
+                                            ? new SimpleChoice<A, Choice<E, A>>(true, choice.getRight(), null)
+                                            : new SimpleChoice<A, Choice<E, A>>(
+                                            false, null, new SimpleChoice<E, A>(true, choice.getLeft(), null)),
+                            result);
+
+            // Apply select with the transformed choice and the function
+            Kind<F, Choice<E, A>> applied = select(transformed, func);
+            result = applied;
         }
         return result;
     }

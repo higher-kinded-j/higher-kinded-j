@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
  * the Nothing state. Provides Functor and Monad operations for the Maybe type within the HKT
  * Higher-Kinded-J.
  */
-public final class MaybeMonad extends MaybeFunctor
+public class MaybeMonad extends MaybeFunctor
     implements MonadError<MaybeKind.Witness, Unit>, MonadZero<MaybeKind.Witness> {
 
   /** Singleton instance of {@code MaybeMonad}. */
@@ -27,7 +27,7 @@ public final class MaybeMonad extends MaybeFunctor
   private static final Class<MaybeMonad> MAYBE_MONAD_CLASS = MaybeMonad.class;
 
   /** Private constructor to enforce the singleton pattern. */
-  private MaybeMonad() {
+  protected MaybeMonad() {
     super();
   }
 
