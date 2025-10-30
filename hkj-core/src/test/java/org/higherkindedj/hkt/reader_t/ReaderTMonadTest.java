@@ -21,7 +21,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderTMonad Complete Test Suite (Outer: OptionalKind.Witness, Environment: String)")
+@DisplayName("ReaderTMonad Complete Test Suite ")
+// (Outer: OptionalKind.Witness, Environment: String)
 class ReaderTMonadTest
     extends TypeClassTestBase<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer, String> {
 

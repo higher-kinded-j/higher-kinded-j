@@ -18,7 +18,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderTKindHelper Tests (F=OptionalKind.Witness, R=String)")
+@DisplayName("ReaderTKindHelper Tests ")
+// (F=OptionalKind.Witness, R=String)
 class ReaderTKindHelperTest {
 
   private static final String TYPE_NAME = "ReaderT";

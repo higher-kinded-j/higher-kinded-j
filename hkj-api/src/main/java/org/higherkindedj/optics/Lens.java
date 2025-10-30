@@ -4,9 +4,11 @@ package org.higherkindedj.optics;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 
 /**
  * A **Lens** is an optic that provides a focused view into a part of a data structure. Think of it
@@ -157,5 +159,85 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
         return functor.map(a -> this.set(a, source), fa);
       }
     };
+  }
+
+  /**
+   * Conditionally set a new value based on a predicate. Returns the original structure if the
+   * predicate is false.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Only update email if it's valid
+   * Kind<F, User> result = emailLens.setIf(
+   *   email -> email.contains("@"),
+   *   "newemail@example.com",
+   *   user,
+   *   selective
+   * );
+   * }</pre>
+   */
+  default <F> Kind<F, S> setIf(
+      Predicate<? super A> predicate, A newValue, S source, Selective<F> selective) {
+    return selective.ifS(
+        selective.of(predicate.test(newValue)),
+        selective.of(set(newValue, source)),
+        selective.of(source));
+  }
+
+  /**
+   * Modify the value only when the current value meets a condition. Useful for conditional field
+   * updates based on current state.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Only increment counter if below threshold
+   * Kind<F, Stats> result = counterLens.modifyWhen(
+   *   count -> count < 100,
+   *   count -> count + 1,
+   *   stats,
+   *   selective
+   * );
+   * }</pre>
+   */
+  default <F> Kind<F, S> modifyWhen(
+      Predicate<? super A> shouldModify,
+      Function<A, A> modifier,
+      S source,
+      Selective<F> selective) {
+    A current = get(source);
+    return selective.whenS(
+        selective.of(shouldModify.test(current)),
+        selective.of(set(modifier.apply(current), source)));
+  }
+
+  /**
+   * Branch between two modification strategies based on current value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Different processing for positive/negative values
+   * Kind<F, Account> result = balanceLens.modifyBranch(
+   *   balance -> balance > 0,
+   *   balance -> applyInterest(balance),
+   *   balance -> applyOverdraftFee(balance),
+   *   account,
+   *   selective
+   * );
+   * }</pre>
+   */
+  default <F> Kind<F, S> modifyBranch(
+      Predicate<? super A> predicate,
+      Function<A, A> thenModifier,
+      Function<A, A> elseModifier,
+      S source,
+      Selective<F> selective) {
+    A current = get(source);
+    return selective.ifS(
+        selective.of(predicate.test(current)),
+        selective.of(set(thenModifier.apply(current), source)),
+        selective.of(set(elseModifier.apply(current), source)));
   }
 }

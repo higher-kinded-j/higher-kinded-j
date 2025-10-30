@@ -3,8 +3,10 @@
 package org.higherkindedj.optics;
 
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 
 /**
  * A **Traversal** is a versatile optic that can focus on zero or more parts 'A' within a larger
@@ -72,5 +74,113 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
         return composedOptic.modifyF(f, s, app);
       }
     };
+  }
+
+  /**
+   * Conditionally modify targets based on a predicate. Only applicable when using a Selective
+   * instance.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Only validate expensive fields if basic checks pass
+   * Kind<F, Form> result = traversal.modifyIf(
+   *   field -> field.length() > 0,        // Cheap check
+   *   field -> validateInDatabase(field),  // Expensive check (skipped if predicate fails)
+   *   form,
+   *   selective
+   * );
+   * }</pre>
+   *
+   * @param predicate Predicate to test each element
+   * @param f Function to apply to elements where predicate is true
+   * @param source The source structure
+   * @param selective The Selective instance
+   * @param <F> The effect type
+   * @return The modified structure wrapped in the effect
+   */
+  default <F> Kind<F, S> modifyIf(
+      Predicate<? super A> predicate, Function<A, Kind<F, A>> f, S source, Selective<F> selective) {
+    Function<A, Kind<F, A>> conditionalF =
+        a -> {
+          if (predicate.test(a)) {
+            return f.apply(a);
+          } else {
+            return selective.of(a);
+          }
+        };
+
+    return this.modifyF(conditionalF, source, selective);
+  }
+
+  /**
+   * Branch between two modification strategies based on a predicate. Both branches are visible
+   * upfront, allowing selective implementations to potentially execute them in parallel.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Different validation for different user types
+   * Kind<F, Users> result = traversal.branch(
+   *   User::isAdmin,
+   *   user -> strictAdminValidation(user),
+   *   user -> basicUserValidation(user),
+   *   users,
+   *   selective
+   * );
+   * }</pre>
+   *
+   * @param predicate Predicate to determine which branch to take
+   * @param thenBranch Function to apply when predicate is true
+   * @param elseBranch Function to apply when predicate is false
+   * @param source The source structure
+   * @param selective The Selective instance
+   * @param <F> The effect type
+   * @return The modified structure wrapped in the effect
+   */
+  default <F> Kind<F, S> branch(
+      Predicate<? super A> predicate,
+      Function<A, Kind<F, A>> thenBranch,
+      Function<A, Kind<F, A>> elseBranch,
+      S source,
+      Selective<F> selective) {
+    return this.modifyF(
+        a ->
+            selective.ifS(
+                selective.of(predicate.test(a)), thenBranch.apply(a), elseBranch.apply(a)),
+        source,
+        selective);
+  }
+
+  /**
+   * Apply a function only when a condition is met, otherwise leave unchanged. This is useful for
+   * performing effects only on elements that need processing.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Only update stale cache entries
+   * Kind<F, Cache> result = traversal.modifyWhen(
+   *   CacheEntry::isStale,
+   *   entry -> refreshFromSource(entry),
+   *   cache,
+   *   selective
+   * );
+   * }</pre>
+   *
+   * @param shouldModify Predicate to test if modification is needed
+   * @param f Function to apply when modification is needed
+   * @param source The source structure
+   * @param selective The Selective instance
+   * @param <F> The effect type
+   * @return The modified structure wrapped in the effect
+   */
+  default <F> Kind<F, S> modifyWhen(
+      Predicate<? super A> shouldModify,
+      Function<A, Kind<F, A>> f,
+      S source,
+      Selective<F> selective) {
+    return this.modifyF(
+        a -> selective.whenS(selective.of(shouldModify.test(a)), f.apply(a)), source, selective);
   }
 }

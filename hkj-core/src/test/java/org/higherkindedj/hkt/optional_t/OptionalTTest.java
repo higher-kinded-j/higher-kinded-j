@@ -16,7 +16,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("OptionalT Class Tests (Outer: OptionalKind.Witness)")
+@DisplayName("OptionalT Class Tests ")
+// (Outer: OptionalKind.Witness)
 class OptionalTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;

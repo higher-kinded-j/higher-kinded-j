@@ -17,7 +17,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ReaderT Core Type Tests (Outer: OptionalKind.Witness, Environment: String)")
+@DisplayName("ReaderT Core Type Tests ")
+// (Outer: OptionalKind.Witness, Environment: String)
 class ReaderTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;
