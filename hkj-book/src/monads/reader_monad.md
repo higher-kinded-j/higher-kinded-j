@@ -19,7 +19,7 @@ The **Reader monad** is a functional programming pattern primarily used for mana
 
 * Configuration settings (database URLs, API keys, feature flags).
 * Shared resources (thread pools, connection managers).
-* User context (user ID, permissions).
+* User context (userLogin ID, permissions).
 
 Instead of explicitly passing this environment object as an argument to every single function (which can become cumbersome and clutter signatures), the Reader monad encapsulates computations that *depend* on such an environment.
 

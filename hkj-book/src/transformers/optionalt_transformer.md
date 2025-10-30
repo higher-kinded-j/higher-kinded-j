@@ -174,7 +174,7 @@ public void createExample() {
 
 - [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional_t/OptionalTExample.java)
 
-Consider a scenario where you need to fetch a user, then their profile, and finally their preferences. Each step is asynchronous (`CompletableFuture`) and might return an empty `Optional` if the data is not found. `OptionalT` helps manage this composition cleanly.
+Consider a scenario where you need to fetch a userLogin, then their profile, and finally their preferences. Each step is asynchronous (`CompletableFuture`) and might return an empty `Optional` if the data is not found. `OptionalT` helps manage this composition cleanly.
 
 ```java
 public static class OptionalTAsyncExample {
@@ -187,7 +187,7 @@ public static class OptionalTAsyncExample {
 
     public static Kind<CompletableFutureKind.Witness, Optional<User>> fetchUserAsync(String userId) {
       return FUTURE.widen(CompletableFuture.supplyAsync(() -> {
-        System.out.println("Fetching user " + userId + " on " + Thread.currentThread().getName());
+        System.out.println("Fetching userLogin " + userId + " on " + Thread.currentThread().getName());
         try {
           TimeUnit.MILLISECONDS.sleep(50);
         } catch (InterruptedException e) { /* ignore */ }
@@ -211,7 +211,7 @@ public static class OptionalTAsyncExample {
         try {
           TimeUnit.MILLISECONDS.sleep(50);
         } catch (InterruptedException e) { /* ignore */ }
-        // Simulate preferences sometimes missing even for a valid user
+        // Simulate preferences sometimes missing even for a valid userLogin
         return "user1".equals(userId) && Math.random() > 0.3 ? Optional.of(new UserPreferences(userId, "dark")) : Optional.empty();
       }, executor));
     }
@@ -220,15 +220,15 @@ public static class OptionalTAsyncExample {
 
     // --- Workflow using OptionalT ---
     public static OptionalT<CompletableFutureKind.Witness, UserPreferences> getFullUserPreferences(String userId) {
-      // Start by fetching the user, lifting into OptionalT
+      // Start by fetching the userLogin, lifting into OptionalT
       OptionalT<CompletableFutureKind.Witness, User> userOT =
           OptionalT.fromKind(fetchUserAsync(userId));
 
-      // If user exists, fetch profile
+      // If userLogin exists, fetch profile
       OptionalT<CompletableFutureKind.Witness, UserProfile> profileOT =
           OPTIONAL_T.narrow(
               optionalTFutureMonad.flatMap(
-                  user -> OPTIONAL_T.widen(OptionalT.fromKind(fetchProfileAsync(user.id()))),
+                  userLogin -> OPTIONAL_T.widen(OptionalT.fromKind(fetchProfileAsync(userLogin.id()))),
                   OPTIONAL_T.widen(userOT)
               )
           );
@@ -262,7 +262,7 @@ public static class OptionalTAsyncExample {
     }
 
     public static void main(String[] args) {
-      System.out.println("--- Attempting to get preferences for existing user (user1) ---");
+      System.out.println("--- Attempting to get preferences for existing userLogin (user1) ---");
       OptionalT<CompletableFutureKind.Witness, UserPreferences> resultUser1OT = getFullUserPreferences("user1");
       CompletableFuture<Optional<UserPreferences>> future1 =
           FUTURE.narrow(resultUser1OT.value());
@@ -276,7 +276,7 @@ public static class OptionalTAsyncExample {
       });
 
 
-      System.out.println("\n--- Attempting to get preferences for non-existing user (user2) ---");
+      System.out.println("\n--- Attempting to get preferences for non-existing userLogin (user2) ---");
       OptionalT<CompletableFutureKind.Witness, UserPreferences> resultUser2OT = getFullUserPreferences("user2");
       CompletableFuture<Optional<UserPreferences>> future2 =
           FUTURE.narrow(resultUser2OT.value());

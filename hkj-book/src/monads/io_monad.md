@@ -120,7 +120,7 @@ Use `IOKindHelper.unsafeRunSync` to run the computation.
 System.out.println("Running printHello:");
 IOKindHelper.unsafeRunSync(printHello); // Actually prints "Hello from IO!"
 
-// Execute readLine (will block for user input)
+// Execute readLine (will block for userLogin input)
 // System.out.println("\nRunning readLine:");
 // String name = IOKindHelper.unsafeRunSync(readLine);
 // System.out.println("User entered: " + name);

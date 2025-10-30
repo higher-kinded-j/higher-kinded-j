@@ -112,10 +112,10 @@ When you need to integrate with external systems that expect different data form
 
 
 ```java
-// Core business logic: validate a user
-Function<User, ValidationResult> validateUser = user -> {
-    boolean isValid = user.email().contains("@") && !user.name().isEmpty();
-    return new ValidationResult(isValid, isValid ? "Valid user" : "Invalid user data");
+// Core business logic: validate a userLogin
+Function<User, ValidationResult> validateUser = userLogin -> {
+    boolean isValid = userLogin.email().contains("@") && !userLogin.name().isEmpty();
+    return new ValidationResult(isValid, isValid ? "Valid userLogin" : "Invalid userLogin data");
 };
 
 // The API expects UserDto input and ApiResponse output
@@ -168,9 +168,9 @@ Chain multiple adaptations to build complex data processing pipelines:
 
 ```java
 // Core transformation: User -> UserDto  
-Function<User, UserDto> userToDto = user ->
-    new UserDto(user.name(), user.email(), 
-                user.birthDate().format(DateTimeFormatter.ISO_LOCAL_DATE));
+Function<User, UserDto> userToDto = userLogin ->
+    new UserDto(userLogin.name(), userLogin.email(), 
+                userLogin.birthDate().format(DateTimeFormatter.ISO_LOCAL_DATE));
 
 // Build a CSV-to-JSON pipeline
 Kind2<FunctionKind.Witness, String, String> csvToJsonTransform =

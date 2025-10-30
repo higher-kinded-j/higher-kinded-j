@@ -109,10 +109,10 @@ Prism<JsonValue, JsonString> jsonStringPrism = JsonValuePrisms.jsonString();
 Lens<JsonObject, Map<String, JsonValue>> fieldsLens = JsonObjectLenses.fields();
 
 
-// The composed optic: safely navigate from JsonObject -> user field -> name field -> string value
+// The composed optic: safely navigate from JsonObject -> userLogin field -> name field -> string value
 Traversal<JsonObject, String> userNameTraversal =
     fieldsLens.asTraversal()                      // JsonObject -> Map<String, JsonValue>
-        .andThen(mapValue("user"))                // -> JsonValue (if "user" key exists)
+        .andThen(mapValue("userLogin"))                // -> JsonValue (if "userLogin" key exists)
         .andThen(jsonObjectPrism.asTraversal())   // -> JsonObject (if it's an object)
         .andThen(fieldsLens.asTraversal())        // -> Map<String, JsonValue>
          .andThen(Traversals.forMap("name"))     // -> JsonValue (if "name" key exists)
@@ -182,7 +182,7 @@ JsonString jsonStr = (JsonString) jsonValue; // Can throw ClassCastException!
 
 // Verbose: Repeated instanceof checks
 if (jsonValue instanceof JsonObject obj1) {
-    var userValue = obj1.fields().get("user");
+    var userValue = obj1.fields().get("userLogin");
     if (userValue instanceof JsonObject obj2) {
         var nameValue = obj2.fields().get("name");
         if (nameValue instanceof JsonString str) {
@@ -207,7 +207,7 @@ Optional<JsonString> maybeJsonStr = JsonValuePrisms.jsonString().getOptional(jso
 // Composable: Build reusable safe paths
 var userNamePath = JsonValuePrisms.jsonObject()
     .andThen(JsonObjectLenses.fields())
-    .andThen(mapValue("user"))
+    .andThen(mapValue("userLogin"))
     .andThen(JsonValuePrisms.jsonObject())
     // ... continue composition
 
@@ -242,7 +242,7 @@ public class JsonOptics {
   
     public static final Traversal<JsonObject, String> USER_NAME = 
         fieldsLens.asTraversal()
-            .andThen(Traversals.forMap("user"))
+            .andThen(Traversals.forMap("userLogin"))
             .andThen(JsonValuePrisms.jsonObject().asTraversal())
             .andThen(fieldsLens.asTraversal())
             .andThen(Traversals.forMap("name"))
@@ -323,7 +323,7 @@ public class PrismUsageExample {
     public static void main(String[] args) {
         // 2. Create the initial nested structure.
         var userData = Map.of(
-            "user", new JsonObject(Map.of(
+            "userLogin", new JsonObject(Map.of(
                 "name", new JsonString("Alice"),
                 "age", new JsonNumber(30),
                 "active", new JsonBoolean(true)
@@ -348,7 +348,7 @@ public class PrismUsageExample {
         System.out.println("--- Individual Prism Operations ---");
     
         // Safe type extraction
-        JsonValue userValue = data.fields().get("user");
+        JsonValue userValue = data.fields().get("userLogin");
         Optional<JsonObject> userObject = jsonObjectPrism.getOptional(userValue);
         System.out.println("User object: " + userObject);
     
@@ -365,7 +365,7 @@ public class PrismUsageExample {
         // 5. Compose the full traversal.
         Traversal<JsonObject, String> userToJsonName =
             fieldsLens.asTraversal()
-                .andThen(Traversals.forMap("user")) 
+                .andThen(Traversals.forMap("userLogin")) 
                 .andThen(jsonObjectPrism.asTraversal())
                 .andThen(fieldsLens.asTraversal())
                 .andThen(Traversals.forMap("name"))
@@ -408,7 +408,7 @@ public class PrismUsageExample {
 **Expected Output:**
 
 ```
-Original Data: JsonObject[fields={user=JsonObject[fields={name=JsonString[value=Alice], age=JsonNumber[value=30.0], active=JsonBoolean[value=true]}], metadata=JsonObject[fields={version=JsonString[value=1.0]}]}]
+Original Data: JsonObject[fields={userLogin=JsonObject[fields={name=JsonString[value=Alice], age=JsonNumber[value=30.0], active=JsonBoolean[value=true]}], metadata=JsonObject[fields={version=JsonString[value=1.0]}]}]
 ------------------------------------------
 --- Individual Prism Operations ---
 User object: Optional[JsonObject[fields={name=JsonString[value=Alice], age=JsonNumber[value=30.0], active=JsonBoolean[value=true]}]]
@@ -416,9 +416,9 @@ Name as number (should be empty): Optional.empty
 Built new string: JsonString[value=Bob]
 ------------------------------------------
 --- Composed Traversal Operations ---
-After safe `modify`:  JsonObject[fields={user=JsonObject[fields={name=JsonString[value=ALICE], age=JsonNumber[value=30.0], active=JsonBoolean[value=true]}], metadata=JsonObject[fields={version=JsonString[value=1.0]}]}]
+After safe `modify`:  JsonObject[fields={userLogin=JsonObject[fields={name=JsonString[value=ALICE], age=JsonNumber[value=30.0], active=JsonBoolean[value=true]}], metadata=JsonObject[fields={version=JsonString[value=1.0]}]}]
 Safe update on missing path: JsonObject[fields={metadata=JsonString[value=test]}]
-Original is unchanged: JsonObject[fields={user=JsonObject[fields={name=JsonString[value=Alice], age=JsonNumber[value=30.0], active=JsonBoolean[value=true]}], metadata=JsonObject[fields={version=JsonString[value=1.0]}]}]
+Original is unchanged: JsonObject[fields={userLogin=JsonObject[fields={name=JsonString[value=Alice], age=JsonNumber[value=30.0], active=JsonBoolean[value=true]}], metadata=JsonObject[fields={version=JsonString[value=1.0]}]}]
 ------------------------------------------
 --- Error-Resistant Operations ---
 Extracted strings only: [hello, world]

@@ -4,7 +4,7 @@
 
 This tutorial will guide you through building a complete and playable command-line draughts (checkers) game.
 
-We will provide all the necessary code, broken down into manageable files. More importantly, we will demonstrate how `higher-kinded-j` makes this process more robust, maintainable, and functionally elegant by cleanly separating game logic, user interaction, and state management.
+We will provide all the necessary code, broken down into manageable files. More importantly, we will demonstrate how `higher-kinded-j` makes this process more robust, maintainable, and functionally elegant by cleanly separating game logic, userLogin interaction, and state management.
 
 ### The Functional Approach
 
@@ -126,7 +126,7 @@ We'll use the `State<S, A>` monad from `higher-kinded-j` to manage this `GameSta
 
 ### Step 3: Handling User Input with `IO` and `Either`
 
-This class handles reading user input from the console. The `readMoveCommand` method returns an `IO<Either<GameError, MoveCommand>>`. This type signature is very descriptive: it tells us the action is an `IO` side effect, and its result will be either a `GameError` or a valid `MoveCommand`.
+This class handles reading userLogin input from the console. The `readMoveCommand` method returns an `IO<Either<GameError, MoveCommand>>`. This type signature is very descriptive: it tells us the action is an `IO` side effect, and its result will be either a `GameError` or a valid `MoveCommand`.
 
 ```java
 class InputHandler {
@@ -320,7 +320,7 @@ This uses `State.of` to create a stateful computation. `State.get()`, `State.set
 Now, we combine these pieces. The main loop needs to:
 
 1. Display the board (`IO`).
-2. Read user input (`IO`).
+2. Read userLogin input (`IO`).
 3. If the input is valid, apply it to the game logic (`State`).
 4. Loop with the new game state.
 

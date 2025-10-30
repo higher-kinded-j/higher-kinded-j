@@ -400,12 +400,12 @@ These examples show how to use **monad transformers** (`EitherT`, `MaybeT`, `Opt
 ### [MaybeTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/maybe_t/MaybeTExample.java)
 
 * **Key Concept**: `MaybeT` stacks the `Maybe` monad on top of another monad `F`. This is useful for asynchronous operations that may not return a value.
-* **Scenario**: Fetching a user and their preferences from a database asynchronously, where each step might not find a result.
+* **Scenario**: Fetching a userLogin and their preferences from a database asynchronously, where each step might not find a result.
 
 ### [OptionalTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional_t/OptionalTExample.java)
 
 * **Key Concept**: `OptionalT` stacks `Optional` on top of another monad `F`, creating `OptionalT<F, A>` to handle asynchronous operations that may return an empty result.
-* **Scenario**: Fetching a user and their preferences from a database asynchronously, where each step might not find a result.
+* **Scenario**: Fetching a userLogin and their preferences from a database asynchronously, where each step might not find a result.
 
 ### [ReaderTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTExample.java), [ReaderTUnitExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncExample.java),  [ReaderTAsyncUnitExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncUnitExample.java)
 

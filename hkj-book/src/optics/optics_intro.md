@@ -12,16 +12,16 @@ record Address(Street street, String city) {}
 record User(String name, Address address) {}e
 ```
 
-How do you update the user's street name? In standard Java, you're forced into a "copy-and-update" cascade:
+How do you update the userLogin's street name? In standard Java, you're forced into a "copy-and-update" cascade:
 
 ```java
 // What most Java developers actually write
-public User updateStreetName(User user, String newStreetName) {
-    var address = user.address();
+public User updateStreetName(User userLogin, String newStreetName) {
+    var address = userLogin.address();
     var street = address.street();
     var newStreet = new Street(newStreetName, street.number());
     var newAddress = new Address(newStreet, address.city());
-    return new User(user.name(), newAddress);
+    return new User(userLogin.name(), newAddress);
 }
 ```
 
@@ -64,7 +64,7 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
   2. Convenient **`with*` helper methods** for easy updates (e.g., `UserLenses.withAddress(...)`).
 * **Example (Deep Update with Lenses)**:
 
-  * To solve our initial problem of updating the user's street name, we compose lenses:
+  * To solve our initial problem of updating the userLogin's street name, we compose lenses:
 
 ```java
     // Compose lenses to create a direct path to the nested data
@@ -73,7 +73,7 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
         .andThen(StreetLenses.name());
   
     // Perform the deep update in a single, readable line
-    User updatedUser = userToStreetName.set("New Street", user);
+    User updatedUser = userToStreetName.set("New Street", userLogin);
 ```
 
 * **Example (Shallow Update with `with*` Helpers)**:
@@ -82,10 +82,10 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
 
 ```java
 // Before: Using the lens directly
-User userWithNewName = UserLenses.name().set("Bob", user);
+User userWithNewName = UserLenses.name().set("Bob", userLogin);
 
 // After: Using the generated helper method
-User userWithNewName = UserLenses.withName(user, "Bob");
+User userWithNewName = UserLenses.withName(userLogin, "Bob");
 ```
 
 ### 2. Iso: For "Is-Equivalent-To" Relationships 🔄

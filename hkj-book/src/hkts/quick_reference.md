@@ -56,7 +56,7 @@ Kind<OptionalKind.Witness, Integer> lengths =
 **Example:**
 ```java
 // Combine two independent validations
-Kind<ValidatedKind.Witness<List<String>>, User> user = 
+Kind<ValidatedKind.Witness<List<String>>, User> userLogin = 
     applicative.map2(
         validateUsername(input.username()),
         validatePassword(input.password()),
@@ -93,10 +93,10 @@ Kind<ValidatedKind.Witness<List<String>>, User> user =
 ```java
 // Chain database operations where each depends on the previous
 Kind<OptionalKind.Witness, Account> account = 
-    monad.flatMap(user -> 
+    monad.flatMap(userLogin -> 
         monad.flatMap(profile -> 
             findAccount(profile.accountId()),
-            findProfile(user.id())),
+            findProfile(userLogin.id())),
         findUser(userId));
 ```
 

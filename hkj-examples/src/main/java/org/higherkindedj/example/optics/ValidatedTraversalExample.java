@@ -6,12 +6,17 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
+import org.higherkindedj.hkt.validated.ValidatedSelective;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -161,5 +166,50 @@ public class ValidatedTraversalExample {
 
     System.out.println("Input: " + multipleInvalidForm);
     System.out.println("Result with list accumulation: " + VALIDATED.narrow(listResult));
+
+      selectiveValidationExample();
   }
+
+    /**
+     * Demonstrates using Selective for smarter validation.
+     * Skip expensive validations if cheap checks fail.
+     */
+    private static void selectiveValidationExample() {
+        System.out.println("--- Scenario 7: Selective Validation (Smart Short-Circuiting) ---");
+
+        var userWithInvalidPerms = new User(
+                "eve",
+                List.of(
+                        new Permission(""),              // Empty - cheap check fails
+                        new Permission("PERM_READ"),     // Valid
+                        new Permission("INVALID_PERM")   // Invalid - would need expensive check
+                )
+        );
+        var form = new Form(7, userWithInvalidPerms);
+
+        System.out.println("Input: " + form);
+
+        // Two-stage validation: cheap check first, expensive check only if needed
+        Predicate<String> notEmpty = name -> !name.isEmpty();
+
+        Function<String, Kind<ValidatedKind.Witness<String>, String>>
+                expensiveValidation = name -> {
+            System.out.println("  Running EXPENSIVE validation for: " + name);
+            return validatePermissionName(name);
+        };
+
+        Selective<ValidatedKind.Witness<String>> selective =
+                ValidatedSelective.instance(Semigroups.string("; "));
+
+        Kind<ValidatedKind.Witness<String>, Form> selectiveResult =
+                FORM_TO_PERMISSION_NAMES.modifyIf(
+                        notEmpty,              // Cheap check
+                        expensiveValidation,   // Expensive check (only if cheap passes)
+                        form,
+                        selective
+                );
+
+        System.out.println("Result: " + VALIDATED.narrow(selectiveResult));
+        System.out.println("Note: Expensive validation only ran for non-empty permissions\n");
+    }
 }

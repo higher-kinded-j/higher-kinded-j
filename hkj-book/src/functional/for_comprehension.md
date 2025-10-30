@@ -72,12 +72,12 @@ A generator is the workhorse of the comprehension. It takes a value from a previ
 Each `.from()` adds a new variable to the scope of the comprehension.
 
 ```java
-// Generates all combinations of user IDs and roles
-var userRoles = For.from(listMonad, LIST.widen(List.of("user-1", "user-2"))) // a: "user-1", "user-2"
+// Generates all combinations of userLogin IDs and roles
+var userRoles = For.from(listMonad, LIST.widen(List.of("userLogin-1", "userLogin-2"))) // a: "userLogin-1", "userLogin-2"
     .from(a -> LIST.widen(List.of("viewer", "editor")))       // b: "viewer", "editor"
     .yield((a, b) -> a + " is a " + b);
 
-// Result: ["user-1 is a viewer", "user-1 is a editor", "user-2 is a viewer", "user-2 is a editor"]
+// Result: ["userLogin-1 is a viewer", "userLogin-1 is a editor", "userLogin-2 is a viewer", "userLogin-2 is a editor"]
 ```
 
 
