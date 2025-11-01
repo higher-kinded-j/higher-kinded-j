@@ -54,7 +54,7 @@ import org.jspecify.annotations.Nullable;
  * @see Kind
  * @see Unit
  */
-public  class OptionalMonad extends OptionalFunctor
+public class OptionalMonad extends OptionalFunctor
     implements MonadError<OptionalKind.Witness, Unit>, MonadZero<OptionalKind.Witness> {
 
   private static final Class<OptionalMonad> OPTIONAL_MONAD_CLASS = OptionalMonad.class;

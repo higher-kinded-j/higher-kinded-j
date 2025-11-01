@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.test.api.typeclass.functor.FunctorTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.monad.MonadTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.monaderror.MonadErrorTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.selective.SelectiveTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.traverse.TraverseTestStage;
 
 /**
@@ -110,6 +111,18 @@ public final class TypeClassTest {
    */
   public static <F, E> MonadErrorTestStage<F, E> monadError(Class<?> contextClass) {
     return new MonadErrorTestStage<>(contextClass);
+  }
+
+  /* Begins configuration for testing a Selective implementation.
+   *
+   * <p>Progressive disclosure: Next step is {@code .instance(selective)}
+   *
+   * @param contextClass The implementation class for error messages
+   * @param <F> The Selective witness type
+   * @return Stage for providing the Selective instance
+   */
+  public static <F> SelectiveTestStage<F> selective(Class<?> contextClass) {
+    return new SelectiveTestStage<>(contextClass);
   }
 
   /**

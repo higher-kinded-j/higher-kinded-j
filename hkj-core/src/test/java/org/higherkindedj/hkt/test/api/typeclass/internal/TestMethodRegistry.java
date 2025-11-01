@@ -167,6 +167,74 @@ public final class TestMethodRegistry {
   }
 
   // =============================================================================
+  // Selective Tests
+  // =============================================================================
+
+  public static <F, A, B, C> void testSelectiveOperations(
+      Selective<F> selective,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Kind<F, Function<A, C>> validLeftHandler,
+      Kind<F, Function<B, C>> validRightHandler,
+      Kind<F, Boolean> validCondition,
+      Kind<F, A> validEffect,
+      Kind<F, A> validThenBranch,
+      Kind<F, A> validElseBranch) {
+    TypeClassTestPattern.testSelectiveOperations(
+        selective,
+        validChoiceKind,
+        validFunctionKind,
+        validLeftHandler,
+        validRightHandler,
+        validCondition,
+        validEffect,
+        validThenBranch,
+        validElseBranch);
+  }
+
+  public static <F, A, B, C> void testSelectiveValidations(
+      Selective<F> selective,
+      Class<?> contextClass,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Kind<F, Function<A, C>> validLeftHandler,
+      Kind<F, Function<B, C>> validRightHandler,
+      Kind<F, Boolean> validCondition,
+      Kind<F, A> validEffect,
+      Kind<F, A> validThenBranch,
+      Kind<F, A> validElseBranch) {
+    TypeClassTestPattern.testSelectiveValidations(
+        selective,
+        contextClass,
+        validChoiceKind,
+        validFunctionKind,
+        validLeftHandler,
+        validRightHandler,
+        validCondition,
+        validEffect,
+        validThenBranch,
+        validElseBranch);
+  }
+
+  public static <F, A, B> void testSelectiveExceptionPropagation(
+      Selective<F> selective,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind) {
+    TypeClassTestPattern.testSelectiveExceptionPropagation(
+        selective, validChoiceKind, validFunctionKind);
+  }
+
+  public static <F, A, B> void testSelectiveLaws(
+      Selective<F> selective,
+      Kind<F, Choice<A, B>> choiceKind,
+      B testValue,
+      Function<A, B> testFunction,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+    TypeClassTestPattern.testSelectiveLaws(
+        selective, choiceKind, testValue, testFunction, equalityChecker);
+  }
+
+  // =============================================================================
   // Foldable Tests
   // =============================================================================
 

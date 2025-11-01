@@ -33,8 +33,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see Monad
  * @see ReaderApplicative
  */
-public class ReaderMonad<R> extends ReaderApplicative<R>
-    implements Monad<ReaderKind.Witness<R>> {
+public class ReaderMonad<R> extends ReaderApplicative<R> implements Monad<ReaderKind.Witness<R>> {
 
   private static final Class<ReaderMonad> READER_MONAD_CLASS = ReaderMonad.class;
 
