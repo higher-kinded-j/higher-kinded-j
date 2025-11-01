@@ -45,6 +45,7 @@ public final class SelectiveOperationsStage<F, A, B, C> {
    * <p>Progressive disclosure: Next steps are optional law configuration, validation configuration,
    * test selection, or immediate execution.
    *
+   * @param <C> The result type for branch operations
    * @param validLeftHandler Handler for Left branch
    * @param validRightHandler Handler for Right branch
    * @param validCondition Boolean condition for whenS/ifS
@@ -53,7 +54,7 @@ public final class SelectiveOperationsStage<F, A, B, C> {
    * @param validElseBranch Else branch for ifS
    * @return Handler stage with execution options
    */
-  public SelectiveHandlerStage<F, A, B, C> withOperations(
+  public <C> SelectiveHandlerStage<F, A, B, C> withOperations(
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,

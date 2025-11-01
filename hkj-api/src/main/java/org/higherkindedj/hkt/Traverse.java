@@ -3,7 +3,7 @@
 package org.higherkindedj.hkt;
 
 import java.util.function.Function;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * The Traverse type class represents data structures that can be traversed from left to right,
@@ -29,6 +29,7 @@ import org.jspecify.annotations.NonNull;
  * @param <T> The type constructor of the traversable data structure (e.g., {@code
  *     ListKind.Witness}).
  */
+@NullMarked
 public interface Traverse<T> extends Functor<T>, Foldable<T> {
 
   /**
@@ -53,9 +54,9 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
    *     Option<List<B>>})
    */
   <G, A, B> Kind<G, Kind<T, B>> traverse(
-      @NonNull Applicative<G> applicative,
-      @NonNull Function<? super A, ? extends Kind<G, ? extends B>> f,
-      @NonNull Kind<T, A> ta);
+      Applicative<G> applicative,
+      Function<? super A, ? extends Kind<G, ? extends B>> f,
+      Kind<T, A> ta);
 
   /**
    * Sequences a structure of applicative effects {@code Kind<T, Kind<G, A>>} into an applicative
@@ -75,7 +76,7 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
    * @return An applicative effect {@code Kind<G, Kind<T, A>>}.
    */
   default <G, A> Kind<G, Kind<T, A>> sequenceA(
-      @NonNull Applicative<G> applicative, @NonNull Kind<T, Kind<G, A>> tga) {
+      Applicative<G> applicative, Kind<T, Kind<G, A>> tga) {
     // Implementation using traverse with identity function
     // The cast for '? extends A' to 'A' is generally safe here due to how sequence is used.
     // The function f is A -> Kind<G, A>, where A is Kind<G,A> from tga.

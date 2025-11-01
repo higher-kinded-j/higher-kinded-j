@@ -2,11 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.test.api.typeclass.selective;
 
+import static org.higherkindedj.hkt.util.validation.Operation.BRANCH;
+import static org.higherkindedj.hkt.util.validation.Operation.IF_S;
+
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
+import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
+import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
  * Internal executor for Selective tests.
@@ -112,34 +117,83 @@ final class SelectiveTestExecutor<F, A, B, C> {
   }
 
   void executeValidations() {
-    if (validationStage != null) {
-      // Custom validation configuration - would need FlexibleValidationConfig support
-      // For now, use standard validation
-      TestMethodRegistry.testSelectiveValidations(
-          selective,
-          contextClass,
-          validChoiceKind,
-          validFunctionKind,
-          validLeftHandler,
-          validRightHandler,
-          validCondition,
-          validEffect,
-          validThenBranch,
-          validElseBranch);
-    } else {
-      // Use standard validation
-      TestMethodRegistry.testSelectiveValidations(
-          selective,
-          contextClass,
-          validChoiceKind,
-          validFunctionKind,
-          validLeftHandler,
-          validRightHandler,
-          validCondition,
-          validEffect,
-          validThenBranch,
-          validElseBranch);
-    }
+    Class<?> mapCtx =
+        (validationStage != null && validationStage.getMapContext() != null)
+            ? validationStage.getMapContext()
+            : contextClass;
+    Class<?> apCtx =
+        (validationStage != null && validationStage.getApContext() != null)
+            ? validationStage.getApContext()
+            : contextClass;
+    Class<?> selectCtx =
+        (validationStage != null && validationStage.getSelectContext() != null)
+            ? validationStage.getSelectContext()
+            : contextClass;
+    Class<?> branchCtx =
+        (validationStage != null && validationStage.getBranchContext() != null)
+            ? validationStage.getBranchContext()
+            : contextClass;
+    Class<?> whenSCtx =
+        (validationStage != null && validationStage.getWhenSContext() != null)
+            ? validationStage.getWhenSContext()
+            : contextClass;
+    Class<?> ifSCtx =
+        (validationStage != null && validationStage.getIfSContext() != null)
+            ? validationStage.getIfSContext()
+            : contextClass;
+
+    ValidationTestBuilder builder = ValidationTestBuilder.create();
+
+    // Create a dummy Kind and Function for inherited operation validation
+
+    Kind<F, A> dummyKind = validEffect;
+    Function<A, B> dummyMapper = a -> null;
+    Kind<F, Function<A, B>> dummyFuncKind = validFunctionKind;
+
+    // Test Functor operations (map) with map context
+    builder.assertMapperNull(() -> selective.map(null, dummyKind), "f", mapCtx, Operation.MAP);
+    builder.assertKindNull(() -> selective.map(dummyMapper, null), mapCtx, Operation.MAP);
+
+    // Test Applicative operations (ap) with ap context
+    builder.assertKindNull(() -> selective.ap(null, dummyKind), apCtx, Operation.AP, "function");
+    builder.assertKindNull(
+        () -> selective.ap(dummyFuncKind, null), apCtx, Operation.AP, "argument");
+
+    // Test Selective-specific operations with their contexts
+    builder.assertKindNull(
+        () -> selective.select(null, validFunctionKind), selectCtx, Operation.SELECT, "choice");
+    builder.assertKindNull(
+        () -> selective.select(validChoiceKind, null), selectCtx, Operation.SELECT, "function");
+
+    builder.assertKindNull(
+        () -> selective.branch(null, validLeftHandler, validRightHandler),
+        branchCtx,
+        BRANCH,
+        "choice");
+    builder.assertKindNull(
+        () -> selective.branch(validChoiceKind, null, validRightHandler),
+        branchCtx,
+        BRANCH,
+        "leftHandler");
+    builder.assertKindNull(
+        () -> selective.branch(validChoiceKind, validLeftHandler, null),
+        branchCtx,
+        BRANCH,
+        "rightHandler");
+
+    builder.assertKindNull(
+        () -> selective.whenS(null, validEffect), whenSCtx, Operation.WHEN_S, "condition");
+    builder.assertKindNull(
+        () -> selective.whenS(validCondition, null), whenSCtx, Operation.WHEN_S, "effect");
+
+    builder.assertKindNull(
+        () -> selective.ifS(null, validThenBranch, validElseBranch), ifSCtx, IF_S, "condition");
+    builder.assertKindNull(
+        () -> selective.ifS(validCondition, null, validElseBranch), ifSCtx, IF_S, "thenBranch");
+    builder.assertKindNull(
+        () -> selective.ifS(validCondition, validThenBranch, null), ifSCtx, IF_S, "elseBranch");
+
+    builder.execute();
   }
 
   void executeExceptions() {

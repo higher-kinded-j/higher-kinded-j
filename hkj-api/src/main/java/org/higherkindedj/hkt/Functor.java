@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt;
 
 import java.util.function.Function;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -38,5 +37,5 @@ public interface Functor<F> {
    * @return A new Functor structure containing the result(s) of applying the function {@code f},
    *     maintaining the original structure F. Guaranteed non-null.
    */
-  <A, B> @NonNull Kind<F, B> map(final Function<? super A, ? extends B> f, final Kind<F, A> fa);
+  <A, B> Kind<F, B> map(final Function<? super A, ? extends B> f, final Kind<F, A> fa);
 }
