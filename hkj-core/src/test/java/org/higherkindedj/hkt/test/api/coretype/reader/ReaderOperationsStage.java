@@ -48,4 +48,31 @@ public final class ReaderOperationsStage<R, A> {
   public ReaderTestConfigStage<R, A, String> withoutMappers() {
     return new ReaderTestConfigStage<>(contextClass, readerInstance, environment, null);
   }
+
+  /**
+   * Configures Selective-specific test operations for Reader.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withHandlers(...)}
+   *
+   * @param choiceLeft Reader containing Choice with Left value
+   * @param choiceRight Reader containing Choice with Right value
+   * @param booleanTrue Reader containing true
+   * @param booleanFalse Reader containing false
+   * @param <B> The result type for Selective operations
+   * @return Stage for configuring Selective handlers
+   */
+  public <B> ReaderSelectiveStage<R, A, B> withSelectiveOperations(
+      Reader<R, org.higherkindedj.hkt.Choice<A, B>> choiceLeft,
+      Reader<R, org.higherkindedj.hkt.Choice<A, B>> choiceRight,
+      Reader<R, Boolean> booleanTrue,
+      Reader<R, Boolean> booleanFalse) {
+    return new ReaderSelectiveStage<>(
+        contextClass,
+        readerInstance,
+        environment,
+        choiceLeft,
+        choiceRight,
+        booleanTrue,
+        booleanFalse);
+  }
 }

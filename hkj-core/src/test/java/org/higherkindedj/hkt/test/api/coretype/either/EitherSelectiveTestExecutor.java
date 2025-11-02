@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
@@ -191,8 +192,7 @@ final class EitherSelectiveTestExecutor<L, R, S>
   @Override
   protected void executeEdgeCaseTests() {
     // Test with null values in Choice
-    Either<L, Choice<R, S>> choiceWithNull =
-        Either.right(new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, null, null));
+    Either<L, Choice<R, S>> choiceWithNull = Either.right(Selective.left(null));
     Kind<EitherKind.Witness<L>, Choice<R, S>> choiceKind = EITHER.widen(choiceWithNull);
     Kind<EitherKind.Witness<L>, Function<R, S>> funcKind =
         EITHER.widen(Either.right(r -> r == null ? null : selectFunction.apply(r)));

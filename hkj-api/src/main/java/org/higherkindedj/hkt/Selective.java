@@ -87,88 +87,19 @@ public interface Selective<F> extends Applicative<F> {
         map(
             choice ->
                 choice.isLeft()
-                    ? new SimpleChoice<>(true, choice.getLeft(), null)
-                    : new SimpleChoice<>(
-                        false, null, new SimpleChoice<>(true, choice.getRight(), null)),
+                    ? Selective.left(choice.getLeft()) // Use Selective.left()
+                    : Selective.right(
+                        Selective.left(choice.getRight())), // Use Selective.right() and left()
             fab);
 
     Kind<F, Function<A, Choice<B, C>>> leftHandler =
-        map(f -> (Function<A, Choice<B, C>>) a -> new SimpleChoice<>(false, null, f.apply(a)), fl);
+        map(
+            f -> (Function<A, Choice<B, C>>) a -> Selective.right(f.apply(a)),
+            fl); // Use Selective.right()
 
     Kind<F, Choice<B, C>> intermediate = select(transformed, leftHandler);
 
     return select(intermediate, fr);
-  }
-
-  /** Simple implementation of Choice for use in default methods. */
-  final class SimpleChoice<L, R> implements Choice<L, R> {
-    private final boolean isLeft;
-    private final L left;
-    private final R right;
-
-    public SimpleChoice(boolean isLeft, L left, R right) {
-      this.isLeft = isLeft;
-      this.left = left;
-      this.right = right;
-    }
-
-    @Override
-    public boolean isLeft() {
-      return isLeft;
-    }
-
-    @Override
-    public boolean isRight() {
-      return !isLeft;
-    }
-
-    @Override
-    public L getLeft() {
-      if (!isLeft) throw new java.util.NoSuchElementException("Not a left value");
-      return left;
-    }
-
-    @Override
-    public R getRight() {
-      if (isLeft) throw new java.util.NoSuchElementException("Not a right value");
-      return right;
-    }
-
-    @Override
-    public <T> T fold(
-        Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
-      return isLeft ? leftMapper.apply(left) : rightMapper.apply(right);
-    }
-
-    @Override
-    public <R2> Choice<L, R2> map(Function<? super R, ? extends R2> mapper) {
-      return isLeft
-          ? new SimpleChoice<>(true, left, null)
-          : new SimpleChoice<>(false, null, mapper.apply(right));
-    }
-
-    @Override
-    public <L2> Choice<L2, R> mapLeft(Function<? super L, ? extends L2> mapper) {
-      return isLeft
-          ? new SimpleChoice<>(true, mapper.apply(left), null)
-          : new SimpleChoice<>(false, null, right);
-    }
-
-    @Override
-    public Choice<R, L> swap() {
-      return new SimpleChoice<>(!isLeft, right, left);
-    }
-
-    @Override
-    public <R2> Choice<L, R2> flatMap(Function<? super R, ? extends Choice<L, R2>> mapper) {
-      if (isLeft) {
-        return new SimpleChoice<>(true, left, null);
-      }
-      Choice<L, R2> result = mapper.apply(right);
-      return result.isLeft()
-          ? new SimpleChoice<>(true, result.getLeft(), null)
-          : new SimpleChoice<>(false, null, result.getRight());
-    }
   }
 
   /**
@@ -218,9 +149,7 @@ public interface Selective<F> extends Applicative<F> {
             fa,
             fcond,
             (unitFromEffect, conditionValue) ->
-                conditionValue
-                    ? new SimpleChoice<>(true, unitFromEffect, null)
-                    : new SimpleChoice<>(false, null, Unit.INSTANCE));
+                conditionValue ? Selective.left(unitFromEffect) : Selective.right(Unit.INSTANCE));
 
     // Identity function for Unit
     Kind<F, Function<Unit, Unit>> identity = of(u -> Unit.INSTANCE);
@@ -288,8 +217,8 @@ public interface Selective<F> extends Applicative<F> {
             fcond,
             (thenVal, elseVal, b) ->
                 b
-                    ? new SimpleChoice<A, A>(true, thenVal, null)
-                    : new SimpleChoice<A, A>(false, null, elseVal));
+                    ? Selective.left(thenVal) // Use Selective.left()
+                    : Selective.right(elseVal)); // Use Selective.right()
 
     Kind<F, Function<A, A>> identity = of(a -> a);
 
@@ -327,9 +256,9 @@ public interface Selective<F> extends Applicative<F> {
         map(
             choice ->
                 choice.isRight()
-                    ? new SimpleChoice<E, Choice<E, A>>(
-                        false, null, new SimpleChoice<>(false, null, choice.getRight()))
-                    : new SimpleChoice<E, Choice<E, A>>(true, choice.getLeft(), null),
+                    ? Selective.right(
+                        Selective.right(choice.getRight())) // Use Selective.right() twice
+                    : Selective.left(choice.getLeft()), // Use Selective.left()
             first);
 
     Kind<F, Function<E, Choice<E, A>>> getSecond =
@@ -362,14 +291,159 @@ public interface Selective<F> extends Applicative<F> {
           map(
               choice ->
                   choice.isRight()
-                      ? new SimpleChoice<A, Choice<E, A>>(true, choice.getRight(), null)
-                      : new SimpleChoice<A, Choice<E, A>>(
-                          false, null, new SimpleChoice<E, A>(true, choice.getLeft(), null)),
+                      ? Selective.left(choice.getRight()) // Use Selective.left()
+                      : Selective.right(
+                          Selective.left(choice.getLeft())), // Use Selective.right() and left()
               result);
 
       Kind<F, Choice<E, A>> applied = select(transformed, func);
       result = applied;
     }
     return result;
+  }
+
+  /**
+   * Creates a Choice representing a Left value, with Unit on the right side.
+   *
+   * <p>This is a convenience factory method for creating left-biased choices without needing to
+   * specify a value for the unused right side.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Choice<String, Integer> left = Selective.left("error");
+   * // Equivalent to: new SimpleChoice<>(true, "error", Unit.INSTANCE)
+   * }</pre>
+   *
+   * @param leftValue The value for the left side
+   * @param <L> The left type
+   * @param <R> The right type
+   * @return A Choice representing a Left value
+   */
+  static <L, R> Choice<L, R> left(L leftValue) {
+    return SimpleChoice.left(leftValue);
+  }
+
+  /**
+   * Creates a Choice representing a Right value, with Unit on the left side.
+   *
+   * <p>This is a convenience factory method for creating right-biased choices without needing to
+   * specify a value for the unused left side.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Choice<String, Integer> right = Selective.right(42);
+   * // Equivalent to: new SimpleChoice<>(false, Unit.INSTANCE, 42)
+   * }</pre>
+   *
+   * @param rightValue The value for the right side
+   * @param <L> The left type
+   * @param <R> The right type
+   * @return A Choice representing a Right value
+   */
+  static <L, R> Choice<L, R> right(R rightValue) {
+    return SimpleChoice.right(rightValue);
+  }
+
+  /** Simple implementation of Choice for use in default methods. */
+  final class SimpleChoice<L, R> implements Choice<L, R> {
+    private final boolean isLeft;
+    private final L left;
+    private final R right;
+
+    /**
+     * Package-private constructor for SimpleChoice. Users should prefer the static factory methods
+     * {@link Selective#left(Object)} and {@link Selective#right(Object)} for type safety and
+     * correct Unit handling.
+     *
+     * @param isLeft true if this represents a Left value
+     * @param left the left value (should be non-null if isLeft is true)
+     * @param right the right value (should be non-null if isLeft is false)
+     */
+    SimpleChoice(boolean isLeft, L left, R right) {
+      this.isLeft = isLeft;
+      this.left = left;
+      this.right = right;
+    }
+
+    /**
+     * Factory method to create a Left Choice with Unit on the right. Prefer using {@link
+     * Selective#left(Object)} instead.
+     */
+    @SuppressWarnings("unchecked")
+    static <L, R> SimpleChoice<L, R> left(L leftValue) {
+      return new SimpleChoice<>(true, leftValue, (R) Unit.INSTANCE);
+    }
+
+    /**
+     * Factory method to create a Right Choice with Unit on the left. Prefer using {@link
+     * Selective#right(Object)} instead.
+     */
+    @SuppressWarnings("unchecked")
+    static <L, R> SimpleChoice<L, R> right(R rightValue) {
+      return new SimpleChoice<>(false, (L) Unit.INSTANCE, rightValue);
+    }
+
+    @Override
+    public boolean isLeft() {
+      return isLeft;
+    }
+
+    @Override
+    public boolean isRight() {
+      return !isLeft;
+    }
+
+    @Override
+    public L getLeft() {
+      if (!isLeft) throw new java.util.NoSuchElementException("Not a left value");
+      return left;
+    }
+
+    @Override
+    public R getRight() {
+      if (isLeft) throw new java.util.NoSuchElementException("Not a right value");
+      return right;
+    }
+
+    @Override
+    public <T> T fold(
+        Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
+      return isLeft ? leftMapper.apply(left) : rightMapper.apply(right);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R2> Choice<L, R2> map(Function<? super R, ? extends R2> mapper) {
+      return isLeft
+          ? new SimpleChoice<>(true, left, (R2) Unit.INSTANCE)
+          : new SimpleChoice<>(false, (L) Unit.INSTANCE, mapper.apply(right));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <L2> Choice<L2, R> mapLeft(Function<? super L, ? extends L2> mapper) {
+      return isLeft
+          ? new SimpleChoice<>(true, mapper.apply(left), (R) Unit.INSTANCE)
+          : new SimpleChoice<>(false, (L2) Unit.INSTANCE, right);
+    }
+
+    @Override
+    public Choice<R, L> swap() {
+      return new SimpleChoice<>(!isLeft, right, left);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R2> Choice<L, R2> flatMap(Function<? super R, ? extends Choice<L, R2>> mapper) {
+      if (isLeft) {
+        return new SimpleChoice<>(true, left, (R2) Unit.INSTANCE);
+      }
+      Choice<L, R2> result = mapper.apply(right);
+      return result.isLeft()
+          ? new SimpleChoice<>(true, result.getLeft(), (R2) Unit.INSTANCE)
+          : new SimpleChoice<>(false, (L) Unit.INSTANCE, result.getRight());
+    }
   }
 }

@@ -44,10 +44,8 @@ class EitherSelectiveTest extends EitherTestBase {
 
   private void setUpSelectiveFixtures() {
     // Create Choice instances
-    Choice<Integer, String> choiceLeft =
-        new Selective.SimpleChoice<>(true, DEFAULT_RIGHT_VALUE, null);
-    Choice<Integer, String> choiceRight = new Selective.SimpleChoice<>(false, null, "right-value");
-
+    Choice<Integer, String> choiceLeft = Selective.left(DEFAULT_RIGHT_VALUE);
+    Choice<Integer, String> choiceRight = Selective.right("right-value");
     choiceLeftKind = EITHER.widen(Either.right(choiceLeft));
     choiceRightKind = EITHER.widen(Either.right(choiceRight));
 
@@ -556,8 +554,7 @@ class EitherSelectiveTest extends EitherTestBase {
     @Test
     @DisplayName("Select with null value in Choice")
     void selectWithNullValueInChoice() {
-      Choice<Integer, String> choiceWithNull =
-          new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, null, null);
+      Choice<Integer, String> choiceWithNull = Selective.left(null);
       Kind<EitherKind.Witness<String>, Choice<Integer, String>> choiceKind =
           EITHER.widen(Either.right(choiceWithNull));
 

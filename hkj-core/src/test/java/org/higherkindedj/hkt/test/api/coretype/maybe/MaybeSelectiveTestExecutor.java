@@ -189,7 +189,7 @@ final class MaybeSelectiveTestExecutor<T, S>
   @Override
   protected void executeEdgeCaseTests() {
     // Test with null values in Choice
-    Maybe<Choice<T, S>> choiceWithNull = Maybe.just(new Selective.SimpleChoice<>(true, null, null));
+    Maybe<Choice<T, S>> choiceWithNull = Maybe.just(Selective.left(null));
     Kind<MaybeKind.Witness, Choice<T, S>> choiceKind = MAYBE.widen(choiceWithNull);
     Kind<MaybeKind.Witness, Function<T, S>> funcKind =
         MAYBE.widen(Maybe.just(t -> t == null ? null : selectFunction.apply(t)));

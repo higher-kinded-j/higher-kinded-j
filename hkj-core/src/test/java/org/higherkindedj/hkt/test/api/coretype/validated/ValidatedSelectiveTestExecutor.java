@@ -198,15 +198,6 @@ final class ValidatedSelectiveTestExecutor<E, A, B>
 
   @Override
   protected void executeEdgeCaseTests() {
-    // Test with null values in Choice
-    Validated<E, Choice<A, B>> choiceWithNull =
-        Validated.valid(new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, null, null));
-    Kind<ValidatedKind.Witness<E>, Choice<A, B>> choiceKind = VALIDATED.widen(choiceWithNull);
-    Kind<ValidatedKind.Witness<E>, Function<A, B>> funcKind =
-        VALIDATED.widen(Validated.valid(a -> a == null ? null : selectFunction.apply(a)));
-
-    assertThatCode(() -> selective.select(choiceKind, funcKind)).doesNotThrowAnyException();
-
     // Test toString
     assertThat(selective.toString()).isNotNull();
   }

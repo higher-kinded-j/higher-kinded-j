@@ -7,11 +7,7 @@ import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidate
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.Choice;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.Semigroups;
-import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,13 +53,8 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
   private void setUpSelectiveFixtures() {
     // Create Choice instances
-    Choice<Integer, String> choiceLeft =
-        new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, DEFAULT_VALID_VALUE, null);
-    Choice<Integer, String> choiceRight =
-        new org.higherkindedj.hkt.Selective.SimpleChoice<>(false, null, "right-value");
-
-    choiceLeftKind = VALIDATED.widen(Validated.valid(choiceLeft));
-    choiceRightKind = VALIDATED.widen(Validated.valid(choiceRight));
+    choiceLeftKind = VALIDATED.widen(Validated.valid(Selective.left(DEFAULT_VALID_VALUE)));
+    choiceRightKind = VALIDATED.widen(Validated.valid(Selective.right("right-value")));
 
     // Create function handlers - all must return the same type C = String
     Function<Integer, String> selectFunc = i -> "selected:" + i;
@@ -631,8 +622,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
     @Test
     @DisplayName("Select with null value in Choice")
     void selectWithNullValueInChoice() {
-      Choice<Integer, String> choiceWithNull =
-          new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, null, null);
+      Choice<Integer, String> choiceWithNull = Selective.left(null);
       Kind<ValidatedKind.Witness<String>, Choice<Integer, String>> choiceKind =
           VALIDATED.widen(Validated.valid(choiceWithNull));
 

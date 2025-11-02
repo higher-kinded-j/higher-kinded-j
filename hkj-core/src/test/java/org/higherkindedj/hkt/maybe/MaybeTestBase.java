@@ -25,6 +25,7 @@ import org.higherkindedj.hkt.test.data.TestFunctions;
  * <ul>
  *   <li>{@link #DEFAULT_JUST_VALUE} - The primary test value (42)
  *   <li>{@link #ALTERNATIVE_JUST_VALUE} - A secondary test value (24)
+ *   <li>{@link #DEFAULT_INT_VALUE} - Default integer for Selective tests (100)
  * </ul>
  *
  * <h2>String-based Fixtures</h2>
@@ -50,6 +51,9 @@ abstract class MaybeTestBase extends TypeClassTestBase<MaybeKind.Witness, Intege
 
   /** Alternative value for Just instances when testing with multiple values. */
   protected static final Integer ALTERNATIVE_JUST_VALUE = 24;
+
+  /** Default integer value for Selective tests. */
+  protected static final Integer DEFAULT_INT_VALUE = 100;
 
   // ============================================================================
   // String-based Fixtures for MaybeTest

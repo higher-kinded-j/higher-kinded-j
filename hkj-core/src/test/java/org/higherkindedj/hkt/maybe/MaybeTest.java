@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -90,6 +92,54 @@ class MaybeTest extends MaybeTestBase {
           .useInheritanceValidation()
           .withMapFrom(MaybeFunctor.class)
           .withFlatMapFrom(MaybeMonad.class)
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Run complete Maybe Selective core type tests - operations only")
+    void runCompleteMaybeSelectiveCoreTypeTestsOperationsOnly() {
+      // Create Choice instances for Selective testing
+      Choice<String, Integer> choiceLeft = Selective.left(justValue);
+      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
+
+      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
+      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
+      Maybe<Boolean> maybeTrue = Maybe.just(true);
+      Maybe<Boolean> maybeFalse = Maybe.just(false);
+
+      CoreTypeTest.<String>maybe(Maybe.class)
+          .withJust(justInstance)
+          .withNothing(nothingInstance)
+          .withMapper(stringToIntMapper())
+          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
+          .withHandlers(String::length, String::length, i -> i * 2)
+          .testOperations();
+    }
+
+    @Test
+    @DisplayName("Run complete Maybe Selective core type tests - with validation")
+    void runCompleteMaybeSelectiveCoreTypeTestsWithValidation() {
+      // Create Choice instances for Selective testing
+      Choice<String, Integer> choiceLeft = Selective.left(justValue);
+      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
+
+      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
+      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
+      Maybe<Boolean> maybeTrue = Maybe.just(true);
+      Maybe<Boolean> maybeFalse = Maybe.just(false);
+
+      CoreTypeTest.<String>maybe(Maybe.class)
+          .withJust(justInstance)
+          .withNothing(nothingInstance)
+          .withMapper(stringToIntMapper())
+          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
+          .withHandlers(String::length, String::length, i -> i * 2)
+          .configureValidation()
+          .useSelectiveInheritanceValidation()
+          .withSelectFrom(MaybeSelective.class)
+          .withBranchFrom(MaybeSelective.class)
+          .withWhenSFrom(MaybeSelective.class)
+          .withIfSFrom(MaybeSelective.class)
           .testAll();
     }
   }
@@ -220,6 +270,54 @@ class MaybeTest extends MaybeTestBase {
           .selectTests()
           .onlyLaws()
           .test();
+    }
+
+    @Test
+    @DisplayName("Test Selective operations only")
+    void testSelectiveOperationsOnly() {
+      // Create Choice instances for Selective testing
+      Choice<String, Integer> choiceLeft = Selective.left(justValue);
+      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
+
+      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
+      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
+      Maybe<Boolean> maybeTrue = Maybe.just(true);
+      Maybe<Boolean> maybeFalse = Maybe.just(false);
+
+      CoreTypeTest.<String>maybe(Maybe.class)
+          .withJust(justInstance)
+          .withNothing(nothingInstance)
+          .withMapper(stringToIntMapper())
+          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
+          .withHandlers(String::length, String::length, i -> i * 2)
+          .testOperations();
+    }
+
+    @Test
+    @DisplayName("Test Selective validations only")
+    void testSelectiveValidationsOnly() {
+      // Create Choice instances for Selective testing
+      Choice<String, Integer> choiceLeft = Selective.left(justValue);
+      Choice<String, Integer> choiceRight = Selective.right(DEFAULT_INT_VALUE);
+
+      Maybe<Choice<String, Integer>> maybeChoiceLeft = Maybe.just(choiceLeft);
+      Maybe<Choice<String, Integer>> maybeChoiceRight = Maybe.just(choiceRight);
+      Maybe<Boolean> maybeTrue = Maybe.just(true);
+      Maybe<Boolean> maybeFalse = Maybe.just(false);
+
+      CoreTypeTest.<String>maybe(Maybe.class)
+          .withJust(justInstance)
+          .withNothing(nothingInstance)
+          .withMapper(stringToIntMapper())
+          .withSelectiveOperations(maybeChoiceLeft, maybeChoiceRight, maybeTrue, maybeFalse)
+          .withHandlers(String::length, String::length, i -> i * 2)
+          .configureValidation()
+          .useSelectiveInheritanceValidation()
+          .withSelectFrom(MaybeSelective.class)
+          .withBranchFrom(MaybeSelective.class)
+          .withWhenSFrom(MaybeSelective.class)
+          .withIfSFrom(MaybeSelective.class)
+          .testValidations();
     }
   }
 

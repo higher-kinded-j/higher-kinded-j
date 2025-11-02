@@ -8,6 +8,9 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -103,8 +106,6 @@ final class ValidatedTestExecutor<E, A, B>
   protected void executeValidationTests() {
     Function<E, String> errorMapper = e -> "Invalid: " + e;
     Function<A, String> valueMapper = a -> "Valid: " + a;
-    Consumer<E> errorAction = e -> {};
-    Consumer<A> valueAction = a -> {};
 
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
@@ -121,53 +122,86 @@ final class ValidatedTestExecutor<E, A, B>
     Class<?> validMapContext =
         (validationStage != null && validationStage.getMapContext() != null)
             ? validationStage.getMapContext()
-            : Invalid.class; // Default to Invalid.class since we're testing Invalid
+            : contextClass;
 
     Class<?> validFlatMapContext =
         (validationStage != null && validationStage.getFlatMapContext() != null)
             ? validationStage.getFlatMapContext()
-            : Invalid.class; // Default to Invalid.class
+            : contextClass;
 
     Class<?> validIfValidContext =
         (validationStage != null && validationStage.getIfValidContext() != null)
             ? validationStage.getIfValidContext()
-            : Invalid.class; // Default to Invalid.class
+            : contextClass;
 
     Class<?> validIfInvalidContext =
         (validationStage != null && validationStage.getIfInvalidContext() != null)
             ? validationStage.getIfInvalidContext()
-            : Invalid.class; // Default to Invalid.class
+            : contextClass;
 
-    // Map validations
-    builder.assertMapperNull(() -> invalidInstance.map(null), "fn", validMapContext, Operation.MAP);
+    // Map validations - test through monad if ValidatedMonad context, otherwise test directly
+    if (validMapContext == ValidatedMonad.class) {
+      @SuppressWarnings("unchecked")
+      ValidatedMonad<E> monad = ValidatedMonad.instance((Semigroup<E>) Semigroups.string(","));
+      Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(invalidInstance);
+      builder.assertMapperNull(() -> monad.map(null, kind), "f", validMapContext, Operation.MAP);
+    } else {
+      builder.assertMapperNull(
+          () -> invalidInstance.map(null), "fn", validMapContext, Operation.MAP);
+    }
 
-    // FlatMap validations
-    builder.assertFlatMapperNull(
-        () -> invalidInstance.flatMap(null), "fn", validFlatMapContext, Operation.FLAT_MAP);
+    // FlatMap validations - test through monad if ValidatedMonad context, otherwise test directly
+    if (validFlatMapContext == ValidatedMonad.class) {
+
+      ValidatedMonad<E> monad = ValidatedMonad.instance((Semigroup<E>) Semigroups.string(","));
+      Kind<ValidatedKind.Witness<E>, A> kind = ValidatedKindHelper.VALIDATED.widen(invalidInstance);
+      builder.assertFlatMapperNull(
+          () -> monad.flatMap(null, kind), "f", validFlatMapContext, Operation.FLAT_MAP);
+    } else {
+      builder.assertFlatMapperNull(
+          () -> invalidInstance.flatMap(null), "fn", validFlatMapContext, Operation.FLAT_MAP);
+    }
 
     // Side effect validations
+    // If context is Validated.class (the interface), we need to use the concrete class
+    // because the actual error comes from Invalid/Valid implementation
+    Class<?> effectiveIfInvalidContext = validIfInvalidContext;
+    if (validIfInvalidContext == contextClass && contextClass == Validated.class) {
+      effectiveIfInvalidContext = invalidInstance.getClass();
+    }
+
+    Class<?> effectiveIfValidContext = validIfValidContext;
+    if (validIfValidContext == contextClass && contextClass == Validated.class) {
+      effectiveIfValidContext = invalidInstance.getClass();
+    }
+
     builder.assertFunctionNull(
         () -> invalidInstance.ifInvalid(null),
         "consumer",
-        validIfInvalidContext,
+        effectiveIfInvalidContext,
         Operation.IF_INVALID);
 
     builder.assertFunctionNull(
-        () -> invalidInstance.ifValid(null), "consumer", validIfValidContext, Operation.IF_VALID);
+        () -> invalidInstance.ifValid(null),
+        "consumer",
+        effectiveIfValidContext,
+        Operation.IF_VALID);
 
     builder.execute();
   }
 
   @Override
   protected void executeEdgeCaseTests() {
-    // Test with null values (if instances allow them)
-    Validated<E, A> invalidNull = Validated.invalid(null);
-    assertThat(invalidNull.isInvalid()).isTrue();
-    assertThat(invalidNull.getError()).isNull();
+    // Test that null values are properly rejected
+    assertThatThrownBy(() -> Validated.invalid(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("error")
+        .hasMessageContaining("cannot be null");
 
-    Validated<E, A> validNull = Validated.valid(null);
-    assertThat(validNull.isValid()).isTrue();
-    assertThat(validNull.get()).isNull();
+    assertThatThrownBy(() -> Validated.valid(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("value")
+        .hasMessageContaining("cannot be null");
 
     // Test toString
     assertThat(invalidInstance.toString()).contains("Invalid(");

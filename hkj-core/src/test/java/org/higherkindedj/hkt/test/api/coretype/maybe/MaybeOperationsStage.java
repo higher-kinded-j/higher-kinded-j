@@ -50,16 +50,16 @@ public final class MaybeOperationsStage<T> {
   }
 
   /**
-   * Provides Selective-specific test operations.
+   * Configures Selective-specific test operations for Maybe.
    *
-   * <p>Progressive disclosure: Shows Selective operation configuration.
+   * <p>Progressive disclosure: Next step is {@code .withHandlers(...)}
    *
-   * @param choiceLeft A Maybe containing a Choice with Left value for select testing
-   * @param choiceRight A Maybe containing a Choice with Right value for select testing
-   * @param booleanTrue A Maybe containing true for conditional testing
-   * @param booleanFalse A Maybe containing false for conditional testing
+   * @param choiceLeft Maybe containing Choice with Left value
+   * @param choiceRight Maybe containing Choice with Right value
+   * @param booleanTrue Maybe containing true
+   * @param booleanFalse Maybe containing false
    * @param <S> The result type for Selective operations
-   * @return Selective stage for configuring handlers
+   * @return Stage for configuring Selective handlers
    */
   public <S> MaybeSelectiveStage<T, S> withSelectiveOperations(
       Maybe<Choice<T, S>> choiceLeft,

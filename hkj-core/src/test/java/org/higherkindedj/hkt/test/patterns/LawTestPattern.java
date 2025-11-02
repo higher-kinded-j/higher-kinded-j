@@ -285,7 +285,7 @@ public final class LawTestPattern {
       Selective<F> selective, B testValue, BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
     // Create Right(x) wrapped in F
-    Choice<A, B> rightChoice = new Selective.SimpleChoice<>(false, null, testValue);
+    Choice<A, B> rightChoice = Selective.right(testValue);
     Kind<F, Choice<A, B>> rightKind = selective.of(rightChoice);
 
     // Create arbitrary function (won't be used)

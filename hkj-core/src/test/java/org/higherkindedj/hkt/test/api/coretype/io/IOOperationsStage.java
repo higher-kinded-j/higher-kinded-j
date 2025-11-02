@@ -45,4 +45,25 @@ public final class IOOperationsStage<A> {
   public IOTestConfigStage<A, String> withoutMapper() {
     return new IOTestConfigStage<>(contextClass, ioInstance, null);
   }
+
+  /**
+   * Configures Selective-specific test operations for IO.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withHandlers(...)}
+   *
+   * @param choiceLeft IO containing Choice with Left value
+   * @param choiceRight IO containing Choice with Right value
+   * @param booleanTrue IO containing true
+   * @param booleanFalse IO containing false
+   * @param <B> The result type for Selective operations
+   * @return Stage for configuring Selective handlers
+   */
+  public <B> IOSelectiveStage<A, B> withSelectiveOperations(
+      IO<org.higherkindedj.hkt.Choice<A, B>> choiceLeft,
+      IO<org.higherkindedj.hkt.Choice<A, B>> choiceRight,
+      IO<Boolean> booleanTrue,
+      IO<Boolean> booleanFalse) {
+    return new IOSelectiveStage<>(
+        contextClass, ioInstance, choiceLeft, choiceRight, booleanTrue, booleanFalse);
+  }
 }

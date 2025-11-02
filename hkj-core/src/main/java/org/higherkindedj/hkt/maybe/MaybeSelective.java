@@ -112,7 +112,8 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
 
     // If choice is Right(b), we already have our value
     if (choice.isRight()) {
-      return MAYBE.widen(Maybe.just(choice.getRight()));
+      B rightValue = choice.getRight();
+      return MAYBE.widen(Maybe.fromNullable(rightValue));
     }
 
     // Choice is Left(a), so we need to apply the function
@@ -126,8 +127,7 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
     A value = choice.getLeft();
     Function<A, B> function = maybeFunction.get();
     B result = function.apply(value);
-
-    return MAYBE.widen(Maybe.just(result));
+    return MAYBE.widen(Maybe.fromNullable(result));
   }
 
   /**
@@ -170,7 +170,7 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
         return MAYBE.nothing();
       }
       C result = leftFunction.get().apply(choice.getLeft());
-      return MAYBE.widen(Maybe.just(result));
+      return MAYBE.widen(Maybe.fromNullable(result));
     } else {
       // Use right handler
       Maybe<Function<B, C>> rightFunction = MAYBE.narrow(fr);

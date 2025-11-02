@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.validated;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
 import org.higherkindedj.hkt.validated.Validated;
 
@@ -159,6 +160,34 @@ public final class ValidatedTestConfigStage<E, A, B>
     disableAll();
     this.includeFlatMap = true;
     return this;
+  }
+
+  /**
+   * Configures Selective-specific test operations for Validated.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withHandlers(...)}
+   *
+   * @param choiceLeft Validated containing Choice with Left value
+   * @param choiceRight Validated containing Choice with Right value
+   * @param booleanTrue Validated containing true
+   * @param booleanFalse Validated containing false
+   * @param <R> The result type for Selective operations
+   * @return Stage for configuring Selective handlers
+   */
+  public <R> ValidatedSelectiveStage<E, A, R> withSelectiveOperations(
+      Validated<E, Choice<A, R>> choiceLeft,
+      Validated<E, Choice<A, R>> choiceRight,
+      Validated<E, Boolean> booleanTrue,
+      Validated<E, Boolean> booleanFalse) {
+
+    return new ValidatedSelectiveStage<>(
+        contextClass,
+        invalidInstance,
+        validInstance,
+        choiceLeft,
+        choiceRight,
+        booleanTrue,
+        booleanFalse);
   }
 
   private ValidatedTestExecutor<E, A, B> buildExecutor() {

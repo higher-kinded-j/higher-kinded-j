@@ -404,7 +404,7 @@ public final class TypeClassTestPattern {
     Kind<F, Function<A, B>> throwingFuncKind = selective.of(throwingFunc);
 
     // Create a Left choice that will trigger function application
-    Choice<A, B> leftChoice = new Selective.SimpleChoice<>(true, null, null);
+    Choice<A, B> leftChoice = Selective.left(null);
     Kind<F, Choice<A, B>> leftChoiceKind = selective.of(leftChoice);
 
     assertThatThrownBy(() -> selective.select(leftChoiceKind, throwingFuncKind))

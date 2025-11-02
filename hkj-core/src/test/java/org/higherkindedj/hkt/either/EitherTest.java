@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -109,13 +111,67 @@ class EitherTest extends EitherTestBase {
     }
 
     @Test
-    @DisplayName("Test Either selective operations")
+    @DisplayName("Test Either selective operations - basic")
     void testEitherSelectiveOperations() {
       CoreTypeTest.<String, Integer>either(Either.class)
           .withLeft(leftInstance)
           .withRight(rightInstance)
           .withMappers(TestFunctions.INT_TO_STRING)
           .onlyFactoryMethods()
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Test Either Selective with core type API")
+    void testEitherSelectiveWithCoreTypeAPI() {
+      // Create Choice instances for Selective testing
+      Choice<Integer, String> choiceLeft = Selective.left(rightValue);
+      Choice<Integer, String> choiceRight = Selective.right("right-value");
+
+      Either<String, Choice<Integer, String>> eitherChoiceLeft = Either.right(choiceLeft);
+      Either<String, Choice<Integer, String>> eitherChoiceRight = Either.right(choiceRight);
+      Either<String, Boolean> eitherTrue = Either.right(true);
+      Either<String, Boolean> eitherFalse = Either.right(false);
+
+      CoreTypeTest.<String, Integer>either(Either.class)
+          .withLeft(leftInstance)
+          .withRight(rightInstance)
+          .withMappers(TestFunctions.INT_TO_STRING)
+          .withSelectiveOperations(eitherChoiceLeft, eitherChoiceRight, eitherTrue, eitherFalse)
+          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
+          .configureValidation()
+          .useSelectiveInheritanceValidation()
+          .withSelectFrom(EitherSelective.class)
+          .withBranchFrom(EitherSelective.class)
+          .withWhenSFrom(EitherSelective.class)
+          .withIfSFrom(EitherSelective.class)
+          .testAll();
+    }
+
+    @Test
+    @DisplayName("Test Either Selective with inheritance validation")
+    void testEitherSelectiveWithInheritanceValidation() {
+      // Create Choice instances for Selective testing
+      Choice<Integer, String> choiceLeft = Selective.left(rightValue);
+      Choice<Integer, String> choiceRight = Selective.right("right-value");
+
+      Either<String, Choice<Integer, String>> eitherChoiceLeft = Either.right(choiceLeft);
+      Either<String, Choice<Integer, String>> eitherChoiceRight = Either.right(choiceRight);
+      Either<String, Boolean> eitherTrue = Either.right(true);
+      Either<String, Boolean> eitherFalse = Either.right(false);
+
+      CoreTypeTest.<String, Integer>either(Either.class)
+          .withLeft(leftInstance)
+          .withRight(rightInstance)
+          .withMappers(TestFunctions.INT_TO_STRING)
+          .withSelectiveOperations(eitherChoiceLeft, eitherChoiceRight, eitherTrue, eitherFalse)
+          .withHandlers(i -> "selected:" + i, i -> "left:" + i, s -> "right:" + s)
+          .configureValidation()
+          .useSelectiveInheritanceValidation()
+          .withSelectFrom(EitherSelective.class)
+          .withBranchFrom(EitherSelective.class)
+          .withWhenSFrom(EitherSelective.class)
+          .withIfSFrom(EitherSelective.class)
           .testAll();
     }
   }

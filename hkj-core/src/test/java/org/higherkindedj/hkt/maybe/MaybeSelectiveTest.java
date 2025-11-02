@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.maybe.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
@@ -53,10 +54,8 @@ class MaybeSelectiveTest extends MaybeTestBase {
 
   private void setUpSelectiveFixtures() {
     // Create Choice instances
-    Choice<Integer, String> choiceLeft =
-        new Selective.SimpleChoice<>(true, DEFAULT_JUST_VALUE, null);
-    Choice<Integer, String> choiceRight = new Selective.SimpleChoice<>(false, null, "right-value");
-
+    Choice<Integer, String> choiceLeft = Selective.left(DEFAULT_JUST_VALUE);
+    Choice<Integer, String> choiceRight = Selective.right("right-value");
     choiceLeftKind = MAYBE.widen(Maybe.just(choiceLeft));
     choiceRightKind = MAYBE.widen(Maybe.just(choiceRight));
 
@@ -552,7 +551,8 @@ class MaybeSelectiveTest extends MaybeTestBase {
     @Test
     @DisplayName("Select with null value in Choice")
     void selectWithNullValueInChoice() {
-      Choice<Integer, String> choiceWithNull = new Selective.SimpleChoice<>(true, null, null);
+      // Create a Left choice with null value using the factory method
+      Choice<Integer, String> choiceWithNull = Selective.left(null);
       Kind<MaybeKind.Witness, Choice<Integer, String>> choiceKind =
           MAYBE.widen(Maybe.just(choiceWithNull));
 
@@ -606,8 +606,7 @@ class MaybeSelectiveTest extends MaybeTestBase {
     @Test
     @DisplayName("Real-world scenario: optional effect execution")
     void optionalEffectExecution() {
-      java.util.concurrent.atomic.AtomicInteger counter =
-          new java.util.concurrent.atomic.AtomicInteger(0);
+      AtomicInteger counter = new AtomicInteger(0);
 
       Kind<MaybeKind.Witness, Boolean> shouldLog = MAYBE.widen(Maybe.just(true));
 
