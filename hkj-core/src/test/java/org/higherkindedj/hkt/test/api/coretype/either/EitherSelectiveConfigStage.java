@@ -5,7 +5,7 @@ package org.higherkindedj.hkt.test.api.coretype.either;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseSelectiveTestConfigStage;
 
 /**
  * Configuration stage for Either Selective tests.
@@ -18,7 +18,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
  * @param <S> The result type
  */
 public final class EitherSelectiveConfigStage<L, R, S>
-    extends BaseTestConfigStage<EitherSelectiveConfigStage<L, R, S>> {
+    extends BaseSelectiveTestConfigStage<EitherSelectiveConfigStage<L, R, S>> {
 
   private final Class<?> contextClass;
   private final Either<L, R> leftInstance;
@@ -30,12 +30,6 @@ public final class EitherSelectiveConfigStage<L, R, S>
   private final Function<R, S> selectFunction;
   private final Function<R, S> leftHandler;
   private final Function<S, S> rightHandler;
-
-  // Selective-specific test selection flags
-  private boolean includeSelect = true;
-  private boolean includeBranch = true;
-  private boolean includeWhenS = true;
-  private boolean includeIfS = true;
 
   EitherSelectiveConfigStage(
       Class<?> contextClass,
@@ -73,74 +67,6 @@ public final class EitherSelectiveConfigStage<L, R, S>
   @Override
   public EitherSelectiveValidationStage<L, R, S> configureValidation() {
     return new EitherSelectiveValidationStage<>(this);
-  }
-
-  @Override
-  public EitherSelectiveConfigStage<L, R, S> onlyValidations() {
-    disableAll();
-    this.includeValidations = true;
-    return this;
-  }
-
-  @Override
-  public EitherSelectiveConfigStage<L, R, S> onlyEdgeCases() {
-    disableAll();
-    this.includeEdgeCases = true;
-    return this;
-  }
-
-  @Override
-  protected void disableAll() {
-    super.disableAll();
-    includeSelect = false;
-    includeBranch = false;
-    includeWhenS = false;
-    includeIfS = false;
-  }
-
-  // Selective-specific test selection
-  public EitherSelectiveConfigStage<L, R, S> skipSelect() {
-    this.includeSelect = false;
-    return this;
-  }
-
-  public EitherSelectiveConfigStage<L, R, S> skipBranch() {
-    this.includeBranch = false;
-    return this;
-  }
-
-  public EitherSelectiveConfigStage<L, R, S> skipWhenS() {
-    this.includeWhenS = false;
-    return this;
-  }
-
-  public EitherSelectiveConfigStage<L, R, S> skipIfS() {
-    this.includeIfS = false;
-    return this;
-  }
-
-  public EitherSelectiveConfigStage<L, R, S> onlySelect() {
-    disableAll();
-    this.includeSelect = true;
-    return this;
-  }
-
-  public EitherSelectiveConfigStage<L, R, S> onlyBranch() {
-    disableAll();
-    this.includeBranch = true;
-    return this;
-  }
-
-  public EitherSelectiveConfigStage<L, R, S> onlyWhenS() {
-    disableAll();
-    this.includeWhenS = true;
-    return this;
-  }
-
-  public EitherSelectiveConfigStage<L, R, S> onlyIfS() {
-    disableAll();
-    this.includeIfS = true;
-    return this;
   }
 
   private EitherSelectiveTestExecutor<L, R, S> buildExecutor() {

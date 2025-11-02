@@ -5,7 +5,7 @@ package org.higherkindedj.hkt.test.api.coretype.maybe;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
+import org.higherkindedj.hkt.test.api.coretype.common.BaseSelectiveTestConfigStage;
 
 /**
  * Configuration stage for Maybe Selective tests.
@@ -17,7 +17,7 @@ import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
  * @param <S> The result type
  */
 public final class MaybeSelectiveConfigStage<T, S>
-    extends BaseTestConfigStage<MaybeSelectiveConfigStage<T, S>> {
+    extends BaseSelectiveTestConfigStage<MaybeSelectiveConfigStage<T, S>> {
 
   private final Class<?> contextClass;
   private final Maybe<T> justInstance;
@@ -29,12 +29,6 @@ public final class MaybeSelectiveConfigStage<T, S>
   private final Function<T, S> selectFunction;
   private final Function<T, S> leftHandler;
   private final Function<S, S> rightHandler;
-
-  // Selective-specific test selection flags
-  private boolean includeSelect = true;
-  private boolean includeBranch = true;
-  private boolean includeWhenS = true;
-  private boolean includeIfS = true;
 
   MaybeSelectiveConfigStage(
       Class<?> contextClass,
@@ -72,74 +66,6 @@ public final class MaybeSelectiveConfigStage<T, S>
   @Override
   public MaybeSelectiveValidationStage<T, S> configureValidation() {
     return new MaybeSelectiveValidationStage<>(this);
-  }
-
-  @Override
-  public MaybeSelectiveConfigStage<T, S> onlyValidations() {
-    disableAll();
-    this.includeValidations = true;
-    return this;
-  }
-
-  @Override
-  public MaybeSelectiveConfigStage<T, S> onlyEdgeCases() {
-    disableAll();
-    this.includeEdgeCases = true;
-    return this;
-  }
-
-  @Override
-  protected void disableAll() {
-    super.disableAll();
-    includeSelect = false;
-    includeBranch = false;
-    includeWhenS = false;
-    includeIfS = false;
-  }
-
-  // Selective-specific test selection
-  public MaybeSelectiveConfigStage<T, S> skipSelect() {
-    this.includeSelect = false;
-    return this;
-  }
-
-  public MaybeSelectiveConfigStage<T, S> skipBranch() {
-    this.includeBranch = false;
-    return this;
-  }
-
-  public MaybeSelectiveConfigStage<T, S> skipWhenS() {
-    this.includeWhenS = false;
-    return this;
-  }
-
-  public MaybeSelectiveConfigStage<T, S> skipIfS() {
-    this.includeIfS = false;
-    return this;
-  }
-
-  public MaybeSelectiveConfigStage<T, S> onlySelect() {
-    disableAll();
-    this.includeSelect = true;
-    return this;
-  }
-
-  public MaybeSelectiveConfigStage<T, S> onlyBranch() {
-    disableAll();
-    this.includeBranch = true;
-    return this;
-  }
-
-  public MaybeSelectiveConfigStage<T, S> onlyWhenS() {
-    disableAll();
-    this.includeWhenS = true;
-    return this;
-  }
-
-  public MaybeSelectiveConfigStage<T, S> onlyIfS() {
-    disableAll();
-    this.includeIfS = true;
-    return this;
   }
 
   private MaybeSelectiveTestExecutor<T, S> buildExecutor() {
