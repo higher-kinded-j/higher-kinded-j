@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.maybe;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.maybe.Maybe;
 
 /**
@@ -46,5 +47,33 @@ public final class MaybeOperationsStage<T> {
    */
   public MaybeTestConfigStage<T, String> withoutMapper() {
     return new MaybeTestConfigStage<>(contextClass, justInstance, nothingInstance, null);
+  }
+
+  /**
+   * Provides Selective-specific test operations.
+   *
+   * <p>Progressive disclosure: Shows Selective operation configuration.
+   *
+   * @param choiceLeft A Maybe containing a Choice with Left value for select testing
+   * @param choiceRight A Maybe containing a Choice with Right value for select testing
+   * @param booleanTrue A Maybe containing true for conditional testing
+   * @param booleanFalse A Maybe containing false for conditional testing
+   * @param <S> The result type for Selective operations
+   * @return Selective stage for configuring handlers
+   */
+  public <S> MaybeSelectiveStage<T, S> withSelectiveOperations(
+      Maybe<Choice<T, S>> choiceLeft,
+      Maybe<Choice<T, S>> choiceRight,
+      Maybe<Boolean> booleanTrue,
+      Maybe<Boolean> booleanFalse) {
+
+    return new MaybeSelectiveStage<>(
+        contextClass,
+        justInstance,
+        nothingInstance,
+        choiceLeft,
+        choiceRight,
+        booleanTrue,
+        booleanFalse);
   }
 }
