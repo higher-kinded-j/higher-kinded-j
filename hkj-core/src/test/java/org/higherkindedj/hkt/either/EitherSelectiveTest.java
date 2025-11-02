@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,9 +44,8 @@ class EitherSelectiveTest extends EitherTestBase {
   private void setUpSelectiveFixtures() {
     // Create Choice instances
     Choice<Integer, String> choiceLeft =
-        new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, DEFAULT_RIGHT_VALUE, null);
-    Choice<Integer, String> choiceRight =
-        new org.higherkindedj.hkt.Selective.SimpleChoice<>(false, null, "right-value");
+        new Selective.SimpleChoice<>(true, DEFAULT_RIGHT_VALUE, null);
+    Choice<Integer, String> choiceRight = new Selective.SimpleChoice<>(false, null, "right-value");
 
     choiceLeftKind = EITHER.widen(Either.right(choiceLeft));
     choiceRightKind = EITHER.widen(Either.right(choiceRight));
