@@ -10,6 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +31,7 @@ class EitherSelectiveTest extends EitherTestBase {
   private Kind<EitherKind.Witness<String>, Function<String, String>> rightHandlerKind;
   private Kind<EitherKind.Witness<String>, Boolean> conditionTrue;
   private Kind<EitherKind.Witness<String>, Boolean> conditionFalse;
-  private Kind<EitherKind.Witness<String>, Integer> effectKind;
+  private Kind<EitherKind.Witness<String>, Unit> unitEffectKind; // ✓ Changed from effectKind
   private Kind<EitherKind.Witness<String>, Integer> thenBranch;
   private Kind<EitherKind.Witness<String>, Integer> elseBranch;
 
@@ -63,8 +64,10 @@ class EitherSelectiveTest extends EitherTestBase {
     conditionTrue = EITHER.widen(Either.right(true));
     conditionFalse = EITHER.widen(Either.right(false));
 
-    // Create effect and branch kinds
-    effectKind = validKind;
+    // ✓ Create Unit effect for whenS
+    unitEffectKind = EITHER.widen(Either.right(Unit.INSTANCE));
+
+    // Create branch kinds for ifS (these stay as Integer)
     thenBranch = validKind;
     elseBranch = rightKind(ALTERNATIVE_RIGHT_VALUE);
   }
@@ -81,7 +84,12 @@ class EitherSelectiveTest extends EitherTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .withLawsTesting("test-value", validMapper, equalityChecker)
           .configureValidation()
           .useInheritanceValidation()
@@ -103,7 +111,12 @@ class EitherSelectiveTest extends EitherTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .selectTests()
           .skipValidations()
           .skipLaws()
@@ -118,7 +131,12 @@ class EitherSelectiveTest extends EitherTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .configureValidation()
           .useInheritanceValidation()
           .withMapFrom(EitherFunctor.class)
@@ -316,21 +334,21 @@ class EitherSelectiveTest extends EitherTestBase {
       @Test
       @DisplayName("whenS() executes effect when condition is true")
       void whenSExecutesEffectWhenTrue() {
-        Kind<EitherKind.Witness<String>, Integer> result =
-            selective.whenS(conditionTrue, effectKind);
+        Kind<EitherKind.Witness<String>, Unit> result =
+            selective.whenS(conditionTrue, unitEffectKind); // ✓ Use unitEffectKind
 
-        Either<String, Integer> either = EITHER.narrow(result);
-        assertThatEither(either).isRight().hasRight(DEFAULT_RIGHT_VALUE);
+        Either<String, Unit> either = EITHER.narrow(result);
+        assertThatEither(either).isRight().hasRight(Unit.INSTANCE);
       }
 
       @Test
       @DisplayName("whenS() skips effect when condition is false")
       void whenSSkipsEffectWhenFalse() {
-        Kind<EitherKind.Witness<String>, Integer> result =
-            selective.whenS(conditionFalse, effectKind);
+        Kind<EitherKind.Witness<String>, Unit> result =
+            selective.whenS(conditionFalse, unitEffectKind); // ✓ Use unitEffectKind
 
-        Either<String, Integer> either = EITHER.narrow(result);
-        assertThatEither(either).isRight().hasRightNull();
+        Either<String, Unit> either = EITHER.narrow(result);
+        assertThatEither(either).isRight().hasRight(Unit.INSTANCE);
       }
 
       @Test
@@ -339,10 +357,10 @@ class EitherSelectiveTest extends EitherTestBase {
         Kind<EitherKind.Witness<String>, Boolean> errorCondition =
             leftKind(TestErrorType.VALIDATION);
 
-        Kind<EitherKind.Witness<String>, Integer> result =
-            selective.whenS(errorCondition, effectKind);
+        Kind<EitherKind.Witness<String>, Unit> result =
+            selective.whenS(errorCondition, unitEffectKind); // ✓ Use unitEffectKind
 
-        Either<String, Integer> either = EITHER.narrow(result);
+        Either<String, Unit> either = EITHER.narrow(result);
         assertThatEither(either).isLeft().hasLeft(TestErrorType.VALIDATION.message());
       }
 
@@ -352,9 +370,10 @@ class EitherSelectiveTest extends EitherTestBase {
         Kind<EitherKind.Witness<String>, Boolean> errorCondition =
             leftKind(TestErrorType.VALIDATION);
 
-        Kind<EitherKind.Witness<String>, Integer> throwingEffect = EITHER.widen(Either.right(42));
+        Kind<EitherKind.Witness<String>, Unit> throwingEffect =
+            EITHER.widen(Either.right(Unit.INSTANCE));
 
-        Kind<EitherKind.Witness<String>, Integer> result =
+        Kind<EitherKind.Witness<String>, Unit> result =
             selective.whenS(errorCondition, throwingEffect);
 
         assertThatCode(() -> EITHER.narrow(result)).doesNotThrowAnyException();
@@ -428,7 +447,12 @@ class EitherSelectiveTest extends EitherTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .<String>withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .testOperations();
     }
 
@@ -440,7 +464,12 @@ class EitherSelectiveTest extends EitherTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .configureValidation()
           .useInheritanceValidation()
           .withApFrom(EitherMonad.class)
@@ -462,7 +491,12 @@ class EitherSelectiveTest extends EitherTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .<String>withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .testExceptions();
     }
 
@@ -474,7 +508,12 @@ class EitherSelectiveTest extends EitherTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .withLawsTesting("test-value", validMapper, equalityChecker)
           .selectTests()
           .onlyLaws()
@@ -493,11 +532,12 @@ class EitherSelectiveTest extends EitherTestBase {
 
       Kind<EitherKind.Witness<String>, Boolean> condition = selective.map(i -> i > 0, start);
 
+      // ✓ Use whenS_ to discard the Integer result and get Unit
       Kind<EitherKind.Witness<String>, Integer> doubled = selective.map(i -> i * 2, start);
-      Kind<EitherKind.Witness<String>, Integer> result = selective.whenS(condition, doubled);
+      Kind<EitherKind.Witness<String>, Unit> result = selective.whenS_(condition, doubled);
 
-      Either<String, Integer> either = EITHER.narrow(result);
-      assertThatEither(either).isRight().hasRight(DEFAULT_RIGHT_VALUE * 2);
+      Either<String, Unit> either = EITHER.narrow(result);
+      assertThatEither(either).isRight().hasRight(Unit.INSTANCE);
     }
 
     @Test
@@ -585,14 +625,15 @@ class EitherSelectiveTest extends EitherTestBase {
               },
               validKind);
 
-      selective.whenS(shouldLog, loggingEffect);
+      // ✓ Use whenS_ to convert Kind<F, Integer> to Kind<F, Unit>
+      selective.whenS_(shouldLog, loggingEffect);
 
       assertThat(counter.get()).isEqualTo(1);
 
       counter.set(0);
       Kind<EitherKind.Witness<String>, Boolean> shouldNotLog = EITHER.widen(Either.right(false));
 
-      selective.whenS(shouldNotLog, loggingEffect);
+      selective.whenS_(shouldNotLog, loggingEffect);
 
       assertThat(counter.get()).isEqualTo(0);
     }

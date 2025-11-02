@@ -3,13 +3,13 @@
 package org.higherkindedj.example.draughts;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
 import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.state.StateKindHelper;
-import org.higherkindedj.hkt.unit.Unit;
 
 public class Draughts {
 

@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
@@ -136,7 +138,8 @@ final class MaybeSelectiveTestExecutor<T, S>
     Kind<MaybeKind.Witness, Function<S, S>> rightHandlerKind =
         MAYBE.widen(Maybe.just(rightHandler));
     Kind<MaybeKind.Witness, Boolean> condKind = MAYBE.widen(booleanTrue);
-    Kind<MaybeKind.Witness, S> effectKind = MAYBE.widen(Maybe.nothing());
+    // ✓ Create a Unit effect for whenS validation
+    Kind<MaybeKind.Witness, Unit> unitEffectKind = MAYBE.widen(Maybe.just(Unit.INSTANCE));
 
     // Select validations
     Class<?> selectCtx = getSelectContext();
@@ -163,14 +166,15 @@ final class MaybeSelectiveTestExecutor<T, S>
         Operation.BRANCH,
         "rightHandler");
 
-    // WhenS validations
+    // WhenS validations - now using Unit effect
     Class<?> whenSCtx = getWhenSContext();
     builder.assertKindNull(
-        () -> selective.whenS(null, effectKind), whenSCtx, Operation.WHEN_S, "condition");
+        () -> selective.whenS(null, unitEffectKind), whenSCtx, Operation.WHEN_S, "condition");
     builder.assertKindNull(
         () -> selective.whenS(condKind, null), whenSCtx, Operation.WHEN_S, "effect");
 
     // IfS validations
+    Kind<MaybeKind.Witness, T> effectKind = MAYBE.widen(justInstance);
     Class<?> ifSCtx = getIfSContext();
     builder.assertKindNull(
         () -> selective.ifS(null, effectKind, effectKind), ifSCtx, Operation.IF_S, "condition");
@@ -185,8 +189,7 @@ final class MaybeSelectiveTestExecutor<T, S>
   @Override
   protected void executeEdgeCaseTests() {
     // Test with null values in Choice
-    Maybe<Choice<T, S>> choiceWithNull =
-        Maybe.just(new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, null, null));
+    Maybe<Choice<T, S>> choiceWithNull = Maybe.just(new Selective.SimpleChoice<>(true, null, null));
     Kind<MaybeKind.Witness, Choice<T, S>> choiceKind = MAYBE.widen(choiceWithNull);
     Kind<MaybeKind.Witness, Function<T, S>> funcKind =
         MAYBE.widen(Maybe.just(t -> t == null ? null : selectFunction.apply(t)));
@@ -251,23 +254,26 @@ final class MaybeSelectiveTestExecutor<T, S>
   private void testWhenS() {
     Kind<MaybeKind.Witness, Boolean> trueKind = MAYBE.widen(booleanTrue);
     Kind<MaybeKind.Witness, Boolean> falseKind = MAYBE.widen(booleanFalse);
-    Kind<MaybeKind.Witness, T> effectKind = MAYBE.widen(justInstance);
+    // ✓ Create a Unit effect for whenS testing
+    Kind<MaybeKind.Witness, Unit> unitEffectKind = MAYBE.widen(Maybe.just(Unit.INSTANCE));
 
     // Test whenS with true - effect should execute
-    Kind<MaybeKind.Witness, T> resultTrue = selective.whenS(trueKind, effectKind);
-    Maybe<T> maybeResultTrue = MAYBE.narrow(resultTrue);
+    Kind<MaybeKind.Witness, Unit> resultTrue = selective.whenS(trueKind, unitEffectKind);
+    Maybe<Unit> maybeResultTrue = MAYBE.narrow(resultTrue);
     assertThat(maybeResultTrue.isJust()).isTrue();
+    assertThat(maybeResultTrue.get()).isEqualTo(Unit.INSTANCE);
 
-    // Test whenS with false - effect should not execute (returns Nothing)
-    Kind<MaybeKind.Witness, T> resultFalse = selective.whenS(falseKind, effectKind);
-    Maybe<T> maybeResultFalse = MAYBE.narrow(resultFalse);
-    assertThat(maybeResultFalse.isNothing()).isTrue();
+    // Test whenS with false - effect should not execute (returns Just(Unit.INSTANCE))
+    Kind<MaybeKind.Witness, Unit> resultFalse = selective.whenS(falseKind, unitEffectKind);
+    Maybe<Unit> maybeResultFalse = MAYBE.narrow(resultFalse);
+    assertThat(maybeResultFalse.isJust()).isTrue();
+    assertThat(maybeResultFalse.get()).isEqualTo(Unit.INSTANCE);
 
     // Test whenS with Nothing condition - should propagate Nothing
     Maybe<Boolean> errorCondition = Maybe.nothing();
     Kind<MaybeKind.Witness, Boolean> errorCondKind = MAYBE.widen(errorCondition);
-    Kind<MaybeKind.Witness, T> errorResult = selective.whenS(errorCondKind, effectKind);
-    Maybe<T> maybeErrorResult = MAYBE.narrow(errorResult);
+    Kind<MaybeKind.Witness, Unit> errorResult = selective.whenS(errorCondKind, unitEffectKind);
+    Maybe<Unit> maybeErrorResult = MAYBE.narrow(errorResult);
     assertThat(maybeErrorResult.isNothing()).isTrue();
   }
 

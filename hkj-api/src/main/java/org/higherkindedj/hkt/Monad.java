@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -56,19 +58,6 @@ public interface Monad<M> extends Applicative<M> {
   }
 
   /**
-   * Keeps the effect of this Monad, but replaces the result with the given value.
-   *
-   * @param b The new value to replace the result with.
-   * @param ma The input monadic value.
-   * @param <A> The original type of the value in the monad.
-   * @param <B> The type of the new value.
-   * @return A new monadic value with the result replaced by 'b'.
-   */
-  default <A, B> Kind<M, B> as(final B b, final Kind<M, A> ma) {
-    return map(_ -> b, ma);
-  }
-
-  /**
    * Allows "peeking" at the value inside the Monad without changing the flow. This is useful for
    * logging or debugging.
    *
@@ -84,5 +73,51 @@ public interface Monad<M> extends Applicative<M> {
           return a;
         },
         ma);
+  }
+
+  /**
+   * Discards the result of a monadic computation, replacing it with Unit. This explicitly
+   * represents "computation completed but result is not interesting".
+   *
+   * <p>This is more explicit and type-safe than using {@code as(null, ma)}.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * // Database write returns row count, but we don't care
+   * Kind<IO.Witness, Integer> write = database.write(data);
+   * Kind<IO.Witness, Unit> justWrite = monad.asUnit(write);
+   *
+   * // Chain with other effects
+   * Kind<IO.Witness, Unit> sequence = monad.flatMap(
+   *     _ -> monad.asUnit(database.write(moreData)),
+   *     justWrite
+   * );
+   * }</pre>
+   *
+   * @param ma The monadic computation whose result will be discarded
+   * @param <A> The type of the discarded result
+   * @return The same computation structure, but with Unit as the result
+   */
+  default <A> Kind<M, Unit> asUnit(final Kind<M, A> ma) {
+    return map(_ -> Unit.INSTANCE, ma);
+  }
+
+  /**
+   * Keeps the effect of this Monad, but replaces the result with the given value.
+   *
+   * <p><b>Null Safety:</b> If you want to explicitly represent "no result", use {@link
+   * #asUnit(Kind)} instead of passing null.
+   *
+   * @param b The new value to replace the result with. Must not be null.
+   * @param ma The input monadic value.
+   * @param <A> The original type of the value in the monad.
+   * @param <B> The type of the new value.
+   * @return A new monadic value with the result replaced by 'b'.
+   * @throws NullPointerException if b is null (use asUnit() for Unit results)
+   */
+  default <A, B> Kind<M, B> as(final B b, final Kind<M, A> ma) {
+    requireNonNull(b, "Use asUnit() instead of as(null, ma)");
+    return map(_ -> b, ma);
   }
 }

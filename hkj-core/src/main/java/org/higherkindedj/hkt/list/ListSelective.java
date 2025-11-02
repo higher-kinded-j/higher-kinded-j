@@ -12,6 +12,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -26,13 +27,19 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * the list represents a possible outcome. The selective operations handle choices for each element
  * independently.
  *
+ * <p><b>Unit Usage:</b> The {@link #whenS(Kind, Kind)} method now uses {@link Unit} to represent
+ * skipped effects in the non-deterministic context. When a condition is false, {@code
+ * Unit.INSTANCE} is added to the result list, making it explicit that "this branch was not taken"
+ * rather than using null.
+ *
  * <p>Key operations:
  *
  * <ul>
  *   <li>{@link #select(Kind, Kind)}: Conditionally applies functions to values based on Choice.
  *   <li>{@link #branch(Kind, Kind, Kind)}: Provides two-way conditional choice with different
  *       handlers.
- *   <li>{@link #whenS(Kind, Kind)}: Conditionally executes an effect based on a boolean.
+ *   <li>{@link #whenS(Kind, Kind)}: Conditionally executes a Unit-returning effect based on a
+ *       boolean.
  *   <li>{@link #ifS(Kind, Kind, Kind)}: Ternary conditional for selective functors.
  * </ul>
  *
@@ -40,6 +47,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see ListMonad
  * @see Selective
  * @see Choice
+ * @see Unit
  */
 public final class ListSelective extends ListMonad implements Selective<ListKind.Witness> {
 
@@ -173,37 +181,57 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   }
 
   /**
-   * Optimized implementation of {@code whenS} for List. Conditionally executes an effect based on
-   * boolean conditions.
+   * Optimized implementation of {@code whenS} for List. Conditionally executes a Unit-returning
+   * effect based on boolean conditions.
    *
-   * <p>For each {@code true} condition, includes the corresponding effect result. For each {@code
-   * false} condition, includes {@code null}.
+   * <p>For List (representing non-deterministic computation), this operation works as follows:
+   *
+   * <ul>
+   *   <li>For each {@code true} condition: Includes all effect results from the effect list
+   *   <li>For each {@code false} condition: Includes {@code Unit.INSTANCE} (operation skipped)
+   * </ul>
+   *
+   * <p>This maintains the non-deterministic semantics of List while providing type-safe handling of
+   * skipped effects.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * List<Boolean> conditions = List.of(true, false, true);
+   * List<Unit> effects = List.of(Unit.INSTANCE, Unit.INSTANCE);
+   *
+   * Kind<ListKind.Witness, Unit> result = listSelective.whenS(
+   *     LIST.widen(conditions),
+   *     LIST.widen(effects)
+   * );
+   * // Result list contains: [Unit.INSTANCE, Unit.INSTANCE, Unit.INSTANCE, Unit.INSTANCE]
+   * // (2 effects for first true, 1 Unit for false, 2 effects for second true)
+   * }</pre>
    *
    * @param fcond A {@link Kind} representing {@code List<Boolean>}. Must not be null.
-   * @param fa A {@link Kind} representing {@code List<A>} to execute if condition is true. Must not
-   *     be null.
-   * @param <A> The type of the effect's result.
-   * @return A {@link Kind} representing {@code List<A>}. Never null.
+   * @param fa A {@link Kind} representing {@code List<Unit>} to execute if condition is true. Must
+   *     not be null.
+   * @return A {@link Kind} representing {@code List<Unit>}. Never null.
    */
   @Override
-  public <A> Kind<ListKind.Witness, A> whenS(
-      Kind<ListKind.Witness, Boolean> fcond, Kind<ListKind.Witness, A> fa) {
+  public Kind<ListKind.Witness, Unit> whenS(
+      Kind<ListKind.Witness, Boolean> fcond, Kind<ListKind.Witness, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, LIST_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, LIST_SELECTIVE_CLASS, WHEN_S, "effect");
 
     List<Boolean> conditions = LIST.narrow(fcond);
-    List<A> effects = LIST.narrow(fa);
+    List<Unit> effects = LIST.narrow(fa);
 
     if (conditions.isEmpty()) {
       return LIST.widen(Collections.emptyList());
     }
 
-    List<A> result = new ArrayList<>();
+    List<Unit> result = new ArrayList<>();
 
     // For lists, we combine conditions with effects
     // Each true condition pairs with each effect value
-    // Each false condition produces null
+    // Each false condition produces Unit.INSTANCE
     for (Boolean condition : conditions) {
       if (condition) {
         if (effects.isEmpty()) {
@@ -212,8 +240,8 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
         // Add all effect values for this true condition
         result.addAll(effects);
       } else {
-        // Condition is false, add null
-        result.add(null);
+        // Condition is false, add Unit.INSTANCE
+        result.add(Unit.INSTANCE);
       }
     }
 

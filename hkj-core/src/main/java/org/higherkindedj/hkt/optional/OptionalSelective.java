@@ -10,6 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -26,13 +27,25 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *   <li>Empty values: Propagated unchanged (short-circuit)
  * </ul>
  *
+ * <p><b>Unit Usage:</b> The {@link #whenS(Kind, Kind)} method uses {@link Unit} to distinguish
+ * between two different "empty-like" states:
+ *
+ * <ul>
+ *   <li>{@code Optional.empty()}: No condition to evaluate (input was empty)
+ *   <li>{@code Optional.of(Unit.INSTANCE)}: Condition evaluated to false, operation skipped
+ * </ul>
+ *
+ * This distinction is semantically important and improves code clarity. Previously, both cases
+ * returned {@code Optional.empty()}, making them indistinguishable.
+ *
  * <p>Key operations:
  *
  * <ul>
  *   <li>{@link #select(Kind, Kind)}: Conditionally applies an effectful function based on a Choice.
  *   <li>{@link #branch(Kind, Kind, Kind)}: Provides two-way conditional choice with different
  *       handlers.
- *   <li>{@link #whenS(Kind, Kind)}: Conditionally executes an effect based on a boolean.
+ *   <li>{@link #whenS(Kind, Kind)}: Conditionally executes a Unit-returning effect based on a
+ *       boolean.
  *   <li>{@link #ifS(Kind, Kind, Kind)}: Ternary conditional for selective functors.
  * </ul>
  *
@@ -42,6 +55,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see OptionalMonad
  * @see Selective
  * @see Choice
+ * @see Unit
  */
 public final class OptionalSelective extends OptionalMonad
     implements Selective<OptionalKind.Witness> {
@@ -171,25 +185,71 @@ public final class OptionalSelective extends OptionalMonad
   }
 
   /**
-   * Optimized implementation of {@code whenS} for Optional. Conditionally executes an effect based
-   * on a boolean condition.
+   * Optimized implementation of {@code whenS} for Optional. Conditionally executes a Unit-returning
+   * effect based on a boolean condition.
+   *
+   * <p>This method now uses {@link Unit} to clearly distinguish between different states:
+   *
+   * <ul>
+   *   <li>{@code Optional.empty()} in condition: Returns {@code Optional.empty()} (no condition to
+   *       evaluate)
+   *   <li>{@code Optional.of(true)}: Executes effect and returns its result
+   *   <li>{@code Optional.of(false)}: Returns {@code Optional.of(Unit.INSTANCE)} (condition
+   *       evaluated, operation skipped)
+   * </ul>
+   *
+   * <p>This distinction is important:
+   *
+   * <ul>
+   *   <li>{@code Optional.empty()}: "No information available" (condition itself is absent)
+   *   <li>{@code Optional.of(Unit.INSTANCE)}: "Operation completed with no interesting result"
+   *       (condition was false)
+   * </ul>
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * // Condition is present and true - effect executes
+   * Optional<Boolean> shouldLog = Optional.of(true);
+   * Optional<Unit> logEffect = Optional.of(Unit.INSTANCE);
+   * Optional<Unit> result1 = OPTIONAL.narrow(optionalSelective.whenS(
+   *     OPTIONAL.widen(shouldLog),
+   *     OPTIONAL.widen(logEffect)
+   * ));
+   * // result1 = Optional.of(Unit.INSTANCE) - effect executed
+   *
+   * // Condition is present and false - effect skipped
+   * Optional<Boolean> shouldNotLog = Optional.of(false);
+   * Optional<Unit> result2 = OPTIONAL.narrow(optionalSelective.whenS(
+   *     OPTIONAL.widen(shouldNotLog),
+   *     OPTIONAL.widen(logEffect)
+   * ));
+   * // result2 = Optional.of(Unit.INSTANCE) - condition evaluated, effect skipped
+   *
+   * // Condition is absent - no evaluation possible
+   * Optional<Boolean> noCondition = Optional.empty();
+   * Optional<Unit> result3 = OPTIONAL.narrow(optionalSelective.whenS(
+   *     OPTIONAL.widen(noCondition),
+   *     OPTIONAL.widen(logEffect)
+   * ));
+   * // result3 = Optional.empty() - no condition to evaluate
+   * }</pre>
    *
    * @param fcond A {@link Kind} representing {@code Optional<Boolean>}. Must not be null.
-   * @param fa A {@link Kind} representing {@code Optional<A>} to execute if condition is true. Must
-   *     not be null.
-   * @param <A> The type of the effect's result.
-   * @return A {@link Kind} representing {@code Optional<A>}. Never null.
+   * @param fa A {@link Kind} representing {@code Optional<Unit>} to execute if condition is true.
+   *     Must not be null.
+   * @return A {@link Kind} representing {@code Optional<Unit>}. Never null.
    */
   @Override
-  public <A> Kind<OptionalKind.Witness, A> whenS(
-      Kind<OptionalKind.Witness, Boolean> fcond, Kind<OptionalKind.Witness, A> fa) {
+  public Kind<OptionalKind.Witness, Unit> whenS(
+      Kind<OptionalKind.Witness, Boolean> fcond, Kind<OptionalKind.Witness, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, OPTIONAL_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, OPTIONAL_SELECTIVE_CLASS, WHEN_S, "effect");
 
     Optional<Boolean> condOptional = OPTIONAL.narrow(fcond);
 
-    // Short-circuit on empty
+    // Short-circuit on empty - no condition to evaluate
     if (condOptional.isEmpty()) {
       return OPTIONAL.widen(Optional.empty());
     }
@@ -200,8 +260,9 @@ public final class OptionalSelective extends OptionalMonad
       // Execute and return the effect
       return fa;
     } else {
-      // Condition is false, return empty as a "unit" representation
-      return OPTIONAL.widen(Optional.empty());
+      // Condition is false, return Optional.of(Unit.INSTANCE)
+      // This is NOT empty - it represents "operation completed, effect skipped"
+      return OPTIONAL.widen(Optional.of(Unit.INSTANCE));
     }
   }
 

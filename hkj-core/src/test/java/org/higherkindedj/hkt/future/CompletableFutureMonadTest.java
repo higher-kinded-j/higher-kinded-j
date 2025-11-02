@@ -535,7 +535,7 @@ class CompletableFutureMonadTest {
 
     @Test
     @DisplayName(
-        "handleErrorWith should ignore already completed success future (optimization path)")
+        "handleErrorWith should ignore already completed success future (Optimisation path)")
     void handleErrorWith_shouldReturnOriginalKindForAlreadyCompletedSuccess() {
       String successValue = "Already Done";
       CompletableFuture<String> alreadyDoneFuture = CompletableFuture.completedFuture(successValue);

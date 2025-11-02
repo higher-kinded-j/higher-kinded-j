@@ -8,10 +8,7 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Choice;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Selective;
-import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -160,7 +157,7 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
   }
 
   /**
-   * Optimized implementation of {@code branch} for Validated with error accumulation. Provides a
+   * Optimised implementation of {@code branch} for Validated with error accumulation. Provides a
    * two-way conditional choice, applying the appropriate handler and accumulating all errors.
    *
    * @param fab A {@link Kind} representing {@code Validated<E, Choice<A, B>>}. Must not be null.
@@ -240,26 +237,27 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
   }
 
   /**
-   * Optimized implementation of {@code whenS} for Validated with error accumulation. Conditionally
-   * executes an effect based on a boolean condition, accumulating errors.
+   * Conditionally executes a Unit-returning effect based on a boolean condition, with error
+   * accumulation.
    *
-   * @param fcond A {@link Kind} representing {@code Validated<E, Boolean>}. Must not be null.
-   * @param fa A {@link Kind} representing {@code Validated<E, A>} to execute if condition is true.
-   *     Must not be null.
-   * @param <A> The type of the effect's result.
-   * @return A {@link Kind} representing {@code Validated<E, A>}. Never null.
+   * <p>Key improvement: Returns Valid(Unit.INSTANCE) instead of Valid(null), making the "skipped
+   * effect" case explicit and type-safe.
+   *
+   * @param fcond The effectful condition
+   * @param fa The Unit-returning effect to execute if condition is true
+   * @return Validated with Unit result
    */
   @Override
-  public <A> Kind<ValidatedKind.Witness<E>, A> whenS(
-      Kind<ValidatedKind.Witness<E>, Boolean> fcond, Kind<ValidatedKind.Witness<E>, A> fa) {
+  public Kind<ValidatedKind.Witness<E>, Unit> whenS(
+      Kind<ValidatedKind.Witness<E>, Boolean> fcond, Kind<ValidatedKind.Witness<E>, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, VALIDATED_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, VALIDATED_SELECTIVE_CLASS, WHEN_S, "effect");
 
     Validated<E, Boolean> condValidated = VALIDATED.narrow(fcond);
-    Validated<E, A> effectValidated = VALIDATED.narrow(fa);
+    Validated<E, Unit> effectValidated = VALIDATED.narrow(fa);
 
-    // Collect errors
+    // Collect errors for accumulation
     List<E> errors = new ArrayList<>();
 
     if (condValidated.isInvalid()) {
@@ -272,10 +270,8 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
       boolean condition = condValidated.get();
 
       if (!condition) {
-        // Condition is false, return Invalid with empty error (no-op)
-        // Actually, for whenS, we should return a "unit" - for Validated this is tricky
-        // The conventional approach is to return null wrapped in Valid
-        return VALIDATED.widen(Validated.valid(null));
+        // Condition is false, return Valid(Unit.INSTANCE) (not Valid(null)!)
+        return VALIDATED.widen(Validated.valid(Unit.INSTANCE));
       }
 
       // Condition is true, check effect
@@ -300,7 +296,7 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
   }
 
   /**
-   * Optimized implementation of {@code ifS} for Validated with error accumulation. A ternary
+   * Optimised implementation of {@code ifS} for Validated with error accumulation. A ternary
    * conditional operator that accumulates errors from all branches.
    *
    * @param fcond A {@link Kind} representing {@code Validated<E, Boolean>}. Must not be null.

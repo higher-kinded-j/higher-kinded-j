@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -21,7 +22,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * still supporting conditional behavior.
  *
  * <p>For Reader, selective operations allow conditional computations that may or may not require
- * accessing the environment, potentially enabling optimizations where the environment is only read
+ * accessing the environment, potentially enabling Optimisations where the environment is only read
  * when necessary.
  *
  * <p>Key operations:
@@ -116,7 +117,7 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
   }
 
   /**
-   * Optimized implementation of {@code branch} for Reader. Provides a two-way conditional choice,
+   * Optimised implementation of {@code branch} for Reader. Provides a two-way conditional choice,
    * applying the appropriate handler based on whether the Choice is Left or Right.
    *
    * @param fab A {@link Kind} representing {@code Reader<R, Choice<A, B>>}. Must not be null.
@@ -160,42 +161,42 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
   }
 
   /**
-   * Optimized implementation of {@code whenS} for Reader. Conditionally executes an effect based on
-   * a boolean condition.
+   * Conditionally executes a Unit-returning effect based on a boolean condition.
    *
-   * @param fcond A {@link Kind} representing {@code Reader<R, Boolean>}. Must not be null.
-   * @param fa A {@link Kind} representing {@code Reader<R, A>} to execute if condition is true.
-   *     Must not be null.
-   * @param <A> The type of the effect's result.
-   * @return A {@link Kind} representing {@code Reader<R, A>}. Never null.
+   * <p>Key improvement: Returns Unit.INSTANCE instead of null in the Reader computation, making the
+   * result type-safe.
+   *
+   * @param fcond The effectful condition
+   * @param fa The Unit-returning effect to execute if condition is true
+   * @return Reader with Unit result
    */
   @Override
-  public <A> Kind<ReaderKind.Witness<R>, A> whenS(
-      Kind<ReaderKind.Witness<R>, Boolean> fcond, Kind<ReaderKind.Witness<R>, A> fa) {
+  public Kind<ReaderKind.Witness<R>, Unit> whenS(
+      Kind<ReaderKind.Witness<R>, Boolean> fcond, Kind<ReaderKind.Witness<R>, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, READER_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, READER_SELECTIVE_CLASS, WHEN_S, "effect");
 
     Reader<R, Boolean> condReader = READER.narrow(fcond);
-    Reader<R, A> effectReader = READER.narrow(fa);
+    Reader<R, Unit> effectReader = READER.narrow(fa);
 
-    Reader<R, A> readerA =
+    Reader<R, Unit> readerUnit =
         (R r) -> {
           boolean condition = condReader.run(r);
 
           if (condition) {
             return effectReader.run(r);
           } else {
-            // Condition is false, return null as unit
-            return null;
+            // Condition is false, return Unit (not null!)
+            return Unit.INSTANCE;
           }
         };
 
-    return READER.widen(readerA);
+    return READER.widen(readerUnit);
   }
 
   /**
-   * Optimized implementation of {@code ifS} for Reader. A ternary conditional operator for
+   * Optimised implementation of {@code ifS} for Reader. A ternary conditional operator for
    * selective functors.
    *
    * @param fcond A {@link Kind} representing {@code Reader<R, Boolean>}. Must not be null.

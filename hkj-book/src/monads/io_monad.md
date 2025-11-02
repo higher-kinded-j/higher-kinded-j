@@ -64,7 +64,7 @@ Use `IOKindHelper.delay` to capture side effects. Use `IOMonad.of` for pure valu
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.io.*; 
-import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.Unit;
 import java.util.function.Supplier;
 import java.util.Scanner;
 
@@ -154,7 +154,7 @@ Use `IOMonad` instance methods.
 
 ```java
 import org.higherkindedj.hkt.io.IOMonad;
-import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.Unit;
 import java.util.function.Function;
 
 IOMonad ioMonad = IOMonad.INSTANCE;

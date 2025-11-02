@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherKindHelper;
@@ -139,7 +140,8 @@ final class EitherSelectiveTestExecutor<L, R, S>
     Kind<EitherKind.Witness<L>, Function<S, S>> rightHandlerKind =
         EITHER.widen(Either.right(rightHandler));
     Kind<EitherKind.Witness<L>, Boolean> condKind = EITHER.widen(booleanTrue);
-    Kind<EitherKind.Witness<L>, S> effectKind = EITHER.widen(Either.right(null));
+    // ✓ Create a Unit effect for whenS validation
+    Kind<EitherKind.Witness<L>, Unit> unitEffectKind = EITHER.widen(Either.right(Unit.INSTANCE));
 
     // Select validations
     Class<?> selectCtx = getSelectContext();
@@ -166,14 +168,15 @@ final class EitherSelectiveTestExecutor<L, R, S>
         Operation.BRANCH,
         "rightHandler");
 
-    // WhenS validations
+    // WhenS validations - now using Unit effect
     Class<?> whenSCtx = getWhenSContext();
     builder.assertKindNull(
-        () -> selective.whenS(null, effectKind), whenSCtx, Operation.WHEN_S, "condition");
+        () -> selective.whenS(null, unitEffectKind), whenSCtx, Operation.WHEN_S, "condition");
     builder.assertKindNull(
         () -> selective.whenS(condKind, null), whenSCtx, Operation.WHEN_S, "effect");
 
     // IfS validations
+    Kind<EitherKind.Witness<L>, R> effectKind = EITHER.widen(rightInstance);
     Class<?> ifSCtx = getIfSContext();
     builder.assertKindNull(
         () -> selective.ifS(null, effectKind, effectKind), ifSCtx, Operation.IF_S, "condition");
@@ -256,23 +259,26 @@ final class EitherSelectiveTestExecutor<L, R, S>
   private void testWhenS() {
     Kind<EitherKind.Witness<L>, Boolean> trueKind = EITHER.widen(booleanTrue);
     Kind<EitherKind.Witness<L>, Boolean> falseKind = EITHER.widen(booleanFalse);
-    Kind<EitherKind.Witness<L>, R> effectKind = EITHER.widen(rightInstance);
+    // ✓ Create a Unit effect for whenS testing
+    Kind<EitherKind.Witness<L>, Unit> unitEffectKind = EITHER.widen(Either.right(Unit.INSTANCE));
 
     // Test whenS with true - effect should execute
-    Kind<EitherKind.Witness<L>, R> resultTrue = selective.whenS(trueKind, effectKind);
-    Either<L, R> eitherResultTrue = EITHER.narrow(resultTrue);
+    Kind<EitherKind.Witness<L>, Unit> resultTrue = selective.whenS(trueKind, unitEffectKind);
+    Either<L, Unit> eitherResultTrue = EITHER.narrow(resultTrue);
     assertThat(eitherResultTrue.isRight()).isTrue();
+    assertThat(eitherResultTrue.getRight()).isEqualTo(Unit.INSTANCE);
 
     // Test whenS with false - effect should not execute
-    Kind<EitherKind.Witness<L>, R> resultFalse = selective.whenS(falseKind, effectKind);
-    Either<L, R> eitherResultFalse = EITHER.narrow(resultFalse);
+    Kind<EitherKind.Witness<L>, Unit> resultFalse = selective.whenS(falseKind, unitEffectKind);
+    Either<L, Unit> eitherResultFalse = EITHER.narrow(resultFalse);
     assertThat(eitherResultFalse.isRight()).isTrue();
+    assertThat(eitherResultFalse.getRight()).isEqualTo(Unit.INSTANCE);
 
     // Test whenS with Either.Left condition - should propagate error
     Either<L, Boolean> errorCondition = Either.left(leftInstance.getLeft());
     Kind<EitherKind.Witness<L>, Boolean> errorCondKind = EITHER.widen(errorCondition);
-    Kind<EitherKind.Witness<L>, R> errorResult = selective.whenS(errorCondKind, effectKind);
-    Either<L, R> eitherErrorResult = EITHER.narrow(errorResult);
+    Kind<EitherKind.Witness<L>, Unit> errorResult = selective.whenS(errorCondKind, unitEffectKind);
+    Either<L, Unit> eitherErrorResult = EITHER.narrow(errorResult);
     assertThat(eitherErrorResult.isLeft()).isTrue();
   }
 

@@ -606,7 +606,7 @@ public final class TypeClassAssertions {
    * @param validLeftHandler A valid Kind for left handler
    * @param validRightHandler A valid Kind for right handler
    * @param validCondition A valid Kind containing a boolean
-   * @param validEffect A valid Kind for effect
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS effect testing
    * @param validThenBranch A valid Kind for then branch
    * @param validElseBranch A valid Kind for else branch
    * @param <F> The Selective witness type
@@ -622,16 +622,18 @@ public final class TypeClassAssertions {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch) {
 
     // Applicative operations (inherited) - create valid test data
     @SuppressWarnings("unchecked")
-    Kind<F, A> validKind = (Kind<F, A>) validEffect;
+    Kind<F, A> validKind = (Kind<F, A>) validThenBranch;
     @SuppressWarnings("unchecked")
-    Kind<F, A> validKind2 = (Kind<F, A>) validThenBranch;
-    Function<A, B> validMapper = a -> validFunctionKind.toString().charAt(0) != 'x' ? null : null;
+    Kind<F, A> validKind2 = (Kind<F, A>) validElseBranch;
+    // Dummy mapper for validation testing - never actually called
+    @SuppressWarnings("unchecked")
+    Function<A, B> validMapper = a -> (B) null;
     BiFunction<A, A, B> validCombiningFunction = (a1, a2) -> validMapper.apply(a1);
 
     assertAllApplicativeOperations(
@@ -655,8 +657,9 @@ public final class TypeClassAssertions {
     assertSelectiveBranchRightHandlerNull(
         () -> selective.branch(validChoiceKind, validLeftHandler, null), contextClass);
 
-    // WhenS operations
-    assertSelectiveWhenSConditionNull(() -> selective.whenS(null, validEffect), contextClass);
+    // WhenS operations - now using validUnitEffect
+    assertSelectiveWhenSConditionNull(
+        () -> selective.whenS(null, validUnitEffect), contextClass); // ✓ Fixed
     assertSelectiveWhenSEffectNull(() -> selective.whenS(validCondition, null), contextClass);
 
     // IfS operations

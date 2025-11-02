@@ -7,6 +7,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 
 /**
  * Stage 5: Optional configuration and test execution.
@@ -28,7 +29,7 @@ public final class SelectiveHandlerStage<F, A, B, C> {
   private final Kind<F, Function<A, C>> validLeftHandler;
   private final Kind<F, Function<B, C>> validRightHandler;
   private final Kind<F, Boolean> validCondition;
-  private final Kind<F, A> validEffect;
+  private final Kind<F, Unit> validUnitEffect; // ✓ Changed from Kind<F, A> validEffect
   private final Kind<F, A> validThenBranch;
   private final Kind<F, A> validElseBranch;
 
@@ -41,7 +42,7 @@ public final class SelectiveHandlerStage<F, A, B, C> {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed parameter type
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch) {
 
@@ -53,7 +54,7 @@ public final class SelectiveHandlerStage<F, A, B, C> {
     this.validLeftHandler = validLeftHandler;
     this.validRightHandler = validRightHandler;
     this.validCondition = validCondition;
-    this.validEffect = validEffect;
+    this.validUnitEffect = validUnitEffect; // ✓ Store Unit effect
     this.validThenBranch = validThenBranch;
     this.validElseBranch = validElseBranch;
   }
@@ -167,7 +168,7 @@ public final class SelectiveHandlerStage<F, A, B, C> {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect, // ✓ Pass Unit effect
         validThenBranch,
         validElseBranch,
         lawsStage,
@@ -207,8 +208,8 @@ public final class SelectiveHandlerStage<F, A, B, C> {
     return validCondition;
   }
 
-  Kind<F, A> getValidEffect() {
-    return validEffect;
+  Kind<F, Unit> getValidUnitEffect() { // ✓ Changed return type and method name
+    return validUnitEffect;
   }
 
   Kind<F, A> getValidThenBranch() {

@@ -4,9 +4,10 @@ package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -164,5 +165,48 @@ public interface IO<A> {
           Validation.function().requireNonNullResult(nextIO, "f", IO.class, FLAT_MAP, IO.class);
           return nextIO.unsafeRunSync();
         });
+  }
+
+  /**
+   * Creates an IO from a side-effecting Runnable. The IO will execute the runnable and return Unit.
+   *
+   * <p>This is the preferred way to lift side effects into IO when no return value is needed.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * IO<Unit> print = IO.fromRunnable(() -> System.out.println("Hello"));
+   * IO<Unit> sequence = print
+   *     .flatMap(_ -> IO.fromRunnable(() -> System.out.println("World")));
+   * }</pre>
+   *
+   * @param runnable The side effect to execute, must not be null
+   * @return An IO<Unit> that executes the runnable
+   * @throws NullPointerException if runnable is null
+   */
+  static IO<Unit> fromRunnable(Runnable runnable) {
+    Objects.requireNonNull(runnable, "runnable cannot be null");
+    return IO.delay(
+        () -> {
+          runnable.run();
+          return Unit.INSTANCE;
+        });
+  }
+
+  /**
+   * Discards the result of this IO, replacing it with Unit. Useful for side-effecting operations
+   * where the return value is not interesting.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * IO<Integer> writeDb = database.write(data); // Returns row count
+   * IO<Unit> justWrite = writeDb.asUnit(); // Discard the count
+   * }</pre>
+   *
+   * @return An IO<Unit> that performs the same side effect but returns Unit
+   */
+  default IO<Unit> asUnit() {
+    return this.map(a -> Unit.INSTANCE);
   }
 }

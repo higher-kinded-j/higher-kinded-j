@@ -6,7 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.TELL;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 

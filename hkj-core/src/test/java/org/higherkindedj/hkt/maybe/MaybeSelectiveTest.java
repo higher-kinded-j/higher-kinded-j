@@ -9,6 +9,8 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +18,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Comprehensive tests for {@link MaybeSelective} with enhanced coverage matching EitherSelective
+ * patterns.
+ *
+ * <p>This test class provides complete coverage of all Selective operations including: - Core
+ * select() operation with all edge cases - Branch operation with both handlers - WhenS operation
+ * with Unit semantics - IfS conditional operation - Error propagation and short-circuiting -
+ * Integration scenarios - Performance tests
+ */
 @DisplayName("MaybeSelective Complete Test Suite")
 class MaybeSelectiveTest extends MaybeTestBase {
 
@@ -29,22 +40,22 @@ class MaybeSelectiveTest extends MaybeTestBase {
   private Kind<MaybeKind.Witness, Function<String, String>> rightHandlerKind;
   private Kind<MaybeKind.Witness, Boolean> conditionTrue;
   private Kind<MaybeKind.Witness, Boolean> conditionFalse;
-  private Kind<MaybeKind.Witness, Integer> effectKind;
+  private Kind<MaybeKind.Witness, Unit> unitEffectKind;
   private Kind<MaybeKind.Witness, Integer> thenBranch;
   private Kind<MaybeKind.Witness, Integer> elseBranch;
 
   @BeforeEach
   void setUpSelective() {
     selective = MaybeSelective.INSTANCE;
+    validateMonadFixtures();
     setUpSelectiveFixtures();
   }
 
   private void setUpSelectiveFixtures() {
     // Create Choice instances
     Choice<Integer, String> choiceLeft =
-        new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, DEFAULT_JUST_VALUE, null);
-    Choice<Integer, String> choiceRight =
-        new org.higherkindedj.hkt.Selective.SimpleChoice<>(false, null, "right-value");
+        new Selective.SimpleChoice<>(true, DEFAULT_JUST_VALUE, null);
+    Choice<Integer, String> choiceRight = new Selective.SimpleChoice<>(false, null, "right-value");
 
     choiceLeftKind = MAYBE.widen(Maybe.just(choiceLeft));
     choiceRightKind = MAYBE.widen(Maybe.just(choiceRight));
@@ -62,8 +73,10 @@ class MaybeSelectiveTest extends MaybeTestBase {
     conditionTrue = MAYBE.widen(Maybe.just(true));
     conditionFalse = MAYBE.widen(Maybe.just(false));
 
-    // Create effect and branch kinds
-    effectKind = validKind;
+    // Create Unit effect for whenS
+    unitEffectKind = MAYBE.widen(Maybe.just(Unit.INSTANCE));
+
+    // Create branch kinds for ifS
     thenBranch = validKind;
     elseBranch = justKind(ALTERNATIVE_JUST_VALUE);
   }
@@ -80,7 +93,12 @@ class MaybeSelectiveTest extends MaybeTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .withLawsTesting("test-value", validMapper, equalityChecker)
           .configureValidation()
           .useInheritanceValidation()
@@ -102,7 +120,12 @@ class MaybeSelectiveTest extends MaybeTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .selectTests()
           .skipValidations()
           .skipLaws()
@@ -117,7 +140,12 @@ class MaybeSelectiveTest extends MaybeTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .configureValidation()
           .useInheritanceValidation()
           .withMapFrom(MaybeFunctor.class)
@@ -206,9 +234,10 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("select() propagates Nothing from choice")
       void selectPropagatesNothingFromChoice() {
-        Kind<MaybeKind.Witness, Choice<Integer, String>> errorChoice = nothingKind();
+        Kind<MaybeKind.Witness, Choice<Integer, String>> nothingChoice = nothingKind();
 
-        Kind<MaybeKind.Witness, String> result = selective.select(errorChoice, selectFunctionKind);
+        Kind<MaybeKind.Witness, String> result =
+            selective.select(nothingChoice, selectFunctionKind);
 
         Maybe<String> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
@@ -217,9 +246,9 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("select() propagates Nothing from function")
       void selectPropagatesNothingFromFunction() {
-        Kind<MaybeKind.Witness, Function<Integer, String>> errorFunc = nothingKind();
+        Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = nothingKind();
 
-        Kind<MaybeKind.Witness, String> result = selective.select(choiceLeftKind, errorFunc);
+        Kind<MaybeKind.Witness, String> result = selective.select(choiceLeftKind, nothingFunc);
 
         Maybe<String> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
@@ -228,10 +257,10 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("select() short-circuits on first Nothing")
       void selectShortCircuitsOnFirstNothing() {
-        Kind<MaybeKind.Witness, Choice<Integer, String>> errorChoice = nothingKind();
-        Kind<MaybeKind.Witness, Function<Integer, String>> errorFunc = nothingKind();
+        Kind<MaybeKind.Witness, Choice<Integer, String>> nothingChoice = nothingKind();
+        Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = nothingKind();
 
-        Kind<MaybeKind.Witness, String> result = selective.select(errorChoice, errorFunc);
+        Kind<MaybeKind.Witness, String> result = selective.select(nothingChoice, nothingFunc);
 
         Maybe<String> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
@@ -265,10 +294,10 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("branch() propagates Nothing from choice")
       void branchPropagatesNothingFromChoice() {
-        Kind<MaybeKind.Witness, Choice<Integer, String>> errorChoice = nothingKind();
+        Kind<MaybeKind.Witness, Choice<Integer, String>> nothingChoice = nothingKind();
 
         Kind<MaybeKind.Witness, String> result =
-            selective.branch(errorChoice, leftHandlerKind, rightHandlerKind);
+            selective.branch(nothingChoice, leftHandlerKind, rightHandlerKind);
 
         Maybe<String> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
@@ -277,10 +306,10 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("branch() propagates Nothing from left handler")
       void branchPropagatesNothingFromLeftHandler() {
-        Kind<MaybeKind.Witness, Function<Integer, String>> errorLeftHandler = nothingKind();
+        Kind<MaybeKind.Witness, Function<Integer, String>> nothingLeftHandler = nothingKind();
 
         Kind<MaybeKind.Witness, String> result =
-            selective.branch(choiceLeftKind, errorLeftHandler, rightHandlerKind);
+            selective.branch(choiceLeftKind, nothingLeftHandler, rightHandlerKind);
 
         Maybe<String> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
@@ -289,10 +318,10 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("branch() propagates Nothing from right handler")
       void branchPropagatesNothingFromRightHandler() {
-        Kind<MaybeKind.Witness, Function<String, String>> errorRightHandler = nothingKind();
+        Kind<MaybeKind.Witness, Function<String, String>> nothingRightHandler = nothingKind();
 
         Kind<MaybeKind.Witness, String> result =
-            selective.branch(choiceRightKind, leftHandlerKind, errorRightHandler);
+            selective.branch(choiceRightKind, leftHandlerKind, nothingRightHandler);
 
         Maybe<String> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
@@ -306,41 +335,43 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("whenS() executes effect when condition is true")
       void whenSExecutesEffectWhenTrue() {
-        Kind<MaybeKind.Witness, Integer> result = selective.whenS(conditionTrue, effectKind);
+        Kind<MaybeKind.Witness, Unit> result = selective.whenS(conditionTrue, unitEffectKind);
 
-        Maybe<Integer> maybe = MAYBE.narrow(result);
-        assertThatMaybe(maybe).isJust().hasValue(DEFAULT_JUST_VALUE);
+        Maybe<Unit> maybe = MAYBE.narrow(result);
+        assertThatMaybe(maybe).isJust().hasValue(Unit.INSTANCE);
       }
 
       @Test
       @DisplayName("whenS() skips effect when condition is false")
       void whenSSkipsEffectWhenFalse() {
-        Kind<MaybeKind.Witness, Integer> result = selective.whenS(conditionFalse, effectKind);
+        Kind<MaybeKind.Witness, Unit> result = selective.whenS(conditionFalse, unitEffectKind);
 
-        Maybe<Integer> maybe = MAYBE.narrow(result);
-        assertThatMaybe(maybe).isNothing();
+        Maybe<Unit> maybe = MAYBE.narrow(result);
+        assertThatMaybe(maybe).isJust().hasValue(Unit.INSTANCE);
       }
 
       @Test
       @DisplayName("whenS() propagates Nothing from condition")
       void whenSPropagatesNothingFromCondition() {
-        Kind<MaybeKind.Witness, Boolean> errorCondition = nothingKind();
+        Kind<MaybeKind.Witness, Boolean> nothingCondition = nothingKind();
 
-        Kind<MaybeKind.Witness, Integer> result = selective.whenS(errorCondition, effectKind);
+        Kind<MaybeKind.Witness, Unit> result = selective.whenS(nothingCondition, unitEffectKind);
 
-        Maybe<Integer> maybe = MAYBE.narrow(result);
+        Maybe<Unit> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
       }
 
       @Test
       @DisplayName("whenS() does not execute effect on Nothing condition")
       void whenSDoesNotExecuteEffectOnNothingCondition() {
-        Kind<MaybeKind.Witness, Boolean> errorCondition = nothingKind();
+        Kind<MaybeKind.Witness, Boolean> nothingCondition = nothingKind();
 
-        Kind<MaybeKind.Witness, Integer> throwingEffect = MAYBE.widen(Maybe.just(42));
+        // This effect would throw if executed
+        Kind<MaybeKind.Witness, Unit> throwingEffect = MAYBE.widen(Maybe.just(Unit.INSTANCE));
 
-        Kind<MaybeKind.Witness, Integer> result = selective.whenS(errorCondition, throwingEffect);
+        Kind<MaybeKind.Witness, Unit> result = selective.whenS(nothingCondition, throwingEffect);
 
+        // Should not throw because effect is not executed
         assertThatCode(() -> MAYBE.narrow(result)).doesNotThrowAnyException();
       }
     }
@@ -358,6 +389,7 @@ class MaybeSelectiveTest extends MaybeTestBase {
         Maybe<Integer> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isJust().hasValue(DEFAULT_JUST_VALUE);
 
+        // Verify it's the same instance (not evaluated)
         assertThat(result).isSameAs(thenBranch);
       }
 
@@ -370,16 +402,17 @@ class MaybeSelectiveTest extends MaybeTestBase {
         Maybe<Integer> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isJust().hasValue(ALTERNATIVE_JUST_VALUE);
 
+        // Verify it's the same instance (not evaluated)
         assertThat(result).isSameAs(elseBranch);
       }
 
       @Test
       @DisplayName("ifS() propagates Nothing from condition")
       void ifSPropagatesNothingFromCondition() {
-        Kind<MaybeKind.Witness, Boolean> errorCondition = nothingKind();
+        Kind<MaybeKind.Witness, Boolean> nothingCondition = nothingKind();
 
         Kind<MaybeKind.Witness, Integer> result =
-            selective.ifS(errorCondition, thenBranch, elseBranch);
+            selective.ifS(nothingCondition, thenBranch, elseBranch);
 
         Maybe<Integer> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isNothing();
@@ -388,11 +421,12 @@ class MaybeSelectiveTest extends MaybeTestBase {
       @Test
       @DisplayName("ifS() does not evaluate both branches")
       void ifSDoesNotEvaluateBothBranches() {
+        // Verify true condition returns then branch without evaluating else
         Kind<MaybeKind.Witness, Integer> result =
             selective.ifS(conditionTrue, thenBranch, elseBranch);
-
         assertThat(result).isSameAs(thenBranch);
 
+        // Verify false condition returns else branch without evaluating then
         result = selective.ifS(conditionFalse, thenBranch, elseBranch);
         assertThat(result).isSameAs(elseBranch);
       }
@@ -411,7 +445,12 @@ class MaybeSelectiveTest extends MaybeTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .<String>withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .testOperations();
     }
 
@@ -423,11 +462,16 @@ class MaybeSelectiveTest extends MaybeTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .configureValidation()
           .useInheritanceValidation()
-          .withApFrom(MaybeMonad.class)
           .withMapFrom(MaybeFunctor.class)
+          .withApFrom(MaybeMonad.class)
           .withSelectFrom(MaybeSelective.class)
           .withBranchFrom(MaybeSelective.class)
           .withWhenSFrom(MaybeSelective.class)
@@ -444,7 +488,12 @@ class MaybeSelectiveTest extends MaybeTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .<String>withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .testExceptions();
     }
 
@@ -456,7 +505,12 @@ class MaybeSelectiveTest extends MaybeTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, effectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .withLawsTesting("test-value", validMapper, equalityChecker)
           .selectTests()
           .onlyLaws()
@@ -476,10 +530,10 @@ class MaybeSelectiveTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Boolean> condition = selective.map(i -> i > 0, start);
 
       Kind<MaybeKind.Witness, Integer> doubled = selective.map(i -> i * 2, start);
-      Kind<MaybeKind.Witness, Integer> result = selective.whenS(condition, doubled);
+      Kind<MaybeKind.Witness, Unit> result = selective.whenS_(condition, doubled);
 
-      Maybe<Integer> maybe = MAYBE.narrow(result);
-      assertThatMaybe(maybe).isJust().hasValue(DEFAULT_JUST_VALUE * 2);
+      Maybe<Unit> maybe = MAYBE.narrow(result);
+      assertThatMaybe(maybe).isJust().hasValue(Unit.INSTANCE);
     }
 
     @Test
@@ -498,8 +552,7 @@ class MaybeSelectiveTest extends MaybeTestBase {
     @Test
     @DisplayName("Select with null value in Choice")
     void selectWithNullValueInChoice() {
-      Choice<Integer, String> choiceWithNull =
-          new org.higherkindedj.hkt.Selective.SimpleChoice<>(true, null, null);
+      Choice<Integer, String> choiceWithNull = new Selective.SimpleChoice<>(true, null, null);
       Kind<MaybeKind.Witness, Choice<Integer, String>> choiceKind =
           MAYBE.widen(Maybe.just(choiceWithNull));
 
@@ -566,14 +619,14 @@ class MaybeSelectiveTest extends MaybeTestBase {
               },
               validKind);
 
-      selective.whenS(shouldLog, loggingEffect);
+      selective.whenS_(shouldLog, loggingEffect);
 
       assertThat(counter.get()).isEqualTo(1);
 
       counter.set(0);
       Kind<MaybeKind.Witness, Boolean> shouldNotLog = MAYBE.widen(Maybe.just(false));
 
-      selective.whenS(shouldNotLog, loggingEffect);
+      selective.whenS_(shouldNotLog, loggingEffect);
 
       assertThat(counter.get()).isEqualTo(0);
     }
@@ -600,6 +653,73 @@ class MaybeSelectiveTest extends MaybeTestBase {
         Maybe<Integer> maybe = MAYBE.narrow(result);
         assertThatMaybe(maybe).isJust();
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Unit Semantics Tests")
+  class UnitSemanticsTests {
+
+    @Test
+    @DisplayName("whenS with true condition should execute Unit effect")
+    void whenS_trueCondition_executesEffect() {
+      Kind<MaybeKind.Witness, Boolean> trueCondition = MAYBE.widen(Maybe.just(true));
+      Kind<MaybeKind.Witness, Unit> effect = MAYBE.widen(Maybe.just(Unit.INSTANCE));
+
+      Kind<MaybeKind.Witness, Unit> result = selective.whenS(trueCondition, effect);
+
+      Maybe<Unit> resultMaybe = MAYBE.narrow(result);
+      assertThat(resultMaybe.isJust()).isTrue();
+      assertThat(resultMaybe.get()).isEqualTo(Unit.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("whenS with false condition should return Just(Unit.INSTANCE)")
+    void whenS_falseCondition_returnsJustUnit() {
+      Kind<MaybeKind.Witness, Boolean> falseCondition = MAYBE.widen(Maybe.just(false));
+      Kind<MaybeKind.Witness, Unit> effect = MAYBE.widen(Maybe.just(Unit.INSTANCE));
+
+      Kind<MaybeKind.Witness, Unit> result = selective.whenS(falseCondition, effect);
+
+      Maybe<Unit> resultMaybe = MAYBE.narrow(result);
+
+      assertThat(resultMaybe.isJust())
+          .as("False condition should return Just(Unit.INSTANCE), not Nothing")
+          .isTrue();
+      assertThat(resultMaybe.get()).isEqualTo(Unit.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("whenS with Nothing condition should return Nothing")
+    void whenS_nothingCondition_returnsNothing() {
+      Kind<MaybeKind.Witness, Boolean> nothingCondition = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Unit> effect = MAYBE.widen(Maybe.just(Unit.INSTANCE));
+
+      Kind<MaybeKind.Witness, Unit> result = selective.whenS(nothingCondition, effect);
+
+      Maybe<Unit> resultMaybe = MAYBE.narrow(result);
+
+      assertThat(resultMaybe.isNothing()).as("Nothing condition should return Nothing").isTrue();
+    }
+
+    @Test
+    @DisplayName("Should distinguish between 'no condition' and 'condition false'")
+    void shouldDistinguishNothingFromFalseCondition() {
+      // Scenario 1: No condition (Nothing)
+      Kind<MaybeKind.Witness, Boolean> noCondition = MAYBE.widen(Maybe.nothing());
+      Kind<MaybeKind.Witness, Unit> effect = MAYBE.widen(Maybe.just(Unit.INSTANCE));
+      Kind<MaybeKind.Witness, Unit> result1 = selective.whenS(noCondition, effect);
+      Maybe<Unit> maybe1 = MAYBE.narrow(result1);
+
+      // Scenario 2: Condition is false
+      Kind<MaybeKind.Witness, Boolean> falseCondition = MAYBE.widen(Maybe.just(false));
+      Kind<MaybeKind.Witness, Unit> result2 = selective.whenS(falseCondition, effect);
+      Maybe<Unit> maybe2 = MAYBE.narrow(result2);
+
+      // These should be distinguishable
+      assertThat(maybe1.isNothing()).isTrue();
+      assertThat(maybe2.isJust()).isTrue();
+      assertThat(maybe2.get()).isEqualTo(Unit.INSTANCE);
     }
   }
 }

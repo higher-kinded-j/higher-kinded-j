@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -125,7 +126,7 @@ public final class EitherSelective<L> extends EitherMonad<L>
   }
 
   /**
-   * Optimized implementation of {@code branch} for Either. Provides a two-way conditional choice,
+   * Optimised implementation of {@code branch} for Either. Provides a two-way conditional choice,
    * applying the appropriate handler based on whether the Choice is Left or Right.
    *
    * <p>This implementation is more efficient than the default because it can short-circuit on the
@@ -180,20 +181,18 @@ public final class EitherSelective<L> extends EitherMonad<L>
   }
 
   /**
-   * Optimized implementation of {@code whenS} for Either. Conditionally executes an effect based on
-   * a boolean condition.
+   * Conditionally executes a Unit-returning effect based on a boolean condition.
    *
-   * <p>This is more efficient than the default because it avoids unnecessary wrapping/unwrapping.
+   * <p>Key improvement: Returns Either.right(Unit.INSTANCE) instead of Either.right(null), making
+   * the "no-op" case explicit and type-safe.
    *
-   * @param fcond A {@link Kind} representing {@code Either<L, Boolean>}. Must not be null.
-   * @param fa A {@link Kind} representing {@code Either<L, A>} to execute if condition is true.
-   *     Must not be null.
-   * @param <A> The type of the effect's result.
-   * @return A {@link Kind} representing {@code Either<L, A>}. Never null.
+   * @param fcond The effectful condition
+   * @param fa The Unit-returning effect to execute if condition is true
+   * @return Either with Unit result
    */
   @Override
-  public <A> Kind<EitherKind.Witness<L>, A> whenS(
-      Kind<EitherKind.Witness<L>, Boolean> fcond, Kind<EitherKind.Witness<L>, A> fa) {
+  public Kind<EitherKind.Witness<L>, Unit> whenS(
+      Kind<EitherKind.Witness<L>, Boolean> fcond, Kind<EitherKind.Witness<L>, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, EITHER_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, EITHER_SELECTIVE_CLASS, WHEN_S, "effect");
@@ -211,15 +210,13 @@ public final class EitherSelective<L> extends EitherMonad<L>
       // Execute and return the effect
       return fa;
     } else {
-      // Condition is false, return a "unit" value
-      // For Either, we can't truly represent unit, so we return null wrapped
-      // This matches the behavior expected by whenS
-      return EITHER.widen(Either.right(null));
+      // Condition is false, return Unit wrapped in Right (not null!)
+      return EITHER.widen(Either.right(Unit.INSTANCE));
     }
   }
 
   /**
-   * Optimized implementation of {@code ifS} for Either. A ternary conditional operator for
+   * Optimised implementation of {@code ifS} for Either. A ternary conditional operator for
    * selective functors.
    *
    * @param fcond A {@link Kind} representing {@code Either<L, Boolean>}. Must not be null.

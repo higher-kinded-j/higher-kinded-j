@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
+import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.NoSuchElementException;
@@ -9,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.util.validation.Validation;
 
@@ -174,6 +176,82 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    */
   default Either<E, A> toEither() {
     return fold(Either::left, Either::right);
+  }
+
+  /**
+   * Validates a condition, returning Valid(Unit) if true, Invalid(error) if false.
+   *
+   * <p>This is useful for validation logic that doesn't produce a value, only checks a condition.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Validated<String, Unit> ageCheck =
+   *     Validated.validateThat(age >= 18, "Must be 18 or older");
+   *
+   * Validated<String, Unit> nameCheck =
+   *     Validated.validateThat(!name.isEmpty(), "Name required");
+   *
+   * // Combine both checks
+   * ValidatedApplicative<String> app = ValidatedApplicative.instance(Semigroups.string(", "));
+   * Kind<ValidatedKind.Witness<String>, Unit> allValid =
+   *     app.map2(
+   *         VALIDATED.widen(ageCheck),
+   *         VALIDATED.widen(nameCheck),
+   *         (u1, u2) -> Unit.INSTANCE
+   *     );
+   * }</pre>
+   *
+   * @param condition The condition to check
+   * @param error The error to return if condition is false, must not be null
+   * @param <E> The error type
+   * @return Valid(Unit.INSTANCE) if condition is true, Invalid(error) otherwise
+   * @throws NullPointerException if error is null
+   */
+  static <E> Validated<E, Unit> validateThat(boolean condition, E error) {
+    requireNonNull(error, "error cannot be null");
+    return condition ? Validated.valid(Unit.INSTANCE) : Validated.invalid(error);
+  }
+
+  /**
+   * Validates a condition with a lazy error supplier. Only evaluates the error if the condition
+   * fails.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Validated<String, Unit> check = Validated.validateThat(
+   *     expensiveCondition(),
+   *     () -> expensiveErrorMessage()
+   * );
+   * }</pre>
+   *
+   * @param condition The condition to check
+   * @param errorSupplier Supplies the error if needed, must not be null
+   * @param <E> The error type
+   * @return Valid(Unit.INSTANCE) if true, Invalid(errorSupplier.get()) if false
+   * @throws NullPointerException if errorSupplier is null
+   */
+  static <E> Validated<E, Unit> validateThat(boolean condition, Supplier<E> errorSupplier) {
+
+    requireNonNull(errorSupplier, "errorSupplier cannot be null");
+    return condition ? Validated.valid(Unit.INSTANCE) : Validated.invalid(errorSupplier.get());
+  }
+
+  /**
+   * Discards the value of a Valid, replacing it with Unit. If Invalid, returns the same Invalid.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Validated<Error, User> userValidation = validateUser(data);
+   * Validated<Error, Unit> justCheckValidity = userValidation.asUnit();
+   * }</pre>
+   *
+   * @return A Validated<E, Unit> with the same validity but Unit as value
+   */
+  default Validated<E, Unit> asUnit() {
+    return map(a -> Unit.INSTANCE);
   }
 
   /**

@@ -149,7 +149,7 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
 
     CompletableFuture<A> futureA = FUTURE.narrow(ma);
 
-    // Optimization: If already successfully completed, no need to attach handler.
+    // Optimisation: If already successfully completed, no need to attach handler.
     if (futureA.isDone() && !futureA.isCompletedExceptionally()) {
       return ma;
     }

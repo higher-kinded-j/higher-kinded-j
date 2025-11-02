@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -25,13 +26,26 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *   <li>{@link Nothing} values: Propagated unchanged (short-circuit)
  * </ul>
  *
+ * <p><b>Unit Usage:</b> The {@link #whenS(Kind, Kind)} method uses {@link Unit} to distinguish
+ * between two different "empty-like" states:
+ *
+ * <ul>
+ *   <li>{@code Nothing}: No condition to evaluate (input was Nothing)
+ *   <li>{@code Just(Unit.INSTANCE)}: Condition evaluated to false, operation skipped
+ * </ul>
+ *
+ * This distinction is semantically important and improves code clarity. Previously, both cases
+ * returned {@code Nothing}, making them indistinguishable. This mirrors the same semantic
+ * improvement made in {@link org.higherkindedj.hkt.optional.OptionalSelective}.
+ *
  * <p>Key operations:
  *
  * <ul>
  *   <li>{@link #select(Kind, Kind)}: Conditionally applies an effectful function based on a Choice.
  *   <li>{@link #branch(Kind, Kind, Kind)}: Provides two-way conditional choice with different
  *       handlers.
- *   <li>{@link #whenS(Kind, Kind)}: Conditionally executes an effect based on a boolean.
+ *   <li>{@link #whenS(Kind, Kind)}: Conditionally executes a Unit-returning effect based on a
+ *       boolean.
  *   <li>{@link #ifS(Kind, Kind, Kind)}: Ternary conditional for selective functors.
  * </ul>
  *
@@ -41,6 +55,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see MaybeMonad
  * @see Selective
  * @see Choice
+ * @see Unit
  */
 public final class MaybeSelective extends MaybeMonad implements Selective<MaybeKind.Witness> {
 
@@ -116,7 +131,7 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
   }
 
   /**
-   * Optimized implementation of {@code branch} for Maybe. Provides a two-way conditional choice,
+   * Optimised implementation of {@code branch} for Maybe. Provides a two-way conditional choice,
    * applying the appropriate handler based on whether the Choice is Left or Right.
    *
    * @param fab A {@link Kind} representing {@code Maybe<Choice<A, B>>}. Must not be null.
@@ -168,25 +183,74 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
   }
 
   /**
-   * Optimized implementation of {@code whenS} for Maybe. Conditionally executes an effect based on
-   * a boolean condition.
+   * Optimized implementation of {@code whenS} for Maybe. Conditionally executes a Unit-returning
+   * effect based on a boolean condition.
+   *
+   * <p>This method now uses {@link Unit} to clearly distinguish between different states:
+   *
+   * <ul>
+   *   <li>{@code Nothing} in condition: Returns {@code Nothing} (no condition to evaluate)
+   *   <li>{@code Just(true)}: Executes effect and returns its result
+   *   <li>{@code Just(false)}: Returns {@code Just(Unit.INSTANCE)} (condition evaluated, operation
+   *       skipped)
+   * </ul>
+   *
+   * <p>This distinction is semantically important:
+   *
+   * <ul>
+   *   <li>{@code Nothing}: "No information available" (condition itself is absent)
+   *   <li>{@code Just(Unit.INSTANCE)}: "Operation completed with no interesting result" (condition
+   *       was false)
+   * </ul>
+   *
+   * <p>This mirrors the semantics of {@link org.higherkindedj.hkt.optional.OptionalSelective},
+   * where {@code Optional.empty()} means "no value" and {@code Optional.of(Unit.INSTANCE)} means
+   * "operation completed with no interesting result".
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * // Condition is present and true - effect executes
+   * Maybe<Boolean> shouldLog = Maybe.just(true);
+   * Maybe<Unit> logEffect = Maybe.just(Unit.INSTANCE);
+   * Maybe<Unit> result1 = MAYBE.narrow(maybeSelective.whenS(
+   *     MAYBE.widen(shouldLog),
+   *     MAYBE.widen(logEffect)
+   * ));
+   * // result1 = Just(Unit.INSTANCE) - effect executed
+   *
+   * // Condition is present and false - effect skipped
+   * Maybe<Boolean> shouldNotLog = Maybe.just(false);
+   * Maybe<Unit> result2 = MAYBE.narrow(maybeSelective.whenS(
+   *     MAYBE.widen(shouldNotLog),
+   *     MAYBE.widen(logEffect)
+   * ));
+   * // result2 = Just(Unit.INSTANCE) - condition evaluated, effect skipped
+   *
+   * // Condition is absent - no evaluation possible
+   * Maybe<Boolean> noCondition = Maybe.nothing();
+   * Maybe<Unit> result3 = MAYBE.narrow(maybeSelective.whenS(
+   *     MAYBE.widen(noCondition),
+   *     MAYBE.widen(logEffect)
+   * ));
+   * // result3 = Nothing - no condition to evaluate
+   * }</pre>
    *
    * @param fcond A {@link Kind} representing {@code Maybe<Boolean>}. Must not be null.
-   * @param fa A {@link Kind} representing {@code Maybe<A>} to execute if condition is true. Must
+   * @param fa A {@link Kind} representing {@code Maybe<Unit>} to execute if condition is true. Must
    *     not be null.
-   * @param <A> The type of the effect's result.
-   * @return A {@link Kind} representing {@code Maybe<A>}. Never null.
+   * @return A {@link Kind} representing {@code Maybe<Unit>}. Never null.
    */
   @Override
-  public <A> Kind<MaybeKind.Witness, A> whenS(
-      Kind<MaybeKind.Witness, Boolean> fcond, Kind<MaybeKind.Witness, A> fa) {
+  public Kind<MaybeKind.Witness, Unit> whenS(
+      Kind<MaybeKind.Witness, Boolean> fcond, Kind<MaybeKind.Witness, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, MAYBE_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, MAYBE_SELECTIVE_CLASS, WHEN_S, "effect");
 
     Maybe<Boolean> condMaybe = MAYBE.narrow(fcond);
 
-    // Short-circuit on Nothing
+    // Short-circuit on Nothing - no condition to evaluate
     if (condMaybe.isNothing()) {
       return MAYBE.nothing();
     }
@@ -197,8 +261,9 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
       // Execute and return the effect
       return fa;
     } else {
-      // Condition is false, return Nothing as a "unit" representation
-      return MAYBE.nothing();
+      // Condition is false, return Just(Unit.INSTANCE)
+      // This is NOT Nothing - it represents "operation completed, effect skipped"
+      return MAYBE.widen(Maybe.just(Unit.INSTANCE));
     }
   }
 

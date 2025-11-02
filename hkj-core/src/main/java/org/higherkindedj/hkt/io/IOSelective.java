@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -105,7 +106,7 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
   }
 
   /**
-   * Optimized implementation of {@code branch} for IO. Provides a two-way conditional choice,
+   * Optimised implementation of {@code branch} for IO. Provides a two-way conditional choice,
    * applying the appropriate handler based on whether the Choice is Left or Right.
    *
    * <p>Only the relevant handler IO is executed based on the choice result.
@@ -152,28 +153,26 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
   }
 
   /**
-   * Optimized implementation of {@code whenS} for IO. Conditionally executes an effect based on a
-   * boolean condition.
+   * Conditionally executes a Unit-returning effect based on a boolean condition.
    *
-   * <p>The effect IO is only executed if the condition is true, maintaining lazy evaluation.
+   * <p>Key improvement: Returns Unit.INSTANCE instead of null, making the lazy computation's result
+   * type-safe and explicit.
    *
-   * @param fcond A {@link Kind} representing {@code IO<Boolean>}. Must not be null.
-   * @param fa A {@link Kind} representing {@code IO<A>} to execute if condition is true. Must not
-   *     be null.
-   * @param <A> The type of the effect's result.
-   * @return A {@link Kind} representing {@code IO<A>}. Never null.
+   * @param fcond The effectful condition
+   * @param fa The Unit-returning effect to execute if condition is true
+   * @return IO with Unit result
    */
   @Override
-  public <A> Kind<IOKind.Witness, A> whenS(
-      Kind<IOKind.Witness, Boolean> fcond, Kind<IOKind.Witness, A> fa) {
+  public Kind<IOKind.Witness, Unit> whenS(
+      Kind<IOKind.Witness, Boolean> fcond, Kind<IOKind.Witness, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, IO_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, IO_SELECTIVE_CLASS, WHEN_S, "effect");
 
     IO<Boolean> condIO = IO_OP.narrow(fcond);
-    IO<A> effectIO = IO_OP.narrow(fa);
+    IO<Unit> effectIO = IO_OP.narrow(fa);
 
-    IO<A> ioA =
+    IO<Unit> ioUnit =
         IO.delay(
             () -> {
               boolean condition = condIO.unsafeRunSync();
@@ -181,16 +180,16 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
               if (condition) {
                 return effectIO.unsafeRunSync();
               } else {
-                // Condition is false, return null as unit
-                return null;
+                // Condition is false, return Unit (not null!)
+                return Unit.INSTANCE;
               }
             });
 
-    return IO_OP.widen(ioA);
+    return IO_OP.widen(ioUnit);
   }
 
   /**
-   * Optimized implementation of {@code ifS} for IO. A ternary conditional operator for selective
+   * Optimised implementation of {@code ifS} for IO. A ternary conditional operator for selective
    * functors.
    *
    * <p>Only the selected branch IO is executed based on the condition result.

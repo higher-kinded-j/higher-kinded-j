@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.api.typeclass.internal.TestMethodRegistry;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
 import org.higherkindedj.hkt.util.validation.Operation;
@@ -18,6 +19,9 @@ import org.higherkindedj.hkt.util.validation.Operation;
  *
  * <p>This class is package-private and not exposed to users. It coordinates test execution by
  * delegating to {@link TestMethodRegistry}.
+ *
+ * <p><b>Unit Usage:</b> This executor now uses {@link Unit} for {@code whenS} testing, reflecting
+ * the updated signature that represents operations completing with no interesting result.
  *
  * @param <F> The Selective witness type
  * @param <A> The input type
@@ -33,7 +37,7 @@ final class SelectiveTestExecutor<F, A, B, C> {
   private final Kind<F, Function<A, C>> validLeftHandler;
   private final Kind<F, Function<B, C>> validRightHandler;
   private final Kind<F, Boolean> validCondition;
-  private final Kind<F, A> validEffect;
+  private final Kind<F, Unit> validUnitEffect; // ✓ Changed from Kind<F, A> validEffect
   private final Kind<F, A> validThenBranch;
   private final Kind<F, A> validElseBranch;
 
@@ -49,6 +53,23 @@ final class SelectiveTestExecutor<F, A, B, C> {
   private boolean includeExceptions = true;
   private boolean includeLaws = true;
 
+  /**
+   * Constructs a SelectiveTestExecutor.
+   *
+   * @param contextClass The context class for error messages
+   * @param selective The Selective instance to test
+   * @param validKind A valid Kind for general testing
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing (NOT Kind<F, A>)
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param lawsStage Optional laws testing configuration
+   * @param validationStage Optional validation configuration
+   */
   SelectiveTestExecutor(
       Class<?> contextClass,
       Selective<F> selective,
@@ -58,7 +79,7 @@ final class SelectiveTestExecutor<F, A, B, C> {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed parameter type
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch,
       SelectiveLawsStage<F, A, B, C> lawsStage,
@@ -72,7 +93,7 @@ final class SelectiveTestExecutor<F, A, B, C> {
     this.validLeftHandler = validLeftHandler;
     this.validRightHandler = validRightHandler;
     this.validCondition = validCondition;
-    this.validEffect = validEffect;
+    this.validUnitEffect = validUnitEffect; // ✓ Store Unit effect
     this.validThenBranch = validThenBranch;
     this.validElseBranch = validElseBranch;
     this.lawsStage = lawsStage;
@@ -111,7 +132,7 @@ final class SelectiveTestExecutor<F, A, B, C> {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect, // ✓ Pass Unit effect
         validThenBranch,
         validElseBranch);
   }
@@ -144,9 +165,10 @@ final class SelectiveTestExecutor<F, A, B, C> {
 
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
-    // Create a dummy Kind and Function for inherited operation validation
-
-    Kind<F, A> dummyKind = validEffect;
+    // Create dummy Kinds and Functions for inherited operation validation
+    // Note: We use validThenBranch instead of validUnitEffect for Functor/Applicative tests
+    // because those operations work with Kind<F, A>, not Kind<F, Unit>
+    Kind<F, A> dummyKind = validThenBranch;
     Function<A, B> dummyMapper = a -> null;
     Kind<F, Function<A, B>> dummyFuncKind = validFunctionKind;
 
@@ -181,11 +203,13 @@ final class SelectiveTestExecutor<F, A, B, C> {
         BRANCH,
         "rightHandler");
 
+    // WhenS validations - now using validUnitEffect (Kind<F, Unit>)
     builder.assertKindNull(
-        () -> selective.whenS(null, validEffect), whenSCtx, Operation.WHEN_S, "condition");
+        () -> selective.whenS(null, validUnitEffect), whenSCtx, Operation.WHEN_S, "condition");
     builder.assertKindNull(
         () -> selective.whenS(validCondition, null), whenSCtx, Operation.WHEN_S, "effect");
 
+    // IfS validations - these still use Kind<F, A>
     builder.assertKindNull(
         () -> selective.ifS(null, validThenBranch, validElseBranch), ifSCtx, IF_S, "condition");
     builder.assertKindNull(

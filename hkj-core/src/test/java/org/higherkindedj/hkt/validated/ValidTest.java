@@ -9,7 +9,8 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,15 +19,15 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Valid Complete Test Suite")
-class ValidTest {
+class ValidTest extends ValidatedTestBase {
 
   private Valid<String, Integer> validInstance;
   private Semigroup<String> semigroup;
 
   @BeforeEach
   void setUp() {
-    validInstance = new Valid<>(42);
-    semigroup = Semigroups.string(",");
+    validInstance = new Valid<>(DEFAULT_VALID_VALUE);
+    semigroup = createDefaultSemigroup();
   }
 
   @Nested
@@ -36,11 +37,11 @@ class ValidTest {
     @Test
     @DisplayName("Run complete Valid validation tests")
     void runCompleteValidValidationTests() {
-      Validated<String, Integer> anotherValid = Validated.valid(24);
+      Validated<String, Integer> anotherValid = Validated.valid(ALTERNATIVE_VALID_VALUE);
 
       CoreTypeTest.<String, Integer>validated(Validated.class)
-          .withInvalid(validInstance) // Use Valid instance
-          .withValid(anotherValid) // Use another Valid instance
+          .withInvalid(validInstance)
+          .withValid(anotherValid)
           .withMappers(Object::toString)
           .configureValidation()
           .withValidatedInheritanceValidation()
@@ -59,8 +60,13 @@ class ValidTest {
     @Test
     @DisplayName("Valid creation succeeds with non-null value")
     void validCreationSucceedsWithNonNullValue() {
-      Valid<String, Integer> valid = new Valid<>(42);
-      assertThat(valid.value()).isEqualTo(42);
+      Valid<String, Integer> valid = new Valid<>(DEFAULT_VALID_VALUE);
+
+      assertThat(valid.value()).isEqualTo(DEFAULT_VALID_VALUE);
+      assertThatValidated(valid)
+          .isValid()
+          .hasValue(DEFAULT_VALID_VALUE)
+          .hasValueOfType(Integer.class);
     }
 
     @Test
@@ -76,9 +82,13 @@ class ValidTest {
     @Test
     @DisplayName("Factory method creates Valid instance")
     void factoryMethodCreatesValidInstance() {
-      Validated<String, Integer> validated = Validated.valid(42);
+      Validated<String, Integer> validated = Validated.valid(DEFAULT_VALID_VALUE);
 
-      assertThatValidated(validated).isValid().hasValue(42).hasValueOfType(Integer.class);
+      assertThatValidated(validated)
+          .isValid()
+          .hasValue(DEFAULT_VALID_VALUE)
+          .hasValueOfType(Integer.class);
+      assertThat(validated).isInstanceOf(Valid.class);
     }
   }
 
@@ -87,25 +97,27 @@ class ValidTest {
   class QueryOperations {
 
     @Test
-    @DisplayName("IsValid returns true")
+    @DisplayName("isValid returns true")
     void isValidReturnsTrue() {
+      assertThat(validInstance.isValid()).isTrue();
       assertThatValidated(validInstance).isValid();
     }
 
     @Test
-    @DisplayName("IsInvalid returns false")
+    @DisplayName("isInvalid returns false")
     void isInvalidReturnsFalse() {
       assertThat(validInstance.isInvalid()).isFalse();
     }
 
     @Test
-    @DisplayName("Get returns the encapsulated value")
+    @DisplayName("get returns the encapsulated value")
     void getReturnsTheEncapsulatedValue() {
-      assertThatValidated(validInstance).hasValue(42);
+      assertThat(validInstance.get()).isEqualTo(DEFAULT_VALID_VALUE);
+      assertThatValidated(validInstance).hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
-    @DisplayName("GetError throws NoSuchElementException")
+    @DisplayName("getError throws NoSuchElementException")
     void getErrorThrowsNoSuchElementException() {
       assertThatThrownBy(() -> validInstance.getError())
           .isInstanceOf(NoSuchElementException.class)
@@ -118,13 +130,13 @@ class ValidTest {
   class OrElseOperations {
 
     @Test
-    @DisplayName("OrElse returns the original value")
+    @DisplayName("orElse returns the original value")
     void orElseReturnsTheOriginalValue() {
-      assertThat(validInstance.orElse(100)).isEqualTo(42);
+      assertThat(validInstance.orElse(ALTERNATIVE_VALID_VALUE)).isEqualTo(DEFAULT_VALID_VALUE);
     }
 
     @Test
-    @DisplayName("OrElse rejects null parameter")
+    @DisplayName("orElse rejects null parameter")
     void orElseRejectsNullParameter() {
       assertThatThrownBy(() -> validInstance.orElse(null))
           .isInstanceOf(NullPointerException.class)
@@ -133,7 +145,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("OrElseGet returns the original value without invoking supplier")
+    @DisplayName("orElseGet returns the original value without invoking supplier")
     void orElseGetReturnsTheOriginalValueWithoutInvokingSupplier() {
       AtomicBoolean supplierInvoked = new AtomicBoolean(false);
 
@@ -141,15 +153,15 @@ class ValidTest {
           validInstance.orElseGet(
               () -> {
                 supplierInvoked.set(true);
-                return 100;
+                return ALTERNATIVE_VALID_VALUE;
               });
 
-      assertThat(result).isEqualTo(42);
+      assertThat(result).isEqualTo(DEFAULT_VALID_VALUE);
       assertThat(supplierInvoked).isFalse();
     }
 
     @Test
-    @DisplayName("OrElseGet validates supplier is non-null")
+    @DisplayName("orElseGet validates supplier is non-null")
     void orElseGetValidatesSupplierIsNonNull() {
       assertThatThrownBy(() -> validInstance.orElseGet(null))
           .isInstanceOf(NullPointerException.class)
@@ -159,7 +171,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("OrElseThrow returns the original value without invoking supplier")
+    @DisplayName("orElseThrow returns the original value without invoking supplier")
     void orElseThrowReturnsTheOriginalValueWithoutInvokingSupplier() {
       AtomicBoolean supplierInvoked = new AtomicBoolean(false);
 
@@ -176,7 +188,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("OrElseThrow validates supplier is non-null")
+    @DisplayName("orElseThrow validates supplier is non-null")
     void orElseThrowValidatesSupplierIsNonNull() {
       assertThatThrownBy(() -> validInstance.orElseThrow(null))
           .isInstanceOf(NullPointerException.class)
@@ -191,13 +203,13 @@ class ValidTest {
   class SideEffectOperations {
 
     @Test
-    @DisplayName("IfValid executes consumer with the value")
+    @DisplayName("ifValid executes consumer with the value")
     void ifValidExecutesConsumerWithTheValue() {
       AtomicBoolean executed = new AtomicBoolean(false);
 
       validInstance.ifValid(
           v -> {
-            assertThat(v).isEqualTo(42);
+            assertThat(v).isEqualTo(DEFAULT_VALID_VALUE);
             executed.set(true);
           });
 
@@ -205,7 +217,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("IfValid validates consumer is non-null")
+    @DisplayName("ifValid validates consumer is non-null")
     void ifValidValidatesConsumerIsNonNull() {
       assertThatThrownBy(() -> validInstance.ifValid(null))
           .isInstanceOf(NullPointerException.class)
@@ -215,7 +227,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("IfInvalid does not execute consumer")
+    @DisplayName("ifInvalid does not execute consumer")
     void ifInvalidDoesNotExecuteConsumer() {
       AtomicBoolean executed = new AtomicBoolean(false);
 
@@ -225,7 +237,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("IfInvalid validates consumer is non-null")
+    @DisplayName("ifInvalid validates consumer is non-null")
     void ifInvalidValidatesConsumerIsNonNull() {
       assertThatThrownBy(() -> validInstance.ifInvalid(null))
           .isInstanceOf(NullPointerException.class)
@@ -240,7 +252,7 @@ class ValidTest {
   class TransformationOperations {
 
     @Test
-    @DisplayName("Map transforms the value")
+    @DisplayName("map transforms the value")
     void mapTransformsTheValue() {
       Validated<String, String> result = validInstance.map(Object::toString);
 
@@ -248,7 +260,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("Map validates mapper is non-null")
+    @DisplayName("map validates mapper is non-null")
     void mapValidatesMapperIsNonNull() {
       assertThatThrownBy(() -> validInstance.map(null))
           .isInstanceOf(NullPointerException.class)
@@ -256,7 +268,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("Map validates mapper result is non-null")
+    @DisplayName("map validates mapper result is non-null")
     void mapValidatesMapperResultIsNonNull() {
       Function<Integer, String> nullReturningMapper = i -> null;
 
@@ -266,7 +278,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("FlatMap chains computations")
+    @DisplayName("flatMap chains computations")
     void flatMapChainsComputations() {
       Validated<String, String> result = validInstance.flatMap(i -> Validated.valid(i.toString()));
 
@@ -274,7 +286,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("FlatMap can produce Invalid")
+    @DisplayName("flatMap can produce Invalid")
     void flatMapCanProduceInvalid() {
       Validated<String, String> result =
           validInstance.flatMap(i -> Validated.invalid("computed error"));
@@ -283,7 +295,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("FlatMap validates mapper is non-null")
+    @DisplayName("flatMap validates mapper is non-null")
     void flatMapValidatesMapperIsNonNull() {
       assertThatThrownBy(() -> validInstance.flatMap(null))
           .isInstanceOf(NullPointerException.class)
@@ -293,7 +305,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("FlatMap validates mapper result is non-null")
+    @DisplayName("flatMap validates mapper result is non-null")
     void flatMapValidatesMapperResultIsNonNull() {
       Function<Integer, Validated<String, String>> nullReturningMapper = i -> null;
 
@@ -310,7 +322,7 @@ class ValidTest {
   class ApOperations {
 
     @Test
-    @DisplayName("Ap applies Valid function to Valid value")
+    @DisplayName("ap applies Valid function to Valid value")
     void apAppliesValidFunctionToValidValue() {
       Validated<String, Function<? super Integer, ? extends String>> fnValidated =
           Validated.valid(Object::toString);
@@ -321,7 +333,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("Ap propagates Invalid function")
+    @DisplayName("ap propagates Invalid function")
     void apPropagatesInvalidFunction() {
       Validated<String, Function<? super Integer, ? extends String>> fnValidated =
           Validated.invalid("function error");
@@ -332,7 +344,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("Ap validates function is non-null")
+    @DisplayName("ap validates function is non-null")
     void apValidatesFunctionIsNonNull() {
       assertThatThrownBy(() -> validInstance.ap(null, semigroup))
           .isInstanceOf(NullPointerException.class)
@@ -342,7 +354,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("Ap validates semigroup is non-null")
+    @DisplayName("ap validates semigroup is non-null")
     void apValidatesSemigroupIsNonNull() {
       Validated<String, Function<? super Integer, ? extends String>> fnValidated =
           Validated.valid(Object::toString);
@@ -360,7 +372,7 @@ class ValidTest {
   class FoldOperations {
 
     @Test
-    @DisplayName("Fold applies valid mapper")
+    @DisplayName("fold applies valid mapper")
     void foldAppliesValidMapper() {
       String result = validInstance.fold(error -> "Error: " + error, value -> "Value: " + value);
 
@@ -368,7 +380,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("Fold validates invalid mapper is non-null")
+    @DisplayName("fold validates invalid mapper is non-null")
     void foldValidatesInvalidMapperIsNonNull() {
       assertThatThrownBy(() -> validInstance.fold(null, v -> "valid"))
           .isInstanceOf(NullPointerException.class)
@@ -378,7 +390,7 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("Fold validates valid mapper is non-null")
+    @DisplayName("fold validates valid mapper is non-null")
     void foldValidatesValidMapperIsNonNull() {
       assertThatThrownBy(() -> validInstance.fold(e -> "invalid", null))
           .isInstanceOf(NullPointerException.class)
@@ -389,20 +401,43 @@ class ValidTest {
   }
 
   @Nested
+  @DisplayName("Conversion Operations")
+  class ConversionOperations {
+
+    @Test
+    @DisplayName("toEither converts Valid to Right")
+    void toEitherConvertsValidToRight() {
+      Either<String, Integer> either = validInstance.toEither();
+
+      assertThat(either.isRight()).isTrue();
+      assertThat(either.isLeft()).isFalse();
+      assertThat(either.getRight()).isEqualTo(DEFAULT_VALID_VALUE);
+    }
+
+    @Test
+    @DisplayName("asUnit replaces value with Unit")
+    void asUnitReplacesValueWithUnit() {
+      Validated<String, Unit> result = validInstance.asUnit();
+
+      assertThatValidated(result).isValid().hasValue(Unit.INSTANCE).hasValueOfType(Unit.class);
+    }
+  }
+
+  @Nested
   @DisplayName("Edge Cases Tests")
   class EdgeCasesTests {
 
     @Test
-    @DisplayName("ToString produces readable output")
+    @DisplayName("toString produces readable output")
     void toStringProducesReadableOutput() {
       assertThat(validInstance.toString()).isEqualTo("Valid(42)");
     }
 
     @Test
-    @DisplayName("Equals compares values correctly")
+    @DisplayName("equals compares values correctly")
     void equalsComparesValuesCorrectly() {
-      Valid<String, Integer> same = new Valid<>(42);
-      Valid<String, Integer> different = new Valid<>(43);
+      Valid<String, Integer> same = new Valid<>(DEFAULT_VALID_VALUE);
+      Valid<String, Integer> different = new Valid<>(ALTERNATIVE_VALID_VALUE);
 
       assertThatValidated(validInstance).isEqualTo(same);
       assertThatValidated(validInstance).isNotEqualTo(different);
@@ -411,17 +446,101 @@ class ValidTest {
     }
 
     @Test
-    @DisplayName("HashCode is consistent")
+    @DisplayName("hashCode is consistent")
     void hashCodeIsConsistent() {
-      Valid<String, Integer> same = new Valid<>(42);
+      Valid<String, Integer> same = new Valid<>(DEFAULT_VALID_VALUE);
 
       assertThat(validInstance.hashCode()).isEqualTo(same.hashCode());
     }
 
     @Test
-    @DisplayName("Record accessor returns value")
+    @DisplayName("record accessor returns value")
     void recordAccessorReturnsValue() {
-      assertThat(validInstance.value()).isEqualTo(42);
+      assertThat(validInstance.value()).isEqualTo(DEFAULT_VALID_VALUE);
+    }
+
+    @Test
+    @DisplayName("Valid with different value types")
+    void validWithDifferentValueTypes() {
+      Valid<String, String> stringValid = new Valid<>("hello");
+
+      assertThatValidated(stringValid).isValid().hasValue("hello").hasValueOfType(String.class);
+    }
+
+    @Test
+    @DisplayName("map type changes correctly")
+    void mapTypeChangesCorrectly() {
+      Validated<String, Boolean> boolResult = validInstance.map(i -> i > 0);
+
+      assertThatValidated(boolResult).isValid().hasValue(true).hasValueOfType(Boolean.class);
+    }
+
+    @Test
+    @DisplayName("flatMap type changes correctly")
+    void flatMapTypeChangesCorrectly() {
+      Validated<String, Boolean> boolResult = validInstance.flatMap(i -> Validated.valid(i > 0));
+
+      assertThatValidated(boolResult).isValid().hasValue(true).hasValueOfType(Boolean.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Integration Tests")
+  class IntegrationTests {
+
+    @Test
+    @DisplayName("chaining operations transforms value correctly")
+    void chainingOperationsTransformsValueCorrectly() {
+      Validated<String, String> result =
+          validInstance
+              .map(i -> i * 2)
+              .flatMap(i -> Validated.valid(i.toString()))
+              .map(s -> s + "!");
+
+      assertThatValidated(result).isValid().hasValue("84!");
+    }
+
+    @Test
+    @DisplayName("ap with multiple Valid values")
+    void apWithMultipleValidValues() {
+      Validated<String, Integer> val1 = Validated.valid(10);
+      Validated<String, Integer> val2 = Validated.valid(20);
+
+      Function<Integer, Function<Integer, Integer>> addFunc = a -> b -> a + b;
+
+      Validated<String, Function<? super Integer, ? extends Integer>> fnValidated =
+          val1.map(addFunc);
+
+      Validated<String, Integer> result = val2.ap(fnValidated, semigroup);
+
+      assertThatValidated(result).isValid().hasValue(30);
+    }
+
+    @Test
+    @DisplayName("fold with type conversion")
+    void foldWithTypeConversion() {
+      record SuccessInfo(int value, String status) {}
+
+      SuccessInfo result =
+          validInstance.fold(
+              error -> new SuccessInfo(0, "Error: " + error),
+              value -> new SuccessInfo(value, "Success"));
+
+      assertThat(result.value()).isEqualTo(DEFAULT_VALID_VALUE);
+      assertThat(result.status()).isEqualTo("Success");
+    }
+
+    @Test
+    @DisplayName("complex transformation pipeline")
+    void complexTransformationPipeline() {
+      Validated<String, String> result =
+          validInstance
+              .map(i -> i * 2)
+              .flatMap(i -> i < 100 ? Validated.valid(i) : Validated.invalid("Too large"))
+              .map(i -> i + 10)
+              .flatMap(i -> Validated.valid("Result: " + i));
+
+      assertThatValidated(result).isValid().hasValue("Result: 94");
     }
   }
 }

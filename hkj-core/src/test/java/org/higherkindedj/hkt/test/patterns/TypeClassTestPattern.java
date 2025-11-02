@@ -9,6 +9,7 @@ import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
 
 /**
@@ -16,6 +17,10 @@ import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
  *
  * <p>This class now delegates law testing to {@link LawTestPattern} for better separation of
  * concerns and maintainability.
+ *
+ * <p><b>Unit Usage:</b> Selective tests now use {@link Unit} for {@code whenS} operations,
+ * reflecting the updated signature that represents operations completing with no interesting
+ * result.
  *
  * <h2>Delegation Strategy:</h2>
  *
@@ -289,6 +294,27 @@ public final class TypeClassTestPattern {
   // SELECTIVE TESTING
   // =============================================================================
 
+  /**
+   * Tests Selective operations.
+   *
+   * <p><b>Unit Usage:</b> The {@code validUnitEffect} parameter must be {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature which uses Unit to represent operations that complete
+   * with no interesting result.
+   *
+   * @param selective The Selective instance to test
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
   public static <F, A, B, C> void testSelectiveOperations(
       Selective<F> selective,
       Kind<F, Choice<A, B>> validChoiceKind,
@@ -296,7 +322,7 @@ public final class TypeClassTestPattern {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect,
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch) {
 
@@ -308,7 +334,7 @@ public final class TypeClassTestPattern {
         .as("branch should return non-null result")
         .isNotNull();
 
-    assertThat(selective.whenS(validCondition, validEffect))
+    assertThat(selective.whenS(validCondition, validUnitEffect))
         .as("whenS should return non-null result")
         .isNotNull();
 
@@ -317,6 +343,27 @@ public final class TypeClassTestPattern {
         .isNotNull();
   }
 
+  /**
+   * Tests Selective validations.
+   *
+   * <p><b>Unit Usage:</b> The {@code validUnitEffect} parameter must be {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature.
+   *
+   * @param selective The Selective instance to test
+   * @param contextClass The context class for error messages
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
   public static <F, A, B, C> void testSelectiveValidations(
       Selective<F> selective,
       Class<?> contextClass,
@@ -325,7 +372,7 @@ public final class TypeClassTestPattern {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch) {
 
@@ -337,7 +384,7 @@ public final class TypeClassTestPattern {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect,
         validThenBranch,
         validElseBranch);
   }
@@ -387,6 +434,31 @@ public final class TypeClassTestPattern {
   // COMBINED TEST METHOD FOR SELECTIVE
   // =============================================================================
 
+  /**
+   * Tests all Selective functionality including operations, validations, exception propagation, and
+   * laws.
+   *
+   * <p><b>Unit Usage:</b> The {@code validUnitEffect} parameter must be {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature.
+   *
+   * @param selective The Selective instance to test
+   * @param contextClass The context class for error messages
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param testValue A test value for laws
+   * @param testFunction A test function for laws
+   * @param equalityChecker Equality checker for law verification
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
   public static <F, A, B, C> void testCompleteSelective(
       Selective<F> selective,
       Class<?> contextClass,
@@ -395,7 +467,7 @@ public final class TypeClassTestPattern {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch,
       B testValue,
@@ -409,7 +481,7 @@ public final class TypeClassTestPattern {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect,
         validThenBranch,
         validElseBranch);
 
@@ -421,7 +493,7 @@ public final class TypeClassTestPattern {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect,
         validThenBranch,
         validElseBranch);
 

@@ -7,7 +7,7 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.writer.Writer;
 import org.higherkindedj.hkt.writer.WriterKind;
 import org.higherkindedj.hkt.writer.WriterMonad;

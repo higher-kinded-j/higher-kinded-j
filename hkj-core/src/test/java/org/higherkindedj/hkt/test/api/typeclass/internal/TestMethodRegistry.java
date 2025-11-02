@@ -6,6 +6,7 @@ import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.patterns.TypeClassTestPattern;
 
 /**
@@ -170,6 +171,27 @@ public final class TestMethodRegistry {
   // Selective Tests
   // =============================================================================
 
+  /**
+   * Tests Selective operations.
+   *
+   * <p><b>Note:</b> The {@code validUnitEffect} parameter must be of type {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature which uses {@link Unit} to represent operations that
+   * complete with no interesting result.
+   *
+   * @param selective The Selective instance to test
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
   public static <F, A, B, C> void testSelectiveOperations(
       Selective<F> selective,
       Kind<F, Choice<A, B>> validChoiceKind,
@@ -177,7 +199,7 @@ public final class TestMethodRegistry {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch) {
     TypeClassTestPattern.testSelectiveOperations(
@@ -187,11 +209,33 @@ public final class TestMethodRegistry {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect, // ✓ Pass Unit effect
         validThenBranch,
         validElseBranch);
   }
 
+  /**
+   * Tests Selective validations.
+   *
+   * <p><b>Note:</b> The {@code validUnitEffect} parameter must be of type {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature which uses {@link Unit} to represent operations that
+   * complete with no interesting result.
+   *
+   * @param selective The Selective instance to test
+   * @param contextClass The context class for validation errors
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
   public static <F, A, B, C> void testSelectiveValidations(
       Selective<F> selective,
       Class<?> contextClass,
@@ -200,7 +244,7 @@ public final class TestMethodRegistry {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch) {
     TypeClassTestPattern.testSelectiveValidations(
@@ -211,7 +255,7 @@ public final class TestMethodRegistry {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect, // ✓ Pass Unit effect
         validThenBranch,
         validElseBranch);
   }

@@ -6,6 +6,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
 
 /**
  * Stage 4: Configure additional operation parameters and optional law testing.
@@ -42,6 +43,10 @@ public final class SelectiveOperationsStage<F, A, B, C> {
   /**
    * Provides additional operation parameters for branch, whenS, and ifS.
    *
+   * <p><b>Unit Usage:</b> The {@code validUnitEffect} parameter must be {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature which uses Unit to represent operations that complete
+   * with no interesting result.
+   *
    * <p>Progressive disclosure: Next steps are optional law configuration, validation configuration,
    * test selection, or immediate execution.
    *
@@ -49,7 +54,7 @@ public final class SelectiveOperationsStage<F, A, B, C> {
    * @param validLeftHandler Handler for Left branch
    * @param validRightHandler Handler for Right branch
    * @param validCondition Boolean condition for whenS/ifS
-   * @param validEffect Effect for whenS
+   * @param validUnitEffect Unit effect for whenS
    * @param validThenBranch Then branch for ifS
    * @param validElseBranch Else branch for ifS
    * @return Handler stage with execution options
@@ -58,7 +63,7 @@ public final class SelectiveOperationsStage<F, A, B, C> {
       Kind<F, Function<A, C>> validLeftHandler,
       Kind<F, Function<B, C>> validRightHandler,
       Kind<F, Boolean> validCondition,
-      Kind<F, A> validEffect,
+      Kind<F, Unit> validUnitEffect,
       Kind<F, A> validThenBranch,
       Kind<F, A> validElseBranch) {
 
@@ -71,7 +76,7 @@ public final class SelectiveOperationsStage<F, A, B, C> {
         validLeftHandler,
         validRightHandler,
         validCondition,
-        validEffect,
+        validUnitEffect,
         validThenBranch,
         validElseBranch);
   }

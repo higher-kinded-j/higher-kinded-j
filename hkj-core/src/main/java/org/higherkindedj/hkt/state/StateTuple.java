@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state;
 
-import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.higherkindedj.optics.annotations.GenerateLenses;
