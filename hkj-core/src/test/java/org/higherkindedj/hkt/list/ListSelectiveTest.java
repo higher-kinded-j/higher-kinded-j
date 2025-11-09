@@ -282,6 +282,91 @@ class ListSelectiveTest {
       // Then: Empty (no left handlers available)
       assertThat(LIST.narrow(result)).isEmpty();
     }
+
+    @Test
+    @DisplayName("branch with Right choices but empty right handlers should skip")
+    void branch_withRightChoicesButEmptyRightHandlers_shouldSkip() {
+      // Given: Right choices
+      List<Choice<Integer, String>> choices =
+          Arrays.asList(Selective.right("A"), Selective.right("B"));
+      Kind<ListKind.Witness, Choice<Integer, String>> fab = LIST.widen(choices);
+
+      // Left handlers (should not be used since all choices are Right)
+      List<Function<Integer, String>> leftHandlers = Collections.singletonList(i -> "L" + i);
+      Kind<ListKind.Witness, Function<Integer, String>> fl = LIST.widen(leftHandlers);
+
+      // Empty right handlers
+      Kind<ListKind.Witness, Function<String, String>> fr = LIST.widen(Collections.emptyList());
+
+      // When
+      Kind<ListKind.Witness, String> result = selective.branch(fab, fl, fr);
+
+      // Then: Empty (no right handlers available to process Right choices)
+      assertThat(LIST.narrow(result)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("branch with mixed choices and selectively empty handlers")
+    void branch_withMixedChoicesAndSelectivelyEmptyHandlers_shouldSkipAppropriately() {
+      // Given: Mixed choices - Left with handler, Right without handler
+      List<Choice<Integer, String>> choices =
+          Arrays.asList(Selective.left(1), Selective.right("X"), Selective.left(2));
+      Kind<ListKind.Witness, Choice<Integer, String>> fab = LIST.widen(choices);
+
+      // Left handlers present
+      List<Function<Integer, String>> leftHandlers = Collections.singletonList(i -> "L" + i);
+      Kind<ListKind.Witness, Function<Integer, String>> fl = LIST.widen(leftHandlers);
+
+      // Empty right handlers
+      Kind<ListKind.Witness, Function<String, String>> fr = LIST.widen(Collections.emptyList());
+
+      // When
+      Kind<ListKind.Witness, String> result = selective.branch(fab, fl, fr);
+
+      // Then: Only Left choices processed (Right choices skipped due to empty handlers)
+      assertThat(LIST.narrow(result)).containsExactly("L1", "L2");
+    }
+
+    @Test
+    @DisplayName("branch with mixed choices and opposite empty handlers")
+    void branch_withMixedChoicesAndOppositeEmptyHandlers_shouldSkipAppropriately() {
+      // Given: Mixed choices - Right with handler, Left without handler
+      List<Choice<Integer, String>> choices =
+          Arrays.asList(Selective.left(1), Selective.right("X"), Selective.left(2));
+      Kind<ListKind.Witness, Choice<Integer, String>> fab = LIST.widen(choices);
+
+      // Empty left handlers
+      Kind<ListKind.Witness, Function<Integer, String>> fl = LIST.widen(Collections.emptyList());
+
+      // Right handlers present
+      List<Function<String, String>> rightHandlers = Collections.singletonList(s -> "R" + s);
+      Kind<ListKind.Witness, Function<String, String>> fr = LIST.widen(rightHandlers);
+
+      // When
+      Kind<ListKind.Witness, String> result = selective.branch(fab, fl, fr);
+
+      // Then: Only Right choices processed (Left choices skipped due to empty handlers)
+      assertThat(LIST.narrow(result)).containsExactly("RX");
+    }
+
+    @Test
+    @DisplayName("branch with both handlers empty should return empty regardless of choices")
+    void branch_withBothHandlersEmpty_shouldReturnEmpty() {
+      // Given: Mixed choices
+      List<Choice<Integer, String>> choices =
+          Arrays.asList(Selective.left(1), Selective.right("X"));
+      Kind<ListKind.Witness, Choice<Integer, String>> fab = LIST.widen(choices);
+
+      // Both handlers empty
+      Kind<ListKind.Witness, Function<Integer, String>> fl = LIST.widen(Collections.emptyList());
+      Kind<ListKind.Witness, Function<String, String>> fr = LIST.widen(Collections.emptyList());
+
+      // When
+      Kind<ListKind.Witness, String> result = selective.branch(fab, fl, fr);
+
+      // Then: Empty (no handlers available for any choices)
+      assertThat(LIST.narrow(result)).isEmpty();
+    }
   }
 
   @Nested
