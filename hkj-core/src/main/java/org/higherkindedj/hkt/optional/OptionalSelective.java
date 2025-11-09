@@ -133,7 +133,7 @@ public final class OptionalSelective extends OptionalMonad
   }
 
   /**
-   * Optimized implementation of {@code branch} for Optional. Provides a two-way conditional choice,
+   * Optimised implementation of {@code branch} for Optional. Provides a two-way conditional choice,
    * applying the appropriate handler based on whether the Choice is Left or Right.
    *
    * @param fab A {@link Kind} representing {@code Optional<Choice<A, B>>}. Must not be null.
@@ -185,7 +185,7 @@ public final class OptionalSelective extends OptionalMonad
   }
 
   /**
-   * Optimized implementation of {@code whenS} for Optional. Conditionally executes a Unit-returning
+   * Optimised implementation of {@code whenS} for Optional. Conditionally executes a Unit-returning
    * effect based on a boolean condition.
    *
    * <p>This method now uses {@link Unit} to clearly distinguish between different states:
@@ -267,7 +267,7 @@ public final class OptionalSelective extends OptionalMonad
   }
 
   /**
-   * Optimized implementation of {@code ifS} for Optional. A ternary conditional operator for
+   * Optimised implementation of {@code ifS} for Optional. A ternary conditional operator for
    * selective functors.
    *
    * @param fcond A {@link Kind} representing {@code Optional<Boolean>}. Must not be null.

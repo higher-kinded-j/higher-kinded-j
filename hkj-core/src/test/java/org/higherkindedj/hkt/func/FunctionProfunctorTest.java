@@ -137,7 +137,7 @@ class FunctionProfunctorTest {
     @DisplayName("Witness can be instantiated for code coverage")
     void witness_canBeInstantiated() {
       // This test exists solely to ensure the Witness class is covered by tests.
-      // A witness type has no behavior, but coverage tools check for instantiation.
+      // A witness type has no behaviour, but coverage tools check for instantiation.
       var witness = new FunctionKind.Witness();
       assertThat(witness).isNotNull();
     }

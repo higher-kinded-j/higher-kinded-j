@@ -72,7 +72,7 @@ public final class StateTMonad<S, F> implements Monad<StateTKind.Witness<S, F>> 
 
   /**
    * Transforms the value type of a {@code StateT<S, F, A>} from {@code A} to {@code B} using the
-   * provided function {@code f}, without altering the state transformation behavior.
+   * provided function {@code f}, without altering the state transformation behaviour.
    *
    * @param f The function to apply to the value. Must not be {@code null}.
    * @param fa The {@code StateT<S, F, A>} instance whose value is to be transformed.

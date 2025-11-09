@@ -45,7 +45,7 @@ public interface EitherKind<L, R> extends Kind<EitherKind.Witness<L>, R> {
 
   /**
    * The phantom type marker (witness type) for the {@code Either<L, ?>} type constructor. This
-   * class is parameterized by {@code TYPE_L} (the "Left" type) and is used as the first type
+   * class is parameterised by {@code TYPE_L} (the "Left" type) and is used as the first type
    * argument to {@link Kind} (i.e., {@code F} in {@code Kind<F, A>}) for {@code Either} instances
    * with a fixed "Left" type.
    *

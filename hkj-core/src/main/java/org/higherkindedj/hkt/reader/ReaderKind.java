@@ -49,7 +49,7 @@ public interface ReaderKind<R, A> extends Kind<ReaderKind.Witness<R>, A> {
 
   /**
    * The phantom type marker (witness type) for the {@code Reader<R, ?>} type constructor. This
-   * class is parameterized by {@code TYPE_R} (the environment type) and is used as the first type
+   * class is parameterised by {@code TYPE_R} (the environment type) and is used as the first type
    * argument to {@link Kind} (i.e., {@code F} in {@code Kind<F, A>}) for {@code Reader} instances
    * with a fixed environment type.
    *

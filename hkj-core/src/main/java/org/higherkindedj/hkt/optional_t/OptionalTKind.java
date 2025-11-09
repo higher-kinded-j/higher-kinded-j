@@ -43,7 +43,7 @@ public interface OptionalTKind<F, A> extends Kind<OptionalTKind.Witness<F>, A> {
 
   /**
    * The phantom type marker (witness type) for the {@code OptionalT<F, ?>} type constructor. This
-   * class is parameterized by {@code OUTER_F} (the witness of the outer monad). It is used as the
+   * class is parameterised by {@code OUTER_F} (the witness of the outer monad). It is used as the
    * first type argument to {@link Kind} (i.e., {@code G} in {@code Kind<G, A>}) for {@code
    * OptionalT} instances with a fixed outer monad.
    *

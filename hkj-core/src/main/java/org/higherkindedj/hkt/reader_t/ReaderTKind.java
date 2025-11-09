@@ -42,7 +42,7 @@ public interface ReaderTKind<F, R_ENV, A> extends Kind<ReaderTKind.Witness<F, R_
 
   /**
    * The phantom type marker (witness type) for the {@code ReaderT<F, R, ?>} type constructor. This
-   * class is parameterized by {@code OUTER_F} (the witness of the outer monad) and {@code ENV_R}
+   * class is parameterised by {@code OUTER_F} (the witness of the outer monad) and {@code ENV_R}
    * (the environment type). It is used as the first type argument to {@link Kind} (i.e., {@code G}
    * in {@code Kind<G, A>}) for {@code ReaderT} instances with a fixed outer monad and environment
    * type.

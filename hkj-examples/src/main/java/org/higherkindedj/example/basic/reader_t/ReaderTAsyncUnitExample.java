@@ -55,7 +55,7 @@ public class ReaderTAsyncUnitExample {
   }
 
   // Wrap the action in ReaderT: R -> F<Unit>
-  public static ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initializeComponentRT() {
+  public static ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initialiseComponentRT() {
     return ReaderT.of(ReaderTAsyncUnitExample::logInitializationAsync);
   }
 
@@ -68,7 +68,7 @@ public class ReaderTAsyncUnitExample {
             executor);
 
     // Get the ReaderT for the initialization action
-    ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initAction = initializeComponentRT();
+    ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initAction = initialiseComponentRT();
 
     System.out.println("--- Running Initialization Action with Prod Config ---");
     // Run the action by providing the prodConfig environment

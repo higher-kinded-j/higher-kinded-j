@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Note: These tests focus on API flow and skip validations because the new API doesn't yet
  * support flexible validation contexts (map() is in EitherFunctor but we're testing EitherMonad).
- * Validation behavior is thoroughly tested in the individual type class tests (EitherFunctorTest,
+ * Validation behaviour is thoroughly tested in the individual type class tests (EitherFunctorTest,
  * EitherMonadTest, etc.).
  */
 @DisplayName("TypeClassTest Fluent API Integration Tests")

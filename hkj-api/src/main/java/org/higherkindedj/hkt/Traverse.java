@@ -60,7 +60,7 @@ import org.jspecify.annotations.NullMarked;
  * <h2>Laws</h2>
  *
  * <p>A Traverse instance must satisfy the following laws to ensure predictable and composable
- * behavior:
+ * behaviour:
  *
  * <ol>
  *   <li><b>Naturality:</b> For any applicative transformation {@code t} (natural transformation
@@ -89,7 +89,7 @@ import org.jspecify.annotations.NullMarked;
  * <ul>
  *   <li>Traversals behave predictably regardless of the applicative effect being used
  *   <li>Traversals compose properly with other traversals
- *   <li>Traversals can be optimized through fusion
+ *   <li>Traversals can be optimised through fusion
  *   <li>The order of effects is deterministic (left-to-right)
  * </ul>
  *
@@ -147,7 +147,7 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
    * sequencing: applying a function that produces effects to each element, and then "sequencing"
    * those effects according to the rules of the applicative being used.
    *
-   * <p><b>Behavior varies by Applicative:</b>
+   * <p><b>Behaviour varies by Applicative:</b>
    *
    * <ul>
    *   <li><b>Optional/Maybe:</b> Short-circuits on the first {@code None} encountered, otherwise

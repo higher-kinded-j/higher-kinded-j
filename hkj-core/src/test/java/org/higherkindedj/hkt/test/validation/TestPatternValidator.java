@@ -63,7 +63,7 @@ public final class TestPatternValidator {
   // ============================================================================
 
   /**
-   * Validates that a test class follows standardized patterns.
+   * Validates that a test class follows standardised patterns.
    *
    * <p>Performs comprehensive validation including structure, naming, and annotations.
    *
@@ -333,7 +333,7 @@ public final class TestPatternValidator {
       System.out.println("=".repeat(80));
 
       if (!hasIssues()) {
-        System.out.println("✓ All checks passed - test follows standardized patterns");
+        System.out.println("✓ All checks passed - test follows standardised patterns");
         return;
       }
 
@@ -443,7 +443,7 @@ public final class TestPatternValidator {
       StringBuilder sb = new StringBuilder();
       sb.append("Test class ")
           .append(result.testClass.getSimpleName())
-          .append(" does not follow standardized patterns:\n");
+          .append(" does not follow standardised patterns:\n");
 
       List<ValidationIssue> errors = result.getErrors();
       for (int i = 0; i < errors.size(); i++) {

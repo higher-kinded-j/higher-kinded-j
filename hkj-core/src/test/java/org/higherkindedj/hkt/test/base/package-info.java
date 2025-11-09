@@ -1,5 +1,5 @@
 /**
- * Base classes for standardized type class testing.
+ * Base classes for standardised type class testing.
  *
  * <p>Provides foundational classes that reduce boilerplate and ensure consistency:
  *

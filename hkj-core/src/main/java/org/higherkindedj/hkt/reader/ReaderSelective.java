@@ -19,7 +19,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *
  * <p>The Selective interface sits between {@link org.higherkindedj.hkt.Applicative} and {@link
  * org.higherkindedj.hkt.Monad} in terms of power. It allows for static analysis of effects while
- * still supporting conditional behavior.
+ * still supporting conditional behaviour.
  *
  * <p>For Reader, selective operations allow conditional computations that may or may not require
  * accessing the environment, potentially enabling Optimisations where the environment is only read

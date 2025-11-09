@@ -17,7 +17,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * Kind parameter validation assertions aligned with production validators.
  *
  * <p>This class provides assertions that use the exact same validation logic as production {@link
- * KindValidator}, ensuring that test expectations match production behavior exactly.
+ * KindValidator}, ensuring that test expectations match production behaviour exactly.
  *
  * <h2>Key Benefits:</h2>
  *
@@ -25,7 +25,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *   <li>Error messages automatically match production validators
  *   <li>Context-aware error messages with class and descriptor support
  *   <li>Type-safe validation assertions
- *   <li>Single source of truth for Kind validation behavior
+ *   <li>Single source of truth for Kind validation behaviour
  * </ul>
  *
  * <h2>Usage Examples:</h2>
@@ -83,7 +83,7 @@ public final class KindAssertions {
    * @param executable The code that should throw
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
       ThrowableAssert.ThrowingCallable executable, Operation operation) {
@@ -98,7 +98,7 @@ public final class KindAssertions {
    * @param operation The operation name
    * @param descriptor Optional descriptor for the parameter (e.g., "function", "argument")
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
       ThrowableAssert.ThrowingCallable executable, Operation operation, String descriptor) {
@@ -118,7 +118,7 @@ public final class KindAssertions {
    * @param contextClass The class providing context (e.g., EitherMonad.class)
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> contextClass, Operation operation) {
@@ -135,7 +135,7 @@ public final class KindAssertions {
    * @param operation The operation name
    * @param descriptor Optional descriptor for the parameter
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertKindNull(
       ThrowableAssert.ThrowingCallable executable,
@@ -159,7 +159,7 @@ public final class KindAssertions {
    * @param executable The code that should throw
    * @param targetType The target type class for narrowing
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertNarrowNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> targetType) {
@@ -182,7 +182,7 @@ public final class KindAssertions {
    * @param targetType The target type class for narrowing
    * @param invalidKind The invalid Kind for error context
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertInvalidKindType(
       ThrowableAssert.ThrowingCallable executable, Class<?> targetType, Kind<?, ?> invalidKind) {
@@ -199,7 +199,7 @@ public final class KindAssertions {
    * @param executable The code that should throw
    * @param inputType The input type class for widening
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertWidenNull(
       ThrowableAssert.ThrowingCallable executable, Class<?> inputType) {
@@ -292,9 +292,9 @@ public final class KindAssertions {
    * validation exactly.
    *
    * @param testCode Code that should throw the same exception as production validation
-   * @param productionValidation Production validation logic that defines expected behavior
+   * @param productionValidation Production validation logic that defines expected behaviour
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if test behavior doesn't match production validation
+   * @throws AssertionError if test behaviour doesn't match production validation
    */
   private static AbstractThrowableAssert<?, ? extends Throwable> assertWithProductionValidator(
       ThrowableAssert.ThrowingCallable testCode,
@@ -322,9 +322,9 @@ public final class KindAssertions {
    * validation exactly.
    *
    * @param testCode Code that should throw KindUnwrapException
-   * @param productionValidation Production validation logic that defines expected behavior
+   * @param productionValidation Production validation logic that defines expected behaviour
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if test behavior doesn't match production validation
+   * @throws AssertionError if test behaviour doesn't match production validation
    */
   private static AbstractThrowableAssert<?, ? extends Throwable> assertKindUnwrapException(
       ThrowableAssert.ThrowingCallable testCode,

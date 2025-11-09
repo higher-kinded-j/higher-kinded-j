@@ -90,7 +90,7 @@ public class OptionalTMonad<F> implements MonadError<OptionalTKind.Witness<F>, U
    * Applies a function wrapped in {@code Kind<OptionalTKind.Witness<F>, Function<A, B>>} to a value
    * wrapped in {@code Kind<OptionalTKind.Witness<F>, A>}.
    *
-   * <p>The behavior is as follows:
+   * <p>The behaviour is as follows:
    *
    * <ul>
    *   <li>If both the function and value are present (i.e., {@code F<Optional.of(Function)>} and

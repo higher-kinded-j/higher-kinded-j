@@ -125,7 +125,7 @@ abstract class LazyTestBase extends TypeClassTestBase<LazyKind.Witness, Integer,
 
   /**
    * Creates a ThrowableSupplier that increments the shared counter and returns a success value.
-   * Includes a small delay to test memoisation behavior.
+   * Includes a small delay to test memoisation behaviour.
    */
   protected static ThrowableSupplier<String> successSupplier() {
     return () -> {

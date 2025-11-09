@@ -183,7 +183,7 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
   }
 
   /**
-   * Optimized implementation of {@code whenS} for Maybe. Conditionally executes a Unit-returning
+   * Optimised implementation of {@code whenS} for Maybe. Conditionally executes a Unit-returning
    * effect based on a boolean condition.
    *
    * <p>This method now uses {@link Unit} to clearly distinguish between different states:
@@ -268,7 +268,7 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
   }
 
   /**
-   * Optimized implementation of {@code ifS} for Maybe. A ternary conditional operator for selective
+   * Optimised implementation of {@code ifS} for Maybe. A ternary conditional operator for selective
    * functors.
    *
    * @param fcond A {@link Kind} representing {@code Maybe<Boolean>}. Must not be null.

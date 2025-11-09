@@ -19,7 +19,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *
  * <p>The Selective interface sits between {@link org.higherkindedj.hkt.Applicative} and {@link
  * org.higherkindedj.hkt.Monad} in terms of power. It allows for static analysis of effects while
- * still supporting conditional behavior, unlike pure Applicatives which have no conditional
+ * still supporting conditional behaviour, unlike pure Applicatives which have no conditional
  * execution, and Monads which are fully dynamic.
  *
  * <p>Key operations:

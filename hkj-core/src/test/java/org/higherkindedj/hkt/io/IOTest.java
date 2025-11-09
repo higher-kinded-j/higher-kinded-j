@@ -561,7 +561,7 @@ class IOTest {
     void fromRunnableCompositionWithRegularIO() {
       AtomicReference<String> state = new AtomicReference<>("");
 
-      IO<Unit> setup = IO.fromRunnable(() -> state.set("initialized"));
+      IO<Unit> setup = IO.fromRunnable(() -> state.set("initialised"));
       IO<String> process = IO.delay(() -> state.get() + "-processed");
       IO<Unit> cleanup = IO.fromRunnable(() -> state.set("cleaned"));
 

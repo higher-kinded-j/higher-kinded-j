@@ -95,7 +95,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
     try {
       return future.join();
     } catch (CompletionException e) {
-      // Preserve original exception throwing behavior if cause is RuntimeException or Error
+      // Preserve original exception throwing behaviour if cause is RuntimeException or Error
       Throwable cause = e.getCause();
       if (cause instanceof RuntimeException re) {
         throw re;

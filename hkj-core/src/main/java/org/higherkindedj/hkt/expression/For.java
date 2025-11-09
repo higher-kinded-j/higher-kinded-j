@@ -85,7 +85,7 @@ public final class For {
    * Initiates a for-comprehension for any {@link Monad}. The resulting builder chain will not
    * support filtering with {@code .when(...)}.
    *
-   * @param monad The Monad instance that defines the behavior of {@code flatMap} and {@code map}.
+   * @param monad The Monad instance that defines the behaviour of {@code flatMap} and {@code map}.
    * @param source The initial monadic source, the first generator in the comprehension.
    * @param <M> The witness type of the Monad.
    * @param <A> The value type of the source.
@@ -111,7 +111,7 @@ public final class For {
 
   /**
    * A marker interface for all builder steps, ensuring they can be permitted by a sealed interface.
-   * This is an internal detail to organize the different step types.
+   * This is an internal detail to organise the different step types.
    *
    * @param <M> The witness type of the Monad.
    */

@@ -118,7 +118,7 @@ class OptionalTMonadTest {
 
     @Test
     void map_shouldHandleMappingToNullAsNone() { // Renamed for clarity based on Optional.map
-      // behavior
+      // behaviour
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> initialKind = someT(initialValue);
       Function<Integer, @Nullable String> toNull = x -> null;
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> mappedKind =

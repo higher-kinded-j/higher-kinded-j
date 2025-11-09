@@ -21,7 +21,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *
  * <p>The Selective interface sits between {@link org.higherkindedj.hkt.Applicative} and {@link
  * org.higherkindedj.hkt.Monad} in terms of power. It allows for static analysis of effects while
- * still supporting conditional behavior.
+ * still supporting conditional behaviour.
  *
  * <p>For List, selective operations work with non-deterministic computations, where each element in
  * the list represents a possible outcome. The selective operations handle choices for each element
@@ -122,7 +122,7 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   }
 
   /**
-   * Optimized implementation of {@code branch} for List. Provides a two-way conditional choice,
+   * Optimised implementation of {@code branch} for List. Provides a two-way conditional choice,
    * applying the appropriate handler based on whether each Choice is Left or Right.
    *
    * @param fab A {@link Kind} representing {@code List<Choice<A, B>>}. Must not be null.
@@ -181,7 +181,7 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   }
 
   /**
-   * Optimized implementation of {@code whenS} for List. Conditionally executes a Unit-returning
+   * Optimised implementation of {@code whenS} for List. Conditionally executes a Unit-returning
    * effect based on boolean conditions.
    *
    * <p>For List (representing non-deterministic computation), this operation works as follows:
@@ -249,7 +249,7 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
   }
 
   /**
-   * Optimized implementation of {@code ifS} for List. A ternary conditional operator for selective
+   * Optimised implementation of {@code ifS} for List. A ternary conditional operator for selective
    * functors.
    *
    * <p>For each condition, includes results from the then-branch if true, or from the else-branch

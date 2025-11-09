@@ -14,14 +14,14 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * Function parameter validation assertions aligned with production validators.
  *
  * <p>This class provides assertions that use the exact same validation logic as production {@link
- * FunctionValidator}, ensuring that test expectations match production behavior exactly.
+ * FunctionValidator}, ensuring that test expectations match production behaviour exactly.
  *
  * <h2>Key Benefits:</h2>
  *
  * <ul>
  *   <li>Error messages automatically match production validators
  *   <li>Changes to validation logic propagate to tests automatically
- *   <li>Single source of truth for validation behavior
+ *   <li>Single source of truth for validation behaviour
  *   <li>Context-aware error messages with class-based contexts
  * </ul>
  *
@@ -78,7 +78,7 @@ public final class FunctionAssertions {
    * @param executable The code that should throw
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMapperNull(
       ThrowableAssert.ThrowingCallable executable, String mapperName, Operation operation) {
@@ -93,7 +93,7 @@ public final class FunctionAssertions {
    * @param executable The code that should throw
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFlatMapperNull(
       ThrowableAssert.ThrowingCallable executable, String flatMapperName, Operation operation) {
@@ -108,7 +108,7 @@ public final class FunctionAssertions {
    * @param executable The code that should throw
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeNull(
       ThrowableAssert.ThrowingCallable executable, String applicativeName, Operation operation) {
@@ -125,7 +125,7 @@ public final class FunctionAssertions {
    * @param monoidName The name of the monoid parameter
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
       ThrowableAssert.ThrowingCallable executable, String monoidName, Operation operation) {
@@ -141,7 +141,7 @@ public final class FunctionAssertions {
    * @param functionName The name of the function parameter
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFunctionNull(
       ThrowableAssert.ThrowingCallable executable, String functionName, Operation operation) {
@@ -162,7 +162,7 @@ public final class FunctionAssertions {
    * @param contextClass The class providing context (e.g., EitherMonad.class)
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMapperNull(
       ThrowableAssert.ThrowingCallable executable,
@@ -182,7 +182,7 @@ public final class FunctionAssertions {
    * @param contextClass The class providing context
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFlatMapperNull(
       ThrowableAssert.ThrowingCallable executable,
@@ -203,7 +203,7 @@ public final class FunctionAssertions {
    * @param contextClass The class providing context
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertApplicativeNull(
       ThrowableAssert.ThrowingCallable executable,
@@ -225,7 +225,7 @@ public final class FunctionAssertions {
    * @param contextClass The class providing context
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertMonoidNull(
       ThrowableAssert.ThrowingCallable executable,
@@ -246,7 +246,7 @@ public final class FunctionAssertions {
    * @param contextClass The class providing context
    * @param operation The operation name
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if validation doesn't match production behavior
+   * @throws AssertionError if validation doesn't match production behaviour
    */
   public static AbstractThrowableAssert<?, ? extends Throwable> assertFunctionNull(
       ThrowableAssert.ThrowingCallable executable,
@@ -283,9 +283,9 @@ public final class FunctionAssertions {
    * that test code throws an identical exception.
    *
    * @param testCode Code that should throw the same exception as production validation
-   * @param productionValidation Production validation logic that defines expected behavior
+   * @param productionValidation Production validation logic that defines expected behaviour
    * @return Throwable assertion for further chaining
-   * @throws AssertionError if test behavior doesn't match production validation
+   * @throws AssertionError if test behaviour doesn't match production validation
    */
   private static AbstractThrowableAssert<?, ? extends Throwable> assertWithProductionValidator(
       ThrowableAssert.ThrowingCallable testCode,
