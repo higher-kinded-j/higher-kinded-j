@@ -59,8 +59,10 @@ public enum Operation {
   OR_ELSE_THROW("orElseThrow"),
   DELAY("delay"),
   INVALID("invalid"),
-  ;
-  ;
+  IF_S("ifS"),
+  SELECT("select"),
+  WHEN_S("whenS"),
+  BRANCH("branch");
 
   Operation(String label) {
     this.label = label;

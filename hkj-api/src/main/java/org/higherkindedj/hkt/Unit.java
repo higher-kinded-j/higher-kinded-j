@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.unit;
+package org.higherkindedj.hkt;
 
 /**
  * Represents a type with a single value, {@link Unit#INSTANCE}. It is used to signify the absence

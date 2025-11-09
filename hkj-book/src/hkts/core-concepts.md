@@ -110,7 +110,7 @@ This distinction is important for understanding how `wrap` and `unwrap` function
 
 In functional programming, it's common to have computations or functions that perform an action (often a side effect) but do not produce a specific, meaningful result value. In Java, methods that don't return a value use the `void` keyword. However, `void` is not a first-class type and cannot be used as a generic type parameter `A` in `Kind<F, A>`.
 
-Higher-Kinded-J provides the `org.higherkindedj.hkt.unit.Unit` type to address this.
+Higher-Kinded-J provides the `org.higherkindedj.hkt.Unit` type to address this.
 
 * **Purpose:** `Unit` is a type that has exactly one value, `Unit.INSTANCE`. It is used to represent the successful completion of an operation that doesn't yield any other specific information. Think of it as a functional equivalent of `void`, but usable as a generic type.
 * **Usage in HKT:**

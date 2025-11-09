@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -20,7 +21,6 @@ import org.higherkindedj.hkt.maybe_t.MaybeTKind;
 import org.higherkindedj.hkt.maybe_t.MaybeTMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
-import org.higherkindedj.hkt.unit.Unit;
 
 /**
  * see {<a href="https://higher-kinded-j.github.io/maybet_transformer.html">MaybeT Transformer</a>}

@@ -33,7 +33,7 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
   public static final IOMonad INSTANCE = new IOMonad();
 
   /** Private constructor to enforce the singleton pattern. */
-  private IOMonad() {
+  protected IOMonad() {
     // Private constructor
   }
 

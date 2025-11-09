@@ -4,7 +4,7 @@
 - Practical application patterns for optics across diverse problem domains
 - Building configuration processors, data validators, and API adapters with optics
 - Creating reusable optic libraries tailored to your specific business needs
-- Performance optimization techniques and benchmarking for complex optic compositions
+- Performance Optimisation techniques and benchmarking for complex optic compositions
 - Testing strategies for optic-based data processing pipelines
 - Decision frameworks for choosing the right optic combinations for real-world scenarios
 - Common anti-patterns to avoid and best practices for maintainable optic code

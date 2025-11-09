@@ -110,7 +110,7 @@ public abstract class BaseValidationStage<SELF extends BaseValidationStage<SELF>
    *
    * @return This stage for further configuration or execution
    */
-  public final SELF useDefaultValidation() {
+  public SELF useDefaultValidation() {
     this.mapContext = null;
     this.flatMapContext = null;
     return self();

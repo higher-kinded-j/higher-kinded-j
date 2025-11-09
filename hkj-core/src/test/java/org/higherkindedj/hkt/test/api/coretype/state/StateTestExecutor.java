@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateFunctor;
@@ -15,7 +16,6 @@ import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
 import org.higherkindedj.hkt.test.builders.ValidationTestBuilder;
-import org.higherkindedj.hkt.unit.Unit;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**

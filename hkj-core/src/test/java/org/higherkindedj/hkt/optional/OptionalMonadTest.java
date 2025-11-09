@@ -9,7 +9,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.unit.Unit;
+import org.higherkindedj.hkt.Unit;
 import org.junit.jupiter.api.*;
 
 @DisplayName("OptionalMonad Tests")

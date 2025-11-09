@@ -7,9 +7,9 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import java.util.Scanner;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOMonad;
-import org.higherkindedj.hkt.unit.Unit;
 
 /** see {<a href="https://higher-kinded-j.github.io/io_monad.html">IO Monad</a>} */
 public class IOExample {

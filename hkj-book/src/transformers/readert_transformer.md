@@ -170,7 +170,7 @@ You typically create `ReaderT` instances using its static factory methods. These
 
 ~~~admonish example title="Example: `ReaderT` for Actions Returning `Unit`"
 
-Sometimes, a computation dependent on an environment `R` and involving an outer monad `F` might perform an action (e.g., logging, initializing a resource, sending a fire-and-forget message) without producing a specific data value. In such cases, the result type `A` of `ReaderT<F, R, A>` can be `org.higherkindedj.hkt.unit.Unit`.
+Sometimes, a computation dependent on an environment `R` and involving an outer monad `F` might perform an action (e.g., logging, initializing a resource, sending a fire-and-forget message) without producing a specific data value. In such cases, the result type `A` of `ReaderT<F, R, A>` can be `org.higherkindedj.hkt.Unit`.
 
 Let's extend the asynchronous example to include an action that logs a message using the `AppConfig` and completes asynchronously, returning `Unit`.
 

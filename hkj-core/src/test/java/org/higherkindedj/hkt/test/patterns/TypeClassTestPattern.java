@@ -9,18 +9,25 @@ import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.assertions.TypeClassAssertions;
 
 /**
  * Enhanced comprehensive test patterns with better composability and reusability.
  *
- * <h2>New Features:</h2>
+ * <p>This class now delegates law testing to {@link LawTestPattern} for better separation of
+ * concerns and maintainability.
+ *
+ * <p><b>Unit Usage:</b> Selective tests now use {@link Unit} for {@code whenS} operations,
+ * reflecting the updated signature that represents operations completing with no interesting
+ * result.
+ *
+ * <h2>Delegation Strategy:</h2>
  *
  * <ul>
- *   <li>Builder pattern for complex test configurations
- *   <li>Selective test execution methods
- *   <li>Better support for custom equality checkers
- *   <li>Integrated validation configuration
+ *   <li>Law testing methods delegate to granular law methods in LawTestPattern
+ *   <li>Validation testing remains in this class using TypeClassAssertions
+ *   <li>No validation tests are performed during law testing (separated concerns)
  * </ul>
  */
 public final class TypeClassTestPattern {
@@ -30,307 +37,8 @@ public final class TypeClassTestPattern {
   }
 
   // =============================================================================
-  // ENHANCED BUILDER PATTERN FOR COMPLEX TEST CONFIGURATIONS
+  // FUNCTOR TESTING
   // =============================================================================
-
-  /**
-   * Creates a builder for comprehensive Functor testing.
-   *
-   * @param <F> The Functor witness type
-   * @param <A> The input type
-   * @param <B> The output type
-   */
-  public static <F, A, B> FunctorTestBuilder<F, A, B> functorTest(
-      Functor<F> functor, Class<?> contextClass) {
-    return new FunctorTestBuilder<>(functor, contextClass);
-  }
-
-  @Deprecated
-  public static class FunctorTestBuilder<F, A, B> {
-    private final Functor<F> functor;
-    private final Class<?> contextClass;
-    private Kind<F, A> validKind;
-    private Function<A, B> validMapper;
-    private Function<B, String> secondMapper = Object::toString;
-    private BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
-
-    private boolean includeOperations = true;
-    private boolean includeValidations = true;
-    private boolean includeExceptionPropagation = true;
-    private boolean includeLaws = true;
-
-    private FunctorTestBuilder(Functor<F> functor, Class<?> contextClass) {
-      this.functor = functor;
-      this.contextClass = contextClass;
-    }
-
-    public FunctorTestBuilder<F, A, B> withKind(Kind<F, A> kind) {
-      this.validKind = kind;
-      return this;
-    }
-
-    public FunctorTestBuilder<F, A, B> withMapper(Function<A, B> mapper) {
-      this.validMapper = mapper;
-      return this;
-    }
-
-    public FunctorTestBuilder<F, A, B> withSecondMapper(Function<B, String> mapper) {
-      this.secondMapper = mapper;
-      return this;
-    }
-
-    public FunctorTestBuilder<F, A, B> withEqualityChecker(
-        BiPredicate<Kind<F, ?>, Kind<F, ?>> checker) {
-      this.equalityChecker = checker;
-      return this;
-    }
-
-    public FunctorTestBuilder<F, A, B> skipOperations() {
-      this.includeOperations = false;
-      return this;
-    }
-
-    public FunctorTestBuilder<F, A, B> skipValidations() {
-      this.includeValidations = false;
-      return this;
-    }
-
-    public FunctorTestBuilder<F, A, B> skipExceptionPropagation() {
-      this.includeExceptionPropagation = false;
-      return this;
-    }
-
-    public FunctorTestBuilder<F, A, B> skipLaws() {
-      this.includeLaws = false;
-      return this;
-    }
-
-    public void test() {
-      validateConfiguration();
-
-      if (includeOperations) {
-        testFunctorOperations(functor, validKind, validMapper);
-      }
-      if (includeValidations) {
-        testFunctorValidations(functor, contextClass, validKind, validMapper);
-      }
-      if (includeExceptionPropagation) {
-        testFunctorExceptionPropagation(functor, validKind);
-      }
-      if (includeLaws) {
-        testFunctorLaws(functor, validKind, validMapper, secondMapper, equalityChecker);
-      }
-    }
-
-    private void validateConfiguration() {
-      if (validKind == null) {
-        throw new IllegalStateException("validKind must be configured");
-      }
-      if (validMapper == null) {
-        throw new IllegalStateException("validMapper must be configured");
-      }
-      if (includeLaws && equalityChecker == null) {
-        throw new IllegalStateException("equalityChecker required for law testing");
-      }
-    }
-  }
-
-  /** Creates a builder for comprehensive MonadError testing. */
-  public static <F, E, A, B> MonadErrorTestBuilder<F, E, A, B> monadErrorTest(
-      MonadError<F, E> monadError, Class<?> contextClass) {
-    return new MonadErrorTestBuilder<>(monadError, contextClass);
-  }
-
-  @Deprecated
-  public static class MonadErrorTestBuilder<F, E, A, B> {
-    private final MonadError<F, E> monadError;
-    private final Class<?> contextClass;
-
-    // Required parameters
-    private Kind<F, A> validKind;
-    private Kind<F, A> validKind2;
-    private A testValue;
-    private Function<A, B> validMapper;
-    private Function<A, Kind<F, B>> validFlatMapper;
-    private Kind<F, Function<A, B>> validFunctionKind;
-    private BiFunction<A, A, B> validCombiningFunction;
-    private Function<E, Kind<F, A>> validHandler;
-    private Kind<F, A> validFallback;
-    private Function<A, Kind<F, B>> testFunction;
-    private Function<B, Kind<F, B>> chainFunction;
-    private BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker;
-
-    // Optional configuration
-    private FlexibleValidationConfig.MonadErrorValidation<F, E, A, B> validationConfig;
-    private boolean includeOperations = true;
-    private boolean includeValidations = true;
-    private boolean includeExceptionPropagation = true;
-    private boolean includeLaws = true;
-
-    private MonadErrorTestBuilder(MonadError<F, E> monadError, Class<?> contextClass) {
-      this.monadError = monadError;
-      this.contextClass = contextClass;
-    }
-
-    // Fluent setters for all parameters
-    public MonadErrorTestBuilder<F, E, A, B> withKind(Kind<F, A> kind) {
-      this.validKind = kind;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withKind2(Kind<F, A> kind2) {
-      this.validKind2 = kind2;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withTestValue(A value) {
-      this.testValue = value;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withMapper(Function<A, B> mapper) {
-      this.validMapper = mapper;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withFlatMapper(Function<A, Kind<F, B>> flatMapper) {
-      this.validFlatMapper = flatMapper;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withFunctionKind(
-        Kind<F, Function<A, B>> functionKind) {
-      this.validFunctionKind = functionKind;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withCombiningFunction(
-        BiFunction<A, A, B> combiningFunction) {
-      this.validCombiningFunction = combiningFunction;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withHandler(Function<E, Kind<F, A>> handler) {
-      this.validHandler = handler;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withFallback(Kind<F, A> fallback) {
-      this.validFallback = fallback;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withTestFunction(
-        Function<A, Kind<F, B>> testFunction) {
-      this.testFunction = testFunction;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withChainFunction(
-        Function<B, Kind<F, B>> chainFunction) {
-      this.chainFunction = chainFunction;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withEqualityChecker(
-        BiPredicate<Kind<F, ?>, Kind<F, ?>> checker) {
-      this.equalityChecker = checker;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> withValidationConfig(
-        FlexibleValidationConfig.MonadErrorValidation<F, E, A, B> config) {
-      this.validationConfig = config;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> skipOperations() {
-      this.includeOperations = false;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> skipValidations() {
-      this.includeValidations = false;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> skipExceptionPropagation() {
-      this.includeExceptionPropagation = false;
-      return this;
-    }
-
-    public MonadErrorTestBuilder<F, E, A, B> skipLaws() {
-      this.includeLaws = false;
-      return this;
-    }
-
-    public void test() {
-      validateConfiguration();
-
-      if (includeOperations) {
-        testMonadErrorOperations(
-            monadError,
-            validKind,
-            validMapper,
-            validFlatMapper,
-            validFunctionKind,
-            validHandler,
-            validFallback);
-      }
-
-      if (includeValidations) {
-        if (validationConfig != null) {
-          validationConfig.test();
-        } else {
-          testMonadErrorValidations(
-              monadError,
-              contextClass,
-              validKind,
-              validMapper,
-              validFlatMapper,
-              validFunctionKind,
-              validHandler,
-              validFallback);
-        }
-      }
-
-      if (includeExceptionPropagation) {
-        testMonadErrorExceptionPropagation(monadError, validKind);
-      }
-
-      if (includeLaws) {
-        testMonadLaws(
-            monadError, validKind, testValue, testFunction, chainFunction, equalityChecker);
-      }
-    }
-
-    private void validateConfiguration() {
-      if (validKind == null) throw new IllegalStateException("validKind required");
-      if (includeOperations || includeValidations) {
-        if (validMapper == null) throw new IllegalStateException("validMapper required");
-        if (validFlatMapper == null) throw new IllegalStateException("validFlatMapper required");
-        if (validFunctionKind == null)
-          throw new IllegalStateException("validFunctionKind required");
-        if (validHandler == null) throw new IllegalStateException("validHandler required");
-        if (validFallback == null) throw new IllegalStateException("validFallback required");
-      }
-      if (includeLaws) {
-        if (testValue == null) throw new IllegalStateException("testValue required for laws");
-        if (testFunction == null) throw new IllegalStateException("testFunction required for laws");
-        if (chainFunction == null)
-          throw new IllegalStateException("chainFunction required for laws");
-        if (equalityChecker == null)
-          throw new IllegalStateException("equalityChecker required for laws");
-      }
-    }
-  }
-
-  // =============================================================================
-  // EXISTING METHODS (PRESERVED FOR BACKWARD COMPATIBILITY)
-  // =============================================================================
-
-  // Keep all existing test methods exactly as they are...
-  // [Previous implementation preserved]
 
   public static <F, A, B> void testFunctorOperations(
       Functor<F> functor, Kind<F, A> validKind, Function<A, B> validMapper) {
@@ -356,6 +64,11 @@ public final class TypeClassTestPattern {
         .isSameAs(testException);
   }
 
+  /**
+   * Tests Functor laws by delegating to granular law methods in LawTestPattern.
+   *
+   * <p>This method tests the Identity and Composition laws without performing validation tests.
+   */
   public static <F, A, B, C> void testFunctorLaws(
       Functor<F> functor,
       Kind<F, A> validKind,
@@ -363,159 +76,15 @@ public final class TypeClassTestPattern {
       Function<B, C> g,
       BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
-    // Identity Law
-    Function<A, A> identity = a -> a;
-    Kind<F, A> mapped = functor.map(identity, validKind);
-    assertThat(equalityChecker.test(mapped, validKind))
-        .as("Functor Identity Law: map(id, fa) == fa")
-        .isTrue();
-
-    // Composition Law
-    Function<A, C> composed = a -> g.apply(f.apply(a));
-    Kind<F, C> leftSide = functor.map(composed, validKind);
-    Kind<F, B> intermediate = functor.map(f, validKind);
-    Kind<F, C> rightSide = functor.map(g, intermediate);
-    assertThat(equalityChecker.test(leftSide, rightSide))
-        .as("Functor Composition Law: map(g ∘ f, fa) == map(g, map(f, fa))")
-        .isTrue();
+    // Delegate to LawTestPattern - tests only algebraic laws
+    LawTestPattern.testFunctorIdentityLaw(functor, validKind, equalityChecker);
+    LawTestPattern.testFunctorCompositionLaw(functor, validKind, f, g, equalityChecker);
   }
 
-  // MonadError methods
-  public static <F, E, A, B> void testMonadErrorOperations(
-      MonadError<F, E> monadError,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Function<A, Kind<F, B>> validFlatMapper,
-      Kind<F, Function<A, B>> validFunctionKind,
-      Function<E, Kind<F, A>> validHandler,
-      Kind<F, A> validFallback) {
+  // =============================================================================
+  // APPLICATIVE TESTING
+  // =============================================================================
 
-    testMonadOperations(monadError, validKind, validMapper, validFlatMapper, validFunctionKind);
-
-    assertThat(monadError.handleErrorWith(validKind, validHandler))
-        .as("handleErrorWith should return non-null result")
-        .isNotNull();
-
-    assertThat(monadError.recoverWith(validKind, validFallback))
-        .as("recoverWith should return non-null result")
-        .isNotNull();
-  }
-
-  public static <F, E, A, B> void testMonadErrorValidations(
-      MonadError<F, E> monadError,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Function<A, Kind<F, B>> validFlatMapper,
-      Kind<F, Function<A, B>> validFunctionKind,
-      Function<E, Kind<F, A>> validHandler,
-      Kind<F, A> validFallback) {
-
-    TypeClassAssertions.assertAllMonadErrorOperations(
-        monadError,
-        contextClass,
-        validKind,
-        validMapper,
-        validFlatMapper,
-        validFunctionKind,
-        validHandler,
-        validFallback);
-  }
-
-  public static <F, E, A> void testMonadErrorExceptionPropagation(
-      MonadError<F, E> monadError, Kind<F, A> validKind) {
-
-    testMonadExceptionPropagation(monadError, validKind);
-  }
-
-  // Monad methods
-  public static <F, A, B> void testMonadOperations(
-      Monad<F> monad,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Function<A, Kind<F, B>> validFlatMapper,
-      Kind<F, Function<A, B>> validFunctionKind) {
-
-    assertThat(monad.map(validMapper, validKind))
-        .as("map should return non-null result")
-        .isNotNull();
-
-    assertThat(monad.flatMap(validFlatMapper, validKind))
-        .as("flatMap should return non-null result")
-        .isNotNull();
-
-    assertThat(monad.ap(validFunctionKind, validKind))
-        .as("ap should return non-null result")
-        .isNotNull();
-  }
-
-  public static <F, A, B> void testMonadValidations(
-      Monad<F> monad,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      Function<A, B> validMapper,
-      Function<A, Kind<F, B>> validFlatMapper,
-      Kind<F, Function<A, B>> validFunctionKind) {
-
-    TypeClassAssertions.assertAllMonadOperations(
-        monad, contextClass, validKind, validMapper, validFlatMapper, validFunctionKind);
-  }
-
-  public static <F, A> void testMonadExceptionPropagation(Monad<F> monad, Kind<F, A> validKind) {
-    RuntimeException testException = createTestException("monad test");
-
-    Function<A, String> throwingMapper =
-        a -> {
-          throw testException;
-        };
-    assertThatThrownBy(() -> monad.map(throwingMapper, validKind))
-        .as("map should propagate function exceptions")
-        .isSameAs(testException);
-
-    Function<A, Kind<F, String>> throwingFlatMapper =
-        a -> {
-          throw testException;
-        };
-    assertThatThrownBy(() -> monad.flatMap(throwingFlatMapper, validKind))
-        .as("flatMap should propagate function exceptions")
-        .isSameAs(testException);
-  }
-
-  public static <F, A, B> void testMonadLaws(
-      Monad<F> monad,
-      Kind<F, A> validKind,
-      A testValue,
-      Function<A, Kind<F, B>> testFunction,
-      Function<B, Kind<F, B>> chainFunction,
-      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
-
-    // Left Identity
-    Kind<F, A> ofValue = monad.of(testValue);
-    Kind<F, B> leftSide = monad.flatMap(testFunction, ofValue);
-    Kind<F, B> rightSide = testFunction.apply(testValue);
-    assertThat(equalityChecker.test(leftSide, rightSide))
-        .as("Monad Left Identity Law: flatMap(of(a), f) == f(a)")
-        .isTrue();
-
-    // Right Identity
-    Function<A, Kind<F, A>> ofFunc = monad::of;
-    Kind<F, A> leftSideIdentity = monad.flatMap(ofFunc, validKind);
-    assertThat(equalityChecker.test(leftSideIdentity, validKind))
-        .as("Monad Right Identity Law: flatMap(m, of) == m")
-        .isTrue();
-
-    // Associativity
-    Kind<F, B> innerFlatMap = monad.flatMap(testFunction, validKind);
-    Kind<F, B> leftSideAssoc = monad.flatMap(chainFunction, innerFlatMap);
-    Function<A, Kind<F, B>> rightSideFunc =
-        a -> monad.flatMap(chainFunction, testFunction.apply(a));
-    Kind<F, B> rightSideAssoc = monad.flatMap(rightSideFunc, validKind);
-    assertThat(equalityChecker.test(leftSideAssoc, rightSideAssoc))
-        .as("Monad Associativity Law")
-        .isTrue();
-  }
-
-  // Applicative methods
   public static <F, A, B> void testApplicativeOperations(
       Applicative<F> applicative,
       Kind<F, A> validKind,
@@ -570,6 +139,14 @@ public final class TypeClassTestPattern {
         .isSameAs(testException);
   }
 
+  /**
+   * Tests Applicative laws by delegating to granular law methods in LawTestPattern.
+   *
+   * <p>This method tests Identity, Homomorphism, and Interchange laws without performing validation
+   * tests.
+   *
+   * <p><strong>Note:</strong> This now includes the Interchange law which was previously missing.
+   */
   public static <F, A, B> void testApplicativeLaws(
       Applicative<F> applicative,
       Kind<F, A> validKind,
@@ -577,23 +154,358 @@ public final class TypeClassTestPattern {
       Function<A, B> testFunction,
       BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
 
-    // Identity Law
-    Function<A, A> identity = a -> a;
-    Kind<F, Function<A, A>> idFunc = applicative.of(identity);
-    Kind<F, A> result = applicative.ap(idFunc, validKind);
-    assertThat(equalityChecker.test(result, validKind)).as("Applicative Identity Law").isTrue();
-
-    // Homomorphism Law
-    Kind<F, Function<A, B>> funcKind = applicative.of(testFunction);
-    Kind<F, A> valueKind = applicative.of(testValue);
-    Kind<F, B> leftSide = applicative.ap(funcKind, valueKind);
-    Kind<F, B> rightSide = applicative.of(testFunction.apply(testValue));
-    assertThat(equalityChecker.test(leftSide, rightSide))
-        .as("Applicative Homomorphism Law")
-        .isTrue();
+    // Delegate to LawTestPattern - tests all three laws
+    LawTestPattern.testApplicativeIdentityLaw(applicative, validKind, equalityChecker);
+    LawTestPattern.testApplicativeHomomorphismLaw(
+        applicative, testValue, testFunction, equalityChecker);
+    LawTestPattern.testApplicativeInterchangeLaw(
+        applicative, testValue, testFunction, equalityChecker);
   }
 
-  // Foldable methods
+  // =============================================================================
+  // MONAD TESTING
+  // =============================================================================
+
+  public static <F, A, B> void testMonadOperations(
+      Monad<F> monad,
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      Function<A, Kind<F, B>> validFlatMapper,
+      Kind<F, Function<A, B>> validFunctionKind) {
+
+    assertThat(monad.map(validMapper, validKind))
+        .as("map should return non-null result")
+        .isNotNull();
+
+    assertThat(monad.flatMap(validFlatMapper, validKind))
+        .as("flatMap should return non-null result")
+        .isNotNull();
+
+    assertThat(monad.ap(validFunctionKind, validKind))
+        .as("ap should return non-null result")
+        .isNotNull();
+  }
+
+  public static <F, A, B> void testMonadValidations(
+      Monad<F> monad,
+      Class<?> contextClass,
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      Function<A, Kind<F, B>> validFlatMapper,
+      Kind<F, Function<A, B>> validFunctionKind) {
+
+    TypeClassAssertions.assertAllMonadOperations(
+        monad, contextClass, validKind, validMapper, validFlatMapper, validFunctionKind);
+  }
+
+  public static <F, A> void testMonadExceptionPropagation(Monad<F> monad, Kind<F, A> validKind) {
+    RuntimeException testException = createTestException("monad test");
+
+    Function<A, String> throwingMapper =
+        a -> {
+          throw testException;
+        };
+    assertThatThrownBy(() -> monad.map(throwingMapper, validKind))
+        .as("map should propagate function exceptions")
+        .isSameAs(testException);
+
+    Function<A, Kind<F, String>> throwingFlatMapper =
+        a -> {
+          throw testException;
+        };
+    assertThatThrownBy(() -> monad.flatMap(throwingFlatMapper, validKind))
+        .as("flatMap should propagate function exceptions")
+        .isSameAs(testException);
+  }
+
+  /**
+   * Tests Monad laws by delegating to granular law methods in LawTestPattern.
+   *
+   * <p>This method tests Left Identity, Right Identity, and Associativity laws without performing
+   * validation tests.
+   */
+  public static <F, A, B> void testMonadLaws(
+      Monad<F> monad,
+      Kind<F, A> validKind,
+      A testValue,
+      Function<A, Kind<F, B>> testFunction,
+      Function<B, Kind<F, B>> chainFunction,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+
+    // Delegate to LawTestPattern - tests all three monad laws
+    LawTestPattern.testLeftIdentityLaw(monad, testValue, testFunction, equalityChecker);
+    LawTestPattern.testRightIdentityLaw(monad, validKind, equalityChecker);
+    LawTestPattern.testAssociativityLaw(
+        monad, validKind, testFunction, chainFunction, equalityChecker);
+  }
+
+  // =============================================================================
+  // MONAD ERROR TESTING
+  // =============================================================================
+
+  public static <F, E, A, B> void testMonadErrorOperations(
+      MonadError<F, E> monadError,
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      Function<A, Kind<F, B>> validFlatMapper,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Function<E, Kind<F, A>> validHandler,
+      Kind<F, A> validFallback) {
+
+    testMonadOperations(monadError, validKind, validMapper, validFlatMapper, validFunctionKind);
+
+    assertThat(monadError.handleErrorWith(validKind, validHandler))
+        .as("handleErrorWith should return non-null result")
+        .isNotNull();
+
+    assertThat(monadError.recoverWith(validKind, validFallback))
+        .as("recoverWith should return non-null result")
+        .isNotNull();
+  }
+
+  public static <F, E, A, B> void testMonadErrorValidations(
+      MonadError<F, E> monadError,
+      Class<?> contextClass,
+      Kind<F, A> validKind,
+      Function<A, B> validMapper,
+      Function<A, Kind<F, B>> validFlatMapper,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Function<E, Kind<F, A>> validHandler,
+      Kind<F, A> validFallback) {
+
+    TypeClassAssertions.assertAllMonadErrorOperations(
+        monadError,
+        contextClass,
+        validKind,
+        validMapper,
+        validFlatMapper,
+        validFunctionKind,
+        validHandler,
+        validFallback);
+  }
+
+  public static <F, E, A> void testMonadErrorExceptionPropagation(
+      MonadError<F, E> monadError, Kind<F, A> validKind) {
+
+    testMonadExceptionPropagation(monadError, validKind);
+  }
+
+  // =============================================================================
+  // SELECTIVE TESTING
+  // =============================================================================
+
+  /**
+   * Tests Selective operations.
+   *
+   * <p><b>Unit Usage:</b> The {@code validUnitEffect} parameter must be {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature which uses Unit to represent operations that complete
+   * with no interesting result.
+   *
+   * @param selective The Selective instance to test
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
+  public static <F, A, B, C> void testSelectiveOperations(
+      Selective<F> selective,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Kind<F, Function<A, C>> validLeftHandler,
+      Kind<F, Function<B, C>> validRightHandler,
+      Kind<F, Boolean> validCondition,
+      Kind<F, Unit> validUnitEffect,
+      Kind<F, A> validThenBranch,
+      Kind<F, A> validElseBranch) {
+
+    assertThat(selective.select(validChoiceKind, validFunctionKind))
+        .as("select should return non-null result")
+        .isNotNull();
+
+    assertThat(selective.branch(validChoiceKind, validLeftHandler, validRightHandler))
+        .as("branch should return non-null result")
+        .isNotNull();
+
+    assertThat(selective.whenS(validCondition, validUnitEffect))
+        .as("whenS should return non-null result")
+        .isNotNull();
+
+    assertThat(selective.ifS(validCondition, validThenBranch, validElseBranch))
+        .as("ifS should return non-null result")
+        .isNotNull();
+  }
+
+  /**
+   * Tests Selective validations.
+   *
+   * <p><b>Unit Usage:</b> The {@code validUnitEffect} parameter must be {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature.
+   *
+   * @param selective The Selective instance to test
+   * @param contextClass The context class for error messages
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
+  public static <F, A, B, C> void testSelectiveValidations(
+      Selective<F> selective,
+      Class<?> contextClass,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Kind<F, Function<A, C>> validLeftHandler,
+      Kind<F, Function<B, C>> validRightHandler,
+      Kind<F, Boolean> validCondition,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
+      Kind<F, A> validThenBranch,
+      Kind<F, A> validElseBranch) {
+
+    TypeClassAssertions.assertAllSelectiveOperations(
+        selective,
+        contextClass,
+        validChoiceKind,
+        validFunctionKind,
+        validLeftHandler,
+        validRightHandler,
+        validCondition,
+        validUnitEffect,
+        validThenBranch,
+        validElseBranch);
+  }
+
+  public static <F, A, B> void testSelectiveExceptionPropagation(
+      Selective<F> selective,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind) {
+
+    RuntimeException testException = createTestException("selective test");
+
+    // Test exception propagation in select
+    Function<A, B> throwingFunc =
+        a -> {
+          throw testException;
+        };
+    Kind<F, Function<A, B>> throwingFuncKind = selective.of(throwingFunc);
+
+    // Create a Left choice that will trigger function application
+    Choice<A, B> leftChoice = Selective.left(null);
+    Kind<F, Choice<A, B>> leftChoiceKind = selective.of(leftChoice);
+
+    assertThatThrownBy(() -> selective.select(leftChoiceKind, throwingFuncKind))
+        .as("select should propagate function exceptions")
+        .isSameAs(testException);
+  }
+
+  /**
+   * Tests Selective laws by delegating to granular law methods in LawTestPattern.
+   *
+   * <p>This method tests Identity and Distributivity laws without performing validation tests.
+   */
+  public static <F, A, B> void testSelectiveLaws(
+      Selective<F> selective,
+      Kind<F, Choice<A, B>> choiceKind,
+      B testValue,
+      Function<A, B> testFunction,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+
+    // Delegate to LawTestPattern - tests selective laws
+    LawTestPattern.testSelectiveIdentityLaw(selective, testValue, equalityChecker);
+    LawTestPattern.testSelectiveDistributivityLaw(
+        selective, choiceKind, testFunction, equalityChecker);
+  }
+
+  // =============================================================================
+  // COMBINED TEST METHOD FOR SELECTIVE
+  // =============================================================================
+
+  /**
+   * Tests all Selective functionality including operations, validations, exception propagation, and
+   * laws.
+   *
+   * <p><b>Unit Usage:</b> The {@code validUnitEffect} parameter must be {@code Kind<F, Unit>} to
+   * match the new {@code whenS} signature.
+   *
+   * @param selective The Selective instance to test
+   * @param contextClass The context class for error messages
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param testValue A test value for laws
+   * @param testFunction A test function for laws
+   * @param equalityChecker Equality checker for law verification
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
+  public static <F, A, B, C> void testCompleteSelective(
+      Selective<F> selective,
+      Class<?> contextClass,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Kind<F, Function<A, C>> validLeftHandler,
+      Kind<F, Function<B, C>> validRightHandler,
+      Kind<F, Boolean> validCondition,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
+      Kind<F, A> validThenBranch,
+      Kind<F, A> validElseBranch,
+      B testValue,
+      Function<A, B> testFunction,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> equalityChecker) {
+
+    testSelectiveOperations(
+        selective,
+        validChoiceKind,
+        validFunctionKind,
+        validLeftHandler,
+        validRightHandler,
+        validCondition,
+        validUnitEffect,
+        validThenBranch,
+        validElseBranch);
+
+    testSelectiveValidations(
+        selective,
+        contextClass,
+        validChoiceKind,
+        validFunctionKind,
+        validLeftHandler,
+        validRightHandler,
+        validCondition,
+        validUnitEffect,
+        validThenBranch,
+        validElseBranch);
+
+    testSelectiveExceptionPropagation(selective, validChoiceKind, validFunctionKind);
+
+    testSelectiveLaws(selective, validChoiceKind, testValue, testFunction, equalityChecker);
+  }
+
+  // =============================================================================
+  // FOLDABLE TESTING
+  // =============================================================================
+
   public static <F, A, M> void testFoldableOperations(
       Foldable<F> foldable,
       Kind<F, A> validKind,
@@ -630,7 +542,10 @@ public final class TypeClassTestPattern {
         .isSameAs(testException);
   }
 
-  // Traverse methods
+  // =============================================================================
+  // TRAVERSE TESTING
+  // =============================================================================
+
   public static <F, G, A, B, M> void testTraverseOperations(
       Traverse<F> traverse,
       Kind<F, A> validKind,
@@ -708,6 +623,11 @@ public final class TypeClassTestPattern {
         .isSameAs(testException);
   }
 
+  /**
+   * Tests Traverse laws by delegating to LawTestPattern.
+   *
+   * <p>This method tests structure preservation without performing validation tests.
+   */
   public static <F, G, A, B> void testTraverseLaws(
       Traverse<F> traverse,
       Applicative<G> applicative,
@@ -715,13 +635,15 @@ public final class TypeClassTestPattern {
       Function<A, Kind<G, B>> testFunction,
       BiPredicate<Kind<G, ?>, Kind<G, ?>> equalityChecker) {
 
-    Kind<G, Kind<F, B>> result = traverse.traverse(applicative, testFunction, validKind);
-    assertThat(result)
-        .as("Traverse should preserve structure and return non-null result")
-        .isNotNull();
+    // Delegate to LawTestPattern - tests only structure preservation law
+    LawTestPattern.testTraverseStructurePreservationLaw(
+        traverse, applicative, validKind, testFunction);
   }
 
-  // Utility methods
+  // =============================================================================
+  // UTILITY METHODS
+  // =============================================================================
+
   public static <F> BiPredicate<Kind<F, ?>, Kind<F, ?>> referenceEquality() {
     return (k1, k2) -> k1 == k2;
   }
@@ -735,7 +657,14 @@ public final class TypeClassTestPattern {
     };
   }
 
-  // Combined test methods for backward compatibility
+  private static RuntimeException createTestException(String message) {
+    return new RuntimeException("Test exception: " + message);
+  }
+
+  // =============================================================================
+  // COMBINED TEST METHODS FOR BACKWARD COMPATIBILITY
+  // =============================================================================
+
   public static <F, A, B> void testCompleteFunctor(
       Functor<F> functor,
       Class<?> contextClass,
@@ -872,9 +801,5 @@ public final class TypeClassTestPattern {
         validFoldMapFunction);
     testTraverseExceptionPropagation(traverse, validKind, validApplicative, validMonoid);
     testTraverseLaws(traverse, validApplicative, validKind, validTraverseFunction, equalityChecker);
-  }
-
-  private static RuntimeException createTestException(String message) {
-    return new RuntimeException("Test exception: " + message);
   }
 }

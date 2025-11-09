@@ -200,14 +200,14 @@ Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't n
 
 ~~~admonish example title="Example: Reader for Side-Effects (Returning Unit)"
 
-Sometimes, a computation depending on an environment `R` might perform an action (like logging or initialising a component based on `R`) but doesn't produce a specific value other than signaling its completion. In such cases, the result type `A` of the `Reader<R, A>` can be `org.higherkindedj.hkt.unit.Unit`.
+Sometimes, a computation depending on an environment `R` might perform an action (like logging or initialising a component based on `R`) but doesn't produce a specific value other than signaling its completion. In such cases, the result type `A` of the `Reader<R, A>` can be `org.higherkindedj.hkt.Unit`.
 
 ```java
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.reader.ReaderKind;
 import org.higherkindedj.hkt.reader.ReaderMonad;
-import org.higherkindedj.hkt.unit.Unit; // Import Unit
+import org.higherkindedj.hkt.Unit; // Import Unit
 
 // Assume AppConfig is defined as before
 // record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}

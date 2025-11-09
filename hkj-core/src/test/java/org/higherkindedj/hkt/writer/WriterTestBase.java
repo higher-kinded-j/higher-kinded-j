@@ -9,9 +9,9 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.base.TypeClassTestBase;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
-import org.higherkindedj.hkt.unit.Unit;
 
 /**
  * Base class for Writer type class tests.

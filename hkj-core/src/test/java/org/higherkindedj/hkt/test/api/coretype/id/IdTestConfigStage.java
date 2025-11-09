@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.id;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
 
@@ -125,6 +126,28 @@ public final class IdTestConfigStage<A, B> extends BaseTestConfigStage<IdTestCon
     disableAll();
     this.includeFlatMap = true;
     return this;
+  }
+
+  /**
+   * Configures Selective-specific test operations for Id.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withHandlers(...)}
+   *
+   * @param choiceLeft Id containing Choice with Left value
+   * @param choiceRight Id containing Choice with Right value
+   * @param booleanTrue Id containing true
+   * @param booleanFalse Id containing false
+   * @param <S> The result type for Selective operations
+   * @return Stage for configuring Selective handlers
+   */
+  public <S> IdSelectiveStage<A, S> withSelectiveOperations(
+      Id<Choice<A, S>> choiceLeft,
+      Id<Choice<A, S>> choiceRight,
+      Id<Boolean> booleanTrue,
+      Id<Boolean> booleanFalse) {
+
+    return new IdSelectiveStage<>(
+        contextClass, instance, choiceLeft, choiceRight, booleanTrue, booleanFalse);
   }
 
   private IdTestExecutor<A, B> buildExecutor() {

@@ -16,12 +16,12 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import org.higherkindedj.example.order.error.DomainError;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.unit.Unit;
 import org.jspecify.annotations.NonNull;
 
 /**

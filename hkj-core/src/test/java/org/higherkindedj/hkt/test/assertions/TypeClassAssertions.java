@@ -8,14 +8,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert;
-import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Foldable;
-import org.higherkindedj.hkt.Functor;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
@@ -475,6 +468,207 @@ public final class TypeClassAssertions {
         () -> foldable.foldMap(validMonoid, null, validKind), "f", contextClass);
     assertFoldableFoldMapKindNull(
         () -> foldable.foldMap(validMonoid, validFoldMapFunction, null), contextClass);
+  }
+
+  // =============================================================================
+  // Selective Assertions
+  // =============================================================================
+
+  /**
+   * Asserts Selective select choice Kind validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveSelectChoiceNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, SELECT, "choice");
+  }
+
+  /**
+   * Asserts Selective select function Kind validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveSelectFunctionNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, SELECT, "function");
+  }
+
+  /**
+   * Asserts Selective branch choice Kind validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveBranchChoiceNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, BRANCH, "choice");
+  }
+
+  /**
+   * Asserts Selective branch left handler validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable>
+      assertSelectiveBranchLeftHandlerNull(
+          ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, BRANCH, "leftHandler");
+  }
+
+  /**
+   * Asserts Selective branch right handler validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable>
+      assertSelectiveBranchRightHandlerNull(
+          ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, BRANCH, "rightHandler");
+  }
+
+  /**
+   * Asserts Selective whenS condition validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveWhenSConditionNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, WHEN_S, "condition");
+  }
+
+  /**
+   * Asserts Selective whenS effect validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveWhenSEffectNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, WHEN_S, "effect");
+  }
+
+  /**
+   * Asserts Selective ifS condition validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveIfSConditionNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, IF_S, "condition");
+  }
+
+  /**
+   * Asserts Selective ifS then branch validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveIfSThenNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, IF_S, "thenBranch");
+  }
+
+  /**
+   * Asserts Selective ifS else branch validation.
+   *
+   * @param executable The code that should throw
+   * @param contextClass The Selective implementation class
+   * @return Throwable assertion for further chaining
+   */
+  public static AbstractThrowableAssert<?, ? extends Throwable> assertSelectiveIfSElseNull(
+      ThrowableAssert.ThrowingCallable executable, Class<?> contextClass) {
+    return KindAssertions.assertKindNull(executable, contextClass, IF_S, "elseBranch");
+  }
+
+  /**
+   * Asserts all Selective operations for null parameters.
+   *
+   * @param selective The Selective instance to test
+   * @param contextClass The Selective implementation class
+   * @param validChoiceKind A valid Kind containing a Choice
+   * @param validFunctionKind A valid Kind containing a function
+   * @param validLeftHandler A valid Kind for left handler
+   * @param validRightHandler A valid Kind for right handler
+   * @param validCondition A valid Kind containing a boolean
+   * @param validUnitEffect A valid Kind<F, Unit> for whenS effect testing
+   * @param validThenBranch A valid Kind for then branch
+   * @param validElseBranch A valid Kind for else branch
+   * @param <F> The Selective witness type
+   * @param <A> The input type
+   * @param <B> The output type
+   * @param <C> The result type
+   */
+  public static <F, A, B, C> void assertAllSelectiveOperations(
+      Selective<F> selective,
+      Class<?> contextClass,
+      Kind<F, Choice<A, B>> validChoiceKind,
+      Kind<F, Function<A, B>> validFunctionKind,
+      Kind<F, Function<A, C>> validLeftHandler,
+      Kind<F, Function<B, C>> validRightHandler,
+      Kind<F, Boolean> validCondition,
+      Kind<F, Unit> validUnitEffect, // ✓ Changed from Kind<F, A> validEffect
+      Kind<F, A> validThenBranch,
+      Kind<F, A> validElseBranch) {
+
+    // Applicative operations (inherited) - create valid test data
+    @SuppressWarnings("unchecked")
+    Kind<F, A> validKind = (Kind<F, A>) validThenBranch;
+    @SuppressWarnings("unchecked")
+    Kind<F, A> validKind2 = (Kind<F, A>) validElseBranch;
+    // Dummy mapper for validation testing - never actually called
+    @SuppressWarnings("unchecked")
+    Function<A, B> validMapper = a -> (B) null;
+    BiFunction<A, A, B> validCombiningFunction = (a1, a2) -> validMapper.apply(a1);
+
+    assertAllApplicativeOperations(
+        selective,
+        contextClass,
+        validKind,
+        validKind2,
+        validMapper,
+        validFunctionKind,
+        validCombiningFunction);
+
+    // Select operations
+    assertSelectiveSelectChoiceNull(() -> selective.select(null, validFunctionKind), contextClass);
+    assertSelectiveSelectFunctionNull(() -> selective.select(validChoiceKind, null), contextClass);
+
+    // Branch operations
+    assertSelectiveBranchChoiceNull(
+        () -> selective.branch(null, validLeftHandler, validRightHandler), contextClass);
+    assertSelectiveBranchLeftHandlerNull(
+        () -> selective.branch(validChoiceKind, null, validRightHandler), contextClass);
+    assertSelectiveBranchRightHandlerNull(
+        () -> selective.branch(validChoiceKind, validLeftHandler, null), contextClass);
+
+    // WhenS operations - now using validUnitEffect
+    assertSelectiveWhenSConditionNull(
+        () -> selective.whenS(null, validUnitEffect), contextClass); // ✓ Fixed
+    assertSelectiveWhenSEffectNull(() -> selective.whenS(validCondition, null), contextClass);
+
+    // IfS operations
+    assertSelectiveIfSConditionNull(
+        () -> selective.ifS(null, validThenBranch, validElseBranch), contextClass);
+    assertSelectiveIfSThenNull(
+        () -> selective.ifS(validCondition, null, validElseBranch), contextClass);
+    assertSelectiveIfSElseNull(
+        () -> selective.ifS(validCondition, validThenBranch, null), contextClass);
   }
 
   // =============================================================================

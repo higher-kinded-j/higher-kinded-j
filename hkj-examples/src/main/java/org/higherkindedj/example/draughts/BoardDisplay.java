@@ -3,9 +3,9 @@
 package org.higherkindedj.example.draughts;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
-import org.higherkindedj.hkt.unit.Unit;
 
 public class BoardDisplay {
 

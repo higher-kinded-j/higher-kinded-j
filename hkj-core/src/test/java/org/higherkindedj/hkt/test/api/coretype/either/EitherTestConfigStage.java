@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.either;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseTestConfigStage;
 
@@ -159,6 +160,34 @@ public final class EitherTestConfigStage<L, R, S>
     disableAll();
     this.includeFlatMap = true;
     return this;
+  }
+
+  /**
+   * Configures Selective-specific test operations for Either.
+   *
+   * <p>Progressive disclosure: Next step is {@code .withHandlers(...)}
+   *
+   * @param choiceLeft Either containing Choice with Left value
+   * @param choiceRight Either containing Choice with Right value
+   * @param booleanTrue Either containing true
+   * @param booleanFalse Either containing false
+   * @param <S> The result type for Selective operations
+   * @return Stage for configuring Selective handlers
+   */
+  public <S> EitherSelectiveStage<L, R, S> withSelectiveOperations(
+      Either<L, Choice<R, S>> choiceLeft,
+      Either<L, Choice<R, S>> choiceRight,
+      Either<L, Boolean> booleanTrue,
+      Either<L, Boolean> booleanFalse) {
+
+    return new EitherSelectiveStage<>(
+        contextClass,
+        leftInstance,
+        rightInstance,
+        choiceLeft,
+        choiceRight,
+        booleanTrue,
+        booleanFalse);
   }
 
   private EitherTestExecutor<L, R, S> buildExecutor() {

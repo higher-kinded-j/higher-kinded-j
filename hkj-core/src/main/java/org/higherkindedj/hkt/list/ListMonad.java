@@ -25,7 +25,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public static final ListMonad INSTANCE = new ListMonad();
 
   /** Private constructor to enforce singleton pattern. */
-  private ListMonad() {}
+  protected ListMonad() {}
 
   /**
    * Lifts a single value {@code a} into the List context. If the value is null, it creates an empty

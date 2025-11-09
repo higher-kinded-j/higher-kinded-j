@@ -32,14 +32,14 @@ import org.jspecify.annotations.Nullable;
  *
  * This class is a singleton, accessible via {@link #instance()}.
  */
-public final class IdMonad implements Monad<Id.Witness> {
+public class IdMonad implements Monad<Id.Witness> {
 
   private static final IdMonad INSTANCE = new IdMonad();
 
   public static Class<IdMonad> ID_MONAD_CLASS = IdMonad.class;
 
   /** Private constructor to enforce singleton pattern. */
-  private IdMonad() {}
+  protected IdMonad() {}
 
   /**
    * Returns the singleton instance of {@link IdMonad}.

@@ -268,7 +268,7 @@ Optic composition is designed for efficiency:
 * **Structural sharing**: Unchanged parts of data structures are reused
 * **Single-pass processing**: `modifyF` traverses the structure only once
 * **Memory efficient**: Only creates new objects for changed data
-* **Compile-time optimization**: Complex compositions are optimized by the JVM
+* **Compile-time Optimisation**: Complex compositions are Optimised by the JVM
 
 **Best Practice**: Create composed optics as constants for reuse:
 

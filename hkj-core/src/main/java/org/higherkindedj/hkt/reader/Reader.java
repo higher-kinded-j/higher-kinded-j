@@ -2,9 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
+import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -159,6 +162,67 @@ public interface Reader<R, A> {
       Validation.function()
           .requireNonNullResult(readerB, "f", READER_CLASS, FLAT_MAP, READER_CLASS);
       return readerB.run(r);
+    };
+  }
+
+  /**
+   * Creates a Reader that ignores its environment and returns Unit.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Reader<Config, Unit> noop = Reader.unit();
+   * }</pre>
+   *
+   * @param <R> The environment type
+   * @return A Reader that always returns Unit.INSTANCE
+   */
+  static <R> Reader<R, Unit> unit() {
+    return env -> Unit.INSTANCE;
+  }
+
+  /**
+   * Creates a Reader from a side-effecting Consumer of the environment.
+   *
+   * <p>This is useful for creating Readers that perform side effects based on configuration but
+   * don't produce a meaningful return value.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Reader<Config, Unit> logConfig =
+   *     Reader.fromConsumer(config -> logger.info("Using: " + config));
+   * }</pre>
+   *
+   * @param consumer The consumer that processes the environment, must not be null
+   * @param <R> The environment type
+   * @return A Reader<R, Unit> that applies the consumer
+   * @throws NullPointerException if consumer is null
+   */
+  static <R> Reader<R, Unit> fromConsumer(Consumer<R> consumer) {
+    requireNonNull(consumer, "consumer cannot be null");
+    return env -> {
+      consumer.accept(env);
+      return Unit.INSTANCE;
+    };
+  }
+
+  /**
+   * Discards the result of this Reader, replacing it with Unit.
+   *
+   * <p><b>Example:</b>
+   *
+   * <pre>{@code
+   * Reader<Config, String> getHost = Reader.asks(Config::getHost);
+   * Reader<Config, Unit> justReadConfig = getHost.asUnit();
+   * }</pre>
+   *
+   * @return A Reader<R, Unit> that reads the same environment but returns Unit
+   */
+  default Reader<R, Unit> asUnit() {
+    return env -> {
+      run(env);
+      return Unit.INSTANCE;
     };
   }
 

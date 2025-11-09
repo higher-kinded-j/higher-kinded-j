@@ -6,10 +6,10 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
-import org.higherkindedj.hkt.unit.Unit;
 
 /** see {<a href="https://higher-kinded-j.github.io/maybe_monad.html">Maybe Monad</a>} */
 public class MaybeExample {

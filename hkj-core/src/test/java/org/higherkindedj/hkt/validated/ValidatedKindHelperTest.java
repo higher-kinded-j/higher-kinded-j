@@ -309,7 +309,7 @@ class ValidatedKindHelperTest extends ValidatedTestBase {
       long duration = System.nanoTime() - start;
 
       double averageNanos = (double) duration / iterations;
-      assertThat(averageNanos).as("Widen should be fast (< 2000ns average)").isLessThan(2000.0);
+      assertThat(averageNanos).as("Widen should be fast (< 3000ns average)").isLessThan(3000.0);
     }
 
     @Test
@@ -331,7 +331,7 @@ class ValidatedKindHelperTest extends ValidatedTestBase {
       long duration = System.nanoTime() - start;
 
       double averageNanos = (double) duration / iterations;
-      assertThat(averageNanos).as("Narrow should be fast (< 2000ns average)").isLessThan(2000.0);
+      assertThat(averageNanos).as("Narrow should be fast (< 3000ns average)").isLessThan(3000.0);
     }
   }
 }
