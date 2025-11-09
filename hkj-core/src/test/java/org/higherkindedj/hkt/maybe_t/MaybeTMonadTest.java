@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.maybe_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.maybe_t.MaybeTAssert.assertThatMaybeT;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -44,6 +45,11 @@ class MaybeTMonadTest
     var maybeT = MAYBE_T.narrow(kind);
     Kind<OptionalKind.Witness, Maybe<A>> outerKind = maybeT.value();
     return OPTIONAL.narrow(outerKind);
+  }
+
+  private <A> Optional<Maybe<A>> unwrapOuterOptional(
+      Kind<OptionalKind.Witness, Maybe<A>> kind) {
+    return OPTIONAL.narrow(kind);
   }
 
   private <R> Kind<MaybeTKind.Witness<OptionalKind.Witness>, R> justT(R value) {
@@ -149,46 +155,40 @@ class MaybeTMonadTest
     @Test
     @DisplayName("map should apply function when Just")
     void map_shouldApplyFunctionWhenJust() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = justT(10);
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.map(Object::toString, input);
+      var input = justT(10);
+      var result = maybeTMonad.map(Object::toString, input);
 
-      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
-      assertThat(maybe).isPresent().contains(Maybe.just("10"));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional)
+          .isPresentJust()
+          .hasJustValue("10");
     }
 
     @Test
     @DisplayName("map should propagate Nothing when Nothing")
     void map_shouldPropagateNothingWhenNothing() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = nothingT();
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.map(Object::toString, input);
+      var input = nothingT();
+      var result = maybeTMonad.map(Object::toString, input);
 
-      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
-      assertThat(maybe).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
     @DisplayName("map should propagate empty outer monad")
     void map_shouldPropagateEmpty() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = emptyT();
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.map(Object::toString, input);
+      var input = emptyT();
+      var result = maybeTMonad.map(Object::toString, input);
 
-      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
-      assertThat(maybe).isEmpty();
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
     @DisplayName("map should convert null result to Nothing")
     void map_shouldConvertNullResultToNothing() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> input = justT(10);
+      var input = justT(10);
       Function<Integer, String> nullReturningMapper = i -> null;
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, String> result =
-          maybeTMonad.map(nullReturningMapper, input);
+      var result = maybeTMonad.map(nullReturningMapper, input);
 
-      Optional<Maybe<String>> maybe = unwrapKindToOptionalMaybe(result);
-      assertThat(maybe).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
   }
 
@@ -206,7 +206,9 @@ class MaybeTMonadTest
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
 
       var result = maybeTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("Res:20"));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional)
+          .isPresentJust()
+          .hasJustValue("Res:20");
     }
 
     @Test
@@ -217,7 +219,7 @@ class MaybeTMonadTest
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = nothingT();
 
       var result = maybeTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
@@ -227,7 +229,7 @@ class MaybeTMonadTest
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
 
       var result = maybeTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
@@ -237,7 +239,7 @@ class MaybeTMonadTest
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = nothingT();
 
       var result = maybeTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
@@ -247,7 +249,7 @@ class MaybeTMonadTest
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
 
       var result = maybeTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -258,7 +260,7 @@ class MaybeTMonadTest
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = emptyT();
 
       var result = maybeTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -268,7 +270,7 @@ class MaybeTMonadTest
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa = justT(10);
 
       var result = maybeTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
@@ -302,7 +304,9 @@ class MaybeTMonadTest
 
       var result = maybeTMonad.flatMap(funcReturnsJust, initialJust);
 
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just("Value:10"));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional)
+          .isPresentJust()
+          .hasJustValue("Value:10");
     }
 
     @Test
@@ -314,7 +318,7 @@ class MaybeTMonadTest
 
       var result = maybeTMonad.flatMap(funcReturnsNothing, initialJust);
 
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
@@ -326,7 +330,7 @@ class MaybeTMonadTest
 
       var result = maybeTMonad.flatMap(funcReturnsEmpty, initialJust);
 
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -340,7 +344,7 @@ class MaybeTMonadTest
 
       var result = maybeTMonad.flatMap(funcShouldNotRun, initialNothing);
 
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
@@ -354,7 +358,7 @@ class MaybeTMonadTest
 
       var result = maybeTMonad.flatMap(funcShouldNotRun, initialEmptyOuter);
 
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -395,8 +399,7 @@ class MaybeTMonadTest
     @Test
     @DisplayName("raiseError should create Nothing in Optional")
     void raiseError_shouldCreateNothingInOptional() {
-      Optional<Maybe<Integer>> result = unwrapKindToOptionalMaybe(raisedErrorKind);
-      assertThat(result).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(raisedErrorKind, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
@@ -406,7 +409,9 @@ class MaybeTMonadTest
           err -> justT(404);
 
       var result = maybeTMonad.handleErrorWith(nothingVal, handler);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.just(404));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional)
+          .isPresentJust()
+          .hasJustValue(404);
     }
 
     @Test
@@ -416,7 +421,7 @@ class MaybeTMonadTest
           err -> justT(-1);
 
       var result = maybeTMonad.handleErrorWith(justVal, handler);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEqualTo(unwrapKindToOptionalMaybe(justVal));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEqualToMaybeT(justVal);
     }
 
     @Test
@@ -426,7 +431,7 @@ class MaybeTMonadTest
           err -> justT(-1);
 
       var result = maybeTMonad.handleErrorWith(emptyVal, handler);
-      assertThat(unwrapKindToOptionalMaybe(result)).isEmpty();
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
   }
 
@@ -478,14 +483,14 @@ class MaybeTMonadTest
     @DisplayName("of with null value")
     void of_withNullValue() {
       var result = maybeTMonad.of(null);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.fromNullable(null));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
 
     @Test
     @DisplayName("raiseError with null error")
     void raiseError_withNullError() {
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result = maybeTMonad.raiseError(null);
-      assertThat(unwrapKindToOptionalMaybe(result)).isPresent().contains(Maybe.nothing());
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
     }
   }
 }

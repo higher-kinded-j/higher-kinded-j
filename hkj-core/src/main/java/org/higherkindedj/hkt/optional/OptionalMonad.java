@@ -84,6 +84,50 @@ public class OptionalMonad extends OptionalFunctor
   }
 
   /**
+   * Applies a function to the value contained within an {@code OptionalKind} context, if a value is
+   * present.
+   *
+   * <p>This method overrides the inherited {@link OptionalFunctor#map(Function, Kind)} to provide
+   * validation messages that identify this operation as belonging to {@code OptionalMonad} rather
+   * than {@code OptionalFunctor}.
+   *
+   * <p>If the input {@code OptionalKind} ({@code fa}) represents an {@code Optional.of(a)}, the
+   * function {@code f} is applied to {@code a}. If {@code f} returns a non-null value {@code b},
+   * the result is an {@code OptionalKind} representing {@code Optional.of(b)}. If {@code f} returns
+   * {@code null}, the result is an empty {@code OptionalKind} (representing {@code
+   * Optional.empty()}).
+   *
+   * <p>If {@code fa} represents {@code Optional.empty()}, an empty {@code OptionalKind} is
+   * returned, and the function {@code f} is not applied.
+   *
+   * @param <A> The type of the value in the input {@code OptionalKind}.
+   * @param <B> The type of the value in the output {@code OptionalKind} after applying the
+   *     function.
+   * @param f The non-null function to apply to the value inside the {@code OptionalKind} if
+   *     present. This function can return {@code @Nullable B}.
+   * @param fa The non-null {@code Kind<OptionalKind.Witness, A>} representing the {@code
+   *     Optional<A>} whose value is to be transformed.
+   * @return A non-null {@code Kind<OptionalKind.Witness, B>} representing a new {@code Optional<B>}
+   *     that will contain the transformed value if the input was present and the function returned
+   *     non-null, or will be empty otherwise.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
+   *     OptionalKind} representation.
+   */
+  @Override
+  public <A, B> Kind<OptionalKind.Witness, B> map(
+      Function<? super A, ? extends @Nullable B> f, Kind<OptionalKind.Witness, A> fa) {
+
+    Validation.function().requireMapper(f, "f", OPTIONAL_MONAD_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, OPTIONAL_MONAD_CLASS, MAP);
+
+    Optional<A> optionalA = OPTIONAL.narrow(fa);
+    // Optional.map correctly handles f returning null by creating Optional.empty()
+    Optional<B> resultOptional = optionalA.map(f);
+    return OPTIONAL.widen(resultOptional);
+  }
+
+  /**
    * Applies a function to the value within an {@code OptionalKind} if it is present, and flattens
    * the {@code OptionalKind} result. If the input {@code OptionalKind} ({@code ma}) is empty, or if
    * the function {@code f} applied to the present value results in an empty {@code OptionalKind},

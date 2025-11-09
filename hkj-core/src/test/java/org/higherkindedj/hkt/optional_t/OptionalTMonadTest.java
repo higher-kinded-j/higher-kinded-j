@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.optional_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.optional_t.OptionalTAssert.assertThatOptionalT;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
 import java.util.Optional;
@@ -38,6 +39,11 @@ class OptionalTMonadTest {
     return OPTIONAL.narrow(outerKind);
   }
 
+  private <A> Optional<Optional<A>> unwrapOuterOptional(
+      Kind<OptionalKind.Witness, Optional<A>> kind) {
+    return OPTIONAL.narrow(kind);
+  }
+
   private <A extends @NonNull Object> Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> someT(
       @NonNull A value) {
     OptionalT<OptionalKind.Witness, A> ot = OptionalT.some(outerMonad, value);
@@ -70,15 +76,15 @@ class OptionalTMonadTest {
     @Test
     void of_shouldWrapValueAsSomeInOptional() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> kind = ofT(successValue);
-      assertThat(unwrapKindToOptionalOptional(kind))
-          .isPresent()
-          .contains(Optional.of(successValue));
+      assertThatOptionalT(kind, OptionalTMonadTest.this::unwrapOuterOptional)
+          .isPresentSome()
+          .hasSomeValue(successValue);
     }
 
     @Test
     void of_shouldWrapNullAsNoneInOptional() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> kind = ofT(null);
-      assertThat(unwrapKindToOptionalOptional(kind)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(kind, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
   }
 
@@ -92,9 +98,9 @@ class OptionalTMonadTest {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> mappedKind =
           optionalTMonad.map(intToString, initialKind);
 
-      assertThat(unwrapKindToOptionalOptional(mappedKind))
-          .isPresent()
-          .contains(Optional.of(String.valueOf(initialValue)));
+      assertThatOptionalT(mappedKind, OptionalTMonadTest.this::unwrapOuterOptional)
+          .isPresentSome()
+          .hasSomeValue(String.valueOf(initialValue));
     }
 
     @Test
@@ -104,7 +110,7 @@ class OptionalTMonadTest {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> mappedKind =
           optionalTMonad.map(intToString, initialKind);
 
-      assertThat(unwrapKindToOptionalOptional(mappedKind)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(mappedKind, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
@@ -114,7 +120,7 @@ class OptionalTMonadTest {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> mappedKind =
           optionalTMonad.map(intToString, initialKind);
 
-      assertThat(unwrapKindToOptionalOptional(mappedKind)).isEmpty();
+      assertThatOptionalT(mappedKind, OptionalTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -125,7 +131,7 @@ class OptionalTMonadTest {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> mappedKind =
           optionalTMonad.map(toNull, initialKind);
       // Optional.map(x -> null) results in Optional.empty()
-      assertThat(unwrapKindToOptionalOptional(mappedKind)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(mappedKind, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
   }
 
@@ -149,49 +155,51 @@ class OptionalTMonadTest {
     void ap_someFunc_someVal() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindSome, valKindSome);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.of("42"));
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional)
+          .isPresentSome()
+          .hasSomeValue("42");
     }
 
     @Test
     void ap_someFuncReturningNull_someVal_shouldResultInNone() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindSomeToNull, valKindSome);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
     void ap_someFunc_noneVal() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindSome, valKindNone);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
     void ap_noneFunc_someVal() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindNone, valKindSome);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
     void ap_noneFunc_noneVal() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindNone, valKindNone);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
     void ap_outerEmptyFunc_someVal() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindOuterEmpty, valKindSome);
-      assertThat(unwrapKindToOptionalOptional(result)).isEmpty();
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
     void ap_someFunc_outerEmptyVal() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindSome, valKindOuterEmpty);
-      assertThat(unwrapKindToOptionalOptional(result)).isEmpty();
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
   }
 
@@ -213,42 +221,44 @@ class OptionalTMonadTest {
     void flatMap_some_toSome() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.flatMap(intToSomeStringT, initialSome);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.of("V5"));
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional)
+          .isPresentSome()
+          .hasSomeValue("V5");
     }
 
     @Test
     void flatMap_some_toNone() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.flatMap(intToNoneStringT, initialSome);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
     void flatMap_none_toSome() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.flatMap(intToSomeStringT, initialNone);
-      assertThat(unwrapKindToOptionalOptional(result)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
     void flatMap_some_toOuterEmpty() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.flatMap(intToOuterEmptyStringT, initialSome);
-      assertThat(unwrapKindToOptionalOptional(result)).isEmpty();
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
     void flatMap_outerEmpty_toSome() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.flatMap(intToSomeStringT, initialOuterEmpty);
-      assertThat(unwrapKindToOptionalOptional(result)).isEmpty();
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
   }
 
   private <A> void assertOptionalTEquals(
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> k1,
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> k2) {
-    assertThat(unwrapKindToOptionalOptional(k1)).isEqualTo(unwrapKindToOptionalOptional(k2));
+    assertThatOptionalT(k1, OptionalTMonadTest.this::unwrapOuterOptional).isEqualToOptionalT(k2);
   }
 
   @Nested
@@ -263,7 +273,7 @@ class OptionalTMonadTest {
     void raiseError_createsInnerNone() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> errorKind =
           optionalTMonad.raiseError(null); // No cast needed, optionalTMonad is already MonadError
-      assertThat(unwrapKindToOptionalOptional(errorKind)).isPresent().contains(Optional.empty());
+      assertThatOptionalT(errorKind, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
     }
 
     @Test
@@ -273,7 +283,9 @@ class OptionalTMonadTest {
           err -> someT(0);
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> recovered =
           optionalTMonad.handleErrorWith(mNone, handler);
-      assertThat(unwrapKindToOptionalOptional(recovered)).isPresent().contains(Optional.of(0));
+      assertThatOptionalT(recovered, OptionalTMonadTest.this::unwrapOuterOptional)
+          .isPresentSome()
+          .hasSomeValue(0);
     }
 
     @Test
@@ -283,7 +295,7 @@ class OptionalTMonadTest {
           err -> someT(0);
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> recovered =
           optionalTMonad.handleErrorWith(mOuterEmpty, handler);
-      assertThat(unwrapKindToOptionalOptional(recovered)).isEmpty();
+      assertThatOptionalT(recovered, OptionalTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
