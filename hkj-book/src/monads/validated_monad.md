@@ -230,7 +230,7 @@ System.out.println("Ap (InvalidFn, InvalidVal): " + VALIDATED.narrow(apInvalidFn
 ~~~
 
 ### MonadError Operations
-As `ValidatedMonad<E>` implements `MonadError<ValidatedKind.Witness<E>, E>`, it provides standardized ways to create and handle errors. Refer to ValidatedMonadExample.java (Section 6) for detailed examples.
+As `ValidatedMonad<E>` implements `MonadError<ValidatedKind.Witness<E>, E>`, it provides standardised ways to create and handle errors. Refer to ValidatedMonadExample.java (Section 6) for detailed examples.
 
 ~~~admonish title="_recover_ and _recoverWith_"
 

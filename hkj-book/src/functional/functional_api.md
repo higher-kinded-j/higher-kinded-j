@@ -49,6 +49,16 @@ A **`MonadError`** is a specialised `Monad` that has a defined error type `E`. I
   * `raiseError(E error)`: Lifts an error `E` into the monadic context `F<A>`.
   * `handleErrorWith(Kind<F, A> fa, Function<E, Kind<F, A>> f)`: Provides a way to recover from a failed computation.
 
+### **`Selective<F>`**
+
+A **`Selective`** functor sits between `Applicative` and `Monad` in terms of power. It extends `Applicative` with the ability to conditionally apply effects based on the result of a previous computation, whilst maintaining a static structure where all possible branches are visible upfront.
+
+* **Key Methods**:
+  * `select(Kind<F, Choice<A, B>> fab, Kind<F, Function<A, B>> ff)`: Core operation that conditionally applies a function based on a `Choice`.
+  * `whenS(Kind<F, Boolean> fcond, Kind<F, Unit> fa)`: Conditionally executes an effect based on a boolean condition.
+  * `ifS(Kind<F, Boolean> fcond, Kind<F, A> fthen, Kind<F, A> felse)`: Provides if-then-else semantics with both branches visible upfront.
+* **Use Case**: Perfect for feature flags, conditional logging, configuration-based behaviour, and any scenario where you need conditional effects with static analysis capabilities.
+
 ---
 
 ## Data Aggregation Type Classes

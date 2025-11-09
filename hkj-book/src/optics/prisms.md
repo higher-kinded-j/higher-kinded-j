@@ -29,7 +29,7 @@ For this, we need a different kind of optic: the **Prism**.
 
 A `Lens` is like a sniper rifle, targeting a single, known field. A **`Prism`** is like a safe-cracker's tool; it attempts to open a specific "lock" (a particular type) and only succeeds if it has the right key.
 
-Consider a common scenario: modeling a JSON structure. A value can be a string, a number, a boolean, or a nested object.
+Consider a common scenario: modelling a JSON structure. A value can be a string, a number, a boolean, or a nested object.
 
 **The Data Model:** We can represent this with a `sealed interface`.
 

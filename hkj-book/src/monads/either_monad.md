@@ -228,7 +228,7 @@ To use `Either` within Higher-Kinded-J framework:
 
 ~~~admonish important  title="Key Points:"
 
-- Explicitly modeling and handling domain-specific errors (e.g., validation failures, resource not found, business rule violations).
+- Explicitly modelling and handling domain-specific errors (e.g., validation failures, resource not found, business rule violations).
 - Sequencing operations where any step might fail with a typed error, short-circuiting the remaining steps.
 - Serving as the inner type for monad transformers like `EitherT` to combine typed errors with other effects like asynchronicity (see the [Order Example Walkthrough](../hkts/order-walkthrough.md)).
 - Providing a more informative alternative to returning `null` or relying solely on exceptions for expected failure conditions.
