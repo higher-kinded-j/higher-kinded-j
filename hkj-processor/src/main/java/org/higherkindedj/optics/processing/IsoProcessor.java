@@ -8,7 +8,6 @@ import static javax.lang.model.element.Modifier.STATIC;
 
 import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
