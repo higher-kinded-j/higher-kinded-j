@@ -1,6 +1,6 @@
 # MonadError: Handling Errors Gracefully 🚨
 
-While a `Monad` is excellent for sequencing operations that might fail (like with `Optional` or `Either`), it doesn't provide a standardized way to *inspect* or *recover* from those failures. The **`MonadError`** type class fills this gap.
+While a `Monad` is excellent for sequencing operations that might fail (like with `Optional` or `Either`), it doesn't provide a standardised way to *inspect* or *recover* from those failures. The **`MonadError`** type class fills this gap.
 
 It's a specialised `Monad` that has a defined error type `E`, giving you a powerful and abstract API for raising and handling errors within any monadic workflow.
 

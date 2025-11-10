@@ -179,7 +179,7 @@ graph TD;
 
 ### Code Structure
 
-The code is organized into a multi-module structure to ensure clear separation of concerns:
+The code is organised into a multi-module structure to ensure clear separation of concerns:
 
 * **`org.higherkindedj.api`**: Defines the public API, including core functional interfaces and optics intended for developers using the library.
   * `org.higherkindedj.optics`: Core Optics interfaces (`Lens`, `Prism`, `Traversal`, etc.) and their

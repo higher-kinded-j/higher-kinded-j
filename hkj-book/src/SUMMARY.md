@@ -15,9 +15,10 @@
   - [Applicative](functional/applicative.md)
   - [Monad](functional/monad.md)
   - [MonadError](functional/monad_error.md)
-  - [Semigroup and Monoid](functional/semigroup_and_monoid.md) 
+  - [Semigroup and Monoid](functional/semigroup_and_monoid.md)
   - [Foldable and Traverse](functional/foldable_and_traverse.md)
   - [MonadZero](functional/monad_zero.md)
+  - [Selective](functional/selective.md)
   - [Profunctor](functional/profunctor.md)
   - [For Comprehension](functional/for_comprehension.md)
 # Monads in Practice

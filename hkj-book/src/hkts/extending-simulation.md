@@ -222,5 +222,5 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 * **Null Handling**: Be very clear about null handling. Can the wrapped Java type be null? Can the value `A` inside be null? `KindHelper`'s `widen` method should typically reject a null container itself. `Monad.of(null)` behaviour depends on the specific monad (e.g., `OptionalMonad.OPTIONAL_MONAD.of(null)` is empty via `OPTIONAL.widen(Optional.empty())`, `ListMonad.LIST_MONAD.of(null)` might be an empty list or a list with a null element based on its definition).
 * **Testing**: Thoroughly test your `XxxKindHelper` enum (especially `narrow` with invalid inputs) and your type class instances (Functor, Applicative, Monad laws).
 
-By following these patterns, you can integrate new or existing types into the Higher-Kinded-J framework, enabling them to be used with generic functional abstractions. The `KindHelper` enums, along with their corresponding `ConverterOps` interfaces, provide a standardized way to handle the `widen` and `narrow` conversions.
+By following these patterns, you can integrate new or existing types into the Higher-Kinded-J framework, enabling them to be used with generic functional abstractions. The `KindHelper` enums, along with their corresponding `ConverterOps` interfaces, provide a standardised way to handle the `widen` and `narrow` conversions.
 ~~~
