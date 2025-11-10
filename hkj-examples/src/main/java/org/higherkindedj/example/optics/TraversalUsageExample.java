@@ -144,7 +144,7 @@ public class TraversalUsageExample {
     Predicate<Integer> isHighScorer = score -> score >= 100;
 
     Kind<Id.Witness, League> updated =
-        leagueToAllPlayerScores.modifyIf(
+        leagueToAllPlayerScores.modifyWhen(
             isHighScorer,
             score -> Id.of(score + 50), // 50 point bonus
             league,

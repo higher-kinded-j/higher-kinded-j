@@ -133,7 +133,7 @@ public class SelectiveOpticsExample {
     Predicate<Account> isPremium = Account::isPremium;
 
     Kind<Id.Witness, Bank> updated =
-        accountsTraversal.modifyIf(
+        accountsTraversal.modifyWhen(
             isPremium,
             account ->
                 Id.of(
@@ -268,7 +268,7 @@ public class SelectiveOpticsExample {
 
     Validated<String, Bank> selectiveResult =
         VALIDATED.narrow(
-            accountsTraversal.modifyIf(
+            accountsTraversal.modifyWhen(
                 isValid, validator, // Only validate if basic check passes
                 bank, selective));
     System.out.println("Result: " + selectiveResult);

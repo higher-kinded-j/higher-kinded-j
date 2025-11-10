@@ -77,43 +77,6 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
-   * Conditionally modify targets based on a predicate. Only applicable when using a Selective
-   * instance.
-   *
-   * <p>Example:
-   *
-   * <pre>{@code
-   * // Only validate expensive fields if basic checks pass
-   * Kind<F, Form> result = traversal.modifyIf(
-   *   field -> field.length() > 0,        // Cheap check
-   *   field -> validateInDatabase(field),  // Expensive check (skipped if predicate fails)
-   *   form,
-   *   selective
-   * );
-   * }</pre>
-   *
-   * @param predicate Predicate to test each element
-   * @param f Function to apply to elements where predicate is true
-   * @param source The source structure
-   * @param selective The Selective instance
-   * @param <F> The effect type
-   * @return The modified structure wrapped in the effect
-   */
-  default <F> Kind<F, S> modifyIf(
-      Predicate<? super A> predicate, Function<A, Kind<F, A>> f, S source, Selective<F> selective) {
-    Function<A, Kind<F, A>> conditionalF =
-        a -> {
-          if (predicate.test(a)) {
-            return f.apply(a);
-          } else {
-            return selective.of(a);
-          }
-        };
-
-    return this.modifyF(conditionalF, source, selective);
-  }
-
-  /**
    * Branch between two modification strategies based on a predicate. Both branches are visible
    * upfront, allowing selective implementations to potentially execute them in parallel.
    *

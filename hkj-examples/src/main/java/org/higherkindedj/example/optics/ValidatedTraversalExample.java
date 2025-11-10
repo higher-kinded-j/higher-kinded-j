@@ -201,7 +201,7 @@ public class ValidatedTraversalExample {
         ValidatedSelective.instance(Semigroups.string("; "));
 
     Kind<ValidatedKind.Witness<String>, Form> selectiveResult =
-        FORM_TO_PERMISSION_NAMES.modifyIf(
+        FORM_TO_PERMISSION_NAMES.modifyWhen(
             notEmpty, // Cheap check
             expensiveValidation, // Expensive check (only if cheap passes)
             form,

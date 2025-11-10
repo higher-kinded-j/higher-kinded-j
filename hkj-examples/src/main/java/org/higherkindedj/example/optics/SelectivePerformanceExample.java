@@ -127,7 +127,7 @@ public class SelectivePerformanceExample {
     operationCount.set(0);
 
     Kind<Id.Witness, Batch> selectiveProcessed =
-        itemsTraversal.modifyIf(
+        itemsTraversal.modifyWhen(
             Item::needsProcessing,
             item -> {
               operationCount.incrementAndGet();
