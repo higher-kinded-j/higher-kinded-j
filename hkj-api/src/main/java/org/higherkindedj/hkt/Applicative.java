@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  * </ul>
  *
  * <p>Applicative Functors must satisfy certain laws (related to identity, composition,
- * homomorphism, and interchange), which ensure their behavior is consistent and predictable. For
+ * homomorphism, and interchange), which ensure their behaviour is consistent and predictable. For
  * example:
  *
  * <pre>

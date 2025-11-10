@@ -114,7 +114,7 @@ abstract class TryTestBase extends TypeClassTestBase<TryKind.Witness, String, In
 
   /**
    * Creates a validKind for Foldable tests that use String as the element type. Can be overridden
-   * by subclasses that need different behavior.
+   * by subclasses that need different behaviour.
    */
   protected Kind<TryKind.Witness, String> createFoldableValidKind() {
     return TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
@@ -122,7 +122,7 @@ abstract class TryTestBase extends TypeClassTestBase<TryKind.Witness, String, In
 
   /**
    * Creates a second validKind for Foldable tests that use String as the element type. Can be
-   * overridden by subclasses that need different behavior.
+   * overridden by subclasses that need different behaviour.
    */
   protected Kind<TryKind.Witness, String> createFoldableValidKind2() {
     return TRY.widen(Try.success(ALTERNATIVE_SUCCESS_VALUE));
@@ -130,7 +130,7 @@ abstract class TryTestBase extends TypeClassTestBase<TryKind.Witness, String, In
 
   /**
    * Creates a mapper for Foldable tests that maps String to Integer. Can be overridden by
-   * subclasses that need different behavior.
+   * subclasses that need different behaviour.
    */
   protected Function<String, Integer> createFoldableValidMapper() {
     return String::length;

@@ -12,10 +12,10 @@ import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.util.validation.Operation;
 
 /**
- * Comprehensive type class assertions aligned with standardized validation framework.
+ * Comprehensive type class assertions aligned with standardised validation framework.
  *
  * <p>This class provides operation-specific assertions for all major type classes, using production
- * validators to ensure test expectations match actual implementation behavior.
+ * validators to ensure test expectations match actual implementation behaviour.
  *
  * <h2>Supported Type Classes:</h2>
  *
@@ -34,7 +34,7 @@ import org.higherkindedj.hkt.util.validation.Operation;
  *   <li>Type class specific method names for better readability
  *   <li>Context-aware error messages using class-based contexts
  *   <li>Comprehensive validation coverage for all type class operations
- *   <li>Production-aligned validation using standardized framework
+ *   <li>Production-aligned validation using standardised framework
  * </ul>
  *
  * <h2>Usage Examples:</h2>

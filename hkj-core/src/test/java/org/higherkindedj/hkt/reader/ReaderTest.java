@@ -815,7 +815,7 @@ class ReaderTest extends ReaderTestBase {
       List<String> executionOrder = new ArrayList<>();
 
       Reader<TestConfig, Unit> operation1 =
-          Reader.fromConsumer(cfg -> executionOrder.add("1: Initialize " + cfg.url()));
+          Reader.fromConsumer(cfg -> executionOrder.add("1: Initialise " + cfg.url()));
 
       Reader<TestConfig, Unit> operation2 =
           operation1.flatMap(
@@ -830,7 +830,7 @@ class ReaderTest extends ReaderTestBase {
 
       assertThat(executionOrder)
           .containsExactly(
-              "1: Initialize " + DEFAULT_URL,
+              "1: Initialise " + DEFAULT_URL,
               "2: Configure " + DEFAULT_MAX_CONNECTIONS,
               "3: Finalize");
     }

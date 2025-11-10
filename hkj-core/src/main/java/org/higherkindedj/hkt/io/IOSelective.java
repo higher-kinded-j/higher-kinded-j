@@ -18,7 +18,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *
  * <p>The Selective interface sits between {@link org.higherkindedj.hkt.Applicative} and {@link
  * org.higherkindedj.hkt.Monad} in terms of power. It allows for static analysis of effects while
- * still supporting conditional behavior.
+ * still supporting conditional behaviour.
  *
  * <p>For IO, selective operations maintain lazy evaluation semantics. This means that effects are
  * only executed when necessary based on the conditions evaluated at runtime. This can lead to more

@@ -49,13 +49,13 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
 
   /**
    * Maps a function over the value contained within an {@code OptionalKind} context, if a value is
-   * present. This provides the Functor behavior required by the Traverse type class.
+   * present. This provides the Functor behaviour required by the Traverse type class.
    *
    * <p>If the input {@code OptionalKind} ({@code fa}) represents an {@code Optional.of(a)}, the
    * function {@code f} is applied to {@code a}. If {@code fa} represents {@code Optional.empty()},
    * an empty {@code OptionalKind} is returned without applying the function.
    *
-   * <p>This implementation delegates to {@code Optional.map()}, ensuring consistent behavior with
+   * <p>This implementation delegates to {@code Optional.map()}, ensuring consistent behaviour with
    * Java's standard library.
    *
    * @param <A> The type of the value in the input {@code OptionalKind}.

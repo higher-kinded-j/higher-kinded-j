@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Reports test coverage for type class implementations.
  *
- * <p>Analyzes test classes to determine which aspects of type class testing are covered:
+ * <p>Analyses test classes to determine which aspects of type class testing are covered:
  *
  * <ul>
  *   <li>Operation Tests - Basic functionality testing
@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * @Test
  * @DisplayName("Verify test coverage is complete")
  * void verifyTestCoverage() {
- *     TestCoverageReport report = TestCoverageReporter.analyze(MyMonadTest.class);
+ *     TestCoverageReport report = TestCoverageReporter.analyse(MyMonadTest.class);
  *     report.printReport();
  *     assertThat(report.isComplete()).isTrue();
  * }
@@ -52,12 +52,12 @@ public final class TestCoverageReporter {
   }
 
   /**
-   * Analyzes a test class and returns a coverage report.
+   * Analyses a test class and returns a coverage report.
    *
-   * @param testClass The test class to analyze
+   * @param testClass The test class to analyse
    * @return A detailed coverage report
    */
-  public static TestCoverageReport analyze(Class<?> testClass) {
+  public static TestCoverageReport analyse(Class<?> testClass) {
     return new Builder(testClass)
         .checkOperationTests()
         .checkValidationTests()
@@ -68,13 +68,13 @@ public final class TestCoverageReporter {
   }
 
   /**
-   * Analyzes a test class with custom detection patterns.
+   * Analyses a test class with custom detection patterns.
    *
-   * @param testClass The test class to analyze
+   * @param testClass The test class to analyse
    * @param config Configuration for custom detection
    * @return A detailed coverage report
    */
-  public static TestCoverageReport analyze(Class<?> testClass, CoverageConfig config) {
+  public static TestCoverageReport analyse(Class<?> testClass, CoverageConfig config) {
     return new Builder(testClass)
         .withConfig(config)
         .checkOperationTests()
@@ -385,7 +385,7 @@ public final class TestCoverageReporter {
   // Coverage Configuration
   // ============================================================================
 
-  /** Configuration for customizing coverage detection patterns. */
+  /** Configuration for customising coverage detection patterns. */
   public static final class CoverageConfig {
     private final String[] operationPatterns;
     private final String[] validationPatterns;

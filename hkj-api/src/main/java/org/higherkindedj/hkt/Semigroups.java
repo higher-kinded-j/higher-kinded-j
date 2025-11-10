@@ -67,7 +67,7 @@ public interface Semigroups {
    * Returns a {@code Semigroup} that always returns the first of its two arguments.
    *
    * <p>This can be useful for creating an {@code Applicative} for {@code Validated} that has
-   * "fail-fast" behavior, similar to a {@code Monad}.
+   * "fail-fast" behaviour, similar to a {@code Monad}.
    *
    * @param <A> The type of the elements.
    * @return A non-null {@code Semigroup} that always selects the first element.

@@ -87,7 +87,7 @@ import org.jspecify.annotations.NullMarked;
  * <h2>Functor Laws</h2>
  *
  * <p>All Functor implementations must satisfy two fundamental laws to ensure predictable and
- * composable behavior:
+ * composable behaviour:
  *
  * <h3>1. Identity Law</h3>
  *
@@ -97,7 +97,7 @@ import org.jspecify.annotations.NullMarked;
  * map(x -> x, fa) ≡ fa
  * }</pre>
  *
- * <p>This ensures that {@code map} doesn't add any extra behavior beyond function application.
+ * <p>This ensures that {@code map} doesn't add any extra behaviour beyond function application.
  *
  * <p><b>Example:</b>
  *
@@ -115,7 +115,7 @@ import org.jspecify.annotations.NullMarked;
  * map(g.compose(f), fa) ≡ map(g, map(f, fa))
  * }</pre>
  *
- * <p>This ensures that {@code map} operations can be optimized through fusion, and that the order
+ * <p>This ensures that {@code map} operations can be optimised through fusion, and that the order
  * of operations is preserved.
  *
  * <p><b>Example:</b>
@@ -134,8 +134,8 @@ import org.jspecify.annotations.NullMarked;
  * <p><b>Why these laws matter:</b>
  *
  * <ul>
- *   <li>Enable compiler optimizations (fusion, deforestation)
- *   <li>Guarantee that refactoring doesn't change behavior
+ *   <li>Enable compiler optimisations (fusion, deforestation)
+ *   <li>Guarantee that refactoring doesn't change behaviour
  *   <li>Allow reasoning about code using equational reasoning
  *   <li>Ensure Functors compose properly in larger systems
  * </ul>
@@ -212,7 +212,7 @@ import org.jspecify.annotations.NullMarked;
  * <ul>
  *   <li><b>Fusion:</b> Multiple {@code map} calls can often be fused into a single traversal
  *   <li><b>Laziness:</b> Some Functors (like {@code Stream}) can implement {@code map} lazily
- *   <li><b>Parallelism:</b> For collection-based Functors, mapping can sometimes be parallelized
+ *   <li><b>Parallelism:</b> For collection-based Functors, mapping can sometimes be parallelised
  *   <li><b>Short-circuiting:</b> Functors like {@code Optional} can short-circuit on empty
  * </ul>
  *
@@ -257,7 +257,7 @@ public interface Functor<F> {
    * Either<Error, Int>      ──map(n -> n * 2)──>          Either<Error, Int>
    * </pre>
    *
-   * <p><b>Behavior by Functor Type:</b>
+   * <p><b>Behaviour by Functor Type:</b>
    *
    * <ul>
    *   <li><b>Optional:</b> Applies {@code f} to the value if present, returns {@code

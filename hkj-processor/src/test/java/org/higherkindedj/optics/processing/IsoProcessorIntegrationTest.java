@@ -39,7 +39,7 @@ public class IsoProcessorIntegrationTest {
             """);
 
     // The processor should generate a static final field in a new class,
-    // initialized by calling the annotated method.
+    // initialised by calling the annotated method.
     final String expectedIsoField =
         """
         public static final Iso<PointConverters.Point, Tuple2<Integer, Integer>> pointToTuple = PointConverters.pointToTuple();

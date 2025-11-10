@@ -22,8 +22,8 @@ class StateTupleTest {
   class CreationTests {
 
     @Test
-    @DisplayName("Record constructor should initialize fields correctly")
-    void constructor_initializesFields() {
+    @DisplayName("Record constructor should initialise fields correctly")
+    void constructor_initialisesFields() {
       StateTuple<Integer, String> tuple = new StateTuple<>(testValue, testState);
       assertThat(tuple.value()).isEqualTo(testValue);
       assertThat(tuple.state()).isEqualTo(testState);

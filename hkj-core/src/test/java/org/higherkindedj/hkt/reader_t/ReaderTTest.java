@@ -276,7 +276,7 @@ class ReaderTTest {
     }
 
     @Test
-    @DisplayName("Edge case: reader with null-like behavior via empty")
+    @DisplayName("Edge case: reader with null-like behaviour via empty")
     void edgeCase_readerWithNullReturningFunction() {
       // Optional doesn't allow null values, testing empty propagation instead
       ReaderT<OptionalKind.Witness, String, Integer> rt =

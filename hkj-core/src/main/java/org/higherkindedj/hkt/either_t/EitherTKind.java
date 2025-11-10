@@ -44,7 +44,7 @@ public interface EitherTKind<F, L, R> extends Kind<EitherTKind.Witness<F, L>, R>
 
   /**
    * The phantom type marker (witness type) for the {@code EitherT<F, L, ?>} type constructor. This
-   * class is parameterized by {@code OUTER_F} (the witness of the outer monad) and {@code TYPE_L}
+   * class is parameterised by {@code OUTER_F} (the witness of the outer monad) and {@code TYPE_L}
    * (the "Left" type of the inner {@link Either}). It is used as the first type argument to {@link
    * Kind} (i.e., {@code G} in {@code Kind<G, A>}) for {@code EitherT} instances with a fixed outer
    * monad and "Left" type.

@@ -33,7 +33,7 @@ class ValidatedTest extends ValidatedTestBase {
     semigroup = createDefaultSemigroup();
     monad = ValidatedMonad.instance(semigroup);
 
-    // Initialize instance fields
+    // Initialise instance fields
     validInstance = Validated.valid(DEFAULT_VALID_VALUE);
     invalidInstance = Validated.invalid(DEFAULT_ERROR);
   }

@@ -153,7 +153,7 @@ class ValidatedMapNTest {
   @DisplayName("map3 Tests")
   class Map3Tests {
 
-    // Parameterized test for all 8 combinations of Valid/Invalid for 3 arguments
+    // Parameterised test for all 8 combinations of Valid/Invalid for 3 arguments
     private static Stream<Arguments> map3CombinationProvider() {
       return Stream.of(
           // All valid
@@ -193,7 +193,7 @@ class ValidatedMapNTest {
       }
     }
 
-    // Parameterized test for null parameter validations
+    // Parameterised test for null parameter validations
     private static Stream<Arguments> map3NullParameterProvider() {
       Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(10);
       return Stream.of(
@@ -250,7 +250,7 @@ class ValidatedMapNTest {
   @DisplayName("map4 Tests")
   class Map4Tests {
 
-    // Parameterized test for all 16 combinations of Valid/Invalid for 4 arguments
+    // Parameterised test for all 16 combinations of Valid/Invalid for 4 arguments
     private static Stream<Arguments> map4CombinationProvider() {
       return Stream.of(
           // All valid
@@ -308,7 +308,7 @@ class ValidatedMapNTest {
       }
     }
 
-    // Parameterized test for null parameter validations
+    // Parameterised test for null parameter validations
     private static Stream<Arguments> map4NullParameterProvider() {
       Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(10);
       return Stream.of(
@@ -369,7 +369,7 @@ class ValidatedMapNTest {
   @DisplayName("map5 Tests")
   class Map5Tests {
 
-    // Parameterized test for selected combinations (testing all 32 would be excessive)
+    // Parameterised test for selected combinations (testing all 32 would be excessive)
     private static Stream<Arguments> map5CombinationProvider() {
       return Stream.of(
           // All valid
@@ -429,7 +429,7 @@ class ValidatedMapNTest {
       }
     }
 
-    // Parameterized test for null parameter validations
+    // Parameterised test for null parameter validations
     private static Stream<Arguments> map5NullParameterProvider() {
       Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(1);
       return Stream.of(

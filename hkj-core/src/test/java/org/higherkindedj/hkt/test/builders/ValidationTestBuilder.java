@@ -18,18 +18,18 @@ import org.higherkindedj.hkt.util.validation.Operation;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
- * Fluent builder for testing multiple validation conditions using standardized framework.
+ * Fluent builder for testing multiple validation conditions using standardised framework.
  *
  * <p>Allows chaining multiple validation assertions and executing them all together, collecting
  * failures for comprehensive error reporting. All assertions use production validators to ensure
- * test expectations match actual implementation behavior.
+ * test expectations match actual implementation behaviour.
  *
  * <h2>Key Benefits:</h2>
  *
  * <ul>
  *   <li>Fluent API for readable test construction
  *   <li>Comprehensive error reporting for multiple failures
- *   <li>Production-aligned validation using standardized framework
+ *   <li>Production-aligned validation using standardised framework
  *   <li>Type-safe validation with class-based contexts
  * </ul>
  *

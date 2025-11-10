@@ -43,7 +43,7 @@ public interface WriterKind<W, A> extends Kind<WriterKind.Witness<W>, A> {
 
   /**
    * The phantom type marker (witness type) for the {@code Writer<W, ?>} type constructor. This
-   * class is parameterized by {@code TYPE_W} (the log type) and is used as the first type argument
+   * class is parameterised by {@code TYPE_W} (the log type) and is used as the first type argument
    * to {@link Kind} (i.e., {@code F} in {@code Kind<F, A>}) for {@code Writer} instances with a
    * fixed log type.
    *

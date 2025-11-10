@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 /**
  * Base class for type class testing with standard fixture setup.
  *
- * <p>Provides a standardized approach to setting up test fixtures for type class implementations.
+ * <p>Provides a standardised approach to setting up test fixtures for type class implementations.
  * Subclasses must implement abstract methods to provide their specific test values.
  *
  * <h2>Benefits:</h2>
@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
  *   <li>Consistent fixture naming across all type class tests
  *   <li>Reduced boilerplate in test classes
  *   <li>Clear separation of fixture creation from test logic
- *   <li>Enforces standardized test structure
+ *   <li>Enforces standardised test structure
  * </ul>
  *
  * <h2>Usage Example:</h2>
@@ -272,7 +272,7 @@ public abstract class TypeClassTestBase<F, A, B> {
   // ============================================================================
 
   /**
-   * Validates that all required fixtures have been initialized.
+   * Validates that all required fixtures have been initialised.
    *
    * <p>Call this in your test methods if you want to ensure fixtures are properly set up.
    *
@@ -280,21 +280,21 @@ public abstract class TypeClassTestBase<F, A, B> {
    */
   protected final void validateRequiredFixtures() {
     if (validKind == null) {
-      throw new IllegalStateException("validKind must be initialized");
+      throw new IllegalStateException("validKind must be initialised");
     }
     if (validKind2 == null) {
-      throw new IllegalStateException("validKind2 must be initialized");
+      throw new IllegalStateException("validKind2 must be initialised");
     }
     if (validMapper == null) {
-      throw new IllegalStateException("validMapper must be initialized");
+      throw new IllegalStateException("validMapper must be initialised");
     }
     if (equalityChecker == null) {
-      throw new IllegalStateException("equalityChecker must be initialized");
+      throw new IllegalStateException("equalityChecker must be initialised");
     }
   }
 
   /**
-   * Validates that Monad-specific fixtures have been initialized.
+   * Validates that Monad-specific fixtures have been initialised.
    *
    * <p>Call this before running Monad tests.
    *
@@ -303,12 +303,12 @@ public abstract class TypeClassTestBase<F, A, B> {
   protected final void validateMonadFixtures() {
     validateRequiredFixtures();
     if (validFlatMapper == null) {
-      throw new IllegalStateException("validFlatMapper must be initialized for Monad tests");
+      throw new IllegalStateException("validFlatMapper must be initialised for Monad tests");
     }
   }
 
   /**
-   * Validates that Applicative-specific fixtures have been initialized.
+   * Validates that Applicative-specific fixtures have been initialised.
    *
    * <p>Call this before running Applicative tests.
    *
@@ -318,16 +318,16 @@ public abstract class TypeClassTestBase<F, A, B> {
     validateRequiredFixtures();
     if (validFunctionKind == null) {
       throw new IllegalStateException(
-          "validFunctionKind must be initialized for Applicative tests");
+          "validFunctionKind must be initialised for Applicative tests");
     }
     if (validCombiningFunction == null) {
       throw new IllegalStateException(
-          "validCombiningFunction must be initialized for Applicative tests");
+          "validCombiningFunction must be initialised for Applicative tests");
     }
   }
 
   /**
-   * Validates that law testing fixtures have been initialized.
+   * Validates that law testing fixtures have been initialised.
    *
    * <p>Call this before running law tests.
    *
@@ -336,10 +336,10 @@ public abstract class TypeClassTestBase<F, A, B> {
   protected final void validateLawTestingFixtures() {
     validateRequiredFixtures();
     if (testValue == null) {
-      throw new IllegalStateException("testValue must be initialized for law testing");
+      throw new IllegalStateException("testValue must be initialised for law testing");
     }
     if (testFunction == null) {
-      throw new IllegalStateException("testFunction must be initialized for law testing");
+      throw new IllegalStateException("testFunction must be initialised for law testing");
     }
   }
 
@@ -350,7 +350,7 @@ public abstract class TypeClassTestBase<F, A, B> {
   /**
    * Provides information about which fixtures are available.
    *
-   * <p>Useful for debugging and understanding what has been initialized.
+   * <p>Useful for debugging and understanding what has been initialised.
    *
    * @return A string describing the fixture state
    */

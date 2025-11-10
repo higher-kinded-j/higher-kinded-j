@@ -98,11 +98,11 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
 
   /**
    * Safely converts (narrows) a {@link Kind} representation of a {@code StateT} back to its
-   * concrete {@link StateT} type using standardized error handling.
+   * concrete {@link StateT} type using standardised error handling.
    *
    * <p>This method provides a safe, validated approach to narrowing Kind representations to
-   * concrete StateT instances. It uses the standardized error handling utilities to ensure
-   * consistent error messages and behavior across the library.
+   * concrete StateT instances. It uses the standardised error handling utilities to ensure
+   * consistent error messages and behaviour across the library.
    *
    * @param kind The higher-kinded {@code StateT} representation. Must not be null.
    * @param <S> The state type of the target {@code StateT}.

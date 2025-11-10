@@ -7,13 +7,7 @@ import static javax.lang.model.element.Modifier.PUBLIC;
 import static javax.lang.model.element.Modifier.STATIC;
 
 import com.google.auto.service.AutoService;
-import com.palantir.javapoet.ClassName;
-import com.palantir.javapoet.FieldSpec;
-import com.palantir.javapoet.JavaFile;
-import com.palantir.javapoet.MethodSpec;
-import com.palantir.javapoet.ParameterizedTypeName;
-import com.palantir.javapoet.TypeName;
-import com.palantir.javapoet.TypeSpec;
+import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;

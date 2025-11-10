@@ -5,7 +5,7 @@ package org.higherkindedj.hkt.util;
 /**
  * Centralized error handling utility for Higher-Kinded-J operations.
  *
- * <p>This utility provides standardized error handling patterns across the library, particularly
+ * <p>This utility provides standardised error handling patterns across the library, particularly
  * for Kind unwrapping operations, null validation, and error message consistency. It helps reduce
  * code duplication and ensures consistent error reporting throughout the library.
  *

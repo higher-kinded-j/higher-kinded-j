@@ -63,7 +63,7 @@ public class OrderWorkflowRunner {
   private final WorkflowTraverse workflowTraverse;
 
   /**
-   * Constructs an {@code OrderWorkflowRunner} with the specified dependencies. Initializes two
+   * Constructs an {@code OrderWorkflowRunner} with the specified dependencies. Initialises two
    * workflow instances: {@link Workflow1} (using Either for validation) and {@link Workflow2}
    * (using Try for validation).
    *

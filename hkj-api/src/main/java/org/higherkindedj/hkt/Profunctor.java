@@ -10,7 +10,7 @@ import org.jspecify.annotations.NullMarked;
  * its first argument and covariant in its second argument. In other words, it represents "things
  * that consume A's and produce B's".
  *
- * <p>Profunctors are particularly useful for modeling optics, parsers, serializers, and other
+ * <p>Profunctors are particularly useful for modeling optics, parsers, serialisers, and other
  * bidirectional transformations. The key operations are:
  *
  * <ul>

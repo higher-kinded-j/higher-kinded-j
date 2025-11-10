@@ -58,7 +58,7 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    * function extracted from the first reader is then applied to the value extracted from the second
    * reader.
    *
-   * <p>The behavior is: {@code r -> readerF.run(r).apply(readerA.run(r))}.
+   * <p>The behaviour is: {@code r -> readerF.run(r).apply(readerA.run(r))}.
    *
    * @param ff The higher-kinded representation of a {@code Reader<R, Function<A, B>>}. Must not be
    *     null.

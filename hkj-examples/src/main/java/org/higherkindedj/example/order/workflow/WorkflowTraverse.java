@@ -80,7 +80,7 @@ public class WorkflowTraverse {
               && e2 instanceof DomainError.ValidationError(String message2)) {
             return new DomainError.ValidationError(message1 + ", " + message2);
           }
-          // Default behavior: return the first error if types don't match.
+          // Default behaviour: return the first error if types don't match.
           return e1;
         };
     this.validatedApplicative = ValidatedMonad.instance(errorSemigroup);
