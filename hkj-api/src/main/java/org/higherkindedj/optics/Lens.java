@@ -207,10 +207,10 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
       S source,
       Selective<F> selective) {
     A current = get(source);
-      return selective.ifS(
-              selective.of(shouldModify.test(current)),
-              selective.of(set(modifier.apply(current), source)),
-              selective.of(source));
+    return selective.ifS(
+        selective.of(shouldModify.test(current)),
+        selective.of(set(modifier.apply(current), source)),
+        selective.of(source));
   }
 
   /**

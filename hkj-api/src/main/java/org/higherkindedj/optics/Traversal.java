@@ -176,16 +176,13 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @return The modified structure wrapped in the effect
    */
   default <F> Kind<F, S> modifyWhen(
-          Predicate<? super A> shouldModify,
-          Function<A, Kind<F, A>> f,
-          S source,
-          Selective<F> selective) {
-      return this.modifyF(
-              a -> selective.ifS(
-                      selective.of(shouldModify.test(a)),
-                      f.apply(a),
-                      selective.of(a)),
-              source,
-              selective);
+      Predicate<? super A> shouldModify,
+      Function<A, Kind<F, A>> f,
+      S source,
+      Selective<F> selective) {
+    return this.modifyF(
+        a -> selective.ifS(selective.of(shouldModify.test(a)), f.apply(a), selective.of(a)),
+        source,
+        selective);
   }
 }
