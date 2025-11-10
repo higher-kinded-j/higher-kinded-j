@@ -18,6 +18,8 @@ import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
+import org.higherkindedj.hkt.state.State;
+import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -250,6 +252,9 @@ public final class Traversals {
    * Traverse a list, stopping when a predicate is met. Elements after the stopping point are left
    * unchanged.
    *
+   * <p>This implementation uses the State monad to track whether we've stopped, making it purely
+   * functional, referentially transparent, and thread-safe.
+   *
    * <p>Example:
    *
    * <pre>{@code
@@ -276,20 +281,60 @@ public final class Traversals {
       final Predicate<? super A> stopCondition,
       final Function<? super A, ? extends Kind<F, A>> f,
       final Selective<F> selective) {
-    // Track whether we've stopped using a mutable flag
-    // (this is safe because traverse processes sequentially)
-    final boolean[] stopped = {false};
 
-    final Function<A, Kind<F, A>> conditionalF =
-        a -> {
-          if (stopped[0] || stopCondition.test(a)) {
-            stopped[0] = true;
-            return selective.of(a); // Leave unchanged
-          } else {
-            return f.apply(a);
-          }
-        };
+    // Create a stateful function that tracks whether we've stopped
+    final Function<A, State<Boolean, Kind<F, A>>> statefulF =
+        a ->
+            State.<Boolean, Boolean>inspect(stopped -> stopped || stopCondition.test(a))
+                .flatMap(
+                    shouldStop -> {
+                      if (shouldStop) {
+                        return State.set(true).map(_ -> selective.of(a));
+                      } else {
+                        return State.pure(f.apply(a));
+                      }
+                    });
 
-    return traverseList(list, conditionalF, selective);
+    // Map each element through the stateful function
+    final List<State<Boolean, Kind<F, A>>> statefulComputations =
+        list.stream().map(statefulF).collect(Collectors.toList());
+
+    // Sequence the stateful computations
+    final State<Boolean, List<Kind<F, A>>> sequencedState = sequenceStateList(statefulComputations);
+
+    // Run the state computation (initial state: false = not stopped)
+    final StateTuple<Boolean, List<Kind<F, A>>> result = sequencedState.run(false);
+
+    // Now sequence the effects within F
+    final List<Kind<F, A>> effectsList = result.value();
+    return traverseList(effectsList, Function.identity(), selective);
+  }
+
+  /**
+   * Helper: sequences a list of State computations into a State of a list. This is analogous to
+   * sequence for other monads.
+   */
+  private static <S, A> State<S, List<A>> sequenceStateList(final List<State<S, A>> states) {
+    return states.stream()
+        .reduce(
+            State.pure(new ArrayList<A>()),
+            (accState, elemState) ->
+                accState.flatMap(
+                    acc ->
+                        elemState.map(
+                            elem -> {
+                              List<A> newList = new ArrayList<>(acc);
+                              newList.add(elem);
+                              return newList;
+                            })),
+            (s1, s2) ->
+                s1.flatMap(
+                    list1 ->
+                        s2.map(
+                            list2 -> {
+                              List<A> combined = new ArrayList<>(list1);
+                              combined.addAll(list2);
+                              return combined;
+                            })));
   }
 }
