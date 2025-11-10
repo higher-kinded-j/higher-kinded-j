@@ -314,27 +314,31 @@ public final class Traversals {
    * Helper: sequences a list of State computations into a State of a list. This is analogous to
    * sequence for other monads.
    */
+  /**
+   * Sequences a list of State computations into a State of a list.
+   *
+   * <p>This implementation uses an imperative loop for stack safety. Using Stream.reduce with
+   * flatMap creates deeply nested closures that cause StackOverflowError with large lists (>1000
+   * elements).
+   *
+   * @param states List of State computations to sequence
+   * @param <S> The state type
+   * @param <A> The value type
+   * @return A State computation that produces a list of all values
+   */
   private static <S, A> State<S, List<A>> sequenceStateList(final List<State<S, A>> states) {
-    return states.stream()
-        .reduce(
-            State.pure(new ArrayList<A>()),
-            (accState, elemState) ->
-                accState.flatMap(
-                    acc ->
-                        elemState.map(
-                            elem -> {
-                              List<A> newList = new ArrayList<>(acc);
-                              newList.add(elem);
-                              return newList;
-                            })),
-            (s1, s2) ->
-                s1.flatMap(
-                    list1 ->
-                        s2.map(
-                            list2 -> {
-                              List<A> combined = new ArrayList<>(list1);
-                              combined.addAll(list2);
-                              return combined;
-                            })));
+    return State.of(
+        initialState -> {
+          final List<A> resultList = new ArrayList<>(states.size());
+          S currentState = initialState;
+
+          for (final State<S, A> state : states) {
+            final StateTuple<S, A> result = state.run(currentState);
+            resultList.add(result.value());
+            currentState = result.state();
+          }
+
+          return new StateTuple<>(resultList, currentState);
+        });
   }
 }
