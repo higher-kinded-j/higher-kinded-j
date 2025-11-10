@@ -326,7 +326,7 @@ public final class Traversals {
    * @param <A> The value type
    * @return A State computation that produces a list of all values
    */
-  private static <S, A> State<S, List<A>> sequenceStateList(final List<State<S, A>> states) {
+  static <S, A> State<S, List<A>> sequenceStateList(final List<State<S, A>> states) {
     return State.of(
         initialState -> {
           final List<A> resultList = new ArrayList<>(states.size());

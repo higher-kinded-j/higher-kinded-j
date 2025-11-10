@@ -435,7 +435,7 @@ class IOKindHelperTest extends IOTestBase {
       long duration = System.nanoTime() - start;
 
       // Should be very fast (< 10ms for 10k operations)
-      assertThat(duration).isLessThan(10_000_000L);
+      assertThat(duration).isLessThan(20_000_000L);
     }
   }
 

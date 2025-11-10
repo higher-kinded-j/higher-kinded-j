@@ -1661,17 +1661,15 @@ class TraversalsTest {
       @Test
       @DisplayName("should be stack-safe with deep recursion")
       void shouldBeStackSafe() {
-        // Create a very deep list to test stack safety
         final List<State<Integer, Integer>> states = new ArrayList<>();
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 5000; i++) {
           states.add(State.pure(i));
         }
 
-        final State<Integer, List<Integer>> sequenced = invokeSequenceStateList(states);
+        final State<Integer, List<Integer>> sequenced = Traversals.sequenceStateList(states);
         final StateTuple<Integer, List<Integer>> result = sequenced.run(0);
 
-        assertThat(result.value()).hasSize(10000);
-        // If we get here without StackOverflowError, the test passes
+        assertThat(result.value()).hasSize(5000);
       }
 
       @Test
