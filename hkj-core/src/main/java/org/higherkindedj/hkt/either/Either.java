@@ -160,6 +160,137 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
   }
 
   /**
+   * Transforms both the {@link Left} and {@link Right} values of this {@code Either} using the
+   * provided mapping functions, producing a new {@code Either} with potentially different types for
+   * both parameters.
+   *
+   * <p>This is the fundamental bifunctor operation for {@code Either}, allowing simultaneous
+   * transformation of both the error channel (left) and success channel (right). Exactly one of the
+   * two functions will be applied, depending on whether this is a {@link Left} or {@link Right}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Either<String, Integer> success = Either.right(42);
+   * Either<Exception, String> result1 = success.bimap(
+   *     Exception::new,           // Transform left (error) - not applied
+   *     n -> "Value: " + n        // Transform right (success) - applied
+   * );
+   * // result1 = Right("Value: 42")
+   *
+   * Either<String, Integer> failure = Either.left("not found");
+   * Either<Exception, String> result2 = failure.bimap(
+   *     Exception::new,           // Transform left (error) - applied
+   *     n -> "Value: " + n        // Transform right (success) - not applied
+   * );
+   * // result2 = Left(new Exception("not found"))
+   * }</pre>
+   *
+   * @param leftMapper The non-null function to apply to the {@link Left} value if this is a {@link
+   *     Left}.
+   * @param rightMapper The non-null function to apply to the {@link Right} value if this is a
+   *     {@link Right}.
+   * @param <L2> The type of the {@link Left} value in the resulting {@code Either}.
+   * @param <R2> The type of the {@link Right} value in the resulting {@code Either}.
+   * @return A new {@code Either<L2, R2>} with one of its values transformed according to the
+   *     appropriate mapper. The returned {@code Either} will be non-null.
+   * @throws NullPointerException if either {@code leftMapper} or {@code rightMapper} is null.
+   */
+  default <L2, R2> Either<L2, R2> bimap(
+      Function<? super L, ? extends L2> leftMapper,
+      Function<? super R, ? extends R2> rightMapper) {
+    Validation.function().requireMapper(leftMapper, "leftMapper", EITHER_CLASS, BIMAP);
+    Validation.function().requireMapper(rightMapper, "rightMapper", EITHER_CLASS, BIMAP);
+
+    return switch (this) {
+      case Left<L, R>(var leftValue) -> Either.left(leftMapper.apply(leftValue));
+      case Right<L, R>(var rightValue) -> Either.right(rightMapper.apply(rightValue));
+    };
+  }
+
+  /**
+   * Transforms only the {@link Left} value of this {@code Either}, leaving the {@link Right} value
+   * unchanged if present.
+   *
+   * <p>This operation allows you to transform the error channel whilst preserving the success
+   * channel. It is useful for converting error types, enriching error messages, or mapping between
+   * different error representations.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Either<String, Integer> failure = Either.left("invalid input");
+   * Either<Exception, Integer> result1 = failure.mapLeft(Exception::new);
+   * // result1 = Left(new Exception("invalid input"))
+   *
+   * Either<String, Integer> success = Either.right(42);
+   * Either<Exception, Integer> result2 = success.mapLeft(Exception::new);
+   * // result2 = Right(42) - right value unchanged
+   * }</pre>
+   *
+   * <p><b>Note:</b> This is equivalent to calling {@code bimap(leftMapper, Function.identity())}.
+   *
+   * @param leftMapper The non-null function to apply to the {@link Left} value if this is a {@link
+   *     Left}.
+   * @param <L2> The type of the {@link Left} value in the resulting {@code Either}.
+   * @return A new {@code Either<L2, R>} with the left value transformed if this was a {@link Left},
+   *     or the original {@link Right} value unchanged. The returned {@code Either} will be
+   *     non-null.
+   * @throws NullPointerException if {@code leftMapper} is null.
+   */
+  @SuppressWarnings("unchecked")
+  default <L2> Either<L2, R> mapLeft(Function<? super L, ? extends L2> leftMapper) {
+    Validation.function().requireMapper(leftMapper, "leftMapper", EITHER_CLASS, MAP_LEFT);
+
+    return switch (this) {
+      case Left<L, R>(var leftValue) -> Either.left(leftMapper.apply(leftValue));
+      case Right<L, R> r -> (Either<L2, R>) r; // Right remains unchanged, cast is safe
+    };
+  }
+
+  /**
+   * Transforms only the {@link Right} value of this {@code Either}, leaving the {@link Left} value
+   * unchanged if present.
+   *
+   * <p>This operation is functionally identical to {@link #map(Function)} but is provided for
+   * symmetry with {@link #mapLeft(Function)} and to make bifunctor operations explicit. It
+   * transforms the success channel whilst preserving the error channel.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Either<String, Integer> success = Either.right(42);
+   * Either<String, String> result1 = success.mapRight(n -> "Value: " + n);
+   * // result1 = Right("Value: 42")
+   *
+   * Either<String, Integer> failure = Either.left("error");
+   * Either<String, String> result2 = failure.mapRight(n -> "Value: " + n);
+   * // result2 = Left("error") - left value unchanged
+   * }</pre>
+   *
+   * <p><b>Note:</b> This is equivalent to calling {@link #map(Function)} or {@code
+   * bimap(Function.identity(), rightMapper)}.
+   *
+   * @param rightMapper The non-null function to apply to the {@link Right} value if this is a
+   *     {@link Right}.
+   * @param <R2> The type of the {@link Right} value in the resulting {@code Either}.
+   * @return A new {@code Either<L, R2>} with the right value transformed if this was a {@link
+   *     Right}, or the original {@link Left} value unchanged. The returned {@code Either} will be
+   *     non-null.
+   * @throws NullPointerException if {@code rightMapper} is null.
+   * @see #map(Function)
+   */
+  @SuppressWarnings("unchecked")
+  default <R2> Either<L, R2> mapRight(Function<? super R, ? extends R2> rightMapper) {
+    Validation.function().requireMapper(rightMapper, "rightMapper", EITHER_CLASS, MAP_RIGHT);
+
+    return switch (this) {
+      case Left<L, R> l -> (Either<L, R2>) l; // Left remains unchanged, cast is safe
+      case Right<L, R>(var rightValue) -> Either.right(rightMapper.apply(rightValue));
+    };
+  }
+
+  /**
    * If this is a {@link Right}, applies the given {@code Either}-bearing function to its value and
    * returns the result. If this is a {@link Left}, it returns the original {@link Left} instance
    * unchanged.
