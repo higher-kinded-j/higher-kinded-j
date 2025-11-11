@@ -145,8 +145,7 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
   }
 
   @Override
-  protected BiPredicate<Kind<Id.Witness, ?>, Kind<Id.Witness, ?>>
-      createEqualityChecker() {
+  protected BiPredicate<Kind<Id.Witness, ?>, Kind<Id.Witness, ?>> createEqualityChecker() {
     return (k1, k2) -> ID.narrow(k1).equals(ID.narrow(k2));
   }
 

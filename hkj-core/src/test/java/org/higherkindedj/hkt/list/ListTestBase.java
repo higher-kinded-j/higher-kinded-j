@@ -17,9 +17,8 @@ import org.higherkindedj.hkt.test.data.TestFunctions;
 /**
  * Base class for List type class tests.
  *
- * <p>Provides common fixture creation, standardised test constants, and helper methods for all
- * List type class tests, eliminating duplication across Functor, Applicative, Monad, and Traverse
- * tests.
+ * <p>Provides common fixture creation, standardised test constants, and helper methods for all List
+ * type class tests, eliminating duplication across Functor, Applicative, Monad, and Traverse tests.
  *
  * <h2>Test Constants</h2>
  *

@@ -4,7 +4,7 @@ package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-import Arrays;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -158,7 +158,8 @@ public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.W
 
     if (list.size() != expected.length) {
       failWithMessage(
-          "Expected List to contain exactly <%d> element%s but had <%d>. Expected: <%s>, Actual: <%s>",
+          "Expected List to contain exactly <%d> element%s but had <%d>. Expected: <%s>, Actual:"
+              + " <%s>",
           expected.length,
           expected.length == 1 ? "" : "s",
           list.size(),
@@ -170,7 +171,8 @@ public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.W
     for (int i = 0; i < expected.length; i++) {
       if (!Objects.equals(list.get(i), expected[i])) {
         failWithMessage(
-            "Expected List to contain exactly <%s> but element at index <%d> was different. Expected: <%s>, Actual: <%s>",
+            "Expected List to contain exactly <%s> but element at index <%d> was different."
+                + " Expected: <%s>, Actual: <%s>",
             Arrays.toString(expected), i, expected[i], list.get(i));
       }
     }
@@ -230,8 +232,8 @@ public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.W
   }
 
   /**
-   * Verifies that the actual {@code List} contains only the given values (in any order) and nothing else.
-   * The actual list may contain duplicates of the expected values.
+   * Verifies that the actual {@code List} contains only the given values (in any order) and nothing
+   * else. The actual list may contain duplicates of the expected values.
    *
    * <p>Example:
    *
@@ -245,7 +247,8 @@ public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.W
    *
    * @param expected The expected values
    * @return This assertion object for method chaining
-   * @throws AssertionError if the List contains values not in expected or is missing expected values
+   * @throws AssertionError if the List contains values not in expected or is missing expected
+   *     values
    */
   @SafeVarargs
   public final ListAssert<T> containsOnly(T... expected) {
@@ -351,8 +354,7 @@ public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.W
       }
     }
     failWithMessage(
-        "Expected at least one element to match predicate but none did. List contents: <%s>",
-        list);
+        "Expected at least one element to match predicate but none did. List contents: <%s>", list);
     return this;
   }
 
@@ -410,7 +412,8 @@ public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.W
     for (int i = 0; i < expected.length; i++) {
       if (!Objects.equals(list.get(i), expected[i])) {
         failWithMessage(
-            "Expected List to start with <%s> but element at index <%d> was different. Expected: <%s>, Actual: <%s>",
+            "Expected List to start with <%s> but element at index <%d> was different. Expected:"
+                + " <%s>, Actual: <%s>",
             Arrays.toString(expected), i, expected[i], list.get(i));
       }
     }
@@ -447,11 +450,9 @@ public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.W
     for (int i = 0; i < expected.length; i++) {
       if (!Objects.equals(list.get(offset + i), expected[i])) {
         failWithMessage(
-            "Expected List to end with <%s> but element at position <%d> from end was different. Expected: <%s>, Actual: <%s>",
-            Arrays.toString(expected),
-            expected.length - i,
-            expected[i],
-            list.get(offset + i));
+            "Expected List to end with <%s> but element at position <%d> from end was different."
+                + " Expected: <%s>, Actual: <%s>",
+            Arrays.toString(expected), expected.length - i, expected[i], list.get(offset + i));
       }
     }
     return this;

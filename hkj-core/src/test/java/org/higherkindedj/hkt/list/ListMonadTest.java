@@ -191,8 +191,7 @@ class ListMonadTest extends ListTestBase {
       Function<Integer, Kind<ListKind.Witness, Integer>> step1Func = x -> listOf(x, x + 10);
       var step1Result = listMonad.flatMap(step1Func, initial);
 
-      Function<Integer, Kind<ListKind.Witness, String>> step2Func =
-          y -> singletonList("N" + y);
+      Function<Integer, Kind<ListKind.Witness, String>> step2Func = y -> singletonList("N" + y);
       var finalResult = listMonad.flatMap(step2Func, step1Result);
 
       assertThatList(finalResult).containsExactly("N1", "N11", "N2", "N12");
@@ -339,8 +338,7 @@ class ListMonadTest extends ListTestBase {
       var list2 = listOf("a", "b");
       var list3 = listOf(1.0, 2.0);
       Kind<ListKind.Witness, Boolean> list4 = emptyList();
-      Function4<Integer, String, Double, Boolean, String> f4 =
-          (i, s, d, b) -> "Should not execute";
+      Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
 
       var result = listMonad.map4(list1, list2, list3, list4, f4);
 
@@ -384,12 +382,10 @@ class ListMonadTest extends ListTestBase {
     void nestedListFlattening() {
       // List<List<Integer>> flattened to List<Integer>
       var input = listOf(1, 2);
-      Function<Integer, Kind<ListKind.Witness, Integer>> nested =
-          x -> listOf(x, x + 10, x + 20);
+      Function<Integer, Kind<ListKind.Witness, Integer>> nested = x -> listOf(x, x + 10, x + 20);
 
       Kind<ListKind.Witness, Kind<ListKind.Witness, Integer>> step1 = listMonad.map(nested, input);
-      Kind<ListKind.Witness, Integer> flattened =
-          listMonad.flatMap(innerList -> innerList, step1);
+      Kind<ListKind.Witness, Integer> flattened = listMonad.flatMap(innerList -> innerList, step1);
 
       assertThatList(flattened).containsExactly(1, 11, 21, 2, 12, 22);
     }

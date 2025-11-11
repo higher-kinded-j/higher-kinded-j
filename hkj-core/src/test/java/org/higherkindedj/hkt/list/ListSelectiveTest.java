@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListAssert.assertThatList;
-import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.Arrays;
 import java.util.List;

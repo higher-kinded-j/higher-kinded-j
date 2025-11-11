@@ -40,8 +40,7 @@ import org.higherkindedj.hkt.test.data.TestFunctions;
  *   <li>{@link #narrowToOptional(Kind)} - Converts a Kind back to an Optional
  * </ul>
  */
-abstract class OptionalTestBase
-    extends TypeClassTestBase<OptionalKind.Witness, Integer, String> {
+abstract class OptionalTestBase extends TypeClassTestBase<OptionalKind.Witness, Integer, String> {
 
   // ============================================================================
   // Test Constants - Standardised Values

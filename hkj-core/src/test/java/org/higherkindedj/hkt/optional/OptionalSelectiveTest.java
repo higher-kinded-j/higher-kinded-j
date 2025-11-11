@@ -3,9 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalAssert.assertThatOptional;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;

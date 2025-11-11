@@ -321,8 +321,7 @@ class OptionalFunctorTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Integer> mappedSequential =
           functor.map(g, functor.map(f, validKind));
 
-      assertThat(narrowToOptional(mappedComposed))
-          .isEqualTo(narrowToOptional(mappedSequential));
+      assertThat(narrowToOptional(mappedComposed)).isEqualTo(narrowToOptional(mappedSequential));
     }
 
     @Test
@@ -336,8 +335,7 @@ class OptionalFunctorTest extends OptionalTestBase {
       Kind<OptionalKind.Witness, Integer> mappedComposed = functor.map(composed, empty);
       Kind<OptionalKind.Witness, Integer> mappedSequential = functor.map(g, functor.map(f, empty));
 
-      assertThat(narrowToOptional(mappedComposed))
-          .isEqualTo(narrowToOptional(mappedSequential));
+      assertThat(narrowToOptional(mappedComposed)).isEqualTo(narrowToOptional(mappedSequential));
     }
   }
 

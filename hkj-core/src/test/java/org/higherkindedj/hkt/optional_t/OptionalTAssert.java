@@ -13,8 +13,8 @@ import org.higherkindedj.hkt.Kind;
 /**
  * Custom AssertJ assertion for OptionalT transformer types.
  *
- * <p>Provides fluent assertions for OptionalT values wrapped in Kind, handling both the outer
- * monad layer and the inner Optional layer with British spellings in documentation.
+ * <p>Provides fluent assertions for OptionalT values wrapped in Kind, handling both the outer monad
+ * layer and the inner Optional layer with British spellings in documentation.
  *
  * <p>Example usage:
  *
@@ -93,7 +93,8 @@ public class OptionalTAssert {
       isNotNull();
       Optional<Optional<A>> unwrapped = unwrap();
       if (unwrapped.isPresent()) {
-        failWithMessage("Expected outer monad to be empty but was present with: <%s>", unwrapped.get());
+        failWithMessage(
+            "Expected outer monad to be empty but was present with: <%s>", unwrapped.get());
       }
       return this;
     }
@@ -224,8 +225,7 @@ public class OptionalTAssert {
       if (value != null && !type.isInstance(value)) {
         failWithMessage(
             "Expected Some value to be of type <%s> but was <%s>",
-            type.getName(),
-            value.getClass().getName());
+            type.getName(), value.getClass().getName());
       }
       return this;
     }

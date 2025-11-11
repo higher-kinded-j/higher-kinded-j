@@ -84,7 +84,12 @@ class IdSelectiveTest extends IdTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, unitEffectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .withLawsTesting(TEST_RESULT, validMapper, equalityChecker)
           .configureValidation()
           .useInheritanceValidation()
@@ -106,7 +111,12 @@ class IdSelectiveTest extends IdTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, unitEffectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .selectTests()
           .skipValidations()
           .skipLaws()
@@ -121,7 +131,12 @@ class IdSelectiveTest extends IdTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, unitEffectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .configureValidation()
           .useInheritanceValidation()
           .withMapFrom(IdMonad.class)
@@ -332,7 +347,12 @@ class IdSelectiveTest extends IdTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, unitEffectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .testOperations();
     }
 
@@ -344,7 +364,12 @@ class IdSelectiveTest extends IdTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, unitEffectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .configureValidation()
           .useInheritanceValidation()
           .withMapFrom(IdMonad.class)
@@ -365,7 +390,12 @@ class IdSelectiveTest extends IdTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, unitEffectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .testExceptions();
     }
 
@@ -377,7 +407,12 @@ class IdSelectiveTest extends IdTestBase {
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
           .withOperations(
-              leftHandlerKind, rightHandlerKind, conditionTrue, unitEffectKind, thenBranch, elseBranch)
+              leftHandlerKind,
+              rightHandlerKind,
+              conditionTrue,
+              unitEffectKind,
+              thenBranch,
+              elseBranch)
           .withLawsTesting(TEST_RESULT, validMapper, equalityChecker)
           .selectTests()
           .onlyLaws()

@@ -47,8 +47,7 @@ class MaybeTMonadTest
     return OPTIONAL.narrow(outerKind);
   }
 
-  private <A> Optional<Maybe<A>> unwrapOuterOptional(
-      Kind<OptionalKind.Witness, Maybe<A>> kind) {
+  private <A> Optional<Maybe<A>> unwrapOuterOptional(Kind<OptionalKind.Witness, Maybe<A>> kind) {
     return OPTIONAL.narrow(kind);
   }
 
@@ -399,7 +398,8 @@ class MaybeTMonadTest
     @Test
     @DisplayName("raiseError should create Nothing in Optional")
     void raiseError_shouldCreateNothingInOptional() {
-      assertThatMaybeT(raisedErrorKind, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
+      assertThatMaybeT(raisedErrorKind, MaybeTMonadTest.this::unwrapOuterOptional)
+          .isPresentNothing();
     }
 
     @Test

@@ -46,8 +46,7 @@ public class OptionalAssert<T>
   /**
    * Creates a new {@code OptionalAssert} instance.
    *
-   * <p>This is the entry point for all Optional assertions. Import statically for best
-   * readability:
+   * <p>This is the entry point for all Optional assertions. Import statically for best readability:
    *
    * <pre>{@code
    * import static org.higherkindedj.hkt.optional.OptionalAssert.assertThatOptional;
@@ -104,8 +103,7 @@ public class OptionalAssert<T>
     isNotNull();
     Optional<T> optional = OPTIONAL.narrow(actual);
     if (optional.isPresent()) {
-      failWithMessage(
-          "Expected Optional to be empty but contained value: <%s>", optional.get());
+      failWithMessage("Expected Optional to be empty but contained value: <%s>", optional.get());
     }
     return this;
   }
@@ -268,8 +266,7 @@ public class OptionalAssert<T>
       }
     } else {
       if (optional.isPresent()) {
-        failWithMessage(
-            "Expected Optional to be empty but contained value: <%s>", optional.get());
+        failWithMessage("Expected Optional to be empty but contained value: <%s>", optional.get());
       }
     }
     return this;

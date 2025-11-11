@@ -69,8 +69,7 @@ public class EitherTAssert {
    * @param <A> the success type
    */
   public static class EitherTOptionalAssert<F, E, A>
-      extends AbstractAssert<
-          EitherTOptionalAssert<F, E, A>, Kind<EitherTKind.Witness<F, E>, A>> {
+      extends AbstractAssert<EitherTOptionalAssert<F, E, A>, Kind<EitherTKind.Witness<F, E>, A>> {
 
     private final Function<Kind<F, Either<E, A>>, Optional<Either<E, A>>> outerUnwrapper;
 
@@ -98,7 +97,8 @@ public class EitherTAssert {
       isNotNull();
       Optional<Either<E, A>> unwrapped = unwrap();
       if (unwrapped.isPresent()) {
-        failWithMessage("Expected outer monad to be empty but was present with: <%s>", unwrapped.get());
+        failWithMessage(
+            "Expected outer monad to be empty but was present with: <%s>", unwrapped.get());
       }
       return this;
     }
@@ -163,8 +163,7 @@ public class EitherTAssert {
       isPresentRight();
       A actual = unwrap().get().getRight();
       if (!Objects.equals(actual, expected)) {
-        failWithMessage(
-            "Expected Right value to be <%s> but was <%s>", expected, actual);
+        failWithMessage("Expected Right value to be <%s> but was <%s>", expected, actual);
       }
       return this;
     }
@@ -180,8 +179,7 @@ public class EitherTAssert {
       isPresentLeft();
       E actual = unwrap().get().getLeft();
       if (!Objects.equals(actual, expected)) {
-        failWithMessage(
-            "Expected Left value to be <%s> but was <%s>", expected, actual);
+        failWithMessage("Expected Left value to be <%s> but was <%s>", expected, actual);
       }
       return this;
     }
@@ -297,8 +295,7 @@ public class EitherTAssert {
       if (value != null && !type.isInstance(value)) {
         failWithMessage(
             "Expected Right value to be of type <%s> but was <%s>",
-            type.getName(),
-            value.getClass().getName());
+            type.getName(), value.getClass().getName());
       }
       return this;
     }
@@ -316,8 +313,7 @@ public class EitherTAssert {
       if (error != null && !type.isInstance(error)) {
         failWithMessage(
             "Expected Left value to be of type <%s> but was <%s>",
-            type.getName(),
-            error.getClass().getName());
+            type.getName(), error.getClass().getName());
       }
       return this;
     }
@@ -345,9 +341,7 @@ public class EitherTAssert {
 
       if (!thisUnwrapped.equals(otherUnwrapped)) {
         failWithMessage(
-            "Expected EitherT to be equal to <%s> but was <%s>",
-            otherUnwrapped,
-            thisUnwrapped);
+            "Expected EitherT to be equal to <%s> but was <%s>", otherUnwrapped, thisUnwrapped);
       }
       return this;
     }
