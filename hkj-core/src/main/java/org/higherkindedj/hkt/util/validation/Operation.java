@@ -62,7 +62,16 @@ public enum Operation {
   IF_S("ifS"),
   SELECT("select"),
   WHEN_S("whenS"),
-  BRANCH("branch");
+  BRANCH("branch"),
+  BIMAP("bimap"),
+  FIRST("first"),
+  SECOND("second"),
+  MAP_LEFT("mapLeft"),
+  MAP_RIGHT("mapRight"),
+  MAP_FIRST("mapFirst"),
+  MAP_SECOND("mapSecond"),
+  MAP_ERROR("mapError"),
+  MAP_WRITTEN("mapWritten");
 
   Operation(String label) {
     this.label = label;

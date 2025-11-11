@@ -23,6 +23,8 @@ dependencies {
   testImplementation("org.junit.jupiter:junit-jupiter")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
   testImplementation("org.assertj:assertj-core:3.27.3")
+  testImplementation("net.jqwik:jqwik:1.9.2")
+  testImplementation("net.jqwik:jqwik-engine:1.9.2")
 }
 
 
