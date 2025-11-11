@@ -158,7 +158,7 @@ public void createExample() {
 ~~~
 
 ~~~admonish Example title="Asynchronous Optional Resource Fetching"
-Let's consider fetching a user and then their preferences, where each step is asynchronous and might not return a value.
+Let's consider fetching a userLogin and then their preferences, where each step is asynchronous and might not return a value.
 
 ```java
 public static class MaybeTAsyncExample {
@@ -167,9 +167,9 @@ public static class MaybeTAsyncExample {
   MonadError<MaybeTKind.Witness<CompletableFutureKind.Witness>, Unit> maybeTMonad =
       new MaybeTMonad<>(futureMonad);
 
-  // Simulates fetching a user asynchronously
+  // Simulates fetching a userLogin asynchronously
   Kind<CompletableFutureKind.Witness, Maybe<User>> fetchUserAsync(String userId) {
-    System.out.println("Fetching user: " + userId);
+    System.out.println("Fetching userLogin: " + userId);
     CompletableFuture<Maybe<User>> future = CompletableFuture.supplyAsync(() -> {
       try {
         TimeUnit.MILLISECONDS.sleep(50);
@@ -182,9 +182,9 @@ public static class MaybeTAsyncExample {
     return FUTURE.widen(future);
   }
 
-  // Simulates fetching user preferences asynchronously
+  // Simulates fetching userLogin preferences asynchronously
   Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> fetchPreferencesAsync(String userId) {
-    System.out.println("Fetching preferences for user: " + userId);
+    System.out.println("Fetching preferences for userLogin: " + userId);
     CompletableFuture<Maybe<UserPreferences>> future = CompletableFuture.supplyAsync(() -> {
       try {
         TimeUnit.MILLISECONDS.sleep(30);
@@ -192,7 +192,7 @@ public static class MaybeTAsyncExample {
       if ("user123".equals(userId)) {
         return Maybe.just(new UserPreferences(userId, "dark-mode"));
       }
-      return Maybe.nothing(); // No preferences for other users or if user fetch failed
+      return Maybe.nothing(); // No preferences for other users or if userLogin fetch failed
     });
     return FUTURE.widen(future);
   }
@@ -210,16 +210,16 @@ public static class MaybeTAsyncExample {
     // Step 2: Fetch Preferences if User was found
     Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> preferencesMT =
         maybeTMonad.flatMap(
-            user -> { // This lambda is only called if userMT contains F<Just(user)>
-              System.out.println("User found: " + user.name() + ". Now fetching preferences.");
+            userLogin -> { // This lambda is only called if userMT contains F<Just(userLogin)>
+              System.out.println("User found: " + userLogin.name() + ". Now fetching preferences.");
               // fetchPreferencesAsync returns Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>>
               // which is F<Maybe<A>>, so we can wrap it directly.
-              return MAYBE_T.widen(MaybeT.fromKind(fetchPreferencesAsync(user.id())));
+              return MAYBE_T.widen(MaybeT.fromKind(fetchPreferencesAsync(userLogin.id())));
             },
             userMT // Input to flatMap
         );
 
-    // Try to recover if preferences are Nothing, but user was found (conceptual)
+    // Try to recover if preferences are Nothing, but userLogin was found (conceptual)
     Kind<MaybeTKind.Witness<CompletableFutureKind.Witness>, UserPreferences> preferencesWithDefaultMT =
         maybeTMonad.handleErrorWith(preferencesMT, (Unit v) -> { // Handler for Nothing
           System.out.println("Preferences not found, attempting to use default.");
@@ -237,14 +237,14 @@ public static class MaybeTAsyncExample {
   }
 
   public void asyncExample() {
-    System.out.println("--- Fetching preferences for known user (user123) ---");
+    System.out.println("--- Fetching preferences for known userLogin (user123) ---");
     Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultKnownUserKind =
         getUserPreferencesWorkflow("user123");
     Maybe<UserPreferences> resultKnownUser = FUTURE.join(resultKnownUserKind);
     System.out.println("Known User Result: " + resultKnownUser);
     // Expected: Just(UserPreferences[userId=user123, theme=dark-mode])
 
-    System.out.println("\n--- Fetching preferences for unknown user (user999) ---");
+    System.out.println("\n--- Fetching preferences for unknown userLogin (user999) ---");
     Kind<CompletableFutureKind.Witness, Maybe<UserPreferences>> resultUnknownUserKind =
         getUserPreferencesWorkflow("user999");
     Maybe<UserPreferences> resultUnknownUser = FUTURE.join(resultUnknownUserKind);

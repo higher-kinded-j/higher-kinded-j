@@ -23,7 +23,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("EitherTMonad Complete Test Suite (Outer: OptionalKind.Witness, Left: TestError)")
+@DisplayName("EitherTMonad Complete Test Suite")
+// (Outer: OptionalKind.Witness, Left: TestError)
 class EitherTMonadTest
     extends TypeClassTestBase<
         EitherTKind.Witness<OptionalKind.Witness, EitherTMonadTest.TestError>, Integer, String> {

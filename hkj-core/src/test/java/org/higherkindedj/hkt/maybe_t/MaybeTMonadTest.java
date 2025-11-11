@@ -23,7 +23,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeTMonad Complete Test Suite (Outer: OptionalKind.Witness)")
+@DisplayName("MaybeTMonad Complete Test Suite")
+//   (Outer: OptionalKind.Witness)
 class MaybeTMonadTest
     extends TypeClassTestBase<MaybeTKind.Witness<OptionalKind.Witness>, Integer, String> {
 

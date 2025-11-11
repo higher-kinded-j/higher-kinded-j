@@ -7,15 +7,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
+import org.higherkindedj.hkt.state.State;
+import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -156,5 +160,185 @@ public final class Traversals {
     final var effectOfKindList = ListTraverse.INSTANCE.sequenceA(applicative, effectsAsKind);
 
     return applicative.map(ListKindHelper.LIST::narrow, effectOfKindList);
+  }
+
+  /**
+   * Traverse a list with speculative execution for each element. Both branches are visible upfront,
+   * allowing selective implementations to potentially execute them in parallel.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Try cache first, API as fallback - both can start immediately
+   * List<UserId> ids = List.of(id1, id2, id3);
+   * Kind<F, List<User>> users = Traversals.speculativeTraverseList(
+   *   ids,
+   *   id -> cacheHas(id),           // Predicate
+   *   id -> fetchFromCache(id),     // Fast path
+   *   id -> fetchFromAPI(id),       // Slow path
+   *   selective
+   * );
+   * }</pre>
+   *
+   * @param list The list to traverse
+   * @param predicate Determines which branch to take for each element
+   * @param thenBranch Function to apply when predicate is true
+   * @param elseBranch Function to apply when predicate is false
+   * @param selective The Selective instance
+   * @param <F> The effect type
+   * @param <A> The element type of the input list
+   * @param <B> The element type of the output list
+   * @return The transformed list wrapped in the effect
+   */
+  public static <F, A, B> Kind<F, List<B>> speculativeTraverseList(
+      final List<A> list,
+      final Predicate<? super A> predicate,
+      final Function<? super A, ? extends Kind<F, B>> thenBranch,
+      final Function<? super A, ? extends Kind<F, B>> elseBranch,
+      final Selective<F> selective) {
+    // Wrap each element in a selective conditional
+    final Function<A, Kind<F, B>> selectiveF =
+        a ->
+            selective.ifS(
+                selective.of(predicate.test(a)), thenBranch.apply(a), elseBranch.apply(a));
+
+    // Use the standard traverse implementation
+    return traverseList(list, selectiveF, selective);
+  }
+
+  /**
+   * Traverse a list, applying a function only to elements that match a predicate. Elements that
+   * don't match are left unchanged.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Only validate emails that look valid
+   * List<String> emails = List.of("valid@example.com", "invalid", "another@example.com");
+   * Kind<F, List<String>> result = Traversals.traverseListIf(
+   *   emails,
+   *   email -> email.contains("@"),
+   *   email -> validateEmailInDatabase(email),
+   *   selective
+   * );
+   * }</pre>
+   *
+   * @param list The list to traverse
+   * @param predicate Determines which elements to process
+   * @param f Function to apply to matching elements
+   * @param selective The Selective instance
+   * @param <F> The effect type
+   * @param <A> The element type
+   * @return The transformed list wrapped in the effect
+   */
+  public static <F, A> Kind<F, List<A>> traverseListIf(
+      final List<A> list,
+      final Predicate<? super A> predicate,
+      final Function<? super A, ? extends Kind<F, A>> f,
+      final Selective<F> selective) {
+    final Function<A, Kind<F, A>> conditionalF =
+        a -> {
+          if (predicate.test(a)) {
+            return f.apply(a);
+          } else {
+            return selective.of(a);
+          }
+        };
+
+    return traverseList(list, conditionalF, selective);
+  }
+
+  /**
+   * Traverse a list, stopping when a predicate is met. Elements after the stopping point are left
+   * unchanged.
+   *
+   * <p>This implementation uses the State monad to track whether we've stopped, making it purely
+   * functional, referentially transparent, and thread-safe.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Process items until we hit an error
+   * List<Task> tasks = List.of(task1, task2, task3);
+   * Kind<F, List<Task>> result = Traversals.traverseListUntil(
+   *   tasks,
+   *   task -> task.hasError(),
+   *   task -> processTask(task),
+   *   selective
+   * );
+   * }</pre>
+   *
+   * @param list The list to traverse
+   * @param stopCondition Predicate that triggers stopping
+   * @param f Function to apply to elements before stopping
+   * @param selective The Selective instance
+   * @param <F> The effect type
+   * @param <A> The element type
+   * @return The transformed list wrapped in the effect
+   */
+  public static <F, A> Kind<F, List<A>> traverseListUntil(
+      final List<A> list,
+      final Predicate<? super A> stopCondition,
+      final Function<? super A, ? extends Kind<F, A>> f,
+      final Selective<F> selective) {
+
+    // Create a stateful function that tracks whether we've stopped
+    final Function<A, State<Boolean, Kind<F, A>>> statefulF =
+        a ->
+            State.<Boolean, Boolean>inspect(stopped -> stopped || stopCondition.test(a))
+                .flatMap(
+                    shouldStop -> {
+                      if (shouldStop) {
+                        return State.set(true).map(_ -> selective.of(a));
+                      } else {
+                        return State.pure(f.apply(a));
+                      }
+                    });
+
+    // Map each element through the stateful function
+    final List<State<Boolean, Kind<F, A>>> statefulComputations =
+        list.stream().map(statefulF).collect(Collectors.toList());
+
+    // Sequence the stateful computations
+    final State<Boolean, List<Kind<F, A>>> sequencedState = sequenceStateList(statefulComputations);
+
+    // Run the state computation (initial state: false = not stopped)
+    final StateTuple<Boolean, List<Kind<F, A>>> result = sequencedState.run(false);
+
+    // Now sequence the effects within F
+    final List<Kind<F, A>> effectsList = result.value();
+    return traverseList(effectsList, Function.identity(), selective);
+  }
+
+  /**
+   * Helper: sequences a list of State computations into a State of a list. This is analogous to
+   * sequence for other monads.
+   */
+  /**
+   * Sequences a list of State computations into a State of a list.
+   *
+   * <p>This implementation uses an imperative loop for stack safety. Using Stream.reduce with
+   * flatMap creates deeply nested closures that cause StackOverflowError with large lists (>1000
+   * elements).
+   *
+   * @param states List of State computations to sequence
+   * @param <S> The state type
+   * @param <A> The value type
+   * @return A State computation that produces a list of all values
+   */
+  static <S, A> State<S, List<A>> sequenceStateList(final List<State<S, A>> states) {
+    return State.of(
+        initialState -> {
+          final List<A> resultList = new ArrayList<>(states.size());
+          S currentState = initialState;
+
+          for (final State<S, A> state : states) {
+            final StateTuple<S, A> result = state.run(currentState);
+            resultList.add(result.value());
+            currentState = result.state();
+          }
+
+          return new StateTuple<>(resultList, currentState);
+        });
   }
 }

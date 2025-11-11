@@ -157,7 +157,7 @@ java
 Traversal<ApiUserDto, String> apiRolesTraversal = 
     UserTraversals.roles().dimap(
         dto -> convertApiDtoToUser(dto),
-        user -> convertUserToApiDto(user)
+        userLogin -> convertUserToApiDto(userLogin)
     );
 ```
 
@@ -398,20 +398,20 @@ public class WrapperAdapters {
         UserLenses.email().andThen(EMAIL_STRING);
   
     // Usage examples
-    public User normaliseUser(User user) {
+    public User normaliseUser(User userLogin) {
         return USER_NAME_VALUE.modify(name -> 
             Arrays.stream(name.toLowerCase().split(" "))
                 .map(word -> Character.toUpperCase(word.charAt(0)) + word.substring(1))
                 .collect(joining(" ")),
-            user
+            userLogin
         );
     }
   
-    public User updateEmailDomain(User user, String newDomain) {
+    public User updateEmailDomain(User userLogin, String newDomain) {
         return USER_EMAIL_VALUE.modify(email -> {
             String localPart = email.substring(0, email.indexOf('@'));
             return localPart + "@" + newDomain;
-        }, user);
+        }, userLogin);
     }
 }
 ```

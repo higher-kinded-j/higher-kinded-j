@@ -31,7 +31,7 @@ This single task requires us to:
 
 1. Focus on the form's `principal` field (**a job for a Lens**).
 2. Safely "select" the `User` case, ignoring any `Guest`s (**a job for a Prism**).
-3. Operate on every `Permission` in the user's list (**a job for a Traversal**).
+3. Operate on every `Permission` in the userLogin's list (**a job for a Traversal**).
 
 ---
 
@@ -133,7 +133,7 @@ import org.higherkindedj.optics.Traversal;
 
 // Get the individual generated optics
 Lens<Form, Principal> formPrincipalLens = FormLenses.principal();
-Prism<Principal, User> principalUserPrism = PrincipalPrisms.user();
+Prism<Principal, User> principalUserPrism = PrincipalPrisms.userLogin();
 Traversal<User, Permission> userPermissionsTraversal = UserTraversals.permissions();
 Lens<Permission, String> permissionNameLens = PermissionLenses.name();
 
@@ -180,11 +180,11 @@ Validated<List<String>, Company> result2 = validateEmails(company2);
 
 ```java
 // Simple validation doesn't need optics
-public Validated<String, User> validateUser(User user) {
-    if (user.username().length() < 3) {
+public Validated<String, User> validateUser(User userLogin) {
+    if (userLogin.username().length() < 3) {
         return Validated.invalid("Username too short");
     }
-    return Validated.valid(user);
+    return Validated.valid(userLogin);
 }
 ```
 
@@ -201,7 +201,7 @@ Map<String, Long> permissionCounts = forms.stream()
     .map(Form::principal)
     .filter(User.class::isInstance)
     .map(User.class::cast)
-    .flatMap(user -> user.permissions().stream())
+    .flatMap(userLogin -> userLogin.permissions().stream())
     .collect(groupingBy(Permission::name, counting()));
 ```
 
@@ -223,7 +223,7 @@ var badResult = traversal.modifyF(validatePermissionName, form, /* wrong applica
 
 // Creating complex compositions inline
 var inlineResult = FormLenses.principal().asTraversal()
-    .andThen(PrincipalPrisms.user().asTraversal())
+    .andThen(PrincipalPrisms.userLogin().asTraversal())
     .andThen(UserTraversals.permissions())
     .andThen(PermissionLenses.name().asTraversal())
     .modifyF(validatePermissionName, form, applicative); // Hard to read and reuse
@@ -247,7 +247,7 @@ Applicative<ValidatedKind.Witness<String>> validatedApplicative =
 // Create reusable, well-named compositions
 public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
     FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.user().asTraversal())
+        .andThen(PrincipalPrisms.userLogin().asTraversal())
         .andThen(UserTraversals.permissions())
         .andThen(PermissionLenses.name().asTraversal());
 
@@ -278,7 +278,7 @@ public class ValidationOptics {
     // Reusable validation paths
     public static final Traversal<Form, String> USER_PERMISSION_NAMES =
         FormLenses.principal().asTraversal()
-            .andThen(PrincipalPrisms.user().asTraversal())
+            .andThen(PrincipalPrisms.userLogin().asTraversal())
             .andThen(UserTraversals.permissions())
             .andThen(PermissionLenses.name().asTraversal());
   
@@ -306,11 +306,11 @@ public class ValidationOptics {
 
 
 ```java
-// Validate both user data AND permissions in one pass
+// Validate both userLogin data AND permissions in one pass
 public static Validated<List<String>, Form> validateFormCompletely(Form form) {
-    // First validate user basic info
+    // First validate userLogin basic info
     var userValidation = FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.user().asTraversal())
+        .andThen(PrincipalPrisms.userLogin().asTraversal())
         .andThen(UserLenses.username().asTraversal())
         .modifyF(ValidationOptics::validateUsername, form, getValidatedApplicative());
   
@@ -331,17 +331,17 @@ public static Validated<List<String>, Form> validateFormCompletely(Form form) {
 
 
 ```java
-// Different validation rules for different user types
+// Different validation rules for different userLogin types
 public static final Traversal<Form, String> ADMIN_USER_PERMISSIONS =
     FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.user().asTraversal())
+        .andThen(PrincipalPrisms.userLogin().asTraversal())
         .andThen(UserPrisms.adminUser().asTraversal())  // Only admin users
         .andThen(AdminUserTraversals.permissions())
         .andThen(PermissionLenses.name().asTraversal());
 
 public static final Traversal<Form, String> REGULAR_USER_PERMISSIONS =
     FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.user().asTraversal())
+        .andThen(PrincipalPrisms.userLogin().asTraversal())
         .andThen(UserPrisms.regularUser().asTraversal())  // Only regular users
         .andThen(RegularUserTraversals.permissions())
         .andThen(PermissionLenses.name().asTraversal());
@@ -351,21 +351,21 @@ public static final Traversal<Form, String> REGULAR_USER_PERMISSIONS =
 
 
 ```java
-// Validate that permissions are appropriate for user role
+// Validate that permissions are appropriate for userLogin role
 public static Validated<List<String>, Form> validatePermissionsForRole(Form form) {
     return FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.user().asTraversal())
-        .modifyF(user -> {
+        .andThen(PrincipalPrisms.userLogin().asTraversal())
+        .modifyF(userLogin -> {
             // Custom validation that checks both role and permissions
-            Set<String> allowedPerms = getAllowedPermissionsForRole(user.role());
-            List<String> errors = user.permissions().stream()
+            Set<String> allowedPerms = getAllowedPermissionsForRole(userLogin.role());
+            List<String> errors = userLogin.permissions().stream()
                 .map(Permission::name)
                 .filter(perm -> !allowedPerms.contains(perm))
-                .map(perm -> "Permission '" + perm + "' not allowed for role " + user.role())
+                .map(perm -> "Permission '" + perm + "' not allowed for role " + userLogin.role())
                 .toList();
           
             return errors.isEmpty() 
-                ? VALIDATED.widen(Validated.valid(user))
+                ? VALIDATED.widen(Validated.valid(userLogin))
                 : VALIDATED.widen(Validated.invalid(String.join("; ", errors)));
         }, form, getValidatedApplicative());
 }
@@ -430,7 +430,7 @@ public class ValidatedTraversalExample {
     // --- Reusable Optic Compositions ---
     public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
             FormLenses.principal().asTraversal()
-                    .andThen(PrincipalPrisms.user().asTraversal())
+                    .andThen(PrincipalPrisms.userLogin().asTraversal())
                     .andThen(UserTraversals.permissions())
                     .andThen(PermissionLenses.name().asTraversal());
 

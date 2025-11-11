@@ -256,7 +256,7 @@ public class LeagueOptics {
 
 
 ```java
-// Validate all email addresses in a user list
+// Validate all email addresses in a userLogin list
 Traversal<Company, String> allEmails = CompanyTraversals.employees()
     .andThen(EmployeeTraversals.contactInfo())
     .andThen(ContactInfoLenses.email().asTraversal());

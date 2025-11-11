@@ -18,7 +18,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("StateT Core Type Tests (Outer: OptionalKind.Witness)")
+@DisplayName("StateT Core Type Tests ")
+// (Outer: OptionalKind.Witness)
 class StateTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;

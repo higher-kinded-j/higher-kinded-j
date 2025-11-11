@@ -19,7 +19,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("EitherTKindHelper Tests (F=OptionalKind.Witness)")
+@DisplayName("EitherTKindHelper Tests")
+//  (F=OptionalKind.Witness)
 class EitherTKindHelperTest {
 
   private static final String TYPE_NAME = "EitherT";

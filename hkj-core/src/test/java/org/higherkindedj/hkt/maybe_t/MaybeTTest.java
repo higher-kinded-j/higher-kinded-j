@@ -17,7 +17,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeT Core Type Tests (Outer: OptionalKind.Witness)")
+@DisplayName("MaybeT Core Type Tests")
+// (Outer: OptionalKind.Witness)
 class MaybeTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;

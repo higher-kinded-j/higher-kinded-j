@@ -23,7 +23,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("StateTKindHelper Tests (F=OptionalKind.Witness)")
+@DisplayName("StateTKindHelper Tests ")
+// (F=OptionalKind.Witness)
 class StateTKindHelperTest {
 
   private static final String TYPE_NAME = "StateT";

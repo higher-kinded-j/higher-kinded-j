@@ -19,7 +19,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeTKindHelper Tests (F=OptionalKind.Witness)")
+@DisplayName("MaybeTKindHelper Tests")
+//  [F=OptionalKind.Witness]
 class MaybeTKindHelperTest {
 
   private static final String TYPE_NAME = "MaybeT";

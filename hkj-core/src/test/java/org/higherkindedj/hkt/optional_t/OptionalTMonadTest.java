@@ -21,7 +21,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("OptionalTMonad Tests (F=OptionalKind.Witness)")
+@DisplayName("OptionalTMonad Tests")
+// (F=OptionalKind.Witness)
 class OptionalTMonadTest {
 
   private final Monad<OptionalKind.Witness> outerMonad = OptionalMonad.INSTANCE;

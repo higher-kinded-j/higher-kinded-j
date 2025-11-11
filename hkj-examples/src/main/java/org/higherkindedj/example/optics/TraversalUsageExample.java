@@ -2,8 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -113,5 +119,90 @@ public class TraversalUsageExample {
 
     System.out.println("------------------------------------------");
     System.out.println("Original league unchanged: " + league);
+
+    selectiveConditionalUpdate();
+    selectiveBranchingUpdate();
+  }
+
+  // --- NEW SCENARIO: Selective Conditional Updates ---
+  private static void selectiveConditionalUpdate() {
+    System.out.println("--- Scenario 7: Selective Conditional Updates ---");
+
+    var team1 =
+        new Team(
+            "Team Alpha",
+            List.of(new Player("Alice", 150), new Player("Bob", 90), new Player("Charlie", 110)));
+    var team2 = new Team("Team Bravo", List.of(new Player("Diana", 200), new Player("Eve", 80)));
+    var league = new League("Pro League", List.of(team1, team2));
+
+    Traversal<League, Integer> leagueToAllPlayerScores =
+        LeagueTraversals.teams()
+            .andThen(TeamTraversals.players())
+            .andThen(PlayerLenses.score().asTraversal());
+
+    // Only give bonus to high scorers (>= 100)
+    Predicate<Integer> isHighScorer = score -> score >= 100;
+
+    Kind<Id.Witness, League> updated =
+        leagueToAllPlayerScores.modifyWhen(
+            isHighScorer,
+            score -> Id.of(score + 50), // 50 point bonus
+            league,
+            IdSelective.instance());
+
+    System.out.println("Original league:");
+    printLeagueScores(league);
+    System.out.println("\nAfter selective bonus (only >= 100):");
+    printLeagueScores(ID.narrow(updated).value());
+    System.out.println();
+  }
+
+  // --- NEW SCENARIO: Selective Branching ---
+  private static void selectiveBranchingUpdate() {
+    System.out.println("--- Scenario 8: Selective Branching Updates ---");
+
+    var team =
+        new Team(
+            "Mixed Team",
+            List.of(
+                new Player("Veteran", 180),
+                new Player("Rookie", 50),
+                new Player("MidLevel", 100),
+                new Player("Expert", 250)));
+    var league = new League("Diverse League", List.of(team));
+
+    Traversal<League, Integer> scoreTraversal =
+        LeagueTraversals.teams()
+            .andThen(TeamTraversals.players())
+            .andThen(PlayerLenses.score().asTraversal());
+
+    // Different bonuses for different score ranges
+    Predicate<Integer> isExpert = score -> score >= 200;
+
+    Kind<Id.Witness, League> updated =
+        scoreTraversal.branch(
+            isExpert,
+            score -> Id.of(score + 100), // Expert bonus: +100
+            score -> Id.of(score + 20), // Regular bonus: +20
+            league,
+            IdSelective.instance());
+
+    System.out.println("Original scores:");
+    printLeagueScores(league);
+    System.out.println("\nAfter branching bonuses (experts +100, others +20):");
+    printLeagueScores(ID.narrow(updated).value());
+    System.out.println();
+  }
+
+  private static void printLeagueScores(League league) {
+    league
+        .teams()
+        .forEach(
+            team -> {
+              System.out.println("  " + team.name() + ":");
+              team.players()
+                  .forEach(
+                      player -> System.out.println("    " + player.name() + ": " + player.score()));
+            });
   }
 }
