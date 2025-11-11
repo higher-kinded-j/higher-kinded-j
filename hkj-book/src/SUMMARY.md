@@ -33,6 +33,7 @@
   - [Optional](monads/optional_monad.md)
   - [Reader](monads/reader_monad.md)
   - [State](monads/state_monad.md)
+  - [Stream](monads/stream_monad.md)
   - [Try](monads/try_monad.md)
   - [Validated](monads/validated_monad.md)
   - [Writer](monads/writer_monad.md)
