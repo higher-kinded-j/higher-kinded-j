@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.either_t.EitherTAssert.assertThatEitherT;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -47,6 +48,11 @@ class EitherTMonadTest
     var eitherT = EITHER_T.narrow(kind);
     Kind<OptionalKind.Witness, Either<TestError, A>> outerKind = eitherT.value();
     return OPTIONAL.narrow(outerKind);
+  }
+
+  private <A> Optional<Either<TestError, A>> unwrapOuterOptional(
+      Kind<OptionalKind.Witness, Either<TestError, A>> kind) {
+    return OPTIONAL.narrow(kind);
   }
 
   private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, R> rightT(R value) {
@@ -153,34 +159,32 @@ class EitherTMonadTest
     @Test
     @DisplayName("map should apply function when Right")
     void map_shouldApplyFunctionWhenRight() {
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> input = rightT(10);
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String> result =
-          eitherTMonad.map(Object::toString, input);
+      var input = rightT(10);
+      var result = eitherTMonad.map(Object::toString, input);
 
-      Optional<Either<TestError, String>> either = unwrapKindToOptionalEither(result);
-      assertThat(either).isPresent().contains(Either.right("10"));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentRight()
+          .hasRightValue("10");
     }
 
     @Test
     @DisplayName("map should propagate Left when Left")
     void map_shouldPropagateLeftWhenLeft() {
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> input = leftT("E1");
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String> result =
-          eitherTMonad.map(Object::toString, input);
+      var input = leftT("E1");
+      var result = eitherTMonad.map(Object::toString, input);
 
-      Optional<Either<TestError, String>> either = unwrapKindToOptionalEither(result);
-      assertThat(either).isPresent().contains(Either.left(new TestError("E1")));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(new TestError("E1"));
     }
 
     @Test
     @DisplayName("map should propagate empty outer monad")
     void map_shouldPropagateEmpty() {
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> input = emptyT();
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String> result =
-          eitherTMonad.map(Object::toString, input);
+      var input = emptyT();
+      var result = eitherTMonad.map(Object::toString, input);
 
-      Optional<Either<TestError, String>> either = unwrapKindToOptionalEither(result);
-      assertThat(either).isEmpty();
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
   }
 
@@ -198,7 +202,9 @@ class EitherTMonadTest
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> fa = rightT(10);
 
       var result = eitherTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right("Res:20"));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentRight()
+          .hasRightValue("Res:20");
     }
 
     @Test
@@ -210,9 +216,9 @@ class EitherTMonadTest
           leftT("VAL_LEFT_ERROR");
 
       var result = eitherTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isPresent()
-          .contains(Either.left(new TestError("VAL_LEFT_ERROR")));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(new TestError("VAL_LEFT_ERROR"));
     }
 
     @Test
@@ -223,9 +229,9 @@ class EitherTMonadTest
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> fa = rightT(10);
 
       var result = eitherTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isPresent()
-          .contains(Either.left(new TestError("FUNC_LEFT_ERROR")));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(new TestError("FUNC_LEFT_ERROR"));
     }
 
     @Test
@@ -237,9 +243,9 @@ class EitherTMonadTest
           leftT("VAL_LEFT_ERROR_SECONDARY");
 
       var result = eitherTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isPresent()
-          .contains(Either.left(new TestError("FUNC_LEFT_ERROR_DOMINATES")));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(new TestError("FUNC_LEFT_ERROR_DOMINATES"));
     }
 
     @Test
@@ -250,7 +256,7 @@ class EitherTMonadTest
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> fa = rightT(10);
 
       var result = eitherTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -261,7 +267,7 @@ class EitherTMonadTest
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> fa = emptyT();
 
       var result = eitherTMonad.ap(ff, fa);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -307,7 +313,9 @@ class EitherTMonadTest
 
       var result = eitherTMonad.flatMap(funcReturnsRight, initialRight);
 
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right("Value:10"));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentRight()
+          .hasRightValue("Value:10");
     }
 
     @Test
@@ -319,9 +327,9 @@ class EitherTMonadTest
 
       var result = eitherTMonad.flatMap(funcReturnsLeft, initialRight);
 
-      assertThat(unwrapKindToOptionalEither(result))
-          .isPresent()
-          .contains(Either.left(new TestError("FuncError_10")));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(new TestError("FuncError_10"));
     }
 
     @Test
@@ -333,7 +341,7 @@ class EitherTMonadTest
 
       var result = eitherTMonad.flatMap(funcReturnsEmpty, initialRight);
 
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -349,9 +357,9 @@ class EitherTMonadTest
 
       var result = eitherTMonad.flatMap(funcShouldNotRun, initialLeft);
 
-      assertThat(unwrapKindToOptionalEither(result))
-          .isPresent()
-          .contains(Either.left(new TestError("InitialError")));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(new TestError("InitialError"));
     }
 
     @Test
@@ -368,7 +376,7 @@ class EitherTMonadTest
 
       var result = eitherTMonad.flatMap(funcShouldNotRun, initialEmptyOuter);
 
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
 
     @Test
@@ -410,8 +418,9 @@ class EitherTMonadTest
     @Test
     @DisplayName("raiseError should create Left in Optional")
     void raiseError_shouldCreateLeftInOptional() {
-      Optional<Either<TestError, Integer>> result = unwrapKindToOptionalEither(raisedErrorKind);
-      assertThat(result).isPresent().contains(Either.left(raisedErrorObj));
+      assertThatEitherT(raisedErrorKind, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(raisedErrorObj);
     }
 
     @Test
@@ -421,7 +430,9 @@ class EitherTMonadTest
           handler = err -> rightT(Integer.parseInt(err.code().substring(1)));
 
       var result = eitherTMonad.handleErrorWith(leftVal, handler);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(404));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentRight()
+          .hasRightValue(404);
     }
 
     @Test
@@ -431,8 +442,8 @@ class EitherTMonadTest
           handler = err -> rightT(-1);
 
       var result = eitherTMonad.handleErrorWith(rightVal, handler);
-      assertThat(unwrapKindToOptionalEither(result))
-          .isEqualTo(unwrapKindToOptionalEither(rightVal));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isEqualToEitherT(rightVal);
     }
 
     @Test
@@ -442,7 +453,7 @@ class EitherTMonadTest
           handler = err -> rightT(-1);
 
       var result = eitherTMonad.handleErrorWith(emptyVal, handler);
-      assertThat(unwrapKindToOptionalEither(result)).isEmpty();
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
     }
   }
 
@@ -494,7 +505,9 @@ class EitherTMonadTest
     @DisplayName("of with null value")
     void of_withNullValue() {
       var result = eitherTMonad.of(null);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.right(null));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentRight()
+          .hasRightValue(null);
     }
 
     @Test
@@ -502,7 +515,9 @@ class EitherTMonadTest
     void raiseError_withNullError() {
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> result =
           eitherTMonad.raiseError(null);
-      assertThat(unwrapKindToOptionalEither(result)).isPresent().contains(Either.left(null));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentLeft()
+          .hasLeftValue(null);
     }
   }
 }
