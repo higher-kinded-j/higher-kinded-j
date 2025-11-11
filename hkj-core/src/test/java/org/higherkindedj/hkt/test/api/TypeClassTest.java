@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api;
 
 import org.higherkindedj.hkt.test.api.typeclass.applicative.ApplicativeTestStage;
+import org.higherkindedj.hkt.test.api.typeclass.bifunctor.BifunctorTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.foldable.FoldableTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.functor.FunctorTestStage;
 import org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage;
@@ -149,6 +150,30 @@ public final class TypeClassTest {
    */
   public static <F> FoldableTestStage<F> foldable(Class<?> contextClass) {
     return new FoldableTestStage<>(contextClass);
+  }
+
+  /**
+   * Begins configuration for testing a Bifunctor implementation.
+   *
+   * <p>Progressive disclosure: Next step is {@code .instance(bifunctor)}
+   *
+   * <p>Usage example:
+   *
+   * <pre>{@code
+   * TypeClassTest.bifunctor(EitherBifunctor.class)
+   *     .instance(bifunctor)
+   *     .withKind2(validEither)
+   *     .withFirstMapper(String::length)
+   *     .withSecondMapper(Integer::doubleValue)
+   *     .testAll();
+   * }</pre>
+   *
+   * @param contextClass The implementation class for error messages
+   * @param <F> The Bifunctor witness type
+   * @return Stage for providing the Bifunctor instance
+   */
+  public static <F> BifunctorTestStage<F> bifunctor(Class<?> contextClass) {
+    return new BifunctorTestStage<>(contextClass);
   }
 
   /**
