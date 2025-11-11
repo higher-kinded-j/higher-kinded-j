@@ -116,6 +116,69 @@ public record Writer<W, A>(W log, @Nullable A value) {
   }
 
   /**
+   * Transforms both the log and the value of this {@code Writer} using the provided mapping
+   * functions, producing a new {@code Writer} with potentially different types for both components.
+   *
+   * <p>This is the fundamental bifunctor operation for {@code Writer}, allowing simultaneous
+   * transformation of both the log channel and value channel.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Writer<String, Integer> writer = new Writer<>("log: ", 42);
+   * Writer<Integer, String> result = writer.bimap(
+   *     String::length,           // Transform log: "log: " -> 5
+   *     n -> "Value: " + n        // Transform value: 42 -> "Value: 42"
+   * );
+   * // result = new Writer<>(5, "Value: 42")
+   * }</pre>
+   *
+   * @param logMapper The non-null function to apply to the log.
+   * @param valueMapper The non-null function to apply to the value.
+   * @param <W2> The type of the log in the resulting {@code Writer}.
+   * @param <B> The type of the value in the resulting {@code Writer}.
+   * @return A new {@code Writer<W2, B>} with both log and value transformed. The returned {@code
+   *     Writer} will be non-null.
+   * @throws NullPointerException if either {@code logMapper} or {@code valueMapper} is null.
+   */
+  public <W2, B> Writer<W2, B> bimap(
+      Function<? super W, ? extends W2> logMapper, Function<? super A, ? extends B> valueMapper) {
+    Validation.function().requireMapper(logMapper, "logMapper", WRITER_CLASS, BIMAP);
+    Validation.function().requireMapper(valueMapper, "valueMapper", WRITER_CLASS, BIMAP);
+
+    return new Writer<>(logMapper.apply(this.log), valueMapper.apply(this.value));
+  }
+
+  /**
+   * Transforms only the log of this {@code Writer}, leaving the value unchanged.
+   *
+   * <p>This operation allows you to transform the log channel whilst preserving the value channel.
+   * It is useful for converting log types, enriching log messages, or mapping between different log
+   * representations.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Writer<String, Integer> writer = new Writer<>("operation completed", 42);
+   * Writer<Integer, Integer> result = writer.mapWritten(String::length);
+   * // result = new Writer<>(19, 42)
+   * }</pre>
+   *
+   * <p><b>Note:</b> This is equivalent to calling {@code bimap(logMapper, Function.identity())}.
+   *
+   * @param logMapper The non-null function to apply to the log.
+   * @param <W2> The type of the log in the resulting {@code Writer}.
+   * @return A new {@code Writer<W2, A>} with the log transformed and the value unchanged. The
+   *     returned {@code Writer} will be non-null.
+   * @throws NullPointerException if {@code logMapper} is null.
+   */
+  public <W2> Writer<W2, A> mapWritten(Function<? super W, ? extends W2> logMapper) {
+    Validation.function().requireMapper(logMapper, "logMapper", WRITER_CLASS, MAP_WRITTEN);
+
+    return new Writer<>(logMapper.apply(this.log), this.value);
+  }
+
+  /**
    * Composes this {@code Writer} computation with a function {@code f} that takes the current value
    * {@code A} and returns a new {@code Writer<W, B>} computation. The logs from both computations
    * are combined using the {@link Monoid} for {@code W}.
