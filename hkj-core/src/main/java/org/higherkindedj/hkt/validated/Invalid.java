@@ -16,15 +16,18 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * Represents the erroneous (Invalid) case of a {@link Validated}. It holds a non-null error value
  * of type {@code E}. This class is an immutable record.
  *
- * <p>As part of the HKT pattern, this class also implements {@link ValidatedKind}, allowing it to
- * be used with typeclasses expecting {@code Kind<ValidatedKind.Witness<E>, A>}.
+ * <p>As part of the HKT pattern, this class implements both {@link ValidatedKind} and {@link
+ * ValidatedKind2}, allowing it to be used with typeclasses expecting {@code
+ * Kind<ValidatedKind.Witness<E>, A>} (for functors/applicatives) or {@code
+ * Kind2<ValidatedKind2.Witness, E, A>} (for bifunctors).
  *
  * @param <E> The type of the encapsulated error.
  * @param <A> The type of the potential valid value (unused in {@code Invalid}, but part of the
  *     {@link Validated} contract).
  * @param error The non-null error value held by this {@code Invalid} instance.
  */
-public record Invalid<E, A>(E error) implements Validated<E, A>, ValidatedKind<E, A> {
+public record Invalid<E, A>(E error)
+    implements Validated<E, A>, ValidatedKind<E, A>, ValidatedKind2<E, A> {
 
   /**
    * Compact constructor for {@code Invalid}. Ensures the encapsulated error is non-null.
