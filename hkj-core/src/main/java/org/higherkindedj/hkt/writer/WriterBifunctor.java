@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.writer;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
@@ -45,7 +46,7 @@ public class WriterBifunctor implements Bifunctor<WriterKind2.Witness> {
 
     Validation.function().requireMapper(f, "f", WriterBifunctor.class, BIMAP);
     Validation.function().requireMapper(g, "g", WriterBifunctor.class, BIMAP);
-    Validation.kind().requireNonNull(fab, WriterBifunctor.class, BIMAP);
+    Objects.requireNonNull(fab, "Kind2 for WriterBifunctor.bimap cannot be null");
 
     Writer<A, B> writer = WRITER.narrow2(fab);
     Writer<C, D> result = writer.bimap(f, g);
@@ -57,7 +58,7 @@ public class WriterBifunctor implements Bifunctor<WriterKind2.Witness> {
       Function<? super A, ? extends C> f, Kind2<WriterKind2.Witness, A, B> fab) {
 
     Validation.function().requireMapper(f, "f", WriterBifunctor.class, FIRST);
-    Validation.kind().requireNonNull(fab, WriterBifunctor.class, FIRST);
+    Objects.requireNonNull(fab, "Kind2 for WriterBifunctor.first cannot be null");
 
     Writer<A, B> writer = WRITER.narrow2(fab);
     Writer<C, B> result = writer.mapWritten(f);
@@ -69,7 +70,7 @@ public class WriterBifunctor implements Bifunctor<WriterKind2.Witness> {
       Function<? super B, ? extends D> g, Kind2<WriterKind2.Witness, A, B> fab) {
 
     Validation.function().requireMapper(g, "g", WriterBifunctor.class, SECOND);
-    Validation.kind().requireNonNull(fab, WriterBifunctor.class, SECOND);
+    Objects.requireNonNull(fab, "Kind2 for WriterBifunctor.second cannot be null");
 
     Writer<A, B> writer = WRITER.narrow2(fab);
     Writer<A, D> result = writer.map(g);

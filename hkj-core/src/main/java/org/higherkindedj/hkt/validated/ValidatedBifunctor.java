@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.validated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
@@ -45,7 +46,7 @@ public class ValidatedBifunctor implements Bifunctor<ValidatedKind2.Witness> {
 
     Validation.function().requireMapper(f, "f", ValidatedBifunctor.class, BIMAP);
     Validation.function().requireMapper(g, "g", ValidatedBifunctor.class, BIMAP);
-    Validation.kind().requireNonNull(fab, ValidatedBifunctor.class, BIMAP);
+    Objects.requireNonNull(fab, "Kind2 for ValidatedBifunctor.bimap cannot be null");
 
     Validated<A, B> validated = VALIDATED.narrow2(fab);
     Validated<C, D> result = validated.bimap(f, g);
@@ -57,7 +58,7 @@ public class ValidatedBifunctor implements Bifunctor<ValidatedKind2.Witness> {
       Function<? super A, ? extends C> f, Kind2<ValidatedKind2.Witness, A, B> fab) {
 
     Validation.function().requireMapper(f, "f", ValidatedBifunctor.class, FIRST);
-    Validation.kind().requireNonNull(fab, ValidatedBifunctor.class, FIRST);
+    Objects.requireNonNull(fab, "Kind2 for ValidatedBifunctor.first cannot be null");
 
     Validated<A, B> validated = VALIDATED.narrow2(fab);
     Validated<C, B> result = validated.mapError(f);
@@ -69,7 +70,7 @@ public class ValidatedBifunctor implements Bifunctor<ValidatedKind2.Witness> {
       Function<? super B, ? extends D> g, Kind2<ValidatedKind2.Witness, A, B> fab) {
 
     Validation.function().requireMapper(g, "g", ValidatedBifunctor.class, SECOND);
-    Validation.kind().requireNonNull(fab, ValidatedBifunctor.class, SECOND);
+    Objects.requireNonNull(fab, "Kind2 for ValidatedBifunctor.second cannot be null");
 
     Validated<A, B> validated = VALIDATED.narrow2(fab);
     Validated<A, D> result = validated.map(g);
