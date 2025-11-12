@@ -368,6 +368,10 @@ public final class StreamOps {
 
   /**
    * Pairs each element in the stream with its zero-based index.
+   * <p><b>Warning:</b> This implementation uses a stateful function and is **not safe** for use with
+   * parallel streams. It will produce non-deterministic and incorrect indices if the stream is
+   * parallel. It should only be used with sequential streams.
+   * p>The operation is lazy for sequential streams.
    *
    * <p><b>Warning:</b> Due to the nature of indexing, this operation must materialize the stream
    * into a list first, then recreate a stream with indices. This is not truly lazy.
