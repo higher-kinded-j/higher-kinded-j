@@ -1,12 +1,20 @@
 # Stream Support - Phase 3 Roadmap
 
+**⚠️ IMPORTANT: This document contains known issues. See [`stream-phase-3-roadmap-issues-and-fixes.md`](./stream-phase-3-roadmap-issues-and-fixes.md) for corrections before implementing any code from this roadmap.**
+
 ## Overview
 
 Phase 3 focuses on implementing additional type classes for Stream and enhancing integration with the higher-kinded-j ecosystem. This document provides a comprehensive breakdown of proposed features, implementation details, and priorities.
 
-**Status**: Planning
+**Status**: Planning (Under Review - Issues Identified)
 **Dependencies**: Phase 1 (Core) and Phase 2 (Traverse & Ops) completed
-**Estimated Total Effort**: 45-62 hours
+**Estimated Total Effort**: 45-62 hours (pending corrections)
+
+**Critical Issues Identified**:
+- NonEmptyStreamComonad: Critical bug, removed from roadmap
+- Multiple utilities defeat lazy evaluation (sliding, intersperse)
+- Anti-patterns with mutable state (scan, deduplicate)
+- See issues document for detailed analysis and corrected implementations
 
 ---
 
@@ -340,16 +348,31 @@ Kind<StreamKind.Witness, UserWithProfile> combined =
 
 ### 3.5 NonEmptyStreamComonad (Optional)
 
-**Priority**: Low
-**Effort**: 6-8 hours (200 LOC + 300 test LOC)
-**Dependencies**: NonEmptyStream wrapper type
+**⚠️ REMOVED - CRITICAL BUG IDENTIFIED ⚠️**
+**Status**: ❌ **DO NOT IMPLEMENT**
+**Issue**: See `stream-phase-3-roadmap-issues-and-fixes.md` for details
+
+~~**Priority**: Low~~
+~~**Effort**: 6-8 hours (200 LOC + 300 test LOC)~~
+~~**Dependencies**: NonEmptyStream wrapper type~~
 
 #### Rationale
-Comonad is the dual of Monad, providing extract and extend operations. Regular streams cannot safely implement Comonad due to lack of guaranteed head element.
+~~Comonad is the dual of Monad, providing extract and extend operations. Regular streams cannot safely implement Comonad due to lack of guaranteed head element.~~
 
-#### Implementation
+**Critical Issues Identified**:
+1. **Iterator consumption bug in extend**: The implementation consumes the iterator within the loop, causing data loss
+2. **Defeats lazy evaluation**: Requires eager materialization of tail elements
+3. **Poor semantic fit**: Comonad operations don't align with streaming semantics
+4. **Limited practical value**: Few real-world use cases for Stream Comonad
+
+**Recommendation**: Skip entirely unless strong user demand emerges with clear use cases.
+
+#### ~~Implementation~~ (BUGGY - DO NOT USE)
+
+**⚠️ WARNING: The following code contains critical bugs and anti-patterns. It is preserved here for reference only. See the issues document for correct implementations if this feature is ever needed.**
 
 ```java
+// ❌ BUGGY IMPLEMENTATION - DO NOT USE
 // Non-empty stream wrapper
 public record NonEmptyStream<A>(A head, Stream<A> tail)
     implements Kind<NonEmptyStream.Witness, A> {
@@ -395,18 +418,21 @@ public enum NonEmptyStreamComonad implements Comonad<NonEmptyStream.Witness> {
       Kind<NonEmptyStream.Witness, A> wa) {
     NonEmptyStream<A> nes = NonEmptyStream.narrow(wa);
 
+    // ❌ CRITICAL BUG BELOW: Iterator consumption issue
     // Create stream of all tails with f applied to each
     List<NonEmptyStream<A>> tails = new ArrayList<>();
     tails.add(nes);
 
     Iterator<A> tailIter = nes.tail().iterator();
-    while (tailIter.hasNext()) {
+    while (tailIter.hasNext()) {  // ❌ BUG: This loop only executes once!
       A nextHead = tailIter.next();
       Stream<A> nextTail = StreamSupport.stream(
-        Spliterators.spliteratorUnknownSize(tailIter, Spliterator.ORDERED),
+        Spliterators.spliteratorUnknownSize(tailIter, Spliterator.ORDERED),  // ❌ BUG: This CONSUMES the iterator
         false
       );
       tails.add(new NonEmptyStream<>(nextHead, nextTail));
+      // ❌ BUG: tailIter.hasNext() will now be false because iterator was consumed above
+      // Result: Only creates 2 tails instead of all tails
     }
 
     Stream<B> extended = tails.stream().map(f::apply);
@@ -565,12 +591,27 @@ public final class ParallelStreamOps {
 
 ### 3.9 StreamAdvancedOps
 
+**⚠️ WARNING: Multiple implementations below require corrections**
+**Status**: 🔄 **NEEDS REVISION**
+**Issue**: See `stream-phase-3-roadmap-issues-and-fixes.md` for corrected implementations
+
 **Priority**: High
 **Effort**: 8-12 hours (400 LOC + 600 test LOC)
 
-#### scan - Intermediate results
+**Known Issues**:
+- `scan`: Mutable state anti-pattern (not thread-safe)
+- `sliding`: Eager collection defeats lazy evaluation
+- `intersperse`: Eager collection defeats lazy evaluation
+- `deduplicate`: Mutable state anti-pattern (not thread-safe)
+- `chunk`: Implementation is acceptable
+
+#### scan - Intermediate results (⚠️ NEEDS REVISION)
+
+**⚠️ Issue**: Uses mutable state in lambda (not thread-safe, anti-pattern)
+**Fix Required**: Use custom Spliterator (see issues document)
 
 ```java
+// ⚠️ MUTABLE STATE ANTI-PATTERN - DO NOT USE AS-IS
 public static <A, B> Kind<StreamKind.Witness, B> scan(
     B initial,
     BiFunction<B, A, B> accumulator,
@@ -579,14 +620,14 @@ public static <A, B> Kind<StreamKind.Witness, B> scan(
   Stream<A> s = STREAM.narrow(stream);
 
   class ScanState {
-    B acc = initial;
+    B acc = initial;  // ⚠️ MUTABLE STATE
   }
   ScanState state = new ScanState();
 
   Stream<B> scanned = Stream.concat(
     Stream.of(initial),
     s.map(a -> {
-      state.acc = accumulator.apply(state.acc, a);
+      state.acc = accumulator.apply(state.acc, a);  // ⚠️ MUTATING IN LAMBDA - NOT THREAD-SAFE
       return state.acc;
     })
   );
@@ -595,9 +636,13 @@ public static <A, B> Kind<StreamKind.Witness, B> scan(
 }
 ```
 
-#### sliding - Sliding window
+#### sliding - Sliding window (⚠️ NEEDS REVISION)
+
+**⚠️ Issue**: Eagerly collects entire stream, defeats lazy evaluation
+**Fix Required**: Provide separate eager and lazy versions (see issues document)
 
 ```java
+// ⚠️ EAGER COLLECTION - DEFEATS LAZY EVALUATION
 public static <A> Kind<StreamKind.Witness, List<A>> sliding(
     int windowSize,
     int step,
@@ -607,7 +652,8 @@ public static <A> Kind<StreamKind.Witness, List<A>> sliding(
   Validation.function().requirePositive(step, "step");
 
   Stream<A> s = STREAM.narrow(stream);
-  List<A> buffer = s.collect(Collectors.toList());
+  List<A> buffer = s.collect(Collectors.toList());  // ⚠️ EAGER - Materializes entire stream!
+  // This prevents: lazy evaluation, infinite streams, memory efficiency
 
   Stream<List<A>> windows = IntStream
     .iterate(0, i -> i < buffer.size(), i -> i + step)
@@ -618,15 +664,20 @@ public static <A> Kind<StreamKind.Witness, List<A>> sliding(
 }
 ```
 
-#### intersperse - Insert separator
+#### intersperse - Insert separator (⚠️ NEEDS REVISION)
+
+**⚠️ Issue**: Eagerly collects entire stream, defeats lazy evaluation
+**Fix Required**: Use lazy flatMap approach (see issues document)
 
 ```java
+// ⚠️ EAGER COLLECTION - DEFEATS LAZY EVALUATION
 public static <A> Kind<StreamKind.Witness, A> intersperse(
     A separator,
     Kind<StreamKind.Witness, A> stream) {
 
   Stream<A> s = STREAM.narrow(stream);
-  List<A> list = s.collect(Collectors.toList());
+  List<A> list = s.collect(Collectors.toList());  // ⚠️ EAGER - Materializes entire stream!
+  // This prevents: lazy evaluation, infinite streams, memory efficiency
 
   if (list.isEmpty()) return STREAM.widen(Stream.empty());
 
@@ -639,29 +690,33 @@ public static <A> Kind<StreamKind.Witness, A> intersperse(
 }
 ```
 
-#### deduplicate - Remove consecutive duplicates
+#### deduplicate - Remove consecutive duplicates (⚠️ NEEDS REVISION)
+
+**⚠️ Issue**: Uses mutable state in lambda (not thread-safe, anti-pattern)
+**Fix Required**: Use custom Spliterator (see issues document)
 
 ```java
+// ⚠️ MUTABLE STATE ANTI-PATTERN - DO NOT USE AS-IS
 public static <A> Kind<StreamKind.Witness, A> deduplicate(
     Kind<StreamKind.Witness, A> stream) {
 
   Stream<A> s = STREAM.narrow(stream);
 
   class State {
-    A previous = null;
-    boolean first = true;
+    A previous = null;     // ⚠️ MUTABLE STATE
+    boolean first = true;  // ⚠️ MUTABLE STATE
   }
   State state = new State();
 
   return STREAM.widen(
     s.filter(current -> {
       if (state.first) {
-        state.first = false;
-        state.previous = current;
+        state.first = false;              // ⚠️ MUTATING IN LAMBDA - NOT THREAD-SAFE
+        state.previous = current;         // ⚠️ MUTATING IN LAMBDA - NOT THREAD-SAFE
         return true;
       }
       boolean isDifferent = !Objects.equals(state.previous, current);
-      state.previous = current;
+      state.previous = current;           // ⚠️ MUTATING IN LAMBDA - NOT THREAD-SAFE
       return isDifferent;
     })
   );
@@ -991,7 +1046,7 @@ public class StreamHKTBenchmarks {
 | StreamAlternative | ⭐⭐⭐ High | 2-3h | High | None |
 | StreamMonadPlus | ⭐⭐⭐ High | 2h | High | Alternative |
 | StreamSelective | ⭐⭐⭐ High | 4-6h | Medium | Either type |
-| StreamAdvancedOps | ⭐⭐⭐ High | 8-12h | High | None |
+| StreamAdvancedOps | ⭐⭐⭐ High | 8-12h | High | ⚠️ Needs corrections |
 | StreamBuilder | ⭐⭐⭐ High | 2h | Medium | None |
 | StreamCollectors | ⭐⭐⭐ High | 4-5h | High | None |
 | User Guide | ⭐⭐⭐ High | 6-8h | High | All implementations |
@@ -1001,7 +1056,7 @@ public class StreamHKTBenchmarks {
 | Property Tests | ⭐⭐ Medium | 4-6h | Medium | Test framework |
 | Benchmarks | ⭐⭐ Medium | 3-4h | Low | JMH setup |
 | API Reference | ⭐⭐ Medium | 4-6h | Medium | All code complete |
-| NonEmptyStreamComonad | ⭐ Low | 6-8h | Low | NonEmptyStream type |
+| ~~NonEmptyStreamComonad~~ | ~~⭐ Low~~ | ~~6-8h~~ | ~~Low~~ | ❌ **REMOVED** |
 
 ---
 
