@@ -320,11 +320,31 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    void zip_shouldStopWhenSecondStreamIsShorter() {
+      Kind<StreamKind.Witness, Integer> longer = range(1, 10);
+      Kind<StreamKind.Witness, Integer> short2 = range(1, 3);
+
+      Kind<StreamKind.Witness, String> zipped = zip(longer, short2, (a, b) -> a + "," + b);
+
+      assertThat(toList(zipped)).containsExactly("1,1", "2,2");
+    }
+
+    @Test
     void zip_shouldHandleEmptyStreams() {
       Kind<StreamKind.Witness, Integer> empty = STREAM.widen(Stream.empty());
       Kind<StreamKind.Witness, Integer> nonEmpty = range(1, 5);
 
       Kind<StreamKind.Witness, String> zipped = zip(empty, nonEmpty, (a, b) -> a + "," + b);
+
+      assertThat(toList(zipped)).isEmpty();
+    }
+
+    @Test
+    void zip_shouldHandleSecondStreamEmpty() {
+      Kind<StreamKind.Witness, Integer> nonEmpty = range(1, 5);
+      Kind<StreamKind.Witness, Integer> empty = STREAM.widen(Stream.empty());
+
+      Kind<StreamKind.Witness, String> zipped = zip(nonEmpty, empty, (a, b) -> a + "," + b);
 
       assertThat(toList(zipped)).isEmpty();
     }
