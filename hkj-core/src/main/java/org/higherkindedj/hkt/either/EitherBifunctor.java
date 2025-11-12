@@ -45,7 +45,7 @@ public class EitherBifunctor implements Bifunctor<EitherKind2.Witness> {
 
     Validation.function().requireMapper(f, "f", EitherBifunctor.class, BIMAP);
     Validation.function().requireMapper(g, "g", EitherBifunctor.class, BIMAP);
-    Objects.requireNonNull(fab, "Kind2 for EitherBifunctor.bimap cannot be null");
+    Objects.requireNonNull(fab, "Kind for EitherBifunctor.bimap cannot be null");
 
     Either<A, B> either = EITHER.narrow2(fab);
     Either<C, D> result = either.bimap(f, g);
@@ -57,7 +57,7 @@ public class EitherBifunctor implements Bifunctor<EitherKind2.Witness> {
       Function<? super A, ? extends C> f, Kind2<EitherKind2.Witness, A, B> fab) {
 
     Validation.function().requireMapper(f, "f", EitherBifunctor.class, FIRST);
-    Objects.requireNonNull(fab, "Kind2 for EitherBifunctor.first cannot be null");
+    Objects.requireNonNull(fab, "Kind for EitherBifunctor.first cannot be null");
 
     Either<A, B> either = EITHER.narrow2(fab);
     Either<C, B> result = either.mapLeft(f);
@@ -69,7 +69,7 @@ public class EitherBifunctor implements Bifunctor<EitherKind2.Witness> {
       Function<? super B, ? extends D> g, Kind2<EitherKind2.Witness, A, B> fab) {
 
     Validation.function().requireMapper(g, "g", EitherBifunctor.class, SECOND);
-    Objects.requireNonNull(fab, "Kind2 for EitherBifunctor.second cannot be null");
+    Objects.requireNonNull(fab, "Kind for EitherBifunctor.second cannot be null");
 
     Either<A, B> either = EITHER.narrow2(fab);
     Either<A, D> result = either.mapRight(g);
