@@ -206,12 +206,17 @@ public enum WriterKindHelper implements WriterConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <W, A> Writer<W, A> narrow2(@Nullable Kind2<WriterKind2.Witness, W, A> kind) {
-    return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            WRITER_CLASS,
-            WriterKind2Holder.class,
-            // Safe cast due to type erasure and holder validation
-            holder -> ((WriterKind2Holder<W, A>) holder).writer());
+    if (kind == null) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Cannot narrow null Kind2 for Writer");
+    }
+    if (!(kind instanceof WriterKind2Holder<?, ?>)) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Kind2 instance cannot be narrowed to Writer (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
+    }
+    // Safe cast due to type erasure and holder validation
+    return ((WriterKind2Holder<W, A>) kind).writer();
   }
 }

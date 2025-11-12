@@ -111,6 +111,16 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <E, A> Validated<E, A> narrow2(@Nullable Kind2<ValidatedKind2.Witness, E, A> kind) {
-    return Validation.kind().narrowWithTypeCheck(kind, VALIDATED_CLASS);
+    if (kind == null) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Cannot narrow null Kind2 for Validated");
+    }
+    if (!(kind instanceof Validated<?, ?>)) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Kind2 instance cannot be narrowed to Validated (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
+    }
+    return (Validated<E, A>) kind;
   }
 }

@@ -122,12 +122,17 @@ public enum EitherKindHelper implements EitherConverterOps {
   @Override
   @SuppressWarnings("unchecked")
   public <L, R> Either<L, R> narrow2(@Nullable Kind2<EitherKind2.Witness, L, R> kind) {
-    return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            EITHER_CLASS,
-            EitherKind2Holder.class,
-            // Safe cast due to type erasure and holder validation
-            holder -> ((EitherKind2Holder<L, R>) holder).either());
+    if (kind == null) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Cannot narrow null Kind2 for Either");
+    }
+    if (!(kind instanceof EitherKind2Holder<?, ?>)) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Kind2 instance cannot be narrowed to Either (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
+    }
+    // Safe cast due to type erasure and holder validation
+    return ((EitherKind2Holder<L, R>) kind).either();
   }
 }

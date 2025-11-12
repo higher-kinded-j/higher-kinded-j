@@ -62,12 +62,17 @@ public enum Tuple2KindHelper {
    */
   @SuppressWarnings("unchecked")
   public <A, B> Tuple2<A, B> narrow2(@Nullable Kind2<Tuple2Kind2.Witness, A, B> kind) {
-    return Validation.kind()
-        .narrowWithPattern(
-            kind,
-            TUPLE2_CLASS,
-            Tuple2Kind2Holder.class,
-            // Safe cast due to type erasure and holder validation
-            holder -> ((Tuple2Kind2Holder<A, B>) holder).tuple());
+    if (kind == null) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Cannot narrow null Kind2 for Tuple2");
+    }
+    if (!(kind instanceof Tuple2Kind2Holder<?, ?>)) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Kind2 instance cannot be narrowed to Tuple2 (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
+    }
+    // Safe cast due to type erasure and holder validation
+    return ((Tuple2Kind2Holder<A, B>) kind).tuple();
   }
 }

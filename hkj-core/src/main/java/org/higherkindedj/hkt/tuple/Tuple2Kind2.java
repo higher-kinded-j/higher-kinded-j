@@ -3,33 +3,30 @@
 package org.higherkindedj.hkt.tuple;
 
 import org.higherkindedj.hkt.Kind2;
-import org.jspecify.annotations.NullMarked;
 
 /**
- * Wrapper for {@link Tuple2} to work with the {@link Kind2} system for bifunctor operations.
+ * Kind2 interface marker for {@link Tuple2 Tuple2&lt;A, B&gt;} in Higher-Kinded-J.
  *
- * <p>This representation treats {@link Tuple2} as a type constructor with two type parameters,
- * both of which can vary. This enables bifunctor operations where both the first and second
- * elements can be transformed independently.
+ * <p>This interface, along with its nested {@link Witness} class, allows {@link Tuple2} to be
+ * treated abstractly in contexts requiring higher-kinded types (HKTs) with two type parameters.
+ *
+ * <p>This representation treats {@link Tuple2} as a type constructor with two type parameters, both
+ * of which can vary. This enables bifunctor operations where both the first and second elements can
+ * be transformed independently.
  *
  * @param <A> The type of the first element
  * @param <B> The type of the second element
  * @see Tuple2
  * @see org.higherkindedj.hkt.Bifunctor
  */
-@NullMarked
-public final class Tuple2Kind2<A, B> implements Kind2<Tuple2Kind2.Witness, A, B> {
+public interface Tuple2Kind2<A, B> extends Kind2<Tuple2Kind2.Witness, A, B> {
 
-  /** Witness type for the Tuple2 type constructor when used as a bifunctor. */
-  public static final class Witness {}
-
-  private final Tuple2<A, B> tuple;
-
-  Tuple2Kind2(Tuple2<A, B> tuple) {
-    this.tuple = tuple;
-  }
-
-  Tuple2<A, B> getTuple() {
-    return tuple;
+  /**
+   * The phantom type marker (witness type) for the {@code Tuple2<?, ?>} type constructor. This
+   * non-instantiable class acts as a tag to represent the {@code Tuple2} type constructor for
+   * bifunctor operations.
+   */
+  final class Witness {
+    private Witness() {} // Private constructor to prevent instantiation.
   }
 }

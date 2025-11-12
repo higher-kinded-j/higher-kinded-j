@@ -3,10 +3,12 @@
 package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind2;
-import org.jspecify.annotations.NullMarked;
 
 /**
- * Wrapper for {@link Either} to work with the {@link Kind2} system for bifunctor operations.
+ * Kind2 interface marker for {@link Either Either&lt;L, R&gt;} in Higher-Kinded-J.
+ *
+ * <p>This interface, along with its nested {@link Witness} class, allows {@link Either} to be
+ * treated abstractly in contexts requiring higher-kinded types (HKTs) with two type parameters.
  *
  * <p>This representation treats {@link Either} as a type constructor with two type parameters, both
  * of which can vary. This enables bifunctor operations where both the left (error) and right
@@ -21,19 +23,14 @@ import org.jspecify.annotations.NullMarked;
  * @see EitherKind
  * @see org.higherkindedj.hkt.Bifunctor
  */
-@NullMarked
-public final class EitherKind2<L, R> implements Kind2<EitherKind2.Witness, L, R> {
+public interface EitherKind2<L, R> extends Kind2<EitherKind2.Witness, L, R> {
 
-  /** Witness type for the Either type constructor when used as a bifunctor. */
-  public static final class Witness {}
-
-  private final Either<L, R> either;
-
-  EitherKind2(Either<L, R> either) {
-    this.either = either;
-  }
-
-  Either<L, R> getEither() {
-    return either;
+  /**
+   * The phantom type marker (witness type) for the {@code Either<?, ?>} type constructor. This
+   * non-instantiable class acts as a tag to represent the {@code Either} type constructor for
+   * bifunctor operations.
+   */
+  final class Witness {
+    private Witness() {} // Private constructor to prevent instantiation.
   }
 }
