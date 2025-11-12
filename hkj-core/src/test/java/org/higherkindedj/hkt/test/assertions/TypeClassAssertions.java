@@ -825,33 +825,33 @@ public final class TypeClassAssertions {
 
   private static void assertBimapFirstMapperNull(
       Runnable operation, String paramName, Class<?> contextClass) {
-    assertMapperNull(operation, paramName, contextClass, BIMAP);
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, BIMAP);
   }
 
   private static void assertBimapSecondMapperNull(
       Runnable operation, String paramName, Class<?> contextClass) {
-    assertMapperNull(operation, paramName, contextClass, BIMAP);
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, BIMAP);
   }
 
   private static void assertBimapKindNull(Runnable operation, Class<?> contextClass) {
-    assertKindNull(operation, contextClass, BIMAP);
+    KindAssertions.assertKindNull(operation::run, contextClass, BIMAP);
   }
 
   private static void assertFirstMapperNull(
       Runnable operation, String paramName, Class<?> contextClass) {
-    assertMapperNull(operation, paramName, contextClass, FIRST);
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, FIRST);
   }
 
   private static void assertFirstKindNull(Runnable operation, Class<?> contextClass) {
-    assertKindNull(operation, contextClass, FIRST);
+    KindAssertions.assertKindNull(operation::run, contextClass, FIRST);
   }
 
   private static void assertSecondMapperNull(
       Runnable operation, String paramName, Class<?> contextClass) {
-    assertMapperNull(operation, paramName, contextClass, SECOND);
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, SECOND);
   }
 
   private static void assertSecondKindNull(Runnable operation, Class<?> contextClass) {
-    assertKindNull(operation, contextClass, SECOND);
+    KindAssertions.assertKindNull(operation::run, contextClass, SECOND);
   }
 }
