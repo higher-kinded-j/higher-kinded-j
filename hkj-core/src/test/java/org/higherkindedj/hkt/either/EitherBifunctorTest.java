@@ -34,6 +34,10 @@ class EitherBifunctorTest {
     void runCompleteBifunctorTestPattern() {
       Kind2<EitherKind2.Witness, String, Integer> validEither =
           EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> leftEither =
+          EITHER.widen2(Either.left("error"));
+      Kind2<EitherKind2.Witness, String, Integer> rightEither =
+          EITHER.widen2(Either.right(42));
       Function<String, Integer> firstMapper = String::length;
       Function<Integer, String> secondMapper = n -> "Value:" + n;
       Function<Integer, String> compositionFirstMapper = i -> "#" + i;
@@ -49,6 +53,8 @@ class EitherBifunctorTest {
           .withCompositionFirstMapper(compositionFirstMapper)
           .withCompositionSecondMapper(compositionSecondMapper)
           .withEqualityChecker(equalityChecker)
+          .withFirstExceptionKind(leftEither)
+          .withSecondExceptionKind(rightEither)
           .testAll();
     }
   }

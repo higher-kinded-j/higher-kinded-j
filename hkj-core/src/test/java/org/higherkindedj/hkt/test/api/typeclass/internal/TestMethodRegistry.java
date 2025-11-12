@@ -385,8 +385,11 @@ public final class TestMethodRegistry {
       Bifunctor<F> bifunctor,
       Kind2<F, A, B> validKind,
       Function<A, C> firstMapper,
-      Function<B, D> secondMapper) {
-    TypeClassTestPattern.testBifunctorExceptionPropagation(bifunctor, validKind);
+      Function<B, D> secondMapper,
+      Kind2<F, A, B> firstExceptionKind,
+      Kind2<F, A, B> secondExceptionKind) {
+    TypeClassTestPattern.testBifunctorExceptionPropagation(
+        bifunctor, validKind, firstExceptionKind, secondExceptionKind);
   }
 
   public static <F, A, B, C, D, E> void testBifunctorLaws(

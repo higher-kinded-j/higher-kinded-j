@@ -52,7 +52,13 @@ final class BifunctorTestExecutor<F, A, B, C, D> {
 
   void executeExceptions() {
     TestMethodRegistry.testBifunctorExceptionPropagation(
-        config.contextClass, config.bifunctor, config.validKind, config.firstMapper, config.secondMapper);
+        config.contextClass,
+        config.bifunctor,
+        config.validKind,
+        config.firstMapper,
+        config.secondMapper,
+        config.firstExceptionKind,
+        config.secondExceptionKind);
   }
 
   void executeLaws() {

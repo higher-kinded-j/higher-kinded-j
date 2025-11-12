@@ -838,7 +838,10 @@ public final class TypeClassTestPattern {
   }
 
   public static <F, A, B> void testBifunctorExceptionPropagation(
-      Bifunctor<F> bifunctor, Kind2<F, A, B> validKind) {
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Kind2<F, A, B> firstExceptionKind,
+      Kind2<F, A, B> secondExceptionKind) {
 
     RuntimeException testException = createTestException("bifunctor test");
     Function<A, String> throwingFirstMapper =
@@ -850,19 +853,25 @@ public final class TypeClassTestPattern {
           throw testException;
         };
 
-    assertThatThrownBy(() -> bifunctor.bimap(throwingFirstMapper, b -> "ok", validKind))
+    // Use firstExceptionKind if provided, otherwise fall back to validKind
+    Kind2<F, A, B> kindForFirstTest = firstExceptionKind != null ? firstExceptionKind : validKind;
+    // Use secondExceptionKind if provided, otherwise fall back to validKind
+    Kind2<F, A, B> kindForSecondTest =
+        secondExceptionKind != null ? secondExceptionKind : validKind;
+
+    assertThatThrownBy(() -> bifunctor.bimap(throwingFirstMapper, b -> "ok", kindForFirstTest))
         .as("bimap should propagate first function exceptions")
         .isSameAs(testException);
 
-    assertThatThrownBy(() -> bifunctor.bimap(a -> "ok", throwingSecondMapper, validKind))
+    assertThatThrownBy(() -> bifunctor.bimap(a -> "ok", throwingSecondMapper, kindForSecondTest))
         .as("bimap should propagate second function exceptions")
         .isSameAs(testException);
 
-    assertThatThrownBy(() -> bifunctor.first(throwingFirstMapper, validKind))
+    assertThatThrownBy(() -> bifunctor.first(throwingFirstMapper, kindForFirstTest))
         .as("first should propagate function exceptions")
         .isSameAs(testException);
 
-    assertThatThrownBy(() -> bifunctor.second(throwingSecondMapper, validKind))
+    assertThatThrownBy(() -> bifunctor.second(throwingSecondMapper, kindForSecondTest))
         .as("second should propagate function exceptions")
         .isSameAs(testException);
   }

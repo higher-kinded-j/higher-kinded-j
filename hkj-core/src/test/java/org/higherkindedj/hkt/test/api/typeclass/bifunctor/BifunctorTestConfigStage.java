@@ -28,6 +28,8 @@ public final class BifunctorTestConfigStage<F, A, B, C, D> {
   Function<C, String> compositionFirstMapper;
   Function<D, String> compositionSecondMapper;
   BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker;
+  Kind2<F, A, B> firstExceptionKind;
+  Kind2<F, A, B> secondExceptionKind;
 
   // Test inclusion flags
   boolean includeOperations = true;
@@ -81,6 +83,36 @@ public final class BifunctorTestConfigStage<F, A, B, C, D> {
   public BifunctorTestConfigStage<F, A, B, C, D> withEqualityChecker(
       BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
     this.equalityChecker = equalityChecker;
+    return this;
+  }
+
+  /**
+   * Provides a Kind2 instance to use for testing first mapper exception propagation.
+   *
+   * <p>For sum-type bifunctors (like Either or Validated), this should be an instance where the
+   * first/left value is present, so the first mapper will be applied.
+   *
+   * @param firstExceptionKind Kind2 instance for first mapper exception testing
+   * @return This configuration stage for chaining
+   */
+  public BifunctorTestConfigStage<F, A, B, C, D> withFirstExceptionKind(
+      Kind2<F, A, B> firstExceptionKind) {
+    this.firstExceptionKind = firstExceptionKind;
+    return this;
+  }
+
+  /**
+   * Provides a Kind2 instance to use for testing second mapper exception propagation.
+   *
+   * <p>For sum-type bifunctors (like Either or Validated), this should be an instance where the
+   * second/right value is present, so the second mapper will be applied.
+   *
+   * @param secondExceptionKind Kind2 instance for second mapper exception testing
+   * @return This configuration stage for chaining
+   */
+  public BifunctorTestConfigStage<F, A, B, C, D> withSecondExceptionKind(
+      Kind2<F, A, B> secondExceptionKind) {
+    this.secondExceptionKind = secondExceptionKind;
     return this;
   }
 

@@ -34,6 +34,10 @@ class ValidatedBifunctorTest {
     void runCompleteBifunctorTestPattern() {
       Kind2<ValidatedKind2.Witness, String, Integer> validValidated =
           VALIDATED.widen2(Validated.valid(42));
+      Kind2<ValidatedKind2.Witness, String, Integer> invalidValidated =
+          VALIDATED.widen2(Validated.invalid("error"));
+      Kind2<ValidatedKind2.Witness, String, Integer> validValidated2 =
+          VALIDATED.widen2(Validated.valid(42));
       Function<String, Integer> firstMapper = String::length;
       Function<Integer, String> secondMapper = n -> "Value:" + n;
       Function<Integer, String> compositionFirstMapper = i -> "#" + i;
@@ -49,6 +53,8 @@ class ValidatedBifunctorTest {
           .withCompositionFirstMapper(compositionFirstMapper)
           .withCompositionSecondMapper(compositionSecondMapper)
           .withEqualityChecker(equalityChecker)
+          .withFirstExceptionKind(invalidValidated)
+          .withSecondExceptionKind(validValidated2)
           .testAll();
     }
   }
