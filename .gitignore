@@ -44,6 +44,8 @@ bin/
 /.idea/
 
 
+hkj-core/.jqwik-database
+
 /hkj-book/mdbook-admonish.css
 /hkj-book/src/CODE_OF_CONDUCT.md
 /hkj-book/src/CONTRIBUTING.md
