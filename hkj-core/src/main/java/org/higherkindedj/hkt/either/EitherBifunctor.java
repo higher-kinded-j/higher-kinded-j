@@ -3,10 +3,12 @@
 package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -40,8 +42,36 @@ public class EitherBifunctor implements Bifunctor<EitherKind2.Witness> {
       Function<? super B, ? extends D> g,
       Kind2<EitherKind2.Witness, A, B> fab) {
 
+    Validation.function().requireMapper(f, "f", EitherBifunctor.class, BIMAP);
+    Validation.function().requireMapper(g, "g", EitherBifunctor.class, BIMAP);
+    Validation.kind().requireNonNull(fab, EitherBifunctor.class, BIMAP);
+
     Either<A, B> either = EITHER.narrow2(fab);
     Either<C, D> result = either.bimap(f, g);
+    return EITHER.widen2(result);
+  }
+
+  @Override
+  public <A, B, C> Kind2<EitherKind2.Witness, C, B> first(
+      Function<? super A, ? extends C> f, Kind2<EitherKind2.Witness, A, B> fab) {
+
+    Validation.function().requireMapper(f, "f", EitherBifunctor.class, FIRST);
+    Validation.kind().requireNonNull(fab, EitherBifunctor.class, FIRST);
+
+    Either<A, B> either = EITHER.narrow2(fab);
+    Either<C, B> result = either.mapLeft(f);
+    return EITHER.widen2(result);
+  }
+
+  @Override
+  public <A, B, D> Kind2<EitherKind2.Witness, A, D> second(
+      Function<? super B, ? extends D> g, Kind2<EitherKind2.Witness, A, B> fab) {
+
+    Validation.function().requireMapper(g, "g", EitherBifunctor.class, SECOND);
+    Validation.kind().requireNonNull(fab, EitherBifunctor.class, SECOND);
+
+    Either<A, B> either = EITHER.narrow2(fab);
+    Either<A, D> result = either.mapRight(g);
     return EITHER.widen2(result);
   }
 }

@@ -3,10 +3,12 @@
 package org.higherkindedj.hkt.tuple;
 
 import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -41,8 +43,36 @@ public class Tuple2Bifunctor implements Bifunctor<Tuple2Kind2.Witness> {
       Function<? super B, ? extends D> g,
       Kind2<Tuple2Kind2.Witness, A, B> fab) {
 
+    Validation.function().requireMapper(f, "f", Tuple2Bifunctor.class, BIMAP);
+    Validation.function().requireMapper(g, "g", Tuple2Bifunctor.class, BIMAP);
+    Validation.kind().requireNonNull(fab, Tuple2Bifunctor.class, BIMAP);
+
     Tuple2<A, B> tuple = TUPLE2.narrow2(fab);
     Tuple2<C, D> result = tuple.bimap(f, g);
+    return TUPLE2.widen2(result);
+  }
+
+  @Override
+  public <A, B, C> Kind2<Tuple2Kind2.Witness, C, B> first(
+      Function<? super A, ? extends C> f, Kind2<Tuple2Kind2.Witness, A, B> fab) {
+
+    Validation.function().requireMapper(f, "f", Tuple2Bifunctor.class, FIRST);
+    Validation.kind().requireNonNull(fab, Tuple2Bifunctor.class, FIRST);
+
+    Tuple2<A, B> tuple = TUPLE2.narrow2(fab);
+    Tuple2<C, B> result = tuple.mapFirst(f);
+    return TUPLE2.widen2(result);
+  }
+
+  @Override
+  public <A, B, D> Kind2<Tuple2Kind2.Witness, A, D> second(
+      Function<? super B, ? extends D> g, Kind2<Tuple2Kind2.Witness, A, B> fab) {
+
+    Validation.function().requireMapper(g, "g", Tuple2Bifunctor.class, SECOND);
+    Validation.kind().requireNonNull(fab, Tuple2Bifunctor.class, SECOND);
+
+    Tuple2<A, B> tuple = TUPLE2.narrow2(fab);
+    Tuple2<A, D> result = tuple.mapSecond(g);
     return TUPLE2.widen2(result);
   }
 }
