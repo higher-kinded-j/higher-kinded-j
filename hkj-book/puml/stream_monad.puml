@@ -1,0 +1,52 @@
+@startuml stream_monad
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+hide empty members
+
+
+interface "Kind<F, A>" as Kind
+interface "Functor<F>" as Functor
+interface "Applicative<F>" as Applicative
+interface "Monad<M>" as MonadBase
+interface "MonadZero<M>" as MonadZero
+interface "Traverse<T>" as Traverse
+interface "Foldable<T>" as Foldable
+
+interface "StreamKind<A>" as StreamKindBase << (L,orchid) >> {
+  ' Witness type for Stream
+}
+
+class "StreamKindHelper" as StreamKindHelper << (H,grey) >> {
+}
+note right of StreamKindHelper
+  Contains internal 'StreamHolder<A> record'
+  which implements StreamKind<A>.
+  `record StreamHolder<A>(Stream<A> stream) implements StreamKind<A> {}`
+end note
+
+class "StreamFunctor" as StreamFunctorImpl {
+}
+class "StreamMonad" as StreamMonadImpl {
+}
+class "StreamTraverse" as StreamTraverseImpl {
+}
+
+MonadZero --|> MonadBase
+MonadBase --|> Applicative
+Applicative --|> Functor
+Functor --|> Kind : (logically, Kind is the base for HKTs)
+Traverse --|> Functor
+Traverse --|> Foldable
+
+StreamKindBase --|> Kind : <StreamKind<Witness, A>
+
+StreamFunctorImpl ..|> Functor : <StreamKind.Witness>
+StreamMonadImpl ..|> MonadZero : <StreamKind.Witness>
+StreamTraverseImpl ..|> Traverse : <StreamKind.Witness>
+
+StreamMonadImpl ..> StreamKindHelper : uses for widen / narrow
+StreamFunctorImpl ..> StreamKindHelper : uses for widen / narrow
+StreamTraverseImpl ..> StreamKindHelper : uses for widen / narrow
+
+
+@enduml
