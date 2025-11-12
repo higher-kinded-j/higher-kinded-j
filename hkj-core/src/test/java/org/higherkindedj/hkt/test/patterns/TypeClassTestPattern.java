@@ -802,4 +802,87 @@ public final class TypeClassTestPattern {
     testTraverseExceptionPropagation(traverse, validKind, validApplicative, validMonoid);
     testTraverseLaws(traverse, validApplicative, validKind, validTraverseFunction, equalityChecker);
   }
+
+  // =============================================================================
+  // BIFUNCTOR TESTING
+  // =============================================================================
+
+  public static <F, A, B, C, D> void testBifunctorOperations(
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> firstMapper,
+      Function<B, D> secondMapper) {
+
+    assertThat(bifunctor.bimap(firstMapper, secondMapper, validKind))
+        .as("bimap should return non-null result")
+        .isNotNull();
+
+    assertThat(bifunctor.first(firstMapper, validKind))
+        .as("first should return non-null result")
+        .isNotNull();
+
+    assertThat(bifunctor.second(secondMapper, validKind))
+        .as("second should return non-null result")
+        .isNotNull();
+  }
+
+  public static <F, A, B, C, D> void testBifunctorValidations(
+      Bifunctor<F> bifunctor,
+      Class<?> contextClass,
+      Kind2<F, A, B> validKind,
+      Function<A, C> firstMapper,
+      Function<B, D> secondMapper) {
+
+    TypeClassAssertions.assertAllBifunctorOperations(
+        bifunctor, contextClass, validKind, firstMapper, secondMapper);
+  }
+
+  public static <F, A, B> void testBifunctorExceptionPropagation(
+      Bifunctor<F> bifunctor, Kind2<F, A, B> validKind) {
+
+    RuntimeException testException = createTestException("bifunctor test");
+    Function<A, String> throwingFirstMapper =
+        a -> {
+          throw testException;
+        };
+    Function<B, String> throwingSecondMapper =
+        b -> {
+          throw testException;
+        };
+
+    assertThatThrownBy(() -> bifunctor.bimap(throwingFirstMapper, b -> "ok", validKind))
+        .as("bimap should propagate first function exceptions")
+        .isSameAs(testException);
+
+    assertThatThrownBy(() -> bifunctor.bimap(a -> "ok", throwingSecondMapper, validKind))
+        .as("bimap should propagate second function exceptions")
+        .isSameAs(testException);
+
+    assertThatThrownBy(() -> bifunctor.first(throwingFirstMapper, validKind))
+        .as("first should propagate function exceptions")
+        .isSameAs(testException);
+
+    assertThatThrownBy(() -> bifunctor.second(throwingSecondMapper, validKind))
+        .as("second should propagate function exceptions")
+        .isSameAs(testException);
+  }
+
+  /**
+   * Tests Bifunctor laws by delegating to granular law methods in LawTestPattern.
+   *
+   * <p>This method tests the Identity and Composition laws without performing validation tests.
+   */
+  public static <F, A, B, C, D, E> void testBifunctorLaws(
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> f1,
+      Function<B, D> g1,
+      Function<C, E> f2,
+      Function<D, E> g2,
+      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+
+    // Delegate to LawTestPattern - tests only algebraic laws
+    LawTestPattern.testBifunctorIdentityLaw(bifunctor, validKind, equalityChecker);
+    LawTestPattern.testBifunctorCompositionLaw(bifunctor, validKind, f1, f2, g1, g2, equalityChecker);
+  }
 }
