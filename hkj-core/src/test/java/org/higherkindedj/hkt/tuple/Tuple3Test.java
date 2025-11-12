@@ -260,4 +260,53 @@ class Tuple3Test {
       assertThat(result).contains("Alice", "30", "true");
     }
   }
+
+  @Nested
+  @DisplayName("Immutability and Mapper Execution")
+  class ImmutabilityAndMapperExecution {
+
+    @Test
+    @DisplayName("Mapping operations do not modify original tuple")
+    void mappingDoesNotModifyOriginal() {
+      Tuple3<String, Integer, Boolean> original = new Tuple3<>("Alice", 30, true);
+
+      original.map(String::toUpperCase, n -> n * 2, b -> !b);
+      original.mapFirst(String::toUpperCase);
+      original.mapSecond(n -> n * 2);
+      original.mapThird(b -> !b);
+
+      // Original should be unchanged
+      assertThat(original._1()).isEqualTo("Alice");
+      assertThat(original._2()).isEqualTo(30);
+      assertThat(original._3()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Mapper functions are actually executed")
+    void mapperFunctionsExecuted() {
+      final boolean[] firstMapperCalled = {false};
+      final boolean[] secondMapperCalled = {false};
+      final boolean[] thirdMapperCalled = {false};
+
+      Tuple3<String, Integer, Boolean> tuple = new Tuple3<>("test", 10, true);
+
+      tuple.map(
+          s -> {
+            firstMapperCalled[0] = true;
+            return s.length();
+          },
+          i -> {
+            secondMapperCalled[0] = true;
+            return i.toString();
+          },
+          b -> {
+            thirdMapperCalled[0] = true;
+            return b.toString();
+          });
+
+      assertThat(firstMapperCalled[0]).isTrue();
+      assertThat(secondMapperCalled[0]).isTrue();
+      assertThat(thirdMapperCalled[0]).isTrue();
+    }
+  }
 }

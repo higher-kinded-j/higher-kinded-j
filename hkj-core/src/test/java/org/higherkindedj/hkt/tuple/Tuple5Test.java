@@ -462,4 +462,71 @@ class Tuple5Test {
       assertThat(result).contains("Alice", "30", "true", "5.5", "A");
     }
   }
+
+  @Nested
+  @DisplayName("Immutability and Mapper Execution")
+  class ImmutabilityAndMapperExecution {
+
+    @Test
+    @DisplayName("Mapping operations do not modify original tuple")
+    void mappingDoesNotModifyOriginal() {
+      Tuple5<String, Integer, Boolean, Double, Character> original =
+          new Tuple5<>("Alice", 30, true, 5.5, 'A');
+
+      original.map(String::toUpperCase, n -> n * 2, b -> !b, d -> d * 2, Character::toLowerCase);
+      original.mapFirst(String::toUpperCase);
+      original.mapSecond(n -> n * 2);
+      original.mapThird(b -> !b);
+      original.mapFourth(d -> d * 2);
+      original.mapFifth(Character::toLowerCase);
+
+      // Original should be unchanged
+      assertThat(original._1()).isEqualTo("Alice");
+      assertThat(original._2()).isEqualTo(30);
+      assertThat(original._3()).isTrue();
+      assertThat(original._4()).isEqualTo(5.5);
+      assertThat(original._5()).isEqualTo('A');
+    }
+
+    @Test
+    @DisplayName("Mapper functions are actually executed")
+    void mapperFunctionsExecuted() {
+      final boolean[] firstMapperCalled = {false};
+      final boolean[] secondMapperCalled = {false};
+      final boolean[] thirdMapperCalled = {false};
+      final boolean[] fourthMapperCalled = {false};
+      final boolean[] fifthMapperCalled = {false};
+
+      Tuple5<String, Integer, Boolean, Double, Character> tuple =
+          new Tuple5<>("test", 10, true, 3.14, 'X');
+
+      tuple.map(
+          s -> {
+            firstMapperCalled[0] = true;
+            return s.length();
+          },
+          i -> {
+            secondMapperCalled[0] = true;
+            return i.toString();
+          },
+          b -> {
+            thirdMapperCalled[0] = true;
+            return b.toString();
+          },
+          d -> {
+            fourthMapperCalled[0] = true;
+            return d.intValue();
+          },
+          c -> {
+            fifthMapperCalled[0] = true;
+            return c.toString();
+          });
+
+      assertThat(firstMapperCalled[0]).isTrue();
+      assertThat(secondMapperCalled[0]).isTrue();
+      assertThat(thirdMapperCalled[0]).isTrue();
+      assertThat(fourthMapperCalled[0]).isTrue();
+      assertThat(fifthMapperCalled[0]).isTrue();
+    }
+  }
 }

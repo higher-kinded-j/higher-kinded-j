@@ -334,4 +334,61 @@ class Tuple4Test {
       assertThat(result).contains("Alice", "30", "true", "5.5");
     }
   }
+
+  @Nested
+  @DisplayName("Immutability and Mapper Execution")
+  class ImmutabilityAndMapperExecution {
+
+    @Test
+    @DisplayName("Mapping operations do not modify original tuple")
+    void mappingDoesNotModifyOriginal() {
+      Tuple4<String, Integer, Boolean, Double> original = new Tuple4<>("Alice", 30, true, 5.5);
+
+      original.map(String::toUpperCase, n -> n * 2, b -> !b, d -> d * 2);
+      original.mapFirst(String::toUpperCase);
+      original.mapSecond(n -> n * 2);
+      original.mapThird(b -> !b);
+      original.mapFourth(d -> d * 2);
+
+      // Original should be unchanged
+      assertThat(original._1()).isEqualTo("Alice");
+      assertThat(original._2()).isEqualTo(30);
+      assertThat(original._3()).isTrue();
+      assertThat(original._4()).isEqualTo(5.5);
+    }
+
+    @Test
+    @DisplayName("Mapper functions are actually executed")
+    void mapperFunctionsExecuted() {
+      final boolean[] firstMapperCalled = {false};
+      final boolean[] secondMapperCalled = {false};
+      final boolean[] thirdMapperCalled = {false};
+      final boolean[] fourthMapperCalled = {false};
+
+      Tuple4<String, Integer, Boolean, Double> tuple = new Tuple4<>("test", 10, true, 3.14);
+
+      tuple.map(
+          s -> {
+            firstMapperCalled[0] = true;
+            return s.length();
+          },
+          i -> {
+            secondMapperCalled[0] = true;
+            return i.toString();
+          },
+          b -> {
+            thirdMapperCalled[0] = true;
+            return b.toString();
+          },
+          d -> {
+            fourthMapperCalled[0] = true;
+            return d.intValue();
+          });
+
+      assertThat(firstMapperCalled[0]).isTrue();
+      assertThat(secondMapperCalled[0]).isTrue();
+      assertThat(thirdMapperCalled[0]).isTrue();
+      assertThat(fourthMapperCalled[0]).isTrue();
+    }
+  }
 }
