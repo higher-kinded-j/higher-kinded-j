@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -675,5 +676,203 @@ class WriterKindHelperTest extends WriterTestBase {
     long duration = System.nanoTime() - start;
 
     assertThat(duration).isLessThan(100_000_000L);
+  }
+
+  @Nested
+  @DisplayName("narrow2() Method Specific Tests")
+  class Narrow2MethodTests {
+
+    @Test
+    @DisplayName("narrow2() successfully unwraps valid Kind2 for Writer with value")
+    void narrow2UnwrapsValidKind2ForValue() {
+      Writer<String, Integer> original = writerOf("TestLog;", 42);
+      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(original);
+
+      Writer<String, Integer> result = WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatWriter(result).hasLog("TestLog;").hasValue(42);
+    }
+
+    @Test
+    @DisplayName("narrow2() successfully unwraps valid Kind2 for Writer with empty log")
+    void narrow2UnwrapsValidKind2ForEmptyLog() {
+      Writer<String, Integer> original = valueWriter(42);
+      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(original);
+
+      Writer<String, Integer> result = WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatWriter(result).hasEmptyLog().hasValue(42);
+    }
+
+    @Test
+    @DisplayName("narrow2() successfully unwraps valid Kind2 for tell Writer")
+    void narrow2UnwrapsValidKind2ForTell() {
+      Writer<String, Unit> original = tellWriter("Important log");
+      Kind2<WriterKind2.Witness, String, Unit> kind2 = WRITER.widen2(original);
+
+      Writer<String, Unit> result = WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatWriter(result).hasLog("Important log").hasValue(Unit.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("narrow2() throws KindUnwrapException when Kind2 is null")
+    void narrow2ThrowsWhenKind2Null() {
+      assertThatThrownBy(() -> WRITER.narrow2(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind2 for Writer");
+    }
+
+    @Test
+    @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
+    void narrow2ThrowsWhenWrongKind2Type() {
+      // Create a Kind2 that is NOT a WriterKind2Holder
+      Kind2<WriterKind2.Witness, String, Integer> wrongKind =
+          new Kind2<WriterKind2.Witness, String, Integer>() {};
+
+      assertThatThrownBy(() -> WRITER.narrow2(wrongKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind2 instance cannot be narrowed to Writer")
+          .hasMessageContaining("received:");
+    }
+
+    @Test
+    @DisplayName("narrow2() round-trip preserves Writer with value")
+    void narrow2RoundTripPreservesValue() {
+      Writer<String, Integer> original = writerOf("RoundTrip;", 100);
+
+      Writer<String, Integer> result = WRITER.narrow2(WRITER.widen2(original));
+
+      assertThat(result).isEqualTo(original);
+      assertThatWriter(result).hasLog("RoundTrip;").hasValue(100);
+    }
+
+    @Test
+    @DisplayName("narrow2() round-trip preserves Writer with empty log")
+    void narrow2RoundTripPreservesEmptyLog() {
+      Writer<String, Integer> original = valueWriter(99);
+
+      Writer<String, Integer> result = WRITER.narrow2(WRITER.widen2(original));
+
+      assertThat(result).isEqualTo(original);
+      assertThatWriter(result).hasEmptyLog().hasValue(99);
+    }
+
+    @Test
+    @DisplayName("narrow2() preserves null value")
+    void narrow2PreservesNullValue() {
+      Writer<String, Integer> original = writerOf("NullVal;", null);
+      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(original);
+
+      Writer<String, Integer> result = WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatWriter(result).hasLog("NullVal;").hasNullValue();
+    }
+
+    @Test
+    @DisplayName("narrow2() preserves null value with empty log")
+    void narrow2PreservesNullValueWithEmptyLog() {
+      Writer<String, Integer> original = valueWriter(null);
+      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(original);
+
+      Writer<String, Integer> result = WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatWriter(result).hasEmptyLog().hasNullValue();
+    }
+
+    @Test
+    @DisplayName("narrow2() works with different type parameters")
+    void narrow2WorksWithDifferentTypes() {
+      Writer<List<String>, Integer> original = new Writer<>(List.of("log1", "log2"), 42);
+      Kind2<WriterKind2.Witness, List<String>, Integer> kind2 = WRITER.widen2(original);
+
+      Writer<List<String>, Integer> result = WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThat(result.log()).containsExactly("log1", "log2");
+      assertThat(result.value()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("narrow2() works with complex nested types")
+    void narrow2WorksWithComplexNestedTypes() {
+      Writer<String, List<Integer>> original = writerOf("ComplexLog;", List.of(1, 2, 3));
+      Kind2<WriterKind2.Witness, String, List<Integer>> kind2 = WRITER.widen2(original);
+
+      Writer<String, List<Integer>> result = WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThat(result.log()).isEqualTo("ComplexLog;");
+      assertThat(result.value()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("narrow2() multiple operations create independent results")
+    void narrow2MultipleOperationsCreateIndependentResults() {
+      Writer<String, Integer> writer1 = writerOf("First;", 10);
+      Writer<String, Integer> writer2 = writerOf("Second;", 20);
+
+      Kind2<WriterKind2.Witness, String, Integer> kind1 = WRITER.widen2(writer1);
+      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(writer2);
+
+      Writer<String, Integer> result1 = WRITER.narrow2(kind1);
+      Writer<String, Integer> result2 = WRITER.narrow2(kind2);
+
+      assertThat(result1).isNotSameAs(result2);
+      assertThatWriter(result1).hasLog("First;").hasValue(10);
+      assertThatWriter(result2).hasLog("Second;").hasValue(20);
+    }
+
+    @Test
+    @DisplayName("narrow2() is idempotent - multiple narrows of same Kind2")
+    void narrow2IsIdempotent() {
+      Writer<String, Integer> original = writerOf("Idempotent;", 42);
+      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(original);
+
+      Writer<String, Integer> result1 = WRITER.narrow2(kind2);
+      Writer<String, Integer> result2 = WRITER.narrow2(kind2);
+      Writer<String, Integer> result3 = WRITER.narrow2(kind2);
+
+      assertThat(result1).isEqualTo(original);
+      assertThat(result2).isEqualTo(original);
+      assertThat(result3).isEqualTo(original);
+      assertThat(result1).isEqualTo(result2).isEqualTo(result3);
+    }
+
+    @Test
+    @DisplayName("narrow2() error message includes actual type received")
+    void narrow2ErrorMessageIncludesActualType() {
+      Kind2<WriterKind2.Witness, String, Integer> wrongKind =
+          new Kind2<WriterKind2.Witness, String, Integer>() {};
+
+      assertThatThrownBy(() -> WRITER.narrow2(wrongKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind2 instance cannot be narrowed to Writer")
+          .hasMessageContaining("received:");
+    }
+
+    @Test
+    @DisplayName("narrow2() works with complex log types")
+    void narrow2WorksWithComplexLogTypes() {
+      record LogEntry(String message, int level) {}
+
+      List<LogEntry> log = List.of(new LogEntry("Error", 1), new LogEntry("Warning", 2));
+      Writer<List<LogEntry>, Integer> original = new Writer<>(log, 42);
+      Kind2<WriterKind2.Witness, List<LogEntry>, Integer> kind2 =
+          WriterKindHelper.WRITER.widen2(original);
+
+      Writer<List<LogEntry>, Integer> result = WriterKindHelper.WRITER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThat(result.log()).hasSize(2);
+      assertThat(result.log().get(0).message()).isEqualTo("Error");
+      assertThat(result.log().get(1).message()).isEqualTo("Warning");
+      assertThat(result.value()).isEqualTo(42);
+    }
   }
 }
