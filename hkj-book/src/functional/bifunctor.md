@@ -16,6 +16,10 @@ Whilst `Functor` lets us map over types with a single parameter like `F<A>`, man
 
 Unlike `Profunctor`, which is contravariant in the first parameter and covariant in the second (representing input/output relationships), `Bifunctor` is **covariant in both parameters**. This makes it perfect for types where both sides hold data that can be independently transformed.
 
+~~~admonish note
+New to variance terminology? See the [Glossary](../glossary.md) for detailed explanations of covariant, contravariant, and invariant with Java-focused examples.
+~~~
+
 ---
 
 ## What is a Bifunctor?

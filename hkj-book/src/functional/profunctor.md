@@ -16,6 +16,10 @@ So far, we've explored type classes that work with single type parameters—`Fun
 
 A **Profunctor** is a powerful abstraction for working with types that are **contravariant** in their first type parameter and **covariant** in their second. Think of it as a generalisation of how functions work: you can pre-process the input (contravariant) and post-process the output (covariant).
 
+~~~admonish note
+New to variance terminology? See the [Glossary](../glossary.md) for detailed explanations of covariant, contravariant, and invariant with Java-focused examples.
+~~~
+
 ---
 
 ## What is a Profunctor?

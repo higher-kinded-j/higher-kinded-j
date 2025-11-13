@@ -140,6 +140,46 @@ Kind<EitherKind.Witness<String>, Double> result =
 **Think Of It As:** try-catch for functional programming
 ~~~
 
+### Selective
+~~~admonish tip title="Selective Quick Reference"
+**Core Methods:**
+- `select(Kind<F,Choice<A,B>> fab, Kind<F,Function<A,B>> ff) -> Kind<F,B>` (conditional function application)
+- `whenS(Kind<F,Boolean> cond, Kind<F,Unit> effect) -> Kind<F,Unit>` (conditional effect)
+- `ifS(Kind<F,Boolean> cond, Kind<F,A> then, Kind<F,A> else) -> Kind<F,A>` (if-then-else)
+
+**Purpose:** Execute effects conditionally with static structure (all branches known upfront)
+
+**Use When:**
+- You need conditional effects but want static analysis
+- All possible branches should be visible at construction time
+- You want more power than Applicative but less than Monad
+- Building feature flags, conditional logging, or validation with alternatives
+
+**Key Insight:** Sits between Applicative and Monad - provides conditional effects without full dynamic choice
+
+**Common Patterns:**
+- Feature flag activation
+- Debug/production mode switching
+- Multi-source configuration fallback
+- Conditional validation
+
+**Example:**
+```java
+// Only log if debug flag is enabled
+Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
+
+Kind<IOKind.Witness, Boolean> debugEnabled =
+    IO_KIND.widen(IO.delay(() -> config.isDebug()));
+Kind<IOKind.Witness, Unit> logEffect =
+    IO_KIND.widen(IO.fromRunnable(() -> log.debug("Debug info")));
+
+Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEffect);
+// Log effect only executes if debugEnabled is true
+```
+
+**Think Of It As:** If-then-else for functional programming with compile-time visible branches
+~~~
+
 ## Data Combination Type Classes
 
 ### Semigroup
@@ -340,15 +380,17 @@ Kind2<FunctionKind.Witness, Integer, String> fullAdaptation =
 ~~~admonish warning title="Choosing the Right Type Class"
 **Start Simple, Go Complex:**
 1. **Functor** - Simple transformations, context unchanged
-2. **Applicative** - Combine independent computations  
-3. **Monad** - Chain dependent computations
-4. **MonadError** - Add error handling to Monad
-5. **Traverse** - Apply effects to collections
-6. **Profunctor** - Adapt inputs/outputs of functions
+2. **Applicative** - Combine independent computations
+3. **Selective** - Conditional effects with static structure
+4. **Monad** - Chain dependent computations
+5. **MonadError** - Add error handling to Monad
+6. **Traverse** - Apply effects to collections
+7. **Profunctor** - Adapt inputs/outputs of functions
 
 **Decision Tree:**
 - Need to transform values? → **Functor**
-- Need to combine independent operations? → **Applicative** 
+- Need to combine independent operations? → **Applicative**
+- Need conditional effects with static structure? → **Selective**
 - Need sequential dependent operations? → **Monad**
 - Need error recovery? → **MonadError**
 - Need to process collections with effects? → **Traverse**
@@ -361,6 +403,8 @@ Kind2<FunctionKind.Witness, Integer, String> fullAdaptation =
 - **Database operations:** Monad (dependent queries) + MonadError (failure handling)
 - **API integration:** Profunctor (adapt formats) + Monad (chain calls)
 - **Configuration:** Applicative (combine settings) + Reader (dependency injection)
+- **Conditional effects:** Selective (feature flags, debug mode) or Monad (dynamic choice)
+- **Configuration fallback:** Selective (try multiple sources with static branches)
 - **Logging:** Writer (accumulate logs) + Monad (sequence operations)
 - **State management:** State/StateT (thread state) + Monad (sequence updates)
 ~~~
@@ -372,6 +416,8 @@ Kind2<FunctionKind.Witness, Integer, String> fullAdaptation =
 Functor
     ↑
 Applicative ← Apply
+    ↑
+Selective
     ↑
    Monad
     ↑
@@ -387,16 +433,18 @@ Functor + Foldable
 
 (Two-parameter types)
 Profunctor
+Bifunctor
 ```
 
 **Inheritance Meaning:**
 - Every **Applicative** is also a **Functor**
-- Every **Monad** is also an **Applicative** (and therefore a **Functor**)
-- Every **MonadError** is also a **Monad** (and therefore **Applicative** and **Functor**)
+- Every **Selective** is also an **Applicative** (and therefore a **Functor**)
+- Every **Monad** is also a **Selective** (and therefore **Applicative** and **Functor**)
+- Every **MonadError** is also a **Monad** (and therefore **Selective**, **Applicative**, and **Functor**)
 - Every **Monoid** is also a **Semigroup**
 - Every **Traverse** provides both **Functor** and **Foldable** capabilities
 
-**Practical Implication:** If you have a `Monad<F>` instance, you can also use it as a `Functor<F>` or `Applicative<F>`.
+**Practical Implication:** If you have a `Monad<F>` instance, you can also use it as a `Selective<F>`, `Applicative<F>`, or `Functor<F>`.
 ~~~
 
 ## Common Monoid Instances

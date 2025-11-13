@@ -111,6 +111,10 @@ These type classes work with types that take two type parameters, such as functi
 
 A **`Profunctor`** is a type class for any type constructor `P<A, B>` that is contravariant in its first parameter and covariant in its second. This is the abstraction behind functions and many data transformation patterns.
 
+~~~admonish note
+New to variance terminology? See the [Glossary](../glossary.md) for detailed explanations of covariant, contravariant, and invariant with Java-focused examples.
+~~~
+
 * **Key Methods**:
   * `lmap(Function<C, A> f, Kind2<P, A, B> pab)`: Pre-process the input (contravariant mapping)
   * `rmap(Function<B, C> g, Kind2<P, A, B> pab)`: Post-process the output (covariant mapping)
@@ -124,6 +128,10 @@ Importantly, every optic in higher-kinded-j is fundamentally a profunctor. This 
 ### **`Bifunctor<F>`**
 
 A **`Bifunctor`** is a type class for any type constructor `F<A, B>` that is covariant in *both* its type parameters. Unlike `Profunctor`, which is contravariant in the first parameter, `Bifunctor` allows you to map over both sides independently or simultaneously.
+
+~~~admonish note
+New to variance terminology? See the [Glossary](../glossary.md) for detailed explanations of covariant, contravariant, and invariant with Java-focused examples.
+~~~
 
 * **Key Methods**:
   * `bimap(Function<A, C> f, Function<B, D> g, Kind2<F, A, B> fab)`: Transform both type parameters simultaneously
