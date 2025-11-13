@@ -16,15 +16,18 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * Represents the correct (Valid) case of a {@link Validated}. It holds a non-null value of type
  * {@code A}. This class is an immutable record.
  *
- * <p>As part of the HKT pattern, this class also implements {@link ValidatedKind}, allowing it to
- * be used with typeclasses expecting {@code Kind<ValidatedKind.Witness<E>, A>}.
+ * <p>As part of the HKT pattern, this class implements both {@link ValidatedKind} and {@link
+ * ValidatedKind2}, allowing it to be used with typeclasses expecting {@code
+ * Kind<ValidatedKind.Witness<E>, A>} (for functors/applicatives) or {@code
+ * Kind2<ValidatedKind2.Witness, E, A>} (for bifunctors).
  *
  * @param <E> The type of the potential error (unused in {@code Valid}, but part of the {@link
  *     Validated} contract).
  * @param <A> The type of the encapsulated value.
  * @param value The non-null value held by this {@code Valid} instance.
  */
-public record Valid<E, A>(A value) implements Validated<E, A>, ValidatedKind<E, A> {
+public record Valid<E, A>(A value)
+    implements Validated<E, A>, ValidatedKind<E, A>, ValidatedKind2<E, A> {
 
   private static final Class<Valid> VALID_CLASS = Valid.class;
 

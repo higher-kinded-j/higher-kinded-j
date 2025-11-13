@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.writer;
 import static org.higherkindedj.hkt.util.validation.Operation.TELL;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -33,6 +34,20 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   record WriterHolder<W, A>(Writer<W, A> writer) implements WriterKind<W, A> {
     WriterHolder {
+      Validation.kind().requireForWiden(writer, WRITER_CLASS);
+    }
+  }
+
+  /**
+   * Internal record implementing {@link WriterKind2 WriterKind2&lt;W, A&gt;} to hold the concrete
+   * {@link Writer Writer&lt;W, A&gt;} instance for bifunctor operations.
+   *
+   * @param <W> The log type.
+   * @param <A> The value type.
+   * @param writer The non-null {@link Writer Writer&lt;W, A&gt;} instance.
+   */
+  record WriterKind2Holder<W, A>(Writer<W, A> writer) implements WriterKind2<W, A> {
+    WriterKind2Holder {
       Validation.kind().requireForWiden(writer, WRITER_CLASS);
     }
   }
@@ -157,5 +172,51 @@ public enum WriterKindHelper implements WriterConverterOps {
    */
   public <W, A> W exec(Kind<WriterKind.Witness<W>, A> kind) {
     return this.narrow(kind).exec();
+  }
+
+  /**
+   * Widens a concrete {@link Writer Writer&lt;W, A&gt;} instance into its Kind2 representation,
+   * {@code Kind2<WriterKind2.Witness, W, A>}. Implements {@link WriterConverterOps#widen2}.
+   *
+   * @param <W> The type of the accumulated log/output.
+   * @param <A> The type of the computed value.
+   * @param writer The concrete {@link Writer Writer&lt;W, A&gt;} instance to widen. Must be
+   *     non-null.
+   * @return A {@code Kind2<WriterKind2.Witness, W, A>} representing the wrapped {@code Writer}.
+   *     Never null.
+   * @throws NullPointerException if {@code writer} is {@code null}.
+   */
+  @Override
+  public <W, A> Kind2<WriterKind2.Witness, W, A> widen2(Writer<W, A> writer) {
+    return new WriterKind2Holder<>(writer);
+  }
+
+  /**
+   * Narrows a {@code Kind2<WriterKind2.Witness, W, A>} back to its concrete {@link Writer
+   * Writer&lt;W, A&gt;} type. Implements {@link WriterConverterOps#narrow2}.
+   *
+   * @param <W> The type of the accumulated log/output.
+   * @param <A> The type of the computed value.
+   * @param kind The {@code Kind2<WriterKind2.Witness, W, A>} instance to narrow. May be {@code
+   *     null}.
+   * @return The underlying {@code Writer<W, A>} instance. Never null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null} or not a representation of a {@code Writer<W,A>}.
+   */
+  @Override
+  @SuppressWarnings("unchecked")
+  public <W, A> Writer<W, A> narrow2(@Nullable Kind2<WriterKind2.Witness, W, A> kind) {
+    if (kind == null) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Cannot narrow null Kind2 for Writer");
+    }
+    if (!(kind instanceof WriterKind2Holder<?, ?>)) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Kind2 instance cannot be narrowed to Writer (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
+    }
+    // Safe cast due to type erasure and holder validation
+    return ((WriterKind2Holder<W, A>) kind).writer();
   }
 }

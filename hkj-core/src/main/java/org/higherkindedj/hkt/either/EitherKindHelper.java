@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -29,6 +30,21 @@ public enum EitherKindHelper implements EitherConverterOps {
   record EitherHolder<L, R>(Either<L, R> either) implements EitherKind<L, R> {
 
     public EitherHolder {
+      Validation.kind().requireForWiden(either, EITHER_CLASS);
+    }
+  }
+
+  /**
+   * Internal record implementing {@link EitherKind2} to hold the concrete {@link Either} instance
+   * for bifunctor operations.
+   *
+   * @param <L> The type of the {@code Left} value.
+   * @param <R> The type of the {@code Right} value.
+   * @param either The non-null, actual {@link Either} instance.
+   */
+  record EitherKind2Holder<L, R>(Either<L, R> either) implements EitherKind2<L, R> {
+
+    public EitherKind2Holder {
       Validation.kind().requireForWiden(either, EITHER_CLASS);
     }
   }
@@ -73,5 +89,50 @@ public enum EitherKindHelper implements EitherConverterOps {
             EitherHolder.class,
             // Safe cast due to type erasure and holder validation
             holder -> ((EitherHolder<L, R>) holder).either());
+  }
+
+  /**
+   * Widens a concrete {@code Either<L, R>} instance into its Kind2 representation, {@code
+   * Kind2<EitherKind2.Witness, L, R>}. Implements {@link EitherConverterOps#widen2}.
+   *
+   * @param <L> The type of the "Left" value of the {@code Either}.
+   * @param <R> The type of the "Right" value of the {@code Either}.
+   * @param either The concrete {@code Either<L, R>} instance to widen. Must not be null.
+   * @return A {@code Kind2<EitherKind2.Witness, L, R>} representing the wrapped {@code Either}.
+   *     Never null.
+   * @throws NullPointerException if {@code either} is {@code null}.
+   */
+  @Override
+  public <L, R> Kind2<EitherKind2.Witness, L, R> widen2(Either<L, R> either) {
+    return new EitherKind2Holder<>(either);
+  }
+
+  /**
+   * Narrows a {@code Kind2<EitherKind2.Witness, L, R>} back to its concrete {@code Either<L, R>}
+   * type. Implements {@link EitherConverterOps#narrow2}.
+   *
+   * @param <L> The type of the "Left" value of the target {@code Either}.
+   * @param <R> The type of the "Right" value of the target {@code Either}.
+   * @param kind The {@code Kind2<EitherKind2.Witness, L, R>} instance to narrow. May be {@code
+   *     null}.
+   * @return The underlying {@code Either<L, R>} instance. Never null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null} or not a representation of an {@code Either<L,R>}.
+   */
+  @Override
+  @SuppressWarnings("unchecked")
+  public <L, R> Either<L, R> narrow2(@Nullable Kind2<EitherKind2.Witness, L, R> kind) {
+    if (kind == null) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Cannot narrow null Kind2 for Either");
+    }
+    if (!(kind instanceof EitherKind2Holder<?, ?>)) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Kind2 instance cannot be narrowed to Either (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
+    }
+    // Safe cast due to type erasure and holder validation
+    return ((EitherKind2Holder<L, R>) kind).either();
   }
 }

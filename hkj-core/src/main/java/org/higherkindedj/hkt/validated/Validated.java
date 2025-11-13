@@ -114,6 +114,90 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
   <B> Validated<E, B> map(Function<? super A, ? extends B> fn);
 
   /**
+   * Transforms both the error and value of this {@code Validated} using the provided mapping
+   * functions, producing a new {@code Validated} with potentially different types for both
+   * parameters.
+   *
+   * <p>This is the fundamental bifunctor operation for {@code Validated}, allowing simultaneous
+   * transformation of both the error channel (invalid) and success channel (valid). Exactly one of
+   * the two functions will be applied, depending on whether this is {@link Invalid} or {@link
+   * Valid}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Validated<String, Integer> success = Validated.valid(42);
+   * Validated<Exception, String> result1 = success.bimap(
+   *     Exception::new,           // Transform error - not applied
+   *     n -> "Value: " + n        // Transform value - applied
+   * );
+   * // result1 = Valid("Value: 42")
+   *
+   * Validated<String, Integer> failure = Validated.invalid("not found");
+   * Validated<Exception, String> result2 = failure.bimap(
+   *     Exception::new,           // Transform error - applied
+   *     n -> "Value: " + n        // Transform value - not applied
+   * );
+   * // result2 = Invalid(new Exception("not found"))
+   * }</pre>
+   *
+   * @param errorMapper The non-null function to apply to the error if this is {@link Invalid}.
+   * @param valueMapper The non-null function to apply to the value if this is {@link Valid}.
+   * @param <E2> The type of the error in the resulting {@code Validated}.
+   * @param <B> The type of the value in the resulting {@code Validated}.
+   * @return A new {@code Validated<E2, B>} with one value transformed according to the appropriate
+   *     mapper. The returned {@code Validated} will be non-null.
+   * @throws NullPointerException if either {@code errorMapper} or {@code valueMapper} is null.
+   */
+  default <E2, B> Validated<E2, B> bimap(
+      Function<? super E, ? extends E2> errorMapper, Function<? super A, ? extends B> valueMapper) {
+    Validation.function().requireMapper(errorMapper, "errorMapper", VALIDATED_CLASS, BIMAP);
+    Validation.function().requireMapper(valueMapper, "valueMapper", VALIDATED_CLASS, BIMAP);
+
+    return switch (this) {
+      case Invalid<E, A>(var error) -> Validated.invalid(errorMapper.apply(error));
+      case Valid<E, A>(var value) -> Validated.valid(valueMapper.apply(value));
+    };
+  }
+
+  /**
+   * Transforms only the error of this {@code Validated}, leaving the value unchanged if present.
+   *
+   * <p>This operation allows you to transform the error channel whilst preserving the success
+   * channel. It is useful for converting error types, enriching error messages, or mapping between
+   * different error representations.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Validated<String, Integer> failure = Validated.invalid("invalid input");
+   * Validated<Exception, Integer> result1 = failure.mapError(Exception::new);
+   * // result1 = Invalid(new Exception("invalid input"))
+   *
+   * Validated<String, Integer> success = Validated.valid(42);
+   * Validated<Exception, Integer> result2 = success.mapError(Exception::new);
+   * // result2 = Valid(42) - value unchanged
+   * }</pre>
+   *
+   * <p><b>Note:</b> This is equivalent to calling {@code bimap(errorMapper, Function.identity())}.
+   *
+   * @param errorMapper The non-null function to apply to the error if this is {@link Invalid}.
+   * @param <E2> The type of the error in the resulting {@code Validated}.
+   * @return A new {@code Validated<E2, A>} with the error transformed if this was {@link Invalid},
+   *     or the original value unchanged. The returned {@code Validated} will be non-null.
+   * @throws NullPointerException if {@code errorMapper} is null.
+   */
+  @SuppressWarnings("unchecked")
+  default <E2> Validated<E2, A> mapError(Function<? super E, ? extends E2> errorMapper) {
+    Validation.function().requireMapper(errorMapper, "errorMapper", VALIDATED_CLASS, MAP_ERROR);
+
+    return switch (this) {
+      case Invalid<E, A>(var error) -> Validated.invalid(errorMapper.apply(error));
+      case Valid<E, A> v -> (Validated<E2, A>) v; // Valid remains unchanged, cast is safe
+    };
+  }
+
+  /**
    * Applies the function {@code fn} if this is {@code Valid}, otherwise returns the {@code Invalid}
    * instance. This is the monadic bind operation.
    *

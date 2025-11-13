@@ -20,6 +20,7 @@
   - [MonadZero](functional/monad_zero.md)
   - [Selective](functional/selective.md)
   - [Profunctor](functional/profunctor.md)
+  - [Bifunctor](functional/bifunctor.md)
   - [For Comprehension](functional/for_comprehension.md)
 # Monads in Practice
 - [Supported Types](monads/supported-types.md)

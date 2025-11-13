@@ -355,4 +355,58 @@ public final class TestMethodRegistry {
     TypeClassTestPattern.testTraverseLaws(
         traverse, applicative, validKind, testFunction, equalityChecker);
   }
+
+  // =============================================================================
+  // Bifunctor Tests
+  // =============================================================================
+
+  public static <F, A, B, C, D> void testBifunctorOperations(
+      Class<?> contextClass,
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> firstMapper,
+      Function<B, D> secondMapper) {
+    TypeClassTestPattern.testBifunctorOperations(bifunctor, validKind, firstMapper, secondMapper);
+  }
+
+  public static <F, A, B, C, D> void testBifunctorValidations(
+      Class<?> contextClass,
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> firstMapper,
+      Function<B, D> secondMapper) {
+    TypeClassTestPattern.testBifunctorValidations(
+        bifunctor, contextClass, validKind, firstMapper, secondMapper);
+  }
+
+  public static <F, A, B, C, D> void testBifunctorExceptionPropagation(
+      Class<?> contextClass,
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> firstMapper,
+      Function<B, D> secondMapper,
+      Kind2<F, A, B> firstExceptionKind,
+      Kind2<F, A, B> secondExceptionKind) {
+    TypeClassTestPattern.testBifunctorExceptionPropagation(
+        bifunctor, validKind, firstExceptionKind, secondExceptionKind);
+  }
+
+  public static <F, A, B, C, D, E> void testBifunctorLaws(
+      Class<?> contextClass,
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> firstMapper,
+      Function<B, D> secondMapper,
+      Function<C, E> compositionFirstMapper,
+      Function<D, E> compositionSecondMapper,
+      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+    TypeClassTestPattern.testBifunctorLaws(
+        bifunctor,
+        validKind,
+        firstMapper,
+        secondMapper,
+        compositionFirstMapper,
+        compositionSecondMapper,
+        equalityChecker);
+  }
 }

@@ -120,3 +120,13 @@ A **`Profunctor`** is a type class for any type constructor `P<A, B>` that is co
 ### **Profunctors in Optics**
 
 Importantly, every optic in higher-kinded-j is fundamentally a profunctor. This means that `Lens`, `Prism`, `Iso`, and `Traversal` all support profunctor operations through their `contramap`, `map`, and `dimap` methods. This provides incredible flexibility for adapting optics to work with different data types and structures, making them highly reusable across different contexts and API boundaries.
+
+### **`Bifunctor<F>`**
+
+A **`Bifunctor`** is a type class for any type constructor `F<A, B>` that is covariant in *both* its type parameters. Unlike `Profunctor`, which is contravariant in the first parameter, `Bifunctor` allows you to map over both sides independently or simultaneously.
+
+* **Key Methods**:
+  * `bimap(Function<A, C> f, Function<B, D> g, Kind2<F, A, B> fab)`: Transform both type parameters simultaneously
+  * `first(Function<A, C> f, Kind2<F, A, B> fab)`: Map over only the first type parameter
+  * `second(Function<B, D> g, Kind2<F, A, B> fab)`: Map over only the second type parameter
+* **Use Case**: Essential for transforming both channels of sum types (like `Either<L, R>` or `Validated<E, A>`) or product types (like `Tuple2<A, B>` or `Writer<W, A>`), where both parameters hold data rather than representing input/output relationships. Perfect for API response transformation, validation pipelines, data migration, and error handling scenarios.

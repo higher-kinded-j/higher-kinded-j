@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -78,5 +79,48 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    */
   public <E, A> Kind<ValidatedKind.Witness<E>, A> invalid(E error) {
     return this.widen(Validated.invalid(error));
+  }
+
+  /**
+   * Widens a {@link Validated} to its {@link Kind2} representation. Implements {@link
+   * ValidatedConverterOps#widen2}.
+   *
+   * <p>The {@code @SuppressWarnings("unchecked")} is necessary because Java's type system doesn't
+   * fully capture that {@code Validated<E, A>} is inherently a {@code Kind2<ValidatedKind2.Witness,
+   * E, A>} in this HKT emulation. This cast is fundamental to the HKT pattern for {@code Validated}
+   * in this library.
+   *
+   * <p>Note: Like the Kind version, Validated doesn't use a holder because Valid and Invalid
+   * already implement ValidatedKind2 directly.
+   */
+  @Override
+  @SuppressWarnings("unchecked")
+  public <E, A> Kind2<ValidatedKind2.Witness, E, A> widen2(Validated<E, A> validated) {
+    Validation.kind().requireForWiden(validated, VALIDATED_CLASS);
+    return (Kind2<ValidatedKind2.Witness, E, A>) validated;
+  }
+
+  /**
+   * Narrows a {@link Kind2} representation to a {@link Validated}. Implements {@link
+   * ValidatedConverterOps#narrow2}.
+   *
+   * <p>The {@code @SuppressWarnings("unchecked")} is for the explicit cast from a Kind2 back to a
+   * more specific {@code Validated<E, A>}. This uses type checking to ensure the Kind2 instance is
+   * indeed of the correct underlying Validated type.
+   */
+  @Override
+  @SuppressWarnings("unchecked")
+  public <E, A> Validated<E, A> narrow2(@Nullable Kind2<ValidatedKind2.Witness, E, A> kind) {
+    if (kind == null) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Cannot narrow null Kind2 for Validated");
+    }
+    if (!(kind instanceof Validated<?, ?>)) {
+      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+          "Kind2 instance cannot be narrowed to Validated (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
+    }
+    return (Validated<E, A>) kind;
   }
 }

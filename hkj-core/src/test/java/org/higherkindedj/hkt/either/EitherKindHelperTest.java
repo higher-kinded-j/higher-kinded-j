@@ -3,11 +3,14 @@
 package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.eitherKindHelper;
 
 import java.util.List;
+import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -308,6 +311,181 @@ class EitherKindHelperTest extends EitherTestBase {
       for (Either<ComplexTestError, Object> instance : complexInstances) {
         eitherKindHelper(instance).test();
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("narrow2() Method Specific Tests")
+  class Narrow2MethodTests {
+
+    @Test
+    @DisplayName("narrow2() successfully unwraps valid Kind2 for Right")
+    void narrow2UnwrapsValidKind2ForRight() {
+      Either<ComplexTestError, String> original = Either.right("Success");
+      Kind2<EitherKind2.Witness, ComplexTestError, String> kind2 = EITHER.widen2(original);
+
+      Either<ComplexTestError, String> result = EITHER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatEither(result).hasRightNonNull();
+      assertThat(result.getRight()).isEqualTo("Success");
+    }
+
+    @Test
+    @DisplayName("narrow2() successfully unwraps valid Kind2 for Left")
+    void narrow2UnwrapsValidKind2ForLeft() {
+      Either<ComplexTestError, String> original =
+          Either.left(ComplexTestError.high("E500", "Server Error"));
+      Kind2<EitherKind2.Witness, ComplexTestError, String> kind2 = EITHER.widen2(original);
+
+      Either<ComplexTestError, String> result = EITHER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatEither(result).hasLeftNonNull();
+      assertThat(result.getLeft().code()).isEqualTo("E500");
+    }
+
+    @Test
+    @DisplayName("narrow2() throws KindUnwrapException when Kind2 is null")
+    void narrow2ThrowsWhenKind2Null() {
+      assertThatThrownBy(() -> EITHER.narrow2(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind2 for Either");
+    }
+
+    @Test
+    @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
+    void narrow2ThrowsWhenWrongKind2Type() {
+      // Create a Kind2 that is NOT an EitherKind2Holder
+      Kind2<EitherKind2.Witness, ComplexTestError, String> wrongKind =
+          new Kind2<EitherKind2.Witness, ComplexTestError, String>() {};
+
+      assertThatThrownBy(() -> EITHER.narrow2(wrongKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind2 instance cannot be narrowed to Either")
+          .hasMessageContaining("received:");
+    }
+
+    @Test
+    @DisplayName("narrow2() round-trip preserves Right value")
+    void narrow2RoundTripPreservesRightValue() {
+      Either<ComplexTestError, String> original = Either.right("TestValue");
+
+      Either<ComplexTestError, String> result = EITHER.narrow2(EITHER.widen2(original));
+
+      assertThat(result).isEqualTo(original);
+      assertThatEither(result).hasRightNonNull();
+      assertThat(result.getRight()).isEqualTo("TestValue");
+    }
+
+    @Test
+    @DisplayName("narrow2() round-trip preserves Left value")
+    void narrow2RoundTripPreservesLeftValue() {
+      Either<ComplexTestError, String> original =
+          Either.left(ComplexTestError.medium("E404", "Not Found"));
+
+      Either<ComplexTestError, String> result = EITHER.narrow2(EITHER.widen2(original));
+
+      assertThat(result).isEqualTo(original);
+      assertThatEither(result).hasLeftNonNull();
+      assertThat(result.getLeft().severity()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("narrow2() preserves null Right value")
+    void narrow2PreservesNullRightValue() {
+      Either<ComplexTestError, String> original = Either.right(null);
+      Kind2<EitherKind2.Witness, ComplexTestError, String> kind2 = EITHER.widen2(original);
+
+      Either<ComplexTestError, String> result = EITHER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatEither(result).isRight();
+      assertThat(result.getRight()).isNull();
+    }
+
+    @Test
+    @DisplayName("narrow2() preserves null Left value")
+    void narrow2PreservesNullLeftValue() {
+      Either<ComplexTestError, String> original = Either.left(null);
+      Kind2<EitherKind2.Witness, ComplexTestError, String> kind2 = EITHER.widen2(original);
+
+      Either<ComplexTestError, String> result = EITHER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatEither(result).isLeft();
+      assertThat(result.getLeft()).isNull();
+    }
+
+    @Test
+    @DisplayName("narrow2() works with different type parameters")
+    void narrow2WorksWithDifferentTypes() {
+      Either<String, Integer> original = Either.right(42);
+      Kind2<EitherKind2.Witness, String, Integer> kind2 = EITHER.widen2(original);
+
+      Either<String, Integer> result = EITHER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThat(result.getRight()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("narrow2() works with complex nested types")
+    void narrow2WorksWithComplexNestedTypes() {
+      Either<ComplexTestError, List<String>> original = Either.right(List.of("a", "b", "c"));
+      Kind2<EitherKind2.Witness, ComplexTestError, List<String>> kind2 = EITHER.widen2(original);
+
+      Either<ComplexTestError, List<String>> result = EITHER.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThat(result.getRight()).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("narrow2() multiple operations create independent results")
+    void narrow2MultipleOperationsCreateIndependentResults() {
+      Either<ComplexTestError, String> either1 = Either.right("First");
+      Either<ComplexTestError, String> either2 = Either.right("Second");
+
+      Kind2<EitherKind2.Witness, ComplexTestError, String> kind1 = EITHER.widen2(either1);
+      Kind2<EitherKind2.Witness, ComplexTestError, String> kind2 = EITHER.widen2(either2);
+
+      Either<ComplexTestError, String> result1 = EITHER.narrow2(kind1);
+      Either<ComplexTestError, String> result2 = EITHER.narrow2(kind2);
+
+      assertThat(result1).isNotSameAs(result2);
+      assertThat(result1.getRight()).isEqualTo("First");
+      assertThat(result2.getRight()).isEqualTo("Second");
+    }
+
+    @Test
+    @DisplayName("narrow2() is idempotent - multiple narrows of same Kind2")
+    void narrow2IsIdempotent() {
+      Either<ComplexTestError, String> original = Either.right("Idempotent");
+      Kind2<EitherKind2.Witness, ComplexTestError, String> kind2 = EITHER.widen2(original);
+
+      Either<ComplexTestError, String> result1 = EITHER.narrow2(kind2);
+      Either<ComplexTestError, String> result2 = EITHER.narrow2(kind2);
+      Either<ComplexTestError, String> result3 = EITHER.narrow2(kind2);
+
+      assertThat(result1).isEqualTo(original);
+      assertThat(result2).isEqualTo(original);
+      assertThat(result3).isEqualTo(original);
+      assertThat(result1).isEqualTo(result2).isEqualTo(result3);
+    }
+
+    @Test
+    @DisplayName("narrow2() error message includes actual type received")
+    void narrow2ErrorMessageIncludesActualType() {
+      Kind2<EitherKind2.Witness, ComplexTestError, String> wrongKind =
+          new Kind2<EitherKind2.Witness, ComplexTestError, String>() {};
+
+      String expectedTypeName = wrongKind.getClass().getSimpleName();
+
+      assertThatThrownBy(() -> EITHER.narrow2(wrongKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind2 instance cannot be narrowed to Either")
+          .hasMessageContaining("received:");
     }
   }
 

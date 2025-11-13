@@ -445,4 +445,104 @@ public final class LawTestPattern {
     testTraverseStructurePreservationLaw(traverse, applicative, validKind, testFunction);
     testTraverseStructurePreservationValidations(traverse, applicative, validKind, testFunction);
   }
+
+  // =============================================================================
+  // Bifunctor Laws
+  // =============================================================================
+
+  /**
+   * Tests Bifunctor Identity Law only: {@code bimap(id, id, fab) == fab}
+   *
+   * <p>This law states that applying identity functions to both parameters should return the
+   * original value unchanged.
+   */
+  public static <F, A, B> void testBifunctorIdentityLaw(
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+
+    Function<A, A> identityA = a -> a;
+    Function<B, B> identityB = b -> b;
+
+    Kind2<F, A, B> bimapped = bifunctor.bimap(identityA, identityB, validKind);
+
+    assertThat(equalityChecker.test(bimapped, validKind))
+        .as("Bifunctor Identity Law: bimap(id, id, fab) == fab")
+        .isTrue();
+  }
+
+  /** Tests Bifunctor Identity validations only (no law testing) */
+  public static <F, A, B> void testBifunctorIdentityValidations(
+      Bifunctor<F> bifunctor, Kind2<F, A, B> validKind) {
+
+    Function<A, A> identityA = a -> a;
+    Function<B, B> identityB = b -> b;
+
+    ValidationTestBuilder.create()
+        .assertMapperNull(() -> bifunctor.bimap(null, identityB, validKind), "f", BIMAP)
+        .assertMapperNull(() -> bifunctor.bimap(identityA, null, validKind), "g", BIMAP)
+        .assertKindNull(() -> bifunctor.bimap(identityA, identityB, null), BIMAP)
+        .execute();
+  }
+
+  /** Tests Bifunctor Identity Law with validations */
+  public static <F, A, B> void testBifunctorIdentity(
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+
+    testBifunctorIdentityLaw(bifunctor, validKind, equalityChecker);
+    testBifunctorIdentityValidations(bifunctor, validKind);
+  }
+
+  /**
+   * Tests Bifunctor Composition Law only: {@code bimap(f2∘f1, g2∘g1, fab) == bimap(f2, g2,
+   * bimap(f1, g1, fab))}
+   *
+   * <p>This law states that composing functions before bimap should be equivalent to bimapping
+   * sequentially.
+   */
+  public static <F, A, B, C, D, E> void testBifunctorCompositionLaw(
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> f1,
+      Function<C, E> f2,
+      Function<B, D> g1,
+      Function<D, E> g2,
+      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+
+    // Left side: bimap(f2∘f1, g2∘g1, fab)
+    Function<A, E> composedF = a -> f2.apply(f1.apply(a));
+    Function<B, E> composedG = b -> g2.apply(g1.apply(b));
+    Kind2<F, E, E> leftSide = bifunctor.bimap(composedF, composedG, validKind);
+
+    // Right side: bimap(f2, g2, bimap(f1, g1, fab))
+    Kind2<F, C, D> intermediate = bifunctor.bimap(f1, g1, validKind);
+    Kind2<F, E, E> rightSide = bifunctor.bimap(f2, g2, intermediate);
+
+    assertThat(equalityChecker.test(leftSide, rightSide))
+        .as(
+            "Bifunctor Composition Law: bimap(f2∘f1, g2∘g1, fab) == bimap(f2, g2, bimap(f1, g1,"
+                + " fab))")
+        .isTrue();
+  }
+
+  /**
+   * Tests all Bifunctor laws (identity and composition) without validation tests.
+   *
+   * <p>This method is designed for delegation from TypeClassTestPattern and tests only the
+   * algebraic laws without parameter validation.
+   */
+  public static <F, A, B, C, D, E> void testAllBifunctorLaws(
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> validKind,
+      Function<A, C> f1,
+      Function<C, E> f2,
+      Function<B, D> g1,
+      Function<D, E> g2,
+      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> equalityChecker) {
+
+    testBifunctorIdentityLaw(bifunctor, validKind, equalityChecker);
+    testBifunctorCompositionLaw(bifunctor, validKind, f1, f2, g1, g2, equalityChecker);
+  }
 }

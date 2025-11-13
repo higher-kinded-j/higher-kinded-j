@@ -781,4 +781,77 @@ public final class TypeClassAssertions {
     assertTraverseKindNull(
         () -> traverse.traverse(validApplicative, validTraverseFunction, null), contextClass);
   }
+
+  // =============================================================================
+  // Bifunctor Assertions
+  // =============================================================================
+
+  /**
+   * Asserts all Bifunctor operations throw appropriate exceptions for null parameters.
+   *
+   * @param bifunctor The Bifunctor instance to test
+   * @param contextClass The context class for error messages
+   * @param validKind A valid Kind2 instance
+   * @param firstMapper A valid function for the first parameter
+   * @param secondMapper A valid function for the second parameter
+   * @param <F> The Bifunctor witness type
+   * @param <A> The first input type
+   * @param <B> The second input type
+   * @param <C> The first output type
+   * @param <D> The second output type
+   */
+  public static <F, A, B, C, D> void assertAllBifunctorOperations(
+      Bifunctor<F> bifunctor,
+      Class<?> contextClass,
+      Kind2<F, A, B> validKind,
+      Function<A, C> firstMapper,
+      Function<B, D> secondMapper) {
+
+    // bimap validations
+    assertBimapFirstMapperNull(
+        () -> bifunctor.bimap(null, secondMapper, validKind), "f", contextClass);
+    assertBimapSecondMapperNull(
+        () -> bifunctor.bimap(firstMapper, null, validKind), "g", contextClass);
+    assertBimapKindNull(() -> bifunctor.bimap(firstMapper, secondMapper, null), contextClass);
+
+    // first validations
+    assertFirstMapperNull(() -> bifunctor.first(null, validKind), "f", contextClass);
+    assertFirstKindNull(() -> bifunctor.first(firstMapper, null), contextClass);
+
+    // second validations
+    assertSecondMapperNull(() -> bifunctor.second(null, validKind), "g", contextClass);
+    assertSecondKindNull(() -> bifunctor.second(secondMapper, null), contextClass);
+  }
+
+  private static void assertBimapFirstMapperNull(
+      Runnable operation, String paramName, Class<?> contextClass) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, BIMAP);
+  }
+
+  private static void assertBimapSecondMapperNull(
+      Runnable operation, String paramName, Class<?> contextClass) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, BIMAP);
+  }
+
+  private static void assertBimapKindNull(Runnable operation, Class<?> contextClass) {
+    KindAssertions.assertKindNull(operation::run, contextClass, BIMAP);
+  }
+
+  private static void assertFirstMapperNull(
+      Runnable operation, String paramName, Class<?> contextClass) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, FIRST);
+  }
+
+  private static void assertFirstKindNull(Runnable operation, Class<?> contextClass) {
+    KindAssertions.assertKindNull(operation::run, contextClass, FIRST);
+  }
+
+  private static void assertSecondMapperNull(
+      Runnable operation, String paramName, Class<?> contextClass) {
+    FunctionAssertions.assertMapperNull(operation::run, paramName, contextClass, SECOND);
+  }
+
+  private static void assertSecondKindNull(Runnable operation, Class<?> contextClass) {
+    KindAssertions.assertKindNull(operation::run, contextClass, SECOND);
+  }
 }

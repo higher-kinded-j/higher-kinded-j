@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.DisplayName;
@@ -332,6 +334,211 @@ class ValidatedKindHelperTest extends ValidatedTestBase {
 
       double averageNanos = (double) duration / iterations;
       assertThat(averageNanos).as("Narrow should be fast (< 3000ns average)").isLessThan(3000.0);
+    }
+  }
+
+  @Nested
+  @DisplayName("narrow2() Method Specific Tests")
+  class Narrow2MethodTests {
+
+    @Test
+    @DisplayName("narrow2() successfully unwraps valid Kind2 for Valid")
+    void narrow2UnwrapsValidKind2ForValid() {
+      Validated<String, Integer> original = Validated.valid(42);
+      Kind2<ValidatedKind2.Witness, String, Integer> kind2 = VALIDATED.widen2(original);
+
+      Validated<String, Integer> result = VALIDATED.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatValidated(result).isValid().hasValue(42);
+    }
+
+    @Test
+    @DisplayName("narrow2() successfully unwraps valid Kind2 for Invalid")
+    void narrow2UnwrapsValidKind2ForInvalid() {
+      Validated<String, Integer> original = Validated.invalid("error message");
+      Kind2<ValidatedKind2.Witness, String, Integer> kind2 = VALIDATED.widen2(original);
+
+      Validated<String, Integer> result = VALIDATED.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatValidated(result).isInvalid().hasError("error message");
+    }
+
+    @Test
+    @DisplayName("narrow2() throws KindUnwrapException when Kind2 is null")
+    void narrow2ThrowsWhenKind2Null() {
+      assertThatThrownBy(() -> VALIDATED.narrow2(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind2 for Validated");
+    }
+
+    @Test
+    @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
+    void narrow2ThrowsWhenWrongKind2Type() {
+      // Create a Kind2 that is NOT a Validated
+      Kind2<ValidatedKind2.Witness, String, Integer> wrongKind =
+          new Kind2<ValidatedKind2.Witness, String, Integer>() {};
+
+      assertThatThrownBy(() -> VALIDATED.narrow2(wrongKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind2 instance cannot be narrowed to Validated")
+          .hasMessageContaining("received:");
+    }
+
+    @Test
+    @DisplayName("narrow2() round-trip preserves Valid")
+    void narrow2RoundTripPreservesValid() {
+      Validated<String, Integer> original = Validated.valid(100);
+
+      Validated<String, Integer> result = VALIDATED.narrow2(VALIDATED.widen2(original));
+
+      assertThat(result).isEqualTo(original);
+      assertThatValidated(result).isValid().hasValue(100);
+    }
+
+    @Test
+    @DisplayName("narrow2() round-trip preserves Invalid")
+    void narrow2RoundTripPreservesInvalid() {
+      Validated<String, Integer> original = Validated.invalid("test error");
+
+      Validated<String, Integer> result = VALIDATED.narrow2(VALIDATED.widen2(original));
+
+      assertThat(result).isEqualTo(original);
+      assertThatValidated(result).isInvalid().hasError("test error");
+    }
+
+    @Test
+    @DisplayName("narrow2() works with different type parameters")
+    void narrow2WorksWithDifferentTypes() {
+      Validated<List<String>, Integer> original = Validated.invalid(List.of("error1", "error2"));
+      Kind2<ValidatedKind2.Witness, List<String>, Integer> kind2 = VALIDATED.widen2(original);
+
+      Validated<List<String>, Integer> result = VALIDATED.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatValidated(result).isInvalid();
+      assertThat(result.getError()).containsExactly("error1", "error2");
+    }
+
+    @Test
+    @DisplayName("narrow2() works with complex nested types")
+    void narrow2WorksWithComplexNestedTypes() {
+      Validated<String, List<Integer>> original = Validated.valid(List.of(1, 2, 3));
+      Kind2<ValidatedKind2.Witness, String, List<Integer>> kind2 = VALIDATED.widen2(original);
+
+      Validated<String, List<Integer>> result = VALIDATED.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatValidated(result).isValid();
+      assertThat(result.get()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("narrow2() multiple operations create independent results")
+    void narrow2MultipleOperationsCreateIndependentResults() {
+      Validated<String, Integer> valid1 = Validated.valid(10);
+      Validated<String, Integer> valid2 = Validated.valid(20);
+
+      Kind2<ValidatedKind2.Witness, String, Integer> kind1 = VALIDATED.widen2(valid1);
+      Kind2<ValidatedKind2.Witness, String, Integer> kind2 = VALIDATED.widen2(valid2);
+
+      Validated<String, Integer> result1 = VALIDATED.narrow2(kind1);
+      Validated<String, Integer> result2 = VALIDATED.narrow2(kind2);
+
+      assertThat(result1).isNotSameAs(result2);
+      assertThatValidated(result1).isValid().hasValue(10);
+      assertThatValidated(result2).isValid().hasValue(20);
+    }
+
+    @Test
+    @DisplayName("narrow2() is idempotent - multiple narrows of same Kind2")
+    void narrow2IsIdempotent() {
+      Validated<String, Integer> original = Validated.valid(42);
+      Kind2<ValidatedKind2.Witness, String, Integer> kind2 = VALIDATED.widen2(original);
+
+      Validated<String, Integer> result1 = VALIDATED.narrow2(kind2);
+      Validated<String, Integer> result2 = VALIDATED.narrow2(kind2);
+      Validated<String, Integer> result3 = VALIDATED.narrow2(kind2);
+
+      assertThat(result1).isEqualTo(original);
+      assertThat(result2).isEqualTo(original);
+      assertThat(result3).isEqualTo(original);
+      assertThat(result1).isEqualTo(result2).isEqualTo(result3);
+    }
+
+    @Test
+    @DisplayName("narrow2() error message includes actual type received")
+    void narrow2ErrorMessageIncludesActualType() {
+      Kind2<ValidatedKind2.Witness, String, Integer> wrongKind =
+          new Kind2<ValidatedKind2.Witness, String, Integer>() {};
+
+      assertThatThrownBy(() -> VALIDATED.narrow2(wrongKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind2 instance cannot be narrowed to Validated")
+          .hasMessageContaining("received:");
+    }
+
+    @Test
+    @DisplayName("narrow2() preserves Valid instance identity")
+    void narrow2PreservesValidInstanceIdentity() {
+      Validated<String, Integer> original = Validated.valid(99);
+      Kind2<ValidatedKind2.Witness, String, Integer> kind2 = VALIDATED.widen2(original);
+
+      Validated<String, Integer> result = VALIDATED.narrow2(kind2);
+
+      assertThat(result).isSameAs(original);
+      assertThat(result).isInstanceOf(Valid.class);
+    }
+
+    @Test
+    @DisplayName("narrow2() preserves Invalid instance identity")
+    void narrow2PreservesInvalidInstanceIdentity() {
+      Validated<String, Integer> original = Validated.invalid("failure");
+      Kind2<ValidatedKind2.Witness, String, Integer> kind2 = VALIDATED.widen2(original);
+
+      Validated<String, Integer> result = VALIDATED.narrow2(kind2);
+
+      assertThat(result).isSameAs(original);
+      assertThat(result).isInstanceOf(Invalid.class);
+    }
+
+    @Test
+    @DisplayName("narrow2() works with complex error types")
+    void narrow2WorksWithComplexErrorTypes() {
+      record ErrorDetails(String code, int severity, String message) {}
+
+      List<ErrorDetails> errors =
+          List.of(
+              new ErrorDetails("E001", 5, "Critical error"),
+              new ErrorDetails("E002", 3, "Warning"));
+      Validated<List<ErrorDetails>, Integer> original = Validated.invalid(errors);
+      Kind2<ValidatedKind2.Witness, List<ErrorDetails>, Integer> kind2 =
+          ValidatedKindHelper.VALIDATED.widen2(original);
+
+      Validated<List<ErrorDetails>, Integer> result = ValidatedKindHelper.VALIDATED.narrow2(kind2);
+
+      assertThat(result).isEqualTo(original);
+      assertThatValidated(result).isInvalid();
+      assertThat(result.getError()).hasSize(2);
+      assertThat(result.getError().get(0).code()).isEqualTo("E001");
+      assertThat(result.getError().get(1).code()).isEqualTo("E002");
+    }
+
+    @Test
+    @DisplayName("narrow2() works with both Valid and Invalid in sequence")
+    void narrow2WorksWithBothValidAndInvalidInSequence() {
+      Validated<String, Integer> valid = Validated.valid(42);
+      Validated<String, Integer> invalid = Validated.invalid("error");
+
+      Kind2<ValidatedKind2.Witness, String, Integer> validKind2 = VALIDATED.widen2(valid);
+      Kind2<ValidatedKind2.Witness, String, Integer> invalidKind2 = VALIDATED.widen2(invalid);
+
+      Validated<String, Integer> validResult = VALIDATED.narrow2(validKind2);
+      Validated<String, Integer> invalidResult = VALIDATED.narrow2(invalidKind2);
+
+      assertThatValidated(validResult).isValid().hasValue(42);
+      assertThatValidated(invalidResult).isInvalid().hasError("error");
     }
   }
 }
