@@ -80,7 +80,7 @@ public enum Operation {
     this.label = label;
   }
 
-  String label;
+  final String label;
 
   @Override
   public String toString() {
