@@ -30,9 +30,8 @@ import org.higherkindedj.hkt.Kind2;
  * <p>Instances of {@code Kind2<ValidatedKind2.Witness, E, A>} can be converted to/from concrete
  * {@code Validated<E, A>} instances using {@link ValidatedKindHelper}.
  *
- * <p>This is distinct from {@link ValidatedKind}, which fixes the error type parameter for use
- * with {@link org.higherkindedj.hkt.Functor} and {@link org.higherkindedj.hkt.Applicative}
- * instances.
+ * <p>This is distinct from {@link ValidatedKind}, which fixes the error type parameter for use with
+ * {@link org.higherkindedj.hkt.Functor} and {@link org.higherkindedj.hkt.Applicative} instances.
  *
  * @param <E> The type of the "Error" value.
  * @param <A> The type of the "Valid" value.

@@ -70,10 +70,7 @@ class Tuple4Test {
 
       Tuple4<String, Integer, Boolean, Double> result =
           original.map(
-              Function.identity(),
-              Function.identity(),
-              Function.identity(),
-              Function.identity());
+              Function.identity(), Function.identity(), Function.identity(), Function.identity());
 
       assertThat(result).isEqualTo(original);
     }
@@ -84,10 +81,7 @@ class Tuple4Test {
       Tuple4<String, Integer, Boolean, Double> tuple = new Tuple4<>("Alice", 30, true, 5.5);
 
       assertThatNullPointerException()
-          .isThrownBy(
-              () ->
-                  tuple.map(
-                      null, age -> age + 1, active -> !active, d -> d + 1.0))
+          .isThrownBy(() -> tuple.map(null, age -> age + 1, active -> !active, d -> d + 1.0))
           .withMessageContaining("firstMapper")
           .withMessageContaining("Tuple4.map");
     }
@@ -98,10 +92,7 @@ class Tuple4Test {
       Tuple4<String, Integer, Boolean, Double> tuple = new Tuple4<>("Alice", 30, true, 5.5);
 
       assertThatNullPointerException()
-          .isThrownBy(
-              () ->
-                  tuple.map(
-                      String::length, null, active -> !active, d -> d + 1.0))
+          .isThrownBy(() -> tuple.map(String::length, null, active -> !active, d -> d + 1.0))
           .withMessageContaining("secondMapper")
           .withMessageContaining("Tuple4.map");
     }
@@ -123,8 +114,7 @@ class Tuple4Test {
       Tuple4<String, Integer, Boolean, Double> tuple = new Tuple4<>("Alice", 30, true, 5.5);
 
       assertThatNullPointerException()
-          .isThrownBy(
-              () -> tuple.map(String::length, age -> age + 1, active -> !active, null))
+          .isThrownBy(() -> tuple.map(String::length, age -> age + 1, active -> !active, null))
           .withMessageContaining("fourthMapper")
           .withMessageContaining("Tuple4.map");
     }

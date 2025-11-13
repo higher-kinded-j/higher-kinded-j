@@ -172,8 +172,7 @@ class Tuple5Test {
       assertThatNullPointerException()
           .isThrownBy(
               () ->
-                  tuple.map(
-                      String::length, age -> age + 1, active -> !active, d -> d + 1.0, null))
+                  tuple.map(String::length, age -> age + 1, active -> !active, d -> d + 1.0, null))
           .withMessageContaining("fifthMapper")
           .withMessageContaining("Tuple5.map");
     }

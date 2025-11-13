@@ -56,8 +56,7 @@ public record Tuple2<A, B>(A _1, B _2) implements Tuple {
    * @throws NullPointerException if either {@code firstMapper} or {@code secondMapper} is null.
    */
   public <C, D> Tuple2<C, D> bimap(
-      Function<? super A, ? extends C> firstMapper,
-      Function<? super B, ? extends D> secondMapper) {
+      Function<? super A, ? extends C> firstMapper, Function<? super B, ? extends D> secondMapper) {
     Validation.function().requireMapper(firstMapper, "firstMapper", TUPLE2_CLASS, BIMAP);
     Validation.function().requireMapper(secondMapper, "secondMapper", TUPLE2_CLASS, BIMAP);
 
@@ -106,13 +105,12 @@ public record Tuple2<A, B>(A _1, B _2) implements Tuple {
    * // result = new Tuple2<>("Alice", "30 years old")
    * }</pre>
    *
-   * <p><b>Note:</b> This is equivalent to calling {@code bimap(Function.identity(),
-   * secondMapper)}.
+   * <p><b>Note:</b> This is equivalent to calling {@code bimap(Function.identity(), secondMapper)}.
    *
    * @param secondMapper The non-null function to apply to the second element.
    * @param <D> The type of the second element in the resulting tuple.
-   * @return A new {@code Tuple2<A, D>} with the second element transformed. The returned tuple
-   *     will be non-null.
+   * @return A new {@code Tuple2<A, D>} with the second element transformed. The returned tuple will
+   *     be non-null.
    * @throws NullPointerException if {@code secondMapper} is null.
    */
   public <D> Tuple2<A, D> mapSecond(Function<? super B, ? extends D> secondMapper) {

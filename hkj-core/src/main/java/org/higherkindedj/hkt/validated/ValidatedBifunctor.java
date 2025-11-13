@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.Objects;
 import java.util.function.Function;

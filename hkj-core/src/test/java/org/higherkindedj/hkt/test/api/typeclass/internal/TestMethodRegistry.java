@@ -366,8 +366,7 @@ public final class TestMethodRegistry {
       Kind2<F, A, B> validKind,
       Function<A, C> firstMapper,
       Function<B, D> secondMapper) {
-    TypeClassTestPattern.testBifunctorOperations(
-        bifunctor, validKind, firstMapper, secondMapper);
+    TypeClassTestPattern.testBifunctorOperations(bifunctor, validKind, firstMapper, secondMapper);
   }
 
   public static <F, A, B, C, D> void testBifunctorValidations(

@@ -892,6 +892,7 @@ public final class TypeClassTestPattern {
 
     // Delegate to LawTestPattern - tests only algebraic laws
     LawTestPattern.testBifunctorIdentityLaw(bifunctor, validKind, equalityChecker);
-    LawTestPattern.testBifunctorCompositionLaw(bifunctor, validKind, f1, f2, g1, g2, equalityChecker);
+    LawTestPattern.testBifunctorCompositionLaw(
+        bifunctor, validKind, f1, f2, g1, g2, equalityChecker);
   }
 }

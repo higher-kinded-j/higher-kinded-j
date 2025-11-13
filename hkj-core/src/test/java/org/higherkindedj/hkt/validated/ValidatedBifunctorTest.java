@@ -68,8 +68,7 @@ class ValidatedBifunctorTest {
     void bimapTransformsBothChannels() {
       Kind2<ValidatedKind2.Witness, String, Integer> invalid =
           VALIDATED.widen2(Validated.invalid("error"));
-      Kind2<ValidatedKind2.Witness, String, Integer> valid =
-          VALIDATED.widen2(Validated.valid(42));
+      Kind2<ValidatedKind2.Witness, String, Integer> valid = VALIDATED.widen2(Validated.valid(42));
 
       Function<String, Integer> errorMapper = String::length;
       Function<Integer, String> valueMapper = n -> "Value:" + n;
@@ -88,8 +87,7 @@ class ValidatedBifunctorTest {
     void firstTransformsOnlyErrorChannel() {
       Kind2<ValidatedKind2.Witness, String, Integer> invalid =
           VALIDATED.widen2(Validated.invalid("error"));
-      Kind2<ValidatedKind2.Witness, String, Integer> valid =
-          VALIDATED.widen2(Validated.valid(42));
+      Kind2<ValidatedKind2.Witness, String, Integer> valid = VALIDATED.widen2(Validated.valid(42));
 
       Function<String, Integer> errorMapper = String::length;
 
@@ -107,8 +105,7 @@ class ValidatedBifunctorTest {
     void secondTransformsOnlyValueChannel() {
       Kind2<ValidatedKind2.Witness, String, Integer> invalid =
           VALIDATED.widen2(Validated.invalid("error"));
-      Kind2<ValidatedKind2.Witness, String, Integer> valid =
-          VALIDATED.widen2(Validated.valid(42));
+      Kind2<ValidatedKind2.Witness, String, Integer> valid = VALIDATED.widen2(Validated.valid(42));
 
       Function<Integer, String> valueMapper = n -> "Value:" + n;
 
@@ -147,8 +144,7 @@ class ValidatedBifunctorTest {
     @Test
     @DisplayName("Identity Law: bimap(id, id, fab) == fab (Valid)")
     void identityLawValid() {
-      Kind2<ValidatedKind2.Witness, String, Integer> valid =
-          VALIDATED.widen2(Validated.valid(42));
+      Kind2<ValidatedKind2.Witness, String, Integer> valid = VALIDATED.widen2(Validated.valid(42));
 
       Kind2<ValidatedKind2.Witness, String, Integer> result =
           bifunctor.bimap(Function.identity(), Function.identity(), valid);
@@ -161,8 +157,7 @@ class ValidatedBifunctorTest {
     @Test
     @DisplayName("Composition Law")
     void compositionLaw() {
-      Kind2<ValidatedKind2.Witness, String, Integer> valid =
-          VALIDATED.widen2(Validated.valid(42));
+      Kind2<ValidatedKind2.Witness, String, Integer> valid = VALIDATED.widen2(Validated.valid(42));
 
       Function<String, Integer> f1 = String::length;
       Function<Integer, String> f2 = i -> "#" + i;
@@ -174,8 +169,7 @@ class ValidatedBifunctorTest {
           bifunctor.bimap(s -> f2.apply(f1.apply(s)), i -> g2.apply(g1.apply(i)), valid);
 
       // Right side
-      Kind2<ValidatedKind2.Witness, Integer, String> intermediate =
-          bifunctor.bimap(f1, g1, valid);
+      Kind2<ValidatedKind2.Witness, Integer, String> intermediate = bifunctor.bimap(f1, g1, valid);
       Kind2<ValidatedKind2.Witness, String, String> rightSide =
           bifunctor.bimap(f2, g2, intermediate);
 

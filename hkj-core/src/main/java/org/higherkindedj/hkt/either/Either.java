@@ -197,8 +197,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @throws NullPointerException if either {@code leftMapper} or {@code rightMapper} is null.
    */
   default <L2, R2> Either<L2, R2> bimap(
-      Function<? super L, ? extends L2> leftMapper,
-      Function<? super R, ? extends R2> rightMapper) {
+      Function<? super L, ? extends L2> leftMapper, Function<? super R, ? extends R2> rightMapper) {
     Validation.function().requireMapper(leftMapper, "leftMapper", EITHER_CLASS, BIMAP);
     Validation.function().requireMapper(rightMapper, "rightMapper", EITHER_CLASS, BIMAP);
 

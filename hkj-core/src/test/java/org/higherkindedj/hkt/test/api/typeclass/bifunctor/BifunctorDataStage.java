@@ -32,8 +32,7 @@ public final class BifunctorDataStage<F, A, B> {
    * @param <C> The result type for the first parameter
    * @return Stage for providing second mapper
    */
-  public <C> BifunctorSecondMapperStage<F, A, B, C> withFirstMapper(
-      Function<A, C> firstMapper) {
+  public <C> BifunctorSecondMapperStage<F, A, B, C> withFirstMapper(Function<A, C> firstMapper) {
     return new BifunctorSecondMapperStage<>(contextClass, bifunctor, validKind, firstMapper);
   }
 }

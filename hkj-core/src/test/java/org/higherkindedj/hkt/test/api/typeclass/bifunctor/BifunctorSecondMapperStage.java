@@ -39,8 +39,7 @@ public final class BifunctorSecondMapperStage<F, A, B, C> {
    * @param <D> The result type for the second parameter
    * @return Configuration stage for optional settings and test execution
    */
-  public <D> BifunctorTestConfigStage<F, A, B, C, D> withSecondMapper(
-      Function<B, D> secondMapper) {
+  public <D> BifunctorTestConfigStage<F, A, B, C, D> withSecondMapper(Function<B, D> secondMapper) {
     return new BifunctorTestConfigStage<>(
         contextClass, bifunctor, validKind, firstMapper, secondMapper);
   }

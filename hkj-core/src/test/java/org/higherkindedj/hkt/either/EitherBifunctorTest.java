@@ -32,12 +32,9 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("Run complete Bifunctor test pattern")
     void runCompleteBifunctorTestPattern() {
-      Kind2<EitherKind2.Witness, String, Integer> validEither =
-          EITHER.widen2(Either.right(42));
-      Kind2<EitherKind2.Witness, String, Integer> leftEither =
-          EITHER.widen2(Either.left("error"));
-      Kind2<EitherKind2.Witness, String, Integer> rightEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
       Function<String, Integer> firstMapper = String::length;
       Function<Integer, String> secondMapper = n -> "Value:" + n;
       Function<Integer, String> compositionFirstMapper = i -> "#" + i;
@@ -66,8 +63,7 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      Kind2<EitherKind2.Witness, String, Integer> validEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
 
       TypeClassTest.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
           .<String, Integer>instance(bifunctor)
@@ -82,8 +78,7 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      Kind2<EitherKind2.Witness, String, Integer> validEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
       BiPredicate<Kind2<EitherKind2.Witness, ?, ?>, Kind2<EitherKind2.Witness, ?, ?>>
           equalityChecker = (k1, k2) -> EITHER.narrow2(k1).equals(EITHER.narrow2(k2));
 
@@ -108,10 +103,8 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("bimap() transforms both Left and Right")
     void bimapTransformsBothChannels() {
-      Kind2<EitherKind2.Witness, String, Integer> leftEither =
-          EITHER.widen2(Either.left("error"));
-      Kind2<EitherKind2.Witness, String, Integer> rightEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
 
       Function<String, Integer> leftMapper = String::length;
       Function<Integer, String> rightMapper = n -> "Value:" + n;
@@ -128,10 +121,8 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("first() transforms only Left channel")
     void firstTransformsOnlyLeftChannel() {
-      Kind2<EitherKind2.Witness, String, Integer> leftEither =
-          EITHER.widen2(Either.left("hello"));
-      Kind2<EitherKind2.Witness, String, Integer> rightEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("hello"));
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
 
       Function<String, Integer> leftMapper = String::length;
 
@@ -147,10 +138,8 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("second() transforms only Right channel")
     void secondTransformsOnlyRightChannel() {
-      Kind2<EitherKind2.Witness, String, Integer> leftEither =
-          EITHER.widen2(Either.left("error"));
-      Kind2<EitherKind2.Witness, String, Integer> rightEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
 
       Function<Integer, String> rightMapper = n -> "Value:" + n;
 
@@ -174,8 +163,7 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("Identity Law: bimap(id, id, fab) == fab (Left)")
     void identityLawLeft() {
-      Kind2<EitherKind2.Witness, String, Integer> leftEither =
-          EITHER.widen2(Either.left("error"));
+      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
 
       Kind2<EitherKind2.Witness, String, Integer> result =
           bifunctor.bimap(Function.identity(), Function.identity(), leftEither);
@@ -188,8 +176,7 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("Identity Law: bimap(id, id, fab) == fab (Right)")
     void identityLawRight() {
-      Kind2<EitherKind2.Witness, String, Integer> rightEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
 
       Kind2<EitherKind2.Witness, String, Integer> result =
           bifunctor.bimap(Function.identity(), Function.identity(), rightEither);
@@ -202,8 +189,7 @@ class EitherBifunctorTest {
     @Test
     @DisplayName("Composition Law: bimap(f2∘f1, g2∘g1, fab) == bimap(f2, g2, bimap(f1, g1, fab))")
     void compositionLaw() {
-      Kind2<EitherKind2.Witness, String, Integer> rightEither =
-          EITHER.widen2(Either.right(42));
+      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
 
       Function<String, Integer> f1 = String::length;
       Function<Integer, String> f2 = i -> "#" + i;
@@ -219,8 +205,7 @@ class EitherBifunctorTest {
       // Right side: bimap(f2, g2, bimap(f1, g1, fab))
       Kind2<EitherKind2.Witness, Integer, String> intermediate =
           bifunctor.bimap(f1, g1, rightEither);
-      Kind2<EitherKind2.Witness, String, String> rightSide =
-          bifunctor.bimap(f2, g2, intermediate);
+      Kind2<EitherKind2.Witness, String, String> rightSide = bifunctor.bimap(f2, g2, intermediate);
 
       assertThat(equalityChecker.test(leftSide, rightSide))
           .as("Composition law should hold")

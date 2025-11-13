@@ -80,8 +80,7 @@ class WriterBifunctorTest {
 
       Function<String, Integer> logMapper = String::length;
 
-      Writer<Integer, Integer> transformed =
-          WRITER.narrow2(bifunctor.first(logMapper, writer));
+      Writer<Integer, Integer> transformed = WRITER.narrow2(bifunctor.first(logMapper, writer));
 
       assertThat(transformed).isEqualTo(new Writer<>(9, 42));
     }
@@ -94,8 +93,7 @@ class WriterBifunctorTest {
 
       Function<Integer, String> valueMapper = n -> "Value:" + n;
 
-      Writer<String, String> transformed =
-          WRITER.narrow2(bifunctor.second(valueMapper, writer));
+      Writer<String, String> transformed = WRITER.narrow2(bifunctor.second(valueMapper, writer));
 
       assertThat(transformed).isEqualTo(new Writer<>("log entry", "Value:42"));
     }
@@ -136,10 +134,8 @@ class WriterBifunctorTest {
           bifunctor.bimap(s -> f2.apply(f1.apply(s)), i -> g2.apply(g1.apply(i)), writer);
 
       // Right side
-      Kind2<WriterKind2.Witness, Integer, String> intermediate =
-          bifunctor.bimap(f1, g1, writer);
-      Kind2<WriterKind2.Witness, String, String> rightSide =
-          bifunctor.bimap(f2, g2, intermediate);
+      Kind2<WriterKind2.Witness, Integer, String> intermediate = bifunctor.bimap(f1, g1, writer);
+      Kind2<WriterKind2.Witness, String, String> rightSide = bifunctor.bimap(f2, g2, intermediate);
 
       assertThat(equalityChecker.test(leftSide, rightSide))
           .as("Composition law should hold")

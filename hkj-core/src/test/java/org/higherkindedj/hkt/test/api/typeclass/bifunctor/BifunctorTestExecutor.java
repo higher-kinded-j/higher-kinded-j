@@ -42,12 +42,20 @@ final class BifunctorTestExecutor<F, A, B, C, D> {
 
   void executeOperations() {
     TestMethodRegistry.testBifunctorOperations(
-        config.contextClass, config.bifunctor, config.validKind, config.firstMapper, config.secondMapper);
+        config.contextClass,
+        config.bifunctor,
+        config.validKind,
+        config.firstMapper,
+        config.secondMapper);
   }
 
   void executeValidations() {
     TestMethodRegistry.testBifunctorValidations(
-        config.contextClass, config.bifunctor, config.validKind, config.firstMapper, config.secondMapper);
+        config.contextClass,
+        config.bifunctor,
+        config.validKind,
+        config.firstMapper,
+        config.secondMapper);
   }
 
   void executeExceptions() {

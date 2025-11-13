@@ -15,9 +15,9 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
  * ({@code _1()}, {@code _2()}, {@code _3()}), and implementations for {@code equals()}, {@code
  * hashCode()}, and {@code toString()}.
  *
- * <p>This type supports independent transformation of all three elements via {@link
- * #map(Function, Function, Function)}, {@link #mapFirst(Function)}, {@link #mapSecond(Function)},
- * and {@link #mapThird(Function)}.
+ * <p>This type supports independent transformation of all three elements via {@link #map(Function,
+ * Function, Function)}, {@link #mapFirst(Function)}, {@link #mapSecond(Function)}, and {@link
+ * #mapThird(Function)}.
  *
  * @param <A> The type of the first element.
  * @param <B> The type of the second element.

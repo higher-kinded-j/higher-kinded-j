@@ -150,8 +150,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * @throws NullPointerException if either {@code errorMapper} or {@code valueMapper} is null.
    */
   default <E2, B> Validated<E2, B> bimap(
-      Function<? super E, ? extends E2> errorMapper,
-      Function<? super A, ? extends B> valueMapper) {
+      Function<? super E, ? extends E2> errorMapper, Function<? super A, ? extends B> valueMapper) {
     Validation.function().requireMapper(errorMapper, "errorMapper", VALIDATED_CLASS, BIMAP);
     Validation.function().requireMapper(valueMapper, "valueMapper", VALIDATED_CLASS, BIMAP);
 

@@ -16,8 +16,8 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
  * and {@code toString()}.
  *
  * <p>This type supports independent transformation of all four elements via {@link #map(Function,
- * Function, Function, Function)}, {@link #mapFirst(Function)}, {@link #mapSecond(Function)},
- * {@link #mapThird(Function)}, and {@link #mapFourth(Function)}.
+ * Function, Function, Function)}, {@link #mapFirst(Function)}, {@link #mapSecond(Function)}, {@link
+ * #mapThird(Function)}, and {@link #mapFourth(Function)}.
  *
  * @param <A> The type of the first element.
  * @param <B> The type of the second element.
@@ -58,7 +58,9 @@ public record Tuple4<A, B, C, D>(A _1, B _2, C _3, D _4) implements Tuple {
     Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE4_CLASS, MAP);
 
     return new Tuple4<>(
-        firstMapper.apply(_1), secondMapper.apply(_2), thirdMapper.apply(_3),
+        firstMapper.apply(_1),
+        secondMapper.apply(_2),
+        thirdMapper.apply(_3),
         fourthMapper.apply(_4));
   }
 

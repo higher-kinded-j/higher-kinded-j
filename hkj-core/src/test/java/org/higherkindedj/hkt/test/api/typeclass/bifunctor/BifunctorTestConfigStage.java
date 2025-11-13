@@ -125,30 +125,22 @@ public final class BifunctorTestConfigStage<F, A, B, C, D> {
     return new BifunctorTestSelectionStage<>(this);
   }
 
-  /**
-   * Executes all configured tests.
-   */
+  /** Executes all configured tests. */
   public void testAll() {
     build().executeAll();
   }
 
-  /**
-   * Executes only operation tests.
-   */
+  /** Executes only operation tests. */
   public void testOperations() {
     build().executeOperations();
   }
 
-  /**
-   * Executes only validation tests.
-   */
+  /** Executes only validation tests. */
   public void testValidations() {
     build().executeValidations();
   }
 
-  /**
-   * Executes only exception propagation tests.
-   */
+  /** Executes only exception propagation tests. */
   public void testExceptions() {
     build().executeExceptions();
   }

@@ -60,8 +60,7 @@ class Tuple2BifunctorTest {
     @Test
     @DisplayName("bimap() transforms both elements")
     void bimapTransformsBothElements() {
-      Kind2<Tuple2Kind2.Witness, String, Integer> tuple =
-          TUPLE2.widen2(new Tuple2<>("hello", 42));
+      Kind2<Tuple2Kind2.Witness, String, Integer> tuple = TUPLE2.widen2(new Tuple2<>("hello", 42));
 
       Tuple2<Integer, String> result =
           TUPLE2.narrow2(bifunctor.bimap(String::length, n -> "Value:" + n, tuple));
@@ -72,8 +71,7 @@ class Tuple2BifunctorTest {
     @Test
     @DisplayName("first() transforms only first element")
     void firstTransformsOnlyFirstElement() {
-      Kind2<Tuple2Kind2.Witness, String, Integer> tuple =
-          TUPLE2.widen2(new Tuple2<>("hello", 42));
+      Kind2<Tuple2Kind2.Witness, String, Integer> tuple = TUPLE2.widen2(new Tuple2<>("hello", 42));
 
       Tuple2<Integer, Integer> result = TUPLE2.narrow2(bifunctor.first(String::length, tuple));
 
@@ -83,11 +81,9 @@ class Tuple2BifunctorTest {
     @Test
     @DisplayName("second() transforms only second element")
     void secondTransformsOnlySecondElement() {
-      Kind2<Tuple2Kind2.Witness, String, Integer> tuple =
-          TUPLE2.widen2(new Tuple2<>("hello", 42));
+      Kind2<Tuple2Kind2.Witness, String, Integer> tuple = TUPLE2.widen2(new Tuple2<>("hello", 42));
 
-      Tuple2<String, String> result =
-          TUPLE2.narrow2(bifunctor.second(n -> "Value:" + n, tuple));
+      Tuple2<String, String> result = TUPLE2.narrow2(bifunctor.second(n -> "Value:" + n, tuple));
 
       assertThat(result).isEqualTo(new Tuple2<>("hello", "Value:42"));
     }
@@ -103,8 +99,7 @@ class Tuple2BifunctorTest {
     @Test
     @DisplayName("Identity Law: bimap(id, id, fab) == fab")
     void identityLaw() {
-      Kind2<Tuple2Kind2.Witness, String, Integer> tuple =
-          TUPLE2.widen2(new Tuple2<>("hello", 42));
+      Kind2<Tuple2Kind2.Witness, String, Integer> tuple = TUPLE2.widen2(new Tuple2<>("hello", 42));
 
       Kind2<Tuple2Kind2.Witness, String, Integer> result =
           bifunctor.bimap(Function.identity(), Function.identity(), tuple);
@@ -115,8 +110,7 @@ class Tuple2BifunctorTest {
     @Test
     @DisplayName("Composition Law")
     void compositionLaw() {
-      Kind2<Tuple2Kind2.Witness, String, Integer> tuple =
-          TUPLE2.widen2(new Tuple2<>("hello", 42));
+      Kind2<Tuple2Kind2.Witness, String, Integer> tuple = TUPLE2.widen2(new Tuple2<>("hello", 42));
 
       Function<String, Integer> f1 = String::length;
       Function<Integer, String> f2 = i -> "#" + i;

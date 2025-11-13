@@ -521,7 +521,9 @@ public final class LawTestPattern {
     Kind2<F, E, E> rightSide = bifunctor.bimap(f2, g2, intermediate);
 
     assertThat(equalityChecker.test(leftSide, rightSide))
-        .as("Bifunctor Composition Law: bimap(f2∘f1, g2∘g1, fab) == bimap(f2, g2, bimap(f1, g1, fab))")
+        .as(
+            "Bifunctor Composition Law: bimap(f2∘f1, g2∘g1, fab) == bimap(f2, g2, bimap(f1, g1,"
+                + " fab))")
         .isTrue();
   }
 

@@ -57,7 +57,8 @@ public class BifunctorExample {
 
   private static void demonstrateEitherBifunctor() {
     System.out.println("--- Example 1: Either Bifunctor (Sum Type) ---");
-    System.out.println("Either represents a value that is EITHER Left (error) OR Right (success)\n");
+    System.out.println(
+        "Either represents a value that is EITHER Left (error) OR Right (success)\n");
 
     Bifunctor<EitherKind2.Witness> bifunctor = EitherBifunctor.INSTANCE;
 
@@ -254,8 +255,7 @@ public class BifunctorExample {
 
   private static void apiResponseTransformation() {
     System.out.println("Scenario 1: API Response Transformation");
-    System.out.println(
-        "Transform both error messages and success data to match API contract\n");
+    System.out.println("Transform both error messages and success data to match API contract\n");
 
     Bifunctor<EitherKind2.Witness> bifunctor = EitherBifunctor.INSTANCE;
 

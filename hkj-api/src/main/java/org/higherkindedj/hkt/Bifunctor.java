@@ -6,9 +6,9 @@ import java.util.function.Function;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * A Bifunctor is a type constructor {@code F} of kind {@code * -> * -> *} that is covariant in
- * both of its type arguments. In other words, it represents "things that contain two independent
- * types that can both be mapped over".
+ * A Bifunctor is a type constructor {@code F} of kind {@code * -> * -> *} that is covariant in both
+ * of its type arguments. In other words, it represents "things that contain two independent types
+ * that can both be mapped over".
  *
  * <p>Bifunctor is similar to {@link Functor}, but operates on types with two type parameters
  * instead of one. Whilst Functor provides {@code map} to transform a single type parameter,
@@ -25,9 +25,9 @@ import org.jspecify.annotations.NullMarked;
  * <h2>Core Concept</h2>
  *
  * <p>If you have a value wrapped in a two-parameter context {@code F<A, B>} (like {@code
- * Either<String, Integer>}, {@code Tuple2<String, Integer>}, or {@code Validated<Error,
- * Success>}), and you have functions {@code A -> C} and {@code B -> D}, the {@code bimap}
- * operation lets you apply both functions to get {@code F<C, D>}, preserving the structure:
+ * Either<String, Integer>}, {@code Tuple2<String, Integer>}, or {@code Validated<Error, Success>}),
+ * and you have functions {@code A -> C} and {@code B -> D}, the {@code bimap} operation lets you
+ * apply both functions to get {@code F<C, D>}, preserving the structure:
  *
  * <pre>
  * F<A, B> + (A -> C) + (B -> D) ──bimap──> F<C, D>
@@ -335,8 +335,8 @@ public interface Bifunctor<F> {
    * @param <D> The type of the second parameter in the output bifunctor
    * @param f The pure function to apply to the first parameter. Must not be null.
    * @param g The pure function to apply to the second parameter. Must not be null.
-   * @param fab The bifunctor structure containing values of types {@code A} and {@code B}. Must
-   *     not be null.
+   * @param fab The bifunctor structure containing values of types {@code A} and {@code B}. Must not
+   *     be null.
    * @return A new bifunctor structure of type {@code Kind2<F, C, D>} with both parameters
    *     transformed. Guaranteed to be non-null.
    * @throws NullPointerException if {@code f}, {@code g}, or {@code fab} is null
@@ -345,15 +345,13 @@ public interface Bifunctor<F> {
    * @see #second(Function, Kind2)
    */
   <A, B, C, D> Kind2<F, C, D> bimap(
-      Function<? super A, ? extends C> f,
-      Function<? super B, ? extends D> g,
-      Kind2<F, A, B> fab);
+      Function<? super A, ? extends C> f, Function<? super B, ? extends D> g, Kind2<F, A, B> fab);
 
   /**
    * Maps over the first type parameter only, leaving the second parameter unchanged.
    *
-   * <p>This is a convenience method that applies a transformation to only the first type
-   * parameter. It is equivalent to calling {@code bimap(f, Function.identity(), fab)}.
+   * <p>This is a convenience method that applies a transformation to only the first type parameter.
+   * It is equivalent to calling {@code bimap(f, Function.identity(), fab)}.
    *
    * <p><b>Type Transformation:</b>
    *
@@ -401,16 +399,15 @@ public interface Bifunctor<F> {
    * @param <B> The type of the second parameter (unchanged)
    * @param <C> The type of the first parameter in the output bifunctor
    * @param f The pure function to apply to the first parameter. Must not be null.
-   * @param fab The bifunctor structure containing values of types {@code A} and {@code B}. Must
-   *     not be null.
+   * @param fab The bifunctor structure containing values of types {@code A} and {@code B}. Must not
+   *     be null.
    * @return A new bifunctor structure of type {@code Kind2<F, C, B>} with the first parameter
    *     transformed. Guaranteed to be non-null.
    * @throws NullPointerException if {@code f} or {@code fab} is null (implementation-dependent)
    * @see #bimap(Function, Function, Kind2)
    * @see #second(Function, Kind2)
    */
-  default <A, B, C> Kind2<F, C, B> first(
-      Function<? super A, ? extends C> f, Kind2<F, A, B> fab) {
+  default <A, B, C> Kind2<F, C, B> first(Function<? super A, ? extends C> f, Kind2<F, A, B> fab) {
     return bimap(f, Function.identity(), fab);
   }
 
@@ -472,16 +469,15 @@ public interface Bifunctor<F> {
    * @param <B> The type of the second parameter in the input bifunctor {@code fab}
    * @param <D> The type of the second parameter in the output bifunctor
    * @param g The pure function to apply to the second parameter. Must not be null.
-   * @param fab The bifunctor structure containing values of types {@code A} and {@code B}. Must
-   *     not be null.
+   * @param fab The bifunctor structure containing values of types {@code A} and {@code B}. Must not
+   *     be null.
    * @return A new bifunctor structure of type {@code Kind2<F, A, D>} with the second parameter
    *     transformed. Guaranteed to be non-null.
    * @throws NullPointerException if {@code g} or {@code fab} is null (implementation-dependent)
    * @see #bimap(Function, Function, Kind2)
    * @see #first(Function, Kind2)
    */
-  default <A, B, D> Kind2<F, A, D> second(
-      Function<? super B, ? extends D> g, Kind2<F, A, B> fab) {
+  default <A, B, D> Kind2<F, A, D> second(Function<? super B, ? extends D> g, Kind2<F, A, B> fab) {
     return bimap(Function.identity(), g, fab);
   }
 }
