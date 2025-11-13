@@ -99,7 +99,7 @@ public record Tuple4<A, B, C, D>(A _1, B _2, C _3, D _4) implements Tuple {
    * @throws NullPointerException if {@code thirdMapper} is null.
    */
   public <C2> Tuple4<A, B, C2, D> mapThird(Function<? super C, ? extends C2> thirdMapper) {
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE4_CLASS, MAP);
+    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE4_CLASS, MAP_THIRD);
     return new Tuple4<>(_1, _2, thirdMapper.apply(_3), _4);
   }
 
@@ -112,7 +112,7 @@ public record Tuple4<A, B, C, D>(A _1, B _2, C _3, D _4) implements Tuple {
    * @throws NullPointerException if {@code fourthMapper} is null.
    */
   public <D2> Tuple4<A, B, C, D2> mapFourth(Function<? super D, ? extends D2> fourthMapper) {
-    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE4_CLASS, MAP);
+    Validation.function().requireMapper(fourthMapper, "fourthMapper", TUPLE4_CLASS, MAP_FOURTH);
     return new Tuple4<>(_1, _2, _3, fourthMapper.apply(_4));
   }
 }

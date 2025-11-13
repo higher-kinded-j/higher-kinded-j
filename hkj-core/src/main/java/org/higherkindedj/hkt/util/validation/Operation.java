@@ -70,6 +70,9 @@ public enum Operation {
   MAP_RIGHT("mapRight"),
   MAP_FIRST("mapFirst"),
   MAP_SECOND("mapSecond"),
+  MAP_THIRD("mapThird"),
+  MAP_FOURTH("mapFourth"),
+  MAP_FIFTH("mapFifth"),
   MAP_ERROR("mapError"),
   MAP_WRITTEN("mapWritten");
 

@@ -126,7 +126,7 @@ public record Tuple3<A, B, C>(A _1, B _2, C _3) implements Tuple {
    * @throws NullPointerException if {@code thirdMapper} is null.
    */
   public <C2> Tuple3<A, B, C2> mapThird(Function<? super C, ? extends C2> thirdMapper) {
-    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE3_CLASS, MAP);
+    Validation.function().requireMapper(thirdMapper, "thirdMapper", TUPLE3_CLASS, MAP_THIRD);
     return new Tuple3<>(_1, _2, thirdMapper.apply(_3));
   }
 }
