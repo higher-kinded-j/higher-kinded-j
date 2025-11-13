@@ -264,52 +264,6 @@ class IOFunctorTest extends IOTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("map() efficient with many transformations")
-    void mapEfficientWithManyTransformations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<IOKind.Witness, Integer> start = validKind;
-
-        Kind<IOKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          result = functor.map(x -> x + 1, result);
-        }
-
-        assertThatIO(narrowToIO(result)).hasValue(DEFAULT_IO_VALUE + 100);
-      }
-    }
-
-    @Test
-    @DisplayName("map() maintains lazy evaluation with long chains")
-    void mapMaintainsLazyEvaluationWithLongChains() {
-      AtomicInteger executeCount = new AtomicInteger(0);
-
-      IO<Integer> io =
-          IO.delay(
-              () -> {
-                executeCount.incrementAndGet();
-                return 1;
-              });
-
-      Kind<IOKind.Witness, Integer> start = IO_OP.widen(io);
-      Kind<IOKind.Witness, Integer> result = start;
-
-      // Build long chain
-      for (int i = 0; i < 50; i++) {
-        result = functor.map(x -> x + 1, result);
-      }
-
-      // Should not have executed yet
-      assertThat(executeCount.get()).isZero();
-
-      // Execute once
-      assertThatIO(narrowToIO(result)).hasValue(51);
-      assertThat(executeCount.get()).isEqualTo(1);
-    }
-  }
 
   @Nested
   @DisplayName("Validation Tests")

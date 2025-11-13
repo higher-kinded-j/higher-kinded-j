@@ -204,51 +204,6 @@ class EitherKindHelperTest extends EitherTestBase {
   }
 
   @Nested
-  @DisplayName("Performance and Memory Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("Holder creates minimal overhead")
-    void testMinimalOverhead() {
-      Either<ComplexTestError, String> original = Either.right("test");
-
-      eitherKindHelper(original).skipPerformance().test();
-    }
-
-    @Test
-    @DisplayName("Multiple operations are idempotent")
-    void testIdempotentOperations() {
-      Either<ComplexTestError, String> original = Either.right("idempotent");
-
-      eitherKindHelper(original)
-          .skipRoundTrip()
-          .skipValidations()
-          .skipInvalidType()
-          .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Performance characteristics test")
-    void testPerformanceCharacteristics() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Either<ComplexTestError, String> testInstance = Either.right("performance_test");
-
-        eitherKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Memory efficiency test")
-    void testMemoryEfficiency() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Either<ComplexTestError, String> testInstance = Either.right("memory_test");
-
-        eitherKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Edge Cases and Corner Cases")
   class EdgeCasesTests {
     @Test

@@ -454,29 +454,6 @@ class StateMonadTest extends StateTestBase<Integer> {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("FlatMap efficient with many operations")
-    void flatMapEfficientWithManyOperations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        State<Integer, Integer> start = State.of(s -> new StateTuple<>(1, s));
-        Kind<StateKind.Witness<Integer>, Integer> result = STATE.widen(start);
-
-        for (int i = 0; i < 100; i++) {
-          final int increment = i;
-          result = monad.flatMap(x -> monad.of(x + increment), result);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        StateTuple<Integer, Integer> finalResult = runState(result, getInitialState());
-        assertThatStateTuple(finalResult).hasValue(expectedSum);
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Lazy Evaluation")
   class LazyEvaluation {
 

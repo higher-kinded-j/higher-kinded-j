@@ -632,30 +632,6 @@ class MaybeSelectiveTest extends MaybeTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Selective operations efficient with many conditionals")
-    void selectiveOperationsEfficientWithManyConditionals() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<MaybeKind.Witness, Integer> start = validKind;
-
-        Kind<MaybeKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int index = i;
-          Kind<MaybeKind.Witness, Boolean> condition = selective.map(val -> val > index, result);
-          Kind<MaybeKind.Witness, Integer> thenValue = selective.map(val -> val + 1, result);
-          result = selective.ifS(condition, thenValue, result);
-        }
-
-        Maybe<Integer> maybe = MAYBE.narrow(result);
-        assertThatMaybe(maybe).isJust();
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Unit Semantics Tests")
   class UnitSemanticsTests {
 

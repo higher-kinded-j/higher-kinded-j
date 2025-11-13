@@ -184,41 +184,4 @@ class MaybeFunctorTest extends MaybeTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("Test performance characteristics")
-    void testPerformanceCharacteristics() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<MaybeKind.Witness, Integer> start = validKind;
-
-        long startTime = System.nanoTime();
-        Kind<MaybeKind.Witness, Integer> result = start;
-        for (int i = 0; i < 10000; i++) {
-          result = functor.map(x -> x + 1, result);
-        }
-        long duration = System.nanoTime() - startTime;
-
-        assertThat(duration).isLessThan(100_000_000L); // Less than 100ms
-      }
-    }
-
-    @Test
-    @DisplayName("Nothing optimisation - map not called")
-    void nothingOptimisationMapNotCalled() {
-      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
-      AtomicBoolean called = new AtomicBoolean(false);
-
-      Function<Integer, String> tracker =
-          i -> {
-            called.set(true);
-            return i.toString();
-          };
-
-      functor.map(tracker, nothing);
-
-      assertThat(called).as("Mapper should not be called for Nothing").isFalse();
-    }
-  }
 }

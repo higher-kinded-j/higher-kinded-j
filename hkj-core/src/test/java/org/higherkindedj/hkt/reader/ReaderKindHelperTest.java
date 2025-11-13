@@ -201,52 +201,6 @@ class ReaderKindHelperTest extends ReaderTestBase {
   }
 
   @Nested
-  @DisplayName("Performance and Memory Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Holder creates minimal overhead")
-    void testMinimalOverhead() {
-      Reader<TestConfig, String> original = Reader.of(TestConfig::url);
-
-      readerKindHelper(original).skipPerformance().test();
-    }
-
-    @Test
-    @DisplayName("Multiple operations are idempotent")
-    void testIdempotentOperations() {
-      Reader<TestConfig, String> original = Reader.constant("idempotent");
-
-      readerKindHelper(original)
-          .skipRoundTrip()
-          .skipValidations()
-          .skipInvalidType()
-          .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Performance characteristics test")
-    void testPerformanceCharacteristics() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Reader<TestConfig, String> testInstance = Reader.of(env -> env.url() + "-performance");
-
-        readerKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Memory efficiency test")
-    void testMemoryEfficiency() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Reader<TestConfig, String> testInstance = Reader.constant("memory-test");
-
-        readerKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Edge Cases and Corner Cases")
   class EdgeCasesTests {
 

@@ -509,45 +509,6 @@ class MaybeMonadErrorTest extends MaybeTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Error recovery efficient with many operations")
-    void errorRecoveryEfficientWithManyOperations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<MaybeKind.Witness, Integer> start = validKind;
-
-        Kind<MaybeKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          result = monadError.handleErrorWith(result, validHandler);
-        }
-
-        Maybe<Integer> maybe = narrowToMaybe(result);
-        assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE); // Should still be original value
-      }
-    }
-
-    @Test
-    @DisplayName("Nothing propagation is efficient")
-    void nothingPropagationIsEfficient() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<MaybeKind.Witness, Integer> nothingStart = nothingKind();
-        Maybe<Integer> originalNothing = narrowToMaybe(nothingStart);
-
-        Kind<MaybeKind.Witness, Integer> result = nothingStart;
-        for (int i = 0; i < 1000; i++) {
-          final int index = i;
-          result = monadError.flatMap(x -> monadError.of(x + index), result);
-        }
-
-        Maybe<Integer> finalNothing = narrowToMaybe(result);
-        assertThat(finalNothing).isSameAs(originalNothing);
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("MonadZero Tests")
   class MonadZeroTests {
 

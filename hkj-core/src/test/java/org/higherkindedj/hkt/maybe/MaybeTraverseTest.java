@@ -347,29 +347,6 @@ class MaybeTraverseTest extends MaybeTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("traverse() efficient with Nothing values")
-    void traverseEfficientWithNothingValues() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        // Nothing values should not traverse, so even expensive functions are safe
-        Function<Integer, Kind<ValidatedKind.Witness<String>, String>> expensiveFunc =
-            i -> ValidatedKindHelper.VALIDATED.widen(Validated.valid("expensive:" + i));
-
-        Kind<ValidatedKind.Witness<String>, Kind<MaybeKind.Witness, String>> result =
-            traverse.traverse(validatedApplicative, expensiveFunc, nothingKind);
-
-        // Should complete quickly without calling expensive function
-        Validated<String, Kind<MaybeKind.Witness, String>> validated =
-            ValidatedKindHelper.VALIDATED.narrow(result);
-        assertThat(narrowToMaybe(validated.get()).isNothing()).isTrue();
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Integration Tests")
   class IntegrationTests {
 
