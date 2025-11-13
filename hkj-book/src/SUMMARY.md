@@ -63,7 +63,10 @@
 # More Functional Thinking
 - [Blog series](reading.md)
 
+# Glossary
+- [Functional Programming Terminology](glossary.md)
+
 # Project Info
-- [Contributing](./CONTRIBUTING.md)  
+- [Contributing](./CONTRIBUTING.md)
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [License](./LICENSE.md)

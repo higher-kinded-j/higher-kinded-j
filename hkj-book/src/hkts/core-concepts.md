@@ -45,6 +45,10 @@ At the very centre of the library are the `Kind` interfaces, which make higher-k
   * This `Kind` object can then be passed to generic functions (such as `map` or `flatMap` from a `Functor` or `Monad` instance) that expect `Kind<F, A>`.
 * **Reference:** [`Kind.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Kind.java)
 
+~~~admonish tip
+For quick definitions of HKT concepts like Kind, Witness Types, and Defunctionalisation, see the [Glossary](../glossary.md).
+~~~
+
 ## 3. Type Classes (`Functor`, `Applicative`, `Monad`, `MonadError`)
 
 These are interfaces that define standard functional operations that work *generically* over any simulated type constructor `F` (represented by its witness type) for which an instance of the type class exists. They operate on `Kind<F, A>` objects.
