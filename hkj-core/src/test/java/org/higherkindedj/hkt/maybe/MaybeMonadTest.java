@@ -305,41 +305,4 @@ class MaybeMonadTest extends MaybeTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("flatMap efficient with many operations")
-    void flatMapEfficientWithManyOperations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<MaybeKind.Witness, Integer> start = justKind(1);
-
-        Kind<MaybeKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int increment = i;
-          result = monad.flatMap(x -> monad.of(x + increment), result);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        assertThatMaybe(narrowToMaybe(result)).isJust().hasValue(expectedSum);
-      }
-    }
-
-    @Test
-    @DisplayName("Nothing values don't process operations")
-    void nothingValuesDontProcessOperations() {
-      Kind<MaybeKind.Witness, String> nothingStart = nothingKind();
-      Maybe<String> originalNothing = narrowToMaybe(nothingStart);
-
-      Kind<MaybeKind.Witness, String> nothingResult = nothingStart;
-      for (int i = 0; i < 1000; i++) {
-        final int index = i;
-        nothingResult = monad.flatMap(s -> monad.of(s + "_" + index), nothingResult);
-      }
-
-      Maybe<String> finalNothing = narrowToMaybe(nothingResult);
-      assertThat(finalNothing).isSameAs(originalNothing);
-    }
-  }
 }

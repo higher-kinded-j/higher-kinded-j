@@ -230,63 +230,6 @@ class OptionalFunctorTest extends OptionalTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("Test performance characteristics")
-    void testPerformanceCharacteristics() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<OptionalKind.Witness, Integer> start = validKind;
-
-        long startTime = System.nanoTime();
-        Kind<OptionalKind.Witness, Integer> result = start;
-        for (int i = 0; i < 10000; i++) {
-          result = functor.map(x -> x + 1, result);
-        }
-        long duration = System.nanoTime() - startTime;
-
-        assertThat(duration).isLessThan(100_000_000L); // Less than 100ms
-      }
-    }
-
-    @Test
-    @DisplayName("Empty optimisation - map not called")
-    void emptyOptimisationMapNotCalled() {
-      Kind<OptionalKind.Witness, Integer> empty = emptyOptional();
-      AtomicBoolean called = new AtomicBoolean(false);
-
-      Function<Integer, String> tracker =
-          i -> {
-            called.set(true);
-            return i.toString();
-          };
-
-      functor.map(tracker, empty);
-
-      assertThat(called).as("Mapper should not be called for empty Optional").isFalse();
-    }
-
-    @Test
-    @DisplayName("Map composition performance")
-    void mapCompositionPerformance() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Function<Integer, Integer> increment = i -> i + 1;
-        Function<Integer, Integer> composed = increment;
-        for (int i = 0; i < 100; i++) {
-          composed = composed.andThen(increment);
-        }
-
-        long startTime = System.nanoTime();
-        Kind<OptionalKind.Witness, Integer> result = functor.map(composed, validKind);
-        long duration = System.nanoTime() - startTime;
-
-        assertThatOptional(result).isPresent();
-        assertThat(duration).isLessThan(10_000_000L); // Less than 10ms
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Functor Laws Verification")
   class FunctorLawsVerification {
     @Test

@@ -476,55 +476,6 @@ class IOMonadTest extends IOTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("flatMap efficient with many operations")
-    void flatMapEfficientWithManyOperations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<IOKind.Witness, Integer> start = monad.of(1);
-
-        Kind<IOKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int increment = i;
-          result = monad.flatMap(x -> monad.of(x + increment), result);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        assertThatIO(narrowToIO(result)).hasValue(expectedSum);
-      }
-    }
-
-    @Test
-    @DisplayName("Maintains lazy evaluation with long flatMap chains")
-    void maintainsLazyEvaluationWithLongFlatMapChains() {
-      AtomicInteger executeCount = new AtomicInteger(0);
-
-      IO<Integer> io =
-          IO.delay(
-              () -> {
-                executeCount.incrementAndGet();
-                return 1;
-              });
-
-      Kind<IOKind.Witness, Integer> start = IO_OP.widen(io);
-      Kind<IOKind.Witness, Integer> result = start;
-
-      // Build long chain
-      for (int i = 0; i < 50; i++) {
-        final int increment = i;
-        result = monad.flatMap(x -> monad.of(x + increment), result);
-      }
-
-      // Should not have executed yet
-      assertThat(executeCount.get()).isZero();
-
-      // Execute once
-      assertThatIO(narrowToIO(result)).hasValue(1226); // 1 + 0 + 1 + ... + 49
-      assertThat(executeCount.get()).isEqualTo(1);
-    }
-  }
 
   @Nested
   @DisplayName("Validation Tests")

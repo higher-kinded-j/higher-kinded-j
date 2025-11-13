@@ -461,28 +461,6 @@ class LazyMonadTest extends LazyTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("flatMap efficient with many operations")
-    void flatMapEfficientWithManyOperations() throws Throwable {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<LazyKind.Witness, Integer> start = nowKind(1);
-
-        Kind<LazyKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int increment = i;
-          result = lazyMonad.flatMap(x -> lazyMonad.of(x + increment), result);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        assertThatLazy(narrowToLazy(result)).whenForcedHasValue(expectedSum);
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("MapN Tests")
   class MapNTests {
     Kind<LazyKind.Witness, Integer> lz1;

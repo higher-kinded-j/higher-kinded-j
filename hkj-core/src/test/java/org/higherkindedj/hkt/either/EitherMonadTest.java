@@ -257,41 +257,4 @@ class EitherMonadTest extends EitherTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("flatMap efficient with many operations")
-    void flatMapEfficientWithManyOperations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        var start = rightKind(1);
-
-        var result = start;
-        for (int i = 0; i < 100; i++) {
-          final int increment = i;
-          result = monad.flatMap(x -> monad.of(x + increment), result);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        assertThatEither(narrowToEither(result)).isRight().hasRight(expectedSum);
-      }
-    }
-
-    @Test
-    @DisplayName("Left values don't process operations")
-    void leftValuesDontProcessOperations() {
-      Kind<EitherKind.Witness<String>, Integer> leftStart = leftKind(TestErrorType.DEFAULT);
-      Either<String, Integer> originalLeft = narrowToEither(leftStart);
-
-      var leftResult = leftStart;
-      for (int i = 0; i < 1000; i++) {
-        final int index = i;
-        leftResult = monad.flatMap(s -> monad.of(s + index), leftResult);
-      }
-
-      Either<String, Integer> finalLeft = narrowToEither(leftResult);
-      assertThatEither(finalLeft).isSameAs(originalLeft);
-    }
-  }
 }

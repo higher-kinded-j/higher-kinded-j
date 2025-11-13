@@ -4,7 +4,9 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.reader.ReaderAssert.assertThatReader;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -867,20 +869,22 @@ class ReaderTest extends ReaderTestBase {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("Reader operations have predictable performance")
-    void readerOperationsHavePredictablePerformance() {
+    @DisplayName("Reader operations complete in reasonable time")
+    void readerOperationsCompleteInReasonableTime() {
       Reader<TestConfig, String> test = Reader.of(TestConfig::url);
 
-      long start = System.nanoTime();
-      for (int i = 0; i < 10000; i++) {
-        test.map(String::toUpperCase)
-            .flatMap(s -> Reader.constant(s.toLowerCase()))
-            .run(TEST_CONFIG);
-      }
-      long duration = System.nanoTime() - start;
-
-      // Should complete in reasonable time (less than 100ms for 10k ops)
-      assertThat(duration).isLessThan(100_000_000L);
+      // Verify operations complete without hanging (generous timeout)
+      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () -> {
+            for (int i = 0; i < 100_000; i++) {
+              test.map(String::toUpperCase)
+                  .flatMap(s -> Reader.constant(s.toLowerCase()))
+                  .run(TEST_CONFIG);
+            }
+          },
+          "Reader operations should complete within reasonable time");
     }
 
     @Test

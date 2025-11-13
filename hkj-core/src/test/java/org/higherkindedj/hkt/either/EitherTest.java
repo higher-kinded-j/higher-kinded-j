@@ -4,7 +4,9 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -995,19 +997,20 @@ class EitherTest extends EitherTestBase {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("Either operations have predictable performance")
-    void eitherOperationsHavePredictablePerformance() {
+    @DisplayName("Either operations complete in reasonable time")
+    void eitherOperationsCompleteInReasonableTime() {
       Either<String, Integer> test = Either.right(DEFAULT_RIGHT_VALUE);
 
-      // Simple operations should be very fast
-      long start = System.nanoTime();
-      for (int i = 0; i < 10000; i++) {
-        test.map(x -> x + 1).flatMap(x -> Either.right(x * 2)).isRight();
-      }
-      long duration = System.nanoTime() - start;
-
-      // Should complete in reasonable time (less than 100ms for 10k ops)
-      assertThat(duration).isLessThan(100_000_000L);
+      // Verify operations complete without hanging (generous timeout)
+      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () -> {
+            for (int i = 0; i < 100_000; i++) {
+              test.map(x -> x + 1).flatMap(x -> Either.right(x * 2)).isRight();
+            }
+          },
+          "Either operations should complete within reasonable time");
     }
 
     @Test

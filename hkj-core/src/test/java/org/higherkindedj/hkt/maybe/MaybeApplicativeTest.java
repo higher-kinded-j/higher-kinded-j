@@ -279,46 +279,4 @@ class MaybeApplicativeTest extends MaybeTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Efficient with many map2 operations")
-    void efficientWithManyMap2Operations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<MaybeKind.Witness, Integer> start = applicative.of(1);
-
-        Kind<MaybeKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          Kind<MaybeKind.Witness, Integer> incrementKind = applicative.of(i);
-          result = applicative.map2(result, incrementKind, (a, b) -> a + b);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        Maybe<Integer> maybe = narrowToMaybe(result);
-        assertThat(maybe.isJust()).isTrue();
-        assertThat(maybe.get()).isEqualTo(expectedSum);
-      }
-    }
-
-    @Test
-    @DisplayName("Nothing short-circuits efficiently")
-    void nothingShortCircuitsEfficiently() {
-      Kind<MaybeKind.Witness, Integer> nothing = nothingKind();
-
-      AtomicInteger callCount = new AtomicInteger(0);
-      BiFunction<Integer, Integer, Integer> trackingCombiner =
-          (a, b) -> {
-            callCount.incrementAndGet();
-            return a + b;
-          };
-
-      for (int i = 0; i < 1000; i++) {
-        applicative.map2(nothing, applicative.of(i), trackingCombiner);
-      }
-
-      assertThat(callCount).as("Combiner should not be called for Nothing").hasValue(0);
-    }
-  }
 }

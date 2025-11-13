@@ -12,5 +12,6 @@ include(
     "hkj-processor",
     "hkj-examples",
     "hkj-annotations", "hkj-api",
-    "hkj-processor-plugins"
+    "hkj-processor-plugins",
+    "hkj-benchmarks"
 )
