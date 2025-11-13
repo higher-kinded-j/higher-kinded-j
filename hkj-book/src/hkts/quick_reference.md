@@ -381,11 +381,12 @@ Kind2<FunctionKind.Witness, Integer, String> fullAdaptation =
 **Start Simple, Go Complex:**
 1. **Functor** - Simple transformations, context unchanged
 2. **Applicative** - Combine independent computations
-3. **Selective** - Conditional effects with static structure
-4. **Monad** - Chain dependent computations
-5. **MonadError** - Add error handling to Monad
-6. **Traverse** - Apply effects to collections
-7. **Profunctor** - Adapt inputs/outputs of functions
+3. **Selective** OR **Monad** - Choose based on needs:
+   - **Selective**: Conditional effects with all branches visible upfront (static analysis)
+   - **Monad**: Chain dependent computations with dynamic choice
+4. **MonadError** - Add error handling to Monad
+5. **Traverse** - Apply effects to collections
+6. **Profunctor** - Adapt inputs/outputs of functions
 
 **Decision Tree:**
 - Need to transform values? → **Functor**
@@ -413,15 +414,13 @@ Kind2<FunctionKind.Witness, Integer, String> fullAdaptation =
 
 ~~~admonish info title="Type Class Relationships"
 ```
-Functor
-    ↑
-Applicative ← Apply
-    ↑
-Selective
-    ↑
-   Monad
-    ↑
-MonadError
+        Functor
+            ↑
+    Applicative ← Apply
+       ↗    ↖
+Selective   Monad
+               ↑
+          MonadError
 
 Semigroup
     ↑
@@ -439,12 +438,13 @@ Bifunctor
 **Inheritance Meaning:**
 - Every **Applicative** is also a **Functor**
 - Every **Selective** is also an **Applicative** (and therefore a **Functor**)
-- Every **Monad** is also a **Selective** (and therefore **Applicative** and **Functor**)
-- Every **MonadError** is also a **Monad** (and therefore **Selective**, **Applicative**, and **Functor**)
+- Every **Monad** is also an **Applicative** (and therefore a **Functor**)
+- Every **MonadError** is also a **Monad** (and therefore **Applicative** and **Functor**)
+- **Selective** and **Monad** are siblings - both extend **Applicative** directly
 - Every **Monoid** is also a **Semigroup**
 - Every **Traverse** provides both **Functor** and **Foldable** capabilities
 
-**Practical Implication:** If you have a `Monad<F>` instance, you can also use it as a `Selective<F>`, `Applicative<F>`, or `Functor<F>`.
+**Practical Implication:** If you have a `Monad<F>` instance, you can also use it as an `Applicative<F>` or `Functor<F>`. Selective and Monad are alternative extensions of Applicative with different trade-offs.
 ~~~
 
 ## Common Monoid Instances

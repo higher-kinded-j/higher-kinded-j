@@ -184,7 +184,7 @@ increment(ListFunctor.INSTANCE, LIST.widen(List.of(1, 2, 3)));        // [2, 3, 
 // Standard Java types and their Kind representations:
 Optional<String>           ≈ Kind<OptionalKind.Witness, String>
 List<Integer>              ≈ Kind<ListKind.Witness, Integer>
-Either<String, Integer>    ≈ Kind2<EitherKind.Witness<String>, Integer>
+Either<String, Integer>    ≈ Kind2<EitherKind2.Witness, String, Integer>
 Function<String, Integer>  ≈ Kind2<FunctionKind.Witness, String, Integer>
 
 // Converting between representations:
@@ -194,6 +194,10 @@ Optional<String> backToOpt = OPTIONAL.narrow(kindOpt);
 ```
 
 **Think Of It As:** A wrapper that allows Java's type system to work with type constructors generically.
+
+**Note on Either:** Either has two witness types depending on usage:
+- `EitherKind.Witness<L>` for `Kind<EitherKind.Witness<L>, R>` - used with Functor/Monad (right-biased)
+- `EitherKind2.Witness` for `Kind2<EitherKind2.Witness, L, R>` - used with Bifunctor (both sides)
 
 **Related:** [Core Concepts](hkts/core-concepts.md)
 
@@ -361,11 +365,13 @@ Kind<ListKind.Witness, Integer> lengths = functor.map(String::length, strings);
 Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
 
 Kind<OptionalKind.Witness, String> result =
-    monad.flatMap(userId ->
-        monad.flatMap(profile ->
-            findAccount(profile.accountId()),
-            findProfile(userId)),
-        findUser("user123"));
+    monad.flatMap(
+        userId -> monad.flatMap(
+            profile -> findAccount(profile.accountId()),
+            findProfile(userId)
+        ),
+        findUser("user123")
+    );
 // Each step depends on the previous result
 ```
 
