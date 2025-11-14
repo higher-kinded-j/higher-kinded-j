@@ -39,6 +39,7 @@
   - [Try](monads/try_monad.md)
   - [Validated](monads/validated_monad.md)
   - [Writer](monads/writer_monad.md)
+  - [Const](monads/const_type.md)
 # Advanced Topics
 - [Monad Transformers](transformers/transformers.md)
   - [EitherT](transformers/eithert_transformer.md)
