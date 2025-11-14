@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
@@ -73,7 +72,8 @@ class OptionalKindHelperTest {
     void narrow_shouldThrowForNullInput() {
       assertThatThrownBy(() -> OPTIONAL.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted(Optional.class.getSimpleName()));
+          .hasMessageContaining(
+              "Cannot narrow null Kind for %s".formatted(Optional.class.getSimpleName()));
     }
 
     @Test

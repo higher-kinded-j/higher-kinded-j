@@ -194,6 +194,22 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
    *   <li>Return the final accumulated result
    * </ol>
    *
+   * <p><b>Stack Safety Considerations:</b>
+   *
+   * <p>This implementation uses an iterative loop with {@code applicative.map2()}, which is
+   * generally stack-safe for most standard {@code Applicative} instances. However, stack safety
+   * ultimately depends on the {@code Applicative} instance provided:
+   *
+   * <ul>
+   *   <li><b>Stack-Safe Applicatives:</b> If {@code map2} is implemented iteratively or uses
+   *       trampolining internally (as in {@code Id}, {@code Optional}, {@code Either}), this
+   *       traversal is stack-safe for arbitrarily large streams.
+   *   <li><b>Potentially Unsafe Applicatives:</b> If {@code map2} is implemented in terms of {@code
+   *       flatMap} without stack-safety measures, traversing very large streams (>10,000 elements)
+   *       may cause {@code StackOverflowError}. In such cases, ensure your {@code Applicative}
+   *       instance uses {@link org.higherkindedj.hkt.trampoline.Trampoline} or similar techniques.
+   * </ul>
+   *
    * <p><b>Effect Sequencing:</b> The behaviour depends on the applicative instance:
    *
    * <ul>

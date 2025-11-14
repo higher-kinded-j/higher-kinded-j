@@ -58,6 +58,28 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * Traverses a list from left to right, applying an effectful function {@code f} to each element
    * and collecting the results within the context of the {@link Applicative} {@code G}.
    *
+   * <p><b>Stack Safety Considerations:</b>
+   *
+   * <p>This implementation uses an iterative loop with {@code applicative.map2()}, which is
+   * generally stack-safe for most standard {@code Applicative} instances (e.g., {@code Optional},
+   * {@code Either}, {@code Validated}, {@code List}, {@code Id}). However, stack safety ultimately
+   * depends on the {@code Applicative} instance provided:
+   *
+   * <ul>
+   *   <li><b>Stack-Safe Applicatives:</b> If {@code map2} is implemented iteratively or uses
+   *       trampolining internally (as in {@code Id}, {@code Optional}, {@code Either}), this
+   *       traversal is stack-safe for arbitrarily large lists.
+   *   <li><b>Potentially Unsafe Applicatives:</b> If {@code map2} is implemented in terms of {@code
+   *       flatMap} without stack-safety measures, traversing very large lists (>10,000 elements)
+   *       may cause {@code StackOverflowError}. In such cases, use {@link
+   *       org.higherkindedj.hkt.trampoline.TrampolineUtils#traverseListStackSafe} instead.
+   * </ul>
+   *
+   * <p><b>Performance Note:</b> This implementation creates a new {@code LinkedList} on each
+   * iteration to ensure correct behavior for all {@code Applicative} types, including those that
+   * create multiple branches (like {@code List}). For large lists, consider using more efficient
+   * data structures or the stack-safe alternative in {@code TrampolineUtils}.
+   *
    * @param <G> The higher-kinded type witness for the {@link Applicative} context.
    * @param <A> The type of elements in the input list {@code ta}.
    * @param <B> The type of elements in the resulting list, wrapped within the context {@code G}.
@@ -83,7 +105,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
     Validation.kind().requireNonNull(ta, LIST_TRAVERSE_CLASS, TRAVERSE);
 
     List<A> listA = LIST.narrow(ta);
-    Kind<G, List<B>> result = applicative.of(new LinkedList<>());
+    Kind<G, LinkedList<B>> result = applicative.of(new LinkedList<>());
 
     for (A a : listA) {
       Kind<G, ? extends B> effectOfB = f.apply(a);
@@ -92,13 +114,13 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
               result,
               effectOfB,
               (listB, b) -> {
-                // Create a new list to avoid mutation issues and append the new element.
-                // Appending to a LinkedList is an efficient O(1) operation.
-                List<B> newList = new LinkedList<>(listB);
+                // Create new list to ensure correctness for multi-branch Applicatives (e.g., List)
+                LinkedList<B> newList = new LinkedList<>(listB);
                 newList.add((B) b);
                 return newList;
               });
     }
+
     return applicative.map(LIST::widen, result);
   }
 

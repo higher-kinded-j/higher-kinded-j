@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
-import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
-import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
@@ -82,7 +80,7 @@ class OptionalTKindHelperTest {
     void widen_nullOptionalT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> OPTIONAL_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted("OptionalT"));
+          .hasMessage("Input %s cannot be null for widen".formatted("OptionalT"));
     }
   }
 
@@ -133,7 +131,7 @@ class OptionalTKindHelperTest {
     void narrow_nullKind_shouldThrowKindUnwrapException() {
       assertThatThrownBy(() -> OPTIONAL_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(NULL_KIND_TEMPLATE.formatted("OptionalT"));
+          .hasMessage("Cannot narrow null Kind for %s".formatted("OptionalT"));
     }
 
     // Dummy Kind for testing invalid type unwrap

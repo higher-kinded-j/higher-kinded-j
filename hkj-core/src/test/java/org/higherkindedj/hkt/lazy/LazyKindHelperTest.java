@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.lazy;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -86,7 +85,7 @@ class LazyKindHelperTest extends LazyTestBase {
     void widenShouldThrowNPEForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> LAZY.widen(null))
-          .withMessageContaining(NULL_WIDEN_INPUT_TEMPLATE.formatted("Lazy"));
+          .withMessageContaining("Input %s cannot be null for widen".formatted("Lazy"));
     }
 
     @Test
@@ -127,7 +126,7 @@ class LazyKindHelperTest extends LazyTestBase {
     void narrowShouldThrowForNullInput() {
       assertThatThrownBy(() -> narrowToLazy(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("Lazy"));
+          .hasMessageContaining("Cannot narrow null Kind for %s".formatted("Lazy"));
     }
 
     @Test

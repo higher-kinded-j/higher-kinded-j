@@ -5,8 +5,6 @@ package org.higherkindedj.hkt.either_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
-import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
-import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -69,7 +67,7 @@ class EitherTKindHelperTest {
     void widen_nullEitherT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> EITHER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted(TYPE_NAME));
+          .hasMessage("Input %s cannot be null for widen".formatted(TYPE_NAME));
     }
   }
 
@@ -108,7 +106,7 @@ class EitherTKindHelperTest {
     void narrow_nullKind_shouldThrowKindUnwrapException() {
       assertThatThrownBy(() -> EITHER_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(NULL_KIND_TEMPLATE.formatted(TYPE_NAME));
+          .hasMessage("Cannot narrow null Kind for %s".formatted(TYPE_NAME));
     }
 
     @Test

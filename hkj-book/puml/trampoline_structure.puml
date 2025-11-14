@@ -1,0 +1,46 @@
+@startuml trampoline_structure
+
+hide empty members
+
+interface "Trampoline<A>" <<sealed interface>> {
+  + {static} Trampoline<A> done(A value)
+  + {static} Trampoline<A> defer(Supplier<Trampoline<A>> next)
+  + <B> Trampoline<B> map(Function<A, B> f)
+  + <B> Trampoline<B> flatMap(Function<A, Trampoline<B>> f)
+  + A run()
+  + A runT()
+}
+
+class "Done<A>" <<record>> {
+  + A value
+}
+
+class "More<A>" <<record>> {
+  + Supplier<Trampoline<A>> next
+}
+
+class "FlatMap<A, B>" <<record>> {
+  + Trampoline<A> sub
+  + Function<A, Trampoline<B>> f
+}
+
+"Done<A>" -up-|> "Trampoline<A>" : implements
+"More<A>" -up-|> "Trampoline<A>" : implements
+"FlatMap<A, B>" -up-|> "Trampoline<A>" : implements
+
+note right of "Done<A>"
+  Represents a completed
+  computation with a final value
+end note
+
+note right of "More<A>"
+  Represents a suspended
+  computation (deferred thunk)
+end note
+
+note right of "FlatMap<A, B>"
+  Represents a sequenced
+  computation (monadic bind)
+end note
+
+@enduml

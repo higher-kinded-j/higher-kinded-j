@@ -20,6 +20,7 @@ import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -311,15 +312,16 @@ public final class Traversals {
   }
 
   /**
-   * Helper: sequences a list of State computations into a State of a list. This is analogous to
-   * sequence for other monads.
-   */
-  /**
    * Sequences a list of State computations into a State of a list.
    *
-   * <p>This implementation uses an imperative loop for stack safety. Using Stream.reduce with
-   * flatMap creates deeply nested closures that cause StackOverflowError with large lists (>1000
-   * elements).
+   * <p>This implementation uses {@link Trampoline} for stack safety whilst maintaining functional
+   * purity. The previous imperative loop implementation has been replaced with a tail-recursive
+   * algorithm executed via Trampoline, preventing {@code StackOverflowError} with arbitrarily large
+   * lists whilst preserving referential transparency.
+   *
+   * <p>The naive functional approach using {@code Stream.reduce} with {@code flatMap} creates
+   * deeply nested closures that cause {@code StackOverflowError} with large lists (>1000 elements).
+   * Trampoline eliminates this issue by converting recursion into iteration.
    *
    * @param states List of State computations to sequence
    * @param <S> The state type
@@ -330,15 +332,42 @@ public final class Traversals {
     return State.of(
         initialState -> {
           final List<A> resultList = new ArrayList<>(states.size());
-          S currentState = initialState;
-
-          for (final State<S, A> state : states) {
-            final StateTuple<S, A> result = state.run(currentState);
-            resultList.add(result.value());
-            currentState = result.state();
-          }
-
-          return new StateTuple<>(resultList, currentState);
+          final Trampoline<StateTuple<S, List<A>>> trampoline =
+              sequenceStateListTrampoline(states, 0, initialState, resultList);
+          return trampoline.run();
         });
+  }
+
+  /**
+   * Tail-recursive helper for sequencing State computations using Trampoline.
+   *
+   * <p>This method processes the list of State computations recursively, building up the result
+   * list and threading state through. Each recursive call is wrapped in {@link Trampoline#defer} to
+   * ensure stack safety.
+   *
+   * @param states The list of State computations to sequence
+   * @param index The current index in the list
+   * @param currentState The current state value
+   * @param resultList The accumulated list of results (mutated for efficiency)
+   * @param <S> The state type
+   * @param <A> The value type
+   * @return A Trampoline that will produce the final StateTuple when run
+   */
+  private static <S, A> Trampoline<StateTuple<S, List<A>>> sequenceStateListTrampoline(
+      final List<State<S, A>> states,
+      final int index,
+      final S currentState,
+      final List<A> resultList) {
+    // Base case: processed all states
+    if (index >= states.size()) {
+      return Trampoline.done(new StateTuple<>(resultList, currentState));
+    }
+
+    // Recursive case: process next state
+    final StateTuple<S, A> result = states.get(index).run(currentState);
+    resultList.add(result.value());
+
+    return Trampoline.defer(
+        () -> sequenceStateListTrampoline(states, index + 1, result.state(), resultList));
   }
 }

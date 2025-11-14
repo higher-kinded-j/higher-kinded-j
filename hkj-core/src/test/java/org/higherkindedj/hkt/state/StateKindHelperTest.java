@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.state;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.*;
-import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
@@ -65,7 +64,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
     void narrowShouldThrowForNullInput() {
       assertThatThrownBy(() -> STATE.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(String.format(NULL_KIND_TEMPLATE, "State"));
+          .hasMessageContaining("Cannot narrow null Kind for %s".formatted("State"));
     }
 
     @Test

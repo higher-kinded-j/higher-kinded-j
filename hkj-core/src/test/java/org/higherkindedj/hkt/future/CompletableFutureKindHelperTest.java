@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.future;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
-import static org.higherkindedj.hkt.util.ErrorHandling.*;
 
 import java.io.IOException;
 import java.util.concurrent.CancellationException;
@@ -48,7 +47,8 @@ class CompletableFutureKindHelperTest {
     void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> FUTURE.widen(null))
-          .withMessageContaining(NULL_WIDEN_INPUT_TEMPLATE.formatted("CompletableFuture"));
+          .withMessageContaining(
+              "Input %s cannot be null for widen".formatted("CompletableFuture"));
     }
   }
 
@@ -80,7 +80,7 @@ class CompletableFutureKindHelperTest {
     void narrowShouldThrowForNullInput() {
       assertThatThrownBy(() -> FUTURE.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("CompletableFuture"));
+          .hasMessageContaining("Cannot narrow null Kind for %s".formatted("CompletableFuture"));
     }
 
     @Test
@@ -174,6 +174,7 @@ class JoinTests {
   void join_shouldPropagateKindUnwrapExceptionFromFailedUnwrap() {
     assertThatThrownBy(() -> FUTURE.join(null))
         .isInstanceOf(KindUnwrapException.class)
-        .hasMessageContaining(NULL_KIND_TEMPLATE.formatted("CompletableFutureHolder"));
+        .hasMessageContaining(
+            "Cannot narrow null Kind for %s".formatted("CompletableFutureHolder"));
   }
 }
