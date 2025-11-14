@@ -60,7 +60,7 @@ This example demonstrates:
 Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWith` are used to build the workflow.
 
 
-## Practical Example: [Optics for Data Manipulation]https://higher-kinded-j.github.io/optics/auditing_complex_data_example.html
+## Practical Example: [Optics for Data Manipulation](https://higher-kinded-j.github.io/optics/auditing_complex_data_example.html)
 
 The `higher-kinded-j-example` module also contains examples of how to use **Optics**. See the `OpticsExample` class for demonstrations of:
 
