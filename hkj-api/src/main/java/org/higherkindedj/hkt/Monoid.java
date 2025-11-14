@@ -70,15 +70,17 @@ public interface Monoid<A> extends Semigroup<A> {
     if (n < 0) {
       throw new IllegalArgumentException("n must be non-negative, but was: " + n);
     }
-    if (n == 0) {
-      return empty();
-    }
-    if (n == 1) {
-      return value;
-    }
-    A result = value;
-    for (int i = 1; i < n; i++) {
-      result = combine(result, value);
+
+    A result = empty();
+    A current = value;
+    int k = n;
+
+    while (k > 0) {
+      if ((k & 1) == 1) { // if k is odd
+        result = combine(result, current);
+      }
+      current = combine(current, current);
+      k >>= 1; // k = k / 2
     }
     return result;
   }

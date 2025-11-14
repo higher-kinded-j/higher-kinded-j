@@ -306,7 +306,9 @@ Double compoundGrowth = growth.combineN(interestRate, 10);
 public class Statistics {
 
     public static double calculateMean(List<Double> values) {
-        if (values.isEmpty()) return 0.0;
+        if (values.isEmpty()) {
+            throw new IllegalArgumentException("Cannot calculate mean of an empty list.");
+        }
 
         Monoid<Double> sum = Monoids.doubleAddition();
         Double total = sum.combineAll(values);

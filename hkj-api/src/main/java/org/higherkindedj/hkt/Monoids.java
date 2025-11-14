@@ -268,13 +268,10 @@ public interface Monoids {
 
       @Override
       public Optional<A> combine(Optional<A> opt1, Optional<A> opt2) {
-        if (opt1.isEmpty()) {
-          return opt2;
+        if (opt1.isPresent() && opt2.isPresent()) {
+          return comparator.compare(opt1.get(), opt2.get()) >= 0 ? opt1 : opt2;
         }
-        if (opt2.isEmpty()) {
-          return opt1;
-        }
-        return comparator.compare(opt1.get(), opt2.get()) >= 0 ? opt1 : opt2;
+        return opt1.isPresent() ? opt1 : opt2;
       }
     };
   }
@@ -313,13 +310,10 @@ public interface Monoids {
 
       @Override
       public Optional<A> combine(Optional<A> opt1, Optional<A> opt2) {
-        if (opt1.isEmpty()) {
-          return opt2;
+        if (opt1.isPresent() && opt2.isPresent()) {
+          return comparator.compare(opt1.get(), opt2.get()) <= 0 ? opt1 : opt2;
         }
-        if (opt2.isEmpty()) {
-          return opt1;
-        }
-        return comparator.compare(opt1.get(), opt2.get()) <= 0 ? opt1 : opt2;
+        return opt1.isPresent() ? opt1 : opt2;
       }
     };
   }
