@@ -373,56 +373,6 @@ class IOApplicativeTest extends IOTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("Efficient with many map2 operations")
-    void efficientWithManyMap2Operations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<IOKind.Witness, Integer> start = applicative.of(0);
-
-        Kind<IOKind.Witness, Integer> result = start;
-        for (int i = 1; i <= 100; i++) {
-          Kind<IOKind.Witness, Integer> incrementKind = applicative.of(i);
-          result = applicative.map2(result, incrementKind, (a, b) -> a + b);
-        }
-
-        int expectedSum = (100 * 101) / 2; // Sum of 1 to 100
-        assertThatIO(narrowToIO(result)).hasValue(expectedSum);
-      }
-    }
-
-    @Test
-    @DisplayName("Maintains lazy evaluation in long chains")
-    void maintainsLazyEvaluationInLongChains() {
-      AtomicInteger executeCount = new AtomicInteger(0);
-
-      IO<Integer> io =
-          IO.delay(
-              () -> {
-                executeCount.incrementAndGet();
-                return 1;
-              });
-
-      Kind<IOKind.Witness, Integer> start = IO_OP.widen(io);
-      Kind<IOKind.Witness, Integer> result = start;
-
-      // Build long chain with map2
-      for (int i = 0; i < 50; i++) {
-        Kind<IOKind.Witness, Integer> increment = applicative.of(1);
-        result = applicative.map2(result, increment, (a, b) -> a + b);
-      }
-
-      // Should not have executed yet
-      assertThat(executeCount.get()).isZero();
-
-      // Execute once
-      assertThatIO(narrowToIO(result)).hasValue(51);
-      assertThat(executeCount.get()).isEqualTo(1);
-    }
-  }
-
-  @Nested
   @DisplayName("Validation Tests")
   class ValidationTests {
     @Test

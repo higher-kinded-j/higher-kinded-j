@@ -300,30 +300,6 @@ class EitherTraverseTest extends EitherTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("traverse() efficient with Left values")
-    void traverseEfficientWithLeftValues() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        // Left values should not traverse, so even expensive functions are safe
-        Function<Integer, Kind<MaybeKind.Witness, String>> expensiveFunc =
-            i -> MAYBE.widen(Maybe.just("expensive:" + i));
-
-        Kind<MaybeKind.Witness, Kind<EitherKind.Witness<String>, String>> result =
-            traverse.traverse(maybeApplicative, expensiveFunc, leftKind);
-
-        // Should complete quickly without calling expensive function
-        Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
-        assertThatEither(narrowToEither(maybe.get()))
-            .isLeft()
-            .hasLeft(TestErrorType.DEFAULT.message());
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Integration Tests")
   class IntegrationTests {
 

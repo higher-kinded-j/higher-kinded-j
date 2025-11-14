@@ -772,32 +772,6 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Selective operations efficient with many conditionals")
-    void selectiveOperationsEfficientWithManyConditionals() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<ValidatedKind.Witness<String>, Integer> start = validKind;
-
-        Kind<ValidatedKind.Witness<String>, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int index = i;
-          Kind<ValidatedKind.Witness<String>, Boolean> condition =
-              selective.map(val -> val > index, result);
-          Kind<ValidatedKind.Witness<String>, Integer> thenValue =
-              selective.map(val -> val + 1, result);
-          result = selective.ifS(condition, thenValue, result);
-        }
-
-        Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid();
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Error Accumulation Semantics Tests")
   class ErrorAccumulationSemanticsTests {
 

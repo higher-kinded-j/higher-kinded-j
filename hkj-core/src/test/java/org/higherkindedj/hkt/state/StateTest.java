@@ -4,7 +4,9 @@ package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.List;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -659,18 +661,20 @@ class StateTest extends StateTestBase<Integer> {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("State operations have predictable performance")
-    void stateOperationsHavePredictablePerformance() {
+    @DisplayName("State operations complete in reasonable time")
+    void stateOperationsCompleteInReasonableTime() {
       State<Integer, Integer> test = State.of(s -> new StateTuple<>(s + 1, s + 1));
 
-      long start = System.nanoTime();
-      for (int i = 0; i < 10000; i++) {
-        test.map(x -> x + 1).flatMap(x -> State.pure(x * 2)).run(i);
-      }
-      long duration = System.nanoTime() - start;
-
-      // Should complete in reasonable time (less than 100ms for 10k ops)
-      assertThat(duration).isLessThan(100_000_000L);
+      // Verify operations complete without hanging (generous timeout)
+      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () -> {
+            for (int i = 0; i < 100_000; i++) {
+              test.map(x -> x + 1).flatMap(x -> State.pure(x * 2)).run(i);
+            }
+          },
+          "State operations should complete within reasonable time");
     }
 
     @Test

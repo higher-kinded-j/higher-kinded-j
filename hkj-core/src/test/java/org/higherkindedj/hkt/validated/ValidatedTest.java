@@ -5,7 +5,9 @@ package org.higherkindedj.hkt.validated;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.*;
@@ -946,17 +948,20 @@ class ValidatedTest extends ValidatedTestBase {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("Validated operations have predictable performance")
-    void validatedOperationsHavePredictablePerformance() {
+    @DisplayName("Validated operations complete in reasonable time")
+    void validatedOperationsCompleteInReasonableTime() {
       Validated<String, Integer> test = Validated.valid(DEFAULT_VALID_VALUE);
 
-      long start = System.nanoTime();
-      for (int i = 0; i < 10000; i++) {
-        test.map(x -> x + 1).flatMap(x -> Validated.valid(x * 2)).isValid();
-      }
-      long duration = System.nanoTime() - start;
-
-      assertThat(duration).isLessThan(100_000_000L);
+      // Verify operations complete without hanging (generous timeout)
+      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () -> {
+            for (int i = 0; i < 100_000; i++) {
+              test.map(x -> x + 1).flatMap(x -> Validated.valid(x * 2)).isValid();
+            }
+          },
+          "Validated operations should complete within reasonable time");
     }
 
     @Test

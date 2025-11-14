@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
@@ -171,27 +170,6 @@ class EitherFunctorTest extends EitherTestBase {
       var result = functor.map(complexMapper, validKind);
 
       assertThatEither(narrowToEither(result)).isRight().hasRight("positive:42");
-    }
-  }
-
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("Test performance characteristics")
-    void testPerformanceCharacteristics() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        var start = validKind;
-
-        long startTime = System.nanoTime();
-        var result = start;
-        for (int i = 0; i < 10000; i++) {
-          result = functor.map(x -> x + 1, result);
-        }
-        long duration = System.nanoTime() - startTime;
-
-        assertThat(duration).isLessThan(100_000_000L);
-      }
     }
   }
 }

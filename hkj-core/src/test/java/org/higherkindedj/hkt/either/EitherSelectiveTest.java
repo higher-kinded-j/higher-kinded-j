@@ -635,30 +635,4 @@ class EitherSelectiveTest extends EitherTestBase {
       assertThat(counter.get()).isEqualTo(0);
     }
   }
-
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Selective operations efficient with many conditionals")
-    void selectiveOperationsEfficientWithManyConditionals() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<EitherKind.Witness<String>, Integer> start = validKind;
-
-        Kind<EitherKind.Witness<String>, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int index = i;
-          Kind<EitherKind.Witness<String>, Boolean> condition =
-              selective.map(val -> val > index, result);
-          Kind<EitherKind.Witness<String>, Integer> thenValue =
-              selective.map(val -> val + 1, result);
-          result = selective.ifS(condition, thenValue, result);
-        }
-
-        Either<String, Integer> either = EITHER.narrow(result);
-        assertThatEither(either).isRight();
-      }
-    }
-  }
 }

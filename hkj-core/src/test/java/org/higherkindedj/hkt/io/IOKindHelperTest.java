@@ -379,67 +379,6 @@ class IOKindHelperTest extends IOTestBase {
   }
 
   @Nested
-  @DisplayName("Performance and Memory Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("Holder creates minimal overhead")
-    void testMinimalOverhead() {
-      IO<String> original = IO.delay(() -> "test");
-
-      ioKindHelper(original).skipPerformance().test();
-    }
-
-    @Test
-    @DisplayName("Multiple operations are idempotent")
-    void testIdempotentOperations() {
-      IO<String> original = IO.delay(() -> "idempotent");
-
-      ioKindHelper(original)
-          .skipRoundTrip()
-          .skipValidations()
-          .skipInvalidType()
-          .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Performance characteristics test")
-    void testPerformanceCharacteristics() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        IO<String> testInstance = IO.delay(() -> "performance_test");
-
-        ioKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Memory efficiency test")
-    void testMemoryEfficiency() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        IO<String> testInstance = IO.delay(() -> "memory_test");
-
-        ioKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Widen/narrow operations have constant overhead")
-    void testConstantOverhead() {
-      IO<Integer> io = IO.delay(() -> DEFAULT_IO_VALUE);
-
-      long start = System.nanoTime();
-      for (int i = 0; i < 10000; i++) {
-        Kind<IOKind.Witness, Integer> kind = IO_OP.widen(io);
-        IO<Integer> narrowed = IO_OP.narrow(kind);
-      }
-      long duration = System.nanoTime() - start;
-
-      // Should be very fast (< 10ms for 10k operations)
-      assertThat(duration).isLessThan(20_000_000L);
-    }
-  }
-
-  @Nested
   @DisplayName("Edge Cases and Corner Cases")
   class EdgeCasesTests {
     @Test

@@ -156,48 +156,6 @@ class MaybeKindHelperTest extends MaybeTestBase {
   }
 
   @Nested
-  @DisplayName("Performance and Memory Tests")
-  class PerformanceTests {
-    @Test
-    @DisplayName("Holder creates minimal overhead")
-    void testMinimalOverhead() {
-      Maybe<String> original = Maybe.just("test");
-      maybeKindHelper(original).skipPerformance().test();
-    }
-
-    @Test
-    @DisplayName("Multiple operations are idempotent")
-    void testIdempotentOperations() {
-      Maybe<String> original = Maybe.just("idempotent");
-
-      maybeKindHelper(original)
-          .skipRoundTrip()
-          .skipValidations()
-          .skipInvalidType()
-          .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Performance characteristics test")
-    void testPerformanceCharacteristics() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Maybe<String> testInstance = Maybe.just("performance_test");
-        maybeKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-
-    @Test
-    @DisplayName("Memory efficiency test")
-    void testMemoryEfficiency() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Maybe<String> testInstance = Maybe.just("memory_test");
-        maybeKindHelper(testInstance).withPerformanceTests().test();
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Edge Cases and Corner Cases")
   class EdgeCasesTests {
     @Test

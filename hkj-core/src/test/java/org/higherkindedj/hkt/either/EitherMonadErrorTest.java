@@ -302,24 +302,4 @@ class EitherMonadErrorTest extends EitherTestBase {
       assertThatEither(result).isRight().hasRight("fallback-data");
     }
   }
-
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Error recovery efficient with many operations")
-    void errorRecoveryEfficientWithManyOperations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<EitherKind.Witness<String>, Integer> start = validKind;
-
-        Kind<EitherKind.Witness<String>, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          result = monadError.handleErrorWith(result, validHandler);
-        }
-
-        assertThatEither(narrowToEither(result)).isRight().hasRight(DEFAULT_RIGHT_VALUE);
-      }
-    }
-  }
 }

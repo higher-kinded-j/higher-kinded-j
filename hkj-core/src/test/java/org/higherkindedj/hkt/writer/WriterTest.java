@@ -4,7 +4,9 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
@@ -535,18 +537,20 @@ class WriterTest extends WriterTestBase {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("Writer operations have predictable performance")
-    void writerOperationsHavePredictablePerformance() {
+    @DisplayName("Writer operations complete in reasonable time")
+    void writerOperationsCompleteInReasonableTime() {
       Writer<String, Integer> test = valueWriter(42);
 
-      long start = System.nanoTime();
-      for (int i = 0; i < 10000; i++) {
-        test.map(x -> x + 1).flatMap(STRING_MONOID, x -> valueWriter(x * 2)).value();
-      }
-      long duration = System.nanoTime() - start;
-
-      // Should complete in reasonable time (less than 100ms for 10k ops)
-      assertThat(duration).isLessThan(100_000_000L);
+      // Verify operations complete without hanging (generous timeout)
+      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () -> {
+            for (int i = 0; i < 100_000; i++) {
+              test.map(x -> x + 1).flatMap(STRING_MONOID, x -> valueWriter(x * 2)).value();
+            }
+          },
+          "Writer operations should complete within reasonable time");
     }
 
     @Test

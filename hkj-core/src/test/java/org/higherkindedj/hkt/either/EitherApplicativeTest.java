@@ -241,26 +241,4 @@ class EitherApplicativeTest extends EitherTestBase {
       assertThatEither(narrowToEither(result)).isRight().hasRight("test:42");
     }
   }
-
-  @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Efficient with many map2 operations")
-    void efficientWithManyMap2Operations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        var start = applicative.of(1);
-
-        var result = start;
-        for (int i = 0; i < 100; i++) {
-          var incrementKind = applicative.of(i);
-          result = applicative.map2(result, incrementKind, (a, b) -> a + b);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        assertThatEither(narrowToEither(result)).isRight().hasRight(expectedSum);
-      }
-    }
-  }
 }

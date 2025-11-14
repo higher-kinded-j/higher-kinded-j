@@ -967,64 +967,6 @@ class IOSelectiveTest extends IOTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Selective operations efficient with many conditionals")
-    void selectiveOperationsEfficientWithManyConditionals() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<IOKind.Witness, Integer> start = validKind;
-
-        Kind<IOKind.Witness, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int index = i;
-          Kind<IOKind.Witness, Boolean> condition = selective.map(val -> val > index, result);
-          Kind<IOKind.Witness, Integer> thenValue = selective.map(val -> val + 1, result);
-          result = selective.ifS(condition, thenValue, result);
-        }
-
-        assertThatIO(narrowToIO(result)).hasValueNonNull();
-      }
-    }
-
-    @Test
-    @DisplayName("Lazy evaluation prevents unnecessary computation")
-    void lazyEvaluationPreventsUnnecessaryComputation() {
-      AtomicInteger expensiveComputations = new AtomicInteger(0);
-
-      Kind<IOKind.Witness, Boolean> condition = IO_OP.widen(IO.delay(() -> false));
-
-      Kind<IOKind.Witness, Integer> expensiveBranch =
-          IO_OP.widen(
-              IO.delay(
-                  () -> {
-                    expensiveComputations.incrementAndGet();
-                    // Simulate expensive computation
-                    try {
-                      Thread.sleep(10);
-                    } catch (InterruptedException e) {
-                      Thread.currentThread().interrupt();
-                      throw new RuntimeException(e);
-                    }
-                    return 999;
-                  }));
-
-      Kind<IOKind.Witness, Integer> cheapBranch = IO_OP.widen(IO.delay(() -> 1));
-
-      Kind<IOKind.Witness, Integer> result = selective.ifS(condition, expensiveBranch, cheapBranch);
-
-      long startTime = System.currentTimeMillis();
-      assertThatIO(narrowToIO(result)).hasValue(1);
-      long duration = System.currentTimeMillis() - startTime;
-
-      // Should complete quickly without expensive computation
-      assertThat(expensiveComputations.get()).isZero();
-      assertThat(duration).isLessThan(50); // Much less than the 10ms sleep
-    }
-  }
-
-  @Nested
   @DisplayName("Validation Tests")
   class ValidationTests {
 

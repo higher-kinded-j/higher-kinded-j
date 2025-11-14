@@ -7,7 +7,9 @@ import static org.higherkindedj.hkt.maybe.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.OR_ELSE_GET;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -748,17 +750,20 @@ class MaybeTest extends MaybeTestBase {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("Maybe operations have predictable performance")
-    void maybeOperationsHavePredictablePerformance() {
+    @DisplayName("Maybe operations complete in reasonable time")
+    void maybeOperationsCompleteInReasonableTime() {
       Maybe<Integer> test = Maybe.just(42);
 
-      long start = System.nanoTime();
-      for (int i = 0; i < 10000; i++) {
-        test.map(x -> x + 1).flatMap(x -> Maybe.just(x * 2)).isJust();
-      }
-      long duration = System.nanoTime() - start;
-
-      assertThat(duration).isLessThan(100_000_000L);
+      // Verify operations complete without hanging (generous timeout)
+      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () -> {
+            for (int i = 0; i < 100_000; i++) {
+              test.map(x -> x + 1).flatMap(x -> Maybe.just(x * 2)).isJust();
+            }
+          },
+          "Maybe operations should complete within reasonable time");
     }
 
     @Test

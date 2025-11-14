@@ -317,28 +317,6 @@ class ReaderMonadTest extends ReaderTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("flatMap efficient with many operations")
-    void flatMapEfficientWithManyOperations() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        Kind<ReaderKind.Witness<TestConfig>, Integer> start = monad.of(1);
-
-        Kind<ReaderKind.Witness<TestConfig>, Integer> result = start;
-        for (int i = 0; i < 100; i++) {
-          final int increment = i;
-          result = monad.flatMap(x -> monad.of(x + increment), result);
-        }
-
-        int expectedSum = 1 + (99 * 100) / 2;
-        assertThat(runReader(result, TEST_CONFIG)).isEqualTo(expectedSum);
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("mapN Tests")
   class MapNTests {
     Kind<ReaderKind.Witness<TestConfig>, Integer> r1 =
