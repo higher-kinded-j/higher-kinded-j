@@ -386,6 +386,99 @@ Kind<OptionalKind.Witness, String> result =
 
 ---
 
+### Monoid
+
+**Definition:** A type class for types that have an associative binary operation (`combine`) and an identity element (`empty`). Extends Semigroup by adding the identity element, making it safe for reducing empty collections.
+
+**Core Operations:**
+- `empty()` - The identity element
+- `combine(A a1, A a2)` - Associative binary operation (from Semigroup)
+- `combineAll(Iterable<A> elements)` - Combine all elements in a collection
+- `combineN(A value, int n)` - Combine a value with itself n times
+- `isEmpty(A value)` - Test if a value equals the empty element
+
+**Example:**
+```java
+Monoid<Integer> intAddition = Monoids.integerAddition();
+
+// Identity law: empty is the neutral element
+intAddition.combine(5, intAddition.empty());  // 5
+intAddition.combine(intAddition.empty(), 5);  // 5
+
+// Combine a collection
+List<Integer> numbers = List.of(1, 2, 3, 4, 5);
+Integer sum = intAddition.combineAll(numbers);  // 15
+
+// Repeated application
+Integer result = intAddition.combineN(3, 4);  // 12 (3+3+3+3)
+
+// Working with Optional values
+Monoid<Optional<Integer>> maxMonoid = Monoids.maximum();
+Optional<Integer> max = maxMonoid.combineAll(
+    List.of(Optional.of(5), Optional.empty(), Optional.of(10))
+);  // Optional[10]
+```
+
+**Common Instances in `Monoids` utility:**
+- `integerAddition()`, `longAddition()`, `doubleAddition()` - Numeric addition
+- `integerMultiplication()`, `longMultiplication()`, `doubleMultiplication()` - Numeric multiplication
+- `string()` - String concatenation
+- `list()`, `set()` - Collection concatenation/union
+- `booleanAnd()`, `booleanOr()` - Boolean operations
+- `firstOptional()`, `lastOptional()` - First/last non-empty Optional
+- `maximum()`, `minimum()` - Max/min value aggregation with Optional
+
+**Laws:**
+- Left Identity: `combine(empty(), a) == a`
+- Right Identity: `combine(a, empty()) == a`
+- Associativity: `combine(a, combine(b, c)) == combine(combine(a, b), c)` (from Semigroup)
+
+**When To Use:** Aggregating data (summing values, concatenating strings), reducing collections, folding data structures, accumulating results in parallel computations.
+
+**Related:** [Semigroup and Monoid Documentation](functional/semigroup_and_monoid.md)
+
+---
+
+### Semigroup
+
+**Definition:** A type class for types that have an associative binary operation. The most fundamental algebraic structure for combining values.
+
+**Core Operation:**
+- `combine(A a1, A a2)` - Associative binary operation
+
+**Example:**
+```java
+Semigroup<String> stringConcat = Semigroups.string();
+String result = stringConcat.combine("Hello", " World");  // "Hello World"
+
+// With custom delimiter
+Semigroup<String> csvConcat = Semigroups.string(", ");
+String csv = csvConcat.combine("apple", "banana");  // "apple, banana"
+
+// For error accumulation in Validated
+Semigroup<String> errorAccumulator = Semigroups.string("; ");
+Applicative<Validated.Witness<String>> validator =
+    ValidatedMonad.instance(errorAccumulator);
+// Errors are combined: "Field A is invalid; Field B is required"
+```
+
+**Common Instances in `Semigroups` utility:**
+- `string()` - Basic string concatenation
+- `string(String delimiter)` - String concatenation with delimiter
+- `list()` - List concatenation
+- `set()` - Set union
+- `first()` - Always takes the first value
+- `last()` - Always takes the last value
+
+**Laws:**
+- Associativity: `combine(a, combine(b, c)) == combine(combine(a, b), c)`
+
+**When To Use:** Error accumulation (especially with Validated), combining partial results, building aggregators where an empty/identity value doesn't make sense.
+
+**Related:** [Semigroup and Monoid Documentation](functional/semigroup_and_monoid.md)
+
+---
+
 ### MonadError
 
 **Definition:** A type class that extends Monad with explicit error handling capabilities for a specific error type.
