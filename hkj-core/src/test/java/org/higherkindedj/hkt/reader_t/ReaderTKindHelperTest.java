@@ -5,8 +5,6 @@ package org.higherkindedj.hkt.reader_t;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
-import static org.higherkindedj.hkt.util.ErrorHandling.NULL_KIND_TEMPLATE;
-import static org.higherkindedj.hkt.util.ErrorHandling.NULL_WIDEN_INPUT_TEMPLATE;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -66,7 +64,7 @@ class ReaderTKindHelperTest {
     void widen_nullReaderT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> READER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
-          .hasMessage(NULL_WIDEN_INPUT_TEMPLATE.formatted(TYPE_NAME));
+          .hasMessage("Input %s cannot be null for widen".formatted(TYPE_NAME));
     }
   }
 
@@ -103,7 +101,7 @@ class ReaderTKindHelperTest {
     void narrow_nullKind_shouldThrowKindUnwrapException() {
       assertThatThrownBy(() -> READER_T.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessage(NULL_KIND_TEMPLATE.formatted(TYPE_NAME));
+          .hasMessage("Cannot narrow null Kind for %s".formatted(TYPE_NAME));
     }
 
     @Test

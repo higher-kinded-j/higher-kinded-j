@@ -1,0 +1,30 @@
+@startuml trampoline_kind
+
+hide empty members
+
+interface Kind<F, A>
+
+interface "TrampolineKind<A>" {
+  {nested} class Witness
+}
+
+class TrampolineKindHelper {
+  + {static} Trampoline<A> narrow(Kind<TrampolineKind.Witness, A> kind)
+  + {static} Kind<TrampolineKind.Witness, A> widen(Trampoline<A> trampoline)
+  + {static} Kind<TrampolineKind.Witness, A> done(A value)
+  + {static} Kind<TrampolineKind.Witness, A> defer(Supplier<Trampoline<A>> next)
+  + {static} A run(Kind<TrampolineKind.Witness, A> kind)
+}
+
+interface "Trampoline<A>" <<sealed interface>> {
+  + A run()
+  + <B> Trampoline<B> map(Function<A, B> f)
+  + <B> Trampoline<B> flatMap(Function<A, Trampoline<B>> f)
+}
+
+"Trampoline<A>" ..|> "TrampolineKind<A>" : implements
+"TrampolineKind<A>" --|> Kind : <TrampolineKind.Witness, A>
+TrampolineKindHelper ..> "Trampoline<A>" : widens/narrows
+TrampolineKindHelper ..> "TrampolineKind<A>" : widens/narrows
+
+@enduml

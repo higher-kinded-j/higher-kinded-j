@@ -1,0 +1,44 @@
+@startuml trampoline_monad
+
+hide empty members
+
+interface Kind<F, A>
+interface Functor<F>
+interface Applicative<F>
+interface Monad<F>
+
+Functor <|-- Applicative
+Applicative <|-- Monad
+
+class TrampolineFunctor implements Functor {
+  + Kind<TrampolineKind.Witness, B> map(Function<A, B> f, Kind<TrampolineKind.Witness, A> fa)
+}
+
+class TrampolineMonad extends TrampolineFunctor implements Monad {
+  + Kind<TrampolineKind.Witness, A> of(A value)
+  + Kind<TrampolineKind.Witness, B> flatMap(Function<A, Kind<TrampolineKind.Witness, B>> f, Kind<TrampolineKind.Witness, A> ma)
+}
+
+class TrampolineKindHelper {
+  + {static} Trampoline<A> narrow(Kind<TrampolineKind.Witness, A> kind)
+  + {static} Kind<TrampolineKind.Witness, A> widen(Trampoline<A> trampoline)
+  ' ...
+}
+
+TrampolineMonad ..> TrampolineKindHelper : uses
+
+interface "Trampoline<A>" <<sealed interface>> {
+  + A run()
+  + <B> Trampoline<B> map(Function<A, B> f)
+  + <B> Trampoline<B> flatMap(Function<A, Trampoline<B>> f)
+}
+
+interface "TrampolineKind<A>"
+
+"Trampoline<A>" ..|> "TrampolineKind<A>"
+"TrampolineKind<A>" --|> Kind : <TrampolineKind.Witness, A>
+
+TrampolineMonad ..> "TrampolineKind<A>" : operates on Kind<TrampolineKind.Witness, A>
+TrampolineMonad ..> "Trampoline<A>" : uses methods of
+
+@enduml
