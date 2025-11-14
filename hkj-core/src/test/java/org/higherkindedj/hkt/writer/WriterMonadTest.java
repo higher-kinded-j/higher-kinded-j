@@ -309,5 +309,4 @@ class WriterMonadTest extends WriterTestBase {
       assertThatWriter(writer).hasLog("logged:5;end;").hasValue("complete");
     }
   }
-
 }

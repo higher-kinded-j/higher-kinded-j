@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.maybe;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.maybe.MaybeAssert.assertThatMaybe;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
@@ -183,5 +182,4 @@ class MaybeFunctorTest extends MaybeTestBase {
       assertThat(narrowToMaybe(result)).isEqualTo(narrowToMaybe(validKind));
     }
   }
-
 }

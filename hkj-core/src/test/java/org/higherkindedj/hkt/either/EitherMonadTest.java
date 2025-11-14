@@ -256,5 +256,4 @@ class EitherMonadTest extends EitherTestBase {
           .testOperations();
     }
   }
-
 }

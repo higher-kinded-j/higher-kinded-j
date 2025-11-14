@@ -1,17 +1,5 @@
-/*
- * Copyright (c) 2025 Magnus Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- */
-
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
 import java.util.concurrent.TimeUnit;
@@ -51,7 +39,9 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Thread)
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
-@Fork(value = 2, jvmArgs = {"-Xms2G", "-Xmx2G"})
+@Fork(
+    value = 2,
+    jvmArgs = {"-Xms2G", "-Xmx2G"})
 public class IOBenchmark {
 
   private IO<Integer> pureIO;
@@ -72,16 +62,6 @@ public class IOBenchmark {
    */
   @Benchmark
   public IO<Integer> constructSimple() {
-    return IO.delay(() -> 42);
-  }
-
-  /**
-   * Construction cost of IO.delay.
-   *
-   * <p>Measures overhead of creating a delayed computation.
-   */
-  @Benchmark
-  public IO<Integer> constructDelay() {
     return IO.delay(() -> 42);
   }
 
@@ -125,17 +105,13 @@ public class IOBenchmark {
     return pureIO.map(x -> x + 1).unsafeRunSync();
   }
 
-  /**
-   * FlatMap operation construction.
-   */
+  /** FlatMap operation construction. */
   @Benchmark
   public IO<Integer> flatMapConstruction() {
     return pureIO.flatMap(x -> IO.delay(() -> x * 2));
   }
 
-  /**
-   * FlatMap operation execution.
-   */
+  /** FlatMap operation execution. */
   @Benchmark
   public Integer flatMapExecution() {
     return pureIO.flatMap(x -> IO.delay(() -> x * 2)).unsafeRunSync();
@@ -179,9 +155,7 @@ public class IOBenchmark {
     return IO.delay(() -> ++counter).unsafeRunSync();
   }
 
-  /**
-   * Chained operations with mixed map/flatMap.
-   */
+  /** Chained operations with mixed map/flatMap. */
   @Benchmark
   public Integer chainedOperations() {
     return pureIO
@@ -205,9 +179,7 @@ public class IOBenchmark {
         .unsafeRunSync();
   }
 
-  /**
-   * Nested flatMap construction.
-   */
+  /** Nested flatMap construction. */
   @Benchmark
   public IO<Integer> nestedFlatMapConstruction() {
     return pureIO
@@ -217,9 +189,7 @@ public class IOBenchmark {
         .flatMap(x -> IO.delay(() -> x / 3));
   }
 
-  /**
-   * Nested flatMap execution.
-   */
+  /** Nested flatMap execution. */
   @Benchmark
   public Integer nestedFlatMapExecution() {
     return pureIO
@@ -288,9 +258,7 @@ public class IOBenchmark {
     blackhole.consume(io3);
   }
 
-  /**
-   * Mixed delay operations with different complexities.
-   */
+  /** Mixed delay operations with different complexities. */
   @Benchmark
   public Integer mixedDelayOperations() {
     return IO.delay(() -> 10)

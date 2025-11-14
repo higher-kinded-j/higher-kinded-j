@@ -304,5 +304,4 @@ class MaybeMonadTest extends MaybeTestBase {
           .hasMessageContaining("Kind for MaybeMonad.flatMap cannot be null");
     }
   }
-
 }

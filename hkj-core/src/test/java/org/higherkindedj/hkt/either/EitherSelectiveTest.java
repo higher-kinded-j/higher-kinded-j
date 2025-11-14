@@ -635,5 +635,4 @@ class EitherSelectiveTest extends EitherTestBase {
       assertThat(counter.get()).isEqualTo(0);
     }
   }
-
 }

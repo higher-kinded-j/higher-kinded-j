@@ -372,7 +372,6 @@ class IOApplicativeTest extends IOTestBase {
     }
   }
 
-
   @Nested
   @DisplayName("Validation Tests")
   class ValidationTests {

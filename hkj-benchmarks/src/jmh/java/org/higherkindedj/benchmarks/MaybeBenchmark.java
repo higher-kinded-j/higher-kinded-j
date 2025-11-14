@@ -1,17 +1,5 @@
-/*
- * Copyright (c) 2025 Magnus Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- */
-
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
 import java.util.concurrent.TimeUnit;
@@ -49,7 +37,9 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Thread)
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
-@Fork(value = 2, jvmArgs = {"-Xms2G", "-Xmx2G"})
+@Fork(
+    value = 2,
+    jvmArgs = {"-Xms2G", "-Xmx2G"})
 public class MaybeBenchmark {
 
   private Maybe<Integer> just;
@@ -61,9 +51,7 @@ public class MaybeBenchmark {
     nothing = Maybe.nothing();
   }
 
-  /**
-   * Baseline: simple map operation on Just.
-   */
+  /** Baseline: simple map operation on Just. */
   @Benchmark
   public Maybe<Integer> justMap() {
     return just.map(x -> x + 1);
@@ -81,9 +69,7 @@ public class MaybeBenchmark {
     return result;
   }
 
-  /**
-   * Chained operations on Just.
-   */
+  /** Chained operations on Just. */
   @Benchmark
   public boolean justChainedOperations() {
     return just.map(x -> x + 1).flatMap(x -> Maybe.just(x * 2)).isJust();
@@ -99,25 +85,19 @@ public class MaybeBenchmark {
     return nothing.map(x -> x + 1).flatMap(x -> Maybe.just(x * 2)).isNothing();
   }
 
-  /**
-   * FlatMap operation on Just.
-   */
+  /** FlatMap operation on Just. */
   @Benchmark
   public Maybe<Integer> justFlatMap() {
     return just.flatMap(x -> Maybe.just(x * 2));
   }
 
-  /**
-   * FlatMap operation on Nothing.
-   */
+  /** FlatMap operation on Nothing. */
   @Benchmark
   public Maybe<Integer> nothingFlatMap() {
     return nothing.flatMap(x -> Maybe.just(x * 2));
   }
 
-  /**
-   * Long chain of map operations on Just.
-   */
+  /** Long chain of map operations on Just. */
   @Benchmark
   public Maybe<Integer> justLongChain() {
     Maybe<Integer> result = just;
@@ -151,9 +131,7 @@ public class MaybeBenchmark {
     return just.map(val -> "value: " + val).orElse("nothing");
   }
 
-  /**
-   * Pattern matching with map and orElse on Nothing.
-   */
+  /** Pattern matching with map and orElse on Nothing. */
   @Benchmark
   public String nothingPatternMatch() {
     return nothing.map(val -> "value: " + val).orElse("nothing");
@@ -179,49 +157,37 @@ public class MaybeBenchmark {
     return nothing.orElse(0);
   }
 
-  /**
-   * OrElseGet with supplier on Just.
-   */
+  /** OrElseGet with supplier on Just. */
   @Benchmark
   public Integer justOrElseGet() {
     return just.orElseGet(() -> 0);
   }
 
-  /**
-   * OrElseGet with supplier on Nothing.
-   */
+  /** OrElseGet with supplier on Nothing. */
   @Benchmark
   public Integer nothingOrElseGet() {
     return nothing.orElseGet(() -> 0);
   }
 
-  /**
-   * Filter simulation using flatMap on Just (passing predicate).
-   */
+  /** Filter simulation using flatMap on Just (passing predicate). */
   @Benchmark
   public Maybe<Integer> justFilterPass() {
     return just.flatMap(x -> x > 0 ? Maybe.just(x) : Maybe.nothing());
   }
 
-  /**
-   * Filter simulation using flatMap on Just (failing predicate).
-   */
+  /** Filter simulation using flatMap on Just (failing predicate). */
   @Benchmark
   public Maybe<Integer> justFilterFail() {
     return just.flatMap(x -> x < 0 ? Maybe.just(x) : Maybe.nothing());
   }
 
-  /**
-   * Filter simulation using flatMap on Nothing.
-   */
+  /** Filter simulation using flatMap on Nothing. */
   @Benchmark
   public Maybe<Integer> nothingFilter() {
     return nothing.flatMap(x -> x > 0 ? Maybe.just(x) : Maybe.nothing());
   }
 
-  /**
-   * Mixed operations simulating real-world usage.
-   */
+  /** Mixed operations simulating real-world usage. */
   @Benchmark
   public String realWorldPattern(Blackhole blackhole) {
     Maybe<String> result =
@@ -234,25 +200,19 @@ public class MaybeBenchmark {
     return result.orElseGet(() -> "None");
   }
 
-  /**
-   * Construction cost of Just.
-   */
+  /** Construction cost of Just. */
   @Benchmark
   public Maybe<Integer> constructJust() {
     return Maybe.just(42);
   }
 
-  /**
-   * Construction cost of Nothing.
-   */
+  /** Construction cost of Nothing. */
   @Benchmark
   public Maybe<Integer> constructNothing() {
     return Maybe.nothing();
   }
 
-  /**
-   * Nested flatMap operations.
-   */
+  /** Nested flatMap operations. */
   @Benchmark
   public Maybe<Integer> nestedFlatMap() {
     return just.flatMap(x -> Maybe.just(x + 1))
@@ -271,25 +231,19 @@ public class MaybeBenchmark {
     return just.isJust() ? just.get() : null;
   }
 
-  /**
-   * Convert Nothing to nullable value.
-   */
+  /** Convert Nothing to nullable value. */
   @Benchmark
   public Integer nothingToNullable() {
     return nothing.isJust() ? nothing.get() : null;
   }
 
-  /**
-   * FromNullable conversion on non-null value.
-   */
+  /** FromNullable conversion on non-null value. */
   @Benchmark
   public Maybe<Integer> fromNullablePresent() {
     return Maybe.fromNullable(42);
   }
 
-  /**
-   * FromNullable conversion on null value.
-   */
+  /** FromNullable conversion on null value. */
   @Benchmark
   public Maybe<Integer> fromNullableEmpty() {
     return Maybe.fromNullable(null);

@@ -299,7 +299,6 @@ class EitherTraverseTest extends EitherTestBase {
     }
   }
 
-
   @Nested
   @DisplayName("Integration Tests")
   class IntegrationTests {

@@ -757,7 +757,7 @@ class MaybeTest extends MaybeTestBase {
       // Verify operations complete without hanging (generous timeout)
       // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
       assertTimeoutPreemptively(
-         Duration.ofSeconds(2),
+          Duration.ofSeconds(2),
           () -> {
             for (int i = 0; i < 100_000; i++) {
               test.map(x -> x + 1).flatMap(x -> Maybe.just(x * 2)).isJust();

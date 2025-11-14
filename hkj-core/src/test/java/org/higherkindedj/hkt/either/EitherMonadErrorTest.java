@@ -302,5 +302,4 @@ class EitherMonadErrorTest extends EitherTestBase {
       assertThatEither(result).isRight().hasRight("fallback-data");
     }
   }
-
 }

@@ -378,7 +378,6 @@ class IOKindHelperTest extends IOTestBase {
     }
   }
 
-
   @Nested
   @DisplayName("Edge Cases and Corner Cases")
   class EdgeCasesTests {

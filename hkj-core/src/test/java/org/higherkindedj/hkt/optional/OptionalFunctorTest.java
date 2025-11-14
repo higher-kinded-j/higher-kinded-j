@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.optional.OptionalAssert.assertThatOptional;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;

@@ -264,7 +264,6 @@ class IOFunctorTest extends IOTestBase {
     }
   }
 
-
   @Nested
   @DisplayName("Validation Tests")
   class ValidationTests {

@@ -859,5 +859,4 @@ class ReaderSelectiveTest extends ReaderTestBase {
       assertThat(directResult).isEqualTo("DIRECT:" + DEFAULT_URL);
     }
   }
-
 }

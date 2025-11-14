@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
@@ -173,5 +172,4 @@ class EitherFunctorTest extends EitherTestBase {
       assertThatEither(narrowToEither(result)).isRight().hasRight("positive:42");
     }
   }
-
 }

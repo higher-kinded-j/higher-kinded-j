@@ -241,5 +241,4 @@ class EitherApplicativeTest extends EitherTestBase {
       assertThatEither(narrowToEither(result)).isRight().hasRight("test:42");
     }
   }
-
 }

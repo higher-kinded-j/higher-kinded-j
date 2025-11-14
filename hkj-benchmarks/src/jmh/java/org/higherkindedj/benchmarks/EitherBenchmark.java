@@ -1,22 +1,8 @@
-/*
- * Copyright (c) 2025 Magnus Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- */
-
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.benchmarks;
 
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-
 import org.higherkindedj.hkt.either.Either;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -53,7 +39,9 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Thread)
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
-@Fork(value = 2, jvmArgs = {"-Xms2G", "-Xmx2G"})
+@Fork(
+    value = 2,
+    jvmArgs = {"-Xms2G", "-Xmx2G"})
 public class EitherBenchmark {
 
   private Either<String, Integer> right;
@@ -165,9 +153,7 @@ public class EitherBenchmark {
     return right.fold(err -> "error: " + err, val -> "value: " + val);
   }
 
-  /**
-   * Pattern matching with fold on Left.
-   */
+  /** Pattern matching with fold on Left. */
   @Benchmark
   public String leftFold() {
     return left.fold(err -> "error: " + err, val -> "value: " + val);
@@ -210,17 +196,13 @@ public class EitherBenchmark {
     return result.fold(err -> "Error: " + err, val -> "Success: " + val);
   }
 
-  /**
-   * Construction cost of Right.
-   */
+  /** Construction cost of Right. */
   @Benchmark
   public Either<String, Integer> constructRight() {
     return Either.right(42);
   }
 
-  /**
-   * Construction cost of Left.
-   */
+  /** Construction cost of Left. */
   @Benchmark
   public Either<String, Integer> constructLeft() {
     return Either.left("error");

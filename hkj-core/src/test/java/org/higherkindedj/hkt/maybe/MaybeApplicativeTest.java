@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -278,5 +277,4 @@ class MaybeApplicativeTest extends MaybeTestBase {
       assertThat(maybe.isNothing()).isTrue();
     }
   }
-
 }
