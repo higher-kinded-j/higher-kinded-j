@@ -23,9 +23,9 @@ Unlike unit tests which verify correctness, these benchmarks:
 ### Run Specific Benchmark Class
 
 ```bash
-./gradlew jmh --includes=".*EitherBenchmark.*"
-./gradlew jmh --includes=".*MaybeBenchmark.*"
-./gradlew jmh --includes=".*IOBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*EitherBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*MaybeBenchmark.*"
+./gradlew :hkj-benchmarks:jmh --includes=".*IOBenchmark.*"
 ```
 
 ### Run Specific Benchmark Method
