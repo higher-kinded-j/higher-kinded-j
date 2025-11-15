@@ -516,6 +516,114 @@ class LazyTest extends LazyTestBase {
   }
 
   @Nested
+  @DisplayName("Thread Safety and Concurrent Evaluation")
+  class ThreadSafetyTests {
+
+    @Test
+    @DisplayName("Concurrent force() calls should evaluate only once")
+    void concurrentForceCallsShouldEvaluateOnlyOnce() throws Exception {
+      AtomicInteger counter = new AtomicInteger(0);
+      Lazy<String> lazy =
+          Lazy.defer(
+              () -> {
+                counter.incrementAndGet();
+                Thread.sleep(50); // Delay to increase chance of concurrent access
+                return "ConcurrentValue";
+              });
+
+      // Create multiple threads that will all try to force the Lazy simultaneously
+      int threadCount = 10;
+      Thread[] threads = new Thread[threadCount];
+      String[] results = new String[threadCount];
+      Throwable[] exceptions = new Throwable[threadCount];
+
+      for (int i = 0; i < threadCount; i++) {
+        final int index = i;
+        threads[i] =
+            new Thread(
+                () -> {
+                  try {
+                    results[index] = lazy.force();
+                  } catch (Throwable t) {
+                    exceptions[index] = t;
+                  }
+                });
+      }
+
+      // Start all threads
+      for (Thread thread : threads) {
+        thread.start();
+      }
+
+      // Wait for all threads to complete
+      for (Thread thread : threads) {
+        thread.join();
+      }
+
+      // Verify that the computation was only executed once
+      assertThat(counter.get()).isEqualTo(1);
+
+      // Verify that all threads got the same result
+      for (int i = 0; i < threadCount; i++) {
+        assertThat(exceptions[i]).isNull();
+        assertThat(results[i]).isEqualTo("ConcurrentValue");
+      }
+    }
+
+    @Test
+    @DisplayName("Concurrent force() calls should cache exception")
+    void concurrentForceCallsShouldCacheException() throws Exception {
+      AtomicInteger counter = new AtomicInteger(0);
+      RuntimeException testException = new IllegalStateException("Concurrent Failure");
+      Lazy<String> lazy =
+          Lazy.defer(
+              () -> {
+                counter.incrementAndGet();
+                Thread.sleep(50); // Delay to increase chance of concurrent access
+                throw testException;
+              });
+
+      // Create multiple threads
+      int threadCount = 10;
+      Thread[] threads = new Thread[threadCount];
+      Throwable[] exceptions = new Throwable[threadCount];
+
+      for (int i = 0; i < threadCount; i++) {
+        final int index = i;
+        threads[i] =
+            new Thread(
+                () -> {
+                  try {
+                    lazy.force();
+                  } catch (Throwable t) {
+                    exceptions[index] = t;
+                  }
+                });
+      }
+
+      // Start all threads
+      for (Thread thread : threads) {
+        thread.start();
+      }
+
+      // Wait for all threads to complete
+      for (Thread thread : threads) {
+        thread.join();
+      }
+
+      // Verify that the computation was only executed once
+      assertThat(counter.get()).isEqualTo(1);
+
+      // Verify that all threads got the same exception
+      for (int i = 0; i < threadCount; i++) {
+        assertThat(exceptions[i])
+            .isInstanceOf(IllegalStateException.class)
+            .isSameAs(testException);
+      }
+    }
+  }
+
+  @Nested
   @DisplayName("Individual Component Tests")
   class IndividualComponents {
 

@@ -267,6 +267,70 @@ MonadError<EitherKind.Witness<String>, String> eitherMonad = EitherMonadError.in
 
 ---
 
+### Phantom Type
+
+**Definition:** A type parameter that appears in a type signature but has no corresponding runtime representation—it exists purely for compile-time type safety and doesn't store any actual data of that type.
+
+**Key Characteristics:**
+- Present in the type signature for type-level information
+- Never instantiated or stored at runtime
+- Used for type-safe APIs without runtime overhead
+- Enables compile-time guarantees whilst maintaining efficiency
+
+**Example:**
+```java
+// Const<C, A> uses A as a phantom type
+Const<String, Integer> stringConst = new Const<>("hello");
+// The Integer type parameter is phantom - no Integer is stored!
+
+String value = stringConst.value(); // "hello"
+
+// Mapping over the phantom type changes the signature but not the value
+Const<String, Double> doubleConst = stringConst.mapSecond(i -> i * 2.0);
+System.out.println(doubleConst.value()); // Still "hello" (unchanged!)
+```
+
+**Common Use Cases:**
+- **State tracking at compile time**: Phantom types in state machines (e.g., `DatabaseConnection<Closed>` vs `DatabaseConnection<Open>`)
+- **Units of measure**: Tracking units without runtime overhead (e.g., `Measurement<Metres>` vs `Measurement<Feet>`)
+- **Const type**: The second type parameter in `Const<C, A>` is phantom, enabling fold and getter patterns
+- **Type-safe builders**: Ensuring build steps are called in the correct order
+
+**Real-World Example:**
+```java
+// State machine with phantom types
+class FileHandle<State> {
+    private File file;
+
+    // Only available when Closed
+    FileHandle<Open> open() { ... }
+}
+
+class Open {}
+class Closed {}
+
+// Type-safe at compile time:
+FileHandle<Closed> closed = new FileHandle<>();
+FileHandle<Open> opened = closed.open();  // ✅ Allowed
+// opened.open();  // ❌ Compile error - already open!
+```
+
+**Benefits:**
+- Zero runtime cost - no additional memory or processing
+- Compile-time safety - prevents incorrect API usage
+- Self-documenting APIs - type signature conveys intent
+- Enables advanced patterns like GADTs (Generalised Algebraic Data Types)
+
+**Where You'll See It:**
+- `Const<C, A>` - the `A` parameter is phantom
+- Witness types in HKT encoding (though serving a different purpose)
+- State machines and protocol enforcement
+- Type-level programming patterns
+
+**Related:** [Const Type Documentation](monads/const_type.md), [Witness Type](#witness-type)
+
+---
+
 ## Functional Type Classes
 
 ### Applicative

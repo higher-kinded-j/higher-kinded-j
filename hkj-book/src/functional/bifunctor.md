@@ -290,6 +290,58 @@ System.out.println(WRITER.narrow2(structured));
 
 ---
 
+## Example 5: Const – A Phantom Type Bifunctor
+
+`Const<C, A>` is a unique bifunctor where the second type parameter is **phantom** (not stored at runtime), making it perfect for fold operations, getters in lens libraries, and data extraction patterns.
+
+```java
+import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
+import org.higherkindedj.hkt.Bifunctor;
+import org.higherkindedj.hkt.constant.Const;
+import org.higherkindedj.hkt.constant.ConstBifunctor;
+
+Bifunctor<ConstKind2.Witness> bifunctor = ConstBifunctor.INSTANCE;
+
+// A Const holding a count, with String as the phantom type
+Const<Integer, String> count = new Const<>(42);
+System.out.println("Original: " + count.value());
+// Output: 42
+
+// Transform the constant value with first()
+Kind2<ConstKind2.Witness, String, String> transformed =
+    bifunctor.first(
+        n -> "Count: " + n,  // Transforms the constant: 42 -> "Count: 42"
+        CONST.widen2(count));
+
+System.out.println(CONST.narrow2(transformed).value());
+// Output: "Count: 42"
+
+// Transform ONLY the phantom type with second()
+Kind2<ConstKind2.Witness, Integer, Double> phantomChanged =
+    bifunctor.second(
+        s -> s.length() * 2.0,  // This defines the phantom type transformation
+        CONST.widen2(count));
+
+System.out.println(CONST.narrow2(phantomChanged).value());
+// Output: 42 (UNCHANGED!)
+
+// Use bimap() - but only first() affects the constant
+Kind2<ConstKind2.Witness, String, Boolean> both =
+    bifunctor.bimap(
+        n -> "#" + n,          // Transforms constant: 42 -> "#42"
+        s -> s.isEmpty(),      // Phantom type transformation only
+        CONST.widen2(count));
+
+System.out.println(CONST.narrow2(both).value());
+// Output: "#42"
+```
+
+**Note:** With `Const`, the `second` function in `bimap` never affects the constant value because the second type parameter is phantom. This property makes `Const` ideal for folds that accumulate a single value whilst traversing a structure, and for implementing getters in van Laarhoven lens patterns.
+
+For more on `Const` and its applications in folds and lens patterns, see the [Const Type documentation](../monads/const_type.md).
+
+---
+
 ## Real-World Scenario: API Response Transformation
 
 One of the most common uses of bifunctors is transforming internal data representations to external API formats.
