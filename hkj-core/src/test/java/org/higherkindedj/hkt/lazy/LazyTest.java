@@ -616,9 +616,7 @@ class LazyTest extends LazyTestBase {
 
       // Verify that all threads got the same exception
       for (int i = 0; i < threadCount; i++) {
-        assertThat(exceptions[i])
-            .isInstanceOf(IllegalStateException.class)
-            .isSameAs(testException);
+        assertThat(exceptions[i]).isInstanceOf(IllegalStateException.class).isSameAs(testException);
       }
     }
   }

@@ -15,9 +15,9 @@ import org.jspecify.annotations.NullMarked;
 /**
  * {@link Bifunctor} instance for {@link Const}.
  *
- * <p>This instance enables transformation of the constant value (first parameter) while leaving
- * the phantom type (second parameter) unchanged at runtime. When mapping the second parameter,
- * only the type signature changes; the constant value remains the same.
+ * <p>This instance enables transformation of the constant value (first parameter) while leaving the
+ * phantom type (second parameter) unchanged at runtime. When mapping the second parameter, only the
+ * type signature changes; the constant value remains the same.
  *
  * <p>This behavior makes {@code Const} particularly useful for implementing efficient folds and
  * traversals where you want to accumulate a value while abstracting over a type parameter.

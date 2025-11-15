@@ -11,21 +11,23 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * A constant functor that holds a value of type {@code C} and ignores the phantom type {@code A}.
  *
  * <p>The {@code Const} type is useful for operations where you need to accumulate or preserve a
- * value while abstracting over a type parameter. When mapping over the second type parameter
- * (the phantom {@code A}), the constant value remains unchanged. This makes {@code Const}
- * particularly useful for implementing efficient folds and traversals.
+ * value while abstracting over a type parameter. When mapping over the second type parameter (the
+ * phantom {@code A}), the constant value remains unchanged. This makes {@code Const} particularly
+ * useful for implementing efficient folds and traversals.
  *
  * <p>As a {@link java.lang.Record}, it automatically provides a canonical constructor, an accessor
- * ({@code value()}), and implementations for {@code equals()}, {@code hashCode()}, and
- * {@code toString()}.
+ * ({@code value()}), and implementations for {@code equals()}, {@code hashCode()}, and {@code
+ * toString()}.
  *
  * <p>This type is a natural Bifunctor, where:
+ *
  * <ul>
  *   <li>Mapping the first parameter transforms the constant value
  *   <li>Mapping the second parameter has no effect (the phantom type is ignored)
  * </ul>
  *
  * <p>Example usage:
+ *
  * <pre>{@code
  * // Create a Const holding a string value
  * Const<String, Integer> const1 = new Const<>("hello");
@@ -50,15 +52,16 @@ public record Const<C, A>(C value) {
   /**
    * Transforms both the constant value and the phantom type parameter.
    *
-   * <p>This is the fundamental bifunctor operation for {@code Const}. The first function is
-   * applied to the constant value, while the second function affects only the phantom type
-   * parameter (and thus has no runtime effect on the value).
+   * <p>This is the fundamental bifunctor operation for {@code Const}. The first function is applied
+   * to the constant value, while the second function affects only the phantom type parameter (and
+   * thus has no runtime effect on the value).
    *
    * <p><b>Note on exception propagation:</b> Although the second function doesn't affect the
    * constant value, it is still applied (to a null input) to ensure that any exceptions it might
    * throw are properly propagated. This maintains consistency with bifunctor exception semantics.
    *
    * <p>Example:
+   *
    * <pre>{@code
    * Const<String, Integer> const = new Const<>("hello");
    * Const<Integer, String> result = const.bimap(
@@ -77,8 +80,7 @@ public record Const<C, A>(C value) {
    * @throws NullPointerException if either {@code firstMapper} or {@code secondMapper} is null.
    */
   public <D, B> Const<D, B> bimap(
-      Function<? super C, ? extends D> firstMapper,
-      Function<? super A, ? extends B> secondMapper) {
+      Function<? super C, ? extends D> firstMapper, Function<? super A, ? extends B> secondMapper) {
     Validation.function().requireMapper(firstMapper, "firstMapper", CONST_CLASS, BIMAP);
     Validation.function().requireMapper(secondMapper, "secondMapper", CONST_CLASS, BIMAP);
 
@@ -96,6 +98,7 @@ public record Const<C, A>(C value) {
    * parameter.
    *
    * <p>Example:
+   *
    * <pre>{@code
    * Const<String, Integer> const = new Const<>("hello");
    * Const<Integer, Integer> result = const.mapFirst(String::length);
@@ -119,14 +122,15 @@ public record Const<C, A>(C value) {
   /**
    * Transforms only the phantom type parameter, leaving the constant value unchanged.
    *
-   * <p>Since the second type parameter is phantom (not stored), this operation has no effect on
-   * the constant value. It only changes the phantom type in the type signature.
+   * <p>Since the second type parameter is phantom (not stored), this operation has no effect on the
+   * constant value. It only changes the phantom type in the type signature.
    *
    * <p><b>Note on exception propagation:</b> Although this operation doesn't affect the constant
    * value, the mapper is still applied (to a null input) to ensure that any exceptions it might
    * throw are properly propagated. This maintains consistency with bifunctor exception semantics.
    *
    * <p>Example:
+   *
    * <pre>{@code
    * Const<String, Integer> const = new Const<>("hello");
    * Const<String, Double> result = const.mapSecond(i -> i * 2.0);

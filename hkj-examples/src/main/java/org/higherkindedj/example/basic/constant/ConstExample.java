@@ -36,8 +36,7 @@ import org.higherkindedj.hkt.constant.ConstKind2;
  *   <li>Real-world applications: folds, getters, validation
  * </ul>
  *
- * @see <a
- *     href="https://higher-kinded-j.github.io/const_type.html">Const Type Documentation</a>
+ * @see <a href="https://higher-kinded-j.github.io/const_type.html">Const Type Documentation</a>
  */
 public class ConstExample {
 
@@ -121,7 +120,8 @@ public class ConstExample {
   private static void demonstrateBifunctorOperations() {
     System.out.println("--- Example 3: Bifunctor Operations ---");
     System.out.println(
-        "Const implements Bifunctor: first() transforms the constant, second() only changes the phantom type.\n");
+        "Const implements Bifunctor: first() transforms the constant, second() only changes the"
+            + " phantom type.\n");
 
     Bifunctor<ConstKind2.Witness> bifunctor = ConstBifunctor.INSTANCE;
 
@@ -250,8 +250,7 @@ public class ConstExample {
 
   private static void demonstrateValidationExtraction() {
     System.out.println("--- Example 6: Validation Data Extraction ---");
-    System.out.println(
-        "Extract data from validation results without transforming the errors.\n");
+    System.out.println("Extract data from validation results without transforming the errors.\n");
 
     // Simulate validation results
     record ValidationResult(boolean isValid, List<String> errors, Object data) {}

@@ -10,8 +10,8 @@ import org.higherkindedj.hkt.Kind2;
  * <p>This interface, along with its nested {@link Witness} class, allows {@link Const} to be
  * treated abstractly in contexts requiring higher-kinded types (HKTs) with two type parameters.
  *
- * <p>This representation treats {@link Const} as a type constructor with two type parameters:
- * a constant value type {@code C} and a phantom type {@code A}. This enables bifunctor operations
+ * <p>This representation treats {@link Const} as a type constructor with two type parameters: a
+ * constant value type {@code C} and a phantom type {@code A}. This enables bifunctor operations
  * where the constant value can be transformed independently of the phantom type.
  *
  * @param <C> The type of the constant value

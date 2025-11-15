@@ -92,7 +92,8 @@ class ConstBifunctorTest {
     void secondWithDifferentPhantomTypePreservesConstantValue() {
       Kind2<ConstKind2.Witness, Integer, String> const_ = CONST.widen2(new Const<>(42));
 
-      // Note: mapper must not dereference input since Const applies it to null for exception propagation
+      // Note: mapper must not dereference input since Const applies it to null for exception
+      // propagation
       Const<Integer, Double> result = CONST.narrow2(bifunctor.second(s -> 3.14, const_));
 
       assertThat(result.value()).isEqualTo(42);
@@ -152,10 +153,8 @@ class ConstBifunctorTest {
       Kind2<ConstKind2.Witness, String, Integer> kind = CONST.widen2(original);
 
       Kind2<ConstKind2.Witness, String, String> result1 = bifunctor.second(i -> "transform1", kind);
-      Kind2<ConstKind2.Witness, String, Double> result2 =
-          bifunctor.second(s -> 3.14, result1);
-      Kind2<ConstKind2.Witness, String, Boolean> result3 =
-          bifunctor.second(d -> true, result2);
+      Kind2<ConstKind2.Witness, String, Double> result2 = bifunctor.second(s -> 3.14, result1);
+      Kind2<ConstKind2.Witness, String, Boolean> result3 = bifunctor.second(d -> true, result2);
 
       Const<String, Boolean> finalResult = CONST.narrow2(result3);
       assertThat(finalResult.value()).isEqualTo("constant");
