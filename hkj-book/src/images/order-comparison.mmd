@@ -1,0 +1,50 @@
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor':'#1f2020','primaryTextColor':'#ccc','primaryBorderColor':'#ccc','lineColor':'#ccc','secondaryColor':'#2d2d2d','tertiaryColor':'#3d3d3d'}}}%%
+graph LR
+    subgraph traditional["❌ Traditional Java (Nested Callbacks)"]
+        T1["validateOrder(data)"]
+        T2["thenCompose"]
+        T3["checkInventory()"]
+        T4["thenCompose"]
+        T5["processPayment()"]
+        T6["thenCompose"]
+        T7["createShipment()"]
+        T8["thenCompose"]
+        T9["notifyCustomer()"]
+        T10["5 levels deep!"]
+
+        T1 -->|"→"| T2
+        T2 -->|"→"| T3
+        T3 -->|"→"| T4
+        T4 -->|"→"| T5
+        T5 -->|"→"| T6
+        T6 -->|"→"| T7
+        T7 -->|"→"| T8
+        T8 -->|"→"| T9
+        T9 -->|"→"| T10
+
+        style T10 fill:#a44141,stroke:#cc0000,color:#fff
+    end
+
+    subgraph hkj["✓ Higher-Kinded-J (Flat Composition)"]
+        H1["For.from(eitherTMonad, initialContext)"]
+        H2[".from(validateOrderStep)"]
+        H3[".from(checkInventoryStep)"]
+        H4[".from(processPaymentStep)"]
+        H5[".from(createShipmentStep)"]
+        H6[".yield(buildFinalResult)"]
+        H7["Flat & readable!"]
+
+        H1 ==> H2
+        H2 ==> H3
+        H3 ==> H4
+        H4 ==> H5
+        H5 ==> H6
+        H6 ==> H7
+
+        style H7 fill:#2d5016,stroke:#4a7c24,color:#fff
+    end
+
+    traditional -.->|"Refactor to"| hkj
+
+    classDef traditional fill:#2d1818,stroke:#8b3a3a
+    classDef hkj fill:#1a2d18,stroke:#3a8b3a
