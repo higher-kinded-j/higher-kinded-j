@@ -4,8 +4,10 @@ package org.higherkindedj.hkt;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -138,5 +140,195 @@ public interface Monoids {
         return b1 || b2;
       }
     };
+  }
+
+  /** Returns a {@code Monoid} for long addition. Combination is `+`, identity is `0L`. */
+  static Monoid<Long> longAddition() {
+    return new Monoid<Long>() {
+      @Override
+      public Long empty() {
+        return 0L;
+      }
+
+      @Override
+      public Long combine(Long l1, Long l2) {
+        return l1 + l2;
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for long multiplication. Combination is `*`, identity is `1L`. */
+  static Monoid<Long> longMultiplication() {
+    return new Monoid<Long>() {
+      @Override
+      public Long empty() {
+        return 1L;
+      }
+
+      @Override
+      public Long combine(Long l1, Long l2) {
+        return l1 * l2;
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for double addition. Combination is `+`, identity is `0.0`. */
+  static Monoid<Double> doubleAddition() {
+    return new Monoid<Double>() {
+      @Override
+      public Double empty() {
+        return 0.0;
+      }
+
+      @Override
+      public Double combine(Double d1, Double d2) {
+        return d1 + d2;
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for double multiplication. Combination is `*`, identity is `1.0`. */
+  static Monoid<Double> doubleMultiplication() {
+    return new Monoid<Double>() {
+      @Override
+      public Double empty() {
+        return 1.0;
+      }
+
+      @Override
+      public Double combine(Double d1, Double d2) {
+        return d1 * d2;
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that selects the first non-empty optional.
+   *
+   * <p>The combination takes the first optional if it is present, otherwise the second. The
+   * identity is {@code Optional.empty()}.
+   *
+   * @param <A> The type contained in the optional.
+   * @return A non-null {@code Monoid} for first-wins optional combination.
+   */
+  static <A> Monoid<Optional<A>> firstOptional() {
+    return new Monoid<Optional<A>>() {
+      @Override
+      public Optional<A> empty() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<A> combine(Optional<A> opt1, Optional<A> opt2) {
+        return opt1.isPresent() ? opt1 : opt2;
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that selects the last non-empty optional.
+   *
+   * <p>The combination takes the second optional if it is present, otherwise the first. The
+   * identity is {@code Optional.empty()}.
+   *
+   * @param <A> The type contained in the optional.
+   * @return A non-null {@code Monoid} for last-wins optional combination.
+   */
+  static <A> Monoid<Optional<A>> lastOptional() {
+    return new Monoid<Optional<A>>() {
+      @Override
+      public Optional<A> empty() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<A> combine(Optional<A> opt1, Optional<A> opt2) {
+        return opt2.isPresent() ? opt2 : opt1;
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the maximum value according to the
+   * given comparator.
+   *
+   * <p>The combination returns whichever optional contains the greater value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param <A> The type contained in the optional.
+   * @param comparator The comparator to use for determining the maximum value.
+   * @return A non-null {@code Monoid} for maximum optional combination.
+   */
+  static <A> Monoid<Optional<A>> maximum(final Comparator<A> comparator) {
+    return new Monoid<Optional<A>>() {
+      @Override
+      public Optional<A> empty() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<A> combine(Optional<A> opt1, Optional<A> opt2) {
+        if (opt1.isPresent() && opt2.isPresent()) {
+          return comparator.compare(opt1.get(), opt2.get()) >= 0 ? opt1 : opt2;
+        }
+        return opt1.isPresent() ? opt1 : opt2;
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the maximum value for comparable
+   * types.
+   *
+   * <p>The combination returns whichever optional contains the greater value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param <A> The comparable type contained in the optional.
+   * @return A non-null {@code Monoid} for maximum optional combination.
+   */
+  static <A extends Comparable<? super A>> Monoid<Optional<A>> maximum() {
+    return maximum(Comparator.<A>naturalOrder());
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the minimum value according to the
+   * given comparator.
+   *
+   * <p>The combination returns whichever optional contains the lesser value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param <A> The type contained in the optional.
+   * @param comparator The comparator to use for determining the minimum value.
+   * @return A non-null {@code Monoid} for minimum optional combination.
+   */
+  static <A> Monoid<Optional<A>> minimum(final Comparator<A> comparator) {
+    return new Monoid<Optional<A>>() {
+      @Override
+      public Optional<A> empty() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<A> combine(Optional<A> opt1, Optional<A> opt2) {
+        if (opt1.isPresent() && opt2.isPresent()) {
+          return comparator.compare(opt1.get(), opt2.get()) <= 0 ? opt1 : opt2;
+        }
+        return opt1.isPresent() ? opt1 : opt2;
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the minimum value for comparable
+   * types.
+   *
+   * <p>The combination returns whichever optional contains the lesser value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param <A> The comparable type contained in the optional.
+   * @return A non-null {@code Monoid} for minimum optional combination.
+   */
+  static <A extends Comparable<? super A>> Monoid<Optional<A>> minimum() {
+    return minimum(Comparator.<A>naturalOrder());
   }
 }

@@ -39,4 +39,59 @@ public interface Monoid<A> extends Semigroup<A> {
    * @return The empty value (non-null).
    */
   A empty();
+
+  /**
+   * Combines all elements in the given iterable using this Monoid's combine operation.
+   *
+   * <p>If the iterable is empty, returns the empty value.
+   *
+   * @param elements The iterable of elements to combine (non-null).
+   * @return The combined value (non-null).
+   */
+  default A combineAll(final Iterable<A> elements) {
+    A result = empty();
+    for (A element : elements) {
+      result = combine(result, element);
+    }
+    return result;
+  }
+
+  /**
+   * Combines a value with itself {@code n} times using this Monoid's combine operation.
+   *
+   * <p>If {@code n} is 0, returns the empty value. If {@code n} is 1, returns the value itself.
+   *
+   * @param value The value to combine (non-null).
+   * @param n The number of times to combine (must be non-negative).
+   * @return The combined value (non-null).
+   * @throws IllegalArgumentException if {@code n} is negative.
+   */
+  default A combineN(final A value, final int n) {
+    if (n < 0) {
+      throw new IllegalArgumentException("n must be non-negative, but was: " + n);
+    }
+
+    A result = empty();
+    A current = value;
+    int k = n;
+
+    while (k > 0) {
+      if ((k & 1) == 1) { // if k is odd
+        result = combine(result, current);
+      }
+      current = combine(current, current);
+      k >>= 1; // k = k / 2
+    }
+    return result;
+  }
+
+  /**
+   * Tests whether the given value is equal to the empty value of this Monoid.
+   *
+   * @param value The value to test (non-null).
+   * @return {@code true} if the value equals the empty value, {@code false} otherwise.
+   */
+  default boolean isEmpty(final A value) {
+    return empty().equals(value);
+  }
 }

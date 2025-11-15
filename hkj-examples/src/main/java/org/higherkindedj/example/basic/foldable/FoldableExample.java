@@ -5,6 +5,7 @@ package org.higherkindedj.example.basic.foldable;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
@@ -73,5 +74,65 @@ public class FoldableExample {
     Integer sumOfEmpty =
         listFoldable.foldMap(Monoids.integerAddition(), Function.identity(), emptyKind);
     System.out.println("\n6. Summing an empty list: " + sumOfEmpty); // Expected: 0
+
+    // --- Scenario 7: Using Long monoids for large number operations ---
+    // The Long monoids handle large numeric values that exceed Integer's range.
+    List<Long> userCounts = List.of(1_500_000L, 2_300_000L, 890_000L);
+    Kind<ListKind.Witness, Long> userCountsKind = LIST.widen(userCounts);
+    Long totalUsers =
+        listFoldable.foldMap(Monoids.longAddition(), Function.identity(), userCountsKind);
+    System.out.println("\n7. Total users with Long monoid: " + totalUsers); // Expected: 4,690,000
+
+    // --- Scenario 8: Using Double monoids for financial calculations ---
+    // The Double monoids provide floating-point arithmetic for precise calculations.
+    List<Double> expenses = List.of(49.99, 129.50, 89.99);
+    Kind<ListKind.Witness, Double> expensesKind = LIST.widen(expenses);
+    Double totalExpenses =
+        listFoldable.foldMap(Monoids.doubleAddition(), Function.identity(), expensesKind);
+    System.out.println(
+        "8. Total expenses with Double monoid: $" + totalExpenses); // Expected: $269.48
+
+    // --- Scenario 9: Finding maximum score from optional values ---
+    // The maximum monoid elegantly handles sparse data, ignoring empty optionals.
+    List<Optional<Integer>> scores =
+        List.of(Optional.of(85), Optional.empty(), Optional.of(92), Optional.of(78));
+    Kind<ListKind.Witness, Optional<Integer>> scoresKind = LIST.widen(scores);
+    Optional<Integer> highestScore =
+        listFoldable.foldMap(Monoids.maximum(), Function.identity(), scoresKind);
+    System.out.println("9. Highest score: " + highestScore); // Expected: Optional[92]
+
+    // --- Advanced: Using combineN for repeated application ---
+    demonstrateCombineN();
+  }
+
+  /**
+   * Demonstrates the {@code combineN} method for repeated application of a value.
+   *
+   * <p>{@code combineN(value, n)} combines a value with itself {@code n} times using the monoid's
+   * operation. This is useful for scenarios like compound interest calculations, text formatting,
+   * and other patterns requiring repeated application.
+   */
+  private static void demonstrateCombineN() {
+    System.out.println("\n=== Using combineN for Repeated Application ===");
+
+    // Calculate compound interest: initial * (1.05)^10
+    Monoid<Double> growth = Monoids.doubleMultiplication();
+    Double rate = 1.05; // 5% annual growth
+    Double compoundFactor = growth.combineN(rate, 10);
+
+    Double initialInvestment = 1000.0;
+    Double finalValue = initialInvestment * compoundFactor;
+
+    System.out.println("Initial investment: $" + initialInvestment);
+    System.out.println("After 10 years at 5%: $" + String.format("%.2f", finalValue));
+
+    // Build repeated string pattern
+    Monoid<String> stringConcat = Monoids.string();
+    String separator = "=";
+    String border = stringConcat.combineN(separator, 50);
+
+    System.out.println("\n" + border);
+    System.out.println("Repeated border created with combineN");
+    System.out.println(border);
   }
 }
