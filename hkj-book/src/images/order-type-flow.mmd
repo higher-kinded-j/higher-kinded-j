@@ -1,0 +1,58 @@
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor':'#1f2020','primaryTextColor':'#ccc','primaryBorderColor':'#ccc','lineColor':'#ccc','secondaryColor':'#2d2d2d','tertiaryColor':'#3d3d3d'}}}%%
+graph TD
+    Start["OrderData<br/>(input)"]
+
+    Validate["Validate<br/>Either&lt;DomainError, ValidatedOrder&gt;"]
+    ValidateLift["EitherT.fromEither()<br/>lifts to async context"]
+    ValidateType["EitherT&lt;Future, DomainError, ValidatedOrder&gt;"]
+
+    Inventory["Check Inventory<br/>Future&lt;Either&lt;DomainError, Unit&gt;&gt;"]
+    InventoryLift["EitherT.fromKind()<br/>wraps in EitherT"]
+    InventoryType["EitherT&lt;Future, DomainError, Unit&gt;"]
+
+    Payment["Process Payment<br/>Future&lt;Either&lt;DomainError, PaymentConfirmation&gt;&gt;"]
+    PaymentLift["EitherT.fromKind()"]
+    PaymentType["EitherT&lt;Future, DomainError, PaymentConfirmation&gt;"]
+
+    Shipment["Create Shipment<br/>Future&lt;Either&lt;DomainError, ShipmentInfo&gt;&gt;"]
+    ShipmentRecover["handleErrorWith()<br/>recover from temporary failures"]
+    ShipmentType["EitherT&lt;Future, DomainError, ShipmentInfo&gt;"]
+
+    Final["FinalResult<br/>built from accumulated data"]
+    FinalType["EitherT&lt;Future, DomainError, FinalResult&gt;"]
+
+    Unwrap["value()<br/>extract from EitherT"]
+    Result["Future&lt;Either&lt;DomainError, FinalResult&gt;&gt;<br/>(final result)"]
+
+    Start --> Validate
+    Validate -->|"sync result"| ValidateLift
+    ValidateLift --> ValidateType
+
+    ValidateType -->|"flatMap"| Inventory
+    Inventory -->|"async result"| InventoryLift
+    InventoryLift --> InventoryType
+
+    InventoryType -->|"flatMap"| Payment
+    Payment -->|"async result"| PaymentLift
+    PaymentLift --> PaymentType
+
+    PaymentType -->|"flatMap"| Shipment
+    Shipment --> ShipmentRecover
+    ShipmentRecover --> ShipmentType
+
+    ShipmentType -->|"map"| Final
+    Final --> FinalType
+
+    FinalType --> Unwrap
+    Unwrap --> Result
+
+    style Start fill:#2d4a7c,stroke:#4a7cbc,color:#fff
+    style Result fill:#2d5016,stroke:#4a7c24,color:#fff
+    style ValidateType fill:#2d2d2d,stroke:#4a7c7c
+    style InventoryType fill:#2d2d2d,stroke:#4a7c7c
+    style PaymentType fill:#2d2d2d,stroke:#4a7c7c
+    style ShipmentType fill:#2d2d2d,stroke:#4a7c7c
+    style FinalType fill:#2d2d2d,stroke:#4a7c7c
+
+    classDef liftOp fill:#3d2d1a,stroke:#7c5a3a,color:#fff
+    class ValidateLift,InventoryLift,PaymentLift,ShipmentRecover,Unwrap liftOp

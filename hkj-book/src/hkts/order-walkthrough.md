@@ -81,6 +81,39 @@ public Kind<CompletableFutureKind.Witness, Either<DomainError, FinalResult>> pro
 - **Testable**: Each step is a pure function that's easy to test in isolation
 - **Composable**: Reuse workflow steps in different compositions
 
+### Visual Comparison
+
+The difference is striking when visualised:
+
+```mermaid
+%%{init: {'theme':'dark'}}%%
+graph LR
+    subgraph traditional["❌ Traditional Java"]
+        T1["validateOrder"]
+        T2["thenCompose"]
+        T3["checkInventory"]
+        T4["thenCompose"]
+        T5["processPayment"]
+        T6["thenCompose"]
+        T7["createShipment"]
+        T8["5 levels deep!"]
+
+        T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8
+    end
+
+    subgraph hkj["✓ Higher-Kinded-J"]
+        H1["For.from()"]
+        H2[".from(validate)"]
+        H3[".from(inventory)"]
+        H4[".from(payment)"]
+        H5[".from(shipment)"]
+        H6[".yield(result)"]
+        H7["Flat & readable!"]
+
+        H1 ==> H2 ==> H3 ==> H4 ==> H5 ==> H6 ==> H7
+    end
+```
+
 ## What You'll Learn
 
 This example progressively demonstrates:
@@ -111,6 +144,45 @@ We provide **six** progressive workflow implementations, each showcasing differe
 | **WorkflowBifunctor** | Bifunctor | Transforming both error and success channels | API boundary transformations |
 
 Each workflow builds upon the last, demonstrating how Higher-Kinded-J adapts to different real-world scenarios.
+
+### Which Workflow Should I Use?
+
+Use this decision tree to select the appropriate workflow for your scenario:
+
+```mermaid
+%%{init: {'theme':'dark'}}%%
+graph TD
+    Start{{"What are you<br/>trying to accomplish?"}}
+
+    Compare["See the problem?"]
+    Traditional["OrderWorkflowTraditional<br/>(nested callbacks)"]
+
+    AsyncErrors["Async + typed errors?"]
+    Workflow1["Workflow1<br/>(EitherT)"]
+
+    ExceptionCode["Integrate<br/>exception code?"]
+    Workflow2["Workflow2<br/>(Try)"]
+
+    ImmutableUpdates["Immutable<br/>updates?"]
+    LensPrism["WorkflowLensAndPrism<br/>(Optics)"]
+
+    ValidateCollection["Validate<br/>collection?"]
+    AccumulateErrors["All errors or<br/>fail fast?"]
+    Traverse["WorkflowTraverse<br/>(accumulate)"]
+    FastFail["Workflow1<br/>(short-circuit)"]
+
+    APIBoundary["API boundary<br/>transform?"]
+    Bifunctor["WorkflowBifunctor<br/>(bimap)"]
+
+    Start --> Compare --> Traditional
+    Start --> AsyncErrors --> Workflow1
+    Start --> ExceptionCode --> Workflow2
+    Start --> ImmutableUpdates --> LensPrism
+    Start --> ValidateCollection --> AccumulateErrors
+    AccumulateErrors -->|"All errors"| Traverse
+    AccumulateErrors -->|"Fail fast"| FastFail
+    Start --> APIBoundary --> Bifunctor
+```
 
 ## Prerequisites
 
@@ -197,6 +269,49 @@ Now, `eitherTMonad` can be used to chain operations on `EitherT` values (which a
 
 * **Async Sequencing:** Delegated to `futureMonad.flatMap` (which translates to `CompletableFuture::thenCompose`).
 * **Error Short-Circuiting:** If an inner `Either` becomes `Left(domainError)`, subsequent `flatMap` operations are skipped, propagating the `Left` within the `CompletableFuture`.
+
+### How Types Flow Through the Workflow
+
+This diagram shows how types compose through each step, and how `EitherT` unifies sync and async operations:
+
+```mermaid
+%%{init: {'theme':'dark'}}%%
+graph TD
+    Start["OrderData<br/>(input)"]
+
+    Validate["Validate<br/>Either&lt;Error, ValidatedOrder&gt;"]
+    ValidateLift["EitherT.fromEither()<br/>→ lifts to async"]
+    ValidateType["EitherT&lt;Future, Error, ValidatedOrder&gt;"]
+
+    Inventory["Check Inventory<br/>Future&lt;Either&lt;Error, Unit&gt;&gt;"]
+    InventoryLift["EitherT.fromKind()"]
+    InventoryType["EitherT&lt;Future, Error, Unit&gt;"]
+
+    Payment["Process Payment<br/>Future&lt;Either&lt;Error, PaymentConf&gt;&gt;"]
+    PaymentLift["EitherT.fromKind()"]
+    PaymentType["EitherT&lt;Future, Error, PaymentConf&gt;"]
+
+    Final["Build FinalResult"]
+    FinalType["EitherT&lt;Future, Error, FinalResult&gt;"]
+
+    Unwrap["value() → extract"]
+    Result["Future&lt;Either&lt;Error, FinalResult&gt;&gt;"]
+
+    Start --> Validate
+    Validate -->|"sync"| ValidateLift --> ValidateType
+    ValidateType -->|"flatMap"| Inventory
+    Inventory -->|"async"| InventoryLift --> InventoryType
+    InventoryType -->|"flatMap"| Payment
+    Payment -->|"async"| PaymentLift --> PaymentType
+    PaymentType -->|"map"| Final --> FinalType
+    FinalType --> Unwrap --> Result
+```
+
+**Key insights from the diagram:**
+- **Sync and async operations** both become `EitherT` — providing a uniform interface
+- **Type consistency**: All intermediate steps have the same shape: `EitherT<Future, DomainError, T>`
+- **Composability**: Because all steps have the same wrapper type, they compose with `flatMap`
+- **Final extraction**: `value()` unwraps the `EitherT` back to `Future<Either<Error, Result>>`
 
 ## Workflow Step-by-Step (`Workflow1.java`)
 

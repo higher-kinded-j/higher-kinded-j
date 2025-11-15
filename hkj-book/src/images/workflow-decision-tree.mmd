@@ -1,0 +1,62 @@
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor':'#1f2020','primaryTextColor':'#ccc','primaryBorderColor':'#ccc','lineColor':'#ccc','secondaryColor':'#2d2d2d','tertiaryColor':'#3d3d3d'}}}%%
+graph TD
+    Start{{"What are you trying to accomplish?"}}
+
+    Compare["Want to see the problem?"]
+    Traditional["Use:<br/><b>OrderWorkflowTraditional</b><br/><br/>Shows nested callbacks,<br/>no type safety"]
+
+    AsyncErrors["Async operations<br/>with typed errors?"]
+    Workflow1["Use:<br/><b>Workflow1</b><br/><br/>EitherT + For comprehension<br/>for clean composition"]
+
+    ExceptionCode["Integrating code<br/>that throws exceptions?"]
+    Workflow2["Use:<br/><b>Workflow2</b><br/><br/>Try integration,<br/>convert to Either"]
+
+    ImmutableUpdates["Complex immutable<br/>data updates?"]
+    LensPrism["Use:<br/><b>WorkflowLensAndPrism</b><br/><br/>Generated Lenses & Prisms<br/>for clean updates"]
+
+    ValidateCollection["Need to validate<br/>a collection?"]
+    AccumulateErrors["Want ALL errors<br/>or fail on first?"]
+
+    Traverse["Use:<br/><b>WorkflowTraverse</b><br/><br/>Traverse + Validated<br/>accumulates all errors"]
+
+    FastFail["Use:<br/><b>Workflow1</b><br/><br/>Standard EitherT<br/>short-circuits"]
+
+    APIBoundary["Transforming types<br/>for API responses?"]
+    Bifunctor["Use:<br/><b>WorkflowBifunctor</b><br/><br/>Bifunctor.bimap()<br/>transforms both channels"]
+
+    Start -->|"Understanding"| Compare
+    Compare --> Traditional
+
+    Start -->|"Basic workflow"| AsyncErrors
+    AsyncErrors --> Workflow1
+
+    Start -->|"Legacy integration"| ExceptionCode
+    ExceptionCode --> Workflow2
+
+    Start -->|"Data manipulation"| ImmutableUpdates
+    ImmutableUpdates --> LensPrism
+
+    Start -->|"Validation"| ValidateCollection
+    ValidateCollection --> AccumulateErrors
+    AccumulateErrors -->|"All errors"| Traverse
+    AccumulateErrors -->|"Fail fast"| FastFail
+
+    Start -->|"API transformation"| APIBoundary
+    APIBoundary --> Bifunctor
+
+    style Traditional fill:#2d1818,stroke:#8b3a3a,color:#fff
+    style Workflow1 fill:#1a2d18,stroke:#3a8b3a,color:#fff
+    style Workflow2 fill:#1a2d18,stroke:#3a8b3a,color:#fff
+    style LensPrism fill:#1a2d18,stroke:#3a8b3a,color:#fff
+    style Traverse fill:#1a2d18,stroke:#3a8b3a,color:#fff
+    style FastFail fill:#1a2d18,stroke:#3a8b3a,color:#fff
+    style Bifunctor fill:#1a2d18,stroke:#3a8b3a,color:#fff
+
+    style Start fill:#2d4a7c,stroke:#4a7cbc,color:#fff
+    style Compare fill:#3d3d1a,stroke:#7c7c3a,color:#fff
+    style AsyncErrors fill:#3d3d1a,stroke:#7c7c3a,color:#fff
+    style ExceptionCode fill:#3d3d1a,stroke:#7c7c3a,color:#fff
+    style ImmutableUpdates fill:#3d3d1a,stroke:#7c7c3a,color:#fff
+    style ValidateCollection fill:#3d3d1a,stroke:#7c7c3a,color:#fff
+    style AccumulateErrors fill:#3d3d1a,stroke:#7c7c3a,color:#fff
+    style APIBoundary fill:#3d3d1a,stroke:#7c7c3a,color:#fff
