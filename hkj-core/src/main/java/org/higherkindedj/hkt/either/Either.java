@@ -393,11 +393,17 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * Represents the {@link Left} case of an {@link Either}. By convention, this holds an error or
    * alternative value. This is a {@link Record} for conciseness and immutability.
    *
+   * <p>As part of the HKT pattern, this class implements both {@link EitherKind} and {@link
+   * EitherKind2}, allowing it to be used with typeclasses expecting {@code
+   * Kind<EitherKind.Witness<L>, R>} (for functors/monads) or {@code Kind2<EitherKind2.Witness, L,
+   * R>} (for bifunctors).
+   *
    * @param <L> The type of the value held.
    * @param <R> The type of the {@link Right} value (phantom type for {@code Left}).
    * @param value The value of type {@code L}. Can be {@code null}.
    */
-  record Left<L, R>(@Nullable L value) implements Either<L, R> {
+  record Left<L, R>(@Nullable L value)
+      implements Either<L, R>, EitherKind<L, R>, EitherKind2<L, R> {
 
     @Override
     public boolean isLeft() {
@@ -455,11 +461,17 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * Represents the {@link Right} case of an {@link Either}. By convention, this holds the
    * successful or primary value. This is a {@link Record} for conciseness and immutability.
    *
+   * <p>As part of the HKT pattern, this class implements both {@link EitherKind} and {@link
+   * EitherKind2}, allowing it to be used with typeclasses expecting {@code
+   * Kind<EitherKind.Witness<L>, R>} (for functors/monads) or {@code Kind2<EitherKind2.Witness, L,
+   * R>} (for bifunctors).
+   *
    * @param <L> The type of the {@link Left} value (phantom type for {@code Right}).
    * @param <R> The type of the value held.
    * @param value The value of type {@code R}. Can be {@code null}.
    */
-  record Right<L, R>(@Nullable R value) implements Either<L, R> {
+  record Right<L, R>(@Nullable R value)
+      implements Either<L, R>, EitherKind<L, R>, EitherKind2<L, R> {
     @Override
     public boolean isLeft() {
       return false;

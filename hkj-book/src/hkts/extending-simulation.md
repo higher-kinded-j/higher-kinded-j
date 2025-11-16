@@ -9,6 +9,8 @@ There are two main scenarios:
 1. **Adapting External Types**: For types you don't own (e.g., JDK classes like `java.util.Set`, `java.util.Map`, or classes from other libraries).
 2. **Integrating Custom Library Types**: For types defined within your own project or a library you control, where you can modify the type itself.
 
+> **Note:** Within Higher-Kinded-J, core library types like `IO`, `Maybe`, and `Either` follow Scenario 2—they directly implement their respective Kind interfaces (`IOKind`, `MaybeKind`, `EitherKind`). This provides zero runtime overhead for widen/narrow operations.
+
 The core pattern involves creating:
 
 * An `XxxKind` interface with a nested `Witness` type (this remains the same).
@@ -125,6 +127,8 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
 ## Scenario 2: Integrating a Custom Library Type
 
 If you are defining a new type *within your library* (e.g., a custom `MyType<A>`), you can design it to directly participate in the HKT simulation. This approach typically doesn't require an explicit `Holder` record if your type can directly implement the `XxxKind` interface.
+
+> **Examples in Higher-Kinded-J:** `IO<A>`, `Maybe<A>` (via `Just<T>` and `Nothing<T>`), `Either<L,R>` (via `Left` and `Right`), `Validated<E,A>`, `Id<A>`, and monad transformers all use this pattern. Their widen/narrow operations are simple type-safe casts with no wrapper object allocation.
 
 ~~~admonish
 

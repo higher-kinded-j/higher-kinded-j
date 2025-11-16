@@ -17,7 +17,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Witness Type `F_WITNESS`:** The phantom type used as the first parameter to `Kind` (e.g., `OptionalKind.Witness`). This is what parameterizes the type classes (e.g., `Monad<OptionalKind.Witness>`).
 * **`XxxKindHelper` Class:** Provides `widen` and `narrow` methods.
   * For **external types** (like `java.util.List`, `java.util.Optional`), `widen` typically creates an internal `XxxHolder` record which implements `XxxKind<A>`, and `narrow` extracts the Java type from this holder.
-  * For **library-defined types** (`Id`, `Maybe`, `IO`, `Try`, monad transformers), if the type itself directly implements `XxxKind<A>`, then `widen` often performs a (checked) cast, and `narrow` checks `instanceof` the actual type and casts.
+  * For **library-defined types** (`Id`, `IO`, `Maybe`, `Either`, `Validated`, `Try`, monad transformers), the type itself directly implements `XxxKind<A>`. This means `widen` performs a null check and direct cast (zero overhead), and `narrow` checks `instanceof` the actual type and casts.
 * **Type Class Instances:** Concrete implementations of `Functor<F_WITNESS>`, `Monad<F_WITNESS>`, etc.
 
 ---
@@ -110,9 +110,9 @@ This is achieved by representing the application of a type constructor `F` to a 
 ### 7. `Maybe<A>`
 
 * **Type Definition**: Custom sealed interface ([`Maybe`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)) with `Just<A>` (non-null) and `Nothing<A>` implementations.
-* **`MaybeKind<A>` Interface**: `Maybe<A>` itself implements `MaybeKind<A>`, and `MaybeKind<A> extends Kind<MaybeKind.Witness, A>`.
+* **`MaybeKind<A>` Interface**: `Just<T>` and `Nothing<T>` directly implement `MaybeKind<T>`, which extends `Kind<MaybeKind.Witness, T>`.
 * **Witness Type `F_WITNESS`**: `MaybeKind.Witness`
-* **`MaybeKindHelper`**: `widen` casts `Maybe` to `Kind`; `unwrap` casts `Kind` to `Maybe`. Provides `just(value)`, `nothing()`, `fromNullable(value)`.
+* **`MaybeKindHelper`**: `widen` performs null check and casts `Maybe` to `Kind` (zero overhead); `narrow` checks `instanceof Maybe` and casts. Provides `just(value)`, `nothing()`, `fromNullable(value)`.
 * **Type Class Instances**:
   * `MaybeFunctor` (`Functor<MaybeKind.Witness>`)
   * [`MaybeMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/MaybeMonad.java) (`MonadError<MaybeKind.Witness, Unit>`)
@@ -124,9 +124,9 @@ This is achieved by representing the application of a type constructor `F` to a 
 ### 8. `Either<L, R>`
 
 * **Type Definition**: Custom sealed interface ([`Either`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/Either.java)) with `Left<L,R>` and `Right<L,R>` records.
-* **`EitherKind<L, R>` Interface**: `Either<L,R>` itself implements `EitherKind<L,R>`, and `EitherKind<L,R> extends Kind<EitherKind.Witness<L>, R>`.
+* **`EitherKind<L, R>` Interface**: `Either.Left<L,R>` and `Either.Right<L,R>` directly implement `EitherKind<L,R>` (and `EitherKind2<L,R>` for bifunctor operations), which extends `Kind<EitherKind.Witness<L>, R>`.
 * **Witness Type `F_WITNESS`**: `EitherKind.Witness<L>` (Error type `L` is fixed for the witness).
-* **`EitherKindHelper`**: `wrap` casts `Either` to `Kind`; `unwrap` casts `Kind` to `Either`. Provides `left(l)`, `right(r)`.
+* **`EitherKindHelper`**: `widen` performs null check and casts `Either` to `Kind` (zero overhead); `narrow` checks `instanceof Either` and casts. Provides `left(l)`, `right(r)`.
 * **Type Class Instances**:
   * `EitherFunctor<L>` (`Functor<EitherKind.Witness<L>>`)
   * [`EitherMonad<L>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/EitherMonad.java) (`MonadError<EitherKind.Witness<L>, L>`)
@@ -169,9 +169,9 @@ This is achieved by representing the application of a type constructor `F` to a 
 ### 11. `IO<A>`
 
 * **Type Definition**: Custom interface ([`IO`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/io/IO.java)) representing a deferred, potentially side-effecting computation.
-* **`IOKind<A>` Interface**: `IO<A>` itself implements `IOKind<A>`, and `IOKind<A> extends Kind<IOKind.Witness, A>`.
+* **`IOKind<A>` Interface**: `IO<A>` directly extends `IOKind<A>`, which extends `Kind<IOKind.Witness, A>`.
 * **Witness Type `F_WITNESS`**: `IOKind.Witness`
-* **`IOKindHelper`**: `wrap` casts `IO` to `Kind`; `unwrap` casts `Kind` to `IO`. Provides `delay(supplier)`, `unsafeRunSync(kind)`.
+* **`IOKindHelper`**: `widen` performs null check and returns the `IO` directly as `Kind` (zero overhead); `narrow` checks `instanceof IO` and casts. Provides `delay(supplier)`, `unsafeRunSync(kind)`.
 * **Type Class Instances**:
   * `IOFunctor` (`Functor<IOKind.Witness>`)
   * `IOApplicative` (`Applicative<IOKind.Witness>`)

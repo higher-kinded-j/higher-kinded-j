@@ -10,8 +10,13 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
-/** Concrete implementation of Maybe representing the absence of a value (singleton). */
-final class Nothing<T> implements Maybe<T> {
+/**
+ * Concrete implementation of Maybe representing the absence of a value (singleton).
+ *
+ * <p>As part of the HKT pattern, this class implements {@link MaybeKind}, allowing it to be used
+ * with typeclasses expecting {@code Kind<MaybeKind.Witness, T>}.
+ */
+final class Nothing<T> implements Maybe<T>, MaybeKind<T> {
   // Singleton instance
   private static final Nothing<?> INSTANCE = new Nothing<>();
 

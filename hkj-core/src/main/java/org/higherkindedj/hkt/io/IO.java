@@ -32,6 +32,10 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *   <li><b>Composability:</b> {@code IO} operations can be easily chained and combined using
  *       methods like {@link #map(Function)} and {@link #flatMap(Function)} to build more complex
  *       effectful workflows.
+ *   <li><b>HKT Integration:</b> {@code IO<A>} directly extends {@link IOKind IOKind<A>}, making it
+ *       a first-class participant in the Higher-Kinded-J HKT simulation. This means widen/narrow
+ *       operations via {@link IOKindHelper} have zero runtime overhead (simple type-safe casts
+ *       rather than wrapper object allocation).
  * </ul>
  *
  * <p><b>Example:</b>
@@ -70,7 +74,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *     often used as the type parameter {@code A}.
  */
 @FunctionalInterface
-public interface IO<A> {
+public interface IO<A> extends IOKind<A> {
 
   /**
    * Executes the described computation synchronously, potentially performing side effects and

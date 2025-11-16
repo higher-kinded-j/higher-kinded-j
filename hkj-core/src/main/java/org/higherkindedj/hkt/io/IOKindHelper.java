@@ -21,51 +21,39 @@ public enum IOKindHelper implements IOConverterOps {
   private static final Class<IO> IO_CLASS = IO.class;
 
   /**
-   * Internal record implementing {@link IOKind} to hold the concrete {@link IO} instance.
-   *
-   * @param <A> The result type of the IO computation.
-   * @param ioInstance The non-null, actual {@link IO} instance.
-   */
-  record IOHolder<A>(IO<A> ioInstance) implements IOKind<A> {
-    IOHolder {
-      Validation.kind().requireForWiden(ioInstance, IO_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link IO<A>} instance into its higher-kinded representation, {@code
    * Kind<IOKind.Witness, A>}. Implements {@link IOConverterOps#widen}.
    *
+   * <p>Since {@code IO} directly extends {@code IOKind}, this method performs a simple type-safe
+   * cast without requiring a wrapper object.
+   *
    * @param <A> The result type of the {@code IO} computation.
    * @param io The non-null, concrete {@link IO<A>} instance to widen.
-   * @return A non-null {@link Kind<IOKind.Witness, A>} representing the wrapped {@code IO}
-   *     computation.
+   * @return A non-null {@link Kind<IOKind.Witness, A>} representing the {@code IO} computation.
    * @throws NullPointerException if {@code io} is {@code null}.
    */
   @Override
   public <A> Kind<IOKind.Witness, A> widen(IO<A> io) {
-    return new IOHolder<>(io);
+    Validation.kind().requireForWiden(io, IO_CLASS);
+    return io;
   }
 
   /**
    * Narrows a {@code Kind<IOKind.Witness, A>} back to its concrete {@link IO<A>} type. Implements
    * {@link IOConverterOps#narrow}.
    *
-   * <p>This implementation uses a holder-based approach with modern switch expressions for
-   * consistent pattern matching.
+   * <p>Since {@code IO} directly extends {@code IOKind}, this method performs a direct type check
+   * and cast without needing to unwrap from a holder.
    *
    * @param <A> The result type of the {@code IO} computation.
    * @param kind The {@code Kind<IOKind.Witness, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link IO<A>} instance.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
-   *     null}, or not an instance of the expected underlying holder type for IO.
+   *     null}, or not an instance of {@code IO}.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <A> IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind) {
-    return Validation.kind()
-        .narrowWithPattern(
-            kind, IO_CLASS, IOHolder.class, holder -> ((IOHolder<A>) holder).ioInstance());
+    return Validation.kind().narrowWithTypeCheck(kind, IO_CLASS);
   }
 
   /**

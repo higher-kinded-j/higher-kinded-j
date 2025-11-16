@@ -101,12 +101,13 @@ For each Java type constructor (like `List`, `Optional`, `IO`) you want to simul
 
 ![defunctionalisation_external.svg](../images/puml/defunctionalisation_external.svg)
 
-* **For Types Defined Within Higher-Kinded-J (e.g., `Id`, `Maybe`, `IO`, Monad Transformers like `EitherT`):**
+* **For Types Defined Within Higher-Kinded-J (e.g., `Id`, `IO`, `Maybe`, `Either`, Monad Transformers like `EitherT`):**
     * These types are designed to directly participate in the HKT simulation.
-    * The type itself (e.g., `Id<A>`, `MaybeT<F, A>`) will directly implement its corresponding `XxxKind` interface (e.g., `Id<A> implements IdKind<A>`, where `IdKind<A> extends Kind<IdKind.Witness, A>`).
-    * In this case, a separate `Holder` record is **not needed** for the primary `wrap`/`unwrap` mechanism in the `KindHelper`.
-    * `XxxKindHelper.wrap(Id<A> id)` would effectively be a type cast (after null checks) to `Kind<IdKind.Witness, A>` because `Id<A>` *is already* an `IdKind<A>`.
-    * `XxxKindHelper.unwrap(Kind<IdKind.Witness, A> kind)` would check `instanceof Id` (or `instanceof MaybeT`, etc.) and perform a cast.
+    * The type itself (e.g., `Id<A>`, `IO<A>`, `Just<T>`, `Either.Right<L,R>`) will directly implement its corresponding `XxxKind` interface (e.g., `Id<A> implements IdKind<A>`, `IO<A> extends IOKind<A>`, `Just<T> implements MaybeKind<T>`, `Either.Right<L,R> implements EitherKind<L,R>`).
+    * In this case, a separate `Holder` record is **not needed** for the primary `widen`/`narrow` mechanism in the `KindHelper`.
+    * `XxxKindHelper.widen(IO<A> io)` would effectively be a type cast (after null checks) to `Kind<IOKind.Witness, A>` because `IO<A>` *is already* an `IOKind<A>`.
+    * `XxxKindHelper.narrow(Kind<IOKind.Witness, A> kind)` would check `instanceof IO` and perform a cast.
+    * This approach provides **zero runtime overhead** for widen/narrow operations (no wrapper object allocation) and improved debugging experience (actual types visible in stack traces).
 
 This distinction is important for understanding how `wrap` and `unwrap` function for different types. However, from the perspective of a user of a type class instance (like `OptionalMonad`), the interaction remains consistent: you provide a `Kind` object, and the type class instance handles the necessary operations.
 
