@@ -35,11 +35,11 @@ The key idea is that an `IO<A>` value doesn't *perform* the side effect immediat
 
 The `IO` functionality is built upon several related components:
 
-1. **`IO<A>`**: The core functional interface. An `IO<A>` instance essentially wraps a `Supplier<A>` (or similar function) that performs the side effect and returns a value `A`. The crucial method is `unsafeRunSync()`, which executes the encapsulated computation.
-2. **`IOKind<A>`**: The HKT marker interface (`Kind<IOKind.Witness, A>`) for `IO`. This allows `IO` to be treated as a generic type constructor `F` in type classes like `Functor`, `Applicative`, and `Monad`. The witness type is `IOKind.Witness`.
+1. **`IO<A>`**: The core functional interface. An `IO<A>` instance essentially wraps a `Supplier<A>` (or similar function) that performs the side effect and returns a value `A`. The crucial method is `unsafeRunSync()`, which executes the encapsulated computation. `IO<A>` directly extends `IOKind<A>`, making it a first-class participant in the HKT simulation.
+2. **`IOKind<A>`**: The HKT marker interface (`Kind<IOKind.Witness, A>`) for `IO`. This allows `IO` to be treated as a generic type constructor `F` in type classes like `Functor`, `Applicative`, and `Monad`. The witness type is `IOKind.Witness`. Since `IO<A>` directly extends this interface, no wrapper types are needed.
 3. **`IOKindHelper`**: The essential utility class for working with `IO` in the HKT simulation. It provides:
-   * `widen(IO<A>)`: Wraps a concrete `IO<A>` instance into its HKT representation `IOKind<A>`.
-   * `narrow(Kind<IOKind.Witness, A>)`: Unwraps an `IOKind<A>` back to the concrete `IO<A>`. Throws `KindUnwrapException` if the input Kind is invalid.
+   * `widen(IO<A>)`: Converts a concrete `IO<A>` instance into its HKT representation `Kind<IOKind.Witness, A>`. Since `IO` directly implements `IOKind`, this is a null-checked cast with zero runtime overhead.
+   * `narrow(Kind<IOKind.Witness, A>)`: Converts back to the concrete `IO<A>`. Performs an `instanceof IO` check and cast. Throws `KindUnwrapException` if the input Kind is invalid.
    * `delay(Supplier<A>)`: The primary factory method to create an `IOKind<A>` by wrapping a side-effecting computation described by a `Supplier`.
    * `unsafeRunSync(Kind<IOKind.Witness, A>)`: The method to *execute* the computation described by an `IOKind`. This is typically called at the "end of the world" in your application (e.g., in the `main` method) to run the composed IO program.
 4. **`IOFunctor`**: Implements `Functor<IOKind.Witness>`. Provides the `map` operation to transform the result value `A` of an `IO` computation *without* executing the effect.

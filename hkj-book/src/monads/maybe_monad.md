@@ -39,7 +39,7 @@ It implements `MonadError<MaybeKind.Witness, Unit>`, which transitively includes
 
 ### Creating Instances
 
-`Maybe<A>` instances can be created directly using static factory methods on `Maybe`, or via `MaybeMonad` for HKT integration. `MaybeKind<A>` is the HKT wrapper.
+`Maybe<A>` instances can be created directly using static factory methods on `Maybe`, or via `MaybeMonad` for HKT integration. Since `Just<T>` and `Nothing<T>` directly implement `MaybeKind<T>`, they are first-class participants in the HKT simulation with zero runtime overhead for widen/narrow operations.
 
 **Direct `Maybe` Creation:**
  ~~~admonish  title="_Maybe.just(@NonNull T value)_"
@@ -66,7 +66,7 @@ It implements `MonadError<MaybeKind.Witness, Unit>`, which transitively includes
 **`MaybeKindHelper` (for HKT wrapping):**
 ~~~admonish  title="_MaybeKindHelper.widen(Maybe<A> maybe)_"
 
-Converts a `Maybe<A>` to `MaybeKind<A>`.
+Converts a `Maybe<A>` to `Kind<MaybeKind.Witness, A>`. Since `Just` and `Nothing` directly implement `MaybeKind`, this performs a null check and type-safe cast (zero overhead—no wrapper object allocation).
   ```java
   Kind<MaybeKind.Witness, String> kindJust = MAYBE.widen(Maybe.just("Wrapped"));
   Kind<MaybeKind.Witness,Integer> kindNothing = MAYBE.widen(Maybe.nothing());

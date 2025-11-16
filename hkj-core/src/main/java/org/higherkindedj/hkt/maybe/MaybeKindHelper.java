@@ -20,20 +20,11 @@ public enum MaybeKindHelper implements MaybeConverterOps {
   private static final Class<Maybe> MAYBE_CLASS = Maybe.class;
 
   /**
-   * Internal record implementing {@link MaybeKind} to hold the concrete {@link Maybe} instance.
-   *
-   * @param <A> The type of the value potentially held by the {@code maybe}.
-   * @param maybe The {@link Maybe} instance being wrapped.
-   */
-  record MaybeHolder<A>(Maybe<A> maybe) implements MaybeKind<A> {
-    MaybeHolder {
-      Validation.kind().requireForWiden(maybe, MAYBE_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link Maybe}&lt;A&gt; instance into its HKT representation, {@link
    * Kind}&lt;{@link MaybeKind.Witness}, A&gt;. Implements {@link MaybeConverterOps#widen}.
+   *
+   * <p>Since {@code Just} and {@code Nothing} directly implement {@code MaybeKind}, this method
+   * performs a simple type-safe cast without requiring a wrapper object.
    *
    * @param <A> The element type of the {@code Maybe}.
    * @param maybe The concrete {@link Maybe}&lt;A&gt; instance to widen. Must be non-null.
@@ -41,30 +32,28 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * @throws NullPointerException if {@code maybe} is {@code null}.
    */
   @Override
+  @SuppressWarnings("unchecked")
   public <A> Kind<MaybeKind.Witness, A> widen(Maybe<A> maybe) {
-    return new MaybeHolder<>(maybe);
+    Validation.kind().requireForWiden(maybe, MAYBE_CLASS);
+    return (Kind<MaybeKind.Witness, A>) maybe;
   }
 
   /**
    * Narrows a {@link Kind}&lt;{@link MaybeKind.Witness}, A&gt; back to its concrete {@link
    * Maybe}&lt;A&gt; representation. Implements {@link MaybeConverterOps#narrow}.
    *
-   * <p>This implementation uses a holder-based approach with modern switch expressions for
-   * consistent pattern matching.
+   * <p>Since {@code Just} and {@code Nothing} directly implement {@code MaybeKind}, this method
+   * performs a direct type check and cast without needing to unwrap from a holder.
    *
    * @param <A> The element type of the {@code Maybe}.
    * @param kind The {@code Kind} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Maybe}&lt;A&gt; instance.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null}, if
-   *     {@code kind} is not an instance of {@link MaybeHolder}, or if the {@code MaybeHolder}
-   *     internally contains a {@code null} {@link Maybe} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null}, or
+   *     if {@code kind} is not an instance of {@code Maybe}.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
-    return Validation.kind()
-        .narrowWithPattern(
-            kind, MAYBE_CLASS, MaybeHolder.class, holder -> ((MaybeHolder<A>) holder).maybe());
+    return Validation.kind().narrowWithTypeCheck(kind, MAYBE_CLASS);
   }
 
   /**

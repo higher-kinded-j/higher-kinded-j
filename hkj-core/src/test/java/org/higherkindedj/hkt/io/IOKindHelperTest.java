@@ -205,10 +205,12 @@ class IOKindHelperTest extends IOTestBase {
   @DisplayName("IO_OP.widen()")
   class WidenTests {
     @Test
-    @DisplayName("widen should return holder for IO")
+    @DisplayName("widen should return the same IO instance (direct implementation)")
     void widenShouldReturnHolderForIO() {
       Kind<IOKind.Witness, String> kind = IO_OP.widen(baseIO);
-      assertThat(kind).isInstanceOf(IOKindHelper.IOHolder.class);
+      assertThat(kind).isInstanceOf(IO.class);
+      // Verify identity is preserved (no wrapping)
+      assertThat(kind).isSameAs(baseIO);
       // Unwrap to verify
       assertThat(IO_OP.narrow(kind)).isSameAs(baseIO);
     }
