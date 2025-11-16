@@ -1,0 +1,34 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.annotations;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * Marks a Java record for which a Getters utility class should be generated. The generated class
+ * will be named by appending "Getters" to the record's name.
+ *
+ * <p>For each component in the record, a static method will be generated that returns a {@code
+ * Getter} for that component. Additionally, convenience accessor methods will be generated.
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * @GenerateGetters
+ * public record Person(String name, int age) {}
+ *
+ * // Generates:
+ * public final class PersonGetters {
+ *   public static Getter<Person, String> name() { ... }
+ *   public static Getter<Person, Integer> age() { ... }
+ *   public static String getName(Person source) { ... }
+ *   public static int getAge(Person source) { ... }
+ * }
+ * }</pre>
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.CLASS)
+public @interface GenerateGetters {}

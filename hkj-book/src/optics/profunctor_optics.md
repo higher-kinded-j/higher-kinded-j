@@ -735,6 +735,6 @@ This profunctor capability makes higher-kinded-j optics incredibly flexible and 
 
 ---
 
-**Previous:**[Folds: Querying Immutable Data](folds.md)
-**Next:**[Capstone Example: Deep Validation](composing_optics.md)
+**Previous:** [Setters: Composable Write-Only Modifications](setters.md)
+**Next:** [Capstone Example: Deep Validation](composing_optics.md)
 
