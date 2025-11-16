@@ -735,6 +735,6 @@ This profunctor capability makes higher-kinded-j optics incredibly flexible and 
 
 ---
 
-**Previous:**[Traversals: Handling Bulk Updates](traversals.md)
+**Previous:**[Folds: Querying Immutable Data](folds.md)
 **Next:**[Capstone Example: Deep Validation](composing_optics.md)
 

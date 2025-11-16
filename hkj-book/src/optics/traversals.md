@@ -537,4 +537,4 @@ This is the reason they can all be composed together so seamlessly. By mastering
 ---
 
 **Previous:**[Isomorphisms: Data Equivalence](iso.md)
-**Next:**[Profunctor Optics: Advanced Data Transformation](profunctor_optics.md)
+**Next:**[Folds: Querying Immutable Data](folds.md)

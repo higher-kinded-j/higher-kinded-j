@@ -85,6 +85,39 @@ This example showcases the power of composing **Traversals** and **Lenses** to p
   ).value();
 ```
 
+## [FoldUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/FoldUsageExample.java)
+
+This example demonstrates **Folds** for read-only querying and data extraction from complex structures.
+
+* **Key Concept**: A `Fold` is a read-only optic that focuses on zero or more elements, perfect for queries, searches, and aggregations without modification.
+* **Demonstrates**:
+  * Using `@GenerateFolds` to create query optics automatically.
+  * Using `getAll()`, `preview()`, `find()`, `exists()`, `all()`, `isEmpty()`, and `length()` operations for querying data.
+  * Composing folds for deep queries across nested structures.
+  * Using `foldMap` with monoids for custom aggregations (sum, product, boolean operations).
+  * Contrasting Fold (read-only) with Traversal (read-write) to express intent clearly.
+
+```java
+  // Get all products from an order
+  Fold<Order, Product> items = OrderFolds.items();
+  List<Product> allProducts = items.getAll(order);
+
+  // Check if any product is out of stock
+  boolean hasOutOfStock = items.exists(p -> !p.inStock(), order);
+
+  // Calculate total price using monoid aggregation
+  Monoid<Double> sumMonoid = new Monoid<>() {
+      @Override public Double empty() { return 0.0; }
+      @Override public Double combine(Double a, Double b) { return a + b; }
+  };
+  double total = items.foldMap(sumMonoid, Product::price, order);
+
+  // Compose folds for deep queries
+  Fold<OrderHistory, Product> allProductsInHistory =
+      OrderHistoryFolds.orders().andThen(OrderFolds.items());
+  List<Product> allProds = allProductsInHistory.getAll(history);
+```
+
 ## [ValidatedTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java)
 
 This example demonstrates a more advanced use case for **Traversals** where the goal is to validate multiple fields on a single object and accumulate all errors.

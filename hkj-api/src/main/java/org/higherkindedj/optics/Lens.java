@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Selective;
 
 /**
@@ -97,6 +98,24 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
       @Override
       public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
         return Lens.this.modifyF(f, s, app);
+      }
+    };
+  }
+
+  /**
+   * Views this {@code Lens} as a {@link Fold}.
+   *
+   * <p>This is always possible because a {@code Lens} is a read-only query that focuses on exactly
+   * one element.
+   *
+   * @return A {@link Fold} that represents this {@code Lens}.
+   */
+  default Fold<S, A> asFold() {
+    Lens<S, A> self = this;
+    return new Fold<>() {
+      @Override
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+        return f.apply(self.get(source));
       }
     };
   }
