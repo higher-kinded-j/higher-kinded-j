@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 
 /**
  * A **Prism** is an optic that provides a focused view into a part of a sum type (e.g., a {@code
@@ -75,6 +76,29 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
       public <F> Kind<F, S> modifyF(
           Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
         return self.modifyF(f, source, applicative);
+      }
+    };
+  }
+
+  /**
+   * Views this {@code Prism} as a {@link Fold}.
+   *
+   * <p>This is always possible because a {@code Prism} can be used as a read-only query that
+   * focuses on zero or one element.
+   *
+   * @return A {@link Fold} that represents this {@code Prism}.
+   */
+  default Fold<S, A> asFold() {
+    Prism<S, A> self = this;
+    return new Fold<>() {
+      @Override
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+        Optional<A> opt = self.getOptional(source);
+        if (opt.isPresent()) {
+          return f.apply(opt.get());
+        } else {
+          return monoid.empty();
+        }
       }
     };
   }

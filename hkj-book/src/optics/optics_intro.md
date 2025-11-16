@@ -41,6 +41,7 @@ Think of an optic as a "zoom lens" for your data. It's a first-class object that
 * **Prism**: A tool that splits light, but only works with certain types of light 🔬
 * **Iso**: A universal translator between equivalent languages 🔄
 * **Traversal**: A spotlight that can illuminate many targets at once 🗺️
+* **Fold**: A read-only query tool that extracts and aggregates data 📊
 
 Every optic provides two basic capabilities:
 
@@ -149,6 +150,43 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
   );
   ```
 
+### 5. Fold: For "Has-Many" Queries 📊
+
+A **Fold** is a read-only optic designed specifically for querying and extracting data without modification. Think of it as a `Traversal` that has given up the ability to modify in exchange for a clearer expression of intent and additional query-focused operations.
+
+* **Problem it solves**: Extracting information from complex data structures—finding items, checking conditions, aggregating values, or collecting data without modifying the original structure.
+* **Generated Code**: Annotating a record with `@GenerateFolds` produces a companion class (e.g., `OrderFolds`) with a `Fold` for each field.
+* **Example (Querying Product Catalogue)**:
+
+  * To find all products in an order that cost more than £50:
+
+```java
+    // Get the generated fold
+    Fold<Order, Product> orderToProducts = OrderFolds.items();
+
+    // Find all matching products
+    List<Product> expensiveItems = orderToProducts.getAll(order).stream()
+        .filter(product -> product.price() > 50.00)
+        .collect(toList());
+
+    // Or check if any exist
+    boolean hasExpensiveItems = orderToProducts.exists(
+        product -> product.price() > 50.00,
+        order
+    );
+```
+
+* **Key Operations**:
+  * `getAll(source)`: Extract all focused values into a `List`
+  * `preview(source)`: Get the first value as an `Optional`
+  * `find(predicate, source)`: Find first matching value
+  * `exists(predicate, source)`: Check if any value matches
+  * `all(predicate, source)`: Check if all values match
+  * `isEmpty(source)`: Check if there are zero focused values
+  * `length(source)`: Count the number of focused values
+
+**Why Fold is Important**: While `Traversal` can do everything `Fold` can do, using `Fold` makes your code's intent crystal clear—"I'm only reading this data, not modifying it." This is valuable for code reviewers, for preventing accidental mutations, and for expressing domain logic where queries should be separated from commands (CQRS pattern).
+
 ## Advanced Capabilities: Profunctor Adaptations
 
 One of the most powerful features of `higher-kinded-j` optics is their **profunctor** nature. Every optic can be adapted to work with different source and target types using three key operations:
@@ -183,7 +221,8 @@ This brings us to the unique advantages `higher-kinded-j` offers for optics in J
 * **Need to focus on a required field?** → **Lens**
 * **Need to work with optional variants?** → **Prism**
 * **Need to convert between equivalent types?** → **Iso**
-* **Need to operate on collections?** → **Traversal**
+* **Need to modify collections?** → **Traversal**
+* **Need to query or extract data without modification?** → **Fold**
 * **Need to adapt existing optics?** → **Profunctor operations**
 
 ## Common Pitfalls
