@@ -88,16 +88,25 @@ Kind<ValidatedKind.Witness<List<String>>, User> userLogin =
 **Utility Methods:**
 - `as(B value, Kind<F,A> fa)` - replace value, keep effect
 - `peek(Consumer<A> action, Kind<F,A> fa)` - side effect without changing value
+- `flatMap2/3/4/5(...)` - combine multiple monadic values with effectful function
 
 **Example:**
 ```java
 // Chain database operations where each depends on the previous
-Kind<OptionalKind.Witness, Account> account = 
-    monad.flatMap(userLogin -> 
-        monad.flatMap(profile -> 
+Kind<OptionalKind.Witness, Account> account =
+    monad.flatMap(userLogin ->
+        monad.flatMap(profile ->
             findAccount(profile.accountId()),
             findProfile(userLogin.id())),
         findUser(userId));
+
+// Combine multiple monadic values with effectful result
+Kind<OptionalKind.Witness, Order> order =
+    monad.flatMap2(
+        findUser(userId),
+        findProduct(productId),
+        (user, product) -> validateAndCreateOrder(user, product) // Returns Optional
+    );
 ```
 
 **Think Of It As:** Chaining operations where each "opens the box" and "puts result in new box"

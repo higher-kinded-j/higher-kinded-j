@@ -4,7 +4,8 @@
 - How to sequence computations where each step depends on previous results
 - The power of `flatMap` for chaining operations that return wrapped values
 - When to use Monad vs Applicative (dependent vs independent computations)
-- Essential utility methods: `as`, `peek`, and `flatMapIfOrElse`
+- Essential utility methods: `as`, `peek`, `flatMapIfOrElse`, and `flatMapN`
+- How to combine multiple monadic values with `flatMap2`, `flatMap3`, etc.
 - How monadic short-circuiting works in practice
 ~~~
 
@@ -56,6 +57,21 @@ public interface Monad<M> extends Applicative<M> {
       return a;
     }, ma);
   }
+
+  // Combine multiple monadic values (flatMapN methods)
+  default <A, B, R> @NonNull Kind<M, R> flatMap2(
+      Kind<M, A> ma, Kind<M, B> mb,
+      BiFunction<? super A, ? super B, ? extends Kind<M, R>> f) {
+    return flatMap(a -> flatMap(b -> f.apply(a, b), mb), ma);
+  }
+
+  default <A, B, C, R> @NonNull Kind<M, R> flatMap3(
+      Kind<M, A> ma, Kind<M, B> mb, Kind<M, C> mc,
+      Function3<? super A, ? super B, ? super C, ? extends Kind<M, R>> f) {
+    return flatMap(a -> flatMap2(mb, mc, (b, c) -> f.apply(a, b, c)), ma);
+  }
+
+  // flatMap4 and flatMap5 build on flatMap3 and flatMap4 respectively...
 }
 ```
 
@@ -208,3 +224,116 @@ Kind<Optional.Witness, User> peekFailure = monad.peek(
 // Result: Optional.empty
 System.out.println("Return value: " + OPTIONAL.narrow(peekFailure));
 ```
+
+---
+
+## Combining Multiple Monadic Values: `flatMapN` 🔄
+
+Just as `Applicative` provides `map2`, `map3`, etc. for combining independent computations with a pure function, `Monad` provides `flatMap2`, `flatMap3`, `flatMap4`, and `flatMap5` for combining multiple monadic values where the combining function itself returns a monadic value.
+
+These methods are perfect when you need to:
+- Sequence multiple independent computations and then perform a final effectful operation
+- Validate multiple pieces of data together with an operation that may fail
+- Combine results from multiple sources with additional logic that may produce effects
+
+### `flatMap2`
+
+Combines two monadic values and applies a function that returns a new monadic value.
+
+**Example: Validating and Combining Two Database Results**
+
+```java
+import java.util.Optional;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.optional.OptionalMonad;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+
+record User(int id, String name) {}
+record Order(int userId, String item) {}
+record UserOrder(User user, Order order) {}
+
+// Mock repository functions
+public Kind<Optional.Witness, User> findUser(int id) { /* ... */ }
+public Kind<Optional.Witness, Order> findOrder(int orderId) { /* ... */ }
+
+// Validation function that might fail
+public Kind<Optional.Witness, UserOrder> validateAndCombine(User user, Order order) {
+    if (order.userId() != user.id()) {
+        return OPTIONAL.widen(Optional.empty()); // Validation failed
+    }
+    return OPTIONAL.widen(Optional.of(new UserOrder(user, order)));
+}
+
+Monad<Optional.Witness> monad = OptionalMonad.INSTANCE;
+
+// Combine user and order, then validate
+Kind<Optional.Witness, UserOrder> result = monad.flatMap2(
+    findUser(1),
+    findOrder(100),
+    (user, order) -> validateAndCombine(user, order)
+);
+
+// Result: Optional[UserOrder[...]] if valid, Optional.empty if any step fails
+System.out.println(OPTIONAL.narrow(result));
+```
+
+### `flatMap3` and Higher Arities
+
+For more complex scenarios, you can combine three, four, or five monadic values:
+
+```java
+record Product(int id, String name, double price) {}
+record Inventory(int productId, int quantity) {}
+
+public Kind<Optional.Witness, Product> findProduct(int id) { /* ... */ }
+public Kind<Optional.Witness, Inventory> checkInventory(int productId) { /* ... */ }
+
+// Process an order with user, product, and inventory check
+Kind<Optional.Witness, String> orderResult = monad.flatMap3(
+    findUser(1),
+    findProduct(100),
+    checkInventory(100),
+    (user, product, inventory) -> {
+        if (inventory.quantity() <= 0) {
+            return OPTIONAL.widen(Optional.empty()); // Out of stock
+        }
+        String confirmation = String.format(
+            "Order confirmed for %s: %s (qty: %d)",
+            user.name(), product.name(), inventory.quantity()
+        );
+        return OPTIONAL.widen(Optional.of(confirmation));
+    }
+);
+```
+
+### `flatMapN` vs `mapN`
+
+The key difference between `flatMapN` and `mapN` is:
+
+- **`mapN`** (from Applicative): The combining function returns a **pure value** (`(A, B) -> C`)
+- **`flatMapN`** (from Monad): The combining function returns a **monadic value** (`(A, B) -> Kind<M, C>`)
+
+This makes `flatMapN` methods ideal when the combination of values needs to perform additional effects, such as:
+- Additional validation that might fail
+- Database lookups based on combined criteria
+- Computations that may produce side effects
+- Operations that need to maintain monadic context
+
+```java
+// mapN: Pure combination
+Kind<Optional.Witness, String> mapResult = monad.map2(
+    findUser(1),
+    findOrder(100),
+    (user, order) -> user.name() + " ordered " + order.item() // Pure function
+);
+
+// flatMapN: Effectful combination
+Kind<Optional.Witness, String> flatMapResult = monad.flatMap2(
+    findUser(1),
+    findOrder(100),
+    (user, order) -> validateAndProcess(user, order) // Returns Optional
+);
+```
+
+This pattern is especially powerful when combined with error-handling monads like `Either` or `Try`, where the combining function can itself fail with a meaningful error.

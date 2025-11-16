@@ -424,10 +424,16 @@ Kind<ListKind.Witness, Integer> lengths = functor.map(String::length, strings);
 **Core Operation:**
 - `flatMap(Function<A, Kind<F,B>> f, Kind<F,A> ma)` - Chain computations where each depends on the previous result
 
+**Additional Operations:**
+- `flatMap2/3/4/5(...)` - Combine multiple monadic values with a function that returns a monadic value (similar to `map2/3/4/5` but with effectful combining function)
+- `as(B value, Kind<F,A> ma)` - Replace the result while preserving the effect
+- `peek(Consumer<A> action, Kind<F,A> ma)` - Perform side effect without changing the value
+
 **Example:**
 ```java
 Monad<OptionalKind.Witness> monad = OptionalMonad.INSTANCE;
 
+// Chain dependent operations
 Kind<OptionalKind.Witness, String> result =
     monad.flatMap(
         userId -> monad.flatMap(
@@ -436,7 +442,14 @@ Kind<OptionalKind.Witness, String> result =
         ),
         findUser("user123")
     );
-// Each step depends on the previous result
+
+// Combine multiple monadic values with effectful result
+Kind<OptionalKind.Witness, Order> order =
+    monad.flatMap2(
+        findUser("user123"),
+        findProduct("prod456"),
+        (user, product) -> validateAndCreateOrder(user, product)
+    );
 ```
 
 **Laws:**

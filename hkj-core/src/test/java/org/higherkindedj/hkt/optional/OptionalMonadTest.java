@@ -9,6 +9,9 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.function.Function5;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -274,6 +277,161 @@ class OptionalMonadTest extends OptionalTestBase {
 
       assertThat(result).isSameAs(presentVal);
       assertThatOptional(result).isPresent().contains(100);
+    }
+  }
+
+  @Nested
+  @DisplayName("flatMapN Tests")
+  class FlatMapNTests {
+
+    @Test
+    @DisplayName("flatMap2() combines two present Optionals")
+    void flatMap2CombinesTwoPresentOptionals() {
+      var opt1 = presentOf(10);
+      var opt2 = presentOf("x");
+
+      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
+
+      assertThatOptional(result).isPresent().contains("10x");
+    }
+
+    @Test
+    @DisplayName("flatMap2() returns empty if first Optional is empty")
+    void flatMap2ReturnsEmptyIfFirstOptionalIsEmpty() {
+      Kind<OptionalKind.Witness, Integer> opt1 = emptyOptional();
+      var opt2 = presentOf("x");
+
+      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
+
+      assertThatOptional(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap2() returns empty if second Optional is empty")
+    void flatMap2ReturnsEmptyIfSecondOptionalIsEmpty() {
+      var opt1 = presentOf(10);
+      Kind<OptionalKind.Witness, String> opt2 = emptyOptional();
+
+      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
+
+      assertThatOptional(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap2() returns empty if function returns empty")
+    void flatMap2ReturnsEmptyIfFunctionReturnsEmpty() {
+      var opt1 = presentOf(10);
+      var opt2 = presentOf("x");
+
+      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> emptyOptional());
+
+      assertThatOptional(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap3() combines three present Optionals")
+    void flatMap3CombinesThreePresentOptionals() {
+      var opt1 = presentOf(1);
+      var opt2 = presentOf("a");
+      var opt3 = presentOf(2.5);
+      Function3<Integer, String, Double, Kind<OptionalKind.Witness, String>> f =
+          (i, s, d) -> presentOf(String.format("%d-%s-%.1f", i, s, d));
+
+      var result = optionalMonad.flatMap3(opt1, opt2, opt3, f);
+
+      assertThatOptional(result).isPresent().contains("1-a-2.5");
+    }
+
+    @Test
+    @DisplayName("flatMap3() returns empty if middle Optional is empty")
+    void flatMap3ReturnsEmptyIfMiddleOptionalIsEmpty() {
+      var opt1 = presentOf(1);
+      Kind<OptionalKind.Witness, String> opt2 = emptyOptional();
+      var opt3 = presentOf(2.5);
+      Function3<Integer, String, Double, Kind<OptionalKind.Witness, String>> f =
+          (i, s, d) -> presentOf("Should not execute");
+
+      var result = optionalMonad.flatMap3(opt1, opt2, opt3, f);
+
+      assertThatOptional(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap4() combines four present Optionals")
+    void flatMap4CombinesFourPresentOptionals() {
+      var opt1 = presentOf(1);
+      var opt2 = presentOf("a");
+      var opt3 = presentOf(2.0);
+      var opt4 = presentOf(true);
+      Function4<Integer, String, Double, Boolean, Kind<OptionalKind.Witness, String>> f =
+          (i, s, d, b) -> presentOf(String.format("%d-%s-%.0f-%b", i, s, d, b));
+
+      var result = optionalMonad.flatMap4(opt1, opt2, opt3, opt4, f);
+
+      assertThatOptional(result).isPresent().contains("1-a-2-true");
+    }
+
+    @Test
+    @DisplayName("flatMap4() returns empty if any Optional is empty")
+    void flatMap4ReturnsEmptyIfAnyOptionalIsEmpty() {
+      var opt1 = presentOf(1);
+      var opt2 = presentOf("a");
+      Kind<OptionalKind.Witness, Double> opt3 = emptyOptional();
+      var opt4 = presentOf(true);
+      Function4<Integer, String, Double, Boolean, Kind<OptionalKind.Witness, String>> f =
+          (i, s, d, b) -> presentOf("Should not execute");
+
+      var result = optionalMonad.flatMap4(opt1, opt2, opt3, opt4, f);
+
+      assertThatOptional(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap5() combines five present Optionals")
+    void flatMap5CombinesFivePresentOptionals() {
+      var opt1 = presentOf(1);
+      var opt2 = presentOf("a");
+      var opt3 = presentOf(2.0);
+      var opt4 = presentOf(true);
+      var opt5 = presentOf('X');
+      Function5<Integer, String, Double, Boolean, Character, Kind<OptionalKind.Witness, String>> f =
+          (i, s, d, b, c) -> presentOf(String.format("%d-%s-%.0f-%b-%c", i, s, d, b, c));
+
+      var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
+
+      assertThatOptional(result).isPresent().contains("1-a-2-true-X");
+    }
+
+    @Test
+    @DisplayName("flatMap5() returns empty if any Optional is empty")
+    void flatMap5ReturnsEmptyIfAnyOptionalIsEmpty() {
+      var opt1 = presentOf(1);
+      var opt2 = presentOf("a");
+      var opt3 = presentOf(2.0);
+      var opt4 = presentOf(true);
+      Kind<OptionalKind.Witness, Character> opt5 = emptyOptional();
+      Function5<Integer, String, Double, Boolean, Character, Kind<OptionalKind.Witness, String>> f =
+          (i, s, d, b, c) -> presentOf("Should not execute");
+
+      var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
+
+      assertThatOptional(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap5() returns empty if function returns empty")
+    void flatMap5ReturnsEmptyIfFunctionReturnsEmpty() {
+      var opt1 = presentOf(1);
+      var opt2 = presentOf("a");
+      var opt3 = presentOf(2.0);
+      var opt4 = presentOf(true);
+      var opt5 = presentOf('X');
+      Function5<Integer, String, Double, Boolean, Character, Kind<OptionalKind.Witness, String>> f =
+          (i, s, d, b, c) -> emptyOptional();
+
+      var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
+
+      assertThatOptional(result).isEmpty();
     }
   }
 
