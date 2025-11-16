@@ -49,6 +49,16 @@ A **`MonadError`** is a specialised `Monad` that has a defined error type `E`. I
   * `raiseError(E error)`: Lifts an error `E` into the monadic context `F<A>`.
   * `handleErrorWith(Kind<F, A> fa, Function<E, Kind<F, A>> f)`: Provides a way to recover from a failed computation.
 
+### **`Alternative<F>`**
+
+An **`Alternative`** is an `Applicative` that adds the concept of choice and failure. It provides operations for combining alternatives and representing empty/failed computations. Alternative sits at the same level as `Applicative` in the type class hierarchy.
+
+* **Key Methods**:
+  * `empty()`: Returns the empty/failure element for the applicative.
+  * `orElse(Kind<F, A> fa, Supplier<Kind<F, A>> fb)`: Combines two alternatives, preferring the first if it succeeds, otherwise evaluating and returning the second.
+  * `guard(boolean condition)`: Returns success (`of(Unit.INSTANCE)`) if true, otherwise empty.
+* **Use Case**: Essential for parser combinators, fallback chains, non-deterministic computation, and trying multiple alternatives with lazy evaluation.
+
 ### **`Selective<F>`**
 
 A **`Selective`** functor sits between `Applicative` and `Monad` in terms of power. It extends `Applicative` with the ability to conditionally apply effects based on the result of a previous computation, whilst maintaining a static structure where all possible branches are visible upfront.
@@ -58,6 +68,15 @@ A **`Selective`** functor sits between `Applicative` and `Monad` in terms of pow
   * `whenS(Kind<F, Boolean> fcond, Kind<F, Unit> fa)`: Conditionally executes an effect based on a boolean condition.
   * `ifS(Kind<F, Boolean> fcond, Kind<F, A> fthen, Kind<F, A> felse)`: Provides if-then-else semantics with both branches visible upfront.
 * **Use Case**: Perfect for feature flags, conditional logging, configuration-based behaviour, and any scenario where you need conditional effects with static analysis capabilities.
+
+### **`MonadZero<F>`**
+
+A **`MonadZero`** is a `Monad` that also extends `Alternative`, combining monadic bind with choice operations. It adds the concept of a "zero" or "empty" element, allowing it to represent failure or absence.
+
+* **Key Methods**:
+  * `zero()`: Returns the zero/empty element for the monad (implements `empty()` from Alternative).
+  * Inherits `orElse()` and `guard()` from `Alternative`.
+* **Use Case**: Primarily enables filtering in for-comprehensions via the `when()` clause. Also provides all Alternative operations for monadic contexts. Implemented by List, Maybe, Optional, and Stream.
 
 ---
 

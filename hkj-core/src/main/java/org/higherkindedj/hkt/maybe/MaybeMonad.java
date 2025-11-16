@@ -172,4 +172,54 @@ public class MaybeMonad extends MaybeFunctor
   public <T> Kind<MaybeKind.Witness, T> zero() {
     return MAYBE.nothing();
   }
+
+  // --- Alternative Methods ---
+
+  /**
+   * Combines two Maybe values, returning the first if it's Just, otherwise evaluating and returning
+   * the second.
+   *
+   * <p>This implements the Alternative pattern for Maybe, providing a fallback mechanism. The
+   * second argument is lazy (supplied via {@link java.util.function.Supplier}) to avoid unnecessary
+   * computation when the first Maybe is Just.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Kind<MaybeKind.Witness, String> primary = MAYBE.just("value");
+   * Kind<MaybeKind.Witness, String> fallback = () -> MAYBE.just("default");
+   *
+   * Kind<MaybeKind.Witness, String> result = orElse(primary, fallback);
+   * // result is Just("value")
+   *
+   * Kind<MaybeKind.Witness, String> result2 = orElse(MAYBE.nothing(), fallback);
+   * // result2 is Just("default")
+   * }</pre>
+   *
+   * @param <A> The type of the value within the Maybe
+   * @param ma The first Maybe to try. Must not be null.
+   * @param mb A {@link java.util.function.Supplier} providing the fallback Maybe. Must not be null.
+   * @return The first Maybe if it's Just, otherwise the result of the supplier
+   * @throws NullPointerException if ma or mb is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ma cannot be unwrapped
+   */
+  @Override
+  public <A> Kind<MaybeKind.Witness, A> orElse(
+      Kind<MaybeKind.Witness, A> ma, java.util.function.Supplier<Kind<MaybeKind.Witness, A>> mb) {
+
+    Validation.kind().requireNonNull(ma, MAYBE_MONAD_CLASS, OR_ELSE, "first alternative");
+    Validation.function().requireFunction(mb, "mb", MAYBE_MONAD_CLASS, OR_ELSE);
+
+    Maybe<A> maybeA = MAYBE.narrow(ma);
+
+    if (maybeA.isJust()) {
+      return ma;
+    }
+
+    Kind<MaybeKind.Witness, A> result = mb.get();
+    Validation.function()
+        .requireNonNullResult(result, "mb", MAYBE_MONAD_CLASS, OR_ELSE, Maybe.class);
+
+    return result;
+  }
 }

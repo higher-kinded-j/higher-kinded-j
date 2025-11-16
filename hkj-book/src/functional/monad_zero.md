@@ -1,20 +1,27 @@
 # MonadZero
 
-The `MonadZero` is a more advanced type class extends the `Monad` interface to include the concept of a "zero" or "empty" element. It is designed for monads that can represent failure, absence, or emptiness, allowing them to be used in filtering operations.
+The `MonadZero` is a more advanced type class that extends both `Monad` and `Alternative` to combine the power of monadic bind with choice operations. It includes the concept of a "zero" or "empty" element and is designed for monads that can represent failure, absence, or emptiness, allowing them to be used in filtering operations and alternative chains.
 
-The interface for MonadZero in hkj-api extends Monad:
+The interface for MonadZero in hkj-api extends Monad and Alternative:
 
 ```java
-public interface MonadZero<F> extends Monad<F> {
+public interface MonadZero<F> extends Monad<F>, Alternative<F> {
     <A> Kind<F, A> zero();
+
+    @Override
+    default <A> Kind<F, A> empty() {
+        return zero();
+    }
 }
 ```
 
 ### Why is it useful?
 
-A `Monad` provides a way to sequence computations within a context (`flatMap`, `map`, `of`). A `MonadZero` adds one critical operation to this structure:
+A `Monad` provides a way to sequence computations within a context (`flatMap`, `map`, `of`). An `Alternative` provides choice and failure operations (`empty()`, `orElse()`). A `MonadZero` combines both:
 
-* `zero()`: Returns the "empty" or "zero" element for the monad.
+* `zero()`: Returns the "empty" or "zero" element for the monad (implements `empty()` from Alternative).
+* `orElse()`: Combines two alternatives (inherited from Alternative).
+* `guard()`: Conditional success helper (inherited from Alternative).
 
 This `zero` element acts as an absorbing element in a monadic sequence, similar to how multiplying by zero results in zero. If a computation results in a `zero`, subsequent operations in the chain are typically skipped.
 

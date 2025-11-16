@@ -233,4 +233,62 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
   public <T> Kind<StreamKind.Witness, T> zero() {
     return STREAM.widen(Stream.empty());
   }
+
+  // --- Alternative Methods ---
+
+  /**
+   * Combines two streams by concatenating them.
+   *
+   * <p>This implements the Alternative pattern for Stream. Like List, orElse for Stream
+   * concatenates both streams, representing non-deterministic choice (all possibilities). The
+   * concatenation is performed lazily using {@link Stream#concat(Stream, Stream)}.
+   *
+   * <p><b>Lazy Evaluation:</b> The second stream is provided via {@link
+   * java.util.function.Supplier}, but due to the semantics of stream concatenation, both streams
+   * will be evaluated when the resulting stream is consumed. However, the supplier ensures the
+   * second stream is not created until it's needed.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Kind<StreamKind.Witness, Integer> stream1 = STREAM.widen(Stream.of(1, 2));
+   * Kind<StreamKind.Witness, Integer> stream2 = () -> STREAM.widen(Stream.of(3, 4));
+   *
+   * Kind<StreamKind.Witness, Integer> result = orElse(stream1, stream2);
+   * // result is Stream.of(1, 2, 3, 4)
+   * }</pre>
+   *
+   * @param <A> The type of the elements in the streams
+   * @param sa The first stream. Must not be null.
+   * @param sb A {@link java.util.function.Supplier} providing the second stream. Must not be null.
+   * @return A new stream containing all elements from both streams (sa followed by sb)
+   * @throws NullPointerException if sa or sb is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if sa or the result of sb cannot be
+   *     unwrapped
+   */
+  @Override
+  public <A> Kind<StreamKind.Witness, A> orElse(
+      Kind<StreamKind.Witness, A> sa, java.util.function.Supplier<Kind<StreamKind.Witness, A>> sb) {
+
+    Validation.kind().requireNonNull(sa, StreamMonad.class, OR_ELSE, "first stream");
+    Validation.function().requireFunction(sb, "sb", StreamMonad.class, OR_ELSE);
+
+    Stream<A> streamA = STREAM.narrow(sa);
+
+    // Use lazy supplier to delay evaluation of second stream
+    Stream<A> concatenated =
+        Stream.concat(
+            streamA,
+            Stream.of((A) null)
+                .flatMap(
+                    ignored -> {
+                      Kind<StreamKind.Witness, A> kindB = sb.get();
+                      Validation.function()
+                          .requireNonNullResult(
+                              kindB, "sb", StreamMonad.class, OR_ELSE, Stream.class);
+                      return STREAM.narrow(kindB);
+                    }));
+
+    return STREAM.widen(concatenated);
+  }
 }
