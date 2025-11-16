@@ -256,4 +256,56 @@ public class OptionalMonad extends OptionalFunctor
   public <T> Kind<OptionalKind.Witness, T> zero() {
     return OPTIONAL.widen(Optional.empty());
   }
+
+  // --- Alternative Methods ---
+
+  /**
+   * Combines two Optional values, returning the first if it's present, otherwise evaluating and
+   * returning the second.
+   *
+   * <p>This implements the Alternative pattern for Optional, providing a fallback mechanism. The
+   * second argument is lazy (supplied via {@link java.util.function.Supplier}) to avoid unnecessary
+   * computation when the first Optional is present.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Kind<OptionalKind.Witness, String> primary = OPTIONAL.widen(Optional.of("value"));
+   * Kind<OptionalKind.Witness, String> fallback = () -> OPTIONAL.widen(Optional.of("default"));
+   *
+   * Kind<OptionalKind.Witness, String> result = orElse(primary, fallback);
+   * // result is Optional.of("value")
+   *
+   * Kind<OptionalKind.Witness, String> result2 = orElse(OPTIONAL.widen(Optional.empty()), fallback);
+   * // result2 is Optional.of("default")
+   * }</pre>
+   *
+   * @param <A> The type of the value within the Optional
+   * @param oa The first Optional to try. Must not be null.
+   * @param ob A {@link java.util.function.Supplier} providing the fallback Optional. Must not be
+   *     null.
+   * @return The first Optional if it's present, otherwise the result of the supplier
+   * @throws NullPointerException if oa or ob is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if oa cannot be unwrapped
+   */
+  @Override
+  public <A> Kind<OptionalKind.Witness, A> orElse(
+      Kind<OptionalKind.Witness, A> oa,
+      java.util.function.Supplier<Kind<OptionalKind.Witness, A>> ob) {
+
+    Validation.kind().requireNonNull(oa, OPTIONAL_MONAD_CLASS, OR_ELSE, "first alternative");
+    Validation.function().requireFunction(ob, "ob", OPTIONAL_MONAD_CLASS, OR_ELSE);
+
+    Optional<A> optionalA = OPTIONAL.narrow(oa);
+
+    if (optionalA.isPresent()) {
+      return oa;
+    }
+
+    Kind<OptionalKind.Witness, A> result = ob.get();
+    Validation.function()
+        .requireNonNullResult(result, "ob", OPTIONAL_MONAD_CLASS, OR_ELSE, Optional.class);
+
+    return result;
+  }
 }

@@ -150,4 +150,56 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   public <T> Kind<ListKind.Witness, T> zero() {
     return LIST.widen(Collections.emptyList());
   }
+
+  // --- Alternative Methods ---
+
+  /**
+   * Combines two lists by concatenating them.
+   *
+   * <p>This implements the Alternative pattern for List. Unlike Maybe/Optional where orElse chooses
+   * the first success, for List it concatenates both lists, representing non-deterministic choice
+   * (all possibilities).
+   *
+   * <p>Note: While the second argument is provided via {@link java.util.function.Supplier} to match
+   * the Alternative interface, both lists will be evaluated and concatenated.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Kind<ListKind.Witness, Integer> list1 = LIST.widen(List.of(1, 2));
+   * Kind<ListKind.Witness, Integer> list2 = () -> LIST.widen(List.of(3, 4));
+   *
+   * Kind<ListKind.Witness, Integer> result = orElse(list1, list2);
+   * // result is [1, 2, 3, 4]
+   * }</pre>
+   *
+   * @param <A> The type of the elements in the lists
+   * @param la The first list. Must not be null.
+   * @param lb A {@link java.util.function.Supplier} providing the second list. Must not be null.
+   * @return A new list containing all elements from both lists (la followed by lb)
+   * @throws NullPointerException if la or lb is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if la or the result of lb cannot be
+   *     unwrapped
+   */
+  @Override
+  public <A> Kind<ListKind.Witness, A> orElse(
+      Kind<ListKind.Witness, A> la, java.util.function.Supplier<Kind<ListKind.Witness, A>> lb) {
+
+    Validation.kind().requireNonNull(la, ListMonad.class, OR_ELSE, "first list");
+    Validation.function().requireFunction(lb, "lb", ListMonad.class, OR_ELSE);
+
+    List<A> listA = LIST.narrow(la);
+    Kind<ListKind.Witness, A> kindB = lb.get();
+
+    Validation.function().requireNonNullResult(kindB, "lb", ListMonad.class, OR_ELSE, List.class);
+
+    List<A> listB = LIST.narrow(kindB);
+
+    // Concatenate both lists
+    List<A> result = new ArrayList<>(listA.size() + listB.size());
+    result.addAll(listA);
+    result.addAll(listB);
+
+    return LIST.widen(result);
+  }
 }

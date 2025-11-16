@@ -13,6 +13,7 @@
 - [Functional Api](functional/functional_api.md)
   - [Functor](functional/functor.md)
   - [Applicative](functional/applicative.md)
+  - [Alternative](functional/alternative.md)
   - [Monad](functional/monad.md)
   - [MonadError](functional/monad_error.md)
   - [Semigroup and Monoid](functional/semigroup_and_monoid.md)
