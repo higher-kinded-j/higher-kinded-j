@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.function.Function5;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -343,6 +344,175 @@ class ListMonadTest extends ListTestBase {
       var result = listMonad.map4(list1, list2, list3, list4, f4);
 
       assertThatList(result).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("flatMapN Tests")
+  class FlatMapNTests {
+
+    @Test
+    @DisplayName("flatMap2() sequences two lists and applies combining function")
+    void flatMap2SequencesTwoListsAndAppliesCombiningFunction() {
+      var list1 = listOf(1, 2);
+      var list2 = listOf("a", "b");
+
+      var result = listMonad.flatMap2(list1, list2, (i, s) -> listOf(i + s, i + s.toUpperCase()));
+
+      assertThatList(result).containsExactly("1a", "1A", "1b", "1B", "2a", "2A", "2b", "2B");
+    }
+
+    @Test
+    @DisplayName("flatMap2() returns empty if first list is empty")
+    void flatMap2ReturnsEmptyIfFirstListIsEmpty() {
+      Kind<ListKind.Witness, Integer> list1 = emptyList();
+      var list2 = listOf("a", "b");
+
+      var result = listMonad.flatMap2(list1, list2, (i, s) -> listOf(i + s));
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap2() returns empty if second list is empty")
+    void flatMap2ReturnsEmptyIfSecondListIsEmpty() {
+      var list1 = listOf(1, 2);
+      Kind<ListKind.Witness, String> list2 = emptyList();
+
+      var result = listMonad.flatMap2(list1, list2, (i, s) -> listOf(i + s));
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap2() handles function returning empty list")
+    void flatMap2HandlesFunctionReturningEmptyList() {
+      var list1 = listOf(1, 2);
+      var list2 = listOf("a", "b");
+
+      var result = listMonad.flatMap2(list1, list2, (i, s) -> emptyList());
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap3() sequences three lists and applies combining function")
+    void flatMap3SequencesThreeListsAndAppliesCombiningFunction() {
+      var list1 = listOf(1, 2);
+      var list2 = listOf("x");
+      var list3 = listOf(10.0);
+      Function3<Integer, String, Double, Kind<ListKind.Witness, String>> f3 =
+          (i, s, d) -> listOf(String.format("%d-%s-%.0f", i, s, d));
+
+      var result = listMonad.flatMap3(list1, list2, list3, f3);
+
+      assertThatList(result).containsExactly("1-x-10", "2-x-10");
+    }
+
+    @Test
+    @DisplayName("flatMap3() returns empty if middle list is empty")
+    void flatMap3ReturnsEmptyIfMiddleListIsEmpty() {
+      var list1 = listOf(1, 2);
+      Kind<ListKind.Witness, String> list2 = emptyList();
+      var list3 = listOf(10.0);
+      Function3<Integer, String, Double, Kind<ListKind.Witness, String>> f3 =
+          (i, s, d) -> listOf("Should not execute");
+
+      var result = listMonad.flatMap3(list1, list2, list3, f3);
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap3() with function returning multiple results")
+    void flatMap3WithFunctionReturningMultipleResults() {
+      var list1 = listOf(1);
+      var list2 = listOf("a");
+      var list3 = listOf(2.0);
+      Function3<Integer, String, Double, Kind<ListKind.Witness, String>> f3 =
+          (i, s, d) -> listOf(i + s, s + d, i + s + d);
+
+      var result = listMonad.flatMap3(list1, list2, list3, f3);
+
+      assertThatList(result).containsExactly("1a", "a2.0", "1a2.0");
+    }
+
+    @Test
+    @DisplayName("flatMap4() sequences four lists and applies combining function")
+    void flatMap4SequencesFourListsAndAppliesCombiningFunction() {
+      var list1 = listOf(1);
+      var list2 = listOf("a");
+      var list3 = listOf(2.0);
+      var list4 = listOf(true);
+      Function4<Integer, String, Double, Boolean, Kind<ListKind.Witness, String>> f4 =
+          (i, s, d, b) -> listOf(String.format("%d-%s-%.0f-%b", i, s, d, b));
+
+      var result = listMonad.flatMap4(list1, list2, list3, list4, f4);
+
+      assertThatList(result).containsExactly("1-a-2-true");
+    }
+
+    @Test
+    @DisplayName("flatMap4() returns empty if any list is empty")
+    void flatMap4ReturnsEmptyIfAnyListIsEmpty() {
+      var list1 = listOf(1);
+      var list2 = listOf("a");
+      Kind<ListKind.Witness, Double> list3 = emptyList();
+      var list4 = listOf(true);
+      Function4<Integer, String, Double, Boolean, Kind<ListKind.Witness, String>> f4 =
+          (i, s, d, b) -> listOf("Should not execute");
+
+      var result = listMonad.flatMap4(list1, list2, list3, list4, f4);
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap5() sequences five lists and applies combining function")
+    void flatMap5SequencesFiveListsAndAppliesCombiningFunction() {
+      var list1 = listOf(1);
+      var list2 = listOf("a");
+      var list3 = listOf(2.0);
+      var list4 = listOf(true);
+      var list5 = listOf('X');
+      Function5<Integer, String, Double, Boolean, Character, Kind<ListKind.Witness, String>> f5 =
+          (i, s, d, b, c) -> listOf(String.format("%d-%s-%.0f-%b-%c", i, s, d, b, c));
+
+      var result = listMonad.flatMap5(list1, list2, list3, list4, list5, f5);
+
+      assertThatList(result).containsExactly("1-a-2-true-X");
+    }
+
+    @Test
+    @DisplayName("flatMap5() returns empty if any list is empty")
+    void flatMap5ReturnsEmptyIfAnyListIsEmpty() {
+      var list1 = listOf(1);
+      var list2 = listOf("a");
+      var list3 = listOf(2.0);
+      var list4 = listOf(true);
+      Kind<ListKind.Witness, Character> list5 = emptyList();
+      Function5<Integer, String, Double, Boolean, Character, Kind<ListKind.Witness, String>> f5 =
+          (i, s, d, b, c) -> listOf("Should not execute");
+
+      var result = listMonad.flatMap5(list1, list2, list3, list4, list5, f5);
+
+      assertThatList(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("flatMap5() with function returning multiple results")
+    void flatMap5WithFunctionReturningMultipleResults() {
+      var list1 = listOf(1);
+      var list2 = listOf("a");
+      var list3 = listOf(2.0);
+      var list4 = listOf(true);
+      var list5 = listOf('X');
+      Function5<Integer, String, Double, Boolean, Character, Kind<ListKind.Witness, String>> f5 =
+          (i, s, d, b, c) -> listOf("first", "second", "third");
+
+      var result = listMonad.flatMap5(list1, list2, list3, list4, list5, f5);
+
+      assertThatList(result).containsExactly("first", "second", "third");
     }
   }
 
