@@ -62,6 +62,7 @@
   - [Folds](optics/folds.md)
   - [Getters](optics/getters.md)
   - [Setters](optics/setters.md)
+  - [At Type Class](optics/at.md)
   - [Profunctor Optics](optics/profunctor_optics.md)
   - [Combining Optics - Validation](optics/composing_optics.md)
   - [Practical Examples](optics/optics_examples.md)
