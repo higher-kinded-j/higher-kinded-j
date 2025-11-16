@@ -6,7 +6,6 @@ import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.function.Function;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -21,12 +20,9 @@ import org.jspecify.annotations.Nullable;
  * @param value The value being wrapped. Can be null.
  * @param <A> The type of the value.
  */
-public record Id<A>(@Nullable A value) implements Kind<Id.Witness, A> {
+public record Id<A>(@Nullable A value) implements IdKind<A> {
 
   private static final Class<Id> ID_CLASS = Id.class;
-
-  /** The HKT witness type for {@link Id}. */
-  public static final class Witness {}
 
   /**
    * Static factory method to create an {@link Id} instance. This is idiomatic in functional

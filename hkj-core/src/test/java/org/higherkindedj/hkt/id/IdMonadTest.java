@@ -38,7 +38,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Run complete Monad test pattern")
     void runCompleteMonadTestPattern() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -50,7 +50,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Run complete Monad test pattern with validation contexts")
     void runCompleteMonadTestPatternWithValidationContexts() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -92,7 +92,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("of() handles null value")
     void ofHandlesNullValue() {
-      Kind<Id.Witness, Integer> result = monad.of(null);
+      Kind<IdKind.Witness, Integer> result = monad.of(null);
 
       assertThatId(result).hasValue(null);
     }
@@ -109,7 +109,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("map() handles null value")
     void mapHandlesNullValue() {
-      Kind<Id.Witness, Integer> input = idOf(null);
+      Kind<IdKind.Witness, Integer> input = idOf(null);
       var result = monad.map(i -> i == null ? "null" : i.toString(), input);
 
       assertThatId(result).hasValue("null");
@@ -118,7 +118,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("ap() applies function to value")
     void apAppliesFunctionToValue() {
-      Kind<Id.Witness, Function<Integer, String>> funcKind = monad.of(x -> "N" + x);
+      Kind<IdKind.Witness, Function<Integer, String>> funcKind = monad.of(x -> "N" + x);
       var valueKind = monad.of(10);
 
       var result = monad.ap(funcKind, valueKind);
@@ -130,7 +130,7 @@ class IdMonadTest extends IdTestBase {
     @DisplayName("flatMap() applies function and unwraps")
     void flatMapAppliesFunctionAndUnwraps() {
       var input = idOf(5);
-      Function<Integer, Kind<Id.Witness, String>> func = i -> idOf("value:" + i);
+      Function<Integer, Kind<IdKind.Witness, String>> func = i -> idOf("value:" + i);
 
       var result = monad.flatMap(func, input);
 
@@ -140,7 +140,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Functor operations (map)")
     void testFunctorOperations() {
-      TypeClassTest.<Id.Witness>functor(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>functor(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMapper(validMapper)
@@ -151,7 +151,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Applicative operations (of, ap, map2)")
     void testApplicativeOperations() {
-      TypeClassTest.<Id.Witness>applicative(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>applicative(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
@@ -161,7 +161,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Monad operations (flatMap)")
     void testMonadOperations() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -177,7 +177,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -190,7 +190,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -201,7 +201,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -212,7 +212,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -229,7 +229,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test null parameter validations")
     void testAllNullParameterValidations() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -242,7 +242,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test validation with Functor context for map")
     void testValidationWithFunctorContext() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -256,7 +256,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test validation with Monad context for flatMap")
     void testValidationWithMonadContext() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -270,7 +270,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test validation with full inheritance hierarchy")
     void testValidationWithFullInheritanceHierarchy() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -291,7 +291,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Functor laws (identity and composition)")
     void testFunctorLaws() {
-      TypeClassTest.<Id.Witness>functor(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>functor(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMapper(validMapper)
@@ -302,7 +302,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Applicative laws (identity, homomorphism, interchange)")
     void testApplicativeLaws() {
-      TypeClassTest.<Id.Witness>applicative(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>applicative(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
@@ -313,7 +313,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test Monad laws (left identity, right identity, associativity)")
     void testMonadLaws() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -332,13 +332,13 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test with null value")
     void testWithNullValue() {
-      Kind<Id.Witness, Integer> nullKind = idOf(null);
+      Kind<IdKind.Witness, Integer> nullKind = idOf(null);
 
       // Test that Id can hold null and basic operations work
       assertThatId(nullKind).hasValue(null);
 
       // Test that of() works with null
-      Kind<Id.Witness, Integer> created = monad.of(null);
+      Kind<IdKind.Witness, Integer> created = monad.of(null);
       assertThatId(created).hasValue(null);
 
       // Test with null-safe operations
@@ -346,7 +346,7 @@ class IdMonadTest extends IdTestBase {
       var mapped = monad.map(nullSafeMapper, nullKind);
       assertThatId(mapped).hasValue("null");
 
-      Function<Integer, Kind<Id.Witness, String>> nullSafeFlatMapper =
+      Function<Integer, Kind<IdKind.Witness, String>> nullSafeFlatMapper =
           i -> monad.of(i == null ? "null" : i.toString());
       var flatMapped = monad.flatMap(nullSafeFlatMapper, nullKind);
       assertThatId(flatMapped).hasValue("null");
@@ -367,7 +367,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test flatMap with of")
     void testFlatMapWithOf() {
-      Function<Integer, Kind<Id.Witness, Integer>> ofFunc = monad::of;
+      Function<Integer, Kind<IdKind.Witness, Integer>> ofFunc = monad::of;
       var flatMapped = monad.flatMap(ofFunc, validKind);
 
       assertThat(equalityChecker.test(flatMapped, validKind))
@@ -391,10 +391,10 @@ class IdMonadTest extends IdTestBase {
     void chainedOperationsMaintainCorrectness() {
       var initial = idOf(5);
 
-      Function<Integer, Kind<Id.Witness, Integer>> step1 = x -> idOf(x * 2);
+      Function<Integer, Kind<IdKind.Witness, Integer>> step1 = x -> idOf(x * 2);
       var step1Result = monad.flatMap(step1, initial);
 
-      Function<Integer, Kind<Id.Witness, String>> step2 = y -> idOf("N" + y);
+      Function<Integer, Kind<IdKind.Witness, String>> step2 = y -> idOf("N" + y);
       var finalResult = monad.flatMap(step2, step1Result);
 
       assertThatId(finalResult).hasValue("N10");
@@ -408,7 +408,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Test map propagates exceptions")
     void testMapPropagatesExceptions() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -422,7 +422,7 @@ class IdMonadTest extends IdTestBase {
     @DisplayName("Test flatMap propagates exceptions")
     void testFlatMapPropagatesExceptions() {
       RuntimeException testException = new RuntimeException("Test exception");
-      Function<Integer, Kind<Id.Witness, String>> throwingFlatMapper =
+      Function<Integer, Kind<IdKind.Witness, String>> throwingFlatMapper =
           i -> {
             throw testException;
           };
@@ -440,7 +440,7 @@ class IdMonadTest extends IdTestBase {
           i -> {
             throw testException;
           };
-      Kind<Id.Witness, Function<Integer, String>> throwingFunctionKind = idOf(throwingFunction);
+      Kind<IdKind.Witness, Function<Integer, String>> throwingFunctionKind = idOf(throwingFunction);
 
       org.assertj.core.api.Assertions.assertThatThrownBy(
               () -> monad.ap(throwingFunctionKind, validKind))
@@ -455,7 +455,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Skip operations")
     void skipOperations() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -469,7 +469,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Skip validations")
     void skipValidations() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -483,7 +483,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Skip exceptions")
     void skipExceptions() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(
@@ -497,7 +497,7 @@ class IdMonadTest extends IdTestBase {
     @Test
     @DisplayName("Skip laws")
     void skipLaws() {
-      TypeClassTest.<Id.Witness>monad(IdMonad.class)
+      TypeClassTest.<IdKind.Witness>monad(IdMonad.class)
           .<Integer>instance(monad)
           .<String>withKind(validKind)
           .withMonadOperations(

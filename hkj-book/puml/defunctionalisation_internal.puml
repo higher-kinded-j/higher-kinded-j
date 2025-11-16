@@ -6,7 +6,7 @@ hide empty members
 package "Defunctionalisation Pattern For Library-Defined Types (Id, Maybe, IO, Transformers)" {
 
 
-    interface "IdKind<A>" as IdKindInterface extends Kind<Id.Witness, A> {
+    interface "IdKind<A>" as IdKindInterface extends Kind<IdKind.Witness, A> {
         class Witness {} ' Nested phantom Witness type
     }
     ' Id<A> itself implements IdKind<A>
@@ -15,12 +15,12 @@ package "Defunctionalisation Pattern For Library-Defined Types (Id, Maybe, IO, T
     IdRecord --|> IdKindInterface
 
     class "IdKindHelper" as IdKindHelper {
-        + {static} widen(id: Id<A>): Kind<Id.Witness, A>
-        + {static} narrow(kind: Kind<Id.Witness, A>): Id<A>
+        + {static} widen(id: Id<A>): Kind<IdKind.Witness, A>
+        + {static} narrow(kind: Kind<IdKind.Witness, A>): Id<A>
     }
     IdKindHelper ..> IdRecord : "casts to/from"
 
-    class "IdentityMonad" as IdentityMonad implements Monad<Id.Witness> {
+    class "IdentityMonad" as IdentityMonad implements Monad<IdKind.Witness> {
         ' Uses IdKindHelper
     }
     IdentityMonad ..> IdKindHelper : "uses"

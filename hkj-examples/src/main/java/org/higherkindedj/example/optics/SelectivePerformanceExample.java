@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.optics.Traversal;
@@ -54,7 +55,7 @@ public class SelectivePerformanceExample {
     System.out.println("Applicative approach (processes all items):");
     operationCount.set(0);
 
-    Kind<Id.Witness, List<Item>> applicativeResult =
+    Kind<IdKind.Witness, List<Item>> applicativeResult =
         Traversals.traverseList(
             items,
             item -> {
@@ -70,7 +71,7 @@ public class SelectivePerformanceExample {
     System.out.println("\nSelective approach (stops when condition met):");
     operationCount.set(0);
 
-    Kind<Id.Witness, List<Item>> selectiveResult =
+    Kind<IdKind.Witness, List<Item>> selectiveResult =
         Traversals.traverseListUntil(
             items,
             item -> !item.needsProcessing(), // Stop condition
@@ -105,7 +106,7 @@ public class SelectivePerformanceExample {
     System.out.println("Without selective filtering:");
     operationCount.set(0);
 
-    Kind<Id.Witness, Batch> allProcessed =
+    Kind<IdKind.Witness, Batch> allProcessed =
         itemsTraversal.modifyF(
             item -> {
               operationCount.incrementAndGet();
@@ -126,7 +127,7 @@ public class SelectivePerformanceExample {
     System.out.println("\nWith selective filtering:");
     operationCount.set(0);
 
-    Kind<Id.Witness, Batch> selectiveProcessed =
+    Kind<IdKind.Witness, Batch> selectiveProcessed =
         itemsTraversal.modifyWhen(
             Item::needsProcessing,
             item -> {

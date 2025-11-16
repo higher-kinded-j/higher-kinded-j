@@ -250,7 +250,7 @@ public class TrampolineUtilsExample {
             .collect(Collectors.toList());
 
         // Traverse it safely
-        Kind<Id.Witness, List<String>> result =
+        Kind<IdKind.Witness, List<String>> result =
             TrampolineUtils.traverseListStackSafe(
                 largeList,
                 i -> Id.of("item-" + i),

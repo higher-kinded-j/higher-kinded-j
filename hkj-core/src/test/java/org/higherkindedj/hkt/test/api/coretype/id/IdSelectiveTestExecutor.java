@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.hkt.test.api.coretype.common.BaseCoreTypeTestExecutor;
@@ -125,12 +126,12 @@ final class IdSelectiveTestExecutor<A, B>
   protected void executeValidationTests() {
     ValidationTestBuilder builder = ValidationTestBuilder.create();
 
-    Kind<Id.Witness, Choice<A, B>> choiceKind = ID.widen(choiceLeft);
-    Kind<Id.Witness, Function<A, B>> funcKind = ID.widen(Id.of(selectFunction));
-    Kind<Id.Witness, Function<A, B>> leftHandlerKind = ID.widen(Id.of(leftHandler));
-    Kind<Id.Witness, Function<B, B>> rightHandlerKind = ID.widen(Id.of(rightHandler));
-    Kind<Id.Witness, Boolean> condKind = ID.widen(booleanTrue);
-    Kind<Id.Witness, Unit> unitEffectKind = ID.widen(Id.of(Unit.INSTANCE));
+    Kind<IdKind.Witness, Choice<A, B>> choiceKind = ID.widen(choiceLeft);
+    Kind<IdKind.Witness, Function<A, B>> funcKind = ID.widen(Id.of(selectFunction));
+    Kind<IdKind.Witness, Function<A, B>> leftHandlerKind = ID.widen(Id.of(leftHandler));
+    Kind<IdKind.Witness, Function<B, B>> rightHandlerKind = ID.widen(Id.of(rightHandler));
+    Kind<IdKind.Witness, Boolean> condKind = ID.widen(booleanTrue);
+    Kind<IdKind.Witness, Unit> unitEffectKind = ID.widen(Id.of(Unit.INSTANCE));
 
     // Select validations
     Class<?> selectCtx = getSelectContext();
@@ -165,7 +166,7 @@ final class IdSelectiveTestExecutor<A, B>
         () -> selective.whenS(condKind, null), whenSCtx, Operation.WHEN_S, "effect");
 
     // IfS validations
-    Kind<Id.Witness, A> effectKind = ID.widen(instance);
+    Kind<IdKind.Witness, A> effectKind = ID.widen(instance);
     Class<?> ifSCtx = getIfSContext();
     builder.assertKindNull(
         () -> selective.ifS(null, effectKind, effectKind), ifSCtx, Operation.IF_S, "condition");
@@ -181,8 +182,8 @@ final class IdSelectiveTestExecutor<A, B>
   protected void executeEdgeCaseTests() {
     // Test with null values in Choice - now causes NPE as expected
     Id<Choice<A, B>> choiceWithNull = Id.of(null);
-    Kind<Id.Witness, Choice<A, B>> choiceKind = ID.widen(choiceWithNull);
-    Kind<Id.Witness, Function<A, B>> funcKind = ID.widen(Id.of(selectFunction));
+    Kind<IdKind.Witness, Choice<A, B>> choiceKind = ID.widen(choiceWithNull);
+    Kind<IdKind.Witness, Function<A, B>> funcKind = ID.widen(Id.of(selectFunction));
 
     // Should throw NPE for null choice value (validated by Validation.function().requireFunction)
     assertThatThrownBy(() -> selective.select(choiceKind, funcKind))
@@ -190,7 +191,7 @@ final class IdSelectiveTestExecutor<A, B>
 
     // Test with null function value
     Id<Function<A, B>> nullFunc = Id.of(null);
-    Kind<Id.Witness, Function<A, B>> nullFuncKind = ID.widen(nullFunc);
+    Kind<IdKind.Witness, Function<A, B>> nullFuncKind = ID.widen(nullFunc);
 
     assertThatThrownBy(() -> selective.select(choiceKind, nullFuncKind))
         .isInstanceOf(NullPointerException.class);
@@ -200,38 +201,38 @@ final class IdSelectiveTestExecutor<A, B>
   }
 
   private void testSelect() {
-    Kind<Id.Witness, Choice<A, B>> leftChoiceKind = ID.widen(choiceLeft);
-    Kind<Id.Witness, Choice<A, B>> rightChoiceKind = ID.widen(choiceRight);
-    Kind<Id.Witness, Function<A, B>> funcKind = ID.widen(Id.of(selectFunction));
+    Kind<IdKind.Witness, Choice<A, B>> leftChoiceKind = ID.widen(choiceLeft);
+    Kind<IdKind.Witness, Choice<A, B>> rightChoiceKind = ID.widen(choiceRight);
+    Kind<IdKind.Witness, Function<A, B>> funcKind = ID.widen(Id.of(selectFunction));
 
     // Test select with Left (in Choice) - function should be applied
-    Kind<Id.Witness, B> resultLeft = selective.select(leftChoiceKind, funcKind);
+    Kind<IdKind.Witness, B> resultLeft = selective.select(leftChoiceKind, funcKind);
     Id<B> idResultLeft = ID.narrow(resultLeft);
     assertThat(idResultLeft).isNotNull();
     assertThat(idResultLeft.value()).isNotNull();
 
     // Test select with Right (in Choice) - function should NOT be applied
-    Kind<Id.Witness, B> resultRight = selective.select(rightChoiceKind, funcKind);
+    Kind<IdKind.Witness, B> resultRight = selective.select(rightChoiceKind, funcKind);
     Id<B> idResultRight = ID.narrow(resultRight);
     assertThat(idResultRight).isNotNull();
     assertThat(idResultRight.value()).isNotNull();
   }
 
   private void testBranch() {
-    Kind<Id.Witness, Choice<A, B>> leftChoiceKind = ID.widen(choiceLeft);
-    Kind<Id.Witness, Choice<A, B>> rightChoiceKind = ID.widen(choiceRight);
-    Kind<Id.Witness, Function<A, B>> leftHandlerKind = ID.widen(Id.of(leftHandler));
-    Kind<Id.Witness, Function<B, B>> rightHandlerKind = ID.widen(Id.of(rightHandler));
+    Kind<IdKind.Witness, Choice<A, B>> leftChoiceKind = ID.widen(choiceLeft);
+    Kind<IdKind.Witness, Choice<A, B>> rightChoiceKind = ID.widen(choiceRight);
+    Kind<IdKind.Witness, Function<A, B>> leftHandlerKind = ID.widen(Id.of(leftHandler));
+    Kind<IdKind.Witness, Function<B, B>> rightHandlerKind = ID.widen(Id.of(rightHandler));
 
     // Test branch with Left - left handler should be applied
-    Kind<Id.Witness, B> resultLeft =
+    Kind<IdKind.Witness, B> resultLeft =
         selective.branch(leftChoiceKind, leftHandlerKind, rightHandlerKind);
     Id<B> idResultLeft = ID.narrow(resultLeft);
     assertThat(idResultLeft).isNotNull();
     assertThat(idResultLeft.value()).isNotNull();
 
     // Test branch with Right - right handler should be applied
-    Kind<Id.Witness, B> resultRight =
+    Kind<IdKind.Witness, B> resultRight =
         selective.branch(rightChoiceKind, leftHandlerKind, rightHandlerKind);
     Id<B> idResultRight = ID.narrow(resultRight);
     assertThat(idResultRight).isNotNull();
@@ -239,37 +240,37 @@ final class IdSelectiveTestExecutor<A, B>
   }
 
   private void testWhenS() {
-    Kind<Id.Witness, Boolean> trueKind = ID.widen(booleanTrue);
-    Kind<Id.Witness, Boolean> falseKind = ID.widen(booleanFalse);
-    Kind<Id.Witness, Unit> unitEffectKind = ID.widen(Id.of(Unit.INSTANCE));
+    Kind<IdKind.Witness, Boolean> trueKind = ID.widen(booleanTrue);
+    Kind<IdKind.Witness, Boolean> falseKind = ID.widen(booleanFalse);
+    Kind<IdKind.Witness, Unit> unitEffectKind = ID.widen(Id.of(Unit.INSTANCE));
 
     // Test whenS with true - effect should execute
-    Kind<Id.Witness, Unit> resultTrue = selective.whenS(trueKind, unitEffectKind);
+    Kind<IdKind.Witness, Unit> resultTrue = selective.whenS(trueKind, unitEffectKind);
     Id<Unit> idResultTrue = ID.narrow(resultTrue);
     assertThat(idResultTrue).isNotNull();
     assertThat(idResultTrue.value()).isEqualTo(Unit.INSTANCE);
 
     // Test whenS with false - effect should not execute
-    Kind<Id.Witness, Unit> resultFalse = selective.whenS(falseKind, unitEffectKind);
+    Kind<IdKind.Witness, Unit> resultFalse = selective.whenS(falseKind, unitEffectKind);
     Id<Unit> idResultFalse = ID.narrow(resultFalse);
     assertThat(idResultFalse).isNotNull();
     assertThat(idResultFalse.value()).isEqualTo(Unit.INSTANCE);
   }
 
   private void testIfS() {
-    Kind<Id.Witness, Boolean> trueKind = ID.widen(booleanTrue);
-    Kind<Id.Witness, Boolean> falseKind = ID.widen(booleanFalse);
-    Kind<Id.Witness, A> thenKind = ID.widen(instance);
-    Kind<Id.Witness, A> elseKind = ID.widen(instance);
+    Kind<IdKind.Witness, Boolean> trueKind = ID.widen(booleanTrue);
+    Kind<IdKind.Witness, Boolean> falseKind = ID.widen(booleanFalse);
+    Kind<IdKind.Witness, A> thenKind = ID.widen(instance);
+    Kind<IdKind.Witness, A> elseKind = ID.widen(instance);
 
     // Test ifS with true - should return then branch
-    Kind<Id.Witness, A> resultTrue = selective.ifS(trueKind, thenKind, elseKind);
+    Kind<IdKind.Witness, A> resultTrue = selective.ifS(trueKind, thenKind, elseKind);
     Id<A> idResultTrue = ID.narrow(resultTrue);
     assertThat(idResultTrue).isNotNull();
     assertThat(idResultTrue).isSameAs(instance);
 
     // Test ifS with false - should return else branch
-    Kind<Id.Witness, A> resultFalse = selective.ifS(falseKind, thenKind, elseKind);
+    Kind<IdKind.Witness, A> resultFalse = selective.ifS(falseKind, thenKind, elseKind);
     Id<A> idResultFalse = ID.narrow(resultFalse);
     assertThat(idResultFalse).isNotNull();
     assertThat(idResultFalse).isSameAs(instance);

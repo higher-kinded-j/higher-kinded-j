@@ -21,7 +21,7 @@ import org.higherkindedj.hkt.Kind;
  * <pre>{@code
  * import static org.higherkindedj.hkt.id.IdAssert.assertThatId;
  *
- * Kind<Id.Witness, Integer> id = ID.widen(Id.of(42));
+ * Kind<IdKind.Witness, Integer> id = ID.widen(Id.of(42));
  * assertThatId(id)
  *     .hasValue(42);
  *
@@ -33,7 +33,7 @@ import org.higherkindedj.hkt.Kind;
  *
  * @param <T> The type of value held by the Id
  */
-public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>> {
+public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<IdKind.Witness, T>> {
 
   /**
    * Creates a new {@code IdAssert} instance.
@@ -48,11 +48,11 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * @param actual The Id Kind instance to make assertions on
    * @return A new IdAssert instance
    */
-  public static <T> IdAssert<T> assertThatId(Kind<Id.Witness, T> actual) {
+  public static <T> IdAssert<T> assertThatId(Kind<IdKind.Witness, T> actual) {
     return new IdAssert<>(actual);
   }
 
-  protected IdAssert(Kind<Id.Witness, T> actual) {
+  protected IdAssert(Kind<IdKind.Witness, T> actual) {
     super(actual, IdAssert.class);
   }
 
@@ -62,7 +62,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * <p>Example:
    *
    * <pre>{@code
-   * Kind<Id.Witness, Integer> id = ID.widen(Id.of(42));
+   * Kind<IdKind.Witness, Integer> id = ID.widen(Id.of(42));
    * assertThatId(id).hasValue(42);
    * }</pre>
    *
@@ -88,7 +88,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * <p>Example:
    *
    * <pre>{@code
-   * Kind<Id.Witness, Integer> id = ID.widen(Id.of(42));
+   * Kind<IdKind.Witness, Integer> id = ID.widen(Id.of(42));
    * assertThatId(id).satisfies(value -> {
    *     assertThat(value).isGreaterThan(40);
    *     assertThat(value).isLessThan(50);
@@ -112,7 +112,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * <p>Example:
    *
    * <pre>{@code
-   * Kind<Id.Witness, Integer> id = ID.widen(Id.of(42));
+   * Kind<IdKind.Witness, Integer> id = ID.widen(Id.of(42));
    * assertThatId(id).valueMatches(n -> n > 40);
    * }</pre>
    *
@@ -136,7 +136,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * <p>Example:
    *
    * <pre>{@code
-   * Kind<Id.Witness, String> id = ID.widen(Id.of("test"));
+   * Kind<IdKind.Witness, String> id = ID.widen(Id.of("test"));
    * assertThatId(id).hasNonNullValue();
    * }</pre>
    *
@@ -159,7 +159,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * <p>Example:
    *
    * <pre>{@code
-   * Kind<Id.Witness, String> id = ID.widen(Id.of(null));
+   * Kind<IdKind.Witness, String> id = ID.widen(Id.of(null));
    * assertThatId(id).hasNullValue();
    * }</pre>
    *
@@ -182,7 +182,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * <p>Example:
    *
    * <pre>{@code
-   * Kind<Id.Witness, Number> id = ID.widen(Id.of(42));
+   * Kind<IdKind.Witness, Number> id = ID.widen(Id.of(42));
    * assertThatId(id).hasValueOfType(Integer.class);
    * }</pre>
    *
@@ -208,8 +208,8 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * <p>Example:
    *
    * <pre>{@code
-   * Kind<Id.Witness, Integer> id1 = ID.widen(Id.of(42));
-   * Kind<Id.Witness, Integer> id2 = ID.widen(Id.of(42));
+   * Kind<IdKind.Witness, Integer> id1 = ID.widen(Id.of(42));
+   * Kind<IdKind.Witness, Integer> id2 = ID.widen(Id.of(42));
    * assertThatId(id1).isEqualToId(id2);
    * }</pre>
    *
@@ -217,7 +217,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<Id.Witness, T>
    * @return This assertion object for method chaining
    * @throws AssertionError if the Ids are not equal
    */
-  public IdAssert<T> isEqualToId(Kind<Id.Witness, T> other) {
+  public IdAssert<T> isEqualToId(Kind<IdKind.Witness, T> other) {
     isNotNull();
     if (other == null) {
       failWithMessage("Expected Id to be equal to another Id but the other was null");

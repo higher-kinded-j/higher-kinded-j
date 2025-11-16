@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
@@ -34,14 +35,14 @@ class ForTest {
     @Test
     @DisplayName("Arity 1: should yield value")
     void arity1_yield() {
-      Kind<Id.Witness, String> result = For.from(idMonad, Id.of(10)).yield(i -> "v" + i);
+      Kind<IdKind.Witness, String> result = For.from(idMonad, Id.of(10)).yield(i -> "v" + i);
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("v10");
     }
 
     @Test
     @DisplayName("Arity 2: should chain from and let and yield")
     void arity2_fromLetYield() {
-      Kind<Id.Witness, String> result =
+      Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(10)).let(i -> i * 2).yield((a, b) -> a + ":" + b);
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("10:20");
     }
@@ -49,7 +50,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 2: should chain from and from and yield")
     void arity2_fromFromYield() {
-      Kind<Id.Witness, String> result =
+      Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(5)).from(a -> Id.of("x")).yield((a, b) -> a + b);
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("5x");
     }
@@ -57,7 +58,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 2: should chain let on arity 2")
     void arity2_let() {
-      Kind<Id.Witness, Integer> result =
+      Kind<IdKind.Witness, Integer> result =
           For.from(idMonad, Id.of(5))
               .from(a -> Id.of(a * 2)) // b = 10
               .let(t -> t._1() + t._2()) // c = 15
@@ -68,7 +69,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 2: should yield with tuple function")
     void arity2_yieldTuple() {
-      Kind<Id.Witness, String> result =
+      Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(5)).from(a -> Id.of("x")).yield(t -> t._1() + t._2());
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("5x");
     }
@@ -76,7 +77,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 3: should chain from, from, from and yield")
     void arity3_fromFromFromYield() {
-      Kind<Id.Witness, Integer> result =
+      Kind<IdKind.Witness, Integer> result =
           For.from(idMonad, Id.of(1))
               .from(a -> Id.of(2))
               .from(ab -> Id.of(3))
@@ -87,7 +88,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 3: should chain and yield")
     void arity3_yield() {
-      Kind<Id.Witness, Integer> result =
+      Kind<IdKind.Witness, Integer> result =
           For.from(idMonad, Id.of(5))
               .let(i -> i * 2) // b = 10
               .from(t -> Id.of(t._1() + t._2())) // c = 15
@@ -98,7 +99,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 3: should yield with tuple function")
     void arity3_yieldTuple() {
-      Kind<Id.Witness, Integer> result =
+      Kind<IdKind.Witness, Integer> result =
           For.from(idMonad, Id.of(1))
               .from(a -> Id.of(2))
               .from(ab -> Id.of(3))
@@ -109,7 +110,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 4: should chain and yield")
     void arity4_yield() {
-      Kind<Id.Witness, Integer> result =
+      Kind<IdKind.Witness, Integer> result =
           For.from(idMonad, Id.of(1))
               .let(a -> a + 1) // b = 2
               .from(t -> Id.of(t._2() * 2)) // c = 4
@@ -121,7 +122,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 4: should yield with tuple function")
     void arity4_yieldTuple() {
-      Kind<Id.Witness, String> result =
+      Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(1))
               .from(a -> Id.of("b"))
               .from(ab -> Id.of(3.0))
@@ -133,7 +134,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 4: should chain let and yield")
     void arity4_let() {
-      Kind<Id.Witness, String> result =
+      Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(1)) // a
               .from(a -> Id.of("b")) // b
               .from(t -> Id.of(3.0)) // c
@@ -146,7 +147,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 5: should chain and yield")
     void arity5_yield() {
-      Kind<Id.Witness, String> result =
+      Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(1)) // a = 1
               .let(a -> a + 1) // b = 2
               .from(t -> Id.of(t._2() * 2)) // c = 4
@@ -159,7 +160,7 @@ class ForTest {
     @Test
     @DisplayName("Arity 5: should yield with tuple function")
     void arity5_yieldTuple() {
-      Kind<Id.Witness, String> result =
+      Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(1))
               .from(a -> Id.of("b"))
               .from(t -> Id.of(3.0))

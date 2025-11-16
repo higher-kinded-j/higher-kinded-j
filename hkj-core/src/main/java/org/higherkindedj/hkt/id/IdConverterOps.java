@@ -20,7 +20,7 @@ public interface IdConverterOps {
    * @param <A> The type of the value.
    * @return The {@link Kind} representation.
    */
-  <A> Kind<Id.Witness, A> widen(Id<A> id);
+  <A> Kind<IdKind.Witness, A> widen(Id<A> id);
 
   /**
    * Narrows a {@link Kind} representation to an {@link Id}.
@@ -30,5 +30,5 @@ public interface IdConverterOps {
    * @return The {@link Id} instance.
    * @throws ClassCastException if the kind is not an Id instance of the expected type.
    */
-  <A> Id<A> narrow(Kind<Id.Witness, A> kind);
+  <A> Id<A> narrow(Kind<IdKind.Witness, A> kind);
 }

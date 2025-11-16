@@ -36,7 +36,7 @@ import org.higherkindedj.hkt.test.data.TestFunctions;
  *   <li>{@link #narrowToId(Kind)} - Converts a Kind back to an Id
  * </ul>
  */
-abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String> {
+abstract class IdTestBase extends TypeClassTestBase<IdKind.Witness, Integer, String> {
 
   // ============================================================================
   // Test Constants - Standardised Values
@@ -59,7 +59,7 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
    * @param value The value to wrap
    * @return An Id Kind containing the specified value
    */
-  protected <A> Kind<Id.Witness, A> idOf(A value) {
+  protected <A> Kind<IdKind.Witness, A> idOf(A value) {
     return ID.widen(Id.of(value));
   }
 
@@ -73,7 +73,7 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
    * @param kind The Kind to convert
    * @return The underlying Id instance
    */
-  protected <A> Id<A> narrowToId(Kind<Id.Witness, A> kind) {
+  protected <A> Id<A> narrowToId(Kind<IdKind.Witness, A> kind) {
     return ID.narrow(kind);
   }
 
@@ -86,7 +86,7 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
    * @param kind The Kind to extract from
    * @return The value contained in the Id
    */
-  protected <A> A extractValue(Kind<Id.Witness, A> kind) {
+  protected <A> A extractValue(Kind<IdKind.Witness, A> kind) {
     return ID.narrow(kind).value();
   }
 
@@ -95,12 +95,12 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
   // ============================================================================
 
   @Override
-  protected Kind<Id.Witness, Integer> createValidKind() {
+  protected Kind<IdKind.Witness, Integer> createValidKind() {
     return idOf(DEFAULT_VALUE);
   }
 
   @Override
-  protected Kind<Id.Witness, Integer> createValidKind2() {
+  protected Kind<IdKind.Witness, Integer> createValidKind2() {
     return idOf(ALTERNATIVE_VALUE);
   }
 
@@ -110,12 +110,12 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
   }
 
   @Override
-  protected Function<Integer, Kind<Id.Witness, String>> createValidFlatMapper() {
+  protected Function<Integer, Kind<IdKind.Witness, String>> createValidFlatMapper() {
     return i -> idOf("flat:" + i);
   }
 
   @Override
-  protected Kind<Id.Witness, Function<Integer, String>> createValidFunctionKind() {
+  protected Kind<IdKind.Witness, Function<Integer, String>> createValidFunctionKind() {
     return idOf(TestFunctions.INT_TO_STRING);
   }
 
@@ -135,17 +135,17 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
   }
 
   @Override
-  protected Function<Integer, Kind<Id.Witness, String>> createTestFunction() {
+  protected Function<Integer, Kind<IdKind.Witness, String>> createTestFunction() {
     return i -> idOf("test:" + i);
   }
 
   @Override
-  protected Function<String, Kind<Id.Witness, String>> createChainFunction() {
+  protected Function<String, Kind<IdKind.Witness, String>> createChainFunction() {
     return s -> idOf(s + "!");
   }
 
   @Override
-  protected BiPredicate<Kind<Id.Witness, ?>, Kind<Id.Witness, ?>> createEqualityChecker() {
+  protected BiPredicate<Kind<IdKind.Witness, ?>, Kind<IdKind.Witness, ?>> createEqualityChecker() {
     return (k1, k2) -> ID.narrow(k1).equals(ID.narrow(k2));
   }
 
@@ -160,7 +160,7 @@ abstract class IdTestBase extends TypeClassTestBase<Id.Witness, Integer, String>
    * @param id The Id to wrap
    * @return An Id Kind wrapping the provided Id
    */
-  protected <A> Kind<Id.Witness, A> wrapId(Id<A> id) {
+  protected <A> Kind<IdKind.Witness, A> wrapId(Id<A> id) {
     return ID.widen(id);
   }
 }

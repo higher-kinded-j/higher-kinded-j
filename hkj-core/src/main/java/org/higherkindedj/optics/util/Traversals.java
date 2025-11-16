@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
@@ -46,8 +47,8 @@ public final class Traversals {
    */
   public static <S, A> @Nullable S modify(
       final Traversal<S, A> traversal, final Function<A, A> f, S source) {
-    Function<A, Kind<Id.Witness, A>> fId = a -> Id.of(f.apply(a));
-    Kind<Id.Witness, S> resultInId = traversal.modifyF(fId, source, IdMonad.instance());
+    Function<A, Kind<IdKind.Witness, A>> fId = a -> Id.of(f.apply(a));
+    Kind<IdKind.Witness, S> resultInId = traversal.modifyF(fId, source, IdMonad.instance());
     return IdKindHelper.ID.narrow(resultInId).value();
   }
 

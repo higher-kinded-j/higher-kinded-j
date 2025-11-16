@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -143,7 +144,7 @@ public class TraversalUsageExample {
     // Only give bonus to high scorers (>= 100)
     Predicate<Integer> isHighScorer = score -> score >= 100;
 
-    Kind<Id.Witness, League> updated =
+    Kind<IdKind.Witness, League> updated =
         leagueToAllPlayerScores.modifyWhen(
             isHighScorer,
             score -> Id.of(score + 50), // 50 point bonus
@@ -179,7 +180,7 @@ public class TraversalUsageExample {
     // Different bonuses for different score ranges
     Predicate<Integer> isExpert = score -> score >= 200;
 
-    Kind<Id.Witness, League> updated =
+    Kind<IdKind.Witness, League> updated =
         scoreTraversal.branch(
             isExpert,
             score -> Id.of(score + 100), // Expert bonus: +100

@@ -11,6 +11,9 @@ interface "Applicative<M>" as ApplicativeBase {}
 interface "Monad<M>" as MonadBase {}
 
 
+interface "IdKind<A>" as IdKindInterface {
+}
+
 class "Id<A>" as Id << (R,orchid) Record >> {
 }
 
@@ -27,11 +30,12 @@ MonadBase --|> ApplicativeBase
 ApplicativeBase --|> FunctorBase
 FunctorBase --|> Kind
 
+' IdKind pattern
+IdKindInterface --|> Kind : <IdKind.Witness, A>
+Id ..|> IdKindInterface : implements
 
-Id --|> Kind : <Id.Witness, A>
 
-
-IdentityMonad ..|> MonadBase : <Id.Witness>
+IdentityMonad ..|> MonadBase : <IdKind.Witness>
 
 ' Dependencies
 IdentityMonad ..> IdKindHelper : uses narrow

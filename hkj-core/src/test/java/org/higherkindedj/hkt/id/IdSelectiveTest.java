@@ -25,16 +25,16 @@ class IdSelectiveTest extends IdTestBase {
   // Test data
   private static final String TEST_RESULT = "result";
 
-  private Kind<Id.Witness, Choice<Integer, String>> choiceLeftKind;
-  private Kind<Id.Witness, Choice<Integer, String>> choiceRightKind;
-  private Kind<Id.Witness, Function<Integer, String>> selectFunctionKind;
-  private Kind<Id.Witness, Function<Integer, String>> leftHandlerKind;
-  private Kind<Id.Witness, Function<String, String>> rightHandlerKind;
-  private Kind<Id.Witness, Boolean> conditionTrue;
-  private Kind<Id.Witness, Boolean> conditionFalse;
-  private Kind<Id.Witness, Unit> unitEffectKind;
-  private Kind<Id.Witness, Integer> thenBranch;
-  private Kind<Id.Witness, Integer> elseBranch;
+  private Kind<IdKind.Witness, Choice<Integer, String>> choiceLeftKind;
+  private Kind<IdKind.Witness, Choice<Integer, String>> choiceRightKind;
+  private Kind<IdKind.Witness, Function<Integer, String>> selectFunctionKind;
+  private Kind<IdKind.Witness, Function<Integer, String>> leftHandlerKind;
+  private Kind<IdKind.Witness, Function<String, String>> rightHandlerKind;
+  private Kind<IdKind.Witness, Boolean> conditionTrue;
+  private Kind<IdKind.Witness, Boolean> conditionFalse;
+  private Kind<IdKind.Witness, Unit> unitEffectKind;
+  private Kind<IdKind.Witness, Integer> thenBranch;
+  private Kind<IdKind.Witness, Integer> elseBranch;
 
   // Test functions
   private Function<Integer, String> selectFunction = i -> "selected:" + i;
@@ -79,7 +79,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Run complete Selective test pattern")
     void runCompleteSelectiveTestPattern() {
-      TypeClassTest.<Id.Witness>selective(IdSelective.class)
+      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
           .<Integer>instance(selective)
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
@@ -106,7 +106,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Selective testing - operations only")
     void selectiveTestingOperationsOnly() {
-      TypeClassTest.<Id.Witness>selective(IdSelective.class)
+      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
           .<Integer>instance(selective)
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
@@ -126,7 +126,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Quick smoke test - operations and validations")
     void quickSmokeTest() {
-      TypeClassTest.<Id.Witness>selective(IdSelective.class)
+      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
           .<Integer>instance(selective)
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
@@ -189,7 +189,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("select() handles null Choice gracefully")
       void selectHandlesNullChoice() {
-        Kind<Id.Witness, Choice<Integer, String>> nullChoice = idOf(null);
+        Kind<IdKind.Witness, Choice<Integer, String>> nullChoice = idOf(null);
 
         assertThatThrownBy(() -> selective.select(nullChoice, selectFunctionKind))
             .isInstanceOf(NullPointerException.class);
@@ -198,7 +198,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("select() handles null Function gracefully")
       void selectHandlesNullFunction() {
-        Kind<Id.Witness, Function<Integer, String>> nullFunc = idOf(null);
+        Kind<IdKind.Witness, Function<Integer, String>> nullFunc = idOf(null);
 
         assertThatThrownBy(() -> selective.select(choiceLeftKind, nullFunc))
             .isInstanceOf(NullPointerException.class);
@@ -228,7 +228,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("branch() handles null Choice gracefully")
       void branchHandlesNullChoice() {
-        Kind<Id.Witness, Choice<Integer, String>> nullChoice = idOf(null);
+        Kind<IdKind.Witness, Choice<Integer, String>> nullChoice = idOf(null);
 
         assertThatThrownBy(() -> selective.branch(nullChoice, leftHandlerKind, rightHandlerKind))
             .isInstanceOf(NullPointerException.class);
@@ -237,7 +237,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("branch() handles null left handler gracefully")
       void branchHandlesNullLeftHandler() {
-        Kind<Id.Witness, Function<Integer, String>> nullHandler = idOf(null);
+        Kind<IdKind.Witness, Function<Integer, String>> nullHandler = idOf(null);
 
         assertThatThrownBy(() -> selective.branch(choiceLeftKind, nullHandler, rightHandlerKind))
             .isInstanceOf(NullPointerException.class);
@@ -246,7 +246,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("branch() handles null right handler gracefully")
       void branchHandlesNullRightHandler() {
-        Kind<Id.Witness, Function<String, String>> nullHandler = idOf(null);
+        Kind<IdKind.Witness, Function<String, String>> nullHandler = idOf(null);
 
         assertThatThrownBy(() -> selective.branch(choiceRightKind, leftHandlerKind, nullHandler))
             .isInstanceOf(NullPointerException.class);
@@ -276,7 +276,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("whenS() handles null condition gracefully")
       void whenSHandlesNullCondition() {
-        Kind<Id.Witness, Boolean> nullCond = idOf(null);
+        Kind<IdKind.Witness, Boolean> nullCond = idOf(null);
 
         assertThatThrownBy(() -> selective.whenS(nullCond, unitEffectKind))
             .isInstanceOf(NullPointerException.class);
@@ -285,7 +285,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("whenS() handles null effect gracefully")
       void whenSHandlesNullEffect() {
-        Kind<Id.Witness, Unit> nullEffect = idOf(null);
+        Kind<IdKind.Witness, Unit> nullEffect = idOf(null);
 
         assertThatThrownBy(() -> selective.whenS(conditionTrue, nullEffect))
             .isInstanceOf(NullPointerException.class);
@@ -317,7 +317,7 @@ class IdSelectiveTest extends IdTestBase {
       @Test
       @DisplayName("ifS() handles null condition gracefully")
       void ifSHandlesNullCondition() {
-        Kind<Id.Witness, Boolean> nullCond = idOf(null);
+        Kind<IdKind.Witness, Boolean> nullCond = idOf(null);
 
         assertThatThrownBy(() -> selective.ifS(nullCond, thenBranch, elseBranch))
             .isInstanceOf(NullPointerException.class);
@@ -342,7 +342,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Test operations only")
     void testOperationsOnly() {
-      TypeClassTest.<Id.Witness>selective(IdSelective.class)
+      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
           .<Integer>instance(selective)
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
@@ -359,7 +359,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Test validations only")
     void testValidationsOnly() {
-      TypeClassTest.<Id.Witness>selective(IdSelective.class)
+      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
           .<Integer>instance(selective)
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
@@ -385,7 +385,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Test exception propagation only")
     void testExceptionPropagationOnly() {
-      TypeClassTest.<Id.Witness>selective(IdSelective.class)
+      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
           .<Integer>instance(selective)
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
@@ -402,7 +402,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Test laws only")
     void testLawsOnly() {
-      TypeClassTest.<Id.Witness>selective(IdSelective.class)
+      TypeClassTest.<IdKind.Witness>selective(IdSelective.class)
           .<Integer>instance(selective)
           .<String>withKind(validKind)
           .withSelectiveOperations(choiceLeftKind, selectFunctionKind)
@@ -449,10 +449,10 @@ class IdSelectiveTest extends IdTestBase {
     @DisplayName("Select with null value in Choice")
     void selectWithNullValueInChoice() {
       Choice<Integer, String> choiceWithNull = Selective.left(null);
-      Kind<Id.Witness, Choice<Integer, String>> choiceKind = idOf(choiceWithNull);
+      Kind<IdKind.Witness, Choice<Integer, String>> choiceKind = idOf(choiceWithNull);
 
       Function<Integer, String> nullSafeFunc = i -> i == null ? "null-value" : "value:" + i;
-      Kind<Id.Witness, Function<Integer, String>> funcKind = idOf(nullSafeFunc);
+      Kind<IdKind.Witness, Function<Integer, String>> funcKind = idOf(nullSafeFunc);
 
       var result = selective.select(choiceKind, funcKind);
 
@@ -478,9 +478,9 @@ class IdSelectiveTest extends IdTestBase {
 
       var inputKind = idOf(50);
 
-      Function<Integer, Kind<Id.Witness, Integer>> validatePositiveKind =
+      Function<Integer, Kind<IdKind.Witness, Integer>> validatePositiveKind =
           i -> wrapId(validatePositive.apply(i));
-      Function<Integer, Kind<Id.Witness, Integer>> validateRangeKind =
+      Function<Integer, Kind<IdKind.Witness, Integer>> validateRangeKind =
           i -> wrapId(validateRange.apply(i));
 
       var validated = selective.flatMap(validatePositiveKind, inputKind);

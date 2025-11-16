@@ -1,0 +1,38 @@
+@startuml free_kind
+
+skinparam backgroundColor #24273A
+skinparam class {
+  BackgroundColor #24273A
+  BorderColor #C6A0F6
+  ArrowColor #F5BDE6
+  AttributeFontColor #A6DA95
+  AttributeFontSize 12
+  FontColor #A6DA95
+  FontSize 16
+  HeaderBackgroundColor #363A4F
+}
+skinparam stereotypeCBackgroundColor #ADD1B2
+skinparam stereotypeIBackgroundColor #B4A7E5
+
+hide empty members
+
+interface "Kind<F, A>" <<interface>>
+
+interface "FreeKind<F, A>" <<interface>>
+
+class "FreeKindHelper" <<enum>> {
+  + {static} Kind<FreeKind.Witness<F>, A> widen(Free<F, A> free)
+  + {static} Free<F, A> narrow(Kind<FreeKind.Witness<F>, A> kind)
+}
+
+interface "Free<F, A>" <<sealed interface>> {
+  + <B> Free<F, B> map(Function<? super A, ? extends B> f)
+  + <B> Free<F, B> flatMap(Function<A, Free<F, B>> f)
+  + <M> Kind<M, A> foldMap(...)
+}
+
+"FreeKind<F, A>" -up-|> "Kind<F, A>" : <<FreeKind.Witness<F>, A>>
+"FreeKindHelper" ..> "Free<F, A>" : widens/narrows
+"FreeKindHelper" ..> "FreeKind<F, A>" : widens/narrows
+
+@enduml

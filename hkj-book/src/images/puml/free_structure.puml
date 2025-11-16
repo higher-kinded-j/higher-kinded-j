@@ -1,0 +1,67 @@
+@startuml free_structure
+
+skinparam backgroundColor #24273A
+skinparam class {
+  BackgroundColor #24273A
+  BorderColor #C6A0F6
+  ArrowColor #F5BDE6
+  AttributeFontColor #A6DA95
+  AttributeFontSize 12
+  FontColor #A6DA95
+  FontSize 16
+  HeaderBackgroundColor #363A4F
+}
+skinparam note {
+  BackgroundColor #EED49F
+  BorderColor #A80036
+}
+skinparam stereotypeCBackgroundColor #B4A7E5
+skinparam stereotypeIBackgroundColor #B4A7E5
+
+hide empty members
+
+interface "Free<F, A>" <<sealed interface>> {
+  + {static} Free<F, A> pure(A value)
+  + {static} Free<F, A> suspend(Kind<F, Free<F, A>> computation)
+  + {static} Free<F, A> liftF(Kind<F, A> fa, Functor<F> functor)
+  + <B> Free<F, B> map(Function<? super A, ? extends B> f)
+  + <B> Free<F, B> flatMap(Function<A, Free<F, B>> f)
+  + <M> Kind<M, A> foldMap(Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad)
+  + A fold(Function<A, A> pure, Function<Kind<F, A>, A> suspend)
+}
+
+class "Pure<F, A>" <<record>> {
+  + A value
+}
+
+class "Suspend<F, A>" <<record>> {
+  + Kind<F, Free<F, A>> computation
+}
+
+class "FlatMapped<F, X, A>" <<record>> {
+  + Free<F, X> sub
+  + Function<X, Free<F, A>> continuation
+}
+
+"Pure<F, A>" -up-|> "Free<F, A>" : implements
+"Suspend<F, A>" -up-|> "Free<F, A>" : implements
+"FlatMapped<F, X, A>" -up-|> "Free<F, A>" : implements
+
+note right of "Pure<F, A>"
+  Represents a terminal value.
+  Contains the final result A.
+end note
+
+note right of "Suspend<F, A>"
+  Represents a suspended computation.
+  Contains an instruction F[Free[F, A]]
+  to be interpreted later.
+end note
+
+note right of "FlatMapped<F, X, A>"
+  Represents monadic sequencing.
+  Chains computations together
+  in a stack-safe manner.
+end note
+
+@enduml

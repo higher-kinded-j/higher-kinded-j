@@ -9,8 +9,8 @@ While it might seem trivial on its own, the Identity Monad plays a crucial role 
 
 1. **Base Case for Monad Transformers**: Many monad transformers (like `StateT`, `ReaderT`, `MaybeT`, etc.) can be specialised to their simpler, non-transformed monad counterparts by using `Id` as the underlying monad. For example:
 
-   * `StateT<S, Id.Witness, A>` is conceptually equivalent to `State<S, A>`.
-   * `MaybeT<Id.Witness, A>` is conceptually equivalent to `Maybe<A>`.
+   * `StateT<S, IdKind.Witness, A>` is conceptually equivalent to `State<S, A>`.
+   * `MaybeT<IdKind.Witness, A>` is conceptually equivalent to `Maybe<A>`.
      This allows for a unified way to define transformers and derive base monads.
 2. **Generic Programming**: When writing functions that are generic over any `Monad<F>`, `Id` can serve as the "no-effect" monad, allowing you to use these generic functions with pure values without introducing unnecessary complexity.
 3. **Understanding Monads**: It provides a clear example of the monadic structure (`of`, `flatMap`, `map`) without any distracting side effects or additional computational context.
@@ -27,13 +27,14 @@ An `Id<A>` is simply a container that holds a value of type `A`.
 ![id_monad.svg](../images/puml/id_monad.svg)
 
 
-* **`Id<A>`**: The data type itself. It's a final class that wraps a value of type `A`. It implements `Kind<Id.Witness, A>`.
-* **`Id.Witness`**: A static nested class (or interface) used as the first type parameter to `Kind` (i.e., `F` in `Kind<F, A>`) to represent the `Id` type constructor at the type level. This is part of the HKT emulation pattern.
+* **`Id<A>`**: The data type itself. It's a record that wraps a value of type `A`. It implements `IdKind<A>`, which extends `Kind<IdKind.Witness, A>`.
+* **`IdKind<A>`**: The Kind interface marker for the `Id` type. It extends `Kind<IdKind.Witness, A>`, following the standard Higher-Kinded-J pattern used by other types like `TrampolineKind` and `FreeKind`.
+* **`IdKind.Witness`**: A static nested class within `IdKind` used as the phantom type marker (the `F` in `Kind<F, A>`) to represent the `Id` type constructor at the type level. This is part of the HKT emulation pattern.
 * **`IdKindHelper`**: A utility class providing static helper methods:
-  * `narrow(Kind<Id.Witness, A> kind)`: Safely casts a `Kind` back to a concrete `Id<A>`.
-  * `widen(Id<A> id)`: widens an `Id<A>` to `Kind<Id.Witness, A>`. (Often an identity cast since `Id` implements `Kind`).
-  * `narrows(Kind<Id.Witness, A> kind)`: A convenience to narrow and then get the value.
-* **`IdMonad`**: The singleton class that implements `Monad<Id.Witness>`, providing the monadic operations for `Id`.
+  * `narrow(Kind<IdKind.Witness, A> kind)`: Safely casts a `Kind` back to a concrete `Id<A>`.
+  * `widen(Id<A> id)`: widens an `Id<A>` to `Kind<IdKind.Witness, A>`. (Often an identity cast since `Id` implements `Kind`).
+  * `narrows(Kind<IdKind.Witness, A> kind)`: A convenience to narrow and then get the value.
+* **`IdMonad`**: The singleton class that implements `Monad<IdKind.Witness>`, providing the monadic operations for `Id`.
 
 ## Using `Id` and `IdMonad`
 
@@ -67,12 +68,12 @@ public void monadExample(){
   IdMonad idMonad = IdMonad.instance();
 
   // 1. 'of' (lifting a value)
-  Kind<Id.Witness, Integer> kindInt = idMonad.of(42);
+  Kind<IdKind.Witness, Integer> kindInt = idMonad.of(42);
   Id<Integer> idFromOf = ID.narrow(kindInt);
   System.out.println("From of: " + idFromOf.value()); // Output: From of: 42
 
   // 2. 'map' (applying a function to the wrapped value)
-  Kind<Id.Witness, String> kindStringMapped = idMonad.map(
+  Kind<IdKind.Witness, String> kindStringMapped = idMonad.map(
       i -> "Value is " + i,
       kindInt
   );
@@ -80,7 +81,7 @@ public void monadExample(){
   System.out.println("Mapped: " + idMapped.value()); // Output: Mapped: Value is 42
 
   // 3. 'flatMap' (applying a function that returns an Id)
-  Kind<Id.Witness, String> kindStringFlatMapped = idMonad.flatMap(
+  Kind<IdKind.Witness, String> kindStringFlatMapped = idMonad.flatMap(
       i -> Id.of("FlatMapped: " + (i * 2)), // Function returns Id<String>
       kindInt
   );
@@ -92,8 +93,8 @@ public void monadExample(){
   System.out.println(directFlatMap.value()); // Output: Direct FlatMap: 42
 
   // 4. 'ap' (applicative apply)
-  Kind<Id.Witness, Function<Integer, String>> kindFunction = idMonad.of(i -> "Applied: " + i);
-  Kind<Id.Witness, String> kindApplied = idMonad.ap(kindFunction, kindInt);
+  Kind<IdKind.Witness, Function<Integer, String>> kindFunction = idMonad.of(i -> "Applied: " + i);
+  Kind<IdKind.Witness, String> kindApplied = idMonad.ap(kindFunction, kindInt);
   Id<String> idApplied = ID.narrow(kindApplied);
   System.out.println("Applied: " + idApplied.value()); // Output: Applied: 42
 }
@@ -104,28 +105,28 @@ public void monadExample(){
 
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
-As mentioned in the [StateT Monad Transformer](../transformers/statet_transformer.md) documentation, `State<S,A>` can be thought of as `StateT<S, Id.Witness, A>`.
+As mentioned in the [StateT Monad Transformer](../transformers/statet_transformer.md) documentation, `State<S,A>` can be thought of as `StateT<S, IdKind.Witness, A>`.
 
 Let's illustrate how you might define a `State` monad type alias or use `StateT` with `IdMonad`:
 
 ```java
   public void transformerExample(){
-  // Conceptually, State<S, A> is StateT<S, Id.Witness, A>
+  // Conceptually, State<S, A> is StateT<S, IdKind.Witness, A>
   // We can create a StateTMonad instance using IdMonad as the underlying monad.
-  StateTMonad<Integer, Id.Witness> stateMonadOverId =
+  StateTMonad<Integer, IdKind.Witness> stateMonadOverId =
       StateTMonad.instance(IdMonad.instance());
 
   // Example: A "State" computation that increments the state and returns the old state
-  Function<Integer, Kind<Id.Witness, StateTuple<Integer, Integer>>> runStateFn =
+  Function<Integer, Kind<IdKind.Witness, StateTuple<Integer, Integer>>> runStateFn =
       currentState -> Id.of(StateTuple.of(currentState + 1, currentState));
 
   // Create the StateT (acting as State)
-  Kind<StateTKind.Witness<Integer, Id.Witness>, Integer> incrementAndGet =
+  Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
       StateTKindHelper.stateT(runStateFn, IdMonad.instance());
 
   // Run it
   Integer initialState = 10;
-  Kind<Id.Witness, StateTuple<Integer, Integer>> resultIdTuple =
+  Kind<IdKind.Witness, StateTuple<Integer, Integer>> resultIdTuple =
       StateTKindHelper.runStateT(incrementAndGet, initialState);
 
   // Unwrap the Id and then the StateTuple

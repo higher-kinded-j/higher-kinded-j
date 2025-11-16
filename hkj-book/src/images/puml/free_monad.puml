@@ -1,0 +1,49 @@
+@startuml free_monad
+
+skinparam backgroundColor #24273A
+skinparam class {
+  BackgroundColor #24273A
+  BorderColor #C6A0F6
+  ArrowColor #F5BDE6
+  AttributeFontColor #A6DA95
+  AttributeFontSize 12
+  FontColor #A6DA95
+  FontSize 16
+  HeaderBackgroundColor #363A4F
+}
+skinparam stereotypeCBackgroundColor #ADD1B2
+skinparam stereotypeIBackgroundColor #B4A7E5
+
+hide empty members
+
+interface "Functor<F>" <<interface>>
+interface "Monad<F>" <<interface>>
+
+class "FreeFunctor<F>" <<class>> {
+  - -Kind<FreeKind.Witness<F>, B> map(Function<A, B> f, Kind<FreeKind.Witness<F>, A> fa)--
+}
+
+class "FreeMonad<F>" <<class>> {
+  - -Kind<FreeKind.Witness<F>, A> of(A value)--
+  - -Kind<FreeKind.Witness<F>, B> flatMap(Function<A, Kind<FreeKind.Witness<F>, B>> f, Kind<FreeKind.Witness<F>, A> ma)--
+  - -Kind<FreeKind.Witness<F>, B> ap(Kind<FreeKind.Witness<F>, Function<A, B>> ff, Kind<FreeKind.Witness<F>, A> fa)--
+}
+
+interface "FreeKind<F, A>" <<interface>>
+
+interface "Free<F, A>" <<sealed interface>> {
+  + {static} Free<F, A> pure(A value)
+  + {static} Free<F, A> liftF(Kind<F, A> fa, Functor<F> functor)
+  + <B> Free<F, B> map(Function<A, B> f)
+  + <B> Free<F, B> flatMap(Function<A, Free<F, B>> f)
+  + <M> Kind<M, A> foldMap(Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad)
+}
+
+"FreeFunctor<F>" .up.|> "Functor<F>" : implements
+"FreeMonad<F>" .up.|> "Monad<F>" : implements
+"FreeMonad<F>" -right-|> "FreeFunctor<F>" : extends
+
+"FreeMonad<F>" ..> "FreeKind<F, A>" : operates on Kind<FreeKind.Witness<F>, A>
+"FreeMonad<F>" ..> "Free<F, A>" : uses methods of
+
+@enduml

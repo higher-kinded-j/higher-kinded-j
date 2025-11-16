@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -34,7 +35,7 @@ class TrampolineUtilsTest {
     void shouldTraverseEmptyList() {
       final List<Integer> emptyList = List.of();
 
-      final Kind<Id.Witness, List<String>> result =
+      final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
               emptyList, i -> Id.of("item-" + i), IdMonad.instance());
 
@@ -47,7 +48,7 @@ class TrampolineUtilsTest {
     void shouldTraverseSingleElementList() {
       final List<Integer> singleList = List.of(42);
 
-      final Kind<Id.Witness, List<String>> result =
+      final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
               singleList, i -> Id.of("item-" + i), IdMonad.instance());
 
@@ -60,7 +61,7 @@ class TrampolineUtilsTest {
     void shouldTraverseSmallList() {
       final List<Integer> smallList = List.of(1, 2, 3, 4, 5);
 
-      final Kind<Id.Witness, List<String>> result =
+      final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
               smallList, i -> Id.of("item-" + i), IdMonad.instance());
 
@@ -73,7 +74,7 @@ class TrampolineUtilsTest {
     void shouldMaintainOrder() {
       final List<Integer> list = IntStream.range(0, 100).boxed().collect(Collectors.toList());
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.traverseListStackSafe(list, i -> Id.of(i * 2), IdMonad.instance());
 
       final List<Integer> unwrapped = ID.narrow(result).value();
@@ -89,7 +90,7 @@ class TrampolineUtilsTest {
       final List<Integer> largeList =
           IntStream.range(0, 10_000).boxed().collect(Collectors.toList());
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.traverseListStackSafe(largeList, i -> Id.of(i * 2), IdMonad.instance());
 
       final List<Integer> unwrapped = ID.narrow(result).value();
@@ -104,7 +105,7 @@ class TrampolineUtilsTest {
       final List<Integer> veryLargeList =
           IntStream.range(0, 100_000).boxed().collect(Collectors.toList());
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.traverseListStackSafe(
               veryLargeList, i -> Id.of(i + 1), IdMonad.instance());
 
@@ -119,7 +120,7 @@ class TrampolineUtilsTest {
     void shouldApplyFunctionToEachElement() {
       final List<Integer> list = List.of(1, 2, 3, 4, 5);
 
-      final Kind<Id.Witness, List<String>> result =
+      final Kind<IdKind.Witness, List<String>> result =
           TrampolineUtils.traverseListStackSafe(
               list, i -> Id.of("element-" + (i * 10)), IdMonad.instance());
 
@@ -136,9 +137,9 @@ class TrampolineUtilsTest {
     @Test
     @DisplayName("should sequence empty list")
     void shouldSequenceEmptyList() {
-      final List<Kind<Id.Witness, Integer>> emptyList = List.of();
+      final List<Kind<IdKind.Witness, Integer>> emptyList = List.of();
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.sequenceStackSafe(emptyList, IdMonad.instance());
 
       final List<Integer> unwrapped = ID.narrow(result).value();
@@ -148,9 +149,9 @@ class TrampolineUtilsTest {
     @Test
     @DisplayName("should sequence single element")
     void shouldSequenceSingleElement() {
-      final List<Kind<Id.Witness, Integer>> singleList = List.of(Id.of(42));
+      final List<Kind<IdKind.Witness, Integer>> singleList = List.of(Id.of(42));
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.sequenceStackSafe(singleList, IdMonad.instance());
 
       final List<Integer> unwrapped = ID.narrow(result).value();
@@ -160,10 +161,10 @@ class TrampolineUtilsTest {
     @Test
     @DisplayName("should sequence small list")
     void shouldSequenceSmallList() {
-      final List<Kind<Id.Witness, Integer>> smallList =
+      final List<Kind<IdKind.Witness, Integer>> smallList =
           List.of(Id.of(1), Id.of(2), Id.of(3), Id.of(4), Id.of(5));
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.sequenceStackSafe(smallList, IdMonad.instance());
 
       final List<Integer> unwrapped = ID.narrow(result).value();
@@ -173,12 +174,12 @@ class TrampolineUtilsTest {
     @Test
     @DisplayName("should maintain order during sequencing")
     void shouldMaintainOrderDuringSequencing() {
-      final List<Kind<Id.Witness, Integer>> list = new ArrayList<>();
+      final List<Kind<IdKind.Witness, Integer>> list = new ArrayList<>();
       for (int i = 0; i < 100; i++) {
         list.add(Id.of(i));
       }
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.sequenceStackSafe(list, IdMonad.instance());
 
       final List<Integer> unwrapped = ID.narrow(result).value();
@@ -191,12 +192,12 @@ class TrampolineUtilsTest {
     @Test
     @DisplayName("should be stack-safe with large lists (50,000 elements)")
     void shouldBeStackSafeWithLargeLists() {
-      final List<Kind<Id.Witness, Integer>> largeList = new ArrayList<>();
+      final List<Kind<IdKind.Witness, Integer>> largeList = new ArrayList<>();
       for (int i = 0; i < 50_000; i++) {
         largeList.add(Id.of(i));
       }
 
-      final Kind<Id.Witness, List<Integer>> result =
+      final Kind<IdKind.Witness, List<Integer>> result =
           TrampolineUtils.sequenceStackSafe(largeList, IdMonad.instance());
 
       final List<Integer> unwrapped = ID.narrow(result).value();
