@@ -60,6 +60,8 @@
   - [Isomorphisms](optics/iso.md)
   - [Traversals](optics/traversals.md)
   - [Folds](optics/folds.md)
+  - [Getters](optics/getters.md)
+  - [Setters](optics/setters.md)
   - [Profunctor Optics](optics/profunctor_optics.md)
   - [Combining Optics - Validation](optics/composing_optics.md)
   - [Practical Examples](optics/optics_examples.md)

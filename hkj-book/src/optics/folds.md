@@ -887,4 +887,4 @@ The key insight: **Folds make queries first-class citizens in your codebase**, j
 ---
 
 **Previous:** [Traversals: Handling Bulk Updates](traversals.md)
-**Next:** [Profunctor Optics: Advanced Data Transformation](profunctor_optics.md)
+**Next:** [Getters: Composable Read-Only Access](getters.md)
