@@ -25,11 +25,11 @@ This is achieved by representing the application of a type constructor `F` to a 
 ### 1. `Id<A>` (Identity)
 
 * **Type Definition**: A custom record ([`Id`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/Id.java)) that directly wraps a value `A`. It's the simplest monad.
-* **`IdKind<A>` Interface**: `Id<A>` itself implements `IdKind<A>`, and `IdKind<A> extends Kind<Id.Witness, A>`.
-* **Witness Type `F_WITNESS`**: `Id.Witness`
+* **`IdKind<A>` Interface**: `Id<A>` itself implements `IdKind<A>`, and `IdKind<A> extends Kind<IdKind.Witness, A>`.
+* **Witness Type `F_WITNESS`**: `IdKind.Witness`
 * **`IdKindHelper`**: [`IdKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdKindHelper.java) (`wrap` casts `Id` to `Kind`, `unwrap` casts `Kind` to `Id`; `narrow` is a convenience for unwrap).
 * **Type Class Instances**:
-  * [`IdMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdMonad.java) (`Monad<Id.Witness>`)
+  * [`IdMonad`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/id/IdMonad.java) (`Monad<IdKind.Witness>`)
 * **Notes**: `Id.of(a)` creates `Id(a)`. `map` and `flatMap` operate directly. Useful as a base for monad transformers and generic programming with no extra effects. `Id<A>` directly implements `IdKind<A>`.
 * **Usage**: [How to use the Identity Monad](./identity.md)
 
@@ -79,7 +79,21 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 5. `java.util.Optional<A>`
+### 5. `Free<F, A>`
+
+* **Type Definition**: Custom sealed interface ([`Free`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/free/Free.java)) representing programmes as data structures that can be interpreted in different ways. Provides three constructors: `Pure<F,A>` (terminal value), `Suspend<F,A>` (suspended computation), and `FlatMapped<F,X,A>` (monadic sequencing).
+* **`FreeKind<F, A>` Interface**: `Free<F,A>` itself implements `FreeKind<F,A>`, and `FreeKind<F,A> extends Kind<FreeKind.Witness<F>, A>`.
+* **Witness Type `F_WITNESS`**: `FreeKind.Witness<F>` (where `F` is the instruction set functor)
+* **`FreeKindHelper`**: `widen` casts `Free` to `Kind`; `narrow` casts `Kind` to `Free`. Provides `pure(value)`, `suspend(computation)`, `liftF(fa, functor)`.
+* **Type Class Instances**:
+  * `FreeFunctor<F>` (`Functor<FreeKind.Witness<F>>`)
+  * [`FreeMonad<F>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/free/FreeMonad.java) (`Monad<FreeKind.Witness<F>>`)
+* **Notes**: Enables building domain-specific languages (DSLs) as composable data structures. Programmes are interpreted via `foldMap` with natural transformations, allowing multiple interpreters (IO, Test, Optimisation, etc.). Stack-safe execution using Higher-Kinded-J's `Trampoline` monad internally, demonstrating library composability (verified with 10,000+ operations). Essential for separating programme description from execution, enabling testability and alternative interpretations. Provides `liftF` to lift functor values into Free, `map` and `flatMap` for composition, and `foldMap` for interpretation. Useful for building testable workflows, query languages, and effect systems where the same programme needs different execution strategies.
+* **Usage**: [How to use the Free Monad](./free_monad.md)
+
+---
+
+### 6. `java.util.Optional<A>`
 
 * **Type Definition**: Standard Java `java.util.Optional<A>`.
 * **`OptionalKind<A>` Interface**: [`OptionalKind<A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/optional/OptionalKind.java) extends `Kind<OptionalKind.Witness, A>`.
@@ -93,7 +107,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 6. `Maybe<A>`
+### 7. `Maybe<A>`
 
 * **Type Definition**: Custom sealed interface ([`Maybe`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/maybe/Maybe.java)) with `Just<A>` (non-null) and `Nothing<A>` implementations.
 * **`MaybeKind<A>` Interface**: `Maybe<A>` itself implements `MaybeKind<A>`, and `MaybeKind<A> extends Kind<MaybeKind.Witness, A>`.
@@ -107,7 +121,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 7. `Either<L, R>`
+### 8. `Either<L, R>`
 
 * **Type Definition**: Custom sealed interface ([`Either`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/either/Either.java)) with `Left<L,R>` and `Right<L,R>` records.
 * **`EitherKind<L, R>` Interface**: `Either<L,R>` itself implements `EitherKind<L,R>`, and `EitherKind<L,R> extends Kind<EitherKind.Witness<L>, R>`.
@@ -121,7 +135,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 8. `Try<A>`
+### 9. `Try<A>`
 
 * **Type Definition**: Custom sealed interface ([`Try`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/trymonad/Try.java)) with `Success<A>` and `Failure<A>` (wrapping `Throwable`).
 * **`TryKind<A>` Interface**: `Try<A>` itself implements `TryKind<A>`, and `TryKind<A> extends Kind<TryKind.Witness, A>`.
@@ -136,7 +150,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 9. `java.util.concurrent.CompletableFuture<A>`
+### 10. `java.util.concurrent.CompletableFuture<A>`
 
 * **Type Definition**: Standard Java `java.util.concurrent.CompletableFuture<A>`.
 * **`CompletableFutureKind<A>` Interface**: [`CompletableFutureKind<A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/future/CompletableFutureKind.java) extends `Kind<CompletableFutureKind.Witness, A>`.
@@ -152,7 +166,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 10. `IO<A>`
+### 11. `IO<A>`
 
 * **Type Definition**: Custom interface ([`IO`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/io/IO.java)) representing a deferred, potentially side-effecting computation.
 * **`IOKind<A>` Interface**: `IO<A>` itself implements `IOKind<A>`, and `IOKind<A> extends Kind<IOKind.Witness, A>`.
@@ -167,7 +181,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 11. `Lazy<A>`
+### 12. `Lazy<A>`
 
 * **Type Definition**: Custom class ([`Lazy`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/lazy/Lazy.java)) for deferred computation with memoization.
 * **`LazyKind<A>` Interface**: `Lazy<A>` itself implements `LazyKind<A>`, and `LazyKind<A> extends Kind<LazyKind.Witness, A>`.
@@ -180,7 +194,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 12. `Reader<R_ENV, A>`
+### 13. `Reader<R_ENV, A>`
 
 * **Type Definition**: Custom functional interface ([`Reader`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/reader/Reader.java)) wrapping `Function<R_ENV, A>`.
 * **`ReaderKind<R_ENV, A>` Interface**: `Reader<R_ENV,A>` itself implements `ReaderKind<R_ENV,A>`, and `ReaderKind<R_ENV,A> extends Kind<ReaderKind.Witness<R_ENV>, A>`.
@@ -195,7 +209,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 13. `State<S, A>`
+### 14. `State<S, A>`
 
 * **Type Definition**: Custom functional interface ([`State`](hhttps://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/State.java)) wrapping `Function<S, StateTuple<S, A>>`.
 * **`StateKind<S,A>` Interface**: `State<S,A>` itself implements `StateKind<S,A>`, and `StateKind<S,A> extends Kind<StateKind.Witness<S>, A>`.
@@ -210,7 +224,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 14. `Writer<W, A>`
+### 15. `Writer<W, A>`
 
 * **Type Definition**: Custom record ([`Writer`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/writer/Writer.java)) holding `(W log, A value)`. Requires `Monoid<W>`.
 * **`WriterKind<W, A>` Interface**: `Writer<W,A>` itself implements `WriterKind<W,A>`, and `WriterKind<W,A> extends Kind<WriterKind.Witness<W>, A>`.
@@ -225,7 +239,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 15. `Validated<E, A>`
+### 16. `Validated<E, A>`
 
 * **Type Definition**: Custom sealed interface ([`Validated`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)) with `Valid<E, A>` (holding `A`) and `Invalid<E, A>` (holding `E`) implementations.
 * **`ValidatedKind<E, A>` Interface**: Defines the HKT structure ([`ValidatedKind`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/ValidatedKind.java)) for `Validated<E,A>`. It extends `Kind<ValidatedKind.Witness<E>, A>`. Concrete `Valid<E,A>` and `Invalid<E,A>` instances are cast to this kind by `ValidatedKindHelper`.

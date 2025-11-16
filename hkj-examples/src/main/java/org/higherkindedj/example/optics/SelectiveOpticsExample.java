@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
@@ -63,7 +64,7 @@ public class SelectiveOpticsExample {
     // Only increment login attempts if below threshold
     Predicate<Integer> belowThreshold = attempts -> attempts < 5;
 
-    Kind<Id.Witness, UserLogin> result =
+    Kind<IdKind.Witness, UserLogin> result =
         attemptsLens.modifyWhen(
             belowThreshold, attempts -> attempts + 1, userLogin, IdSelective.instance());
 
@@ -72,7 +73,7 @@ public class SelectiveOpticsExample {
 
     // Try with user at threshold
     UserLogin maxedUserLogin = new UserLogin("Bob", new Email("bob@example.com", true), 5);
-    Kind<Id.Witness, UserLogin> noChange =
+    Kind<IdKind.Witness, UserLogin> noChange =
         attemptsLens.modifyWhen(
             belowThreshold, attempts -> attempts + 1, maxedUserLogin, IdSelective.instance());
 
@@ -91,7 +92,7 @@ public class SelectiveOpticsExample {
     // Apply interest if positive, overdraft fee if negative
     Predicate<Double> isPositive = balance -> balance > 0;
 
-    Kind<Id.Witness, Account> positive =
+    Kind<IdKind.Witness, Account> positive =
         balanceLens.modifyBranch(
             isPositive,
             balance -> balance * 1.05, // 5% interest
@@ -99,7 +100,7 @@ public class SelectiveOpticsExample {
             positiveAccount,
             IdSelective.instance());
 
-    Kind<Id.Witness, Account> negative =
+    Kind<IdKind.Witness, Account> negative =
         balanceLens.modifyBranch(
             isPositive,
             balance -> balance * 1.05,
@@ -132,7 +133,7 @@ public class SelectiveOpticsExample {
     // Only apply bonus to premium accounts
     Predicate<Account> isPremium = Account::isPremium;
 
-    Kind<Id.Witness, Bank> updated =
+    Kind<IdKind.Witness, Bank> updated =
         accountsTraversal.modifyWhen(
             isPremium,
             account ->
@@ -166,14 +167,14 @@ public class SelectiveOpticsExample {
             new Account("ACC-003", 10000.0, true));
 
     // Simulate expensive operations
-    java.util.function.Function<Account, Kind<Id.Witness, Double>> premiumCalculation =
+    java.util.function.Function<Account, Kind<IdKind.Witness, Double>> premiumCalculation =
         account -> {
           System.out.println("  Calculating premium rate for " + account.id());
           // Simulate expensive operation
           return Id.of(account.balance() * 1.10);
         };
 
-    java.util.function.Function<Account, Kind<Id.Witness, Double>> standardCalculation =
+    java.util.function.Function<Account, Kind<IdKind.Witness, Double>> standardCalculation =
         account -> {
           System.out.println("  Calculating standard rate for " + account.id());
           // Simulate different expensive operation
@@ -181,7 +182,7 @@ public class SelectiveOpticsExample {
         };
 
     System.out.println("Processing accounts with speculative execution:");
-    Kind<Id.Witness, List<Double>> results =
+    Kind<IdKind.Witness, List<Double>> results =
         Traversals.speculativeTraverseList(
             accounts,
             Account::isPremium,
@@ -207,7 +208,7 @@ public class SelectiveOpticsExample {
     Predicate<Account> isOverdrawn = account -> account.balance() < 0;
 
     System.out.println("Processing accounts until overdraft found:");
-    Kind<Id.Witness, List<Account>> results =
+    Kind<IdKind.Witness, List<Account>> results =
         Traversals.traverseListUntil(
             accounts,
             isOverdrawn,

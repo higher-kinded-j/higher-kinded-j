@@ -344,7 +344,7 @@ public class StateTStackExample {
 
 ## Relationship to State Monad
 
-The [State Monad](../monads/state_monad.md) (`State<S, A>`) can be seen as a specialised version of `StateT`. Specifically, `State<S, A>` is equivalent to `StateT<S, Id, A>`, where `Id` is the Identity monad (a monad that doesn't add any effects, simply `Id<A> = A`). `higher-kinded-j` provides an `Id` monad. `State<S, A>` can be seen as an equivalent to `StateT<S, Id.Witness, A>`.
+The [State Monad](../monads/state_monad.md) (`State<S, A>`) can be seen as a specialised version of `StateT`. Specifically, `State<S, A>` is equivalent to `StateT<S, Id, A>`, where `Id` is the Identity monad (a monad that doesn't add any effects, simply `Id<A> = A`). `higher-kinded-j` provides an `Id` monad. `State<S, A>` can be seen as an equivalent to `StateT<S, IdKind.Witness, A>`.
 
 ## Further Reading
 

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.id;
 
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage.BaseKindHelperConfig;
 
@@ -32,7 +33,7 @@ import org.higherkindedj.hkt.test.api.typeclass.kind.KindHelperTestStage.BaseKin
  *
  * @param <A> The value type
  */
-public final class IdKindHelperTest<A> extends BaseKindHelperConfig<Id<A>, Id.Witness, A> {
+public final class IdKindHelperTest<A> extends BaseKindHelperConfig<Id<A>, IdKind.Witness, A> {
 
   private static final IdKindHelper ID = IdKindHelper.ID;
 

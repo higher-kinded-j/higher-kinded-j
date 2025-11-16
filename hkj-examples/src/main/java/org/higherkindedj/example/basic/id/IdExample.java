@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateTKind;
@@ -38,17 +39,17 @@ public class IdExample {
     IdMonad idMonad = IdMonad.instance();
 
     // 1. 'of' (lifting a value)
-    Kind<Id.Witness, Integer> kindInt = idMonad.of(42);
+    Kind<IdKind.Witness, Integer> kindInt = idMonad.of(42);
     Id<Integer> idFromOf = ID.narrow(kindInt);
     System.out.println("From of: " + idFromOf.value()); // Output: From of: 42
 
     // 2. 'map' (applying a function to the wrapped value)
-    Kind<Id.Witness, String> kindStringMapped = idMonad.map(i -> "Value is " + i, kindInt);
+    Kind<IdKind.Witness, String> kindStringMapped = idMonad.map(i -> "Value is " + i, kindInt);
     Id<String> idMapped = ID.narrow(kindStringMapped);
     System.out.println("Mapped: " + idMapped.value()); // Output: Mapped: Value is 42
 
     // 3. 'flatMap' (applying a function that returns an Id)
-    Kind<Id.Witness, String> kindStringFlatMapped =
+    Kind<IdKind.Witness, String> kindStringFlatMapped =
         idMonad.flatMap(
             i -> Id.of("FlatMapped: " + (i * 2)), // Function returns Id<String>
             kindInt);
@@ -60,28 +61,29 @@ public class IdExample {
     System.out.println(directFlatMap.value()); // Output: Direct FlatMap: 42
 
     // 4. 'ap' (applicative apply)
-    Kind<Id.Witness, Function<Integer, String>> kindFunction = idMonad.of(i -> "Applied: " + i);
-    Kind<Id.Witness, String> kindApplied = idMonad.ap(kindFunction, kindInt);
+    Kind<IdKind.Witness, Function<Integer, String>> kindFunction = idMonad.of(i -> "Applied: " + i);
+    Kind<IdKind.Witness, String> kindApplied = idMonad.ap(kindFunction, kindInt);
     Id<String> idApplied = ID.narrow(kindApplied);
     System.out.println("Applied: " + idApplied.value()); // Output: Applied: 42
   }
 
   public void transformerExample() {
-    // Conceptually, State<S, A> is StateT<S, Id.Witness, A>
+    // Conceptually, State<S, A> is StateT<S, IdKind.Witness, A>
     // We can create a StateTMonad instance using IdentityMonad as the underlying monad.
-    StateTMonad<Integer, Id.Witness> stateMonadOverId = StateTMonad.instance(IdMonad.instance());
+    StateTMonad<Integer, IdKind.Witness> stateMonadOverId =
+        StateTMonad.instance(IdMonad.instance());
 
     // Example: A "State" computation that increments the state and returns the old state
-    Function<Integer, Kind<Id.Witness, StateTuple<Integer, Integer>>> runStateFn =
+    Function<Integer, Kind<IdKind.Witness, StateTuple<Integer, Integer>>> runStateFn =
         currentState -> Id.of(StateTuple.of(currentState + 1, currentState));
 
     // Create the StateT (acting as State)
-    Kind<StateTKind.Witness<Integer, Id.Witness>, Integer> incrementAndGet =
+    Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
         STATE_T.stateT(runStateFn, IdMonad.instance());
 
     // Run it
     Integer initialState = 10;
-    Kind<Id.Witness, StateTuple<Integer, Integer>> resultIdTuple =
+    Kind<IdKind.Witness, StateTuple<Integer, Integer>> resultIdTuple =
         STATE_T.runStateT(incrementAndGet, initialState);
 
     // Unwrap the Id and then the StateTuple

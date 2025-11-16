@@ -37,7 +37,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see Selective
  * @see Choice
  */
-public final class IdSelective extends IdMonad implements Selective<Id.Witness> {
+public final class IdSelective extends IdMonad implements Selective<IdKind.Witness> {
 
   private static final IdSelective INSTANCE = new IdSelective();
   private static final Class<IdSelective> ID_SELECTIVE_CLASS = IdSelective.class;
@@ -70,21 +70,21 @@ public final class IdSelective extends IdMonad implements Selective<Id.Witness> 
    *       Id(f(a))}.
    * </ul>
    *
-   * @param fab A non-null {@link Kind Kind&lt;Id.Witness, Choice&lt;A, B&gt;&gt;} containing the
-   *     choice
-   * @param ff A non-null {@link Kind Kind&lt;Id.Witness, Function&lt;A, B&gt;&gt;} containing the
-   *     function
+   * @param fab A non-null {@link Kind Kind&lt;IdKind.Witness, Choice&lt;A, B&gt;&gt;} containing
+   *     the choice
+   * @param ff A non-null {@link Kind Kind&lt;IdKind.Witness, Function&lt;A, B&gt;&gt;} containing
+   *     the function
    * @param <A> The input type of the function (the type inside Left)
    * @param <B> The output type and the type inside Right
-   * @return A non-null {@link Kind Kind&lt;Id.Witness, B&gt;} with the result
+   * @return A non-null {@link Kind Kind&lt;IdKind.Witness, B&gt;} with the result
    * @throws NullPointerException if {@code fab} or {@code ff} is null, or if the unwrapped values
    *     are null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fab} or {@code ff} cannot
    *     be unwrapped.
    */
   @Override
-  public <A, B> Kind<Id.Witness, B> select(
-      Kind<Id.Witness, Choice<A, B>> fab, Kind<Id.Witness, Function<A, B>> ff) {
+  public <A, B> Kind<IdKind.Witness, B> select(
+      Kind<IdKind.Witness, Choice<A, B>> fab, Kind<IdKind.Witness, Function<A, B>> ff) {
 
     Validation.kind().requireNonNull(fab, ID_SELECTIVE_CLASS, SELECT, "choice");
     Validation.kind().requireNonNull(ff, ID_SELECTIVE_CLASS, SELECT, "function");
@@ -125,10 +125,10 @@ public final class IdSelective extends IdMonad implements Selective<Id.Witness> 
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if parameters cannot be unwrapped.
    */
   @Override
-  public <A, B, C> Kind<Id.Witness, C> branch(
-      Kind<Id.Witness, Choice<A, B>> fab,
-      Kind<Id.Witness, Function<A, C>> fl,
-      Kind<Id.Witness, Function<B, C>> fr) {
+  public <A, B, C> Kind<IdKind.Witness, C> branch(
+      Kind<IdKind.Witness, Choice<A, B>> fab,
+      Kind<IdKind.Witness, Function<A, C>> fl,
+      Kind<IdKind.Witness, Function<B, C>> fr) {
 
     Validation.kind().requireNonNull(fab, ID_SELECTIVE_CLASS, BRANCH, "choice");
     Validation.kind().requireNonNull(fl, ID_SELECTIVE_CLASS, BRANCH, "leftHandler");
@@ -175,7 +175,8 @@ public final class IdSelective extends IdMonad implements Selective<Id.Witness> 
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if parameters cannot be unwrapped.
    */
   @Override
-  public Kind<Id.Witness, Unit> whenS(Kind<Id.Witness, Boolean> fcond, Kind<Id.Witness, Unit> fa) {
+  public Kind<IdKind.Witness, Unit> whenS(
+      Kind<IdKind.Witness, Boolean> fcond, Kind<IdKind.Witness, Unit> fa) {
 
     Validation.kind().requireNonNull(fcond, ID_SELECTIVE_CLASS, WHEN_S, "condition");
     Validation.kind().requireNonNull(fa, ID_SELECTIVE_CLASS, WHEN_S, "effect");
@@ -209,8 +210,10 @@ public final class IdSelective extends IdMonad implements Selective<Id.Witness> 
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if parameters cannot be unwrapped.
    */
   @Override
-  public <A> Kind<Id.Witness, A> ifS(
-      Kind<Id.Witness, Boolean> fcond, Kind<Id.Witness, A> fthen, Kind<Id.Witness, A> felse) {
+  public <A> Kind<IdKind.Witness, A> ifS(
+      Kind<IdKind.Witness, Boolean> fcond,
+      Kind<IdKind.Witness, A> fthen,
+      Kind<IdKind.Witness, A> felse) {
 
     Validation.kind().requireNonNull(fcond, ID_SELECTIVE_CLASS, IF_S, "condition");
     Validation.kind().requireNonNull(fthen, ID_SELECTIVE_CLASS, IF_S, "thenBranch");

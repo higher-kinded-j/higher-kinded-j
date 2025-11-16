@@ -82,7 +82,7 @@ This example introduces the **Identity (Id) monad**. The `Id` monad is the simpl
 * **Demonstrates**:
   * Wrapping a plain value into an `Id`.
   * Using `map` and `flatMap` on an `Id` value.
-  * Its use as the underlying monad in a monad transformer stack, effectively turning `StateT<S, Id.Witness, A>` into `State<S, A>`.
+  * Its use as the underlying monad in a monad transformer stack, effectively turning `StateT<S, IdKind.Witness, A>` into `State<S, A>`.
 
 ```java
 // flatMap on Id simply applies the function to the wrapped value.
