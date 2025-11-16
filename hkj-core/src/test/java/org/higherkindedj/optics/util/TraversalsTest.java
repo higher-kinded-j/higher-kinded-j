@@ -1756,6 +1756,7 @@ class TraversalsTest {
     }
   }
 
+  @Nested
   @DisplayName("SequenceStateList Combiner Function Coverage Tests")
   class SequenceStateListCombinerTest {
 

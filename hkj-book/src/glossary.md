@@ -685,6 +685,42 @@ Kind<OptionalKind.Witness, String> empty =
 
 ## Optics Terminology
 
+### At
+
+**Definition:** A type class for structures that support indexed access with insertion and deletion semantics. Provides a `Lens<S, Optional<A>>` where setting to `Optional.empty()` deletes the entry and setting to `Optional.of(value)` inserts or updates it.
+
+**Core Operations:**
+- `at(I index)` - Returns `Lens<S, Optional<A>>` for the index
+- `get(I index, S source)` - Read value at index (returns Optional)
+- `insertOrUpdate(I index, A value, S source)` - Insert or update entry
+- `remove(I index, S source)` - Delete entry at index
+- `modify(I index, Function<A,A> f, S source)` - Update value if present
+
+**Example:**
+```java
+At<Map<String, Integer>, String, Integer> mapAt = AtInstances.mapAt();
+
+Map<String, Integer> scores = new HashMap<>(Map.of("alice", 100));
+
+// Insert new entry
+Map<String, Integer> withBob = mapAt.insertOrUpdate("bob", 85, scores);
+// Result: {alice=100, bob=85}
+
+// Remove entry
+Map<String, Integer> noAlice = mapAt.remove("alice", withBob);
+// Result: {bob=85}
+
+// Compose with Lens for deep access
+Lens<UserProfile, Optional<String>> themeLens =
+    settingsLens.andThen(mapAt.at("theme"));
+```
+
+**When To Use:** CRUD operations on maps or lists where you need to insert new entries or delete existing ones whilst maintaining immutability and optics composability.
+
+**Related:** [At Type Class Documentation](optics/at.md)
+
+---
+
 ### Iso (Isomorphism)
 
 **Definition:** An optic representing a lossless, bidirectional conversion between two types. If you can convert `A` to `B` and back to `A` without losing information, you have an isomorphism.
