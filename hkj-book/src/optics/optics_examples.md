@@ -76,13 +76,50 @@ This example showcases the power of composing **Traversals** and **Lenses** to p
       LeagueTraversals.teams()
           .andThen(TeamTraversals.players())
           .andThen(PlayerLenses.score());
-  
+
   // Use the composed traversal to add 5 to every player's score
   var updatedLeague = IdKindHelper.ID.narrow(
       leagueToAllPlayerScores.modifyF(
           score -> Id.of(score + 5), league, IdMonad.instance()
       )
   ).value();
+```
+
+## [PartsOfTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PartsOfTraversalExample.java)
+
+This example demonstrates the **partsOf** combinator for list-level manipulation of traversal focuses. It shows how to convert a `Traversal` into a `Lens` on a `List`, enabling powerful operations like sorting, reversing, and deduplicating focused elements whilst maintaining structure integrity.
+
+* **Key Concept**: `partsOf` bridges element-wise traversal operations and collection-level algorithms by treating all focuses as a single list.
+* **Demonstrates**:
+  * Converting a `Traversal<S, A>` into a `Lens<S, List<A>>` with `Traversals.partsOf()`.
+  * Extracting all focused elements as a list for group-level operations.
+  * Using convenience methods: `Traversals.sorted()`, `Traversals.reversed()`, `Traversals.distinct()`.
+  * Custom comparator sorting (case-insensitive, by length, reverse order).
+  * Combining `partsOf` with filtered traversals for selective list operations.
+  * Understanding size mismatch behaviour (graceful degradation).
+  * Real-world use case: normalising prices across an e-commerce catalogue.
+
+```java
+  // Convert traversal to lens on list of all prices
+  Traversal<Catalogue, Double> allPrices = CatalogueTraversals.categories()
+      .andThen(CategoryTraversals.products())
+      .andThen(ProductLenses.price().asTraversal());
+  Lens<Catalogue, List<Double>> pricesLens = Traversals.partsOf(allPrices);
+
+  // Sort all prices across the entire catalogue
+  Catalogue sortedCatalogue = Traversals.sorted(allPrices, catalogue);
+
+  // Reverse prices (highest to lowest)
+  Catalogue reversedCatalogue = Traversals.reversed(allPrices, sortedCatalogue);
+
+  // Remove duplicate product names
+  List<Product> deduplicatedProducts = Traversals.distinct(nameTraversal, products);
+
+  // Sort only in-stock product prices (combining with filtered traversals)
+  Traversal<List<Product>, Double> inStockPrices = Traversals.<Product>forList()
+      .filtered(p -> p.stockLevel() > 0)
+      .andThen(ProductLenses.price().asTraversal());
+  List<Product> result = Traversals.sorted(inStockPrices, products);
 ```
 
 ## [FoldUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/FoldUsageExample.java)
@@ -94,28 +131,30 @@ This example demonstrates **Folds** for read-only querying and data extraction f
   * Using `@GenerateFolds` to create query optics automatically.
   * Using `getAll()`, `preview()`, `find()`, `exists()`, `all()`, `isEmpty()`, and `length()` operations for querying data.
   * Composing folds for deep queries across nested structures.
+  * Using standard monoids from `Monoids` utility class (`Monoids.doubleAddition()`, `Monoids.booleanAnd()`, `Monoids.booleanOr()`).
   * Using `foldMap` with monoids for custom aggregations (sum, product, boolean operations).
   * Contrasting Fold (read-only) with Traversal (read-write) to express intent clearly.
 
 ```java
   // Get all products from an order
-  Fold<Order, Product> items = OrderFolds.items();
-  List<Product> allProducts = items.getAll(order);
+  Fold<Order, ProductItem> items = OrderFolds.items();
+  List<ProductItem> allProducts = items.getAll(order);
 
   // Check if any product is out of stock
   boolean hasOutOfStock = items.exists(p -> !p.inStock(), order);
 
-  // Calculate total price using monoid aggregation
-  Monoid<Double> sumMonoid = new Monoid<>() {
-      @Override public Double empty() { return 0.0; }
-      @Override public Double combine(Double a, Double b) { return a + b; }
-  };
-  double total = items.foldMap(sumMonoid, Product::price, order);
+  // Calculate total price using standard monoid from Monoids utility class
+  Monoid<Double> sumMonoid = Monoids.doubleAddition();
+  double total = items.foldMap(sumMonoid, ProductItem::price, order);
+
+  // Use boolean monoids for condition checking
+  Monoid<Boolean> andMonoid = Monoids.booleanAnd();
+  boolean allAffordable = items.foldMap(andMonoid, p -> p.price() < 1000, order);
 
   // Compose folds for deep queries
-  Fold<OrderHistory, Product> allProductsInHistory =
+  Fold<OrderHistory, ProductItem> allProductsInHistory =
       OrderHistoryFolds.orders().andThen(OrderFolds.items());
-  List<Product> allProds = allProductsInHistory.getAll(history);
+  List<ProductItem> allProds = allProductsInHistory.getAll(history);
 ```
 
 ## [ValidatedTraversalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java)

@@ -3,9 +3,13 @@
 package org.higherkindedj.optics.util;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -22,6 +26,7 @@ import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.trampoline.Trampoline;
+import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -417,5 +422,225 @@ public final class Traversals {
 
     return Trampoline.defer(
         () -> sequenceStateListTrampoline(states, index + 1, result.state(), resultList));
+  }
+
+  /**
+   * Converts a {@link Traversal} into a {@link Lens} focusing on a list of all traversed elements.
+   *
+   * <p>This powerful combinator allows you to extract all focused elements as a list, manipulate
+   * that list using standard list operations (sorting, reversing, filtering, etc.), and write the
+   * results back to the structure.
+   *
+   * <p>The getter extracts all focused elements into a mutable {@link List}. The setter distributes
+   * the list elements back to the original positions. If the new list has fewer elements than the
+   * original, the remaining positions retain their original values. If the new list has more
+   * elements, the extra elements are ignored.
+   *
+   * <p>Example use cases:
+   *
+   * <ul>
+   *   <li>Sorting focused elements
+   *   <li>Reversing focused elements
+   *   <li>Removing duplicates
+   *   <li>Applying list algorithms to traversal focuses
+   * </ul>
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Sort all names in a list of users
+   * Traversal<List<User>, String> userNames = Traversals.<User>forList()
+   *     .andThen(userNameLens.asTraversal());
+   * Lens<List<User>, List<String>> namesLens = Traversals.partsOf(userNames);
+   *
+   * List<User> users = List.of(
+   *     new User("Charlie", 30),
+   *     new User("Alice", 25),
+   *     new User("Bob", 35)
+   * );
+   *
+   * // Get all names as a list
+   * List<String> names = namesLens.get(users);  // ["Charlie", "Alice", "Bob"]
+   *
+   * // Sort the names
+   * List<String> sorted = new ArrayList<>(names);
+   * Collections.sort(sorted);
+   *
+   * // Set them back
+   * List<User> result = namesLens.set(sorted, users);
+   * // Result: [User("Alice", 30), User("Bob", 25), User("Charlie", 35)]
+   * }</pre>
+   *
+   * @param traversal The traversal to convert into a lens
+   * @param <S> The type of the source structure
+   * @param <A> The type of the focused elements
+   * @return A lens focusing on a list of all traversed elements
+   */
+  public static <S, A> Lens<S, List<A>> partsOf(final Traversal<S, A> traversal) {
+    return Lens.of(
+        // Getter: collect all elements into a mutable list
+        source -> getAll(traversal, source),
+        // Setter: distribute list elements back to original positions
+        (source, newList) -> {
+          final AtomicInteger index = new AtomicInteger(0);
+          return modify(
+              traversal,
+              oldValue -> {
+                int i = index.getAndIncrement();
+                return i < newList.size() ? newList.get(i) : oldValue;
+              },
+              source);
+        });
+  }
+
+  /**
+   * Sorts the elements focused by a traversal using their natural ordering.
+   *
+   * <p>This is a convenience method that uses {@link #partsOf} to extract all focused elements,
+   * sort them, and write them back.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Traversal<List<User>, Integer> userAges = Traversals.<User>forList()
+   *     .andThen(userAgeLens.asTraversal());
+   *
+   * List<User> users = List.of(
+   *     new User("Alice", 30),
+   *     new User("Bob", 25),
+   *     new User("Charlie", 35)
+   * );
+   *
+   * List<User> sorted = Traversals.sorted(userAges, users);
+   * // Result: [User("Alice", 25), User("Bob", 30), User("Charlie", 35)]
+   * // Note: ages are sorted, not users themselves
+   * }</pre>
+   *
+   * @param traversal The traversal focusing on elements to sort
+   * @param source The source structure
+   * @param <S> The type of the source structure
+   * @param <A> The type of the focused elements (must be Comparable)
+   * @return A new structure with focused elements sorted
+   */
+  public static <S, A extends Comparable<? super A>> @Nullable S sorted(
+      final Traversal<S, A> traversal, final S source) {
+    final Lens<S, List<A>> partsLens = partsOf(traversal);
+    final List<A> parts = new ArrayList<>(partsLens.get(source));
+    Collections.sort(parts);
+    return partsLens.set(parts, source);
+  }
+
+  /**
+   * Sorts the elements focused by a traversal using a custom comparator.
+   *
+   * <p>This is a convenience method that uses {@link #partsOf} to extract all focused elements,
+   * sort them with the provided comparator, and write them back.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Traversal<List<User>, String> userNames = Traversals.<User>forList()
+   *     .andThen(userNameLens.asTraversal());
+   *
+   * List<User> users = List.of(
+   *     new User("charlie", 30),
+   *     new User("Alice", 25),
+   *     new User("bob", 35)
+   * );
+   *
+   * // Sort names case-insensitively
+   * List<User> sorted = Traversals.sorted(userNames, String.CASE_INSENSITIVE_ORDER, users);
+   * // Result: [User("Alice", 30), User("bob", 25), User("charlie", 35)]
+   * }</pre>
+   *
+   * @param traversal The traversal focusing on elements to sort
+   * @param comparator The comparator to use for sorting
+   * @param source The source structure
+   * @param <S> The type of the source structure
+   * @param <A> The type of the focused elements
+   * @return A new structure with focused elements sorted
+   */
+  public static <S, A> @Nullable S sorted(
+      final Traversal<S, A> traversal, final Comparator<? super A> comparator, final S source) {
+    final Lens<S, List<A>> partsLens = partsOf(traversal);
+    final List<A> parts = new ArrayList<>(partsLens.get(source));
+    parts.sort(comparator);
+    return partsLens.set(parts, source);
+  }
+
+  /**
+   * Reverses the order of elements focused by a traversal.
+   *
+   * <p>This is a convenience method that uses {@link #partsOf} to extract all focused elements,
+   * reverse them, and write them back.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Traversal<List<User>, String> userNames = Traversals.<User>forList()
+   *     .andThen(userNameLens.asTraversal());
+   *
+   * List<User> users = List.of(
+   *     new User("Alice", 25),
+   *     new User("Bob", 30),
+   *     new User("Charlie", 35)
+   * );
+   *
+   * List<User> reversed = Traversals.reversed(userNames, users);
+   * // Result: [User("Charlie", 25), User("Bob", 30), User("Alice", 35)]
+   * // Note: names are reversed, not users themselves
+   * }</pre>
+   *
+   * @param traversal The traversal focusing on elements to reverse
+   * @param source The source structure
+   * @param <S> The type of the source structure
+   * @param <A> The type of the focused elements
+   * @return A new structure with focused elements reversed
+   */
+  public static <S, A> @Nullable S reversed(final Traversal<S, A> traversal, final S source) {
+    final Lens<S, List<A>> partsLens = partsOf(traversal);
+    final List<A> parts = new ArrayList<>(partsLens.get(source));
+    Collections.reverse(parts);
+    return partsLens.set(parts, source);
+  }
+
+  /**
+   * Removes duplicate elements from the focus of a traversal, preserving first occurrences.
+   *
+   * <p>This is a convenience method that uses {@link #partsOf} to extract all focused elements,
+   * remove duplicates while preserving order, and write them back. Since the resulting list may
+   * have fewer elements than the original, any positions beyond the deduplicated list retain their
+   * original values.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Traversal<List<User>, String> userNames = Traversals.<User>forList()
+   *     .andThen(userNameLens.asTraversal());
+   *
+   * List<User> users = List.of(
+   *     new User("Alice", 25),
+   *     new User("Bob", 30),
+   *     new User("Alice", 35),
+   *     new User("Charlie", 40)
+   * );
+   *
+   * List<User> distinct = Traversals.distinct(userNames, users);
+   * // Result: [User("Alice", 25), User("Bob", 30), User("Charlie", 35), User("Charlie", 40)]
+   * // "Alice" appears only once, "Charlie" fills third position, fourth keeps original
+   * }</pre>
+   *
+   * @param traversal The traversal focusing on elements to deduplicate
+   * @param source The source structure
+   * @param <S> The type of the source structure
+   * @param <A> The type of the focused elements
+   * @return A new structure with duplicate focused elements removed
+   */
+  public static <S, A> @Nullable S distinct(final Traversal<S, A> traversal, final S source) {
+    final Lens<S, List<A>> partsLens = partsOf(traversal);
+    final List<A> parts = partsLens.get(source);
+    // Use LinkedHashSet to preserve order while removing duplicates
+    final List<A> distinctParts = new ArrayList<>(new LinkedHashSet<>(parts));
+    return partsLens.set(distinctParts, source);
   }
 }

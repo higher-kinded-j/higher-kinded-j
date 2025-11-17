@@ -321,6 +321,282 @@ CompletableFuture<League> enrichedLeague = CF.narrow(
 
 ---
 
+## List Manipulation with `partsOf`
+
+### _Treating Traversal Focuses as Collections_
+
+~~~admonish info title="What You'll Learn"
+- Converting a Traversal into a Lens on a List of elements
+- Using `partsOf` for sorting, reversing, and deduplicating focused elements
+- Convenience methods: `sorted`, `reversed`, `distinct`
+- Understanding size mismatch behaviour and graceful degradation
+- When list-level operations on traversal targets are appropriate
+~~~
+
+~~~admonish title="Example Code"
+[PartsOfTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PartsOfTraversalExample.java)
+~~~
+
+So far, we've seen how traversals excel at applying the *same* operation to every focused element individually. But what if you need to perform operations that consider *all* focuses as a group? Sorting, reversing, or removing duplicates are inherently list-level operations—they require knowledge of the entire collection, not just individual elements.
+
+This is where `partsOf` becomes invaluable. It bridges the gap between element-wise traversal operations and collection-level algorithms.
+
+### Think of partsOf Like...
+
+* **A "collect and redistribute" operation**: Gather all targets, transform them as a group, then put them back
+* **A camera taking a snapshot**: Capture all focused elements, edit the photo, then overlay the changes
+* **A postal sorting centre**: Collect all parcels, sort them efficiently, then redistribute to addresses
+* **The bridge between trees and lists**: Temporarily flatten a structure for list operations, then restore the shape
+
+### The Problem: Element-Wise Limitations
+
+Consider this scenario: you have a catalogue of products across multiple categories, and you want to sort all prices from lowest to highest. With standard traversal operations, you're stuck:
+
+```java
+// This doesn't work - modify operates on each element independently
+Traversal<Catalogue, Double> allPrices = CatalogueTraversals.categories()
+    .andThen(CategoryTraversals.products())
+    .andThen(ProductLenses.price().asTraversal());
+
+// ❌ This sorts nothing - each price is transformed in isolation
+Catalogue result = Traversals.modify(allPrices, price -> price, catalogue);
+// Prices remain in original order!
+```
+
+The traversal has no way to "see" all prices simultaneously. Each element is processed independently, making sorting impossible.
+
+### The Solution: `partsOf`
+
+The `partsOf` combinator transforms a `Traversal<S, A>` into a `Lens<S, List<A>>`, allowing you to:
+
+1. **Get**: Extract all focused elements as a single list
+2. **Manipulate**: Apply any list operation (sort, reverse, filter, etc.)
+3. **Set**: Distribute the modified elements back to their original positions
+
+```java
+// Convert traversal to a lens on the list of all prices
+Lens<Catalogue, List<Double>> pricesLens = Traversals.partsOf(allPrices);
+
+// Get all prices as a list
+List<Double> allPricesList = pricesLens.get(catalogue);
+// Result: [999.99, 499.99, 799.99, 29.99, 49.99, 19.99]
+
+// Sort the list
+List<Double> sortedPrices = new ArrayList<>(allPricesList);
+Collections.sort(sortedPrices);
+// Result: [19.99, 29.99, 49.99, 499.99, 799.99, 999.99]
+
+// Set the sorted prices back
+Catalogue sortedCatalogue = pricesLens.set(sortedPrices, catalogue);
+```
+
+**The Magic**: The sorted prices are distributed back to the *original positions* in the structure. The first product gets the lowest price, the second product gets the second-lowest, and so on—regardless of which category they belong to.
+
+### Convenience Methods
+
+The `Traversals` utility class provides convenience methods that combine `partsOf` with common list operations:
+
+#### `sorted` - Natural Ordering
+
+```java
+Traversal<List<Product>, Double> priceTraversal =
+    Traversals.<Product>forList().andThen(ProductLenses.price().asTraversal());
+
+// Sort prices in ascending order
+List<Product> sortedProducts = Traversals.sorted(priceTraversal, products);
+```
+
+#### `sorted` - Custom Comparator
+
+```java
+Traversal<List<Product>, String> nameTraversal =
+    Traversals.<Product>forList().andThen(ProductLenses.name().asTraversal());
+
+// Sort names case-insensitively
+List<Product> sortedByName = Traversals.sorted(
+    nameTraversal,
+    String.CASE_INSENSITIVE_ORDER,
+    products
+);
+
+// Sort by name length
+List<Product> sortedByLength = Traversals.sorted(
+    nameTraversal,
+    Comparator.comparingInt(String::length),
+    products
+);
+```
+
+#### `reversed` - Invert Order
+
+```java
+Traversal<Project, Integer> priorityTraversal =
+    ProjectTraversals.tasks().andThen(TaskLenses.priority().asTraversal());
+
+// Reverse all priorities
+Project reversedProject = Traversals.reversed(priorityTraversal, project);
+
+// Useful for: inverting priority schemes, LIFO ordering, undo stacks
+```
+
+#### `distinct` - Remove Duplicates
+
+```java
+Traversal<List<Product>, String> tagTraversal =
+    Traversals.<Product>forList().andThen(ProductLenses.tag().asTraversal());
+
+// Remove duplicate tags (preserves first occurrence)
+List<Product> deduplicatedProducts = Traversals.distinct(tagTraversal, products);
+```
+
+### Understanding Size Mismatch Behaviour
+
+A crucial aspect of `partsOf` is how it handles size mismatches between the new list and the number of target positions:
+
+**Fewer elements than positions**: Original values are preserved in remaining positions.
+
+```java
+// Original: 5 products with prices [100, 200, 300, 400, 500]
+List<Double> partialPrices = List.of(10.0, 20.0, 30.0); // Only 3 values
+
+List<Product> result = pricesLens.set(partialPrices, products);
+// Result prices: [10.0, 20.0, 30.0, 400, 500]
+// First 3 updated, last 2 unchanged
+```
+
+**More elements than positions**: Extra elements are ignored.
+
+```java
+// Original: 3 products
+List<Double> extraPrices = List.of(10.0, 20.0, 30.0, 40.0, 50.0); // 5 values
+
+List<Product> result = pricesLens.set(extraPrices, products);
+// Result: Only first 3 prices used, 40.0 and 50.0 ignored
+```
+
+This graceful degradation makes `partsOf` safe to use even when you're not certain about the exact number of targets.
+
+### Lens Laws Compliance
+
+The `partsOf` combinator produces a lawful `Lens` when the list sizes match:
+
+* **Get-Set Law**: `set(get(s), s) = s` ✓
+* **Set-Get Law**: `get(set(a, s)) = a` ✓ (when `a.size() = targets`)
+* **Set-Set Law**: `set(b, set(a, s)) = set(b, s)` ✓
+
+When sizes don't match, the laws still hold for the elements that *are* provided.
+
+### Advanced Use Cases
+
+#### Combining with Filtered Traversals
+
+```java
+// Sort only in-stock product prices
+Traversal<List<Product>, Double> inStockPrices =
+    Traversals.<Product>forList()
+        .filtered(p -> p.stockLevel() > 0)
+        .andThen(ProductLenses.price().asTraversal());
+
+List<Product> result = Traversals.sorted(inStockPrices, products);
+// Out-of-stock products unchanged, in-stock prices sorted
+```
+
+#### Custom List Algorithms
+
+```java
+Lens<Catalogue, List<Double>> pricesLens = Traversals.partsOf(allPrices);
+List<Double> prices = new ArrayList<>(pricesLens.get(catalogue));
+
+// Apply any list algorithm:
+Collections.shuffle(prices);              // Randomise
+Collections.rotate(prices, 3);            // Circular rotation
+prices.sort(Comparator.reverseOrder());   // Descending sort
+prices.removeIf(p -> p < 10.0);          // Filter (with caveats)
+```
+
+### Performance Considerations
+
+`partsOf` operations traverse the structure twice:
+
+1. **Once for `get`**: Collect all focused elements
+2. **Once for `set`**: Distribute modified elements back
+
+For very large structures with thousands of focuses, consider:
+
+* Caching the lens if used repeatedly
+* Using direct stream operations if structure preservation isn't required
+* Profiling to ensure the abstraction overhead is acceptable
+
+**Best Practice**: Create the `partsOf` lens once and reuse it:
+
+```java
+public class CatalogueOptics {
+    private static final Traversal<Catalogue, Double> ALL_PRICES =
+        CatalogueTraversals.categories()
+            .andThen(CategoryTraversals.products())
+            .andThen(ProductLenses.price().asTraversal());
+
+    public static final Lens<Catalogue, List<Double>> PRICES_AS_LIST =
+        Traversals.partsOf(ALL_PRICES);
+}
+```
+
+### Common Pitfalls with partsOf
+
+#### ❌ Don't Do This:
+
+```java
+// Expecting distinct to reduce structure size
+List<Product> products = List.of(
+    new Product("Widget", 25.99),
+    new Product("Gadget", 49.99),
+    new Product("Widget", 30.00)  // Duplicate name
+);
+
+// This doesn't remove the third product!
+List<Product> result = Traversals.distinct(nameTraversal, products);
+// The new list of distinct names is shorter, so the third product keeps its original name.
+
+// Wrong: Using partsOf when you need element-wise operations
+Lens<List<Product>, List<Double>> lens = Traversals.partsOf(priceTraversal);
+List<Double> prices = lens.get(products);
+prices.forEach(p -> System.out.println(p)); // Just use Traversals.getAll()!
+```
+
+#### ✅ Do This Instead:
+
+```java
+// Understand that structure is preserved, only values redistribute
+List<Product> result = Traversals.distinct(nameTraversal, products);
+// Third product keeps original price, gets redistributed unique name
+
+// Use partsOf when you need list-level operations
+Lens<List<Product>, List<Double>> lens = Traversals.partsOf(priceTraversal);
+List<Double> prices = new ArrayList<>(lens.get(products));
+Collections.sort(prices); // True list operation
+lens.set(prices, products);
+
+// For simple iteration, use getAll
+Traversals.getAll(priceTraversal, products).forEach(System.out::println);
+```
+
+### When to Use partsOf
+
+**Use partsOf when:**
+* Sorting focused elements by their values
+* Reversing the order of focused elements
+* Removing duplicates whilst preserving structure
+* Applying list algorithms that require seeing all elements at once
+* Redistributing values across positions (e.g., load balancing)
+
+**Avoid partsOf when:**
+* Simple iteration suffices (use `getAll`)
+* Element-wise transformation is needed (use `modify`)
+* You need to change the structure itself (use streams/filtering)
+* Performance is critical and structure is very large
+
+---
+
 ## Real-World Example: Configuration Validation
 
 

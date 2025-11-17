@@ -2248,4 +2248,530 @@ class TraversalsTest {
       }
     }
   }
+
+  @Nested
+  @DisplayName("partsOf Tests")
+  class PartsOfTests {
+
+    record User(String name, int age) {}
+
+    Lens<User, String> userNameLens = Lens.of(User::name, (u, n) -> new User(n, u.age()));
+    Lens<User, Integer> userAgeLens = Lens.of(User::age, (u, a) -> new User(u.name(), a));
+
+    @Nested
+    @DisplayName("Basic functionality")
+    class BasicFunctionalityTests {
+
+      @Test
+      @DisplayName("should get all focused elements as a list")
+      void partsOf_shouldGetAllElements() {
+        List<String> source = List.of("apple", "banana", "cherry");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> parts = partsLens.get(source);
+
+        assertThat(parts).containsExactly("apple", "banana", "cherry");
+      }
+
+      @Test
+      @DisplayName("should set all focused elements from a list")
+      void partsOf_shouldSetAllElements() {
+        List<String> source = List.of("apple", "banana", "cherry");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> newValues = List.of("APPLE", "BANANA", "CHERRY");
+        List<String> result = partsLens.set(newValues, source);
+
+        assertThat(result).containsExactly("APPLE", "BANANA", "CHERRY");
+      }
+
+      @Test
+      @DisplayName("should return mutable list from get")
+      void partsOf_shouldReturnMutableList() {
+        List<String> source = List.of("a", "b", "c");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> parts = partsLens.get(source);
+        parts.add("d"); // Should not throw
+
+        assertThat(parts).containsExactly("a", "b", "c", "d");
+      }
+
+      @Test
+      @DisplayName("should work with empty traversal")
+      void partsOf_shouldHandleEmptyTraversal() {
+        List<String> source = Collections.emptyList();
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> parts = partsLens.get(source);
+        assertThat(parts).isEmpty();
+
+        List<String> result = partsLens.set(List.of("x", "y"), source);
+        assertThat(result).isEmpty(); // No positions to fill
+      }
+
+      @Test
+      @DisplayName("should preserve structure when modifying focused elements")
+      void partsOf_shouldPreserveStructure() {
+        List<User> users =
+            List.of(new User("Alice", 25), new User("Bob", 30), new User("Charlie", 35));
+
+        Traversal<List<User>, String> userNames =
+            Traversals.<User>forList().andThen(userNameLens.asTraversal());
+
+        Lens<List<User>, List<String>> namesLens = Traversals.partsOf(userNames);
+
+        List<String> newNames = List.of("ALICE", "BOB", "CHARLIE");
+        List<User> result = namesLens.set(newNames, users);
+
+        assertThat(result)
+            .containsExactly(new User("ALICE", 25), new User("BOB", 30), new User("CHARLIE", 35));
+      }
+    }
+
+    @Nested
+    @DisplayName("List size mismatch handling")
+    class ListSizeMismatchTests {
+
+      @Test
+      @DisplayName("should keep original values when new list is shorter")
+      void partsOf_shouldHandleShorterList() {
+        List<String> source = List.of("a", "b", "c", "d");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> newValues = List.of("X", "Y"); // Only 2 values
+        List<String> result = partsLens.set(newValues, source);
+
+        // First two replaced, rest unchanged
+        assertThat(result).containsExactly("X", "Y", "c", "d");
+      }
+
+      @Test
+      @DisplayName("should ignore extra elements when new list is longer")
+      void partsOf_shouldHandleLongerList() {
+        List<String> source = List.of("a", "b");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> newValues = List.of("X", "Y", "Z", "W"); // 4 values for 2 positions
+        List<String> result = partsLens.set(newValues, source);
+
+        // Only 2 positions available, extra values ignored
+        assertThat(result).containsExactly("X", "Y");
+      }
+
+      @Test
+      @DisplayName("should handle empty new list")
+      void partsOf_shouldHandleEmptyNewList() {
+        List<String> source = List.of("a", "b", "c");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> result = partsLens.set(Collections.emptyList(), source);
+
+        // All positions keep original values
+        assertThat(result).containsExactly("a", "b", "c");
+      }
+    }
+
+    @Nested
+    @DisplayName("Composition with other optics")
+    class CompositionTests {
+
+      @Test
+      @DisplayName("should compose partsOf lens with another lens")
+      void partsOf_shouldComposeWithLens() {
+        List<User> users =
+            List.of(new User("Alice", 25), new User("Bob", 30), new User("Charlie", 35));
+
+        Traversal<List<User>, Integer> userAges =
+            Traversals.<User>forList().andThen(userAgeLens.asTraversal());
+
+        Lens<List<User>, List<Integer>> agesLens = Traversals.partsOf(userAges);
+
+        // Now compose with a lens that gets the size of the list
+        Lens<List<Integer>, Integer> sizeLens =
+            Lens.of(List::size, (list, size) -> list); // Read-only essentially
+
+        Lens<List<User>, Integer> ageCountLens = agesLens.andThen(sizeLens);
+
+        int count = ageCountLens.get(users);
+        assertThat(count).isEqualTo(3);
+      }
+
+      @Test
+      @DisplayName("should work with filtered traversals")
+      void partsOf_shouldWorkWithFiltered() {
+        List<User> users =
+            List.of(
+                new User("Alice", 25),
+                new User("Bob", 30),
+                new User("Charlie", 35),
+                new User("Diana", 20));
+
+        // Focus only on users older than 25
+        Traversal<List<User>, User> olderUsers =
+            Traversals.<User>forList().filtered(u -> u.age() > 25);
+
+        Traversal<List<User>, String> olderUserNames =
+            olderUsers.andThen(userNameLens.asTraversal());
+
+        Lens<List<User>, List<String>> namesLens = Traversals.partsOf(olderUserNames);
+
+        List<String> names = namesLens.get(users);
+        assertThat(names).containsExactly("Bob", "Charlie");
+
+        // Modify only those names
+        List<String> newNames = List.of("ROBERT", "CHARLES");
+        List<User> result = namesLens.set(newNames, users);
+
+        assertThat(result)
+            .containsExactly(
+                new User("Alice", 25), // unchanged
+                new User("ROBERT", 30),
+                new User("CHARLES", 35),
+                new User("Diana", 20) // unchanged
+                );
+      }
+    }
+
+    @Nested
+    @DisplayName("Lens laws")
+    class LensLawsTests {
+
+      @Test
+      @DisplayName("should satisfy get-set law: set(get(s), s) = s")
+      void partsOf_shouldSatisfyGetSetLaw() {
+        List<String> source = List.of("a", "b", "c");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> parts = partsLens.get(source);
+        List<String> result = partsLens.set(parts, source);
+
+        assertThat(result).isEqualTo(source);
+      }
+
+      @Test
+      @DisplayName("should satisfy set-get law: get(set(a, s)) = a (when sizes match)")
+      void partsOf_shouldSatisfySetGetLaw() {
+        List<String> source = List.of("a", "b", "c");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> newValues = List.of("x", "y", "z");
+        List<String> result = partsLens.get(partsLens.set(newValues, source));
+
+        assertThat(result).isEqualTo(newValues);
+      }
+
+      @Test
+      @DisplayName("should satisfy set-set law: set(b, set(a, s)) = set(b, s)")
+      void partsOf_shouldSatisfySetSetLaw() {
+        List<String> source = List.of("a", "b", "c");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+        Lens<List<String>, List<String>> partsLens = Traversals.partsOf(traversal);
+
+        List<String> valuesA = List.of("x", "y", "z");
+        List<String> valuesB = List.of("1", "2", "3");
+
+        List<String> result1 = partsLens.set(valuesB, partsLens.set(valuesA, source));
+        List<String> result2 = partsLens.set(valuesB, source);
+
+        assertThat(result1).isEqualTo(result2);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("Convenience Methods Tests")
+  class ConvenienceMethodsTests {
+
+    record User(String name, int age) {}
+
+    Lens<User, String> userNameLens = Lens.of(User::name, (u, n) -> new User(n, u.age()));
+    Lens<User, Integer> userAgeLens = Lens.of(User::age, (u, a) -> new User(u.name(), a));
+
+    @Nested
+    @DisplayName("sorted() - Natural ordering")
+    class SortedNaturalTests {
+
+      @Test
+      @DisplayName("should sort focused elements in natural order")
+      void sorted_shouldSortNaturally() {
+        List<User> users =
+            List.of(new User("Charlie", 35), new User("Alice", 25), new User("Bob", 30));
+
+        Traversal<List<User>, String> userNames =
+            Traversals.<User>forList().andThen(userNameLens.asTraversal());
+
+        List<User> result = Traversals.sorted(userNames, users);
+
+        // Names sorted: Alice, Bob, Charlie - but placed back into original positions
+        assertThat(result)
+            .containsExactly(
+                new User("Alice", 35), // Charlie's age
+                new User("Bob", 25), // Alice's age
+                new User("Charlie", 30) // Bob's age
+                );
+      }
+
+      @Test
+      @DisplayName("should sort integers naturally")
+      void sorted_shouldSortIntegers() {
+        List<User> users =
+            List.of(new User("Alice", 30), new User("Bob", 25), new User("Charlie", 35));
+
+        Traversal<List<User>, Integer> userAges =
+            Traversals.<User>forList().andThen(userAgeLens.asTraversal());
+
+        List<User> result = Traversals.sorted(userAges, users);
+
+        assertThat(result)
+            .containsExactly(new User("Alice", 25), new User("Bob", 30), new User("Charlie", 35));
+      }
+
+      @Test
+      @DisplayName("should handle empty list")
+      void sorted_shouldHandleEmptyList() {
+        List<String> source = Collections.emptyList();
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.sorted(traversal, source);
+
+        assertThat(result).isEmpty();
+      }
+
+      @Test
+      @DisplayName("should handle single element")
+      void sorted_shouldHandleSingleElement() {
+        List<String> source = List.of("alone");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.sorted(traversal, source);
+
+        assertThat(result).containsExactly("alone");
+      }
+
+      @Test
+      @DisplayName("should preserve structure when sorting")
+      void sorted_shouldPreserveStructure() {
+        List<Integer> source = List.of(3, 1, 4, 1, 5);
+        Traversal<List<Integer>, Integer> traversal = Traversals.forList();
+
+        List<Integer> result = Traversals.sorted(traversal, source);
+
+        assertThat(result).containsExactly(1, 1, 3, 4, 5);
+      }
+    }
+
+    @Nested
+    @DisplayName("sorted() - Custom comparator")
+    class SortedCustomTests {
+
+      @Test
+      @DisplayName("should sort with custom comparator")
+      void sorted_shouldSortWithCustomComparator() {
+        List<User> users =
+            List.of(new User("charlie", 35), new User("Alice", 25), new User("bob", 30));
+
+        Traversal<List<User>, String> userNames =
+            Traversals.<User>forList().andThen(userNameLens.asTraversal());
+
+        // Sort case-insensitively
+        List<User> result = Traversals.sorted(userNames, String.CASE_INSENSITIVE_ORDER, users);
+
+        assertThat(result)
+            .containsExactly(new User("Alice", 35), new User("bob", 25), new User("charlie", 30));
+      }
+
+      @Test
+      @DisplayName("should sort in reverse order")
+      void sorted_shouldSortReverse() {
+        List<Integer> source = List.of(1, 3, 2, 5, 4);
+        Traversal<List<Integer>, Integer> traversal = Traversals.forList();
+
+        List<Integer> result = Traversals.sorted(traversal, Comparator.reverseOrder(), source);
+
+        assertThat(result).containsExactly(5, 4, 3, 2, 1);
+      }
+
+      @Test
+      @DisplayName("should sort by length")
+      void sorted_shouldSortByLength() {
+        List<String> source = List.of("medium", "a", "longer");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result =
+            Traversals.sorted(traversal, Comparator.comparingInt(String::length), source);
+
+        assertThat(result).containsExactly("a", "medium", "longer");
+      }
+    }
+
+    @Nested
+    @DisplayName("reversed()")
+    class ReversedTests {
+
+      @Test
+      @DisplayName("should reverse focused elements")
+      void reversed_shouldReverse() {
+        List<User> users =
+            List.of(new User("Alice", 25), new User("Bob", 30), new User("Charlie", 35));
+
+        Traversal<List<User>, String> userNames =
+            Traversals.<User>forList().andThen(userNameLens.asTraversal());
+
+        List<User> result = Traversals.reversed(userNames, users);
+
+        // Names reversed: Charlie, Bob, Alice - placed back into original positions
+        assertThat(result)
+            .containsExactly(
+                new User("Charlie", 25), // Alice's age
+                new User("Bob", 30), // Bob's age (unchanged position)
+                new User("Alice", 35) // Charlie's age
+                );
+      }
+
+      @Test
+      @DisplayName("should handle empty list")
+      void reversed_shouldHandleEmptyList() {
+        List<String> source = Collections.emptyList();
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.reversed(traversal, source);
+
+        assertThat(result).isEmpty();
+      }
+
+      @Test
+      @DisplayName("should handle single element")
+      void reversed_shouldHandleSingleElement() {
+        List<String> source = List.of("alone");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.reversed(traversal, source);
+
+        assertThat(result).containsExactly("alone");
+      }
+
+      @Test
+      @DisplayName("should handle two elements")
+      void reversed_shouldHandleTwoElements() {
+        List<String> source = List.of("first", "second");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.reversed(traversal, source);
+
+        assertThat(result).containsExactly("second", "first");
+      }
+
+      @Test
+      @DisplayName("reversing twice should return to original")
+      void reversed_shouldBeItsOwnInverse() {
+        List<String> source = List.of("a", "b", "c", "d");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result =
+            Traversals.reversed(traversal, Traversals.reversed(traversal, source));
+
+        assertThat(result).isEqualTo(source);
+      }
+    }
+
+    @Nested
+    @DisplayName("distinct()")
+    class DistinctTests {
+
+      @Test
+      @DisplayName("should remove duplicate focused elements")
+      void distinct_shouldRemoveDuplicates() {
+        List<User> users =
+            List.of(
+                new User("Alice", 25),
+                new User("Bob", 30),
+                new User("Alice", 35),
+                new User("Charlie", 40));
+
+        Traversal<List<User>, String> userNames =
+            Traversals.<User>forList().andThen(userNameLens.asTraversal());
+
+        List<User> result = Traversals.distinct(userNames, users);
+
+        // Unique names: Alice, Bob, Charlie (3 values for 4 positions)
+        // Fourth position keeps original "Charlie"
+        assertThat(result)
+            .containsExactly(
+                new User("Alice", 25),
+                new User("Bob", 30),
+                new User("Charlie", 35), // Alice's duplicate position gets Charlie
+                new User("Charlie", 40) // Unchanged - no value provided
+                );
+      }
+
+      @Test
+      @DisplayName("should preserve first occurrence")
+      void distinct_shouldPreserveFirstOccurrence() {
+        List<String> source = List.of("a", "b", "a", "c", "b");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.distinct(traversal, source);
+
+        // Unique: a, b, c (3 values for 5 positions)
+        assertThat(result).containsExactly("a", "b", "c", "c", "b");
+      }
+
+      @Test
+      @DisplayName("should handle no duplicates")
+      void distinct_shouldHandleNoDuplicates() {
+        List<String> source = List.of("a", "b", "c");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.distinct(traversal, source);
+
+        assertThat(result).containsExactly("a", "b", "c");
+      }
+
+      @Test
+      @DisplayName("should handle all duplicates")
+      void distinct_shouldHandleAllDuplicates() {
+        List<String> source = List.of("x", "x", "x", "x");
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.distinct(traversal, source);
+
+        // Only one unique value for 4 positions
+        assertThat(result).containsExactly("x", "x", "x", "x");
+      }
+
+      @Test
+      @DisplayName("should handle empty list")
+      void distinct_shouldHandleEmptyList() {
+        List<String> source = Collections.emptyList();
+        Traversal<List<String>, String> traversal = Traversals.forList();
+
+        List<String> result = Traversals.distinct(traversal, source);
+
+        assertThat(result).isEmpty();
+      }
+
+      @Test
+      @DisplayName("should preserve order of first occurrences")
+      void distinct_shouldPreserveOrder() {
+        List<Integer> source = List.of(3, 1, 4, 1, 5, 9, 2, 6, 5, 3);
+        Traversal<List<Integer>, Integer> traversal = Traversals.forList();
+
+        List<Integer> parts = Traversals.partsOf(traversal).get(source);
+        List<Integer> uniqueParts = new ArrayList<>(new LinkedHashSet<>(parts));
+
+        // Should be: 3, 1, 4, 5, 9, 2, 6 (order preserved)
+        assertThat(uniqueParts).containsExactly(3, 1, 4, 5, 9, 2, 6);
+      }
+    }
+  }
 }
