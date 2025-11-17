@@ -12,7 +12,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
-import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

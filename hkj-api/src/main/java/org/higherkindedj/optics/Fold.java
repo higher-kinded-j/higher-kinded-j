@@ -365,9 +365,7 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
         return self.foldMap(
-            monoid,
-            a -> query.exists(predicate, a) ? f.apply(a) : monoid.empty(),
-            source);
+            monoid, a -> query.exists(predicate, a) ? f.apply(a) : monoid.empty(), source);
       }
     };
   }
