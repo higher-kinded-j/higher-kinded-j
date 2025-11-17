@@ -77,6 +77,53 @@ public final class Traversals {
   }
 
   /**
+   * Creates an affine {@code Traversal} that focuses on the value only if it matches the given
+   * predicate.
+   *
+   * <p>This is a static combinator that creates a {@code Traversal<A, A>} which focuses on zero or
+   * one element (the input itself). It acts as an identity for matching values and a no-op for
+   * non-matching values.
+   *
+   * <p>This combinator is particularly useful when composed with other traversals to add filtering
+   * at any point in the composition chain.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Create an affine traversal that only focuses on active users
+   * Traversal<User, User> activeUserFilter = Traversals.filtered(User::isActive);
+   *
+   * // Compose with a list traversal
+   * Traversal<List<User>, User> activeUsersInList =
+   *     Traversals.<User>forList().andThen(activeUserFilter);
+   *
+   * // Alternative: use directly with andThen
+   * Traversal<List<User>, String> activeUserNames =
+   *     Traversals.<User>forList()
+   *         .andThen(Traversals.filtered(User::isActive))
+   *         .andThen(userNameLens.asTraversal());
+   *
+   * // Can also be used standalone
+   * User user = ...;
+   * User result = Traversals.modify(activeUserFilter, User::grantBonus, user);
+   * // If user is active, returns user with bonus; otherwise returns user unchanged
+   * }</pre>
+   *
+   * @param predicate The predicate to filter by
+   * @param <A> The type of the value to filter
+   * @return An affine {@code Traversal} that focuses on the value only if it matches
+   */
+  public static <A> Traversal<A, A> filtered(final Predicate<? super A> predicate) {
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, A> modifyF(
+          final Function<A, Kind<F, A>> f, final A source, final Applicative<F> applicative) {
+        return predicate.test(source) ? f.apply(source) : applicative.of(source);
+      }
+    };
+  }
+
+  /**
    * Creates a {@code Traversal} that focuses on every element within a {@link List}.
    *
    * <p>This is a canonical traversal for the {@code List} data type, allowing an effectful function

@@ -148,4 +148,91 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
         source,
         selective);
   }
+
+  /**
+   * Creates a new {@code Traversal} that only focuses on elements matching the given predicate.
+   *
+   * <p>This is a composable filtering combinator that enables declarative filtering as part of
+   * optic composition. Elements that don't match the predicate are preserved unchanged in the
+   * structure during modifications, but are excluded from queries like {@code getAll}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Create a traversal for all users
+   * Traversal<List<User>, User> allUsers = Traversals.forList();
+   *
+   * // Filter to only active users
+   * Traversal<List<User>, User> activeUsers = allUsers.filtered(User::isActive);
+   *
+   * // Compose further to get their names
+   * Traversal<List<User>, String> activeUserNames =
+   *     activeUsers.andThen(userNameLens.asTraversal());
+   *
+   * // Usage:
+   * List<String> names = Traversals.getAll(activeUserNames, users);
+   * // Returns only names of active users
+   *
+   * List<User> modified = Traversals.modify(activeUsers, User::grantBonus, users);
+   * // Grants bonus only to active users, inactive users preserved unchanged
+   * }</pre>
+   *
+   * @param predicate The predicate to filter elements by
+   * @return A new {@code Traversal} that only focuses on matching elements
+   */
+  default Traversal<S, A> filtered(Predicate<? super A> predicate) {
+    Traversal<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
+        // Apply f only to matching elements, leave others unchanged
+        Function<A, Kind<F, A>> conditionalF =
+            a -> predicate.test(a) ? f.apply(a) : applicative.of(a);
+        return self.modifyF(conditionalF, source, applicative);
+      }
+    };
+  }
+
+  /**
+   * Creates a new {@code Traversal} that only focuses on elements where a nested query satisfies
+   * the given predicate.
+   *
+   * <p>This advanced filtering combinator allows filtering based on properties accessed through
+   * another optic (Fold), enabling queries like "all users who have at least one expensive order".
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Traversal for all users
+   * Traversal<List<User>, User> allUsers = Traversals.forList();
+   *
+   * // Fold from User to their order totals
+   * Fold<User, Integer> orderTotals = userOrdersFold.andThen(orderTotalFold);
+   *
+   * // Filter to users who have any order over $100
+   * Traversal<List<User>, User> bigSpenders =
+   *     allUsers.filterBy(orderTotals, total -> total > 100);
+   *
+   * // Get all big spenders
+   * List<User> spenders = Traversals.getAll(bigSpenders, users);
+   * }</pre>
+   *
+   * @param query The {@link Fold} to query each focused element
+   * @param predicate The predicate to test the queried values
+   * @param <B> The type of values queried by the Fold
+   * @return A new {@code Traversal} that only focuses on elements where the query matches
+   */
+  default <B> Traversal<S, A> filterBy(Fold<A, B> query, Predicate<? super B> predicate) {
+    Traversal<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(
+          Function<A, Kind<F, A>> f, S source, Applicative<F> applicative) {
+        Function<A, Kind<F, A>> conditionalF =
+            a -> query.exists(predicate, a) ? f.apply(a) : applicative.of(a);
+        return self.modifyF(conditionalF, source, applicative);
+      }
+    };
+  }
 }

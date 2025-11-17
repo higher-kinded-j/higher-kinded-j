@@ -12,8 +12,10 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
+import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Traversal<S, A> Tests")
@@ -27,6 +29,19 @@ class TraversalTest {
   record JsonString(String value) implements Json {}
 
   record JsonNumber(int value) implements Json {}
+
+  // Additional test data structures for filtering tests
+  record User(String name, boolean active, int score) {
+    User grantBonus() {
+      return new User(name, active, score + 100);
+    }
+  }
+
+  record Order(List<Item> items) {}
+
+  record Item(String name, int price) {}
+
+  record Customer(String name, List<Order> orders) {}
 
   // Helper to create a Traversal for any List.
   private <T> Traversal<List<T>, T> listElements() {
@@ -79,5 +94,370 @@ class TraversalTest {
     List<Json> modified = Traversals.modify(composed, String::toUpperCase, source);
     assertThat(modified)
         .containsExactly(new JsonString("HELLO"), new JsonNumber(1), new JsonString("WORLD"));
+  }
+
+  @Nested
+  @DisplayName("filtered() - Predicate-based filtering")
+  class FilteredTests {
+
+    @Test
+    @DisplayName("filtered() should only modify elements matching predicate")
+    void filteredModifiesOnlyMatching() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Traversal<List<User>, User> activeUsers = allUsers.filtered(User::active);
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      List<User> result = Traversals.modify(activeUsers, User::grantBonus, users);
+
+      // Active users get bonus, inactive user preserved unchanged
+      assertThat(result)
+          .containsExactly(
+              new User("Alice", true, 200), // bonus applied
+              new User("Bob", false, 200), // unchanged
+              new User("Charlie", true, 250) // bonus applied
+              );
+    }
+
+    @Test
+    @DisplayName("filtered() getAll should only return matching elements")
+    void filteredGetAllReturnsOnlyMatching() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Traversal<List<User>, User> activeUsers = allUsers.filtered(User::active);
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      List<User> actives = Traversals.getAll(activeUsers, users);
+
+      assertThat(actives).hasSize(2).extracting(User::name).containsExactly("Alice", "Charlie");
+    }
+
+    @Test
+    @DisplayName("filtered() should work with empty list")
+    void filteredWithEmptyList() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Traversal<List<User>, User> activeUsers = allUsers.filtered(User::active);
+
+      List<User> emptyList = List.of();
+      List<User> result = Traversals.modify(activeUsers, User::grantBonus, emptyList);
+      assertThat(result).isEmpty();
+
+      List<User> gotten = Traversals.getAll(activeUsers, emptyList);
+      assertThat(gotten).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filtered() should handle when no elements match")
+    void filteredNoMatches() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Traversal<List<User>, User> activeUsers = allUsers.filtered(User::active);
+
+      List<User> users = List.of(new User("Alice", false, 100), new User("Bob", false, 200));
+
+      List<User> result = Traversals.modify(activeUsers, User::grantBonus, users);
+      assertThat(result).containsExactly(users.toArray(new User[0]));
+
+      List<User> gotten = Traversals.getAll(activeUsers, users);
+      assertThat(gotten).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filtered() should handle when all elements match")
+    void filteredAllMatch() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Traversal<List<User>, User> activeUsers = allUsers.filtered(User::active);
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", true, 200),
+              new User("Charlie", true, 150));
+
+      List<User> result = Traversals.modify(activeUsers, User::grantBonus, users);
+      assertThat(result).extracting(User::score).containsExactly(200, 300, 250);
+
+      List<User> gotten = Traversals.getAll(activeUsers, users);
+      assertThat(gotten).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("filtered() should compose with other traversals")
+    void filteredComposition() {
+      Traversal<List<User>, User> allUsers = listElements();
+      Lens<User, String> nameLens =
+          Lens.of(User::name, (u, n) -> new User(n, u.active(), u.score()));
+
+      // Compose: list -> filtered users -> name
+      Traversal<List<User>, String> activeUserNames =
+          allUsers.filtered(User::active).andThen(nameLens.asTraversal());
+
+      List<User> users =
+          List.of(
+              new User("alice", true, 100),
+              new User("bob", false, 200),
+              new User("charlie", true, 150));
+
+      // Get only active user names
+      List<String> names = Traversals.getAll(activeUserNames, users);
+      assertThat(names).containsExactly("alice", "charlie");
+
+      // Modify only active user names
+      List<User> result = Traversals.modify(activeUserNames, String::toUpperCase, users);
+      assertThat(result)
+          .containsExactly(
+              new User("ALICE", true, 100),
+              new User("bob", false, 200), // unchanged
+              new User("CHARLIE", true, 150));
+    }
+
+    @Test
+    @DisplayName("filtered() can be chained multiple times")
+    void filteredChaining() {
+      Traversal<List<User>, User> allUsers = listElements();
+
+      // Chain two filters: active AND high score
+      Traversal<List<User>, User> activeHighScorers =
+          allUsers.filtered(User::active).filtered(u -> u.score() > 120);
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100), // active but low score
+              new User("Bob", false, 200), // high score but inactive
+              new User("Charlie", true, 150), // active and high score
+              new User("Diana", true, 180) // active and high score
+              );
+
+      List<User> result = Traversals.getAll(activeHighScorers, users);
+      assertThat(result).hasSize(2).extracting(User::name).containsExactly("Charlie", "Diana");
+    }
+  }
+
+  @Nested
+  @DisplayName("filterBy() - Query-based filtering")
+  class FilterByTests {
+
+    @Test
+    @DisplayName("filterBy() should filter based on nested fold query")
+    void filterByNestedQuery() {
+      Traversal<List<Order>, Order> allOrders = listElements();
+      Fold<Order, Item> orderItems = Fold.of(Order::items);
+
+      // Filter orders that have any expensive item (price > 100)
+      Traversal<List<Order>, Order> ordersWithExpensiveItems =
+          allOrders.filterBy(orderItems, item -> item.price() > 100);
+
+      List<Order> orders =
+          List.of(
+              new Order(List.of(new Item("Apple", 50), new Item("Banana", 30))), // no expensive
+              new Order(List.of(new Item("Laptop", 1000), new Item("Mouse", 25))), // has expensive
+              new Order(List.of(new Item("Book", 20))), // no expensive
+              new Order(List.of(new Item("Phone", 800), new Item("Case", 150))) // has expensive
+              );
+
+      List<Order> result = Traversals.getAll(ordersWithExpensiveItems, orders);
+
+      assertThat(result).hasSize(2);
+      assertThat(result.get(0).items()).extracting(Item::name).contains("Laptop");
+      assertThat(result.get(1).items()).extracting(Item::name).contains("Phone");
+    }
+
+    @Test
+    @DisplayName("filterBy() should modify only matching elements based on query")
+    void filterByModifiesCorrectly() {
+      Traversal<List<Customer>, Customer> allCustomers = listElements();
+      Fold<Customer, Order> customerOrders = Fold.of(Customer::orders);
+      Fold<Order, Item> orderItems = Fold.of(Order::items);
+      Fold<Customer, Item> customerItems = customerOrders.andThen(orderItems);
+
+      // Filter customers who have any item over $500
+      Traversal<List<Customer>, Customer> highValueCustomers =
+          allCustomers.filterBy(customerItems, item -> item.price() > 500);
+
+      List<Customer> customers =
+          List.of(
+              new Customer(
+                  "Alice", List.of(new Order(List.of(new Item("Book", 20), new Item("Pen", 5))))),
+              new Customer("Bob", List.of(new Order(List.of(new Item("Laptop", 1000))))),
+              new Customer("Charlie", List.of(new Order(List.of(new Item("Coffee", 5))))));
+
+      Lens<Customer, String> nameLens =
+          Lens.of(Customer::name, (c, n) -> new Customer(n, c.orders()));
+
+      // Mark high-value customers
+      Traversal<List<Customer>, String> highValueNames =
+          highValueCustomers.andThen(nameLens.asTraversal());
+
+      List<Customer> result = Traversals.modify(highValueNames, name -> name + " [VIP]", customers);
+
+      assertThat(result)
+          .extracting(Customer::name)
+          .containsExactly("Alice", "Bob [VIP]", "Charlie");
+    }
+
+    @Test
+    @DisplayName("filterBy() with empty nested fold should exclude element")
+    void filterByWithEmptyNested() {
+      Traversal<List<Order>, Order> allOrders = listElements();
+      Fold<Order, Item> orderItems = Fold.of(Order::items);
+
+      Traversal<List<Order>, Order> ordersWithCheapItems =
+          allOrders.filterBy(orderItems, item -> item.price() < 10);
+
+      List<Order> orders =
+          List.of(
+              new Order(List.of()), // empty order - no items to match
+              new Order(List.of(new Item("Pen", 5))), // has cheap item
+              new Order(List.of(new Item("Laptop", 1000))) // no cheap items
+              );
+
+      List<Order> result = Traversals.getAll(ordersWithCheapItems, orders);
+      assertThat(result).hasSize(1);
+      assertThat(result.get(0).items()).extracting(Item::name).containsExactly("Pen");
+    }
+
+    @Test
+    @DisplayName("filterBy() can use composed folds")
+    void filterByWithComposedFold() {
+      Traversal<List<Customer>, Customer> allCustomers = listElements();
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Getter<Order, Integer> orderTotalGetter =
+          Getter.of(source -> source.items().stream().mapToInt(Item::price).sum());
+      Fold<Order, Integer> orderTotalFold = orderTotalGetter.asFold();
+
+      // Customers with any order total over $500
+      Fold<Customer, Integer> customerOrderTotals = ordersFold.andThen(orderTotalFold);
+      Traversal<List<Customer>, Customer> bigSpenders =
+          allCustomers.filterBy(customerOrderTotals, total -> total > 500);
+
+      List<Customer> customers =
+          List.of(
+              new Customer(
+                  "Alice",
+                  List.of(new Order(List.of(new Item("A", 100), new Item("B", 100))))), // 200
+              new Customer(
+                  "Bob",
+                  List.of(new Order(List.of(new Item("C", 300), new Item("D", 300))))), // 600
+              new Customer(
+                  "Charlie",
+                  List.of(
+                      new Order(List.of(new Item("E", 50))), // 50
+                      new Order(List.of(new Item("F", 700)))))); // 700
+
+      List<Customer> result = Traversals.getAll(bigSpenders, customers);
+      assertThat(result).hasSize(2).extracting(Customer::name).containsExactly("Bob", "Charlie");
+    }
+  }
+
+  @Nested
+  @DisplayName("Traversals.filtered() - Static combinator")
+  class StaticFilteredTests {
+
+    @Test
+    @DisplayName("static filtered() creates affine traversal")
+    void staticFilteredCreatesAffineTraversal() {
+      Traversal<User, User> activeFilter = Traversals.filtered(User::active);
+
+      User activeUser = new User("Alice", true, 100);
+      User inactiveUser = new User("Bob", false, 200);
+
+      // Active user gets modified
+      User result1 = Traversals.modify(activeFilter, User::grantBonus, activeUser);
+      assertThat(result1.score()).isEqualTo(200);
+
+      // Inactive user stays unchanged
+      User result2 = Traversals.modify(activeFilter, User::grantBonus, inactiveUser);
+      assertThat(result2.score()).isEqualTo(200);
+      assertThat(result2).isEqualTo(inactiveUser);
+    }
+
+    @Test
+    @DisplayName("static filtered() getAll returns element only if matches")
+    void staticFilteredGetAll() {
+      Traversal<User, User> activeFilter = Traversals.filtered(User::active);
+
+      User activeUser = new User("Alice", true, 100);
+      User inactiveUser = new User("Bob", false, 200);
+
+      List<User> result1 = Traversals.getAll(activeFilter, activeUser);
+      assertThat(result1).containsExactly(activeUser);
+
+      List<User> result2 = Traversals.getAll(activeFilter, inactiveUser);
+      assertThat(result2).isEmpty();
+    }
+
+    @Test
+    @DisplayName("static filtered() composes with list traversal")
+    void staticFilteredComposesWithList() {
+      Traversal<List<User>, User> activeUsersInList =
+          Traversals.<User>forList().andThen(Traversals.filtered(User::active));
+
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      List<User> actives = Traversals.getAll(activeUsersInList, users);
+      assertThat(actives).hasSize(2).extracting(User::name).containsExactly("Alice", "Charlie");
+    }
+
+    @Test
+    @DisplayName("static filtered() chains with further traversals")
+    void staticFilteredChains() {
+      Lens<User, String> nameLens =
+          Lens.of(User::name, (u, n) -> new User(n, u.active(), u.score()));
+
+      Traversal<List<User>, String> activeUserNames =
+          Traversals.<User>forList()
+              .andThen(Traversals.filtered(User::active))
+              .andThen(nameLens.asTraversal());
+
+      List<User> users =
+          List.of(
+              new User("alice", true, 100),
+              new User("bob", false, 200),
+              new User("charlie", true, 150));
+
+      List<String> names = Traversals.getAll(activeUserNames, users);
+      assertThat(names).containsExactly("alice", "charlie");
+
+      List<User> modified = Traversals.modify(activeUserNames, String::toUpperCase, users);
+      assertThat(modified).extracting(User::name).containsExactly("ALICE", "bob", "CHARLIE");
+    }
+
+    @Test
+    @DisplayName("static filtered() is semantically equivalent to instance method")
+    void staticFilteredEquivalentToInstanceMethod() {
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      // Instance method approach
+      Traversal<List<User>, User> approach1 = Traversals.<User>forList().filtered(User::active);
+
+      // Static combinator approach
+      Traversal<List<User>, User> approach2 =
+          Traversals.<User>forList().andThen(Traversals.filtered(User::active));
+
+      List<User> result1 = Traversals.getAll(approach1, users);
+      List<User> result2 = Traversals.getAll(approach2, users);
+
+      assertThat(result1).containsExactlyElementsOf(result2);
+
+      List<User> modified1 = Traversals.modify(approach1, User::grantBonus, users);
+      List<User> modified2 = Traversals.modify(approach2, User::grantBonus, users);
+
+      assertThat(modified1).containsExactlyElementsOf(modified2);
+    }
   }
 }

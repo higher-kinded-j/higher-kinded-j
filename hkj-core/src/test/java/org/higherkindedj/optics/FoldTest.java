@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.optics.Getter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -320,6 +321,311 @@ class FoldTest {
 
       assertThat(jsonStringFold.length(stringJson)).isEqualTo(1);
       assertThat(jsonStringFold.length(numberJson)).isEqualTo(0);
+    }
+  }
+
+  @Nested
+  @DisplayName("filtered() - Predicate-based filtering")
+  class FilteredTests {
+
+    @Test
+    @DisplayName("filtered() should only include elements matching predicate in getAll")
+    void filteredGetAll() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> expensiveItems = itemsFold.filtered(item -> item.price() > 100);
+
+      Order order =
+          new Order(
+              List.of(
+                  new Item("Apple", 50),
+                  new Item("Laptop", 1000),
+                  new Item("Banana", 30),
+                  new Item("Phone", 800)));
+
+      List<Item> result = expensiveItems.getAll(order);
+      assertThat(result).hasSize(2).extracting(Item::name).containsExactly("Laptop", "Phone");
+    }
+
+    @Test
+    @DisplayName("filtered() should only aggregate matching elements in foldMap")
+    void filteredFoldMap() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> expensiveItems = itemsFold.filtered(item -> item.price() > 100);
+
+      Order order =
+          new Order(
+              List.of(
+                  new Item("Apple", 50),
+                  new Item("Laptop", 1000),
+                  new Item("Banana", 30),
+                  new Item("Phone", 800)));
+
+      // Sum only expensive items
+      int total = expensiveItems.foldMap(SUM_MONOID, Item::price, order);
+      assertThat(total).isEqualTo(1800); // 1000 + 800
+    }
+
+    @Test
+    @DisplayName("filtered() should respect predicate in exists()")
+    void filteredExists() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> expensiveItems = itemsFold.filtered(item -> item.price() > 100);
+
+      Order order = new Order(List.of(new Item("Apple", 50), new Item("Laptop", 1000)));
+
+      // Check if any expensive item costs more than 500
+      assertThat(expensiveItems.exists(item -> item.price() > 500, order)).isTrue();
+
+      // Check if any expensive item is named "Apple" (Apple isn't expensive, so not included)
+      assertThat(expensiveItems.exists(item -> item.name().equals("Apple"), order)).isFalse();
+    }
+
+    @Test
+    @DisplayName("filtered() should respect predicate in all()")
+    void filteredAll() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> expensiveItems = itemsFold.filtered(item -> item.price() > 100);
+
+      Order order =
+          new Order(
+              List.of(new Item("Apple", 50), new Item("Laptop", 1000), new Item("Phone", 800)));
+
+      // All expensive items cost more than 500
+      assertThat(expensiveItems.all(item -> item.price() > 500, order)).isTrue();
+
+      // Not all expensive items cost more than 900
+      assertThat(expensiveItems.all(item -> item.price() > 900, order)).isFalse();
+    }
+
+    @Test
+    @DisplayName("filtered() should count only matching elements")
+    void filteredLength() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> expensiveItems = itemsFold.filtered(item -> item.price() > 100);
+
+      Order order =
+          new Order(
+              List.of(
+                  new Item("Apple", 50),
+                  new Item("Laptop", 1000),
+                  new Item("Banana", 30),
+                  new Item("Phone", 800)));
+
+      assertThat(expensiveItems.length(order)).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("filtered() with no matches should return empty results")
+    void filteredNoMatches() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> veryExpensiveItems = itemsFold.filtered(item -> item.price() > 10000);
+
+      Order order = new Order(List.of(new Item("Laptop", 1000), new Item("Phone", 800)));
+
+      assertThat(veryExpensiveItems.getAll(order)).isEmpty();
+      assertThat(veryExpensiveItems.length(order)).isEqualTo(0);
+      assertThat(veryExpensiveItems.foldMap(SUM_MONOID, Item::price, order)).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("filtered() with empty source should handle gracefully")
+    void filteredEmptySource() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Fold<Order, Item> expensiveItems = itemsFold.filtered(item -> item.price() > 100);
+
+      Order emptyOrder = new Order(List.of());
+
+      assertThat(expensiveItems.getAll(emptyOrder)).isEmpty();
+      assertThat(expensiveItems.length(emptyOrder)).isEqualTo(0);
+      assertThat(expensiveItems.isEmpty(emptyOrder)).isTrue();
+    }
+
+    @Test
+    @DisplayName("filtered() can be chained")
+    void filteredChaining() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      // Items that are expensive AND have name starting with 'P'
+      Fold<Order, Item> expensivePItems =
+          itemsFold
+              .filtered(item -> item.price() > 100)
+              .filtered(item -> item.name().startsWith("P"));
+
+      Order order =
+          new Order(
+              List.of(
+                  new Item("Apple", 50),
+                  new Item("Laptop", 1000),
+                  new Item("Phone", 800),
+                  new Item("Pencil", 2)));
+
+      List<Item> result = expensivePItems.getAll(order);
+      assertThat(result).hasSize(1).extracting(Item::name).containsExactly("Phone");
+    }
+
+    @Test
+    @DisplayName("filtered() composes with other folds")
+    void filteredComposition() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      // All items from all orders, then filter to expensive ones
+      Fold<Customer, Item> expensiveCustomerItems =
+          ordersFold.andThen(itemsFold).filtered(item -> item.price() > 100);
+
+      Customer customer =
+          new Customer(
+              "Alice",
+              List.of(
+                  new Order(List.of(new Item("Apple", 50), new Item("Laptop", 1000))),
+                  new Order(List.of(new Item("Phone", 800), new Item("Banana", 30)))));
+
+      List<Item> expensive = expensiveCustomerItems.getAll(customer);
+      assertThat(expensive).hasSize(2).extracting(Item::name).containsExactly("Laptop", "Phone");
+    }
+  }
+
+  @Nested
+  @DisplayName("filterBy() - Query-based filtering")
+  class FilterByTests {
+
+    @Test
+    @DisplayName("filterBy() should filter based on nested fold query")
+    void filterByNestedQuery() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      // Filter orders that have any expensive item
+      Fold<Customer, Order> ordersWithExpensiveItems =
+          ordersFold.filterBy(itemsFold, item -> item.price() > 100);
+
+      Customer customer =
+          new Customer(
+              "Alice",
+              List.of(
+                  new Order(List.of(new Item("Apple", 50), new Item("Banana", 30))),
+                  new Order(List.of(new Item("Laptop", 1000))),
+                  new Order(List.of(new Item("Pen", 5)))));
+
+      List<Order> result = ordersWithExpensiveItems.getAll(customer);
+      assertThat(result).hasSize(1);
+      assertThat(result.get(0).items()).extracting(Item::name).containsExactly("Laptop");
+    }
+
+    @Test
+    @DisplayName("filterBy() should aggregate only matching elements")
+    void filterByFoldMap() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      // Orders with any item over $500
+      Fold<Customer, Order> highValueOrders =
+          ordersFold.filterBy(itemsFold, item -> item.price() > 500);
+
+      Customer customer =
+          new Customer(
+              "Alice",
+              List.of(
+                  new Order(List.of(new Item("Apple", 50))), // total: 50
+                  new Order(List.of(new Item("Laptop", 1000))), // total: 1000 (matches)
+                  new Order(List.of(new Item("Phone", 800))))); // total: 800 (matches)
+
+      // Count high-value orders
+      int count = highValueOrders.length(customer);
+      assertThat(count).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("filterBy() with empty nested should exclude element")
+    void filterByEmptyNested() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      Fold<Customer, Order> ordersWithCheapItems =
+          ordersFold.filterBy(itemsFold, item -> item.price() < 10);
+
+      Customer customer =
+          new Customer(
+              "Alice",
+              List.of(
+                  new Order(List.of()), // empty order - no items
+                  new Order(List.of(new Item("Pen", 5))), // has cheap item
+                  new Order(List.of(new Item("Laptop", 1000))))); // no cheap items
+
+      List<Order> result = ordersWithCheapItems.getAll(customer);
+      assertThat(result).hasSize(1);
+      assertThat(result.get(0).items()).extracting(Item::name).containsExactly("Pen");
+    }
+
+    @Test
+    @DisplayName("filterBy() can use composed folds")
+    void filterByComposedFold() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+
+      // Create a fold that gets order total
+      Getter<Order, Integer> orderTotalGetter =
+          Getter.of(source -> source.items().stream().mapToInt(Item::price).sum());
+      Fold<Order, Integer> orderTotalFold = orderTotalGetter.asFold();
+
+      // Orders with total over $500
+      Fold<Customer, Order> bigOrders = ordersFold.filterBy(orderTotalFold, total -> total > 500);
+
+      Customer customer =
+          new Customer(
+              "Alice",
+              List.of(
+                  new Order(List.of(new Item("A", 100), new Item("B", 100))), // 200
+                  new Order(List.of(new Item("C", 300), new Item("D", 300))), // 600
+                  new Order(List.of(new Item("E", 50))))); // 50
+
+      int bigOrderCount = bigOrders.length(customer);
+      assertThat(bigOrderCount).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("filterBy() should work with preview()")
+    void filterByPreview() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      Fold<Customer, Order> ordersWithExpensiveItems =
+          ordersFold.filterBy(itemsFold, item -> item.price() > 100);
+
+      Customer customer =
+          new Customer(
+              "Alice",
+              List.of(
+                  new Order(List.of(new Item("Apple", 50))),
+                  new Order(List.of(new Item("Laptop", 1000)))));
+
+      Optional<Order> firstExpensive = ordersWithExpensiveItems.preview(customer);
+      assertThat(firstExpensive).isPresent();
+      assertThat(firstExpensive.get().items()).extracting(Item::name).containsExactly("Laptop");
+    }
+
+    @Test
+    @DisplayName("filterBy() should work with find()")
+    void filterByFind() {
+      Fold<Customer, Order> ordersFold = Fold.of(Customer::orders);
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      Fold<Customer, Order> ordersWithExpensiveItems =
+          ordersFold.filterBy(itemsFold, item -> item.price() > 100);
+
+      Customer customer =
+          new Customer(
+              "Alice",
+              List.of(
+                  new Order(List.of(new Item("Apple", 50))),
+                  new Order(List.of(new Item("Laptop", 1000))),
+                  new Order(List.of(new Item("Phone", 800), new Item("Case", 150)))));
+
+      // Find first order with expensive items that has more than 1 item
+      Optional<Order> result =
+          ordersWithExpensiveItems.find(order -> order.items().size() > 1, customer);
+
+      assertThat(result).isPresent();
+      assertThat(result.get().items()).hasSize(2);
     }
   }
 }
