@@ -732,6 +732,8 @@ The **At** type class provides a powerful abstraction for indexed CRUD operation
 
 At bridges the gap between pure functional optics and practical collection manipulation, enabling you to build robust, immutable data pipelines that handle the full lifecycle of indexed data.
 
+**Related**: For read/update-only operations without insert/delete semantics, see the [Ixed Type Class](ixed.md) guide, which provides safe partial access via `Traversal<S, A>`.
+
 ---
 
-[Previous: Setters](setters.md) | [Next: Profunctor Optics](profunctor_optics.md)
+[Previous: Setters](setters.md) | [Next: Ixed Type Class](ixed.md)
