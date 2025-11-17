@@ -585,5 +585,5 @@ The key insight: **Getters make pure functions first-class composable citizens**
 
 ---
 
-**Previous:** [Folds: Querying Immutable Data](folds.md)
+**Previous:** [Filtered Optics: Predicate-Based Composition](filtered_optics.md)
 **Next:** [Setters: Composable Write-Only Modifications](setters.md)

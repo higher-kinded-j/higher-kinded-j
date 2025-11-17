@@ -60,6 +60,7 @@
   - [Isomorphisms](optics/iso.md)
   - [Traversals](optics/traversals.md)
   - [Folds](optics/folds.md)
+  - [Filtered Optics](optics/filtered_optics.md)
   - [Getters](optics/getters.md)
   - [Setters](optics/setters.md)
   - [At Type Class](optics/at.md)

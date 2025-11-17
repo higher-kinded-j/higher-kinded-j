@@ -291,6 +291,86 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
+   * Creates a new {@code Fold} that only focuses on elements matching the given predicate.
+   *
+   * <p>This is a composable filtering combinator for read-only queries. Elements that don't match
+   * the predicate are excluded from all fold operations (getAll, foldMap, exists, etc.).
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Fold from Order to all Items
+   * Fold<Order, Item> itemsFold = Fold.of(Order::items);
+   *
+   * // Filter to expensive items only
+   * Fold<Order, Item> expensiveItems = itemsFold.filtered(item -> item.price() > 100);
+   *
+   * // Usage:
+   * int count = expensiveItems.length(order);
+   * // Returns count of expensive items only
+   *
+   * List<Item> expensive = expensiveItems.getAll(order);
+   * // Returns only items with price > 100
+   *
+   * int totalExpensive = expensiveItems.foldMap(sumMonoid, Item::price, order);
+   * // Sum of only expensive items
+   * }</pre>
+   *
+   * @param predicate The predicate to filter elements by
+   * @return A new {@code Fold} that only focuses on matching elements
+   */
+  default Fold<S, A> filtered(Predicate<? super A> predicate) {
+    Fold<S, A> self = this;
+    return new Fold<>() {
+      @Override
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+        return self.foldMap(monoid, a -> predicate.test(a) ? f.apply(a) : monoid.empty(), source);
+      }
+    };
+  }
+
+  /**
+   * Creates a new {@code Fold} that only focuses on elements where a nested query satisfies the
+   * given predicate.
+   *
+   * <p>This advanced filtering combinator allows filtering based on properties accessed through
+   * another optic (Fold), enabling queries like "all items from orders where the order total
+   * exceeds $500".
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Fold from Customer to all Items across all orders
+   * Fold<Customer, Item> customerItems = customerOrdersFold.andThen(orderItemsFold);
+   *
+   * // Fold from Item to its category tags
+   * Fold<Item, String> itemTags = Fold.of(Item::tags);
+   *
+   * // Filter to items that have any "premium" tag
+   * Fold<Customer, Item> premiumItems =
+   *     customerItems.filterBy(itemTags, tag -> tag.equals("premium"));
+   *
+   * // Get all premium items
+   * List<Item> premium = premiumItems.getAll(customer);
+   * }</pre>
+   *
+   * @param query The {@link Fold} to query each focused element
+   * @param predicate The predicate to test the queried values
+   * @param <B> The type of values queried by the Fold
+   * @return A new {@code Fold} that only focuses on elements where the query matches
+   */
+  default <B> Fold<S, A> filterBy(Fold<A, B> query, Predicate<? super B> predicate) {
+    Fold<S, A> self = this;
+    return new Fold<>() {
+      @Override
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+        return self.foldMap(
+            monoid, a -> query.exists(predicate, a) ? f.apply(a) : monoid.empty(), source);
+      }
+    };
+  }
+
+  /**
    * Creates a {@code Fold} from a function that extracts a list of focused parts.
    *
    * <p>Example:
