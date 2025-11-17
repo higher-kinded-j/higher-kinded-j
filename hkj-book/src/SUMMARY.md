@@ -61,6 +61,7 @@
   - [Traversals](optics/traversals.md)
   - [Folds](optics/folds.md)
   - [Filtered Optics](optics/filtered_optics.md)
+  - [Limiting Traversals](optics/limiting_traversals.md)
   - [Getters](optics/getters.md)
   - [Setters](optics/setters.md)
   - [At Type Class](optics/at.md)
