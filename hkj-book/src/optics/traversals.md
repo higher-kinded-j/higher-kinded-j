@@ -555,7 +555,7 @@ List<Product> products = List.of(
 
 // This doesn't remove the third product!
 List<Product> result = Traversals.distinct(nameTraversal, products);
-// Still has 3 products, but third gets name from first two's unique set
+// The new list of distinct names is shorter, so the third product keeps its original name.
 
 // Wrong: Using partsOf when you need element-wise operations
 Lens<List<Product>, List<Double>> lens = Traversals.partsOf(priceTraversal);
