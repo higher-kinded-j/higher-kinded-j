@@ -192,4 +192,163 @@ class PrismTest {
       assertThat(unmodified).isSameAs(failureSource);
     }
   }
+
+  @Nested
+  @DisplayName("Convenience Methods")
+  class ConvenienceMethods {
+    @Test
+    @DisplayName("matches should return true when prism matches")
+    void matches_shouldReturnTrueOnMatch() {
+      Json json = new JsonString("hello");
+      assertThat(jsonStringPrism.matches(json)).isTrue();
+    }
+
+    @Test
+    @DisplayName("matches should return false when prism does not match")
+    void matches_shouldReturnFalseOnMismatch() {
+      Json json = new JsonNumber(42);
+      assertThat(jsonStringPrism.matches(json)).isFalse();
+    }
+
+    @Test
+    @DisplayName("getOrElse should return value when prism matches")
+    void getOrElse_shouldReturnValueOnMatch() {
+      Json json = new JsonString("hello");
+      String result = jsonStringPrism.getOrElse("default", json);
+      assertThat(result).isEqualTo("hello");
+    }
+
+    @Test
+    @DisplayName("getOrElse should return default when prism does not match")
+    void getOrElse_shouldReturnDefaultOnMismatch() {
+      Json json = new JsonNumber(42);
+      String result = jsonStringPrism.getOrElse("default", json);
+      assertThat(result).isEqualTo("default");
+    }
+
+    @Test
+    @DisplayName("mapOptional should transform matched value")
+    void mapOptional_shouldTransformOnMatch() {
+      Json json = new JsonString("hello");
+      Optional<Integer> result = jsonStringPrism.mapOptional(String::length, json);
+      assertThat(result).isPresent().contains(5);
+    }
+
+    @Test
+    @DisplayName("mapOptional should return empty when prism does not match")
+    void mapOptional_shouldReturnEmptyOnMismatch() {
+      Json json = new JsonNumber(42);
+      Optional<Integer> result = jsonStringPrism.mapOptional(String::length, json);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("modify should modify value when prism matches")
+    void modify_shouldModifyOnMatch() {
+      Json json = new JsonString("hello");
+      Json result = jsonStringPrism.modify(String::toUpperCase, json);
+      assertThat(result).isEqualTo(new JsonString("HELLO"));
+    }
+
+    @Test
+    @DisplayName("modify should return original when prism does not match")
+    void modify_shouldReturnOriginalOnMismatch() {
+      Json json = new JsonNumber(42);
+      Json result = jsonStringPrism.modify(String::toUpperCase, json);
+      assertThat(result).isSameAs(json);
+    }
+
+    @Test
+    @DisplayName("modifyWhen should modify when both prism matches and condition is met")
+    void modifyWhen_shouldModifyWhenConditionMet() {
+      Json json = new JsonString("hello");
+      Json result = jsonStringPrism.modifyWhen(s -> s.length() > 3, String::toUpperCase, json);
+      assertThat(result).isEqualTo(new JsonString("HELLO"));
+    }
+
+    @Test
+    @DisplayName("modifyWhen should not modify when prism matches but condition is not met")
+    void modifyWhen_shouldNotModifyWhenConditionNotMet() {
+      Json json = new JsonString("hi");
+      Json result = jsonStringPrism.modifyWhen(s -> s.length() > 3, String::toUpperCase, json);
+      assertThat(result).isSameAs(json);
+    }
+
+    @Test
+    @DisplayName("modifyWhen should not modify when prism does not match")
+    void modifyWhen_shouldNotModifyWhenPrismDoesNotMatch() {
+      Json json = new JsonNumber(42);
+      Json result = jsonStringPrism.modifyWhen(s -> s.length() > 3, String::toUpperCase, json);
+      assertThat(result).isSameAs(json);
+    }
+
+    @Test
+    @DisplayName("setWhen should set value when both prism matches and condition is met")
+    void setWhen_shouldSetWhenConditionMet() {
+      Json json = new JsonString("old");
+      Json result = jsonStringPrism.setWhen(s -> !s.isEmpty(), "new", json);
+      assertThat(result).isEqualTo(new JsonString("new"));
+    }
+
+    @Test
+    @DisplayName("setWhen should not set when prism matches but condition is not met")
+    void setWhen_shouldNotSetWhenConditionNotMet() {
+      Json json = new JsonString("");
+      Json result = jsonStringPrism.setWhen(s -> !s.isEmpty(), "new", json);
+      assertThat(result).isSameAs(json);
+    }
+
+    @Test
+    @DisplayName("setWhen should not set when prism does not match")
+    void setWhen_shouldNotSetWhenPrismDoesNotMatch() {
+      Json json = new JsonNumber(42);
+      Json result = jsonStringPrism.setWhen(s -> !s.isEmpty(), "new", json);
+      assertThat(result).isSameAs(json);
+    }
+
+    @Test
+    @DisplayName("orElse should use first prism when it matches")
+    void orElse_shouldUseFirstPrismOnMatch() {
+      Prism<Json, String> alternative =
+          Prism.of(json -> Optional.of("alternative"), s -> new JsonString("alt:" + s));
+      Prism<Json, String> combined = jsonStringPrism.orElse(alternative);
+
+      Json json = new JsonString("hello");
+      Optional<String> result = combined.getOptional(json);
+      assertThat(result).isPresent().contains("hello");
+    }
+
+    @Test
+    @DisplayName("orElse should use second prism when first does not match")
+    void orElse_shouldUseSecondPrismOnMismatch() {
+      Prism<Json, String> alternative =
+          Prism.of(
+              json ->
+                  (json instanceof JsonNumber n)
+                      ? Optional.of(String.valueOf(n.value()))
+                      : Optional.empty(),
+              s -> new JsonNumber(Integer.parseInt(s)));
+      Prism<Json, String> combined = jsonStringPrism.orElse(alternative);
+
+      Json json = new JsonNumber(42);
+      Optional<String> result = combined.getOptional(json);
+      assertThat(result).isPresent().contains("42");
+    }
+
+    @Test
+    @DisplayName("orElse should use first prism's build method")
+    void orElse_shouldUseFirstPrismBuild() {
+      Prism<Json, String> alternative =
+          Prism.of(
+              json ->
+                  (json instanceof JsonNumber n)
+                      ? Optional.of(String.valueOf(n.value()))
+                      : Optional.empty(),
+              s -> new JsonNumber(Integer.parseInt(s)));
+      Prism<Json, String> combined = jsonStringPrism.orElse(alternative);
+
+      Json result = combined.build("test");
+      assertThat(result).isEqualTo(new JsonString("test"));
+    }
+  }
 }

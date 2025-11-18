@@ -693,4 +693,4 @@ Filtered optics represent the pinnacle of declarative data manipulation in Javaâ
 ---
 
 **Previous:** [Folds: Querying Immutable Data](folds.md)
-**Next:** [Limiting Traversals: Focusing on List Portions](limiting_traversals.md)
+**Next:** [Indexed Optics: Position-Aware Operations](indexed_optics.md)

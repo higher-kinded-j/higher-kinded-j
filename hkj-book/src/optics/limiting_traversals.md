@@ -626,5 +626,5 @@ Limiting traversals represent the natural evolution of optics for list manipulat
 
 ---
 
-**Previous:** [Filtered Optics: Predicate-Based Composition](filtered_optics.md)
+**Previous:** [Indexed Optics: Position-Aware Operations](indexed_optics.md)
 **Next:** [Getters: Composable Read-Only Access](getters.md)

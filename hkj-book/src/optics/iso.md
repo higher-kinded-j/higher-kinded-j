@@ -548,6 +548,6 @@ The step-by-step conversion approach shown in the examples is the most practical
 
 ---
 
-**Previous:**[Prisms: Working with Sum Types](prisms.md)
-**Next:**[Traversals: Handling Bulk Updates](traversals.md)
+**Previous:** [Advanced Prism Patterns](advanced_prism_patterns.md)
+**Next:** [Traversals: Handling Bulk Updates](traversals.md)
 
