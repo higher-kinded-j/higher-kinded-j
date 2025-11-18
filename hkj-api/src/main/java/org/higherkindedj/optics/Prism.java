@@ -215,11 +215,17 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
    * JsonValue value = new JsonString("hello");
    *
-   * JsonValue result = stringPrism.modify(String::toUpperCase, value);
+   * JsonValue result = stringPrism.modify(
+   *     s -> new JsonString(s.value().toUpperCase()),
+   *     value
+   * );
    * // Returns new JsonString("HELLO")
    *
    * JsonValue number = new JsonNumber(42);
-   * JsonValue unchanged = stringPrism.modify(String::toUpperCase, number);
+   * JsonValue unchanged = stringPrism.modify(
+   *     s -> new JsonString(s.value().toUpperCase()),
+   *     number
+   * );
    * // Returns the original JsonNumber(42) unchanged
    * }</pre>
    *
@@ -345,10 +351,7 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
   default Prism<S, A> orElse(Prism<S, A> other) {
     Prism<S, A> self = this;
     return Prism.of(
-        source -> {
-          Optional<A> first = self.getOptional(source);
-          return first.isPresent() ? first : other.getOptional(source);
-        },
+        source -> self.getOptional(source).or(() -> other.getOptional(source)),
         self::build // Always use the first prism's builder
         );
   }

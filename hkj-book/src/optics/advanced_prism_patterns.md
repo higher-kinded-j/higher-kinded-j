@@ -113,6 +113,7 @@ Traversal<ConfigValue, ConfigValue> databaseConfig =
         .andThen(Traversals.forMap("connection"));
 
 // Extract with fallback
+ConfigValue rootConfig = loadConfiguration(); // Top-level configuration object
 Optional<ConfigValue> connConfig = Traversals.getAll(databaseConfig, rootConfig)
     .stream().findFirst();
 ```
@@ -627,6 +628,8 @@ public class OrderStateMachine {
 ### Advanced: Transition Table
 
 ```java
+import org.higherkindedj.optics.util.Pair; // Pair utility from hkj-optics
+
 public class AdvancedStateMachine {
     // Define transitions as a declarative table
     private static final Map<
@@ -637,13 +640,13 @@ public class AdvancedStateMachine {
         (state, event) -> PAYMENT.mapOptional(
             p -> new Processing(p.transactionId(), Instant.now()),
             event
-        ).map(s -> (OrderState) s).orElse(state),
+        ).orElse(state),
 
         Pair.of(PROCESSING, SHIPPING),
         (state, event) -> SHIPPING.mapOptional(
             s -> new Shipped(s.trackingNumber(), Instant.now()),
             event
-        ).map(st -> (OrderState) st).orElse(state)
+        ).orElse(state)
     );
 
     public OrderState process(OrderState state, OrderEvent event) {
@@ -846,26 +849,26 @@ public class CompositePlugin {
 
 ```java
 public class OptimisedPrismCache {
-    // Cache expensive prism compositions
-    private static final Map<String, Prism<?, ?>> PRISM_CACHE =
+    // Cache expensive optic compositions
+    private static final Map<String, Object> OPTIC_CACHE =
         new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    public static <S, A> Prism<S, A> getCached(
+    public static <T> T getCached(
         String key,
-        Supplier<Prism<S, A>> factory
+        Supplier<T> factory
     ) {
-        return (Prism<S, A>) PRISM_CACHE.computeIfAbsent(key, k -> factory.get());
+        return (T) OPTIC_CACHE.computeIfAbsent(key, k -> factory.get());
     }
 
-    // Example usage
-    private static final Prism<Config, String> DATABASE_HOST =
+    // Example usage: caching a composed traversal
+    private static final Traversal<Config, String> DATABASE_HOST =
         getCached("config.database.host", () ->
             ConfigLenses.database()
                 .asTraversal()
                 .andThen(Prisms.some().asTraversal())
                 .andThen(Prisms.right().asTraversal())
-                .andThen(DatabaseSettingsLenses.host())
+                .andThen(DatabaseSettingsLenses.host().asTraversal())
         );
 }
 ```
