@@ -6,4 +6,5 @@ module org.higherkindedj.api {
   exports org.higherkindedj.hkt;
   exports org.higherkindedj.hkt.function;
   exports org.higherkindedj.optics;
+  exports org.higherkindedj.optics.indexed;
 }
