@@ -57,6 +57,7 @@
 - [Optics Introduction](optics/optics_intro.md)
   - [Lenses](optics/lenses.md)
   - [Prisms](optics/prisms.md)
+  - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)
   - [Isomorphisms](optics/iso.md)
   - [Traversals](optics/traversals.md)
   - [Folds](optics/folds.md)

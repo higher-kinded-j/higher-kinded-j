@@ -4,6 +4,7 @@ package org.higherkindedj.optics;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
@@ -127,6 +128,229 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
         return self.build(other.build(value));
       }
     };
+  }
+
+  /**
+   * Checks if this prism matches the given structure.
+   *
+   * <p>This is useful for type checking without extraction, providing a cleaner alternative to
+   * {@code getOptional(source).isPresent()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+   * JsonValue value = new JsonString("hello");
+   *
+   * if (stringPrism.matches(value)) {
+   *   // Process as a string
+   * }
+   * }</pre>
+   *
+   * @param source The source structure to test.
+   * @return {@code true} if the prism matches, {@code false} otherwise.
+   */
+  default boolean matches(S source) {
+    return getOptional(source).isPresent();
+  }
+
+  /**
+   * Provides a default value if the prism doesn't match.
+   *
+   * <p>This is a convenient shortcut for {@code getOptional(source).orElse(defaultValue)}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+   * JsonValue value = new JsonNumber(42);
+   *
+   * String result = stringPrism.getOrElse(new JsonString("default"), value);
+   * // Returns "default" since the value is a number, not a string
+   * }</pre>
+   *
+   * @param defaultValue The default value to use if the prism doesn't match.
+   * @param source The source structure.
+   * @return The matched value or the default value.
+   */
+  default A getOrElse(A defaultValue, S source) {
+    return getOptional(source).orElse(defaultValue);
+  }
+
+  /**
+   * Applies a function to the matched value and returns the result wrapped in an {@link Optional}.
+   *
+   * <p>This is useful for transforming matched values without building them back into the source
+   * structure. It's equivalent to {@code getOptional(source).map(f)}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+   * JsonValue value = new JsonString("hello");
+   *
+   * Optional<Integer> length = stringPrism.mapOptional(String::length, value);
+   * // Returns Optional.of(5)
+   * }</pre>
+   *
+   * @param f The function to apply to the matched value.
+   * @param source The source structure.
+   * @param <B> The result type of the function.
+   * @return An {@link Optional} containing the result if the prism matches, or empty otherwise.
+   */
+  default <B> Optional<B> mapOptional(Function<? super A, ? extends B> f, S source) {
+    return getOptional(source).map(f);
+  }
+
+  /**
+   * Modifies the focused part {@code A} using a pure function, if the prism matches.
+   *
+   * <p>This is a convenient shortcut similar to {@link Lens#modify}, but for prisms. If the prism
+   * matches, the focused value is extracted, modified, and built back into the structure. If the
+   * prism doesn't match, the original structure is returned unchanged.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+   * JsonValue value = new JsonString("hello");
+   *
+   * JsonValue result = stringPrism.modify(String::toUpperCase, value);
+   * // Returns new JsonString("HELLO")
+   *
+   * JsonValue number = new JsonNumber(42);
+   * JsonValue unchanged = stringPrism.modify(String::toUpperCase, number);
+   * // Returns the original JsonNumber(42) unchanged
+   * }</pre>
+   *
+   * @param modifier The function to apply to the focused part.
+   * @param source The source structure.
+   * @return A new structure with the modified part, or the original structure if the prism doesn't
+   *     match.
+   */
+  default S modify(Function<A, A> modifier, S source) {
+    return getOptional(source).map(a -> build(modifier.apply(a))).orElse(source);
+  }
+
+  /**
+   * Modifies the focused part only when it meets a specified condition.
+   *
+   * <p>This combines matching and conditional modification: the prism must match, and the extracted
+   * value must satisfy the predicate for modification to occur.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+   * JsonValue value = new JsonString("hello");
+   *
+   * // Only uppercase strings longer than 3 characters
+   * JsonValue result = stringPrism.modifyWhen(
+   *   s -> s.length() > 3,
+   *   String::toUpperCase,
+   *   value
+   * );
+   * // Returns new JsonString("HELLO")
+   *
+   * JsonValue shortValue = new JsonString("hi");
+   * JsonValue unchanged = stringPrism.modifyWhen(
+   *   s -> s.length() > 3,
+   *   String::toUpperCase,
+   *   shortValue
+   * );
+   * // Returns original JsonString("hi") since condition not met
+   * }</pre>
+   *
+   * @param condition The predicate that the focused value must satisfy.
+   * @param modifier The function to apply if the condition is met.
+   * @param source The source structure.
+   * @return A new structure with the conditionally modified part, or the original structure if the
+   *     prism doesn't match or the condition is not met.
+   */
+  default S modifyWhen(Predicate<? super A> condition, Function<A, A> modifier, S source) {
+    return getOptional(source).filter(condition).map(a -> build(modifier.apply(a))).orElse(source);
+  }
+
+  /**
+   * Sets a new value only when the current value meets a specified condition.
+   *
+   * <p>This is useful for conditional updates based on the current state. The prism must match, and
+   * the extracted value must satisfy the predicate for the set operation to occur.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+   * JsonValue value = new JsonString("old");
+   *
+   * // Only replace non-empty strings
+   * JsonValue result = stringPrism.setWhen(
+   *   s -> !s.isEmpty(),
+   *   "new",
+   *   value
+   * );
+   * // Returns new JsonString("new")
+   *
+   * JsonValue emptyValue = new JsonString("");
+   * JsonValue unchanged = stringPrism.setWhen(
+   *   s -> !s.isEmpty(),
+   *   "new",
+   *   emptyValue
+   * );
+   * // Returns original JsonString("") since condition not met
+   * }</pre>
+   *
+   * @param condition The predicate that the current value must satisfy.
+   * @param newValue The new value to set if the condition is met.
+   * @param source The source structure.
+   * @return A new structure with the conditionally set value, or the original structure if the
+   *     prism doesn't match or the condition is not met.
+   */
+  default S setWhen(Predicate<? super A> condition, A newValue, S source) {
+    return getOptional(source).filter(condition).map(a -> build(newValue)).orElse(source);
+  }
+
+  /**
+   * Chains multiple prisms, returning the first match.
+   *
+   * <p>This creates a new prism that tries this prism first, and if it doesn't match, tries the
+   * other prism. The resulting prism uses the first prism's {@code build} function for
+   * construction.
+   *
+   * <p>This is useful for providing fallback matching strategies or handling multiple alternative
+   * cases.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, Number> intPrism = JsonValuePrisms.jsonInt();
+   * Prism<JsonValue, Number> doublePrism = JsonValuePrisms.jsonDouble();
+   *
+   * Prism<JsonValue, Number> numberPrism = intPrism.orElse(doublePrism);
+   *
+   * // Matches either int or double
+   * JsonValue intValue = new JsonInt(42);
+   * Optional<Number> result1 = numberPrism.getOptional(intValue);  // Optional.of(42)
+   *
+   * JsonValue doubleValue = new JsonDouble(3.14);
+   * Optional<Number> result2 = numberPrism.getOptional(doubleValue);  // Optional.of(3.14)
+   *
+   * // Building uses the first prism's builder
+   * JsonValue built = numberPrism.build(100);  // Uses intPrism.build
+   * }</pre>
+   *
+   * @param other Another prism to try if this one doesn't match.
+   * @return A prism that tries this one first, then the other.
+   */
+  default Prism<S, A> orElse(Prism<S, A> other) {
+    Prism<S, A> self = this;
+    return Prism.of(
+        source -> {
+          Optional<A> first = self.getOptional(source);
+          return first.isPresent() ? first : other.getOptional(source);
+        },
+        self::build // Always use the first prism's builder
+        );
   }
 
   /**
