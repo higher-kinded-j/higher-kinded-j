@@ -151,12 +151,17 @@ public class OpticInterpretersExample {
 
     // Execute with validation interpreter (doesn't modify data)
     System.out.println("Validating transaction (dry-run, no changes applied)...");
-    ValidationOpticInterpreter validation = OpticInterpreters.validation();
-    validation.run(program);
+    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(program);
 
-    System.out.println("\nValidation Log:");
+    System.out.println("\nValidation Results:");
     System.out.println("  " + "=".repeat(55));
-    validation.getLog().forEach(entry -> System.out.println("  " + entry));
+    System.out.println("  Valid: " + validationResult.isValid());
+    System.out.println("  Errors: " + validationResult.errors().size());
+    System.out.println("  Warnings: " + validationResult.warnings().size());
+    if (!validationResult.warnings().isEmpty()) {
+      validationResult.warnings().forEach(warn -> System.out.println("    - " + warn));
+    }
     System.out.println("  " + "=".repeat(55));
     System.out.println();
 
@@ -238,10 +243,11 @@ public class OpticInterpretersExample {
 
     System.out.println("Phase 1: Validation");
     ValidationOpticInterpreter validator = OpticInterpreters.validation();
-    validator.run(program);
+    ValidationOpticInterpreter.ValidationResult validation = validator.validate(program);
 
-    if (validator.getLog().stream().anyMatch(log -> log.contains("ERROR"))) {
+    if (!validation.isValid()) {
       System.out.println("  ✗ Validation failed, transaction aborted");
+      validation.errors().forEach(err -> System.out.println("    " + err));
       return;
     }
     System.out.println("  ✓ Validation passed");
@@ -330,50 +336,51 @@ public class OpticInterpretersExample {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <A> A run(Free<OpticOpKind.Witness, A> program) {
-      return program.resume(
-          op -> {
+      // Natural transformation from OpticOp to Id monad (with profiling)
+      Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
+          kind -> {
+            OpticOp<?, ?> op = OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
+
             String opType = getOperationType(op);
             long startTime = System.nanoTime();
 
-            Object result = executeOp(op);
+            // Execute the operation
+            Object result =
+                switch (op) {
+                  case OpticOp.Get<?, ?> get -> get.optic().get(get.source());
+                  case OpticOp.Set<?, ?> set -> set.optic().set(set.newValue(), set.source());
+                  case OpticOp.Modify<?, ?> modify ->
+                      modify.optic().modify(modify.modifier(), modify.source());
+                  case OpticOp.GetAll<?, ?> getAll -> getAll.optic().getAll(getAll.source());
+                  case OpticOp.ModifyAll<?, ?> modifyAll ->
+                      org.higherkindedj.optics.util.Traversals.modify(
+                          modifyAll.optic(), modifyAll.modifier(), modifyAll.source());
+                  default -> throw new UnsupportedOperationException("Unknown operation type");
+                };
 
             long endTime = System.nanoTime();
-            profile
-                .computeIfAbsent(opType, k -> new OperationStats())
-                .addMeasurement(endTime - startTime);
+            profile.computeIfAbsent(opType, k -> new OperationStats()).addMeasurement(endTime - startTime);
             totalOps++;
 
-            @SuppressWarnings("unchecked")
-            Free<OpticOpKind.Witness, A> next = (Free<OpticOpKind.Witness, A>) result;
-            return run(next);
-          },
-          a -> a);
+            return Id.of(result);
+          };
+
+      // Interpret the program using the Id monad
+      Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, IdMonad.instance());
+      return IdKindHelper.ID.narrow(resultKind).value();
     }
 
-    private String getOperationType(OpticOp<?, ?, ?, ?> op) {
-      if (op instanceof OpticOp.Get<?, ?, ?, ?>) return "GET";
-      if (op instanceof OpticOp.Set<?, ?, ?, ?>) return "SET";
-      if (op instanceof OpticOp.Modify<?, ?, ?, ?>) return "MODIFY";
-      if (op instanceof OpticOp.GetAll<?, ?, ?, ?>) return "GET_ALL";
-      if (op instanceof OpticOp.ModifyAll<?, ?, ?, ?>) return "MODIFY_ALL";
-      return "UNKNOWN";
-    }
-
-    private Object executeOp(OpticOp<?, ?, ?, ?> op) {
-      DirectOpticInterpreter direct = OpticInterpreters.direct();
-      if (op instanceof OpticOp.Get<?, ?, ?, ?> get) {
-        return get.next().apply(direct.executeGet(get));
-      } else if (op instanceof OpticOp.Set<?, ?, ?, ?> set) {
-        return set.next().apply(direct.executeSet(set));
-      } else if (op instanceof OpticOp.Modify<?, ?, ?, ?> modify) {
-        return modify.next().apply(direct.executeModify(modify));
-      } else if (op instanceof OpticOp.GetAll<?, ?, ?, ?> getAll) {
-        return getAll.next().apply(direct.executeGetAll(getAll));
-      } else if (op instanceof OpticOp.ModifyAll<?, ?, ?, ?> modifyAll) {
-        return modifyAll.next().apply(direct.executeModifyAll(modifyAll));
-      }
-      throw new UnsupportedOperationException("Unknown operation type");
+    private String getOperationType(OpticOp<?, ?> op) {
+      return switch (op) {
+        case OpticOp.Get<?, ?> ignored -> "GET";
+        case OpticOp.Set<?, ?> ignored -> "SET";
+        case OpticOp.Modify<?, ?> ignored -> "MODIFY";
+        case OpticOp.GetAll<?, ?> ignored -> "GET_ALL";
+        case OpticOp.ModifyAll<?, ?> ignored -> "MODIFY_ALL";
+        default -> "UNKNOWN";
+      };
     }
 
     public Map<String, OperationStats> getProfile() {
@@ -395,46 +402,51 @@ public class OpticInterpretersExample {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <A> A run(Free<OpticOpKind.Witness, A> program) {
-      return program.resume(
-          op -> {
-            Object result = executeWithMocks(op);
-            @SuppressWarnings("unchecked")
-            Free<OpticOpKind.Witness, A> next = (Free<OpticOpKind.Witness, A>) result;
-            return run(next);
-          },
-          a -> a);
-    }
+      // Natural transformation from OpticOp to Id monad (with mocking)
+      Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
+          kind -> {
+            OpticOp<?, ?> op = OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
 
-    private Object executeWithMocks(OpticOp<?, ?, ?, ?> op) {
-      if (op instanceof OpticOp.Get<?, ?, ?, ?> get) {
-        Object mockValue = mockData.get(get.optic());
-        if (mockValue != null) {
-          log.add("MOCK GET: " + get.optic().getClass().getSimpleName() + " -> " + mockValue);
-          return get.next().apply(mockValue);
-        } else {
-          log.add("REAL GET: " + get.optic().getClass().getSimpleName());
-          DirectOpticInterpreter direct = OpticInterpreters.direct();
-          return get.next().apply(direct.executeGet(get));
-        }
-      } else if (op instanceof OpticOp.Set<?, ?, ?, ?> set) {
-        log.add("MOCK SET: " + set.optic().getClass().getSimpleName() + " -> " + set.newValue());
-        DirectOpticInterpreter direct = OpticInterpreters.direct();
-        return set.next().apply(direct.executeSet(set));
-      } else if (op instanceof OpticOp.Modify<?, ?, ?, ?> modify) {
-        log.add("MOCK MODIFY: " + modify.optic().getClass().getSimpleName());
-        DirectOpticInterpreter direct = OpticInterpreters.direct();
-        return modify.next().apply(direct.executeModify(modify));
-      } else if (op instanceof OpticOp.GetAll<?, ?, ?, ?> getAll) {
-        log.add("MOCK GET_ALL: " + getAll.optic().getClass().getSimpleName());
-        DirectOpticInterpreter direct = OpticInterpreters.direct();
-        return getAll.next().apply(direct.executeGetAll(getAll));
-      } else if (op instanceof OpticOp.ModifyAll<?, ?, ?, ?> modifyAll) {
-        log.add("MOCK MODIFY_ALL: " + modifyAll.optic().getClass().getSimpleName());
-        DirectOpticInterpreter direct = OpticInterpreters.direct();
-        return modifyAll.next().apply(direct.executeModifyAll(modifyAll));
-      }
-      throw new UnsupportedOperationException("Unknown operation type");
+            Object result =
+                switch (op) {
+                  case OpticOp.Get<?, ?> get -> {
+                    Object mockValue = mockData.get(get.optic());
+                    if (mockValue != null) {
+                      log.add("MOCK GET: " + get.optic().getClass().getSimpleName() + " -> " + mockValue);
+                      yield mockValue;
+                    } else {
+                      log.add("REAL GET: " + get.optic().getClass().getSimpleName());
+                      yield get.optic().get(get.source());
+                    }
+                  }
+                  case OpticOp.Set<?, ?> set -> {
+                    log.add("MOCK SET: " + set.optic().getClass().getSimpleName() + " -> " + set.newValue());
+                    yield set.optic().set(set.newValue(), set.source());
+                  }
+                  case OpticOp.Modify<?, ?> modify -> {
+                    log.add("MOCK MODIFY: " + modify.optic().getClass().getSimpleName());
+                    yield modify.optic().modify(modify.modifier(), modify.source());
+                  }
+                  case OpticOp.GetAll<?, ?> getAll -> {
+                    log.add("MOCK GET_ALL: " + getAll.optic().getClass().getSimpleName());
+                    yield getAll.optic().getAll(getAll.source());
+                  }
+                  case OpticOp.ModifyAll<?, ?> modifyAll -> {
+                    log.add("MOCK MODIFY_ALL: " + modifyAll.optic().getClass().getSimpleName());
+                    yield org.higherkindedj.optics.util.Traversals.modify(
+                        modifyAll.optic(), modifyAll.modifier(), modifyAll.source());
+                  }
+                  default -> throw new UnsupportedOperationException("Unknown operation type");
+                };
+
+            return Id.of(result);
+          };
+
+      // Interpret the program using the Id monad
+      Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, IdMonad.instance());
+      return IdKindHelper.ID.narrow(resultKind).value();
     }
 
     public List<String> getLog() {
