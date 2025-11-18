@@ -1,0 +1,662 @@
+// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.free;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.List;
+import java.util.Optional;
+import org.higherkindedj.hkt.free.Free;
+import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.Test;
+
+/** Tests for the Free monad DSL {@link OpticPrograms} and interpreters. */
+class OpticProgramsTest {
+
+  // Test data
+  record Person(String name, int age) {}
+
+  static final Lens<Person, String> NAME_LENS =
+      Lens.of(Person::name, (person, name) -> new Person(name, person.age()));
+
+  static final Lens<Person, Integer> AGE_LENS =
+      Lens.of(Person::age, (person, age) -> new Person(person.name(), age));
+
+  record Team(String name, List<Person> members) {}
+
+  static final Lens<Team, String> TEAM_NAME_LENS =
+      Lens.of(Team::name, (team, name) -> new Team(name, team.members()));
+
+  static final Lens<Team, List<Person>> TEAM_MEMBERS_LENS =
+      Lens.of(Team::members, (team, members) -> new Team(team.name(), members));
+
+  static final Traversal<Team, Person> TEAM_MEMBERS_TRAVERSAL =
+      TEAM_MEMBERS_LENS.asTraversal().andThen(Traversals.forList());
+
+  // ============================================================================
+  // Direct Interpreter Tests
+  // ============================================================================
+
+  @Test
+  void testGetProgram() {
+    Person person = new Person("Alice", 25);
+    Free<OpticOpKind.Witness, String> program = OpticPrograms.get(person, NAME_LENS);
+
+    String result = OpticInterpreters.direct().run(program);
+    assertEquals("Alice", result);
+  }
+
+  @Test
+  void testSetProgram() {
+    Person person = new Person("Alice", 25);
+    Free<OpticOpKind.Witness, Person> program = OpticPrograms.set(person, NAME_LENS, "Bob");
+
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals("Bob", result.name());
+    assertEquals(25, result.age());
+  }
+
+  @Test
+  void testModifyProgram() {
+    Person person = new Person("Alice", 25);
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.modify(person, AGE_LENS, age -> age + 1);
+
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals("Alice", result.name());
+    assertEquals(26, result.age());
+  }
+
+  @Test
+  void testPreviewProgram() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25)));
+    Free<OpticOpKind.Witness, Optional<Person>> program =
+        OpticPrograms.preview(team, TEAM_MEMBERS_TRAVERSAL);
+
+    Optional<Person> result = OpticInterpreters.direct().run(program);
+    assertTrue(result.isPresent());
+    assertEquals("Alice", result.get().name());
+  }
+
+  @Test
+  void testGetAllProgram() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Free<OpticOpKind.Witness, List<Person>> program =
+        OpticPrograms.getAll(team, TEAM_MEMBERS_TRAVERSAL);
+
+    List<Person> result = OpticInterpreters.direct().run(program);
+    assertEquals(2, result.size());
+  }
+
+  @Test
+  void testModifyAllProgram() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+    Free<OpticOpKind.Witness, Team> program = OpticPrograms.modifyAll(team, ages, age -> age + 1);
+
+    Team result = OpticInterpreters.direct().run(program);
+    assertEquals(26, result.members().get(0).age());
+    assertEquals(31, result.members().get(1).age());
+  }
+
+  @Test
+  void testSetAllProgram() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+    Free<OpticOpKind.Witness, Team> program = OpticPrograms.setAll(team, ages, 21);
+
+    Team result = OpticInterpreters.direct().run(program);
+    assertEquals(21, result.members().get(0).age());
+    assertEquals(21, result.members().get(1).age());
+  }
+
+  @Test
+  void testExistsProgram() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+    Free<OpticOpKind.Witness, Boolean> program = OpticPrograms.exists(team, ages, age -> age >= 30);
+
+    Boolean result = OpticInterpreters.direct().run(program);
+    assertTrue(result);
+  }
+
+  @Test
+  void testAllProgram() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+    Free<OpticOpKind.Witness, Boolean> program = OpticPrograms.all(team, ages, age -> age >= 18);
+
+    Boolean result = OpticInterpreters.direct().run(program);
+    assertTrue(result);
+  }
+
+  @Test
+  void testCountProgram() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Free<OpticOpKind.Witness, Integer> program = OpticPrograms.count(team, TEAM_MEMBERS_TRAVERSAL);
+
+    Integer result = OpticInterpreters.direct().run(program);
+    assertEquals(2, result);
+  }
+
+  // ============================================================================
+  // Composition Tests
+  // ============================================================================
+
+  @Test
+  void testComposedProgram() {
+    Person person = new Person("Alice", 25);
+
+    // Compose multiple operations
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.modify(person, NAME_LENS, name -> name.toUpperCase())
+            .flatMap(p1 -> OpticPrograms.modify(p1, AGE_LENS, age -> age + 1));
+
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals("ALICE", result.name());
+    assertEquals(26, result.age());
+  }
+
+  @Test
+  void testConditionalProgram() {
+    Person minor = new Person("Alice", 17);
+    Person adult = new Person("Bob", 25);
+
+    Person minorResult = OpticInterpreters.direct().run(createAgeIncrementProgram(minor));
+    assertEquals(17, minorResult.age()); // No change
+
+    Person adultResult = OpticInterpreters.direct().run(createAgeIncrementProgram(adult));
+    assertEquals(26, adultResult.age()); // Incremented
+  }
+
+  // Helper method: creates a program that only modifies if age >= 18
+  private Free<OpticOpKind.Witness, Person> createAgeIncrementProgram(Person p) {
+    return OpticPrograms.get(p, AGE_LENS)
+        .flatMap(
+            age -> {
+              if (age >= 18) {
+                return OpticPrograms.modify(p, AGE_LENS, a -> a + 1);
+              } else {
+                return OpticPrograms.pure(p);
+              }
+            });
+  }
+
+  @Test
+  void testComplexProgram() {
+    Person person = new Person("Alice", 25);
+
+    // Multi-step program with conditional logic
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.get(person, AGE_LENS)
+            .flatMap(
+                age ->
+                    OpticPrograms.modify(person, AGE_LENS, a -> a + 1)
+                        .flatMap(
+                            p1 ->
+                                OpticPrograms.modify(
+                                        p1, NAME_LENS, name -> name + " (Age: " + (age + 1) + ")")
+                                    .flatMap(
+                                        p2 ->
+                                            OpticPrograms.get(p2, AGE_LENS)
+                                                .flatMap(
+                                                    newAge -> {
+                                                      if (newAge > 25) {
+                                                        return OpticPrograms.modify(
+                                                            p2, NAME_LENS, n -> n + " [Senior]");
+                                                      } else {
+                                                        return OpticPrograms.pure(p2);
+                                                      }
+                                                    }))));
+
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals(26, result.age());
+    assertEquals("Alice (Age: 26) [Senior]", result.name());
+  }
+
+  // ============================================================================
+  // Logging Interpreter Tests
+  // ============================================================================
+
+  @Test
+  void testLoggingInterpreter() {
+    Person person = new Person("Alice", 25);
+
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.modify(person, AGE_LENS, age -> age + 1)
+            .flatMap(p1 -> OpticPrograms.set(p1, NAME_LENS, "Bob"));
+
+    LoggingOpticInterpreter logger = OpticInterpreters.logging();
+    Person result = logger.run(program);
+
+    // Check result
+    assertEquals("Bob", result.name());
+    assertEquals(26, result.age());
+
+    // Check log
+    List<String> log = logger.getLog();
+    assertEquals(2, log.size());
+    assertTrue(log.get(0).contains("MODIFY"));
+    assertTrue(log.get(1).contains("SET"));
+  }
+
+  @Test
+  void testLoggingInterpreterMultipleRuns() {
+    Person person = new Person("Alice", 25);
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.modify(person, AGE_LENS, age -> age + 1);
+
+    LoggingOpticInterpreter logger = OpticInterpreters.logging();
+
+    // First run
+    logger.run(program);
+    assertEquals(1, logger.getLog().size());
+
+    // Clear and run again
+    logger.clearLog();
+    logger.run(program);
+    assertEquals(1, logger.getLog().size());
+  }
+
+  @Test
+  void testLoggingInterpreterWithAnonymousOptic() {
+    Person person = new Person("Alice", 25);
+
+    // Create an actual anonymous Getter to test opticName branch coverage
+    // This creates an anonymous inner class with empty getSimpleName()
+    org.higherkindedj.optics.Getter<Person, String> anonymousGetter =
+        new org.higherkindedj.optics.Getter<Person, String>() {
+          @Override
+          public String get(Person source) {
+            return source.name();
+          }
+        };
+
+    LoggingOpticInterpreter logger = OpticInterpreters.logging();
+    Free<OpticOpKind.Witness, String> program = OpticPrograms.get(person, anonymousGetter);
+
+    String result = logger.run(program);
+    assertEquals("Alice", result);
+    assertEquals(1, logger.getLog().size());
+    assertTrue(logger.getLog().get(0).contains("GET"));
+    // Verify the optic name contains the class name (from getName() with lastDot >= 0)
+    assertTrue(logger.getLog().get(0).contains("OpticProgramsTest$"));
+  }
+
+  @Test
+  void testLoggingInterpreterAllOperations() {
+    Person person = new Person("Alice", 25);
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+
+    LoggingOpticInterpreter logger = OpticInterpreters.logging();
+
+    // Test GET
+    logger.run(OpticPrograms.get(person, NAME_LENS));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("GET"));
+
+    // Test PREVIEW
+    logger.run(OpticPrograms.preview(team, TEAM_MEMBERS_TRAVERSAL));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("PREVIEW"));
+
+    // Test GET_ALL
+    logger.run(OpticPrograms.getAll(team, TEAM_MEMBERS_TRAVERSAL));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("GET_ALL"));
+
+    // Test SET
+    logger.run(OpticPrograms.set(person, NAME_LENS, "Bob"));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("SET"));
+
+    // Test SET_ALL
+    logger.run(OpticPrograms.setAll(team, ages, 21));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("SET_ALL"));
+
+    // Test MODIFY
+    logger.run(OpticPrograms.modify(person, AGE_LENS, age -> age + 1));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("MODIFY"));
+
+    // Test MODIFY_ALL
+    logger.run(OpticPrograms.modifyAll(team, ages, age -> age + 1));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("MODIFY_ALL"));
+
+    // Test EXISTS
+    logger.run(OpticPrograms.exists(team, ages, age -> age >= 18));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("EXISTS"));
+
+    // Test ALL
+    logger.run(OpticPrograms.all(team, ages, age -> age >= 18));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("ALL"));
+
+    // Test COUNT
+    logger.run(OpticPrograms.count(team, TEAM_MEMBERS_TRAVERSAL));
+    assertTrue(logger.getLog().get(logger.getLog().size() - 1).contains("COUNT"));
+
+    // Verify all operations logged
+    assertTrue(logger.getLog().size() >= 10);
+  }
+
+  // ============================================================================
+  // Validation Interpreter Tests
+  // ============================================================================
+
+  @Test
+  void testValidationInterpreterValid() {
+    Person person = new Person("Alice", 25);
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.modify(person, AGE_LENS, age -> age + 1);
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result = validator.validate(program);
+
+    assertTrue(result.isValid());
+    assertEquals(0, result.errors().size());
+  }
+
+  @Test
+  void testValidationInterpreterWarnings() {
+    Person person = new Person("Alice", 25);
+    Free<OpticOpKind.Witness, Person> program = OpticPrograms.set(person, NAME_LENS, null);
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result = validator.validate(program);
+
+    // Should warn about null value
+    assertTrue(result.isValid()); // No errors, but...
+    assertTrue(result.hasWarnings()); // ...has warnings
+  }
+
+  @Test
+  void testValidationInterpreterAllOperations() {
+    Person person = new Person("Alice", 25);
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+
+    // Test GET
+    assertTrue(validator.validate(OpticPrograms.get(person, NAME_LENS)).isValid());
+
+    // Test PREVIEW
+    assertTrue(validator.validate(OpticPrograms.preview(team, TEAM_MEMBERS_TRAVERSAL)).isValid());
+
+    // Test GET_ALL
+    assertTrue(validator.validate(OpticPrograms.getAll(team, TEAM_MEMBERS_TRAVERSAL)).isValid());
+
+    // Test SET
+    assertTrue(validator.validate(OpticPrograms.set(person, NAME_LENS, "Bob")).isValid());
+
+    // Test SET_ALL
+    assertTrue(validator.validate(OpticPrograms.setAll(team, ages, 21)).isValid());
+
+    // Test MODIFY
+    assertTrue(
+        validator.validate(OpticPrograms.modify(person, AGE_LENS, age -> age + 1)).isValid());
+
+    // Test MODIFY_ALL
+    assertTrue(validator.validate(OpticPrograms.modifyAll(team, ages, age -> age + 1)).isValid());
+
+    // Test EXISTS
+    assertTrue(validator.validate(OpticPrograms.exists(team, ages, age -> age >= 18)).isValid());
+
+    // Test ALL
+    assertTrue(validator.validate(OpticPrograms.all(team, ages, age -> age >= 18)).isValid());
+
+    // Test COUNT
+    assertTrue(validator.validate(OpticPrograms.count(team, TEAM_MEMBERS_TRAVERSAL)).isValid());
+  }
+
+  @Test
+  void testValidationInterpreterErrors() {
+    Person person = new Person("Alice", 25);
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+
+    // Test null check warnings
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.set(person, NAME_LENS, null));
+    assertTrue(result.hasWarnings());
+    assertFalse(result.warnings().isEmpty());
+  }
+
+  @Test
+  void testValidationResultToString() {
+    Person person = new Person("Alice", 25);
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.modify(person, AGE_LENS, age -> age + 1));
+
+    String toString = result.toString();
+    assertNotNull(toString);
+    assertTrue(toString.contains("ValidationResult"));
+  }
+
+  @Test
+  void testValidationInterpreterSetAllWithNull() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.setAll(team, ages, null));
+
+    // Should warn about null value
+    assertTrue(result.isValid()); // No errors, but...
+    assertTrue(result.hasWarnings()); // ...has warnings
+    assertFalse(result.warnings().isEmpty());
+  }
+
+  @Test
+  void testValidationInterpreterModifyProducingNull() {
+    Person person = new Person("Alice", 25);
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.modify(person, NAME_LENS, name -> null));
+
+    // Should warn about null value produced by modifier
+    assertTrue(result.isValid()); // No errors, but...
+    assertTrue(result.hasWarnings()); // ...has warnings
+    assertFalse(result.warnings().isEmpty());
+  }
+
+  @Test
+  void testValidationInterpreterModifyWithException() {
+    Person person = new Person("Alice", 25);
+
+    // Create a lens that throws an exception when getting
+    Lens<Person, String> faultyLens =
+        Lens.of(
+            p -> {
+              throw new RuntimeException("Test exception");
+            },
+            (p, name) -> new Person(name, p.age()));
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.modify(person, faultyLens, name -> name.toUpperCase()));
+
+    // Should have errors due to exception
+    assertFalse(result.isValid());
+    assertFalse(result.errors().isEmpty());
+    assertTrue(result.errors().get(0).contains("MODIFY operation failed"));
+  }
+
+  @Test
+  void testValidationInterpreterNoWarnings() {
+    Person person = new Person("Alice", 25);
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.modify(person, AGE_LENS, age -> age + 1));
+
+    // Should have no errors and no warnings
+    assertTrue(result.isValid());
+    assertFalse(result.hasWarnings());
+    assertTrue(result.warnings().isEmpty());
+    assertTrue(result.errors().isEmpty());
+  }
+
+  // ============================================================================
+  // Pure Value Tests
+  // ============================================================================
+
+  @Test
+  void testPureValue() {
+    Person person = new Person("Alice", 25);
+    Free<OpticOpKind.Witness, Person> program = OpticPrograms.pure(person);
+
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals(person, result);
+  }
+
+  @Test
+  void testPureInConditional() {
+    Person person = new Person("Alice", 25);
+
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.get(person, AGE_LENS)
+            .flatMap(
+                age -> {
+                  if (age < 18) {
+                    return OpticPrograms.pure(person); // No changes
+                  } else {
+                    return OpticPrograms.modify(person, AGE_LENS, a -> a + 1);
+                  }
+                });
+
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals(26, result.age()); // Modified because age >= 18
+  }
+
+  // ============================================================================
+  // Test Traversal Parameter Overloads
+  // ============================================================================
+
+  @Test
+  void testProgramsWithTraversalParameters() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+
+    // Test preview with Traversal
+    Free<OpticOpKind.Witness, Optional<Person>> previewProgram =
+        OpticPrograms.preview(team, TEAM_MEMBERS_TRAVERSAL);
+    Optional<Person> firstPerson = OpticInterpreters.direct().run(previewProgram);
+    assertTrue(firstPerson.isPresent());
+    assertEquals("Alice", firstPerson.get().name());
+
+    // Test getAll with Traversal
+    Free<OpticOpKind.Witness, List<Person>> getAllProgram =
+        OpticPrograms.getAll(team, TEAM_MEMBERS_TRAVERSAL);
+    List<Person> allMembers = OpticInterpreters.direct().run(getAllProgram);
+    assertEquals(2, allMembers.size());
+
+    // Test exists with Traversal
+    Free<OpticOpKind.Witness, Boolean> existsProgram =
+        OpticPrograms.exists(team, ages, age -> age >= 30);
+    assertTrue(OpticInterpreters.direct().run(existsProgram));
+
+    // Test all with Traversal
+    Free<OpticOpKind.Witness, Boolean> allProgram = OpticPrograms.all(team, ages, age -> age >= 18);
+    assertTrue(OpticInterpreters.direct().run(allProgram));
+
+    // Test count with Traversal
+    Free<OpticOpKind.Witness, Integer> countProgram =
+        OpticPrograms.count(team, TEAM_MEMBERS_TRAVERSAL);
+    assertEquals(2, OpticInterpreters.direct().run(countProgram));
+  }
+
+  // ============================================================================
+  // Test Fold Parameter Overloads
+  // ============================================================================
+
+  @Test
+  void testProgramsWithFoldParameters() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    Fold<Team, Person> membersFold = Fold.of(Team::members);
+    Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
+    Fold<Team, Integer> agesFold = Fold.of(t -> Traversals.getAll(ages, t));
+
+    // Test preview with Fold
+    Free<OpticOpKind.Witness, Optional<Person>> previewProgram =
+        OpticPrograms.preview(team, membersFold);
+    Optional<Person> firstPerson = OpticInterpreters.direct().run(previewProgram);
+    assertTrue(firstPerson.isPresent());
+    assertEquals("Alice", firstPerson.get().name());
+
+    // Test getAll with Fold
+    Free<OpticOpKind.Witness, List<Person>> getAllProgram = OpticPrograms.getAll(team, membersFold);
+    List<Person> allMembers = OpticInterpreters.direct().run(getAllProgram);
+    assertEquals(2, allMembers.size());
+
+    // Test exists with Fold
+    Free<OpticOpKind.Witness, Boolean> existsProgram =
+        OpticPrograms.exists(team, agesFold, age -> age >= 30);
+    assertTrue(OpticInterpreters.direct().run(existsProgram));
+
+    // Test all with Fold
+    Free<OpticOpKind.Witness, Boolean> allProgram =
+        OpticPrograms.all(team, agesFold, age -> age >= 18);
+    assertTrue(OpticInterpreters.direct().run(allProgram));
+
+    // Test count with Fold
+    Free<OpticOpKind.Witness, Integer> countProgram = OpticPrograms.count(team, membersFold);
+    assertEquals(2, OpticInterpreters.direct().run(countProgram));
+  }
+
+  @Test
+  void testGetProgramWithGetter() {
+    Person person = new Person("Alice", 25);
+    org.higherkindedj.optics.Getter<Person, String> nameGetter =
+        org.higherkindedj.optics.Getter.of(Person::name);
+
+    Free<OpticOpKind.Witness, String> program = OpticPrograms.get(person, nameGetter);
+    String result = OpticInterpreters.direct().run(program);
+    assertEquals("Alice", result);
+  }
+
+  // ============================================================================
+  // Private Constructor Tests
+  // ============================================================================
+
+  @Test
+  void testOpticProgramsPrivateConstructor() throws Exception {
+    java.lang.reflect.Constructor<OpticPrograms> constructor =
+        OpticPrograms.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+
+    Exception exception =
+        assertThrows(
+            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+    assertEquals("Utility class", exception.getCause().getMessage());
+  }
+
+  @Test
+  void testOpticInterpretersPrivateConstructor() throws Exception {
+    java.lang.reflect.Constructor<OpticInterpreters> constructor =
+        OpticInterpreters.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+
+    Exception exception =
+        assertThrows(
+            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+    assertEquals("Utility class", exception.getCause().getMessage());
+  }
+
+  @Test
+  void testOpticOpKindWitnessPrivateConstructor() throws Exception {
+    java.lang.reflect.Constructor<OpticOpKind.Witness> constructor =
+        OpticOpKind.Witness.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+
+    Exception exception =
+        assertThrows(
+            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+    assertEquals("Witness class", exception.getCause().getMessage());
+  }
+}

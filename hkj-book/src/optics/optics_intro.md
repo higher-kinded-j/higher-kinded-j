@@ -248,6 +248,49 @@ var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
 
 This level of abstraction allows you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling—a core benefit of functional programming brought to Java by the foundation `higher-kinded-j` provides.
 
+## Making Optics Feel Natural in Java
+
+Whilst optics are powerful, their functional programming origins can make them feel foreign to Java developers. To bridge this gap, `higher-kinded-j` provides two complementary approaches for working with optics:
+
+### Fluent API for Optics
+
+The **[Fluent API](fluent_api.md)** provides Java-friendly syntax for optic operations, offering both concise static methods and discoverable fluent builders:
+
+```java
+// Static method style - concise
+int age = OpticOps.get(person, PersonLenses.age());
+
+// Fluent builder style - explicit and discoverable
+int age = OpticOps.getting(person).through(PersonLenses.age());
+```
+
+This makes optics feel natural in Java whilst preserving all their functional power. Learn more in the [Fluent API Guide](fluent_api.md).
+
+### Free Monad DSL for Optics
+
+The **[Free Monad DSL](free_monad_dsl.md)** separates program description from execution, enabling you to:
+
+* Build optic programs as composable values
+* Execute programs with different strategies (direct, logging, validation)
+* Create audit trails for compliance
+* Validate operations before applying them
+
+```java
+// Build a program
+Free<OpticOpKind.Witness, Person> program =
+    OpticPrograms.get(person, PersonLenses.age())
+        .flatMap(age ->
+            OpticPrograms.set(person, PersonLenses.age(), age + 1));
+
+// Execute with different interpreters
+Person result = OpticInterpreters.direct().run(program);                     // Production
+LoggingOpticInterpreter logger = OpticInterpreters.logging();
+logger.run(program);                                                          // Audit trail
+ValidationOpticInterpreter.ValidationResult validation = OpticInterpreters.validating().validate(program);  // Dry-run
+```
+
+This powerful pattern is explored in detail in the [Free Monad DSL Guide](free_monad_dsl.md) and [Optic Interpreters Guide](interpreters.md).
+
 ---
 
 **Next:**[Lenses: Working with Product Types](lenses.md)
