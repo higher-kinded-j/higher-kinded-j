@@ -593,20 +593,20 @@ Person mockResult = mock.run(program);
 
 ## Common Pitfalls
 
-### ❌ Don't: Forget that programmes are immutable
+### ❌ Don't: Forget that programs are immutable
 
 ```java
-// Wrong - trying to "modify" a programme
+// Wrong - trying to "modify" a program
 Free<OpticOpKind.Witness, Person> program = OpticPrograms.get(person, PersonLenses.age());
-program.flatMap(age -> ...);  // This returns a NEW programme!
+program.flatMap(age -> ...);  // This returns a NEW program!
 
-// The original 'programme' is unchanged
+// The original program is unchanged
 ```
 
 ### ✅ Do: Assign the result of `flatMap`
 
 ```java
-// Correct - capture the new programme
+// Correct - capture the new program
 Free<OpticOpKind.Witness, Person> program =
     OpticPrograms.get(person, PersonLenses.age())
         .flatMap(age -> OpticPrograms.modify(person, PersonLenses.age(), a -> a + 1));
@@ -614,7 +614,7 @@ Free<OpticOpKind.Witness, Person> program =
 
 ---
 
-### ❌ Don't: Mix side effects in programme construction
+### ❌ Don't: Mix side effects in program construction
 
 ```java
 // Wrong - side effect during construction
@@ -626,7 +626,7 @@ Free<OpticOpKind.Witness, Person> program =
         });
 ```
 
-### ✅ Do: Keep programme construction pure
+### ✅ Do: Keep program construction pure
 
 ```java
 // Correct - side effects only in interpreters

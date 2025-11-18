@@ -427,7 +427,7 @@ public final class ProfilingOpticInterpreter {
                 executionTimes.merge(opName, duration, Long::sum);
                 executionCounts.merge(opName, 1, Integer::sum);
 
-                return IdKindHelper.ID.widen(Id.of(Free.pure(result)));
+                return Id.of(result);
             };
 
         Kind<IdKind.Witness, A> resultKind =
@@ -515,7 +515,7 @@ public final class MockOpticInterpreter<S> {
                     default -> mockData;
                 };
 
-                return IdKindHelper.ID.widen(Id.of(Free.pure(result)));
+                return Id.of(result);
             };
 
         Kind<IdKind.Witness, A> resultKind =
