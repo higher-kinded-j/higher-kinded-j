@@ -37,8 +37,7 @@ public final class FreeDslExample {
       // Build a program that increments age and score
       Free<OpticOpKind.Witness, Player> simpleProgram =
           OpticPrograms.modify(player, PlayerLenses.age(), age -> age + 1)
-              .flatMap(
-                  p1 -> OpticPrograms.modify(p1, PlayerLenses.score(), score -> score + 10));
+              .flatMap(p1 -> OpticPrograms.modify(p1, PlayerLenses.score(), score -> score + 10));
 
       // Execute with direct interpreter
       Player result1 = OpticInterpreters.direct().run(simpleProgram);
@@ -91,15 +90,12 @@ public final class FreeDslExample {
                                           p1, PlayerLenses.score(), score -> score + 15)
                                       .flatMap(
                                           p2 ->
-                                              OpticPrograms.get(
-                                                      p2, PlayerLenses.score())
+                                              OpticPrograms.get(p2, PlayerLenses.score())
                                                   .flatMap(
                                                       score -> {
                                                         if (score > 100) {
                                                           return OpticPrograms.modify(
-                                                              p2,
-                                                              PlayerLenses.score(),
-                                                              s -> s + 5);
+                                                              p2, PlayerLenses.score(), s -> s + 5);
                                                         } else {
                                                           return OpticPrograms.pure(p2);
                                                         }
@@ -134,8 +130,7 @@ public final class FreeDslExample {
       // Note: Use a simple program without data-dependent conditionals
       // since the validator doesn't execute actual operations
       ValidationOpticInterpreter validator = OpticInterpreters.validating();
-      ValidationOpticInterpreter.ValidationResult validation =
-          validator.validate(simpleProgram);
+      ValidationOpticInterpreter.ValidationResult validation = validator.validate(simpleProgram);
 
       System.out.println("Validation result:");
       System.out.println("  Valid: " + validation.isValid());
@@ -216,12 +211,8 @@ public final class FreeDslExample {
                     .flatMap(
                         age -> {
                           if (score > 100 && age >= 18) {
-                            return OpticPrograms.set(
-                                    player, nameLens, player.name() + " ⭐")
-                                .flatMap(
-                                    p ->
-                                        OpticPrograms.modify(
-                                            p, scoreLens, s -> s + 20));
+                            return OpticPrograms.set(player, nameLens, player.name() + " ⭐")
+                                .flatMap(p -> OpticPrograms.modify(p, scoreLens, s -> s + 20));
                           } else {
                             return OpticPrograms.pure(player);
                           }

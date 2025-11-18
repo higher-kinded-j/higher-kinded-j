@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.higherkindedj.hkt.Free;
-import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -37,11 +36,18 @@ public class FreeMonadOpticDSLExample {
   @GenerateLenses
   @GenerateTraversals
   public record UserProfile(
-      String userId, String username, String email, ProfileSettings settings, List<Address> addresses) {}
+      String userId,
+      String username,
+      String email,
+      ProfileSettings settings,
+      List<Address> addresses) {}
 
   @GenerateLenses
   public record ProfileSettings(
-      boolean emailNotifications, boolean smsNotifications, String preferredLanguage, String theme) {}
+      boolean emailNotifications,
+      boolean smsNotifications,
+      String preferredLanguage,
+      String theme) {}
 
   @GenerateLenses
   public record Address(String type, String street, String city, String postCode, String country) {}
@@ -102,9 +108,7 @@ public class FreeMonadOpticDSLExample {
             notifications -> !notifications);
 
     UserProfile toggledProfile = directInterpreter.run(modifyProgram);
-    System.out.println(
-        "  Email notifications: "
-            + toggledProfile.settings().emailNotifications());
+    System.out.println("  Email notifications: " + toggledProfile.settings().emailNotifications());
     System.out.println();
   }
 
@@ -127,7 +131,8 @@ public class FreeMonadOpticDSLExample {
                     System.out.println("  Email notifications enabled, enabling SMS too");
                     return OpticPrograms.set(
                         profile,
-                        UserProfileLenses.settings().andThen(ProfileSettingsLenses.smsNotifications()),
+                        UserProfileLenses.settings()
+                            .andThen(ProfileSettingsLenses.smsNotifications()),
                         true);
                   } else {
                     System.out.println("  Email notifications disabled, no change needed");
@@ -174,7 +179,8 @@ public class FreeMonadOpticDSLExample {
                 updated ->
                     OpticPrograms.modify(
                         updated,
-                        UserProfileLenses.settings().andThen(ProfileSettingsLenses.emailNotifications()),
+                        UserProfileLenses.settings()
+                            .andThen(ProfileSettingsLenses.emailNotifications()),
                         notifications -> true));
 
     System.out.println("Built program: Normalise email and enable notifications\n");
@@ -184,9 +190,7 @@ public class FreeMonadOpticDSLExample {
     DirectOpticInterpreter direct = OpticInterpreters.direct();
     UserProfile directResult = direct.run(complexProgram);
     System.out.println("  Result email: " + directResult.email());
-    System.out.println(
-        "  Result notifications: "
-            + directResult.settings().emailNotifications());
+    System.out.println("  Result notifications: " + directResult.settings().emailNotifications());
     System.out.println();
 
     // Strategy 2: Logging execution (audit trail)
@@ -217,8 +221,7 @@ public class FreeMonadOpticDSLExample {
     System.out.println("Migrating profile " + profile.userId() + " to new schema...\n");
 
     // Build the migration program
-    Free<OpticOpKind.Witness, UserProfile> migrationProgram =
-        buildMigrationProgram(profile);
+    Free<OpticOpKind.Witness, UserProfile> migrationProgram = buildMigrationProgram(profile);
 
     // Step 1: Validate migration (dry-run)
     System.out.println("STEP 1: Validation Phase");
@@ -256,17 +259,14 @@ public class FreeMonadOpticDSLExample {
     System.out.println();
 
     // Save audit log
-    System.out.println("Audit log saved to compliance database: "
-        + LocalDateTime.now());
+    System.out.println("Audit log saved to compliance database: " + LocalDateTime.now());
   }
 
   // ============================================================================
   // Program Builders
   // ============================================================================
 
-  /**
-   * Builds a program that updates theme and language together.
-   */
+  /** Builds a program that updates theme and language together. */
   private static Free<OpticOpKind.Witness, UserProfile> updateThemeAndLanguage(
       UserProfile profile, String theme, String language) {
     return OpticPrograms.set(
@@ -279,11 +279,8 @@ public class FreeMonadOpticDSLExample {
                     language));
   }
 
-  /**
-   * Builds a comprehensive migration program.
-   */
-  private static Free<OpticOpKind.Witness, UserProfile> buildMigrationProgram(
-      UserProfile profile) {
+  /** Builds a comprehensive migration program. */
+  private static Free<OpticOpKind.Witness, UserProfile> buildMigrationProgram(UserProfile profile) {
     // Step 1: Normalise email
     return OpticPrograms.modify(profile, UserProfileLenses.email(), String::toLowerCase)
         .flatMap(
@@ -295,8 +292,7 @@ public class FreeMonadOpticDSLExample {
                 // Step 3: Set default preferences
                 OpticPrograms.set(
                     p2,
-                    UserProfileLenses.settings()
-                        .andThen(ProfileSettingsLenses.preferredLanguage()),
+                    UserProfileLenses.settings().andThen(ProfileSettingsLenses.preferredLanguage()),
                     "en-GB"))
         .flatMap(
             p3 ->
@@ -308,9 +304,7 @@ public class FreeMonadOpticDSLExample {
                     true));
   }
 
-  /**
-   * Program to normalise all addresses in a profile.
-   */
+  /** Program to normalise all addresses in a profile. */
   private static Free<OpticOpKind.Witness, UserProfile> normaliseAddresses(UserProfile profile) {
     Traversal<UserProfile, String> allPostCodes =
         UserProfileTraversals.addresses().andThen(AddressLenses.postCode().asTraversal());
@@ -327,15 +321,10 @@ public class FreeMonadOpticDSLExample {
     addresses.add(new Address("home", "123 High Street", "London", "sw1a 1aa", "United Kingdom"));
     addresses.add(new Address("work", "456 Office Road", "Manchester", "m1 1ae", "United Kingdom"));
 
-    ProfileSettings settings =
-        new ProfileSettings(true, false, "en-US", "light");
+    ProfileSettings settings = new ProfileSettings(true, false, "en-US", "light");
 
     return new UserProfile(
-        "USR-001",
-        "alice_smith",
-        "Alice.Smith@Example.COM",
-        settings,
-        addresses);
+        "USR-001", "alice_smith", "Alice.Smith@Example.COM", settings, addresses);
   }
 
   private static void printProfile(UserProfile profile) {

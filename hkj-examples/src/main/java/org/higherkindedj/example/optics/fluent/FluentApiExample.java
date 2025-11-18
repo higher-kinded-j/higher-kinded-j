@@ -57,8 +57,7 @@ public final class FluentApiExample {
     Traversal<Team, Integer> playerScores =
         TeamTraversals.players().andThen(PlayerLenses.score().asTraversal());
     Team bonusTeam = OpticOps.modifyAll(team, playerScores, score -> score + 10);
-    System.out.println(
-        "Scores after bonus: " + OpticOps.getAll(bonusTeam, playerScores));
+    System.out.println("Scores after bonus: " + OpticOps.getAll(bonusTeam, playerScores));
 
     // Query: check if any player has score > 100
     boolean hasHighScorer = OpticOps.exists(team, playerScores, score -> score > 100);
@@ -88,26 +87,21 @@ public final class FluentApiExample {
         "Renamed team: " + OpticOps.getting(renamedTeam2).through(TeamLenses.name()));
 
     // Modify all player scores
-    Team bonusTeam2 =
-        OpticOps.modifying(team).allThrough(playerScores, score -> score + 10);
+    Team bonusTeam2 = OpticOps.modifying(team).allThrough(playerScores, score -> score + 10);
     System.out.println(
         "Scores after bonus: " + OpticOps.getting(bonusTeam2).allThrough(playerScores));
 
     // Query: check if all players have score >= 90
-    boolean allGoodScores =
-        OpticOps.querying(team).allMatch(playerScores, score -> score >= 90);
+    boolean allGoodScores = OpticOps.querying(team).allMatch(playerScores, score -> score >= 90);
     System.out.println("All players have good scores: " + allGoodScores);
 
     // Query: find first player with score > 100
     Lens<Player, Integer> scoreReader = PlayerLenses.score();
     Optional<Player> highScorer =
         OpticOps.querying(team)
-            .findFirst(
-                playersTraversal,
-                player -> OpticOps.get(player, scoreReader) > 100);
+            .findFirst(playersTraversal, player -> OpticOps.get(player, scoreReader) > 100);
     System.out.println(
-        "High scorer: "
-            + highScorer.map(p -> OpticOps.get(p, PlayerLenses.name())).orElse("none"));
+        "High scorer: " + highScorer.map(p -> OpticOps.get(p, PlayerLenses.name())).orElse("none"));
 
     System.out.println();
 

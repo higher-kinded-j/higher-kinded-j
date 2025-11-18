@@ -13,9 +13,9 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.fluent.OpticOps;
 
 /**
- * A runnable example demonstrating the fluent API for optic operations. This example shows both
- * the static method style (concise) and the fluent builder style (explicit) for working with
- * optics in a Java-friendly way.
+ * A runnable example demonstrating the fluent API for optic operations. This example shows both the
+ * static method style (concise) and the fluent builder style (explicit) for working with optics in
+ * a Java-friendly way.
  *
  * <p>The scenario is an e-commerce order processing system where we need to:
  *
@@ -114,7 +114,8 @@ public class FluentOpticOpsExample {
             orderToAllPrices,
             price -> price.multiply(discountMultiplier).setScale(2, RoundingMode.HALF_UP));
     System.out.println("  Original prices: " + OpticOps.getAll(order, orderToAllPrices));
-    System.out.println("  Discounted prices: " + OpticOps.getAll(discountedOrder, orderToAllPrices));
+    System.out.println(
+        "  Discounted prices: " + OpticOps.getAll(discountedOrder, orderToAllPrices));
     System.out.println();
   }
 
@@ -150,7 +151,8 @@ public class FluentOpticOpsExample {
     Order doubledQuantities =
         OpticOps.modifying(order).allThrough(orderToQuantities, quantity -> quantity * 2);
 
-    System.out.println("  Original quantities: " + OpticOps.getting(order).allThrough(orderToQuantities));
+    System.out.println(
+        "  Original quantities: " + OpticOps.getting(order).allThrough(orderToQuantities));
     System.out.println(
         "  Doubled quantities: "
             + OpticOps.getting(doubledQuantities).allThrough(orderToQuantities));
@@ -168,7 +170,8 @@ public class FluentOpticOpsExample {
                             OrderLenses.address().andThen(ShippingAddressLenses.postCode()),
                             String::toUpperCase));
 
-    System.out.println("  Status: " + OpticOps.getting(complexUpdate).through(OrderLenses.status()));
+    System.out.println(
+        "  Status: " + OpticOps.getting(complexUpdate).through(OrderLenses.status()));
     System.out.println(
         "  Postcode: "
             + OpticOps.getting(complexUpdate)
@@ -195,7 +198,8 @@ public class FluentOpticOpsExample {
 
     // Step 2: Apply bulk discount for large orders
     int totalItems =
-        OpticOps.getAll(order, OrderTraversals.items().andThen(OrderItemLenses.quantity().asTraversal()))
+        OpticOps.getAll(
+                order, OrderTraversals.items().andThen(OrderItemLenses.quantity().asTraversal()))
             .stream()
             .mapToInt(Integer::intValue)
             .sum();
@@ -234,7 +238,8 @@ public class FluentOpticOpsExample {
     // Step 5: Calculate final total
     BigDecimal finalTotal =
         OpticOps.getAll(
-                processedOrder, OrderTraversals.items().andThen(OrderItemLenses.price().asTraversal()))
+                processedOrder,
+                OrderTraversals.items().andThen(OrderItemLenses.price().asTraversal()))
             .stream()
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     System.out.println("✓ Step 5: Order total calculated: £" + finalTotal);
@@ -278,7 +283,9 @@ public class FluentOpticOpsExample {
     Optional<OrderItem> bulkItem =
         OpticOps.find(order, OrderTraversals.items(), item -> item.quantity() > 2);
     bulkItem.ifPresentOrElse(
-        item -> System.out.println("  Found: " + item.productName() + " (qty: " + item.quantity() + ")"),
+        item ->
+            System.out.println(
+                "  Found: " + item.productName() + " (qty: " + item.quantity() + ")"),
         () -> System.out.println("  No bulk items found"));
     System.out.println();
 
@@ -292,8 +299,7 @@ public class FluentOpticOpsExample {
     System.out.println("Example 6: Check if all items have reasonable quantity (< 10)");
     Traversal<Order, Integer> orderToQuantities =
         OrderTraversals.items().andThen(OrderItemLenses.quantity().asTraversal());
-    boolean allReasonable =
-        OpticOps.querying(order).allMatch(orderToQuantities, qty -> qty < 10);
+    boolean allReasonable = OpticOps.querying(order).allMatch(orderToQuantities, qty -> qty < 10);
     System.out.println("  All quantities reasonable: " + allReasonable);
   }
 
@@ -330,8 +336,7 @@ public class FluentOpticOpsExample {
                         + item.price()));
     System.out.println("  Shipping to:");
     System.out.println("    " + order.address().street());
-    System.out.println(
-        "    " + order.address().city() + ", " + order.address().postCode());
+    System.out.println("    " + order.address().city() + ", " + order.address().postCode());
     System.out.println("    " + order.address().country());
   }
 

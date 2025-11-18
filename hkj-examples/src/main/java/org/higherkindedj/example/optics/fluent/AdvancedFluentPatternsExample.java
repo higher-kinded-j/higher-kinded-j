@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Free;
-import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -60,10 +59,7 @@ public class AdvancedFluentPatternsExample {
 
   @GenerateLenses
   public record Promotion(
-      String promotionId,
-      BigDecimal discountPercent,
-      LocalDate startDate,
-      LocalDate endDate) {}
+      String promotionId, BigDecimal discountPercent, LocalDate startDate, LocalDate endDate) {}
 
   public enum ProductStatus {
     ACTIVE,
@@ -137,7 +133,13 @@ public class AdvancedFluentPatternsExample {
             .collect(Collectors.toList());
     System.out.println("  Products on promotion: " + productsWithPromotions.size());
     productsWithPromotions.forEach(
-        p -> System.out.println("    - " + p.name() + " (" + p.activePromotion().get().discountPercent() + "% off)"));
+        p ->
+            System.out.println(
+                "    - "
+                    + p.name()
+                    + " ("
+                    + p.activePromotion().get().discountPercent()
+                    + "% off)"));
     System.out.println();
 
     // Query 4: Check stock levels
@@ -166,9 +168,7 @@ public class AdvancedFluentPatternsExample {
 
     // Get current price statistics
     List<BigDecimal> currentPrices =
-        OpticOps.getAll(
-            catalogue,
-            allProducts.andThen(ProductLenses.price().asTraversal()));
+        OpticOps.getAll(catalogue, allProducts.andThen(ProductLenses.price().asTraversal()));
 
     BigDecimal avgBefore =
         currentPrices.stream()
@@ -192,15 +192,11 @@ public class AdvancedFluentPatternsExample {
                 newPrice = currentPrice.multiply(new BigDecimal("1.05"));
               }
               return OpticOps.set(
-                  product,
-                  ProductLenses.price(),
-                  newPrice.setScale(2, RoundingMode.HALF_UP));
+                  product, ProductLenses.price(), newPrice.setScale(2, RoundingMode.HALF_UP));
             });
 
     List<BigDecimal> updatedPrices =
-        OpticOps.getAll(
-            updated,
-            allProducts.andThen(ProductLenses.price().asTraversal()));
+        OpticOps.getAll(updated, allProducts.andThen(ProductLenses.price().asTraversal()));
 
     BigDecimal avgAfter =
         updatedPrices.stream()
@@ -209,8 +205,16 @@ public class AdvancedFluentPatternsExample {
 
     System.out.println("\nAfter:");
     System.out.println("  Average price: £" + avgAfter);
-    System.out.println("  Increase: " + avgBefore.subtract(avgAfter).abs() + " (" +
-        avgAfter.subtract(avgBefore).divide(avgBefore, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")).setScale(1, RoundingMode.HALF_UP) + "%)");
+    System.out.println(
+        "  Increase: "
+            + avgBefore.subtract(avgAfter).abs()
+            + " ("
+            + avgAfter
+                .subtract(avgBefore)
+                .divide(avgBefore, 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"))
+                .setScale(1, RoundingMode.HALF_UP)
+            + "%)");
     System.out.println();
   }
 
@@ -260,7 +264,9 @@ public class AdvancedFluentPatternsExample {
                         .activePromotion()
                         .filter(promo -> promo.endDate().isAfter(today))
                         .map(promo -> product)
-                        .orElse(OpticOps.set(product, ProductLenses.activePromotion(), Optional.empty())));
+                        .orElse(
+                            OpticOps.set(
+                                product, ProductLenses.activePromotion(), Optional.empty())));
 
     int withPromotions =
         (int)
@@ -291,7 +297,8 @@ public class AdvancedFluentPatternsExample {
     System.out.println("Scenario: Bulk price increase with validation\n");
 
     // Build the price increase program
-    Free<OpticOpKind.Witness, Catalogue> program = bulkPriceIncreaseProgram(catalogue, new BigDecimal("1.15"));
+    Free<OpticOpKind.Witness, Catalogue> program =
+        bulkPriceIncreaseProgram(catalogue, new BigDecimal("1.15"));
 
     // Phase 1: Validate the changes
     System.out.println("Phase 1: Validation (dry-run)");
@@ -328,7 +335,13 @@ public class AdvancedFluentPatternsExample {
     BigDecimal avgPrice =
         OpticOps.getAll(result, allPrices).stream()
             .reduce(BigDecimal.ZERO, BigDecimal::add)
-            .divide(new BigDecimal(OpticOps.count(result, CatalogueTraversals.categories().andThen(CategoryTraversals.products()))), 2, RoundingMode.HALF_UP);
+            .divide(
+                new BigDecimal(
+                    OpticOps.count(
+                        result,
+                        CatalogueTraversals.categories().andThen(CategoryTraversals.products()))),
+                2,
+                RoundingMode.HALF_UP);
 
     System.out.println("Results:");
     System.out.println("  Average price after increase: £" + avgPrice);
@@ -410,10 +423,7 @@ public class AdvancedFluentPatternsExample {
 
     Promotion blackFriday =
         new Promotion(
-            "BF2025",
-            new BigDecimal("20.00"),
-            LocalDate.now(),
-            LocalDate.now().plusDays(3));
+            "BF2025", new BigDecimal("20.00"), LocalDate.now(), LocalDate.now().plusDays(3));
 
     // Build the promotion program
     Free<OpticOpKind.Witness, Catalogue> program =
@@ -451,14 +461,15 @@ public class AdvancedFluentPatternsExample {
     for (int i = 0; i < originalProducts.size(); i++) {
       if (promotedProducts.get(i).activePromotion().isPresent()) {
         BigDecimal original = originalProducts.get(i).price();
-        BigDecimal discount =
-            promotedProducts.get(i).activePromotion().get().discountPercent();
-        BigDecimal saving = original.multiply(discount.divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
+        BigDecimal discount = promotedProducts.get(i).activePromotion().get().discountPercent();
+        BigDecimal saving =
+            original.multiply(discount.divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
         totalSavings = totalSavings.add(saving);
       }
     }
 
-    System.out.println("  Total customer savings: £" + totalSavings.setScale(2, RoundingMode.HALF_UP));
+    System.out.println(
+        "  Total customer savings: £" + totalSavings.setScale(2, RoundingMode.HALF_UP));
     System.out.println("\n✓ Black Friday promotion setup complete!");
     System.out.println();
   }
@@ -542,13 +553,28 @@ public class AdvancedFluentPatternsExample {
     List<Product> clothing = new ArrayList<>();
     clothing.add(
         new Product(
-            "CLOTH-001", "T-Shirt", new BigDecimal("19.99"), 100, ProductStatus.ACTIVE, Optional.empty()));
+            "CLOTH-001",
+            "T-Shirt",
+            new BigDecimal("19.99"),
+            100,
+            ProductStatus.ACTIVE,
+            Optional.empty()));
     clothing.add(
         new Product(
-            "CLOTH-002", "Jeans", new BigDecimal("49.99"), 50, ProductStatus.ACTIVE, Optional.empty()));
+            "CLOTH-002",
+            "Jeans",
+            new BigDecimal("49.99"),
+            50,
+            ProductStatus.ACTIVE,
+            Optional.empty()));
     clothing.add(
         new Product(
-            "CLOTH-003", "Jacket", new BigDecimal("89.99"), 8, ProductStatus.ACTIVE, Optional.empty()));
+            "CLOTH-003",
+            "Jacket",
+            new BigDecimal("89.99"),
+            8,
+            ProductStatus.ACTIVE,
+            Optional.empty()));
 
     categories.add(new Category("CAT-002", "Clothing", clothing));
 
@@ -556,10 +582,20 @@ public class AdvancedFluentPatternsExample {
     List<Product> homeGarden = new ArrayList<>();
     homeGarden.add(
         new Product(
-            "HOME-001", "Coffee Maker", new BigDecimal("79.99"), 20, ProductStatus.ACTIVE, Optional.empty()));
+            "HOME-001",
+            "Coffee Maker",
+            new BigDecimal("79.99"),
+            20,
+            ProductStatus.ACTIVE,
+            Optional.empty()));
     homeGarden.add(
         new Product(
-            "HOME-002", "Blender", new BigDecimal("45.00"), 12, ProductStatus.ACTIVE, Optional.empty()));
+            "HOME-002",
+            "Blender",
+            new BigDecimal("45.00"),
+            12,
+            ProductStatus.ACTIVE,
+            Optional.empty()));
 
     categories.add(new Category("CAT-003", "Home & Garden", homeGarden));
 

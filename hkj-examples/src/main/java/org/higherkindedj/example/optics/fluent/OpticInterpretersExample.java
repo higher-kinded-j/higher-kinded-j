@@ -186,10 +186,13 @@ public class OpticInterpretersExample {
     System.out.println("\n✓ Transaction completed");
     System.out.println("\nPerformance Profile:");
     System.out.println("  " + "=".repeat(55));
-    profiler.getProfile().forEach((opType, stats) -> {
-      System.out.printf("  %-15s: %d operations, avg %.3fms%n",
-          opType, stats.count, stats.avgTimeMs);
-    });
+    profiler
+        .getProfile()
+        .forEach(
+            (opType, stats) -> {
+              System.out.printf(
+                  "  %-15s: %d operations, avg %.3fms%n", opType, stats.count, stats.avgTimeMs);
+            });
     System.out.println("  " + "=".repeat(55));
     System.out.println("  Total operations: " + profiler.getTotalOperations());
     System.out.println();
@@ -264,9 +267,7 @@ public class OpticInterpretersExample {
   // Program Builders
   // ============================================================================
 
-  /**
-   * Builds a program that processes a financial transaction.
-   */
+  /** Builds a program that processes a financial transaction. */
   private static Free<OpticOpKind.Witness, Transaction> processTransactionProgram(Transaction txn) {
     BigDecimal amount = txn.amount();
 
@@ -292,34 +293,26 @@ public class OpticInterpretersExample {
                 OpticPrograms.set(t3, TransactionLenses.status(), TransactionStatus.COMPLETED));
   }
 
-  /**
-   * Builds a more complex program for profiling demonstration.
-   */
+  /** Builds a more complex program for profiling demonstration. */
   private static Free<OpticOpKind.Witness, Transaction> complexTransactionProgram(Transaction txn) {
     return processTransactionProgram(txn)
         .flatMap(
             t1 ->
                 // Additional operations for profiling
-                OpticPrograms.get(t1, TransactionLenses.fromAccount().andThen(AccountLenses.balance())))
+                OpticPrograms.get(
+                    t1, TransactionLenses.fromAccount().andThen(AccountLenses.balance())))
         .flatMap(
             fromBalance ->
                 OpticPrograms.get(
                     txn, TransactionLenses.toAccount().andThen(AccountLenses.balance())))
-        .flatMap(
-            toBalance ->
-                OpticPrograms.set(
-                    txn,
-                    TransactionLenses.timestamp(),
-                    Instant.now()));
+        .flatMap(toBalance -> OpticPrograms.set(txn, TransactionLenses.timestamp(), Instant.now()));
   }
 
   // ============================================================================
   // Custom Interpreter Implementations
   // ============================================================================
 
-  /**
-   * Custom interpreter that profiles optic operation performance.
-   */
+  /** Custom interpreter that profiles optic operation performance. */
   static class ProfilingOpticInterpreter implements OpticInterpreter {
     private final Map<String, OperationStats> profile = new HashMap<>();
     private int totalOps = 0;
@@ -346,7 +339,8 @@ public class OpticInterpretersExample {
             Object result = executeOp(op);
 
             long endTime = System.nanoTime();
-            profile.computeIfAbsent(opType, k -> new OperationStats())
+            profile
+                .computeIfAbsent(opType, k -> new OperationStats())
                 .addMeasurement(endTime - startTime);
             totalOps++;
 
@@ -391,9 +385,7 @@ public class OpticInterpretersExample {
     }
   }
 
-  /**
-   * Custom interpreter that mocks optic operations for testing.
-   */
+  /** Custom interpreter that mocks optic operations for testing. */
   static class MockingOpticInterpreter implements OpticInterpreter {
     private final Map<Object, Object> mockData = new HashMap<>();
     private final List<String> log = new ArrayList<>();
@@ -474,9 +466,13 @@ public class OpticInterpretersExample {
     System.out.println("  Transaction ID: " + txn.txnId());
     System.out.println("  Amount: £" + txn.amount());
     System.out.println("  Status: " + txn.status());
-    System.out.println("  From: " + txn.fromAccount().owner() + " (Balance: £"
-        + txn.fromAccount().balance() + ")");
-    System.out.println("  To: " + txn.toAccount().owner() + " (Balance: £"
-        + txn.toAccount().balance() + ")");
+    System.out.println(
+        "  From: "
+            + txn.fromAccount().owner()
+            + " (Balance: £"
+            + txn.fromAccount().balance()
+            + ")");
+    System.out.println(
+        "  To: " + txn.toAccount().owner() + " (Balance: £" + txn.toAccount().balance() + ")");
   }
 }

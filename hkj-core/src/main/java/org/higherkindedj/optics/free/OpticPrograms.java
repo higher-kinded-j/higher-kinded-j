@@ -114,8 +114,7 @@ public final class OpticPrograms {
   private static <S, A> Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
     return new Fold<>() {
       @Override
-      public <M> M foldMap(
-          Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
         final java.util.List<M> results = new java.util.ArrayList<>();
         Applicative<IdKind.Witness> idApp = IdMonad.instance();
         traversal.modifyF(

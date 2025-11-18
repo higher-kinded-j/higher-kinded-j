@@ -233,10 +233,7 @@ class OpticOpsTest {
 
     org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.id.IdKind.Witness, Person> result =
         OpticOps.modifyF(
-            person,
-            AGE_LENS,
-            age -> org.higherkindedj.hkt.id.Id.of(age + 1),
-            idFunctor);
+            person, AGE_LENS, age -> org.higherkindedj.hkt.id.Id.of(age + 1), idFunctor);
 
     Person updated = org.higherkindedj.hkt.id.IdKindHelper.ID.narrow(result).value();
     assertEquals(26, updated.age());
@@ -340,7 +337,8 @@ class OpticOpsTest {
   void testQueryingFindFirst() {
     Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
 
-    Optional<Person> found = OpticOps.querying(team).findFirst(TEAM_MEMBERS_TRAVERSAL, p -> p.age() >= 30);
+    Optional<Person> found =
+        OpticOps.querying(team).findFirst(TEAM_MEMBERS_TRAVERSAL, p -> p.age() >= 30);
     assertTrue(found.isPresent());
     assertEquals("Bob", found.get().name());
   }
@@ -387,8 +385,7 @@ class OpticOpsTest {
     Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
     Fold<Team, Person> membersFold = Fold.of(Team::members);
 
-    Optional<Person> found =
-        OpticOps.querying(team).findFirst(membersFold, p -> p.age() >= 30);
+    Optional<Person> found = OpticOps.querying(team).findFirst(membersFold, p -> p.age() >= 30);
     assertTrue(found.isPresent());
     assertEquals("Bob", found.get().name());
   }
@@ -484,8 +481,7 @@ class OpticOpsTest {
   @Test
   void testPrivateConstructor() throws Exception {
     // Test that the private constructor throws UnsupportedOperationException
-    java.lang.reflect.Constructor<OpticOps> constructor =
-        OpticOps.class.getDeclaredConstructor();
+    java.lang.reflect.Constructor<OpticOps> constructor = OpticOps.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
     Exception exception =

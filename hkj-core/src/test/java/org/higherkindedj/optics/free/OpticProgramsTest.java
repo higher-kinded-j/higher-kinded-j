@@ -84,7 +84,8 @@ class OpticProgramsTest {
   @Test
   void testGetAllProgram() {
     Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
-    Free<OpticOpKind.Witness, List<Person>> program = OpticPrograms.getAll(team, TEAM_MEMBERS_TRAVERSAL);
+    Free<OpticOpKind.Witness, List<Person>> program =
+        OpticPrograms.getAll(team, TEAM_MEMBERS_TRAVERSAL);
 
     List<Person> result = OpticInterpreters.direct().run(program);
     assertEquals(2, result.size());
@@ -94,8 +95,7 @@ class OpticProgramsTest {
   void testModifyAllProgram() {
     Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
     Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
-    Free<OpticOpKind.Witness, Team> program =
-        OpticPrograms.modifyAll(team, ages, age -> age + 1);
+    Free<OpticOpKind.Witness, Team> program = OpticPrograms.modifyAll(team, ages, age -> age + 1);
 
     Team result = OpticInterpreters.direct().run(program);
     assertEquals(26, result.members().get(0).age());
@@ -117,8 +117,7 @@ class OpticProgramsTest {
   void testExistsProgram() {
     Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
     Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
-    Free<OpticOpKind.Witness, Boolean> program =
-        OpticPrograms.exists(team, ages, age -> age >= 30);
+    Free<OpticOpKind.Witness, Boolean> program = OpticPrograms.exists(team, ages, age -> age >= 30);
 
     Boolean result = OpticInterpreters.direct().run(program);
     assertTrue(result);
@@ -128,8 +127,7 @@ class OpticProgramsTest {
   void testAllProgram() {
     Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
     Traversal<Team, Integer> ages = TEAM_MEMBERS_TRAVERSAL.andThen(AGE_LENS.asTraversal());
-    Free<OpticOpKind.Witness, Boolean> program =
-        OpticPrograms.all(team, ages, age -> age >= 18);
+    Free<OpticOpKind.Witness, Boolean> program = OpticPrograms.all(team, ages, age -> age >= 18);
 
     Boolean result = OpticInterpreters.direct().run(program);
     assertTrue(result);
@@ -208,9 +206,7 @@ class OpticProgramsTest {
                                                     newAge -> {
                                                       if (newAge > 25) {
                                                         return OpticPrograms.modify(
-                                                            p2,
-                                                            NAME_LENS,
-                                                            n -> n + " [Senior]");
+                                                            p2, NAME_LENS, n -> n + " [Senior]");
                                                       } else {
                                                         return OpticPrograms.pure(p2);
                                                       }
@@ -396,15 +392,14 @@ class OpticProgramsTest {
     assertTrue(validator.validate(OpticPrograms.setAll(team, ages, 21)).isValid());
 
     // Test MODIFY
-    assertTrue(validator.validate(OpticPrograms.modify(person, AGE_LENS, age -> age + 1)).isValid());
+    assertTrue(
+        validator.validate(OpticPrograms.modify(person, AGE_LENS, age -> age + 1)).isValid());
 
     // Test MODIFY_ALL
-    assertTrue(
-        validator.validate(OpticPrograms.modifyAll(team, ages, age -> age + 1)).isValid());
+    assertTrue(validator.validate(OpticPrograms.modifyAll(team, ages, age -> age + 1)).isValid());
 
     // Test EXISTS
-    assertTrue(
-        validator.validate(OpticPrograms.exists(team, ages, age -> age >= 18)).isValid());
+    assertTrue(validator.validate(OpticPrograms.exists(team, ages, age -> age >= 18)).isValid());
 
     // Test ALL
     assertTrue(validator.validate(OpticPrograms.all(team, ages, age -> age >= 18)).isValid());
@@ -592,8 +587,7 @@ class OpticProgramsTest {
     assertEquals("Alice", firstPerson.get().name());
 
     // Test getAll with Fold
-    Free<OpticOpKind.Witness, List<Person>> getAllProgram =
-        OpticPrograms.getAll(team, membersFold);
+    Free<OpticOpKind.Witness, List<Person>> getAllProgram = OpticPrograms.getAll(team, membersFold);
     List<Person> allMembers = OpticInterpreters.direct().run(getAllProgram);
     assertEquals(2, allMembers.size());
 

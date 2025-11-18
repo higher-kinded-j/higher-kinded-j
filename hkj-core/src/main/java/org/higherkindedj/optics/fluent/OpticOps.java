@@ -90,8 +90,7 @@ public final class OpticOps {
   private static <S, A> Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
     return new Fold<>() {
       @Override
-      public <M> M foldMap(
-          Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
+      public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
         final java.util.List<M> results = new java.util.ArrayList<>();
         Applicative<IdKind.Witness> idApp = IdMonad.instance();
         traversal.modifyF(
@@ -486,7 +485,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return An {@link Optional} containing the first matching element, or empty if none match
    */
-  public static <S, A> Optional<A> find(S source, Traversal<S, A> traversal, Predicate<A> predicate) {
+  public static <S, A> Optional<A> find(
+      S source, Traversal<S, A> traversal, Predicate<A> predicate) {
     return traversalToFold(traversal).find(predicate, source);
   }
 
