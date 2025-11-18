@@ -6,10 +6,16 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.optics.fluent.model.Order;
+import org.higherkindedj.example.optics.fluent.model.OrderItem;
+import org.higherkindedj.example.optics.fluent.model.OrderItemLenses;
+import org.higherkindedj.example.optics.fluent.model.OrderLenses;
+import org.higherkindedj.example.optics.fluent.model.OrderStatus;
+import org.higherkindedj.example.optics.fluent.model.OrderTraversals;
+import org.higherkindedj.example.optics.fluent.model.ShippingAddress;
+import org.higherkindedj.example.optics.fluent.model.ShippingAddressLenses;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.fluent.OpticOps;
 
 /**
@@ -27,26 +33,6 @@ import org.higherkindedj.optics.fluent.OpticOps;
  * </ul>
  */
 public class FluentOpticOpsExample {
-
-  // Domain model for e-commerce orders
-  @GenerateLenses
-  @GenerateTraversals
-  public record Order(
-      String orderId, OrderStatus status, List<OrderItem> items, ShippingAddress address) {}
-
-  @GenerateLenses
-  public record OrderItem(String productId, String productName, int quantity, BigDecimal price) {}
-
-  @GenerateLenses
-  public record ShippingAddress(String street, String city, String postCode, String country) {}
-
-  public enum OrderStatus {
-    PENDING,
-    PROCESSING,
-    SHIPPED,
-    DELIVERED,
-    CANCELLED
-  }
 
   public static void main(String[] args) {
     System.out.println("=== FLUENT OPTIC OPERATIONS EXAMPLE ===\n");

@@ -5,10 +5,15 @@ package org.higherkindedj.example.optics.fluent;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.higherkindedj.example.optics.fluent.model.ProfileSettings;
+import org.higherkindedj.example.optics.fluent.model.ProfileSettingsLenses;
+import org.higherkindedj.example.optics.fluent.model.UserAddress;
+import org.higherkindedj.example.optics.fluent.model.UserAddressLenses;
+import org.higherkindedj.example.optics.fluent.model.UserProfile;
+import org.higherkindedj.example.optics.fluent.model.UserProfileLenses;
+import org.higherkindedj.example.optics.fluent.model.UserProfileTraversals;
 import org.higherkindedj.hkt.Free;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
 import org.higherkindedj.optics.free.OpticInterpreters;
@@ -31,26 +36,6 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
  * </ul>
  */
 public class FreeMonadOpticDSLExample {
-
-  // Domain model for user profiles
-  @GenerateLenses
-  @GenerateTraversals
-  public record UserProfile(
-      String userId,
-      String username,
-      String email,
-      ProfileSettings settings,
-      List<Address> addresses) {}
-
-  @GenerateLenses
-  public record ProfileSettings(
-      boolean emailNotifications,
-      boolean smsNotifications,
-      String preferredLanguage,
-      String theme) {}
-
-  @GenerateLenses
-  public record Address(String type, String street, String city, String postCode, String country) {}
 
   public static void main(String[] args) {
     System.out.println("=== FREE MONAD OPTIC DSL EXAMPLE ===\n");
@@ -317,7 +302,7 @@ public class FreeMonadOpticDSLExample {
   /** Program to normalise all addresses in a profile. */
   private static Free<OpticOpKind.Witness, UserProfile> normaliseAddresses(UserProfile profile) {
     Traversal<UserProfile, String> allPostCodes =
-        UserProfileTraversals.addresses().andThen(AddressLenses.postCode().asTraversal());
+        UserProfileTraversals.addresses().andThen(UserAddressLenses.postCode().asTraversal());
 
     return OpticPrograms.modifyAll(profile, allPostCodes, String::toUpperCase);
   }
@@ -327,9 +312,9 @@ public class FreeMonadOpticDSLExample {
   // ============================================================================
 
   private static UserProfile createSampleProfile() {
-    List<Address> addresses = new ArrayList<>();
-    addresses.add(new Address("home", "123 High Street", "London", "sw1a 1aa", "United Kingdom"));
-    addresses.add(new Address("work", "456 Office Road", "Manchester", "m1 1ae", "United Kingdom"));
+    List<UserAddress> addresses = new ArrayList<>();
+    addresses.add(new UserAddress("home", "123 High Street", "London", "sw1a 1aa", "United Kingdom"));
+    addresses.add(new UserAddress("work", "456 Office Road", "Manchester", "m1 1ae", "United Kingdom"));
 
     ProfileSettings settings = new ProfileSettings(true, false, "en-US", "light");
 

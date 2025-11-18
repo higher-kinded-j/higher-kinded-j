@@ -9,10 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.higherkindedj.example.optics.fluent.model.Catalogue;
+import org.higherkindedj.example.optics.fluent.model.CatalogueTraversals;
+import org.higherkindedj.example.optics.fluent.model.Category;
+import org.higherkindedj.example.optics.fluent.model.CategoryTraversals;
+import org.higherkindedj.example.optics.fluent.model.Product;
+import org.higherkindedj.example.optics.fluent.model.ProductLenses;
+import org.higherkindedj.example.optics.fluent.model.ProductStatus;
+import org.higherkindedj.example.optics.fluent.model.Promotion;
 import org.higherkindedj.hkt.Free;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.fluent.OpticOps;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
@@ -38,35 +44,6 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
  * </ul>
  */
 public class AdvancedFluentPatternsExample {
-
-  // Domain model for product catalogue
-  @GenerateLenses
-  @GenerateTraversals
-  public record Catalogue(String catalogueId, String name, List<Category> categories) {}
-
-  @GenerateLenses
-  @GenerateTraversals
-  public record Category(String categoryId, String name, List<Product> products) {}
-
-  @GenerateLenses
-  public record Product(
-      String productId,
-      String name,
-      BigDecimal price,
-      int stockLevel,
-      ProductStatus status,
-      Optional<Promotion> activePromotion) {}
-
-  @GenerateLenses
-  public record Promotion(
-      String promotionId, BigDecimal discountPercent, LocalDate startDate, LocalDate endDate) {}
-
-  public enum ProductStatus {
-    ACTIVE,
-    OUT_OF_STOCK,
-    DISCONTINUED,
-    COMING_SOON
-  }
 
   public static void main(String[] args) {
     System.out.println("=== ADVANCED FLUENT PATTERNS EXAMPLE ===\n");

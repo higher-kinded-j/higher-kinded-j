@@ -8,9 +8,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.higherkindedj.example.optics.fluent.model.Account;
+import org.higherkindedj.example.optics.fluent.model.AccountLenses;
+import org.higherkindedj.example.optics.fluent.model.AccountStatus;
+import org.higherkindedj.example.optics.fluent.model.Transaction;
+import org.higherkindedj.example.optics.fluent.model.TransactionLenses;
+import org.higherkindedj.example.optics.fluent.model.TransactionStatus;
 import org.higherkindedj.hkt.Free;
 import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
 import org.higherkindedj.optics.free.OpticInterpreter;
@@ -36,32 +41,6 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
  * </ul>
  */
 public class OpticInterpretersExample {
-
-  // Domain model for financial transactions
-  @GenerateLenses
-  public record Account(String accountId, String owner, BigDecimal balance, AccountStatus status) {}
-
-  @GenerateLenses
-  public record Transaction(
-      String txnId,
-      Account fromAccount,
-      Account toAccount,
-      BigDecimal amount,
-      TransactionStatus status,
-      Instant timestamp) {}
-
-  public enum AccountStatus {
-    ACTIVE,
-    FROZEN,
-    CLOSED
-  }
-
-  public enum TransactionStatus {
-    PENDING,
-    PROCESSING,
-    COMPLETED,
-    FAILED
-  }
 
   public static void main(String[] args) {
     System.out.println("=== OPTIC INTERPRETERS EXAMPLE ===\n");
