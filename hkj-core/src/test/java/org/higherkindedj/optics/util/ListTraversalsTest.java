@@ -5,6 +5,14 @@ package org.higherkindedj.optics.util;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Optional;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListKindHelper;
+import org.higherkindedj.hkt.list.ListMonad;
+import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.optional.OptionalKindHelper;
+import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.junit.jupiter.api.DisplayName;
@@ -615,6 +623,184 @@ class ListTraversalsTest {
       assertThat(result).containsExactly(1, 2, 3, 4, 5); // No modifications
       assertThat(Traversals.getAll(slice, numbers)).isEmpty();
     }
+
+    @Test
+    @DisplayName("slicing() with both negative indices should be clamped to 0")
+    void slicingWithNegativeIndices() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(-5, -1);
+
+      List<Integer> numbers = List.of(1, 2, 3);
+      List<Integer> result = Traversals.modify(slice, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(1, 2, 3); // No modifications (from=0, to=0)
+      assertThat(Traversals.getAll(slice, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("slicing() with negative from and positive to")
+    void slicingWithNegativeFromPositiveTo() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(-2, 2);
+
+      List<Integer> numbers = List.of(1, 2, 3, 4, 5);
+      List<Integer> result = Traversals.modify(slice, x -> x * 10, numbers);
+
+      // from clamped to 0, to is 2, so slice [0, 2)
+      assertThat(result).containsExactly(10, 20, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("slicing() with from greater than to should focus on no elements")
+    void slicingWithFromGreaterThanTo() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(5, 2);
+
+      List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7);
+      List<Integer> result = Traversals.modify(slice, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(1, 2, 3, 4, 5, 6, 7); // No modifications
+      assertThat(Traversals.getAll(slice, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("slicing() with from equal to to should focus on no elements")
+    void slicingWithFromEqualToTo() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(3, 3);
+
+      List<Integer> numbers = List.of(1, 2, 3, 4, 5);
+      List<Integer> result = Traversals.modify(slice, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(1, 2, 3, 4, 5); // No modifications (empty range)
+      assertThat(Traversals.getAll(slice, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("slicing() with effectful operation")
+    void slicingWithEffectfulOperation() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(1, 3);
+
+      List<Integer> numbers = List.of(10, 20, 30, 40);
+
+      Kind<ListKind.Witness, List<Integer>> result =
+          slice.modifyF(
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), numbers, ListMonad.INSTANCE);
+
+      List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
+
+      // Slicing [1, 3) focuses on elements 20 and 30
+      // Each has 2 choices, so 2^2 = 4 combinations
+      assertThat(resultLists).hasSize(4);
+      assertThat(resultLists)
+          .contains(
+              List.of(10, 20, 30, 40),
+              List.of(10, 40, 30, 40),
+              List.of(10, 20, 60, 40),
+              List.of(10, 40, 60, 40));
+    }
+
+    @Test
+    @DisplayName("slicing() with empty list and effectful operation")
+    void slicingEmptyListWithEffectful() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(0, 5);
+
+      List<Integer> empty = List.of();
+
+      Kind<ListKind.Witness, List<Integer>> result =
+          slice.modifyF(
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), empty, ListMonad.INSTANCE);
+
+      List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
+
+      // Empty list should produce single result: the empty list
+      assertThat(resultLists).containsExactly(List.of());
+    }
+
+    @Test
+    @DisplayName("slicing() with Optional applicative should succeed")
+    void slicingWithOptionalApplicative() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(1, 3);
+
+      List<Integer> numbers = List.of(10, 20, 30, 40);
+
+      Kind<OptionalKind.Witness, List<Integer>> result =
+          slice.modifyF(
+              x -> OptionalKindHelper.OPTIONAL.widen(Optional.of(x * 2)),
+              numbers,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+
+      assertThat(optResult).contains(List.of(10, 40, 60, 40));
+    }
+
+    @Test
+    @DisplayName("slicing() with Optional applicative on empty list should succeed")
+    void slicingEmptyListWithOptionalApplicative() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(0, 5);
+
+      List<Integer> empty = List.of();
+
+      Kind<OptionalKind.Witness, List<Integer>> result =
+          slice.modifyF(
+              x -> OptionalKindHelper.OPTIONAL.widen(Optional.of(x * 2)),
+              empty,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+
+      assertThat(optResult).contains(List.of());
+    }
+
+    @Test
+    @DisplayName("slicing() with from > to and Optional applicative should preserve list")
+    void slicingFromGreaterThanToWithOptional() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(5, 2);
+
+      List<Integer> numbers = List.of(1, 2, 3, 4, 5);
+
+      Kind<OptionalKind.Witness, List<Integer>> result =
+          slice.modifyF(
+              x -> OptionalKindHelper.OPTIONAL.widen(Optional.of(x * 2)),
+              numbers,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+
+      // Should preserve original when no elements in range
+      assertThat(optResult).contains(List.of(1, 2, 3, 4, 5));
+    }
+
+    @Test
+    @DisplayName("slicing() with from == to and ListMonad should preserve list")
+    void slicingFromEqualToWithListMonad() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(3, 3);
+
+      List<Integer> numbers = List.of(10, 20, 30, 40);
+
+      Kind<ListKind.Witness, List<Integer>> result =
+          slice.modifyF(
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), numbers, ListMonad.INSTANCE);
+
+      List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
+
+      // Empty range should produce single result: the original list
+      assertThat(resultLists).containsExactly(List.of(10, 20, 30, 40));
+    }
+
+    @Test
+    @DisplayName("slicing() with empty source and ListMonad should preserve empty list")
+    void slicingEmptyListWithListMonad() {
+      Traversal<List<Integer>, Integer> slice = ListTraversals.slicing(1, 4);
+
+      List<Integer> empty = List.of();
+
+      Kind<ListKind.Witness, List<Integer>> result =
+          slice.modifyF(
+              x -> ListKindHelper.LIST.widen(List.of(x, x * 2)), empty, ListMonad.INSTANCE);
+
+      List<List<Integer>> resultLists = ListKindHelper.LIST.narrow(result);
+
+      // Empty source should produce single result: empty list
+      assertThat(resultLists).containsExactly(List.of());
+    }
   }
 
   @Nested
@@ -721,6 +907,275 @@ class ListTraversalsTest {
       // Modified should be new list
       assertThat(modified).containsExactly(2, 4, 3, 4, 5);
       assertThat(original).isNotSameAs(modified);
+    }
+  }
+
+  @Nested
+  @DisplayName("takingWhile(Predicate) - Focus on prefix while predicate holds")
+  class TakingWhileTests {
+
+    @Test
+    @DisplayName("takingWhile() should modify prefix while predicate is true")
+    void takingWhileModifiesPrefix() {
+      Traversal<List<Integer>, Integer> whileLessThan5 = ListTraversals.takingWhile(x -> x < 5);
+
+      List<Integer> numbers = List.of(1, 2, 3, 7, 4, 8);
+      List<Integer> result = Traversals.modify(whileLessThan5, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(2, 4, 6, 7, 4, 8);
+    }
+
+    @Test
+    @DisplayName("takingWhile() getAll should return prefix while predicate is true")
+    void takingWhileGetAllReturnsPrefix() {
+      Traversal<List<Integer>, Integer> whileLessThan5 = ListTraversals.takingWhile(x -> x < 5);
+
+      List<Integer> numbers = List.of(1, 2, 3, 7, 4, 8);
+      List<Integer> result = Traversals.getAll(whileLessThan5, numbers);
+
+      assertThat(result).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("takingWhile() with always true predicate focuses all elements")
+    void takingWhileAlwaysTrue() {
+      Traversal<List<Integer>, Integer> whileTrue = ListTraversals.takingWhile(x -> true);
+
+      List<Integer> numbers = List.of(1, 2, 3);
+      List<Integer> result = Traversals.modify(whileTrue, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(2, 4, 6);
+    }
+
+    @Test
+    @DisplayName("takingWhile() with always false predicate focuses no elements")
+    void takingWhileAlwaysFalse() {
+      Traversal<List<Integer>, Integer> whileFalse = ListTraversals.takingWhile(x -> false);
+
+      List<Integer> numbers = List.of(1, 2, 3);
+      List<Integer> result = Traversals.modify(whileFalse, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(1, 2, 3);
+      assertThat(Traversals.getAll(whileFalse, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("takingWhile() with empty list")
+    void takingWhileEmptyList() {
+      Traversal<List<Integer>, Integer> whileLessThan5 = ListTraversals.takingWhile(x -> x < 5);
+
+      List<Integer> empty = List.of();
+      List<Integer> result = Traversals.modify(whileLessThan5, x -> x * 2, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("takingWhile() first element fails predicate")
+    void takingWhileFirstElementFails() {
+      Traversal<List<Integer>, Integer> whileLessThan5 = ListTraversals.takingWhile(x -> x < 5);
+
+      List<Integer> numbers = List.of(10, 2, 3);
+      List<Integer> result = Traversals.modify(whileLessThan5, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(10, 2, 3);
+      assertThat(Traversals.getAll(whileLessThan5, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("takingWhile() should compose with filtered")
+    void takingWhileComposesWithFiltered() {
+      Traversal<List<Integer>, Integer> whilePositive = ListTraversals.takingWhile(x -> x > 0);
+      Traversal<List<Integer>, Integer> whilePositiveEven = whilePositive.filtered(x -> x % 2 == 0);
+
+      List<Integer> numbers = List.of(2, 4, 3, -1, 6);
+      List<Integer> result = Traversals.modify(whilePositiveEven, x -> x * 10, numbers);
+
+      assertThat(result).containsExactly(20, 40, 3, -1, 6);
+    }
+  }
+
+  @Nested
+  @DisplayName("droppingWhile(Predicate) - Skip prefix while predicate holds")
+  class DroppingWhileTests {
+
+    @Test
+    @DisplayName("droppingWhile() should modify suffix after prefix fails predicate")
+    void droppingWhileModifiesSuffix() {
+      Traversal<List<Integer>, Integer> afterLessThan5 = ListTraversals.droppingWhile(x -> x < 5);
+
+      List<Integer> numbers = List.of(1, 2, 3, 7, 4, 8);
+      List<Integer> result = Traversals.modify(afterLessThan5, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(1, 2, 3, 14, 8, 16);
+    }
+
+    @Test
+    @DisplayName("droppingWhile() getAll should return suffix after prefix")
+    void droppingWhileGetAllReturnsSuffix() {
+      Traversal<List<Integer>, Integer> afterLessThan5 = ListTraversals.droppingWhile(x -> x < 5);
+
+      List<Integer> numbers = List.of(1, 2, 3, 7, 4, 8);
+      List<Integer> result = Traversals.getAll(afterLessThan5, numbers);
+
+      assertThat(result).containsExactly(7, 4, 8);
+    }
+
+    @Test
+    @DisplayName("droppingWhile() with always true predicate focuses no elements")
+    void droppingWhileAlwaysTrue() {
+      Traversal<List<Integer>, Integer> whileTrue = ListTraversals.droppingWhile(x -> true);
+
+      List<Integer> numbers = List.of(1, 2, 3);
+      List<Integer> result = Traversals.modify(whileTrue, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(1, 2, 3);
+      assertThat(Traversals.getAll(whileTrue, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("droppingWhile() with always false predicate focuses all elements")
+    void droppingWhileAlwaysFalse() {
+      Traversal<List<Integer>, Integer> whileFalse = ListTraversals.droppingWhile(x -> false);
+
+      List<Integer> numbers = List.of(1, 2, 3);
+      List<Integer> result = Traversals.modify(whileFalse, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(2, 4, 6);
+    }
+
+    @Test
+    @DisplayName("droppingWhile() with empty list")
+    void droppingWhileEmptyList() {
+      Traversal<List<Integer>, Integer> afterLessThan5 = ListTraversals.droppingWhile(x -> x < 5);
+
+      List<Integer> empty = List.of();
+      List<Integer> result = Traversals.modify(afterLessThan5, x -> x * 2, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("droppingWhile() first element fails predicate focuses all")
+    void droppingWhileFirstElementFails() {
+      Traversal<List<Integer>, Integer> afterGreaterThan5 =
+          ListTraversals.droppingWhile(x -> x > 5);
+
+      List<Integer> numbers = List.of(2, 10, 20);
+      List<Integer> result = Traversals.modify(afterGreaterThan5, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(4, 20, 40);
+    }
+  }
+
+  @Nested
+  @DisplayName("element(int index) - Focus on single element at index")
+  class ElementTests {
+
+    @Test
+    @DisplayName("element() should modify element at index")
+    void elementModifiesAtIndex() {
+      Traversal<List<Integer>, Integer> secondElement = ListTraversals.element(1);
+
+      List<Integer> numbers = List.of(10, 20, 30);
+      List<Integer> result = Traversals.modify(secondElement, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(10, 40, 30);
+    }
+
+    @Test
+    @DisplayName("element() getAll should return element at index")
+    void elementGetAllReturnsElement() {
+      Traversal<List<Integer>, Integer> secondElement = ListTraversals.element(1);
+
+      List<Integer> numbers = List.of(10, 20, 30);
+      List<Integer> result = Traversals.getAll(secondElement, numbers);
+
+      assertThat(result).containsExactly(20);
+    }
+
+    @Test
+    @DisplayName("element() with index 0 should focus on first element")
+    void elementAtIndexZero() {
+      Traversal<List<Integer>, Integer> firstElement = ListTraversals.element(0);
+
+      List<Integer> numbers = List.of(10, 20, 30);
+      List<Integer> result = Traversals.modify(firstElement, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(20, 20, 30);
+    }
+
+    @Test
+    @DisplayName("element() with last index should focus on last element")
+    void elementAtLastIndex() {
+      Traversal<List<Integer>, Integer> lastElement = ListTraversals.element(2);
+
+      List<Integer> numbers = List.of(10, 20, 30);
+      List<Integer> result = Traversals.modify(lastElement, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(10, 20, 60);
+    }
+
+    @Test
+    @DisplayName("element() with out of bounds index focuses no elements")
+    void elementOutOfBounds() {
+      Traversal<List<Integer>, Integer> outOfBounds = ListTraversals.element(10);
+
+      List<Integer> numbers = List.of(10, 20, 30);
+      List<Integer> result = Traversals.modify(outOfBounds, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(10, 20, 30);
+      assertThat(Traversals.getAll(outOfBounds, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("element() with negative index focuses no elements")
+    void elementNegativeIndex() {
+      Traversal<List<Integer>, Integer> negativeIndex = ListTraversals.element(-1);
+
+      List<Integer> numbers = List.of(10, 20, 30);
+      List<Integer> result = Traversals.modify(negativeIndex, x -> x * 2, numbers);
+
+      assertThat(result).containsExactly(10, 20, 30);
+      assertThat(Traversals.getAll(negativeIndex, numbers)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("element() with empty list focuses no elements")
+    void elementEmptyList() {
+      Traversal<List<Integer>, Integer> element = ListTraversals.element(0);
+
+      List<Integer> empty = List.of();
+      List<Integer> result = Traversals.modify(element, x -> x * 2, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("element() should compose with other traversals")
+    void elementComposition() {
+      Traversal<List<List<Integer>>, List<Integer>> secondList = ListTraversals.element(1);
+      Traversal<List<List<Integer>>, Integer> secondListFirstElement =
+          secondList.andThen(ListTraversals.element(0));
+
+      List<List<Integer>> nested = List.of(List.of(1, 2), List.of(10, 20), List.of(100, 200));
+
+      List<Integer> result = Traversals.getAll(secondListFirstElement, nested);
+      assertThat(result).containsExactly(10);
+
+      List<List<Integer>> modified = Traversals.modify(secondListFirstElement, x -> x * 5, nested);
+      assertThat(modified).containsExactly(List.of(1, 2), List.of(50, 20), List.of(100, 200));
+    }
+
+    @Test
+    @DisplayName("element() single element list at index 0")
+    void elementSingleElementList() {
+      Traversal<List<String>, String> element = ListTraversals.element(0);
+
+      List<String> single = List.of("only");
+      List<String> result = Traversals.modify(element, String::toUpperCase, single);
+
+      assertThat(result).containsExactly("ONLY");
     }
   }
 }

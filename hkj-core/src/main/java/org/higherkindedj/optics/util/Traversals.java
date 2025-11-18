@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -23,9 +24,13 @@ import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
+import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.optional.OptionalKindHelper;
+import org.higherkindedj.hkt.optional.OptionalTraverse;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.trampoline.Trampoline;
+import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
@@ -189,6 +194,94 @@ public final class Traversals {
   }
 
   /**
+   * Creates a {@code Traversal} that focuses on the value within an {@link Optional}.
+   *
+   * <p>This is an affine traversal with 0-1 cardinality. If the optional is empty, the traversal
+   * focuses on zero elements and modifications have no effect. If the optional contains a value,
+   * the traversal focuses on that single value.
+   *
+   * <p>This traversal is particularly useful for composing with other traversals to handle optional
+   * nested structures.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Modify the value inside an optional
+   * Traversal<Optional<String>, String> optTraversal = Traversals.forOptional();
+   * Optional<String> result = Traversals.modify(
+   *     optTraversal,
+   *     String::toUpperCase,
+   *     Optional.of("hello")
+   * );
+   * // result = Optional.of("HELLO")
+   *
+   * // Compose with other traversals
+   * Traversal<List<Optional<User>>, User> userTraversal =
+   *     Traversals.<Optional<User>>forList()
+   *         .andThen(Traversals.forOptional());
+   * }</pre>
+   *
+   * @param <A> The type of the value potentially contained in the optional.
+   * @return A {@code Traversal} for optional values.
+   */
+  public static <A> Traversal<Optional<A>, A> forOptional() {
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, Optional<A>> modifyF(
+          final Function<A, Kind<F, A>> f,
+          final Optional<A> source,
+          final Applicative<F> applicative) {
+        return traverseOptional(source, f, applicative);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on all values within a {@link Map}, preserving the
+   * keys.
+   *
+   * <p>This traversal applies an effectful function to each value in the map while keeping all keys
+   * unchanged. The order of traversal follows the map's iteration order.
+   *
+   * <p>This is distinct from {@link #forMap(Object)} which focuses on a single key-value pair. This
+   * traversal focuses on all values simultaneously.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Modify all values in a map
+   * Map<String, Integer> ages = Map.of("Alice", 25, "Bob", 30);
+   * Traversal<Map<String, Integer>, Integer> allValues = Traversals.forMapValues();
+   *
+   * Map<String, Integer> incremented = Traversals.modify(
+   *     allValues,
+   *     age -> age + 1,
+   *     ages
+   * );
+   * // incremented = Map.of("Alice", 26, "Bob", 31)
+   *
+   * // Get all values
+   * List<Integer> values = Traversals.getAll(allValues, ages);
+   * // values = [25, 30] (order depends on map iteration order)
+   * }</pre>
+   *
+   * @param <K> The type of the map's keys.
+   * @param <V> The type of the map's values.
+   * @return A {@code Traversal} for all map values.
+   */
+  public static <K, V> Traversal<Map<K, V>, V> forMapValues() {
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, Map<K, V>> modifyF(
+          final Function<V, Kind<F, V>> f,
+          final Map<K, V> source,
+          final Applicative<F> applicative) {
+        return traverseMapValues(source, f, applicative);
+      }
+    };
+  }
+
+  /**
    * Applies an effectful function to each element of a {@link List} and collects the results in a
    * single effect.
    *
@@ -214,6 +307,114 @@ public final class Traversals {
     final var effectOfKindList = ListTraverse.INSTANCE.sequenceA(applicative, effectsAsKind);
 
     return applicative.map(ListKindHelper.LIST::narrow, effectOfKindList);
+  }
+
+  /**
+   * Applies an effectful function to the value in an {@link Optional} if present, collecting the
+   * result in a single effect.
+   *
+   * <p>This is a direct application of the {@code traverse} operation for {@code Optional},
+   * provided here as a static helper for convenience. It "flips" an {@code Optional<A>} and a
+   * function {@code A -> F<B>} into a single {@code F<Optional<B>>}.
+   *
+   * <p>If the optional is empty, the result is {@code applicative.of(Optional.empty())}. If the
+   * optional contains a value, the function is applied to produce {@code F<B>}, which is then
+   * mapped to {@code F<Optional<B>>}.
+   *
+   * @param optional The source optional to traverse.
+   * @param f The effectful function to apply to the value if present.
+   * @param applicative The {@code Applicative} instance for the effect {@code F}.
+   * @param <F> The higher-kinded type witness of the applicative effect.
+   * @param <A> The element type of the source optional.
+   * @param <B> The element type of the resulting optional.
+   * @return A {@code Kind<F, Optional<B>>}, representing the result within the applicative context.
+   */
+  public static <F, A, B> Kind<F, Optional<B>> traverseOptional(
+      final Optional<A> optional,
+      final Function<? super A, ? extends Kind<F, ? extends B>> f,
+      final Applicative<F> applicative) {
+
+    final Kind<OptionalKind.Witness, A> optionalKind = OptionalKindHelper.OPTIONAL.widen(optional);
+    final Kind<F, Kind<OptionalKind.Witness, B>> traversed =
+        OptionalTraverse.INSTANCE.traverse(applicative, f, optionalKind);
+
+    return applicative.map(OptionalKindHelper.OPTIONAL::narrow, traversed);
+  }
+
+  /**
+   * Applies an effectful function to each value in a {@link Map}, preserving the keys and
+   * collecting the results in a single effect.
+   *
+   * <p>This helper traverses all values in the map, applying the effectful function {@code f} to
+   * each value while keeping the keys unchanged. The result is a {@code F<Map<K, W>>} where all
+   * effects have been sequenced.
+   *
+   * <p>If the map is empty, returns {@code applicative.of(emptyMap)}.
+   *
+   * @param map The source map to traverse.
+   * @param f The effectful function to apply to each value.
+   * @param applicative The {@code Applicative} instance for the effect {@code F}.
+   * @param <F> The higher-kinded type witness of the applicative effect.
+   * @param <K> The type of the map keys.
+   * @param <V> The type of the source map values.
+   * @param <W> The type of the resulting map values.
+   * @return A {@code Kind<F, Map<K, W>>}, representing the transformed map within the applicative
+   *     context.
+   */
+  public static <F, K, V, W> Kind<F, Map<K, W>> traverseMapValues(
+      final Map<K, V> map,
+      final Function<? super V, ? extends Kind<F, ? extends W>> f,
+      final Applicative<F> applicative) {
+
+    if (map.isEmpty()) {
+      return applicative.of(new HashMap<>());
+    }
+
+    Kind<F, Map<K, W>> result = applicative.of(new HashMap<>(map.size()));
+    for (Map.Entry<K, V> entry : map.entrySet()) {
+      @SuppressWarnings("unchecked")
+      final Kind<F, W> newFValue = (Kind<F, W>) f.apply(entry.getValue());
+      final K key = entry.getKey();
+      result =
+          applicative.map2(
+              result,
+              newFValue,
+              (m, w) -> {
+                final Map<K, W> updated = new HashMap<>(m);
+                updated.put(key, w);
+                return updated;
+              });
+    }
+    return result;
+  }
+
+  /**
+   * Applies an effectful function to both elements of a {@link Tuple2} where both elements are of
+   * the same type, collecting the results in a single effect.
+   *
+   * <p>This helper traverses both positions in the tuple, applying the effectful function {@code f}
+   * to each element. The result is {@code F<Tuple2<B, B>>} where both effects have been sequenced.
+   *
+   * @param tuple The source tuple to traverse.
+   * @param f The effectful function to apply to each element.
+   * @param applicative The {@code Applicative} instance for the effect {@code F}.
+   * @param <F> The higher-kinded type witness of the applicative effect.
+   * @param <A> The element type of the source tuple.
+   * @param <B> The element type of the resulting tuple.
+   * @return A {@code Kind<F, Tuple2<B, B>>}, representing the transformed tuple within the
+   *     applicative context.
+   */
+  public static <F, A, B> Kind<F, Tuple2<B, B>> traverseTuple2Both(
+      final Tuple2<A, A> tuple,
+      final Function<? super A, ? extends Kind<F, ? extends B>> f,
+      final Applicative<F> applicative) {
+
+    @SuppressWarnings("unchecked")
+    final Kind<F, B> first = (Kind<F, B>) f.apply(tuple._1());
+    @SuppressWarnings("unchecked")
+    final Kind<F, B> second = (Kind<F, B>) f.apply(tuple._2());
+
+    return applicative.map2(first, second, Tuple2::new);
   }
 
   /**

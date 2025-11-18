@@ -1168,5 +1168,6 @@ Indexed optics represent the fusion of position awareness with functional compos
 
 ---
 
-**Previous:** [Filtered Optics: Predicate-Based Composition](filtered_optics.md)
-**Next:** [Limiting Traversals: Focusing on List Portions](limiting_traversals.md)
+**Previous:** [Common Data Structure Traversals](common_data_structure_traversals.md)
+**Next:** [Getters: Read-Only Optics](getters.md)
+

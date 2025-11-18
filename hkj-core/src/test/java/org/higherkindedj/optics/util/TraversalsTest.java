@@ -2774,4 +2774,204 @@ class TraversalsTest {
       }
     }
   }
+
+  @Nested
+  @DisplayName("forOptional Tests")
+  class ForOptionalTests {
+
+    @Test
+    @DisplayName("forOptional() should modify value when present")
+    void forOptional_shouldModifyWhenPresent() {
+      Traversal<Optional<String>, String> optTraversal = Traversals.forOptional();
+
+      Optional<String> source = Optional.of("hello");
+      Optional<String> result = Traversals.modify(optTraversal, String::toUpperCase, source);
+
+      assertThat(result).isEqualTo(Optional.of("HELLO"));
+    }
+
+    @Test
+    @DisplayName("forOptional() should return empty when source is empty")
+    void forOptional_shouldReturnEmptyWhenSourceEmpty() {
+      Traversal<Optional<String>, String> optTraversal = Traversals.forOptional();
+
+      Optional<String> empty = Optional.empty();
+      Optional<String> result = Traversals.modify(optTraversal, String::toUpperCase, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forOptional() getAll should return value when present")
+    void forOptional_getAllReturnsValueWhenPresent() {
+      Traversal<Optional<Integer>, Integer> optTraversal = Traversals.forOptional();
+
+      Optional<Integer> source = Optional.of(42);
+      List<Integer> result = Traversals.getAll(optTraversal, source);
+
+      assertThat(result).containsExactly(42);
+    }
+
+    @Test
+    @DisplayName("forOptional() getAll should return empty list when source is empty")
+    void forOptional_getAllReturnsEmptyWhenSourceEmpty() {
+      Traversal<Optional<Integer>, Integer> optTraversal = Traversals.forOptional();
+
+      Optional<Integer> empty = Optional.empty();
+      List<Integer> result = Traversals.getAll(optTraversal, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forOptional() should compose with list traversal")
+    void forOptional_shouldComposeWithListTraversal() {
+      Traversal<List<Optional<Integer>>, Integer> composedTraversal =
+          Traversals.<Optional<Integer>>forList().andThen(Traversals.forOptional());
+
+      List<Optional<Integer>> optionals = List.of(Optional.of(1), Optional.empty(), Optional.of(3));
+
+      List<Integer> values = Traversals.getAll(composedTraversal, optionals);
+
+      assertThat(values).containsExactly(1, 3);
+    }
+
+    @Test
+    @DisplayName("forOptional() should compose with list traversal for modification")
+    void forOptional_shouldComposeWithListTraversalForModification() {
+      Traversal<List<Optional<Integer>>, Integer> composedTraversal =
+          Traversals.<Optional<Integer>>forList().andThen(Traversals.forOptional());
+
+      List<Optional<Integer>> optionals = List.of(Optional.of(1), Optional.empty(), Optional.of(3));
+
+      List<Optional<Integer>> result = Traversals.modify(composedTraversal, x -> x * 10, optionals);
+
+      assertThat(result).containsExactly(Optional.of(10), Optional.empty(), Optional.of(30));
+    }
+
+    @Test
+    @DisplayName("forOptional() with filtered should apply predicate")
+    void forOptional_withFiltered() {
+      Traversal<Optional<Integer>, Integer> optTraversal = Traversals.forOptional();
+      Traversal<Optional<Integer>, Integer> evenOnly = optTraversal.filtered(x -> x % 2 == 0);
+
+      Optional<Integer> evenValue = Optional.of(10);
+      Optional<Integer> oddValue = Optional.of(11);
+
+      Optional<Integer> modifiedEven = Traversals.modify(evenOnly, x -> x * 2, evenValue);
+      Optional<Integer> modifiedOdd = Traversals.modify(evenOnly, x -> x * 2, oddValue);
+
+      assertThat(modifiedEven).isEqualTo(Optional.of(20));
+      assertThat(modifiedOdd).isEqualTo(Optional.of(11)); // Unchanged
+    }
+  }
+
+  @Nested
+  @DisplayName("forMapValues Tests")
+  class ForMapValuesTests {
+
+    @Test
+    @DisplayName("forMapValues() should modify all values")
+    void forMapValues_shouldModifyAllValues() {
+      Traversal<Map<String, Integer>, Integer> valuesTraversal = Traversals.forMapValues();
+
+      Map<String, Integer> ages = Map.of("Alice", 25, "Bob", 30);
+      Map<String, Integer> result = Traversals.modify(valuesTraversal, age -> age + 1, ages);
+
+      assertThat(result).containsEntry("Alice", 26).containsEntry("Bob", 31);
+    }
+
+    @Test
+    @DisplayName("forMapValues() getAll should return all values")
+    void forMapValues_getAllReturnsAllValues() {
+      Traversal<Map<String, Integer>, Integer> valuesTraversal = Traversals.forMapValues();
+
+      Map<String, Integer> ages = Map.of("Alice", 25, "Bob", 30, "Charlie", 35);
+      List<Integer> result = Traversals.getAll(valuesTraversal, ages);
+
+      assertThat(result).containsExactlyInAnyOrder(25, 30, 35);
+    }
+
+    @Test
+    @DisplayName("forMapValues() with empty map should return empty")
+    void forMapValues_withEmptyMap() {
+      Traversal<Map<String, Integer>, Integer> valuesTraversal = Traversals.forMapValues();
+
+      Map<String, Integer> empty = Map.of();
+      Map<String, Integer> result = Traversals.modify(valuesTraversal, x -> x * 2, empty);
+
+      assertThat(result).isEmpty();
+      assertThat(Traversals.getAll(valuesTraversal, empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forMapValues() should preserve keys")
+    void forMapValues_shouldPreserveKeys() {
+      Traversal<Map<String, Integer>, Integer> valuesTraversal = Traversals.forMapValues();
+
+      Map<String, Integer> original = Map.of("key1", 10, "key2", 20, "key3", 30);
+      Map<String, Integer> result = Traversals.modify(valuesTraversal, x -> x * 2, original);
+
+      assertThat(result.keySet()).containsExactlyInAnyOrder("key1", "key2", "key3");
+      assertThat(result)
+          .containsEntry("key1", 20)
+          .containsEntry("key2", 40)
+          .containsEntry("key3", 60);
+    }
+
+    @Test
+    @DisplayName("forMapValues() with single entry")
+    void forMapValues_withSingleEntry() {
+      Traversal<Map<String, String>, String> valuesTraversal = Traversals.forMapValues();
+
+      Map<String, String> single = Map.of("only", "value");
+      Map<String, String> result = Traversals.modify(valuesTraversal, String::toUpperCase, single);
+
+      assertThat(result).containsEntry("only", "VALUE");
+    }
+
+    @Test
+    @DisplayName("forMapValues() should compose with filtered")
+    void forMapValues_withFiltered() {
+      Traversal<Map<String, Integer>, Integer> valuesTraversal = Traversals.forMapValues();
+      Traversal<Map<String, Integer>, Integer> largeValues = valuesTraversal.filtered(v -> v > 50);
+
+      Map<String, Integer> scores = Map.of("Alice", 25, "Bob", 75, "Charlie", 100);
+      Map<String, Integer> result = Traversals.modify(largeValues, v -> v + 10, scores);
+
+      assertThat(result)
+          .containsEntry("Alice", 25)
+          .containsEntry("Bob", 85)
+          .containsEntry("Charlie", 110);
+    }
+
+    @Test
+    @DisplayName("forMapValues() should work with different value types")
+    void forMapValues_withDifferentTypes() {
+      Traversal<Map<Integer, String>, String> valuesTraversal = Traversals.forMapValues();
+
+      Map<Integer, String> idToName = Map.of(1, "Alice", 2, "Bob", 3, "Charlie");
+      Map<Integer, String> result =
+          Traversals.modify(valuesTraversal, String::toUpperCase, idToName);
+
+      assertThat(result)
+          .containsEntry(1, "ALICE")
+          .containsEntry(2, "BOB")
+          .containsEntry(3, "CHARLIE");
+    }
+
+    @Test
+    @DisplayName("forMapValues() should handle complex transformations")
+    void forMapValues_complexTransformations() {
+      Traversal<Map<String, Integer>, Integer> valuesTraversal = Traversals.forMapValues();
+
+      Map<String, Integer> numbers = Map.of("a", 3, "b", 5, "c", 7);
+      Map<String, Integer> result = Traversals.modify(valuesTraversal, x -> x * x + 1, numbers);
+
+      assertThat(result)
+          .containsEntry("a", 10) // 3^2 + 1
+          .containsEntry("b", 26) // 5^2 + 1
+          .containsEntry("c", 50); // 7^2 + 1
+    }
+  }
 }

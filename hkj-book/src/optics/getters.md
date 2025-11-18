@@ -585,5 +585,5 @@ The key insight: **Getters make pure functions first-class composable citizens**
 
 ---
 
-**Previous:** [Limiting Traversals: Focusing on List Portions](limiting_traversals.md)
+**Previous:** [Indexed Optics: Position-Aware Operations](indexed_optics.md)
 **Next:** [Setters: Composable Write-Only Modifications](setters.md)

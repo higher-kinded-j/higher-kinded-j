@@ -20,6 +20,8 @@
 [BatchProcessingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/BatchProcessingExample.java)
 
 [TimeSeriesWindowingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TimeSeriesWindowingExample.java)
+
+[PredicateListTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PredicateListTraversalsExample.java)
 ~~~
 
 In our journey through optics, we've seen how **Traversal** handles bulk operations on all elements of a collection, and how **filtered optics** let us focus on elements matching a predicate. But what about focusing on elements by *position*—the first few items, the last few, or a specific slice?
@@ -199,6 +201,181 @@ List<Product> result = Traversals.modify(slice, p -> p.applyDiscount(0.12), prod
 
 List<Product> sliced = Traversals.getAll(slice, products);
 // Returns: [Gadget, Gizmo, Doohickey]
+```
+
+---
+
+## Predicate-Based Focusing: Beyond Fixed Indices
+
+Whilst index-based limiting is powerful, many real-world scenarios require **conditional focusing**—stopping when a condition is met rather than at a fixed position. `ListTraversals` provides three predicate-based methods that complement the fixed-index approaches:
+
+| Method | Description | Use Case |
+|--------|-------------|----------|
+| **`takingWhile(Predicate)`** | Focus on longest prefix where predicate holds | Processing ordered data until threshold |
+| **`droppingWhile(Predicate)`** | Skip prefix whilst predicate holds | Ignoring header/preamble sections |
+| **`element(int)`** | Focus on single element at index (0-1 cardinality) | Safe indexed access without exceptions |
+
+These methods enable **runtime-determined focusing**—the number of elements in focus depends on the data itself, not a predetermined count.
+
+### Step 6: Conditional Prefix with `takingWhile(Predicate)`
+
+The `takingWhile()` method focuses on the **longest prefix** of elements satisfying a predicate. Once an element fails the test, traversal stops—even if later elements would pass.
+
+```java
+// Focus on products whilst price < 20
+Traversal<List<Product>, Product> affordablePrefix =
+    ListTraversals.takingWhile(p -> p.price() < 20.0);
+
+List<Product> products = List.of(
+    new Product("SKU001", "Widget", 10.0, 100),
+    new Product("SKU002", "Gadget", 15.0, 50),
+    new Product("SKU003", "Gizmo", 25.0, 75),   // Stops here
+    new Product("SKU004", "Thing", 12.0, 25)    // Not included despite < 20
+);
+
+// Apply discount only to initial affordable items
+List<Product> result = Traversals.modify(
+    affordablePrefix,
+    p -> p.applyDiscount(0.1),
+    products
+);
+// Widget and Gadget discounted; Gizmo and Thing unchanged
+
+// Extract the affordable prefix
+List<Product> affordable = Traversals.getAll(affordablePrefix, products);
+// Returns: [Widget, Gadget]  (stops at first expensive item)
+```
+
+**Key Semantic**: Unlike `filtered()`, which tests all elements, `takingWhile()` is **sequential and prefix-oriented**. It's the optics equivalent of Stream's `takeWhile()`.
+
+**Real-World Use Cases**:
+- **Time-series data**: Process events before a timestamp threshold
+- **Sorted lists**: Extract items below a value boundary
+- **Log processing**: Capture startup messages before first error
+- **Priority queues**: Handle high-priority items before switching logic
+
+```java
+// Time-series: Process transactions before cutoff
+LocalDateTime cutoff = LocalDateTime.of(2025, 1, 1, 0, 0);
+Traversal<List<Transaction>, Transaction> beforeCutoff =
+    ListTraversals.takingWhile(t -> t.timestamp().isBefore(cutoff));
+
+List<Transaction> processed = Traversals.modify(
+    beforeCutoff,
+    t -> t.withStatus("PROCESSED"),
+    transactions
+);
+```
+
+### Step 7: Skipping Prefix with `droppingWhile(Predicate)`
+
+The `droppingWhile()` method is the complement to `takingWhile()`—it **skips the prefix** whilst the predicate holds, then focuses on all remaining elements.
+
+```java
+// Skip low-stock products, focus on well-stocked ones
+Traversal<List<Product>, Product> wellStocked =
+    ListTraversals.droppingWhile(p -> p.stock() < 50);
+
+List<Product> products = List.of(
+    new Product("SKU001", "Widget", 10.0, 20),
+    new Product("SKU002", "Gadget", 25.0, 30),
+    new Product("SKU003", "Gizmo", 15.0, 75),   // First to pass
+    new Product("SKU004", "Thing", 12.0, 25)    // Included despite < 50
+);
+
+// Restock only well-stocked items (and everything after)
+List<Product> restocked = Traversals.modify(
+    wellStocked,
+    p -> new Product(p.sku(), p.name(), p.price(), p.stock() + 50),
+    products
+);
+// Widget and Gadget unchanged; Gizmo and Thing restocked
+
+List<Product> focused = Traversals.getAll(wellStocked, products);
+// Returns: [Gizmo, Thing]
+```
+
+**Real-World Use Cases**:
+- **Skipping headers**: Process CSV data after metadata rows
+- **Log analysis**: Ignore initialisation messages, focus on runtime
+- **Pagination**: Skip already-processed records in batch jobs
+- **Protocol parsing**: Discard handshake, process payload
+
+```java
+// Skip configuration lines in log file
+Traversal<String, String> runtimeLogs =
+    StringTraversals.lined()
+        .filtered(line -> !line.startsWith("[CONFIG]"));
+
+// Apply to log data
+String logs = "[CONFIG] Database URL\n[CONFIG] Port\nINFO: System started\nERROR: Connection failed";
+String result = Traversals.modify(runtimeLogs, String::toUpperCase, logs);
+// Result: "[CONFIG] Database URL\n[CONFIG] Port\nINFO: SYSTEM STARTED\nERROR: CONNECTION FAILED"
+```
+
+### Step 8: Single Element Access with `element(int)`
+
+The `element()` method creates an **affine traversal** (0-1 cardinality) focusing on a single element at the given index. Unlike direct array access, it never throws `IndexOutOfBoundsException`.
+
+```java
+// Focus on element at index 2
+Traversal<List<Product>, Product> thirdProduct = ListTraversals.element(2);
+
+List<Product> products = List.of(
+    new Product("SKU001", "Widget", 10.0, 100),
+    new Product("SKU002", "Gadget", 25.0, 50),
+    new Product("SKU003", "Gizmo", 15.0, 75)
+);
+
+// Modify only the third product
+List<Product> updated = Traversals.modify(
+    thirdProduct,
+    p -> p.applyDiscount(0.2),
+    products
+);
+// Only Gizmo discounted
+
+// Extract the element (if present)
+List<Product> element = Traversals.getAll(thirdProduct, products);
+// Returns: [Gizmo]
+
+// Out of bounds: gracefully returns empty
+List<Product> outOfBounds = Traversals.getAll(
+    ListTraversals.element(10),
+    products
+);
+// Returns: [] (no exception)
+```
+
+**When to Use `element()` vs `Ixed`**:
+- **`element()`**: For composition with other traversals, when index is known at construction time
+- **`Ixed`**: For dynamic indexed access, more general type class approach
+
+```java
+// Compose element() with nested structures
+Traversal<List<List<Product>>, Product> secondListThirdProduct =
+    ListTraversals.element(1)  // Second list
+        .andThen(ListTraversals.element(2));  // Third product in that list
+
+// Ixed for dynamic access
+IxedInstances.listIxed().ix(userProvidedIndex).getOptional(products);
+```
+
+### Combining Predicate-Based and Index-Based Traversals
+
+The real power emerges when mixing approaches:
+
+```java
+// Take first 10 products where stock > 0, then filter by price
+Traversal<List<Product>, Product> topAffordableInStock =
+    ListTraversals.taking(10)
+        .andThen(ListTraversals.takingWhile(p -> p.stock() > 0))
+        .filtered(p -> p.price() < 30.0);
+
+// Skip warmup period, then take next 100 events
+Traversal<List<Event>, Event> steadyState =
+    ListTraversals.droppingWhile(e -> e.isWarmup())
+        .andThen(ListTraversals.taking(100));
 ```
 
 ---
@@ -626,5 +803,6 @@ Limiting traversals represent the natural evolution of optics for list manipulat
 
 ---
 
-**Previous:** [Indexed Optics: Position-Aware Operations](indexed_optics.md)
-**Next:** [Getters: Composable Read-Only Access](getters.md)
+**Previous:** [Filtered Optics: Predicate-Based Composition](filtered_optics.md)
+**Next:** [String Traversals: Declarative Text Processing](string_traversals.md)
+
