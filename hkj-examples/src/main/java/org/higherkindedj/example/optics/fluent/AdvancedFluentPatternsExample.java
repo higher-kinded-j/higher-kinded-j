@@ -303,12 +303,14 @@ public class AdvancedFluentPatternsExample {
     // Phase 1: Validate the changes
     System.out.println("Phase 1: Validation (dry-run)");
     ValidationOpticInterpreter validator = OpticInterpreters.validation();
-    validator.run(program);
+    ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(program);
 
-    System.out.println("  Validation log:");
-    validator.getLog().stream().limit(5).forEach(entry -> System.out.println("    " + entry));
-    if (validator.getLog().size() > 5) {
-      System.out.println("    ... (" + (validator.getLog().size() - 5) + " more operations)");
+    System.out.println("  Validation results:");
+    System.out.println("    Valid: " + validationResult.isValid());
+    System.out.println("    Errors: " + validationResult.errors().size());
+    System.out.println("    Warnings: " + validationResult.warnings().size());
+    if (!validationResult.warnings().isEmpty()) {
+      validationResult.warnings().stream().limit(3).forEach(warn -> System.out.println("      - " + warn));
     }
     System.out.println("  ✓ Validation passed");
     System.out.println();
@@ -432,7 +434,12 @@ public class AdvancedFluentPatternsExample {
     // Execute with full workflow
     System.out.println("Phase 1: Validation");
     ValidationOpticInterpreter validator = OpticInterpreters.validation();
-    validator.run(program);
+    ValidationOpticInterpreter.ValidationResult validation = validator.validate(program);
+    if (!validation.isValid()) {
+      System.out.println("  ✗ Validation failed");
+      validation.errors().forEach(err -> System.out.println("    " + err));
+      return;
+    }
     System.out.println("  ✓ Promotion rules validated");
     System.out.println();
 

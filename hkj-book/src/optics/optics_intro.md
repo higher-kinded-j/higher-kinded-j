@@ -283,11 +283,10 @@ Free<OpticOpKind.Witness, Person> program =
             OpticPrograms.set(person, PersonLenses.age(), age + 1));
 
 // Execute with different interpreters
-Person result = OpticInterpreters.direct().run(program);        // Production
+Person result = OpticInterpreters.direct().run(program);                     // Production
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
-logger.run(program);                                             // Audit trail
-ValidationOpticInterpreter validator = OpticInterpreters.validation();
-validator.run(program);                                          // Dry-run
+logger.run(program);                                                          // Audit trail
+ValidationOpticInterpreter.ValidationResult validation = OpticInterpreters.validation().validate(program);  // Dry-run
 ```
 
 This powerful pattern is explored in detail in the [Free Monad DSL Guide](free_monad_dsl.md) and [Optic Interpreters Guide](interpreters.md).

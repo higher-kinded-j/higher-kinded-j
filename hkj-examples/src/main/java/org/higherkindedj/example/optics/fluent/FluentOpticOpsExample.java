@@ -160,15 +160,13 @@ public class FluentOpticOpsExample {
 
     // Example 4: Chaining multiple operations
     System.out.println("Example 4: Complex update chain");
+    Order statusUpdated =
+        OpticOps.setting(order).through(OrderLenses.status(), OrderStatus.PROCESSING);
     Order complexUpdate =
-        OpticOps.setting(order)
-            .through(OrderLenses.status(), OrderStatus.PROCESSING)
-            .thenApply(
-                o ->
-                    OpticOps.modifying(o)
-                        .through(
-                            OrderLenses.address().andThen(ShippingAddressLenses.postCode()),
-                            String::toUpperCase));
+        OpticOps.modifying(statusUpdated)
+            .through(
+                OrderLenses.address().andThen(ShippingAddressLenses.postCode()),
+                String::toUpperCase);
 
     System.out.println(
         "  Status: " + OpticOps.getting(complexUpdate).through(OrderLenses.status()));
@@ -223,13 +221,12 @@ public class FluentOpticOpsExample {
         OpticOps.modifying(processedOrder)
             .through(
                 OrderLenses.address().andThen(ShippingAddressLenses.postCode()),
-                String::toUpperCase)
-            .thenApply(
-                o ->
-                    OpticOps.modifying(o)
-                        .through(
-                            OrderLenses.address().andThen(ShippingAddressLenses.city()),
-                            city -> capitalise(city)));
+                String::toUpperCase);
+    processedOrder =
+        OpticOps.modifying(processedOrder)
+            .through(
+                OrderLenses.address().andThen(ShippingAddressLenses.city()),
+                city -> capitalise(city));
 
     // Step 4: Update status to PROCESSING
     System.out.println("✓ Step 4: Updating order status to PROCESSING");

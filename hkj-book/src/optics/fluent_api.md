@@ -310,20 +310,19 @@ public record ShippingAddress(String street, String city, String postCode) {}
 
 // Scenario: Apply bulk discount and update shipping
 Order processOrder(Order order, BigDecimal discountPercent) {
-    // Use fluent API for complex workflow
-    return OpticOps.modifying(order)
+    // Apply discount using fluent API
+    Order discountedOrder = OpticOps.modifying(order)
         .allThrough(
             OrderTraversals.items().andThen(OrderItemLenses.price().asTraversal()),
             price -> price.multiply(BigDecimal.ONE.subtract(discountPercent))
-        )
-        .thenApply(discountedOrder ->
-            // Use static method for simple update
-            OpticOps.set(
-                discountedOrder,
-                OrderLenses.status(),
-                OrderStatus.PROCESSING
-            )
         );
+
+    // Update status using static method
+    return OpticOps.set(
+        discountedOrder,
+        OrderLenses.status(),
+        OrderStatus.PROCESSING
+    );
 }
 ```
 
@@ -423,14 +422,16 @@ return OpticOps.getting(order)
 ### Pattern 1: Pipeline Transformations
 
 ```java
-// Fluent style for multi-step pipeline
+// Sequential transformations for multi-step pipeline
 Result processData(Data input) {
-    return OpticOps.modifying(input)
-        .through(DataLenses.stage1(), this::transformStage1)
-        .thenApply(data -> OpticOps.modifying(data)
-            .through(DataLenses.stage2(), this::transformStage2))
-        .thenApply(data -> OpticOps.modifying(data)
-            .through(DataLenses.stage3(), this::transformStage3));
+    Data afterStage1 = OpticOps.modifying(input)
+        .through(DataLenses.stage1(), this::transformStage1);
+
+    Data afterStage2 = OpticOps.modifying(afterStage1)
+        .through(DataLenses.stage2(), this::transformStage2);
+
+    return OpticOps.modifying(afterStage2)
+        .through(DataLenses.stage3(), this::transformStage3);
 }
 ```
 

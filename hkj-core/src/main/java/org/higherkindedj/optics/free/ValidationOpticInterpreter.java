@@ -93,7 +93,7 @@ public final class ValidationOpticInterpreter {
           }
 
           // Return a dummy result (we're not actually executing)
-          return IdKindHelper.ID.widen(Id.of(Free.pure(null)));
+          return Id.of(null);
         };
 
     // "Execute" the program (but we only validated, didn't modify anything)

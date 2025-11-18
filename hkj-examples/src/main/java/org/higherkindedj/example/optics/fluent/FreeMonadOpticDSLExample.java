@@ -203,10 +203,12 @@ public class FreeMonadOpticDSLExample {
 
     // Strategy 3: Validation (dry-run)
     System.out.println("Strategy 3: Validation (Dry-Run)");
-    ValidationOpticInterpreter validation = OpticInterpreters.validation();
-    UserProfile validationResult = validation.run(complexProgram);
-    System.out.println("  Validation log:");
-    validation.getLog().forEach(entry -> System.out.println("    " + entry));
+    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(complexProgram);
+    System.out.println("  Validation result:");
+    System.out.println("    Valid: " + validationResult.isValid());
+    System.out.println("    Errors: " + validationResult.errors().size());
+    System.out.println("    Warnings: " + validationResult.warnings().size());
     System.out.println("  Original profile unchanged: " + profile.email());
     System.out.println();
   }
@@ -226,12 +228,20 @@ public class FreeMonadOpticDSLExample {
     // Step 1: Validate migration (dry-run)
     System.out.println("STEP 1: Validation Phase");
     ValidationOpticInterpreter validator = OpticInterpreters.validation();
-    validator.run(migrationProgram);
+    ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(migrationProgram);
 
     System.out.println("  Validation results:");
-    validator.getLog().forEach(entry -> System.out.println("    " + entry));
+    System.out.println("    Valid: " + validationResult.isValid());
+    if (!validationResult.errors().isEmpty()) {
+      System.out.println("    Errors:");
+      validationResult.errors().forEach(err -> System.out.println("      - " + err));
+    }
+    if (!validationResult.warnings().isEmpty()) {
+      System.out.println("    Warnings:");
+      validationResult.warnings().forEach(warn -> System.out.println("      - " + warn));
+    }
 
-    if (validator.getLog().stream().anyMatch(log -> log.contains("ERROR"))) {
+    if (!validationResult.isValid()) {
       System.out.println("\n  ✗ Migration failed validation, aborting");
       return;
     }
