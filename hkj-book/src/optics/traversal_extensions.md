@@ -141,8 +141,7 @@ BigDecimal total = prices
 public static <S, A> Maybe<S> modifyAllMaybe(
     Traversal<S, A> traversal,
     Function<A, Maybe<A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Apply a modification to **all** elements. Returns `Maybe.just(updated)` if **all** modifications succeed, `Maybe.nothing()` if **any** fail. This is an **atomic** operation—either everything updates or nothing does.
@@ -199,8 +198,7 @@ Use `modifyAllMaybe` for **atomic updates** where:
 public static <S, A, E> Either<E, S> modifyAllEither(
     Traversal<S, A> traversal,
     Function<A, Either<E, A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Apply a modification with validation. Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. **Stops at the first error** (fail-fast).
@@ -255,8 +253,7 @@ Use `modifyAllEither` for **fail-fast validation** where:
 public static <S, A, E> Validated<List<E>, S> modifyAllValidated(
     Traversal<S, A> traversal,
     Function<A, Validated<E, A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Apply a modification with validation. Returns `Validated.valid(updated)` if **all** validations pass, `Validated.invalid(allErrors)` if **any** fail. **Collects all errors** (error accumulation).
@@ -344,8 +341,7 @@ return result.fold(
 public static <S, A> S modifyWherePossible(
     Traversal<S, A> traversal,
     Function<A, Maybe<A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Apply a modification **selectively**. Modifies elements where the function returns `Maybe.just(value)`, leaves others unchanged. This is a **best-effort** operation—always succeeds, modifying what it can.
@@ -416,8 +412,7 @@ Use `modifyWherePossible` for **selective updates** where:
 public static <S, A, E> int countValid(
     Traversal<S, A> traversal,
     Function<A, Either<E, A>> validator,
-    S source
-)
+    S source)
 ```
 
 Count how many elements pass validation without modifying anything.
@@ -463,8 +458,7 @@ Use `countValid` for **reporting and metrics** where:
 public static <S, A, E> List<E> collectErrors(
     Traversal<S, A> traversal,
     Function<A, Either<E, A>> validator,
-    S source
-)
+    S source)
 ```
 
 Collect all validation errors without modifying anything. Returns empty list if all valid.

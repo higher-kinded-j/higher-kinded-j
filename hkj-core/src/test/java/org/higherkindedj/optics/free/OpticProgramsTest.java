@@ -338,6 +338,29 @@ class OpticProgramsTest {
     assertTrue(logger.getLog().size() >= 10);
   }
 
+  @Test
+  void testLoggingInterpreterOpticNameWithDot() {
+    LoggingOpticInterpreter logger = OpticInterpreters.logging();
+
+    // Test with an anonymous class (getSimpleName() is empty)
+    // The class name will be something like "org.package.ClassName$1" with dots
+    Object anonymousOptic =
+        new org.higherkindedj.optics.Getter<Person, String>() {
+          @Override
+          public String get(Person source) {
+            return source.name();
+          }
+        };
+
+    String result = logger.opticName(anonymousOptic);
+    assertNotNull(result);
+    assertFalse(result.isEmpty());
+    // Should contain the substring after the last dot (e.g., "OpticProgramsTest$1")
+    assertTrue(
+        result.contains("OpticProgramsTest") || result.contains("$"),
+        "Expected class name after last dot, got: " + result);
+  }
+
   // ============================================================================
   // Validation Interpreter Tests
   // ============================================================================

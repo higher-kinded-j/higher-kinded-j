@@ -8,6 +8,7 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -185,44 +186,41 @@ public class IntegrationPatternsExample {
     Lens<IPCustomer, String> nameLens = IPCustomerLenses.name();
     Lens<IPCustomer, String> emailLens = IPCustomerLenses.email();
 
+    // Validate each field independently and collect errors
+    List<String> errors = new ArrayList<>();
+
     // Validate name
-    Either<String, IPCustomer> nameResult =
-        modifyEither(
-            nameLens,
-            name -> {
-              if (name == null || name.trim().isEmpty()) {
-                return Either.left("Name is required");
-              }
-              if (name.length() < 2) {
-                return Either.left("Name too short");
-              }
-              return Either.right(name);
-            },
-            customer);
+    Validated<String, String> nameValidation =
+        customer.name() == null || customer.name().trim().isEmpty()
+            ? Validated.invalid("Name is required")
+            : customer.name().length() < 2
+                ? Validated.invalid("Name too short")
+                : Validated.valid(customer.name());
 
     // Validate email
-    Either<String, IPCustomer> emailResult =
-        modifyEither(
-            emailLens,
-            email -> {
-              if (email == null || !email.contains("@")) {
-                return Either.left("Valid email is required");
-              }
-              return Either.right(email);
-            },
-            customer);
+    Validated<String, String> emailValidation =
+        customer.email() == null || !customer.email().contains("@")
+            ? Validated.invalid("Valid email is required")
+            : Validated.valid(customer.email());
 
-    // Combine results (accumulate errors)
-    if (nameResult.isLeft() || emailResult.isLeft()) {
-      List<String> errors =
-          List.of(nameResult, emailResult).stream()
-              .filter(Either::isLeft)
-              .map(e -> e.fold(err -> err, val -> ""))
-              .toList();
+    // Collect errors
+    if (nameValidation.isInvalid()) {
+      errors.add(nameValidation.getError());
+    }
+    if (emailValidation.isInvalid()) {
+      errors.add(emailValidation.getError());
+    }
+
+    // If there are errors, return invalid with all errors
+    if (!errors.isEmpty()) {
       return Validated.invalid(errors);
     }
 
-    return Validated.valid(customer);
+    // Both validations passed, update the customer with validated values
+    IPCustomer updated = nameLens.set(nameValidation.get(), customer);
+    updated = emailLens.set(emailValidation.get(), updated);
+
+    return Validated.valid(updated);
   }
 
   private static ValidationResult validateOrderItems(List<IPOrderItem> items) {

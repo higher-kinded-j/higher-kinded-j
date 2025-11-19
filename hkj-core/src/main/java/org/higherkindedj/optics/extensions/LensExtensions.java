@@ -101,8 +101,9 @@ public final class LensExtensions {
   /**
    * Modifies the value with a function that returns {@link Maybe}.
    *
-   * <p>If the function returns {@code Maybe.nothing()}, the original source is returned unchanged
-   * wrapped in {@code Maybe.nothing()}.
+   * <p>If the function returns {@code Maybe.nothing()}, the entire operation results in {@code
+   * Maybe.nothing()}, indicating that the modification failed. The original source is not preserved
+   * in the result and must be handled by the caller if needed (e.g., via {@code orElse(source)}).
    *
    * @param lens The lens to modify through
    * @param f The modification function returning {@code Maybe}
