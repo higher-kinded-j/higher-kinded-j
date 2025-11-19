@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Prism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -435,6 +438,230 @@ class PrismsTest {
       List<String> list = List.of("only");
       Optional<String> result = prism.getOptional(list);
       assertThat(result).isPresent().contains("only");
+    }
+  }
+
+  @Nested
+  @DisplayName("just() - Maybe Just Prism")
+  class JustPrism {
+    private final Prism<Maybe<String>, String> prism = Prisms.just();
+
+    @Test
+    @DisplayName("should extract value from Just")
+    void shouldExtractFromJust() {
+      Maybe<String> maybe = Maybe.just("hello");
+      Optional<String> result = prism.getOptional(maybe);
+      assertThat(result).isPresent().contains("hello");
+    }
+
+    @Test
+    @DisplayName("should return empty for Nothing")
+    void shouldReturnEmptyForNothing() {
+      Maybe<String> maybe = Maybe.nothing();
+      Optional<String> result = prism.getOptional(maybe);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should build Just from value")
+    void shouldBuild() {
+      Maybe<String> result = prism.build("world");
+      assertThat(result.isJust()).isTrue();
+      assertThat(result.get()).isEqualTo("world");
+    }
+
+    @Test
+    @DisplayName("should match Just")
+    void shouldMatchJust() {
+      assertThat(prism.matches(Maybe.just("test"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("should not match Nothing")
+    void shouldNotMatchNothing() {
+      assertThat(prism.matches(Maybe.nothing())).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("valid() - Validated Valid Prism")
+  class ValidPrism {
+    private final Prism<Validated<String, Integer>, Integer> prism = Prisms.valid();
+
+    @Test
+    @DisplayName("should extract value from Valid")
+    void shouldExtractFromValid() {
+      Validated<String, Integer> validated = Validated.valid(42);
+      Optional<Integer> result = prism.getOptional(validated);
+      assertThat(result).isPresent().contains(42);
+    }
+
+    @Test
+    @DisplayName("should return empty for Invalid")
+    void shouldReturnEmptyForInvalid() {
+      Validated<String, Integer> validated = Validated.invalid("error");
+      Optional<Integer> result = prism.getOptional(validated);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should build Valid from value")
+    void shouldBuild() {
+      Validated<String, Integer> result = prism.build(100);
+      assertThat(result.isValid()).isTrue();
+      assertThat(result.get()).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("should match Valid")
+    void shouldMatchValid() {
+      assertThat(prism.matches(Validated.valid(42))).isTrue();
+    }
+
+    @Test
+    @DisplayName("should not match Invalid")
+    void shouldNotMatchInvalid() {
+      assertThat(prism.matches(Validated.invalid("error"))).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("invalid() - Validated Invalid Prism")
+  class InvalidPrism {
+    private final Prism<Validated<String, Integer>, String> prism = Prisms.invalid();
+
+    @Test
+    @DisplayName("should extract error from Invalid")
+    void shouldExtractFromInvalid() {
+      Validated<String, Integer> validated = Validated.invalid("error");
+      Optional<String> result = prism.getOptional(validated);
+      assertThat(result).isPresent().contains("error");
+    }
+
+    @Test
+    @DisplayName("should return empty for Valid")
+    void shouldReturnEmptyForValid() {
+      Validated<String, Integer> validated = Validated.valid(42);
+      Optional<String> result = prism.getOptional(validated);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should build Invalid from error")
+    void shouldBuild() {
+      Validated<String, Integer> result = prism.build("failure");
+      assertThat(result.isInvalid()).isTrue();
+      assertThat(result.getError()).isEqualTo("failure");
+    }
+
+    @Test
+    @DisplayName("should match Invalid")
+    void shouldMatchInvalid() {
+      assertThat(prism.matches(Validated.invalid("error"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("should not match Valid")
+    void shouldNotMatchValid() {
+      assertThat(prism.matches(Validated.valid(42))).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("success() - Try Success Prism")
+  class SuccessPrism {
+    private final Prism<Try<Integer>, Integer> prism = Prisms.success();
+
+    @Test
+    @DisplayName("should extract value from Success")
+    void shouldExtractFromSuccess() {
+      Try<Integer> tryValue = Try.success(42);
+      Optional<Integer> result = prism.getOptional(tryValue);
+      assertThat(result).isPresent().contains(42);
+    }
+
+    @Test
+    @DisplayName("should return empty for Failure")
+    void shouldReturnEmptyForFailure() {
+      Try<Integer> tryValue = Try.failure(new Exception("error"));
+      Optional<Integer> result = prism.getOptional(tryValue);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should build Success from value")
+    void shouldBuild() {
+      Try<Integer> result = prism.build(100);
+      assertThat(result.isSuccess()).isTrue();
+      Integer value =
+          result.fold(
+              v -> v,
+              error -> {
+                throw new AssertionError("Expected success", error);
+              });
+      assertThat(value).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("should match Success")
+    void shouldMatchSuccess() {
+      assertThat(prism.matches(Try.success(42))).isTrue();
+    }
+
+    @Test
+    @DisplayName("should not match Failure")
+    void shouldNotMatchFailure() {
+      assertThat(prism.matches(Try.failure(new Exception("error")))).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("failure() - Try Failure Prism")
+  class FailurePrism {
+    private final Prism<Try<Integer>, Throwable> prism = Prisms.failure();
+
+    @Test
+    @DisplayName("should extract exception from Failure")
+    void shouldExtractFromFailure() {
+      Exception error = new Exception("error");
+      Try<Integer> tryValue = Try.failure(error);
+      Optional<Throwable> result = prism.getOptional(tryValue);
+      assertThat(result).isPresent().contains(error);
+    }
+
+    @Test
+    @DisplayName("should return empty for Success")
+    void shouldReturnEmptyForSuccess() {
+      Try<Integer> tryValue = Try.success(42);
+      Optional<Throwable> result = prism.getOptional(tryValue);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should build Failure from exception")
+    void shouldBuild() {
+      RuntimeException error = new RuntimeException("fail");
+      Try<Integer> result = prism.build(error);
+      assertThat(result.isFailure()).isTrue();
+      Throwable actual =
+          result.fold(
+              success -> {
+                throw new AssertionError();
+              },
+              failure -> failure);
+      assertThat(actual).isEqualTo(error);
+    }
+
+    @Test
+    @DisplayName("should match Failure")
+    void shouldMatchFailure() {
+      assertThat(prism.matches(Try.failure(new Exception("error")))).isTrue();
+    }
+
+    @Test
+    @DisplayName("should not match Success")
+    void shouldNotMatchSuccess() {
+      assertThat(prism.matches(Try.success(42))).isFalse();
     }
   }
 

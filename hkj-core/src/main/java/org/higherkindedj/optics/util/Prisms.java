@@ -8,6 +8,9 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Prism;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -107,6 +110,167 @@ public final class Prisms {
     return Prism.of(
         either -> either.isRight() ? Optional.of(either.getRight()) : Optional.empty(),
         Either::right);
+  }
+
+  /**
+   * Creates a prism for {@link Maybe} that focuses on the {@link org.higherkindedj.hkt.maybe.Just}
+   * case.
+   *
+   * <p>This prism matches when the {@code Maybe} is a {@code Just} (contains a value) and extracts
+   * it. Building from a value wraps it in {@code Maybe.just()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<Maybe<String>, String> justPrism = Prisms.just();
+   *
+   * Maybe<String> justValue = Maybe.just("hello");
+   * Optional<String> result = justPrism.getOptional(justValue);  // Optional.of("hello")
+   *
+   * Maybe<String> nothing = Maybe.nothing();
+   * Optional<String> noMatch = justPrism.getOptional(nothing);  // Optional.empty()
+   *
+   * Maybe<String> built = justPrism.build("world");  // Maybe.just("world")
+   * }</pre>
+   *
+   * @param <A> The type of the value inside the {@code Maybe}.
+   * @return A prism focusing on the {@code Just} case of a {@code Maybe}.
+   */
+  public static <A> Prism<Maybe<A>, A> just() {
+    return Prism.of(
+        maybe -> maybe.isJust() ? Optional.of(maybe.get()) : Optional.empty(), Maybe::just);
+  }
+
+  /**
+   * Creates a prism for {@link Validated} that focuses on the {@link
+   * org.higherkindedj.hkt.validated.Valid} case.
+   *
+   * <p>This prism matches when the {@code Validated} is {@code Valid} (successful) and extracts its
+   * value. Building from a value wraps it in {@code Validated.valid()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<Validated<String, Integer>, Integer> validPrism = Prisms.valid();
+   *
+   * Validated<String, Integer> validValue = Validated.valid(42);
+   * Optional<Integer> result = validPrism.getOptional(validValue);  // Optional.of(42)
+   *
+   * Validated<String, Integer> invalidValue = Validated.invalid("error");
+   * Optional<Integer> noMatch = validPrism.getOptional(invalidValue);  // Optional.empty()
+   *
+   * Validated<String, Integer> built = validPrism.build(100);  // Validated.valid(100)
+   * }</pre>
+   *
+   * @param <E> The type of the error value.
+   * @param <A> The type of the valid value.
+   * @return A prism focusing on the {@code Valid} case of a {@code Validated}.
+   */
+  public static <E, A> Prism<Validated<E, A>, A> valid() {
+    return Prism.of(
+        validated -> validated.isValid() ? Optional.of(validated.get()) : Optional.empty(),
+        Validated::valid);
+  }
+
+  /**
+   * Creates a prism for {@link Validated} that focuses on the {@link
+   * org.higherkindedj.hkt.validated.Invalid} case.
+   *
+   * <p>This prism matches when the {@code Validated} is {@code Invalid} (contains errors) and
+   * extracts the error value. Building from an error value wraps it in {@code Validated.invalid()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<Validated<String, Integer>, String> invalidPrism = Prisms.invalid();
+   *
+   * Validated<String, Integer> invalidValue = Validated.invalid("error");
+   * Optional<String> result = invalidPrism.getOptional(invalidValue);  // Optional.of("error")
+   *
+   * Validated<String, Integer> validValue = Validated.valid(42);
+   * Optional<String> noMatch = invalidPrism.getOptional(validValue);  // Optional.empty()
+   *
+   * Validated<String, Integer> built = invalidPrism.build("failure");
+   * // Validated.invalid("failure")
+   * }</pre>
+   *
+   * @param <E> The type of the error value.
+   * @param <A> The type of the valid value.
+   * @return A prism focusing on the {@code Invalid} case of a {@code Validated}.
+   */
+  public static <E, A> Prism<Validated<E, A>, E> invalid() {
+    return Prism.of(
+        validated -> validated.isInvalid() ? Optional.of(validated.getError()) : Optional.empty(),
+        Validated::invalid);
+  }
+
+  /**
+   * Creates a prism for {@link Try} that focuses on the {@link Try.Success} case.
+   *
+   * <p>This prism matches when the {@code Try} is a {@code Success} and extracts its value.
+   * Building from a value wraps it in {@code Try.success()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<Try<Integer>, Integer> successPrism = Prisms.success();
+   *
+   * Try<Integer> successValue = Try.success(42);
+   * Optional<Integer> result = successPrism.getOptional(successValue);  // Optional.of(42)
+   *
+   * Try<Integer> failure = Try.failure(new Exception("error"));
+   * Optional<Integer> noMatch = successPrism.getOptional(failure);  // Optional.empty()
+   *
+   * Try<Integer> built = successPrism.build(100);  // Try.success(100)
+   * }</pre>
+   *
+   * @param <A> The type of the success value.
+   * @return A prism focusing on the {@code Success} case of a {@code Try}.
+   */
+  public static <A> Prism<Try<A>, A> success() {
+    return Prism.of(
+        tryValue ->
+            switch (tryValue) {
+              case Try.Success<A>(var value) -> Optional.of(value);
+              case Try.Failure<A> failure -> Optional.empty();
+            },
+        Try::success);
+  }
+
+  /**
+   * Creates a prism for {@link Try} that focuses on the {@link Try.Failure} case.
+   *
+   * <p>This prism matches when the {@code Try} is a {@code Failure} and extracts the {@link
+   * Throwable}. Building from a {@code Throwable} wraps it in {@code Try.failure()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<Try<Integer>, Throwable> failurePrism = Prisms.failure();
+   *
+   * Exception error = new Exception("error");
+   * Try<Integer> failureValue = Try.failure(error);
+   * Optional<Throwable> result = failurePrism.getOptional(failureValue);
+   * // Optional.of(error)
+   *
+   * Try<Integer> success = Try.success(42);
+   * Optional<Throwable> noMatch = failurePrism.getOptional(success);  // Optional.empty()
+   *
+   * Try<Integer> built = failurePrism.build(new RuntimeException("fail"));
+   * // Try.failure(RuntimeException)
+   * }</pre>
+   *
+   * @param <A> The type of the success value (phantom type in failure case).
+   * @return A prism focusing on the {@code Failure} case of a {@code Try}.
+   */
+  public static <A> Prism<Try<A>, Throwable> failure() {
+    return Prism.of(
+        tryValue ->
+            switch (tryValue) {
+              case Try.Failure<A>(var cause) -> Optional.of(cause);
+              case Try.Success<A> success -> Optional.empty();
+            },
+        Try::failure);
   }
 
   /**
