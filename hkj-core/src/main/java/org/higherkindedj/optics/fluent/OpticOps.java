@@ -12,7 +12,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.constant.Const;
 import org.higherkindedj.hkt.constant.ConstApplicative;
-import org.higherkindedj.hkt.constant.ConstKind2;
+import org.higherkindedj.hkt.constant.ConstKind;
 import org.higherkindedj.hkt.constant.ConstKindHelper;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
@@ -101,12 +101,12 @@ public final class OpticOps {
 
         // Apply the traversal with the Const applicative
         // The traversal will accumulate values using the monoid whilst traversing
-        Kind<ConstKind2.Witness<M>, S> result =
+        Kind<ConstKind.Witness<M>, S> result =
             traversal.modifyF(
-                a -> ConstKindHelper.CONST.widen2(new Const<>(f.apply(a))), source, constApp);
+                a -> ConstKindHelper.CONST.widen(new Const<>(f.apply(a))), source, constApp);
 
         // Extract the accumulated result from the Const
-        Const<M, S> finalConst = ConstKindHelper.CONST.narrow2(result);
+        Const<M, S> finalConst = ConstKindHelper.CONST.narrow(result);
         return finalConst.value();
       }
     };

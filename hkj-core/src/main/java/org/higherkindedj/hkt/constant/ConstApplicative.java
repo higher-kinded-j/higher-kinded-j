@@ -36,21 +36,21 @@ import org.jspecify.annotations.Nullable;
  * Const<Integer, String> c1 = new Const<>(5);
  * Const<Integer, String> c2 = new Const<>(10);
  *
- * Kind<ConstKind2.Witness<Integer>, String> result =
+ * Kind<ConstKind.Witness<Integer>, String> result =
  *     constApp.map2(
- *         CONST.widen2(c1),
- *         CONST.widen2(c2),
+ *         CONST.widen(c1),
+ *         CONST.widen(c2),
  *         (a, b) -> "ignored"  // The phantom type is never used
  *     );
  *
  * // Extract accumulated result
- * Const<Integer, String> finalConst = CONST.narrow2(result);
+ * Const<Integer, String> finalConst = CONST.narrow(result);
  * int sum = finalConst.value();  // 15
  * }</pre>
  *
  * @param <M> The monoidal type being accumulated
  */
-public final class ConstApplicative<M> implements Applicative<ConstKind2.Witness<M>> {
+public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<M>> {
 
   private final Monoid<M> monoid;
 
@@ -78,8 +78,8 @@ public final class ConstApplicative<M> implements Applicative<ConstKind2.Witness
    * @return A {@code Const<M, A>} containing the monoid's empty element. Never null.
    */
   @Override
-  public <A> Kind<ConstKind2.Witness<M>, A> of(@Nullable A a) {
-    return CONST.widen2(new Const<>(monoid.empty()));
+  public <A> Kind<ConstKind.Witness<M>, A> of(@Nullable A a) {
+    return CONST.widen(new Const<>(monoid.empty()));
   }
 
   /**
@@ -97,8 +97,8 @@ public final class ConstApplicative<M> implements Applicative<ConstKind2.Witness
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <A, B> Kind<ConstKind2.Witness<M>, B> map(
-      Function<? super A, ? extends B> f, Kind<ConstKind2.Witness<M>, A> fa) {
+  public <A, B> Kind<ConstKind.Witness<M>, B> map(
+      Function<? super A, ? extends B> f, Kind<ConstKind.Witness<M>, A> fa) {
     if (f == null) {
       throw new NullPointerException("Function cannot be null");
     }
@@ -108,8 +108,8 @@ public final class ConstApplicative<M> implements Applicative<ConstKind2.Witness
 
     // Since A is phantom in Const<M, A>, we can safely change the type parameter
     // The actual value (type M) remains unchanged
-    Const<M, A> constA = CONST.narrow2(fa);
-    return (Kind<ConstKind2.Witness<M>, B>) CONST.widen2(new Const<>(constA.value()));
+    Const<M, A> constA = CONST.narrow(fa);
+    return (Kind<ConstKind.Witness<M>, B>) CONST.widen(new Const<>(constA.value()));
   }
 
   /**
@@ -131,9 +131,9 @@ public final class ConstApplicative<M> implements Applicative<ConstKind2.Witness
    */
   @Override
   @SuppressWarnings("unchecked")
-  public <A, B, C> Kind<ConstKind2.Witness<M>, C> map2(
-      Kind<ConstKind2.Witness<M>, A> fa,
-      Kind<ConstKind2.Witness<M>, B> fb,
+  public <A, B, C> Kind<ConstKind.Witness<M>, C> map2(
+      Kind<ConstKind.Witness<M>, A> fa,
+      Kind<ConstKind.Witness<M>, B> fb,
       java.util.function.BiFunction<? super A, ? super B, ? extends C> f) {
     if (fa == null) {
       throw new NullPointerException("First Kind cannot be null");
@@ -145,12 +145,12 @@ public final class ConstApplicative<M> implements Applicative<ConstKind2.Witness
       throw new NullPointerException("Function cannot be null");
     }
 
-    Const<M, A> constA = CONST.narrow2(fa);
-    Const<M, B> constB = CONST.narrow2(fb);
+    Const<M, A> constA = CONST.narrow(fa);
+    Const<M, B> constB = CONST.narrow(fb);
 
     // Combine the accumulated monoidal values
     M combined = monoid.combine(constA.value(), constB.value());
 
-    return (Kind<ConstKind2.Witness<M>, C>) CONST.widen2(new Const<>(combined));
+    return (Kind<ConstKind.Witness<M>, C>) CONST.widen(new Const<>(combined));
   }
 }
