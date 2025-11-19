@@ -16,7 +16,7 @@
 
 ## Introduction: Making Optics Feel Natural in Java
 
-Whilst optics provide immense power for working with immutable data structures, their traditional functional programming syntax can feel foreign to Java developers. Method names like `view`, `over`, and `preview` don't match Java conventions, and the order of parameters can be unintuitive.
+While optics provide immense power for working with immutable data structures, their traditional functional programming syntax can feel foreign to Java developers. Method names like `view`, `over`, and `preview` don't match Java conventions, and the order of parameters can be unintuitive.
 
 The `OpticOps` fluent API bridges this gap, providing two complementary styles that make optics feel natural in Java:
 
@@ -33,9 +33,9 @@ Let's see both styles in action with a simple example:
 
 ```java
 @GenerateLenses
-public record Person(String name, int age) {}
+public record Person(String name, int age, String status) {}
 
-Person person = new Person("Alice", 25);
+Person person = new Person("Alice", 25, "ACTIVE");
 Lens<Person, Integer> ageLens = PersonLenses.age();
 ```
 
@@ -185,6 +185,7 @@ These are the most powerful operations, allowing modifications that can fail, ac
 
 ```java
 // Modify with an effect (e.g., validation)
+// Note: Error should be your application's error type (e.g., String, List<String>, or a custom error class)
 Functor<Validated.Witness<Error>> validatedFunctor =
     ValidatedApplicative.instance(ErrorSemigroup.instance());
 
@@ -400,6 +401,8 @@ Person older = OpticOps.modify(person, PersonLenses.age(), a -> a + 1);
 
 ✅ **Building complex workflows**
 ```java
+import static java.util.stream.Collectors.toList;
+
 // Clear intent at each step
 return OpticOps.getting(order)
     .allThrough(OrderTraversals.items())
@@ -423,6 +426,7 @@ return OpticOps.getting(order)
 
 ```java
 // Sequential transformations for multi-step pipeline
+// Note: Result and Data should be your application's domain types with appropriate lenses
 Result processData(Data input) {
     Data afterStage1 = OpticOps.modifying(input)
         .through(DataLenses.stage1(), this::transformStage1);
