@@ -7,7 +7,4 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 /** Represents user profile settings and preferences. */
 @GenerateLenses
 public record ProfileSettings(
-    boolean emailNotifications,
-    boolean smsNotifications,
-    String preferredLanguage,
-    String theme) {}
+    boolean emailNotifications, boolean smsNotifications, String preferredLanguage, String theme) {}

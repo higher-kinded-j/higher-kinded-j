@@ -95,17 +95,18 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Constructor works with different monoid types")
     void constructorWorksWithDifferentMonoidTypes() {
-      Monoid<String> localStringMonoid = new Monoid<String>() {
-        @Override
-        public String empty() {
-          return "";
-        }
+      Monoid<String> localStringMonoid =
+          new Monoid<String>() {
+            @Override
+            public String empty() {
+              return "";
+            }
 
-        @Override
-        public String combine(String a, String b) {
-          return a + b;
-        }
-      };
+            @Override
+            public String combine(String a, String b) {
+              return a + b;
+            }
+          };
       ConstApplicative<String> app = new ConstApplicative<>(localStringMonoid);
 
       assertThat(app).isNotNull();
@@ -151,8 +152,7 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map() operation works correctly")
     void mapOperationWorks() {
-      Kind<ConstKind.Witness<Integer>, String> input =
-          CONST.widen(new Const<Integer, String>(42));
+      Kind<ConstKind.Witness<Integer>, String> input = CONST.widen(new Const<Integer, String>(42));
       Function<String, Integer> mapper = String::length;
 
       Kind<ConstKind.Witness<Integer>, Integer> result = applicative.map(mapper, input);
@@ -165,8 +165,7 @@ class ConstApplicativeTest extends ConstTestBase {
     void apOperationWorks() {
       Kind<ConstKind.Witness<Integer>, Function<String, Integer>> ff =
           CONST.widen(new Const<Integer, Function<String, Integer>>(5));
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(10));
+      Kind<ConstKind.Witness<Integer>, String> fa = CONST.widen(new Const<Integer, String>(10));
 
       Kind<ConstKind.Witness<Integer>, Integer> result = applicative.ap(ff, fa);
 
@@ -176,10 +175,8 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map2() operation works correctly")
     void map2OperationWorks() {
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(10));
-      Kind<ConstKind.Witness<Integer>, Boolean> fb =
-          CONST.widen(new Const<Integer, Boolean>(20));
+      Kind<ConstKind.Witness<Integer>, String> fa = CONST.widen(new Const<Integer, String>(10));
+      Kind<ConstKind.Witness<Integer>, Boolean> fb = CONST.widen(new Const<Integer, Boolean>(20));
       BiFunction<String, Boolean, Integer> combiner = (s, b) -> 999;
 
       Kind<ConstKind.Witness<Integer>, Integer> result = applicative.map2(fa, fb, combiner);
@@ -195,8 +192,7 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map() preserves accumulated value")
     void mapPreservesAccumulatedValue() {
-      Kind<ConstKind.Witness<Integer>, String> input =
-          CONST.widen(new Const<Integer, String>(42));
+      Kind<ConstKind.Witness<Integer>, String> input = CONST.widen(new Const<Integer, String>(42));
       Function<String, Integer> mapper = String::length;
 
       Kind<ConstKind.Witness<Integer>, Integer> result = applicative.map(mapper, input);
@@ -208,8 +204,7 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map() changes phantom type parameter")
     void mapChangesPhantomTypeParameter() {
-      Kind<ConstKind.Witness<Integer>, String> input =
-          CONST.widen(new Const<Integer, String>(100));
+      Kind<ConstKind.Witness<Integer>, String> input = CONST.widen(new Const<Integer, String>(100));
       Function<String, Boolean> mapper = s -> true;
 
       Kind<ConstKind.Witness<Integer>, Boolean> result = applicative.map(mapper, input);
@@ -221,8 +216,7 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map() never applies the function")
     void mapNeverAppliesFunction() {
-      Kind<ConstKind.Witness<Integer>, String> input =
-          CONST.widen(new Const<Integer, String>(7));
+      Kind<ConstKind.Witness<Integer>, String> input = CONST.widen(new Const<Integer, String>(7));
       // This function throws, but should never be called
       Function<String, Integer> throwingMapper =
           s -> {
@@ -242,8 +236,7 @@ class ConstApplicativeTest extends ConstTestBase {
     void apCombinesAccumulatedValues() {
       Kind<ConstKind.Witness<Integer>, Function<String, Integer>> ff =
           CONST.widen(new Const<Integer, Function<String, Integer>>(5));
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(10));
+      Kind<ConstKind.Witness<Integer>, String> fa = CONST.widen(new Const<Integer, String>(10));
 
       Kind<ConstKind.Witness<Integer>, Integer> result = applicative.ap(ff, fa);
 
@@ -262,8 +255,7 @@ class ConstApplicativeTest extends ConstTestBase {
 
       Kind<ConstKind.Witness<Integer>, Function<String, Integer>> ff =
           CONST.widen(new Const<Integer, Function<String, Integer>>(3));
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(7));
+      Kind<ConstKind.Witness<Integer>, String> fa = CONST.widen(new Const<Integer, String>(7));
 
       assertThatCode(() -> applicative.ap(ff, fa)).doesNotThrowAnyException();
     }
@@ -273,8 +265,7 @@ class ConstApplicativeTest extends ConstTestBase {
     void apWorksWithZeroValues() {
       Kind<ConstKind.Witness<Integer>, Function<String, Integer>> ff =
           CONST.widen(new Const<Integer, Function<String, Integer>>(0));
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(0));
+      Kind<ConstKind.Witness<Integer>, String> fa = CONST.widen(new Const<Integer, String>(0));
 
       Kind<ConstKind.Witness<Integer>, Integer> result = applicative.ap(ff, fa);
 
@@ -287,8 +278,7 @@ class ConstApplicativeTest extends ConstTestBase {
     void apCombinesMultipleTimes() {
       Kind<ConstKind.Witness<Integer>, Function<String, Integer>> ff1 =
           CONST.widen(new Const<Integer, Function<String, Integer>>(1));
-      Kind<ConstKind.Witness<Integer>, String> fa1 =
-          CONST.widen(new Const<Integer, String>(2));
+      Kind<ConstKind.Witness<Integer>, String> fa1 = CONST.widen(new Const<Integer, String>(2));
 
       Kind<ConstKind.Witness<Integer>, Integer> intermediate = applicative.ap(ff1, fa1);
 
@@ -311,10 +301,8 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map2() combines two accumulated values")
     void map2CombinesTwoAccumulatedValues() {
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(10));
-      Kind<ConstKind.Witness<Integer>, Boolean> fb =
-          CONST.widen(new Const<Integer, Boolean>(20));
+      Kind<ConstKind.Witness<Integer>, String> fa = CONST.widen(new Const<Integer, String>(10));
+      Kind<ConstKind.Witness<Integer>, Boolean> fb = CONST.widen(new Const<Integer, Boolean>(20));
       BiFunction<String, Boolean, Integer> combiner = (s, b) -> 999; // Never called
 
       Kind<ConstKind.Witness<Integer>, Integer> result = applicative.map2(fa, fb, combiner);
@@ -326,10 +314,8 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map2() never applies the combining function")
     void map2NeverAppliesCombiningFunction() {
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(5));
-      Kind<ConstKind.Witness<Integer>, Integer> fb =
-          CONST.widen(new Const<Integer, Integer>(15));
+      Kind<ConstKind.Witness<Integer>, String> fa = CONST.widen(new Const<Integer, String>(5));
+      Kind<ConstKind.Witness<Integer>, Integer> fb = CONST.widen(new Const<Integer, Integer>(15));
       BiFunction<String, Integer, Boolean> throwingCombiner =
           (s, i) -> {
             throw new RuntimeException("Function should not be called");
@@ -343,8 +329,7 @@ class ConstApplicativeTest extends ConstTestBase {
     void map2WorksWithMonoidIdentity() {
       Kind<ConstKind.Witness<Integer>, String> fa =
           CONST.widen(new Const<Integer, String>(0)); // identity
-      Kind<ConstKind.Witness<Integer>, Integer> fb =
-          CONST.widen(new Const<Integer, Integer>(42));
+      Kind<ConstKind.Witness<Integer>, Integer> fb = CONST.widen(new Const<Integer, Integer>(42));
       BiFunction<String, Integer, String> combiner = (s, i) -> "";
 
       Kind<ConstKind.Witness<Integer>, String> result = applicative.map2(fa, fb, combiner);
@@ -361,12 +346,9 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map3() combines three accumulated values")
     void map3CombinesThreeAccumulatedValues() {
-      Kind<ConstKind.Witness<Integer>, String> r1 =
-          CONST.widen(new Const<Integer, String>(1));
-      Kind<ConstKind.Witness<Integer>, Integer> r2 =
-          CONST.widen(new Const<Integer, Integer>(2));
-      Kind<ConstKind.Witness<Integer>, Boolean> r3 =
-          CONST.widen(new Const<Integer, Boolean>(3));
+      Kind<ConstKind.Witness<Integer>, String> r1 = CONST.widen(new Const<Integer, String>(1));
+      Kind<ConstKind.Witness<Integer>, Integer> r2 = CONST.widen(new Const<Integer, Integer>(2));
+      Kind<ConstKind.Witness<Integer>, Boolean> r3 = CONST.widen(new Const<Integer, Boolean>(3));
 
       Function3<String, Integer, Boolean, Double> combiner = (s, i, b) -> 0.0;
 
@@ -379,14 +361,10 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("map4() combines four accumulated values")
     void map4CombinesFourAccumulatedValues() {
-      Kind<ConstKind.Witness<Integer>, String> r1 =
-          CONST.widen(new Const<Integer, String>(10));
-      Kind<ConstKind.Witness<Integer>, Integer> r2 =
-          CONST.widen(new Const<Integer, Integer>(20));
-      Kind<ConstKind.Witness<Integer>, Boolean> r3 =
-          CONST.widen(new Const<Integer, Boolean>(30));
-      Kind<ConstKind.Witness<Integer>, Double> r4 =
-          CONST.widen(new Const<Integer, Double>(40));
+      Kind<ConstKind.Witness<Integer>, String> r1 = CONST.widen(new Const<Integer, String>(10));
+      Kind<ConstKind.Witness<Integer>, Integer> r2 = CONST.widen(new Const<Integer, Integer>(20));
+      Kind<ConstKind.Witness<Integer>, Boolean> r3 = CONST.widen(new Const<Integer, Boolean>(30));
+      Kind<ConstKind.Witness<Integer>, Double> r4 = CONST.widen(new Const<Integer, Double>(40));
 
       Function4<String, Integer, Boolean, Double, String> combiner = (s, i, b, d) -> "";
 
@@ -458,12 +436,9 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Monoid combination is associative")
     void monoidCombinationIsAssociative() {
-      Kind<ConstKind.Witness<Integer>, String> k1 =
-          CONST.widen(new Const<Integer, String>(1));
-      Kind<ConstKind.Witness<Integer>, String> k2 =
-          CONST.widen(new Const<Integer, String>(2));
-      Kind<ConstKind.Witness<Integer>, String> k3 =
-          CONST.widen(new Const<Integer, String>(3));
+      Kind<ConstKind.Witness<Integer>, String> k1 = CONST.widen(new Const<Integer, String>(1));
+      Kind<ConstKind.Witness<Integer>, String> k2 = CONST.widen(new Const<Integer, String>(2));
+      Kind<ConstKind.Witness<Integer>, String> k3 = CONST.widen(new Const<Integer, String>(3));
 
       BiFunction<String, String, String> combiner = (a, b) -> "";
 
@@ -481,23 +456,23 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Use case: Sum aggregation with String concatenation monoid")
     void useCaseSumAggregation() {
-      Monoid<String> localStringMonoid = new Monoid<String>() {
-        @Override
-        public String empty() {
-          return "";
-        }
+      Monoid<String> localStringMonoid =
+          new Monoid<String>() {
+            @Override
+            public String empty() {
+              return "";
+            }
 
-        @Override
-        public String combine(String a, String b) {
-          return a + b;
-        }
-      };
+            @Override
+            public String combine(String a, String b) {
+              return a + b;
+            }
+          };
       ConstApplicative<String> stringApp = new ConstApplicative<>(localStringMonoid);
 
       Kind<ConstKind.Witness<String>, Integer> k1 =
           CONST.widen(new Const<String, Integer>("Hello"));
-      Kind<ConstKind.Witness<String>, Integer> k2 =
-          CONST.widen(new Const<String, Integer>(" "));
+      Kind<ConstKind.Witness<String>, Integer> k2 = CONST.widen(new Const<String, Integer>(" "));
       Kind<ConstKind.Witness<String>, Integer> k3 =
           CONST.widen(new Const<String, Integer>("World"));
 
@@ -512,25 +487,23 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Use case: Product accumulation")
     void useCaseProductAccumulation() {
-      Monoid<Integer> localProductMonoid = new Monoid<Integer>() {
-        @Override
-        public Integer empty() {
-          return 1;
-        }
+      Monoid<Integer> localProductMonoid =
+          new Monoid<Integer>() {
+            @Override
+            public Integer empty() {
+              return 1;
+            }
 
-        @Override
-        public Integer combine(Integer a, Integer b) {
-          return a * b;
-        }
-      };
+            @Override
+            public Integer combine(Integer a, Integer b) {
+              return a * b;
+            }
+          };
       ConstApplicative<Integer> productApp = new ConstApplicative<>(localProductMonoid);
 
-      Kind<ConstKind.Witness<Integer>, String> k1 =
-          CONST.widen(new Const<Integer, String>(2));
-      Kind<ConstKind.Witness<Integer>, String> k2 =
-          CONST.widen(new Const<Integer, String>(3));
-      Kind<ConstKind.Witness<Integer>, String> k3 =
-          CONST.widen(new Const<Integer, String>(4));
+      Kind<ConstKind.Witness<Integer>, String> k1 = CONST.widen(new Const<Integer, String>(2));
+      Kind<ConstKind.Witness<Integer>, String> k2 = CONST.widen(new Const<Integer, String>(3));
+      Kind<ConstKind.Witness<Integer>, String> k3 = CONST.widen(new Const<Integer, String>(4));
 
       BiFunction<String, String, String> combiner = (a, b) -> "";
 
@@ -543,8 +516,7 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Identity law: of followed by ap equals map")
     void identityLaw() {
-      Kind<ConstKind.Witness<Integer>, String> value =
-          CONST.widen(new Const<Integer, String>(42));
+      Kind<ConstKind.Witness<Integer>, String> value = CONST.widen(new Const<Integer, String>(42));
       Function<String, Integer> func = String::length;
 
       // Left side: of(func) `ap` value

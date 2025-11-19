@@ -132,8 +132,7 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   @Override
   @SuppressWarnings("unchecked")
   public <A, B> Kind<ConstKind.Witness<M>, B> ap(
-      Kind<ConstKind.Witness<M>, ? extends Function<A, B>> ff,
-      Kind<ConstKind.Witness<M>, A> fa) {
+      Kind<ConstKind.Witness<M>, ? extends Function<A, B>> ff, Kind<ConstKind.Witness<M>, A> fa) {
 
     Validation.kind().requireNonNull(ff, CONST_APPLICATIVE_CLASS, AP, "function");
     Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, AP, "argument");

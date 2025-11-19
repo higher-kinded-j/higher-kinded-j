@@ -53,43 +53,46 @@ abstract class ConstTestBase
   // ============================================================================
 
   /** Sum monoid for integers: (0, +) */
-  protected final Monoid<Integer> sumMonoid = new Monoid<Integer>() {
-    @Override
-    public Integer empty() {
-      return 0;
-    }
+  protected final Monoid<Integer> sumMonoid =
+      new Monoid<Integer>() {
+        @Override
+        public Integer empty() {
+          return 0;
+        }
 
-    @Override
-    public Integer combine(Integer a, Integer b) {
-      return a + b;
-    }
-  };
+        @Override
+        public Integer combine(Integer a, Integer b) {
+          return a + b;
+        }
+      };
 
   /** Product monoid for integers: (1, *) */
-  protected final Monoid<Integer> productMonoid = new Monoid<Integer>() {
-    @Override
-    public Integer empty() {
-      return 1;
-    }
+  protected final Monoid<Integer> productMonoid =
+      new Monoid<Integer>() {
+        @Override
+        public Integer empty() {
+          return 1;
+        }
 
-    @Override
-    public Integer combine(Integer a, Integer b) {
-      return a * b;
-    }
-  };
+        @Override
+        public Integer combine(Integer a, Integer b) {
+          return a * b;
+        }
+      };
 
   /** String concatenation monoid: ("", ++) */
-  protected final Monoid<String> stringMonoid = new Monoid<String>() {
-    @Override
-    public String empty() {
-      return "";
-    }
+  protected final Monoid<String> stringMonoid =
+      new Monoid<String>() {
+        @Override
+        public String empty() {
+          return "";
+        }
 
-    @Override
-    public String combine(String a, String b) {
-      return a + b;
-    }
-  };
+        @Override
+        public String combine(String a, String b) {
+          return a + b;
+        }
+      };
 
   // ============================================================================
   // Fixture Creation Methods
@@ -145,8 +148,7 @@ abstract class ConstTestBase
    * @return A flat-mapper that wraps the string length in Const
    */
   @Override
-  protected Function<String, Kind<ConstKind.Witness<Integer>, Integer>>
-      createValidFlatMapper() {
+  protected Function<String, Kind<ConstKind.Witness<Integer>, Integer>> createValidFlatMapper() {
     return s -> CONST.widen(new Const<>(s.length()));
   }
 
@@ -158,8 +160,7 @@ abstract class ConstTestBase
    * @return A Const Kind containing an accumulated value with Function phantom type
    */
   @Override
-  protected Kind<ConstKind.Witness<Integer>, Function<String, Integer>>
-      createValidFunctionKind() {
+  protected Kind<ConstKind.Witness<Integer>, Function<String, Integer>> createValidFunctionKind() {
     return CONST.widen(new Const<>(5));
   }
 

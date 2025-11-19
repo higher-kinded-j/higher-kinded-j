@@ -287,7 +287,9 @@ public class AdvancedFluentPatternsExample {
     System.out.println("    Errors: " + validationResult.errors().size());
     System.out.println("    Warnings: " + validationResult.warnings().size());
     if (!validationResult.warnings().isEmpty()) {
-      validationResult.warnings().stream().limit(3).forEach(warn -> System.out.println("      - " + warn));
+      validationResult.warnings().stream()
+          .limit(3)
+          .forEach(warn -> System.out.println("      - " + warn));
     }
     System.out.println("  ✓ Validation passed");
     System.out.println();

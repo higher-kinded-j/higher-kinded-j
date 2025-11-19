@@ -6,4 +6,5 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents a user's address. */
 @GenerateLenses
-public record UserAddress(String type, String street, String city, String postCode, String country) {}
+public record UserAddress(
+    String type, String street, String city, String postCode, String country) {}

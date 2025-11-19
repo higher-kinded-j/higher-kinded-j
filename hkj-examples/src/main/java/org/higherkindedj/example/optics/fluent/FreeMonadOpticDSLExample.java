@@ -189,7 +189,8 @@ public class FreeMonadOpticDSLExample {
     // Strategy 3: Validation (dry-run)
     System.out.println("Strategy 3: Validation (Dry-Run)");
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
-    ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(complexProgram);
+    ValidationOpticInterpreter.ValidationResult validationResult =
+        validator.validate(complexProgram);
     System.out.println("  Validation result:");
     System.out.println("    Valid: " + validationResult.isValid());
     System.out.println("    Errors: " + validationResult.errors().size());
@@ -213,7 +214,8 @@ public class FreeMonadOpticDSLExample {
     // Step 1: Validate migration (dry-run)
     System.out.println("STEP 1: Validation Phase");
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
-    ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(migrationProgram);
+    ValidationOpticInterpreter.ValidationResult validationResult =
+        validator.validate(migrationProgram);
 
     System.out.println("  Validation results:");
     System.out.println("    Valid: " + validationResult.isValid());
@@ -313,8 +315,10 @@ public class FreeMonadOpticDSLExample {
 
   private static UserProfile createSampleProfile() {
     List<UserAddress> addresses = new ArrayList<>();
-    addresses.add(new UserAddress("home", "123 High Street", "London", "sw1a 1aa", "United Kingdom"));
-    addresses.add(new UserAddress("work", "456 Office Road", "Manchester", "m1 1ae", "United Kingdom"));
+    addresses.add(
+        new UserAddress("home", "123 High Street", "London", "sw1a 1aa", "United Kingdom"));
+    addresses.add(
+        new UserAddress("work", "456 Office Road", "Manchester", "m1 1ae", "United Kingdom"));
 
     ProfileSettings settings = new ProfileSettings(true, false, "en-US", "light");
 

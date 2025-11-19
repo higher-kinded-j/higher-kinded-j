@@ -325,7 +325,8 @@ public class OpticInterpretersExample {
       // Natural transformation from OpticOp to Id monad (with profiling)
       Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
           kind -> {
-            OpticOp<?, ?> op = OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
+            OpticOp<?, ?> op =
+                OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
 
             String opType = getOperationType(op);
             long startTime = System.nanoTime();
@@ -342,7 +343,9 @@ public class OpticInterpretersExample {
                 };
 
             long endTime = System.nanoTime();
-            profile.computeIfAbsent(opType, k -> new OperationStats()).addMeasurement(endTime - startTime);
+            profile
+                .computeIfAbsent(opType, k -> new OperationStats())
+                .addMeasurement(endTime - startTime);
             totalOps++;
 
             return Id.of(Free.pure(result));
@@ -413,7 +416,8 @@ public class OpticInterpretersExample {
       // Natural transformation from OpticOp to Id monad (with mocking)
       Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
           kind -> {
-            OpticOp<?, ?> op = OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
+            OpticOp<?, ?> op =
+                OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
 
             Object result =
                 switch (op) {

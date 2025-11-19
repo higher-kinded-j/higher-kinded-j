@@ -9,8 +9,8 @@ import org.higherkindedj.hkt.Kind;
  *
  * <p>This interface represents {@link Const} with its first type parameter ({@code M}) fixed,
  * leaving only the second (phantom) type parameter ({@code A}) free. This partial application is
- * necessary for using {@code Const} with type classes like {@link org.higherkindedj.hkt.Applicative}
- * that expect a type constructor of kind {@code * -> *}.
+ * necessary for using {@code Const} with type classes like {@link
+ * org.higherkindedj.hkt.Applicative} that expect a type constructor of kind {@code * -> *}.
  *
  * <p>For example, {@code ConstKind<Integer>} represents the type constructor {@code Const<Integer,
  * ?>}, which can be used with {@code Applicative<ConstKind<Integer>.Witness>}.
