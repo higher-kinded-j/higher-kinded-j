@@ -51,6 +51,7 @@ class ConstApplicativeTest extends ConstTestBase {
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .withLawsTesting(testValue, validMapper, equalityChecker)
           .configureValidation()
+          .useInheritanceValidation()
           .withMapFrom(ConstApplicative.class)
           .withApFrom(ConstApplicative.class)
           .testAll();
@@ -92,8 +93,18 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Constructor works with different monoid types")
     void constructorWorksWithDifferentMonoidTypes() {
-      Monoid<String> stringMonoid = Monoid.of("", (a, b) -> a + b);
-      ConstApplicative<String> app = new ConstApplicative<>(stringMonoid);
+      Monoid<String> localStringMonoid = new Monoid<String>() {
+        @Override
+        public String empty() {
+          return "";
+        }
+
+        @Override
+        public String combine(String a, String b) {
+          return a + b;
+        }
+      };
+      ConstApplicative<String> app = new ConstApplicative<>(localStringMonoid);
 
       assertThat(app).isNotNull();
     }
@@ -342,7 +353,7 @@ class ConstApplicativeTest extends ConstTestBase {
           CONST.widen(new Const<Integer, Boolean>(20));
 
       assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(fa, fb, null))
+          .isThrownBy(() -> applicative.map2(fa, fb, (BiFunction<String, Boolean, Integer>) null))
           .withMessage("Function cannot be null");
     }
 
@@ -442,6 +453,7 @@ class ConstApplicativeTest extends ConstTestBase {
           .<Integer>withKind(validKind)
           .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
           .configureValidation()
+          .useInheritanceValidation()
           .withMapFrom(ConstApplicative.class)
           .withApFrom(ConstApplicative.class)
           .testValidations();
@@ -471,12 +483,12 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Test Functor composition law")
     void testFunctorCompositionLaw() {
-      Function<String, Integer> composed = validMapper.andThen(secondMapper);
-      Kind<ConstKind.Witness<Integer>, Integer> leftSide = applicative.map(composed, validKind);
+      Function<String, String> composed = validMapper.andThen(secondMapper);
+      Kind<ConstKind.Witness<Integer>, String> leftSide = applicative.map(composed, validKind);
 
       Kind<ConstKind.Witness<Integer>, Integer> intermediate =
           applicative.map(validMapper, validKind);
-      Kind<ConstKind.Witness<Integer>, Integer> rightSide =
+      Kind<ConstKind.Witness<Integer>, String> rightSide =
           applicative.map(secondMapper, intermediate);
 
       assertThat(equalityChecker.test(leftSide, rightSide)).as("Functor Composition Law").isTrue();
@@ -513,8 +525,18 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Use case: Sum aggregation with String concatenation monoid")
     void useCaseSumAggregation() {
-      Monoid<String> stringMonoid = Monoid.of("", (a, b) -> a + b);
-      ConstApplicative<String> stringApp = new ConstApplicative<>(stringMonoid);
+      Monoid<String> localStringMonoid = new Monoid<String>() {
+        @Override
+        public String empty() {
+          return "";
+        }
+
+        @Override
+        public String combine(String a, String b) {
+          return a + b;
+        }
+      };
+      ConstApplicative<String> stringApp = new ConstApplicative<>(localStringMonoid);
 
       Kind<ConstKind.Witness<String>, Integer> k1 =
           CONST.widen(new Const<String, Integer>("Hello"));
@@ -534,8 +556,18 @@ class ConstApplicativeTest extends ConstTestBase {
     @Test
     @DisplayName("Use case: Product accumulation")
     void useCaseProductAccumulation() {
-      Monoid<Integer> productMonoid = Monoid.of(1, (a, b) -> a * b);
-      ConstApplicative<Integer> productApp = new ConstApplicative<>(productMonoid);
+      Monoid<Integer> localProductMonoid = new Monoid<Integer>() {
+        @Override
+        public Integer empty() {
+          return 1;
+        }
+
+        @Override
+        public Integer combine(Integer a, Integer b) {
+          return a * b;
+        }
+      };
+      ConstApplicative<Integer> productApp = new ConstApplicative<>(localProductMonoid);
 
       Kind<ConstKind.Witness<Integer>, String> k1 =
           CONST.widen(new Const<Integer, String>(2));

@@ -53,13 +53,43 @@ abstract class ConstTestBase
   // ============================================================================
 
   /** Sum monoid for integers: (0, +) */
-  protected final Monoid<Integer> sumMonoid = Monoid.of(0, Integer::sum);
+  protected final Monoid<Integer> sumMonoid = new Monoid<Integer>() {
+    @Override
+    public Integer empty() {
+      return 0;
+    }
+
+    @Override
+    public Integer combine(Integer a, Integer b) {
+      return a + b;
+    }
+  };
 
   /** Product monoid for integers: (1, *) */
-  protected final Monoid<Integer> productMonoid = Monoid.of(1, (a, b) -> a * b);
+  protected final Monoid<Integer> productMonoid = new Monoid<Integer>() {
+    @Override
+    public Integer empty() {
+      return 1;
+    }
+
+    @Override
+    public Integer combine(Integer a, Integer b) {
+      return a * b;
+    }
+  };
 
   /** String concatenation monoid: ("", ++) */
-  protected final Monoid<String> stringMonoid = Monoid.of("", (a, b) -> a + b);
+  protected final Monoid<String> stringMonoid = new Monoid<String>() {
+    @Override
+    public String empty() {
+      return "";
+    }
+
+    @Override
+    public String combine(String a, String b) {
+      return a + b;
+    }
+  };
 
   // ============================================================================
   // Fixture Creation Methods
@@ -78,10 +108,10 @@ abstract class ConstTestBase
   /**
    * Creates a secondary valid Kind for testing.
    *
-   * @return A Const Kind containing the alternative value with Integer phantom type
+   * @return A Const Kind containing the alternative value with String phantom type
    */
   @Override
-  protected Kind<ConstKind.Witness<Integer>, Integer> createValidKind2() {
+  protected Kind<ConstKind.Witness<Integer>, String> createValidKind2() {
     return CONST.widen(new Const<>(ALTERNATIVE_VALUE));
   }
 
@@ -98,13 +128,13 @@ abstract class ConstTestBase
   }
 
   /**
-   * Creates a second mapper function from Integer to Integer.
+   * Creates a second mapper function from Integer to String.
    *
-   * @return A mapper that doubles the input
+   * @return A mapper that converts Integer to String
    */
   @Override
-  protected Function<Integer, Integer> createSecondMapper() {
-    return i -> i * 2;
+  protected Function<Integer, String> createSecondMapper() {
+    return i -> "Value:" + i;
   }
 
   /**
@@ -138,11 +168,11 @@ abstract class ConstTestBase
    *
    * <p>This function is never applied in Const, but is required for type signatures.
    *
-   * @return A BiFunction that combines String and Integer into Integer
+   * @return A BiFunction that combines two Strings into Integer
    */
   @Override
-  protected BiFunction<String, Integer, Integer> createValidCombiningFunction() {
-    return (s, i) -> s.length() + i;
+  protected BiFunction<String, String, Integer> createValidCombiningFunction() {
+    return (s1, s2) -> s1.length() + s2.length();
   }
 
   /**
