@@ -79,9 +79,9 @@ Let's start with the basics:
 
 ```java
 @GenerateLenses
-public record Person(String name, int age) {}
+public record Person(String name, int age, String status) {}
 
-Person person = new Person("Alice", 25);
+Person person = new Person("Alice", 25, "ACTIVE");
 
 // Build a program that gets the age
 Free<OpticOpKind.Witness, Integer> getProgram =
@@ -257,6 +257,9 @@ public record UserV1(String username, String email) {}
 
 @GenerateLenses
 public record UserV2(String username, String email, boolean verified) {}
+
+// Note: Either is from higher-kinded-j (org.higherkindedj.hkt.either.Either)
+// It represents a value that can be either a Left (error) or Right (success)
 
 // Program: Migrate user with email validation
 Free<OpticOpKind.Witness, Either<String, UserV2>> migrateUser(UserV1 oldUser) {
@@ -448,7 +451,7 @@ public class PersonPrograms {
 }
 
 // Use them
-Person alice = new Person("Alice", 29);
+Person alice = new Person("Alice", 29, "JUNIOR");
 Free<OpticOpKind.Witness, Person> program = PersonPrograms.annualUpdate(alice);
 Person updated = OpticInterpreters.direct().run(program);
 ```
@@ -458,6 +461,8 @@ Person updated = OpticInterpreters.direct().run(program);
 ### Pattern 2: Conditional Branching
 
 ```java
+enum PerformanceRating { EXCELLENT, GOOD, SATISFACTORY, POOR }
+
 // Program with complex branching logic
 Free<OpticOpKind.Witness, Employee> processPerformanceReview(
     Employee employee,
@@ -494,6 +499,9 @@ Free<OpticOpKind.Witness, Employee> processPerformanceReview(
 ### Pattern 3: Accumulating Results
 
 ```java
+// Note: Tuple and Tuple2 are from higher-kinded-j (org.higherkindedj.hkt.tuple.Tuple, Tuple2)
+// Tuple.of() creates a Tuple2 instance to pair two values together
+
 // Program that accumulates statistics while processing
 record ProcessingStats(int processed, int modified, int skipped) {}
 

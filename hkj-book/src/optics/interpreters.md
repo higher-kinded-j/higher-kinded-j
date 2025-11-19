@@ -105,6 +105,11 @@ System.out.println(result);  // Person("Alice", 26)
 
 ~~~admonish example title="Production Workflow"
 ```java
+@GenerateLenses
+record Employee(String name, int salary, String status) {}
+
+enum PerformanceRating { EXCELLENT, GOOD, SATISFACTORY, POOR }
+
 // Employee management system
 public Employee processAnnualReview(
     Employee employee,
@@ -352,6 +357,23 @@ if (validations.stream().allMatch(ValidationResult::isValid)) {
 ### Validation Result API
 
 ```java
+// Simple exception for validation failures
+class ValidationException extends RuntimeException {
+    public ValidationException(String message) {
+        super(message);
+    }
+    public ValidationException(List<String> errors) {
+        super("Validation failed: " + String.join(", ", errors));
+    }
+}
+
+// Simple exception for business logic failures
+class BusinessException extends RuntimeException {
+    public BusinessException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
 public record ValidationResult(
     List<String> errors,    // Blocking issues
     List<String> warnings   // Non-blocking concerns

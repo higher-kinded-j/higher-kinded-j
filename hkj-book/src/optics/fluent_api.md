@@ -536,7 +536,7 @@ Optional<Integer> age = maybePerson
 
 Person updated = maybePerson
     .map(p -> OpticOps.modify(p, PersonLenses.age(), a -> a + 1))
-    .orElse(person);
+    .orElse(new Person("Default", 0, "UNKNOWN"));
 ```
 
 ---
