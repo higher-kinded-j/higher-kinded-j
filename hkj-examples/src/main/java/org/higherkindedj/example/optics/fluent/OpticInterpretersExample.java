@@ -14,11 +14,10 @@ import org.higherkindedj.example.optics.fluent.model.AccountStatus;
 import org.higherkindedj.example.optics.fluent.model.Transaction;
 import org.higherkindedj.example.optics.fluent.model.TransactionLenses;
 import org.higherkindedj.example.optics.fluent.model.TransactionStatus;
-import org.higherkindedj.hkt.Free;
+import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
-import org.higherkindedj.optics.free.OpticInterpreter;
 import org.higherkindedj.optics.free.OpticInterpreters;
 import org.higherkindedj.optics.free.OpticOp;
 import org.higherkindedj.optics.free.OpticOpKind;
@@ -130,7 +129,7 @@ public class OpticInterpretersExample {
 
     // Execute with validation interpreter (doesn't modify data)
     System.out.println("Validating transaction (dry-run, no changes applied)...");
-    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
     ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(program);
 
     System.out.println("\nValidation Results:");
@@ -221,7 +220,7 @@ public class OpticInterpretersExample {
     Free<OpticOpKind.Witness, Transaction> program = processTransactionProgram(txn);
 
     System.out.println("Phase 1: Validation");
-    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
     ValidationOpticInterpreter.ValidationResult validation = validator.validate(program);
 
     if (!validation.isValid()) {
@@ -298,7 +297,7 @@ public class OpticInterpretersExample {
   // ============================================================================
 
   /** Custom interpreter that profiles optic operation performance. */
-  static class ProfilingOpticInterpreter implements OpticInterpreter {
+  static class ProfilingOpticInterpreter {
     private final Map<String, OperationStats> profile = new HashMap<>();
     private int totalOps = 0;
 
@@ -372,7 +371,7 @@ public class OpticInterpretersExample {
   }
 
   /** Custom interpreter that mocks optic operations for testing. */
-  static class MockingOpticInterpreter implements OpticInterpreter {
+  static class MockingOpticInterpreter {
     private final Map<Object, Object> mockData = new HashMap<>();
     private final List<String> log = new ArrayList<>();
 

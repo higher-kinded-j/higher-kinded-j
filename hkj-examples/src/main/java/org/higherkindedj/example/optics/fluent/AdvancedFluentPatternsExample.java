@@ -17,7 +17,7 @@ import org.higherkindedj.example.optics.fluent.model.Product;
 import org.higherkindedj.example.optics.fluent.model.ProductLenses;
 import org.higherkindedj.example.optics.fluent.model.ProductStatus;
 import org.higherkindedj.example.optics.fluent.model.Promotion;
-import org.higherkindedj.hkt.Free;
+import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.fluent.OpticOps;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
@@ -279,7 +279,7 @@ public class AdvancedFluentPatternsExample {
 
     // Phase 1: Validate the changes
     System.out.println("Phase 1: Validation (dry-run)");
-    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
     ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(program);
 
     System.out.println("  Validation results:");
@@ -410,7 +410,7 @@ public class AdvancedFluentPatternsExample {
 
     // Execute with full workflow
     System.out.println("Phase 1: Validation");
-    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
     ValidationOpticInterpreter.ValidationResult validation = validator.validate(program);
     if (!validation.isValid()) {
       System.out.println("  ✗ Validation failed");

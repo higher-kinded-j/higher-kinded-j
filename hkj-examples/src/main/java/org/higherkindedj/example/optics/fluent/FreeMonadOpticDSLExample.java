@@ -12,7 +12,7 @@ import org.higherkindedj.example.optics.fluent.model.UserAddressLenses;
 import org.higherkindedj.example.optics.fluent.model.UserProfile;
 import org.higherkindedj.example.optics.fluent.model.UserProfileLenses;
 import org.higherkindedj.example.optics.fluent.model.UserProfileTraversals;
-import org.higherkindedj.hkt.Free;
+import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
@@ -188,7 +188,7 @@ public class FreeMonadOpticDSLExample {
 
     // Strategy 3: Validation (dry-run)
     System.out.println("Strategy 3: Validation (Dry-Run)");
-    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
     ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(complexProgram);
     System.out.println("  Validation result:");
     System.out.println("    Valid: " + validationResult.isValid());
@@ -212,7 +212,7 @@ public class FreeMonadOpticDSLExample {
 
     // Step 1: Validate migration (dry-run)
     System.out.println("STEP 1: Validation Phase");
-    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
     ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(migrationProgram);
 
     System.out.println("  Validation results:");
