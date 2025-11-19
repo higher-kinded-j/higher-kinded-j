@@ -3,11 +3,15 @@
 package org.higherkindedj.hkt.constant;
 
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP_2;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -51,6 +55,8 @@ import org.jspecify.annotations.Nullable;
  * @param <M> The monoidal type being accumulated
  */
 public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<M>> {
+
+  private static final Class<ConstApplicative> CONST_APPLICATIVE_CLASS = ConstApplicative.class;
 
   private final Monoid<M> monoid;
 
@@ -99,12 +105,9 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   @SuppressWarnings("unchecked")
   public <A, B> Kind<ConstKind.Witness<M>, B> map(
       Function<? super A, ? extends B> f, Kind<ConstKind.Witness<M>, A> fa) {
-    if (f == null) {
-      throw new NullPointerException("Function cannot be null");
-    }
-    if (fa == null) {
-      throw new NullPointerException("Kind cannot be null");
-    }
+
+    Validation.function().requireMapper(f, "f", CONST_APPLICATIVE_CLASS, MAP);
+    Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, MAP);
 
     // Since A is phantom in Const<M, A>, we can safely change the type parameter
     // The actual value (type M) remains unchanged
@@ -131,12 +134,9 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   public <A, B> Kind<ConstKind.Witness<M>, B> ap(
       Kind<ConstKind.Witness<M>, ? extends Function<A, B>> ff,
       Kind<ConstKind.Witness<M>, A> fa) {
-    if (ff == null) {
-      throw new NullPointerException("Function Kind cannot be null");
-    }
-    if (fa == null) {
-      throw new NullPointerException("Value Kind cannot be null");
-    }
+
+    Validation.kind().requireNonNull(ff, CONST_APPLICATIVE_CLASS, AP, "function");
+    Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, AP, "argument");
 
     // Extract the monoidal values from both Const instances
     Const<M, ? extends Function<A, B>> constF = CONST.narrow(ff);
@@ -171,15 +171,10 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
       Kind<ConstKind.Witness<M>, A> fa,
       Kind<ConstKind.Witness<M>, B> fb,
       java.util.function.BiFunction<? super A, ? super B, ? extends C> f) {
-    if (fa == null) {
-      throw new NullPointerException("First Kind cannot be null");
-    }
-    if (fb == null) {
-      throw new NullPointerException("Second Kind cannot be null");
-    }
-    if (f == null) {
-      throw new NullPointerException("Function cannot be null");
-    }
+
+    Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, MAP_2, "first");
+    Validation.kind().requireNonNull(fb, CONST_APPLICATIVE_CLASS, MAP_2, "second");
+    Validation.function().requireFunction(f, "combining function", CONST_APPLICATIVE_CLASS, MAP_2);
 
     Const<M, A> constA = CONST.narrow(fa);
     Const<M, B> constB = CONST.narrow(fb);
