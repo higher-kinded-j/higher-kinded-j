@@ -93,7 +93,7 @@ public final class ValidationOpticInterpreter {
           }
 
           // Return a dummy result (we're not actually executing)
-          return Id.of(null);
+          return Id.of(Free.pure(null));
         };
 
     // "Execute" the program (but we only validated, didn't modify anything)

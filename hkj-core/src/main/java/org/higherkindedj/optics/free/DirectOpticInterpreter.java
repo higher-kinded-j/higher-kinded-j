@@ -58,7 +58,7 @@ public final class DirectOpticInterpreter {
                 case OpticOp.Count<?, ?> count -> executeCount(count);
               };
 
-          return Id.of(result);
+          return Id.of(Free.pure(result));
         };
 
     // Interpret the program using the Id monad
