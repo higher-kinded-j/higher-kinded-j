@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
@@ -149,6 +150,172 @@ class ConstKindHelperTest {
   }
 
   @Nested
+  @DisplayName("widen() - Convert Const to partially-applied Kind")
+  class WidenTests {
+
+    @Test
+    @DisplayName("widen() wraps a Const into Kind")
+    void widenWrapsConst() {
+      Const<String, Integer> const_ = new Const<>("hello");
+
+      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(const_);
+
+      assertThat(kind).isNotNull();
+      assertThat(kind).isInstanceOf(ConstKindHelper.ConstKindHolder.class);
+    }
+
+    @Test
+    @DisplayName("widen() preserves const data")
+    void widenPreservesData() {
+      Const<String, Integer> original = new Const<>("hello");
+
+      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(original);
+      Const<String, Integer> unwrapped = CONST.narrow(kind);
+
+      assertThat(unwrapped).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("widen() throws NullPointerException when const is null")
+    void widenThrowsWhenConstNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> CONST.widen(null))
+          .withMessageContaining("Const")
+          .withMessageContaining("widen");
+    }
+
+    @Test
+    @DisplayName("widen() works with null constant value")
+    void widenWorksWithNullConstantValue() {
+      Const<String, Integer> const_ = new Const<>(null);
+
+      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(const_);
+
+      assertThat(kind).isNotNull();
+      Const<String, Integer> unwrapped = CONST.narrow(kind);
+      assertThat(unwrapped.value()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("narrow() - Convert partially-applied Kind back to Const")
+  class NarrowTests {
+
+    @Test
+    @DisplayName("narrow() unwraps Kind to Const")
+    void narrowUnwrapsKind() {
+      Const<String, Integer> original = new Const<>("hello");
+      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(original);
+
+      Const<String, Integer> result = CONST.narrow(kind);
+
+      assertThat(result).isEqualTo(original);
+      assertThat(result.value()).isEqualTo("hello");
+    }
+
+    @Test
+    @DisplayName("narrow() throws KindUnwrapException when Kind is null")
+    void narrowThrowsWhenKindNull() {
+      assertThatThrownBy(() -> CONST.narrow(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Cannot narrow null Kind for Const");
+    }
+
+    @Test
+    @DisplayName("narrow() throws KindUnwrapException for wrong Kind type")
+    void narrowThrowsWhenWrongKindType() {
+      // Create a Kind that is NOT a ConstKindHolder
+      Kind<ConstKind.Witness<String>, Integer> wrongKind =
+          new Kind<ConstKind.Witness<String>, Integer>() {};
+
+      assertThatThrownBy(() -> CONST.narrow(wrongKind))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind instance cannot be narrowed to Const")
+          .hasMessageContaining("received:");
+    }
+
+    @Test
+    @DisplayName("narrow() round-trips correctly")
+    void narrowRoundTrips() {
+      Const<String, Integer> original = new Const<>("test");
+
+      Const<String, Integer> result = CONST.narrow(CONST.widen(original));
+
+      assertThat(result).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("narrow() works with different type parameters")
+    void narrowWorksWithDifferentTypes() {
+      Const<Boolean, Double> const_ = new Const<>(true);
+
+      Kind<ConstKind.Witness<Boolean>, Double> kind = CONST.widen(const_);
+      Const<Boolean, Double> result = CONST.narrow(kind);
+
+      assertThat(result.value()).isTrue();
+    }
+
+    @Test
+    @DisplayName("narrow() preserves phantom type parameter during round-trip")
+    void narrowPreservesPhantomTypeParameter() {
+      // Even though the phantom type (Integer) is not stored, the type signature is preserved
+      Const<String, Integer> original = new Const<>("value");
+
+      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(original);
+      // The Kind maintains the phantom Integer type in its signature
+      Const<String, Integer> result = CONST.narrow(kind);
+
+      assertThat(result).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("narrow() works with same types for constant and phantom")
+    void narrowWorksWithSameTypes() {
+      Const<String, String> const_ = new Const<>("constant");
+
+      Kind<ConstKind.Witness<String>, String> kind = CONST.widen(const_);
+      Const<String, String> result = CONST.narrow(kind);
+
+      assertThat(result.value()).isEqualTo("constant");
+    }
+  }
+
+  @Nested
+  @DisplayName("ConstKindHolder - Internal Implementation")
+  class ConstKindHolderTests {
+
+    @Test
+    @DisplayName("ConstKindHolder stores const correctly")
+    void holderStoresConst() {
+      Const<String, Integer> const_ = new Const<>("hello");
+
+      ConstKindHelper.ConstKindHolder<String, Integer> holder =
+          new ConstKindHelper.ConstKindHolder<>(const_);
+
+      assertThat(holder.const_()).isEqualTo(const_);
+    }
+
+    @Test
+    @DisplayName("ConstKindHolder validates non-null const")
+    void holderValidatesNonNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new ConstKindHelper.ConstKindHolder<String, Integer>(null))
+          .withMessageContaining("Const")
+          .withMessageContaining("widen");
+    }
+
+    @Test
+    @DisplayName("ConstKindHolder implements ConstKind interface")
+    void holderImplementsInterface() {
+      Const<String, Integer> const_ = new Const<>("hello");
+      ConstKindHelper.ConstKindHolder<String, Integer> holder =
+          new ConstKindHelper.ConstKindHolder<>(const_);
+
+      assertThat(holder).isInstanceOf(ConstKind.class);
+    }
+  }
+
+  @Nested
   @DisplayName("Edge Cases and Integration")
   class EdgeCasesAndIntegration {
 
@@ -214,6 +381,49 @@ class ConstKindHelperTest {
       Const<String, String> result = CONST.narrow2(kind);
 
       assertThat(result.value()).isEqualTo("constant");
+    }
+
+    @Test
+    @DisplayName("Multiple widen calls create independent instances")
+    void multipleWidenCallsCreateIndependentInstances() {
+      Const<String, Integer> const1 = new Const<>("first");
+      Const<String, Integer> const2 = new Const<>("second");
+
+      Kind<ConstKind.Witness<String>, Integer> kind1 = CONST.widen(const1);
+      Kind<ConstKind.Witness<String>, Integer> kind2 = CONST.widen(const2);
+
+      assertThat(kind1).isNotSameAs(kind2);
+      assertThat(CONST.narrow(kind1)).isEqualTo(const1);
+      assertThat(CONST.narrow(kind2)).isEqualTo(const2);
+    }
+
+    @Test
+    @DisplayName("widen and widen2 create different holder types")
+    void widenAndWiden2CreateDifferentHolderTypes() {
+      Const<String, Integer> const_ = new Const<>("test");
+
+      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(const_);
+      Kind2<ConstKind2.Witness, String, Integer> kind2 = CONST.widen2(const_);
+
+      assertThat(kind).isInstanceOf(ConstKindHelper.ConstKindHolder.class);
+      assertThat(kind2).isInstanceOf(ConstKindHelper.ConstKind2Holder.class);
+      assertThat(kind).isNotInstanceOf(ConstKindHelper.ConstKind2Holder.class);
+      assertThat(kind2).isNotInstanceOf(ConstKindHelper.ConstKindHolder.class);
+    }
+
+    @Test
+    @DisplayName("narrow and narrow2 work independently")
+    void narrowAndNarrow2WorkIndependently() {
+      Const<String, Integer> original = new Const<>("value");
+
+      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(original);
+      Kind2<ConstKind2.Witness, String, Integer> kind2 = CONST.widen2(original);
+
+      Const<String, Integer> result1 = CONST.narrow(kind);
+      Const<String, Integer> result2 = CONST.narrow2(kind2);
+
+      assertThat(result1).isEqualTo(original);
+      assertThat(result2).isEqualTo(original);
     }
   }
 }
