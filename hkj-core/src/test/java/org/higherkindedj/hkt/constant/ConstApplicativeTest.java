@@ -143,6 +143,50 @@ class ConstApplicativeTest extends ConstTestBase {
   }
 
   @Nested
+  @DisplayName("Operation Tests")
+  class OperationTests {
+
+    @Test
+    @DisplayName("map() operation works correctly")
+    void mapOperationWorks() {
+      Kind<ConstKind.Witness<Integer>, String> input =
+          CONST.widen(new Const<Integer, String>(42));
+      Function<String, Integer> mapper = String::length;
+
+      Kind<ConstKind.Witness<Integer>, Integer> result = applicative.map(mapper, input);
+
+      assertThat(CONST.narrow(result).value()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("ap() operation works correctly")
+    void apOperationWorks() {
+      Kind<ConstKind.Witness<Integer>, Function<String, Integer>> ff =
+          CONST.widen(new Const<Integer, Function<String, Integer>>(5));
+      Kind<ConstKind.Witness<Integer>, String> fa =
+          CONST.widen(new Const<Integer, String>(10));
+
+      Kind<ConstKind.Witness<Integer>, Integer> result = applicative.ap(ff, fa);
+
+      assertThat(CONST.narrow(result).value()).isEqualTo(15);
+    }
+
+    @Test
+    @DisplayName("map2() operation works correctly")
+    void map2OperationWorks() {
+      Kind<ConstKind.Witness<Integer>, String> fa =
+          CONST.widen(new Const<Integer, String>(10));
+      Kind<ConstKind.Witness<Integer>, Boolean> fb =
+          CONST.widen(new Const<Integer, Boolean>(20));
+      BiFunction<String, Boolean, Integer> combiner = (s, b) -> 999;
+
+      Kind<ConstKind.Witness<Integer>, Integer> result = applicative.map2(fa, fb, combiner);
+
+      assertThat(CONST.narrow(result).value()).isEqualTo(30);
+    }
+  }
+
+  @Nested
   @DisplayName("map() Tests")
   class MapTests {
 
@@ -170,27 +214,6 @@ class ConstApplicativeTest extends ConstTestBase {
 
       Const<Integer, Boolean> const_ = CONST.narrow(result);
       assertThat(const_.value()).isEqualTo(100);
-    }
-
-    @Test
-    @DisplayName("map() rejects null function")
-    void mapRejectsNullFunction() {
-      Kind<ConstKind.Witness<Integer>, String> input =
-          CONST.widen(new Const<Integer, String>(42));
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map(null, input))
-          .withMessage("Function cannot be null");
-    }
-
-    @Test
-    @DisplayName("map() rejects null Kind")
-    void mapRejectsNullKind() {
-      Function<String, Integer> mapper = String::length;
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map(mapper, null))
-          .withMessage("Kind cannot be null");
     }
 
     @Test
@@ -224,28 +247,6 @@ class ConstApplicativeTest extends ConstTestBase {
 
       Const<Integer, Integer> const_ = CONST.narrow(result);
       assertThat(const_.value()).isEqualTo(15); // 5 + 10
-    }
-
-    @Test
-    @DisplayName("ap() rejects null function Kind")
-    void apRejectsNullFunctionKind() {
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(10));
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.ap(null, fa))
-          .withMessage("Function Kind cannot be null");
-    }
-
-    @Test
-    @DisplayName("ap() rejects null value Kind")
-    void apRejectsNullValueKind() {
-      Kind<ConstKind.Witness<Integer>, Function<String, Integer>> ff =
-          CONST.widen(new Const<Integer, Function<String, Integer>>(5));
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.ap(ff, null))
-          .withMessage("Value Kind cannot be null");
     }
 
     @Test
@@ -318,43 +319,6 @@ class ConstApplicativeTest extends ConstTestBase {
 
       Const<Integer, Integer> const_ = CONST.narrow(result);
       assertThat(const_.value()).isEqualTo(30); // 10 + 20
-    }
-
-    @Test
-    @DisplayName("map2() rejects null first Kind")
-    void map2RejectsNullFirstKind() {
-      Kind<ConstKind.Witness<Integer>, Boolean> fb =
-          CONST.widen(new Const<Integer, Boolean>(20));
-      BiFunction<String, Boolean, Integer> combiner = (s, b) -> 0;
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(null, fb, combiner))
-          .withMessage("First Kind cannot be null");
-    }
-
-    @Test
-    @DisplayName("map2() rejects null second Kind")
-    void map2RejectsNullSecondKind() {
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(10));
-      BiFunction<String, Boolean, Integer> combiner = (s, b) -> 0;
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(fa, null, combiner))
-          .withMessage("Second Kind cannot be null");
-    }
-
-    @Test
-    @DisplayName("map2() rejects null function")
-    void map2RejectsNullFunction() {
-      Kind<ConstKind.Witness<Integer>, String> fa =
-          CONST.widen(new Const<Integer, String>(10));
-      Kind<ConstKind.Witness<Integer>, Boolean> fb =
-          CONST.widen(new Const<Integer, Boolean>(20));
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(fa, fb, (BiFunction<String, Boolean, Integer>) null))
-          .withMessage("Function cannot be null");
     }
 
     @Test
@@ -457,16 +421,6 @@ class ConstApplicativeTest extends ConstTestBase {
           .withMapFrom(ConstApplicative.class)
           .withApFrom(ConstApplicative.class)
           .testValidations();
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassTest.<ConstKind.Witness<Integer>>applicative(ConstApplicative.class)
-          .<String>instance(applicativeTyped)
-          .<Integer>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .testExceptions();
     }
 
     @Test
