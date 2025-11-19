@@ -74,7 +74,11 @@
   - [Free Monad DSL](optics/free_monad_dsl.md)
   - [Optic Interpreters](optics/interpreters.md)
   - [Practical Examples](optics/optics_examples.md)
-  - [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md) 
+  - [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md)
+  - [Working with Core Types and Optics](optics/core_type_integration.md)
+    - [Core Type Prisms](optics/core_type_prisms.md)
+    - [Lens Extensions](optics/lens_extensions.md)
+    - [Traversal Extensions](optics/traversal_extensions.md)
 
 # More Functional Thinking
 - [Blog series](reading.md)

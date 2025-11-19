@@ -31,6 +31,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.validated;
   exports org.higherkindedj.hkt.writer;
   exports org.higherkindedj.optics.util;
+  exports org.higherkindedj.optics.extensions;
   exports org.higherkindedj.optics.at;
   exports org.higherkindedj.optics.ixed;
   exports org.higherkindedj.optics.prism;

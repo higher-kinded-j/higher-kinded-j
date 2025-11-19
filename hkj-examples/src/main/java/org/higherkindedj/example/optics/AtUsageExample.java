@@ -26,9 +26,9 @@ import org.higherkindedj.optics.util.Traversals;
 public class AtUsageExample {
 
   // Domain model for a user profile with nested collections
-  // @GenerateLenses creates UserProfileLenses with lens accessors for each field
+  // @GenerateLenses creates AUUserProfileLenses with lens accessors for each field
   @GenerateLenses
-  public record UserProfile(
+  public record AUUserProfile(
       String username,
       Map<String, String> settings,
       Map<String, Integer> scores,
@@ -127,16 +127,16 @@ public class AtUsageExample {
     System.out.println("--- Lens Composition with At ---");
 
     // Use generated lenses from @GenerateLenses annotation
-    Lens<UserProfile, Map<String, String>> settingsLens = UserProfileLenses.settings();
-    Lens<UserProfile, Map<String, Integer>> scoresLens = UserProfileLenses.scores();
+    Lens<AUUserProfile, Map<String, String>> settingsLens = AUUserProfileLenses.settings();
+    Lens<AUUserProfile, Map<String, Integer>> scoresLens = AUUserProfileLenses.scores();
 
     // Create At instances
     At<Map<String, String>, String, String> settingsAt = AtInstances.mapAt();
     At<Map<String, Integer>, String, Integer> scoresAt = AtInstances.mapAt();
 
     // Initial profile
-    UserProfile profile =
-        new UserProfile(
+    AUUserProfile profile =
+        new AUUserProfile(
             "alice",
             new HashMap<>(Map.of("theme", "dark", "language", "en")),
             new HashMap<>(Map.of("math", 95)),
@@ -144,27 +144,27 @@ public class AtUsageExample {
 
     System.out.println("Initial profile: " + profile);
 
-    // Compose: UserProfile -> settings Map -> Optional<String> at "theme"
-    Lens<UserProfile, Optional<String>> themeLens = settingsLens.andThen(settingsAt.at("theme"));
+    // Compose: AUUserProfile -> settings Map -> Optional<String> at "theme"
+    Lens<AUUserProfile, Optional<String>> themeLens = settingsLens.andThen(settingsAt.at("theme"));
 
     // Read setting
     Optional<String> theme = themeLens.get(profile);
     System.out.println("Current theme: " + theme);
 
     // Update setting through composed lens
-    UserProfile lightProfile = themeLens.set(Optional.of("light"), profile);
+    AUUserProfile lightProfile = themeLens.set(Optional.of("light"), profile);
     System.out.println("After setting theme to 'light': " + lightProfile);
 
     // Add new setting through composed lens
-    Lens<UserProfile, Optional<String>> notificationsLens =
+    Lens<AUUserProfile, Optional<String>> notificationsLens =
         settingsLens.andThen(settingsAt.at("notifications"));
-    UserProfile withNotifications = notificationsLens.set(Optional.of("enabled"), lightProfile);
+    AUUserProfile withNotifications = notificationsLens.set(Optional.of("enabled"), lightProfile);
     System.out.println("After adding 'notifications': " + withNotifications);
 
     // Remove setting through composed lens
-    Lens<UserProfile, Optional<String>> languageLens =
+    Lens<AUUserProfile, Optional<String>> languageLens =
         settingsLens.andThen(settingsAt.at("language"));
-    UserProfile withoutLanguage = languageLens.set(Optional.empty(), withNotifications);
+    AUUserProfile withoutLanguage = languageLens.set(Optional.empty(), withNotifications);
     System.out.println("After removing 'language': " + withoutLanguage);
 
     // Original unchanged
@@ -176,18 +176,18 @@ public class AtUsageExample {
     System.out.println("--- Deep Composition: At + Prism ---");
 
     // For truly deep access, compose At's Lens<S, Optional<A>> with a Prism to unwrap Optional
-    Lens<UserProfile, Map<String, Integer>> scoresLens = UserProfileLenses.scores();
+    Lens<AUUserProfile, Map<String, Integer>> scoresLens = AUUserProfileLenses.scores();
 
     At<Map<String, Integer>, String, Integer> scoresAt = AtInstances.mapAt();
     Prism<Optional<Integer>, Integer> somePrism = Prisms.some();
 
     // Compose into a Traversal (0-or-1 focus)
-    Lens<UserProfile, Optional<Integer>> mathScoreLens = scoresLens.andThen(scoresAt.at("math"));
-    Traversal<UserProfile, Integer> mathScoreTraversal =
+    Lens<AUUserProfile, Optional<Integer>> mathScoreLens = scoresLens.andThen(scoresAt.at("math"));
+    Traversal<AUUserProfile, Integer> mathScoreTraversal =
         mathScoreLens.asTraversal().andThen(somePrism.asTraversal());
 
-    UserProfile profile =
-        new UserProfile(
+    AUUserProfile profile =
+        new AUUserProfile(
             "bob",
             new HashMap<>(),
             new HashMap<>(Map.of("math", 85, "science", 90)),
@@ -200,17 +200,17 @@ public class AtUsageExample {
     System.out.println("Math score via traversal: " + mathScores);
 
     // Modify through traversal
-    UserProfile boosted = Traversals.modify(mathScoreTraversal, x -> x + 10, profile);
+    AUUserProfile boosted = Traversals.modify(mathScoreTraversal, x -> x + 10, profile);
     System.out.println("After boosting math by 10: " + boosted);
 
     // Missing key results in no modification
-    Traversal<UserProfile, Integer> historyScoreTraversal =
+    Traversal<AUUserProfile, Integer> historyScoreTraversal =
         scoresLens.andThen(scoresAt.at("history")).asTraversal().andThen(somePrism.asTraversal());
 
     List<Integer> historyScores = Traversals.getAll(historyScoreTraversal, profile);
     System.out.println("History score (absent): " + historyScores);
 
-    UserProfile unchanged = Traversals.modify(historyScoreTraversal, x -> x + 10, profile);
+    AUUserProfile unchanged = Traversals.modify(historyScoreTraversal, x -> x + 10, profile);
     System.out.println("After trying to boost absent history: " + unchanged);
     System.out.println("Profiles equal (no change): " + profile.equals(unchanged));
 
