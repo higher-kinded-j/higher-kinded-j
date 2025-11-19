@@ -8,19 +8,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import org.higherkindedj.example.optics.fluent.model.Account;
 import org.higherkindedj.example.optics.fluent.model.AccountLenses;
 import org.higherkindedj.example.optics.fluent.model.AccountStatus;
 import org.higherkindedj.example.optics.fluent.model.Transaction;
 import org.higherkindedj.example.optics.fluent.model.TransactionLenses;
 import org.higherkindedj.example.optics.fluent.model.TransactionStatus;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.free.DirectOpticInterpreter;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
 import org.higherkindedj.optics.free.OpticInterpreters;
 import org.higherkindedj.optics.free.OpticOp;
 import org.higherkindedj.optics.free.OpticOpKind;
+import org.higherkindedj.optics.free.OpticOpKindHelper;
 import org.higherkindedj.optics.free.OpticPrograms;
 import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 
@@ -313,7 +320,6 @@ public class OpticInterpretersExample {
       }
     }
 
-    @Override
     @SuppressWarnings("unchecked")
     public <A> A run(Free<OpticOpKind.Witness, A> program) {
       // Natural transformation from OpticOp to Id monad (with profiling)
@@ -342,7 +348,7 @@ public class OpticInterpretersExample {
             profile.computeIfAbsent(opType, k -> new OperationStats()).addMeasurement(endTime - startTime);
             totalOps++;
 
-            return Id.of(result);
+            return Id.of(Free.pure(result));
           };
 
       // Interpret the program using the Id monad
@@ -379,7 +385,6 @@ public class OpticInterpretersExample {
       mockData.put(lens, mockValue);
     }
 
-    @Override
     @SuppressWarnings("unchecked")
     public <A> A run(Free<OpticOpKind.Witness, A> program) {
       // Natural transformation from OpticOp to Id monad (with mocking)
@@ -419,7 +424,7 @@ public class OpticInterpretersExample {
                   default -> throw new UnsupportedOperationException("Unknown operation type");
                 };
 
-            return Id.of(result);
+            return Id.of(Free.pure(result));
           };
 
       // Interpret the program using the Id monad
