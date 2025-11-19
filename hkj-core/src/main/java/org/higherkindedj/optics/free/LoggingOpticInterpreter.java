@@ -175,7 +175,7 @@ public final class LoggingOpticInterpreter {
    * @param optic The optic
    * @return A string representation
    */
-  private String opticName(Object optic) {
+  String opticName(Object optic) {
     String className = optic.getClass().getSimpleName();
     if (className.isEmpty()) {
       // Anonymous class - try to get a meaningful name

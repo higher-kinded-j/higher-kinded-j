@@ -170,8 +170,7 @@ These methods **modify** fields with validation, null-safety, or exception handl
 public static <S, A> Maybe<S> modifyMaybe(
     Lens<S, A> lens,
     Function<A, Maybe<A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Apply a modification that might not succeed. Returns `Maybe.just(updated)` if the modification succeeds, `Maybe.nothing()` if it fails.
@@ -224,8 +223,7 @@ Maybe<Product> formatted = modifyMaybe(
 public static <S, A, E> Either<E, S> modifyEither(
     Lens<S, A> lens,
     Function<A, Either<E, A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Apply a modification with validation. Returns `Either.right(updated)` if valid, `Either.left(error)` if invalid. **Stops at first error**.
@@ -280,8 +278,7 @@ Use `modifyEither` for **fail-fast** validation:
 public static <S, A, E> Validated<E, S> modifyValidated(
     Lens<S, A> lens,
     Function<A, Validated<E, A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Like `modifyEither`, but returns `Validated` for consistency with error accumulation workflows.
@@ -334,8 +331,7 @@ For **single field** validation, `modifyEither` and `modifyValidated` behave ide
 public static <S, A> Try<S> modifyTry(
     Lens<S, A> lens,
     Function<A, Try<A>> modifier,
-    S source
-)
+    S source)
 ```
 
 Apply a modification that might throw exceptions. Returns `Try.success(updated)` if successful, `Try.failure(exception)` if an exception occurred.
@@ -401,8 +397,7 @@ public static <S, A, E> Either<E, S> setIfValid(
     Lens<S, A> lens,
     Function<A, Either<E, A>> validator,
     A newValue,
-    S source
-)
+    S source)
 ```
 
 Set a new value **only if it passes validation**. Unlike `modifyEither`, you provide the new value directly rather than deriving it from the old value.
