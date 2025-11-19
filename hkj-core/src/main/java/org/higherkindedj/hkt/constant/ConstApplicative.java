@@ -113,6 +113,42 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   }
 
   /**
+   * Applies a function wrapped in a {@code Const} to a value wrapped in a {@code Const}.
+   *
+   * <p>For {@code Const}, since both type parameters are phantom, the function itself is never
+   * applied. Instead, this operation simply combines the accumulated monoidal values from both
+   * {@code Const} instances using the monoid's combine operation.
+   *
+   * @param ff The {@code Const} containing a phantom function. Must not be null.
+   * @param fa The {@code Const} containing a phantom value. Must not be null.
+   * @param <A> The phantom input type.
+   * @param <B> The phantom output type.
+   * @return A {@code Const<M, B>} containing the combined monoidal values. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   */
+  @Override
+  @SuppressWarnings("unchecked")
+  public <A, B> Kind<ConstKind.Witness<M>, B> ap(
+      Kind<ConstKind.Witness<M>, ? extends Function<A, B>> ff,
+      Kind<ConstKind.Witness<M>, A> fa) {
+    if (ff == null) {
+      throw new NullPointerException("Function Kind cannot be null");
+    }
+    if (fa == null) {
+      throw new NullPointerException("Value Kind cannot be null");
+    }
+
+    // Extract the monoidal values from both Const instances
+    Const<M, ? extends Function<A, B>> constF = CONST.narrow(ff);
+    Const<M, A> constA = CONST.narrow(fa);
+
+    // Combine the accumulated monoidal values
+    M combined = monoid.combine(constF.value(), constA.value());
+
+    return (Kind<ConstKind.Witness<M>, B>) CONST.widen(new Const<>(combined));
+  }
+
+  /**
    * Combines two {@code Const} values using the monoid's combine operation.
    *
    * <p>This is the key operation that makes {@code Const} useful for folds. The accumulated
