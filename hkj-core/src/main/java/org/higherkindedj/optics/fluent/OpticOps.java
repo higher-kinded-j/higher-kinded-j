@@ -10,6 +10,10 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.constant.Const;
+import org.higherkindedj.hkt.constant.ConstApplicative;
+import org.higherkindedj.hkt.constant.ConstKind2;
+import org.higherkindedj.hkt.constant.ConstKindHelper;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
@@ -91,16 +95,19 @@ public final class OpticOps {
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
-        final java.util.List<M> results = new java.util.ArrayList<>();
-        Applicative<IdKind.Witness> idApp = IdMonad.instance();
-        traversal.modifyF(
-            a -> {
-              results.add(f.apply(a));
-              return Id.of(a);
-            },
-            source,
-            idApp);
-        return results.stream().reduce(monoid.empty(), monoid::combine);
+        // Use the Const applicative to fold over the traversal efficiently
+        // This is the standard functional programming approach that avoids side effects
+        ConstApplicative<M> constApp = new ConstApplicative<>(monoid);
+
+        // Apply the traversal with the Const applicative
+        // The traversal will accumulate values using the monoid whilst traversing
+        Kind<ConstKind2.Witness<M>, S> result =
+            traversal.modifyF(
+                a -> ConstKindHelper.CONST.widen2(new Const<>(f.apply(a))), source, constApp);
+
+        // Extract the accumulated result from the Const
+        Const<M, S> finalConst = ConstKindHelper.CONST.narrow2(result);
+        return finalConst.value();
       }
     };
   }

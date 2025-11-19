@@ -512,7 +512,9 @@ public final class MockOpticInterpreter<S> {
                     case OpticOp.Modify<?, ?> ignored -> mockData;
                     case OpticOp.GetAll<?, ?> ignored -> List.of(mockData);
                     case OpticOp.Preview<?, ?> ignored -> Optional.of(mockData);
-                    default -> mockData;
+                    default -> throw new UnsupportedOperationException(
+                        "Unsupported operation: " + op.getClass().getSimpleName()
+                    );
                 };
 
                 return Id.of(result);

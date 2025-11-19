@@ -286,7 +286,7 @@ Free<OpticOpKind.Witness, Person> program =
 Person result = OpticInterpreters.direct().run(program);                     // Production
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
 logger.run(program);                                                          // Audit trail
-ValidationOpticInterpreter.ValidationResult validation = OpticInterpreters.validation().validate(program);  // Dry-run
+ValidationOpticInterpreter.ValidationResult validation = OpticInterpreters.validating().validate(program);  // Dry-run
 ```
 
 This powerful pattern is explored in detail in the [Free Monad DSL Guide](free_monad_dsl.md) and [Optic Interpreters Guide](interpreters.md).
