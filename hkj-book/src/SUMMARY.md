@@ -70,6 +70,9 @@
   - [Ixed Type Class](optics/ixed.md)
   - [Profunctor Optics](optics/profunctor_optics.md)
   - [Combining Optics - Validation](optics/composing_optics.md)
+  - [Fluent API for Optics](optics/fluent_api.md)
+  - [Free Monad DSL](optics/free_monad_dsl.md)
+  - [Optic Interpreters](optics/interpreters.md)
   - [Practical Examples](optics/optics_examples.md)
   - [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md) 
 

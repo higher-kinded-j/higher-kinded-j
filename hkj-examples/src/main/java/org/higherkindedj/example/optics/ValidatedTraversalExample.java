@@ -139,7 +139,6 @@ public class ValidatedTraversalExample {
           String status = result.isValid() ? "✓ VALID" : "✗ INVALID";
           System.out.println("  Form " + form.formId() + ": " + status);
           if (result.isInvalid()) {
-            // Fix: Use getError() instead of getInvalid()
             System.out.println("    Errors: " + result.getError());
           }
         });
@@ -152,13 +151,11 @@ public class ValidatedTraversalExample {
     Applicative<ValidatedKind.Witness<List<String>>> listApplicative =
         ValidatedMonad.instance(Semigroups.list());
 
-    // Fix: Create a proper function for list validation
-    java.util.function.Function<String, Kind<ValidatedKind.Witness<List<String>>, String>>
-        listValidation =
-            name ->
-                VALID_PERMISSIONS.contains(name)
-                    ? VALIDATED.widen(Validated.valid(name))
-                    : VALIDATED.widen(Validated.invalid(List.of("Invalid permission: " + name)));
+    Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> listValidation =
+        name ->
+            VALID_PERMISSIONS.contains(name)
+                ? VALIDATED.widen(Validated.valid(name))
+                : VALIDATED.widen(Validated.invalid(List.of("Invalid permission: " + name)));
 
     Kind<ValidatedKind.Witness<List<String>>, Form> listResult =
         FORM_TO_PERMISSION_NAMES.modifyF(listValidation, multipleInvalidForm, listApplicative);
