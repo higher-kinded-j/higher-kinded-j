@@ -243,30 +243,62 @@ public class UserRepository {
 ### 2.1 Module Structure
 
 ```
-hkj-spring-boot-parent/
-├── hkj-spring-boot-autoconfigure/
-│   ├── org.higherkindedj.spring.autoconfigure/
-│   │   ├── HkjAutoConfiguration.java
-│   │   ├── HkjWebMvcConfiguration.java
-│   │   ├── HkjValidationConfiguration.java
-│   │   ├── HkjJacksonConfiguration.java
-│   │   ├── HkjDataConfiguration.java
-│   │   └── properties/
-│   │       └── HkjProperties.java
-│   └── META-INF/spring/
-│       └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
-│
-├── hkj-spring-boot-starter/
-│   └── pom.xml (aggregator dependencies)
-│
-├── hkj-spring-boot-starter-web/
-│   └── pom.xml (web-specific features)
-│
-├── hkj-spring-boot-starter-data/
-│   └── pom.xml (data access features)
-│
-└── hkj-spring-boot-starter-validation/
-    └── pom.xml (validation features)
+higher-kinded-j/
+├── hkj-api/
+├── hkj-core/
+├── hkj-annotations/
+├── hkj-processor/
+├── hkj-processor-plugins/
+├── hkj-examples/
+├── hkj-benchmarks/
+└── hkj-spring/                              # Spring Boot integration
+    ├── autoconfigure/
+    │   ├── org.higherkindedj.spring.autoconfigure/
+    │   │   ├── HkjAutoConfiguration.java
+    │   │   ├── HkjWebMvcConfiguration.java
+    │   │   ├── HkjValidationConfiguration.java
+    │   │   ├── HkjJacksonConfiguration.java
+    │   │   ├── HkjDataConfiguration.java
+    │   │   └── properties/
+    │   │       └── HkjProperties.java
+    │   └── META-INF/spring/
+    │       └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+    │
+    ├── starter/
+    │   └── build.gradle.kts (aggregator dependencies)
+    │
+    ├── starter-web/
+    │   └── build.gradle.kts (web-specific features)
+    │
+    ├── starter-data/
+    │   └── build.gradle.kts (data access features)
+    │
+    ├── starter-validation/
+    │   └── build.gradle.kts (validation features)
+    │
+    └── example/
+        └── (example Spring Boot application)
+```
+
+**Gradle Configuration** (`settings.gradle.kts`):
+```kotlin
+rootProject.name = "higher-kinded-j"
+include(
+    "hkj-core",
+    "hkj-api",
+    "hkj-annotations",
+    "hkj-processor",
+    "hkj-processor-plugins",
+    "hkj-examples",
+    "hkj-benchmarks",
+    // Spring Boot modules under hkj-spring/
+    "hkj-spring:autoconfigure",
+    "hkj-spring:starter",
+    "hkj-spring:starter-web",
+    "hkj-spring:starter-data",
+    "hkj-spring:starter-validation",
+    "hkj-spring:example"
+)
 ```
 
 ---

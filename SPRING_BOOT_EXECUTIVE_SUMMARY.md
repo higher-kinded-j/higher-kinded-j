@@ -397,10 +397,12 @@ Compose calls to multiple services with fail-fast error semantics.
 ## Technical Approach
 
 ### Spring Boot Starter Pattern
-- **hkj-spring-boot-starter**: Main dependency
-- **hkj-spring-boot-autoconfigure**: Auto-configuration classes
-- **hkj-spring-boot-starter-web**: Web-specific features
-- **hkj-spring-boot-starter-data**: Data access features
+- **hkj-spring/starter**: Main dependency
+- **hkj-spring/autoconfigure**: Auto-configuration classes
+- **hkj-spring/starter-web**: Web-specific features
+- **hkj-spring/starter-data**: Data access features
+
+All Spring modules organized under `hkj-spring/` directory to keep the repository structure clean.
 
 ### Auto-Configuration
 - Conditional on classpath (non-invasive)

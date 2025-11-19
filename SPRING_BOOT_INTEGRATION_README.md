@@ -202,12 +202,34 @@ hkj:
 ### Module Structure
 
 ```
-hkj-spring-boot-parent/
-├── hkj-spring-boot-autoconfigure/     # Auto-configuration classes
-├── hkj-spring-boot-starter/           # Main starter dependency
-├── hkj-spring-boot-starter-web/       # Web-specific features
-├── hkj-spring-boot-starter-data/      # Data access features
-└── hkj-spring-boot-example/           # Example application
+higher-kinded-j/
+├── hkj-api/
+├── hkj-core/
+├── hkj-annotations/
+├── hkj-processor/
+├── hkj-processor-plugins/
+├── hkj-examples/
+├── hkj-benchmarks/
+└── hkj-spring/                        # Spring Boot integration
+    ├── autoconfigure/                 # Auto-configuration classes
+    ├── starter/                       # Main starter dependency
+    ├── starter-web/                   # Web-specific features
+    ├── starter-data/                  # Data access features
+    └── example/                       # Example application
+```
+
+**Gradle Configuration:**
+```kotlin
+// settings.gradle.kts
+include(
+    "hkj-core",
+    "hkj-api",
+    // ... other core modules
+    // Spring Boot modules under hkj-spring/
+    "hkj-spring:autoconfigure",
+    "hkj-spring:starter",
+    "hkj-spring:example"
+)
 ```
 
 ### Key Components

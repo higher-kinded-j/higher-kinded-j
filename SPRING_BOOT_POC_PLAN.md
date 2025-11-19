@@ -9,68 +9,102 @@ This document outlines a concrete implementation plan for creating a working pro
 ## POC Module Structure
 
 ```
-hkj-spring-boot-poc/
-├── hkj-spring-boot-autoconfigure/
-│   ├── src/main/java/
-│   │   └── org/higherkindedj/spring/
-│   │       ├── autoconfigure/
-│   │       │   ├── HkjAutoConfiguration.java
-│   │       │   ├── HkjWebMvcAutoConfiguration.java
-│   │       │   ├── HkjJacksonAutoConfiguration.java
-│   │       │   └── HkjProperties.java
-│   │       ├── web/
-│   │       │   ├── returnvalue/
-│   │       │   │   ├── EitherReturnValueHandler.java
-│   │       │   │   ├── ValidatedReturnValueHandler.java
-│   │       │   │   └── EitherTReturnValueHandler.java
-│   │       │   ├── argumentresolver/
-│   │       │   │   └── EitherArgumentResolver.java
-│   │       │   └── exception/
-│   │       │       └── GlobalEitherExceptionHandler.java
-│   │       ├── json/
-│   │       │   ├── EitherSerializer.java
-│   │       │   ├── EitherDeserializer.java
-│   │       │   ├── ValidatedSerializer.java
-│   │       │   └── ValidatedDeserializer.java
-│   │       ├── validation/
-│   │       │   └── ValidatedValidator.java
-│   │       └── data/
-│   │           └── EitherRepositorySupport.java
-│   ├── src/main/resources/
-│   │   └── META-INF/spring/
-│   │       └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
-│   └── build.gradle.kts
-│
-├── hkj-spring-boot-starter/
-│   ├── src/main/resources/
-│   │   └── META-INF/
-│   │       └── spring.provides
-│   └── build.gradle.kts
-│
-└── hkj-spring-boot-example/
-    ├── src/main/java/
-    │   └── org/higherkindedj/spring/example/
-    │       ├── HkjSpringExampleApplication.java
-    │       ├── domain/
-    │       │   ├── User.java
-    │       │   ├── Order.java
-    │       │   ├── OrderItem.java
-    │       │   └── errors/
-    │       │       ├── DomainError.java
-    │       │       ├── UserNotFoundError.java
-    │       │       └── ValidationError.java
-    │       ├── controller/
-    │       │   ├── UserController.java
-    │       │   └── OrderController.java
-    │       ├── service/
-    │       │   ├── UserService.java
-    │       │   └── OrderService.java
-    │       └── repository/
-    │           ├── UserRepository.java
-    │           └── OrderRepository.java
-    ├── src/main/resources/
-    │   └── application.yml
-    └── build.gradle.kts
+higher-kinded-j/
+├── hkj-api/
+├── hkj-core/
+├── hkj-annotations/
+├── hkj-processor/
+├── hkj-processor-plugins/
+├── hkj-examples/
+├── hkj-benchmarks/
+└── hkj-spring/                              # NEW: Spring Boot integration
+    ├── autoconfigure/
+    │   ├── src/main/java/
+    │   │   └── org/higherkindedj/spring/
+    │   │       ├── autoconfigure/
+    │   │       │   ├── HkjAutoConfiguration.java
+    │   │       │   ├── HkjWebMvcAutoConfiguration.java
+    │   │       │   ├── HkjJacksonAutoConfiguration.java
+    │   │       │   └── HkjProperties.java
+    │   │       ├── web/
+    │   │       │   ├── returnvalue/
+    │   │       │   │   ├── EitherReturnValueHandler.java
+    │   │       │   │   ├── ValidatedReturnValueHandler.java
+    │   │       │   │   └── EitherTReturnValueHandler.java
+    │   │       │   ├── argumentresolver/
+    │   │       │   │   └── EitherArgumentResolver.java
+    │   │       │   └── exception/
+    │   │       │       └── GlobalEitherExceptionHandler.java
+    │   │       ├── json/
+    │   │       │   ├── EitherSerializer.java
+    │   │       │   ├── EitherDeserializer.java
+    │   │       │   ├── ValidatedSerializer.java
+    │   │       │   └── ValidatedDeserializer.java
+    │   │       ├── validation/
+    │   │       │   └── ValidatedValidator.java
+    │   │       └── data/
+    │   │           └── EitherRepositorySupport.java
+    │   ├── src/main/resources/
+    │   │   └── META-INF/spring/
+    │   │       └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+    │   └── build.gradle.kts
+    │
+    ├── starter/
+    │   ├── src/main/resources/
+    │   │   └── META-INF/
+    │   │       └── spring.provides
+    │   └── build.gradle.kts
+    │
+    ├── starter-web/                         # Optional: Web-specific features
+    │   └── build.gradle.kts
+    │
+    ├── starter-data/                        # Optional: Data access features
+    │   └── build.gradle.kts
+    │
+    └── example/
+        ├── src/main/java/
+        │   └── org/higherkindedj/spring/example/
+        │       ├── HkjSpringExampleApplication.java
+        │       ├── domain/
+        │       │   ├── User.java
+        │       │   ├── Order.java
+        │       │   ├── OrderItem.java
+        │       │   └── errors/
+        │       │       ├── DomainError.java
+        │       │       ├── UserNotFoundError.java
+        │       │       └── ValidationError.java
+        │       ├── controller/
+        │       │   ├── UserController.java
+        │       │   └── OrderController.java
+        │       ├── service/
+        │       │   ├── UserService.java
+        │       │   └── OrderService.java
+        │       └── repository/
+        │           ├── UserRepository.java
+        │           └── OrderRepository.java
+        ├── src/main/resources/
+        │   └── application.yml
+        └── build.gradle.kts
+```
+
+**Gradle Configuration** (`settings.gradle.kts`):
+```kotlin
+rootProject.name = "higher-kinded-j"
+include(
+    "hkj-core",
+    "hkj-processor",
+    "hkj-examples",
+    "hkj-annotations",
+    "hkj-api",
+    "hkj-processor-plugins",
+    "hkj-benchmarks",
+    // Spring Boot modules - organized under hkj-spring/
+    "hkj-spring:autoconfigure",
+    "hkj-spring:starter",
+    "hkj-spring:starter-web",
+    "hkj-spring:starter-data",
+    "hkj-spring:example"
+)
 ```
 
 ---
@@ -79,7 +113,7 @@ hkj-spring-boot-poc/
 
 ### 1. Core Auto-Configuration
 
-**File:** `hkj-spring-boot-autoconfigure/src/main/java/org/higherkindedj/spring/autoconfigure/HkjAutoConfiguration.java`
+**File:** `hkj-spring/autoconfigure/src/main/java/org/higherkindedj/spring/autoconfigure/HkjAutoConfiguration.java`
 
 ```java
 package org.higherkindedj.spring.autoconfigure;
@@ -124,7 +158,7 @@ public class HkjAutoConfiguration {
 
 ### 2. Configuration Properties
 
-**File:** `hkj-spring-boot-autoconfigure/src/main/java/org/higherkindedj/spring/autoconfigure/HkjProperties.java`
+**File:** `hkj-spring/autoconfigure/src/main/java/org/higherkindedj/spring/autoconfigure/HkjProperties.java`
 
 ```java
 package org.higherkindedj.spring.autoconfigure;
@@ -239,7 +273,7 @@ public class HkjProperties {
 
 ### 3. Web MVC Auto-Configuration
 
-**File:** `hkj-spring-boot-autoconfigure/src/main/java/org/higherkindedj/spring/autoconfigure/HkjWebMvcAutoConfiguration.java`
+**File:** `hkj-spring/autoconfigure/src/main/java/org/higherkindedj/spring/autoconfigure/HkjWebMvcAutoConfiguration.java`
 
 ```java
 package org.higherkindedj.spring.autoconfigure;
@@ -292,7 +326,7 @@ public class HkjWebMvcAutoConfiguration {
 
 ### 4. Either Return Value Handler Implementation
 
-**File:** `hkj-spring-boot-autoconfigure/src/main/java/org/higherkindedj/spring/web/returnvalue/EitherReturnValueHandler.java`
+**File:** `hkj-spring/autoconfigure/src/main/java/org/higherkindedj/spring/web/returnvalue/EitherReturnValueHandler.java`
 
 ```java
 package org.higherkindedj.spring.web.returnvalue;
@@ -402,7 +436,7 @@ public class EitherReturnValueHandler implements HandlerMethodReturnValueHandler
 
 ### 5. Example Domain Models
 
-**File:** `hkj-spring-boot-example/src/main/java/org/higherkindedj/spring/example/domain/User.java`
+**File:** `hkj-spring/example/src/main/java/org/higherkindedj/spring/example/domain/User.java`
 
 ```java
 package org.higherkindedj.spring.example.domain;
@@ -419,7 +453,7 @@ public record User(
 ) {}
 ```
 
-**File:** `hkj-spring-boot-example/src/main/java/org/higherkindedj/spring/example/domain/errors/DomainError.java`
+**File:** `hkj-spring/example/src/main/java/org/higherkindedj/spring/example/domain/errors/DomainError.java`
 
 ```java
 package org.higherkindedj.spring.example.domain.errors;
@@ -430,7 +464,7 @@ public sealed interface DomainError
 }
 ```
 
-**File:** `hkj-spring-boot-example/src/main/java/org/higherkindedj/spring/example/domain/errors/UserNotFoundError.java`
+**File:** `hkj-spring/example/src/main/java/org/higherkindedj/spring/example/domain/errors/UserNotFoundError.java`
 
 ```java
 package org.higherkindedj.spring.example.domain.errors;
@@ -445,7 +479,7 @@ public record UserNotFoundError(String userId) implements DomainError {
 
 ### 6. Example Controller
 
-**File:** `hkj-spring-boot-example/src/main/java/org/higherkindedj/spring/example/controller/UserController.java`
+**File:** `hkj-spring/example/src/main/java/org/higherkindedj/spring/example/controller/UserController.java`
 
 ```java
 package org.higherkindedj.spring.example.controller;
@@ -521,7 +555,7 @@ public class UserController {
 
 ### 7. Example Service with Optics
 
-**File:** `hkj-spring-boot-example/src/main/java/org/higherkindedj/spring/example/service/UserService.java`
+**File:** `hkj-spring/example/src/main/java/org/higherkindedj/spring/example/service/UserService.java`
 
 ```java
 package org.higherkindedj.spring.example.service;
@@ -628,7 +662,7 @@ public class UserService {
 
 ### 8. Build Configuration
 
-**File:** `hkj-spring-boot-autoconfigure/build.gradle.kts`
+**File:** `hkj-spring/autoconfigure/build.gradle.kts`
 
 ```kotlin
 plugins {
@@ -659,7 +693,7 @@ dependencies {
 }
 ```
 
-**File:** `hkj-spring-boot-starter/build.gradle.kts`
+**File:** `hkj-spring/starter/build.gradle.kts`
 
 ```kotlin
 plugins {
@@ -668,7 +702,7 @@ plugins {
 
 dependencies {
     // Aggregate all autoconfigure modules
-    api(project(":hkj-spring-boot-autoconfigure"))
+    api(project(":hkj-spring:autoconfigure"))
 
     // Bring in Spring Boot starter web by default
     api("org.springframework.boot:spring-boot-starter-web")
@@ -681,7 +715,7 @@ dependencies {
 
 ### 9. Auto-Configuration Registration
 
-**File:** `hkj-spring-boot-autoconfigure/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
+**File:** `hkj-spring/autoconfigure/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
 
 ```
 org.higherkindedj.spring.autoconfigure.HkjAutoConfiguration
@@ -690,7 +724,7 @@ org.higherkindedj.spring.autoconfigure.HkjWebMvcAutoConfiguration
 
 ### 10. Example Application Configuration
 
-**File:** `hkj-spring-boot-example/src/main/resources/application.yml`
+**File:** `hkj-spring/example/src/main/resources/application.yml`
 
 ```yaml
 spring:
