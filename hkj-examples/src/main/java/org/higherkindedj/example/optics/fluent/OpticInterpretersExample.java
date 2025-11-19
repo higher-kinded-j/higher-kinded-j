@@ -333,14 +333,11 @@ public class OpticInterpretersExample {
             // Execute the operation
             Object result =
                 switch (op) {
-                  case OpticOp.Get<?, ?> get -> get.optic().get(get.source());
-                  case OpticOp.Set<?, ?> set -> set.optic().set(set.newValue(), set.source());
-                  case OpticOp.Modify<?, ?> modify ->
-                      modify.optic().modify(modify.modifier(), modify.source());
-                  case OpticOp.GetAll<?, ?> getAll -> getAll.optic().getAll(getAll.source());
-                  case OpticOp.ModifyAll<?, ?> modifyAll ->
-                      org.higherkindedj.optics.util.Traversals.modify(
-                          modifyAll.optic(), modifyAll.modifier(), modifyAll.source());
+                  case OpticOp.Get<?, ?> get -> executeGet(get);
+                  case OpticOp.Set<?, ?> set -> executeSet(set);
+                  case OpticOp.Modify<?, ?> modify -> executeModify(modify);
+                  case OpticOp.GetAll<?, ?> getAll -> executeGetAll(getAll);
+                  case OpticOp.ModifyAll<?, ?> modifyAll -> executeModifyAll(modifyAll);
                   default -> throw new UnsupportedOperationException("Unknown operation type");
                 };
 
@@ -374,6 +371,32 @@ public class OpticInterpretersExample {
     public int getTotalOperations() {
       return totalOps;
     }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> A executeGet(OpticOp.Get<S, A> op) {
+      return op.optic().get(op.source());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> S executeSet(OpticOp.Set<S, A> op) {
+      return op.optic().set(op.newValue(), op.source());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
+      return op.optic().modify(op.modifier(), op.source());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> java.util.List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
+      return op.optic().getAll(op.source());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
+      return org.higherkindedj.optics.util.Traversals.modify(
+          op.optic(), op.modifier(), op.source());
+    }
   }
 
   /** Custom interpreter that mocks optic operations for testing. */
@@ -394,33 +417,11 @@ public class OpticInterpretersExample {
 
             Object result =
                 switch (op) {
-                  case OpticOp.Get<?, ?> get -> {
-                    Object mockValue = mockData.get(get.optic());
-                    if (mockValue != null) {
-                      log.add("MOCK GET: " + get.optic().getClass().getSimpleName() + " -> " + mockValue);
-                      yield mockValue;
-                    } else {
-                      log.add("REAL GET: " + get.optic().getClass().getSimpleName());
-                      yield get.optic().get(get.source());
-                    }
-                  }
-                  case OpticOp.Set<?, ?> set -> {
-                    log.add("MOCK SET: " + set.optic().getClass().getSimpleName() + " -> " + set.newValue());
-                    yield set.optic().set(set.newValue(), set.source());
-                  }
-                  case OpticOp.Modify<?, ?> modify -> {
-                    log.add("MOCK MODIFY: " + modify.optic().getClass().getSimpleName());
-                    yield modify.optic().modify(modify.modifier(), modify.source());
-                  }
-                  case OpticOp.GetAll<?, ?> getAll -> {
-                    log.add("MOCK GET_ALL: " + getAll.optic().getClass().getSimpleName());
-                    yield getAll.optic().getAll(getAll.source());
-                  }
-                  case OpticOp.ModifyAll<?, ?> modifyAll -> {
-                    log.add("MOCK MODIFY_ALL: " + modifyAll.optic().getClass().getSimpleName());
-                    yield org.higherkindedj.optics.util.Traversals.modify(
-                        modifyAll.optic(), modifyAll.modifier(), modifyAll.source());
-                  }
+                  case OpticOp.Get<?, ?> get -> executeGet(get);
+                  case OpticOp.Set<?, ?> set -> executeSet(set);
+                  case OpticOp.Modify<?, ?> modify -> executeModify(modify);
+                  case OpticOp.GetAll<?, ?> getAll -> executeGetAll(getAll);
+                  case OpticOp.ModifyAll<?, ?> modifyAll -> executeModifyAll(modifyAll);
                   default -> throw new UnsupportedOperationException("Unknown operation type");
                 };
 
@@ -434,6 +435,43 @@ public class OpticInterpretersExample {
 
     public List<String> getLog() {
       return log;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> A executeGet(OpticOp.Get<S, A> op) {
+      Object mockValue = mockData.get(op.optic());
+      if (mockValue != null) {
+        log.add("MOCK GET: " + op.optic().getClass().getSimpleName() + " -> " + mockValue);
+        return (A) mockValue;
+      } else {
+        log.add("REAL GET: " + op.optic().getClass().getSimpleName());
+        return op.optic().get(op.source());
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> S executeSet(OpticOp.Set<S, A> op) {
+      log.add("MOCK SET: " + op.optic().getClass().getSimpleName() + " -> " + op.newValue());
+      return op.optic().set(op.newValue(), op.source());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
+      log.add("MOCK MODIFY: " + op.optic().getClass().getSimpleName());
+      return op.optic().modify(op.modifier(), op.source());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> java.util.List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
+      log.add("MOCK GET_ALL: " + op.optic().getClass().getSimpleName());
+      return op.optic().getAll(op.source());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
+      log.add("MOCK MODIFY_ALL: " + op.optic().getClass().getSimpleName());
+      return org.higherkindedj.optics.util.Traversals.modify(
+          op.optic(), op.modifier(), op.source());
     }
   }
 
