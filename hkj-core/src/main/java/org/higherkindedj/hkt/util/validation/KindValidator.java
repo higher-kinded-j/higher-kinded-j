@@ -153,8 +153,9 @@ public enum KindValidator {
    * @param <A> The value type
    * @return The validated Kind
    * @throws NullPointerException if kind is null
-   *     <p>Example usage:
-   *     <pre>
+   *
+   * <p>Example usage:</p>
+   * <pre>
    * Validation.kindValidator().requireNonNull(fa, StateTMonad.class, "map");
    * // Error: "Kind for StateTMonad.map cannot be null"
    * </pre>
@@ -199,8 +200,9 @@ public enum KindValidator {
    * @param <A> The value type
    * @return The validated Kind
    * @throws NullPointerException if kind is null
-   *     <p>Example usage:
-   *     <pre>
+   *
+   * <p>Example usage:</p>
+   * <pre>
    * Validation.kindValidator().requireNonNull(ff, StateTMonad.class, "ap", "function");
    * // Error: "Kind for StateTMonad.ap (function) cannot be null"
    *
