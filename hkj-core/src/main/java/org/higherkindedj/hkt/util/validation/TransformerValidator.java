@@ -26,8 +26,9 @@ public enum TransformerValidator {
    * @param <F> The monad witness type
    * @return The validated monad
    * @throws NullPointerException with context-specific message if monad is null
-   * @example
-   *     <pre>
+   *
+   * <p>Example usage:
+   * <pre>
    * // In constructor
    * DomainValidator.requireOuterMonad(monadF, StateT.class, "construction");
    * // Error: "Outer Monad cannot be null for StateT construction"
@@ -63,8 +64,9 @@ public enum TransformerValidator {
    * @param <T> The component type
    * @return The validated component
    * @throws NullPointerException with descriptive message if component is null
-   * @example
-   *     <pre>
+   *
+   * <p>Example usage:
+   * <pre>
    * DomainValidator.requireTransformerComponent(
    *     optional,
    *     "inner Optional",

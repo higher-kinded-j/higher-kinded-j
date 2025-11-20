@@ -248,13 +248,13 @@ public interface Functor<F> {
    * <p><b>Type Transformation:</b>
    *
    * <pre>
-   * F<A> ──map(f: A -> B)──> F<B>
+   * F&lt;A&gt; ──map(f: A -&gt; B)──&gt; F&lt;B&gt;
    *
    * Examples:
-   * Optional<String>        ──map(String::length)──>      Optional<Integer>
-   * List<User>              ──map(User::getName)──>       List<String>
-   * Future<Response>        ──map(Response::getBody)──>   Future<String>
-   * Either<Error, Int>      ──map(n -> n * 2)──>          Either<Error, Int>
+   * Optional&lt;String&gt;        ──map(String::length)──&gt;      Optional&lt;Integer&gt;
+   * List&lt;User&gt;              ──map(User::getName)──&gt;       List&lt;String&gt;
+   * Future&lt;Response&gt;        ──map(Response::getBody)──&gt;   Future&lt;String&gt;
+   * Either&lt;Error, Int&gt;      ──map(n -&gt; n * 2)──&gt;          Either&lt;Error, Int&gt;
    * </pre>
    *
    * <p><b>Behaviour by Functor Type:</b>

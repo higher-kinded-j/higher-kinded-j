@@ -180,7 +180,7 @@ public interface Selective<F> extends Applicative<F> {
    * @param fcond The non-null effectful condition
    * @param fa The non-null effect to execute (result will be discarded)
    * @param <A> The type of fa's result (will be discarded)
-   * @return Kind<F, Unit> representing the effect execution with result discarded
+   * @return {@code Kind<F, Unit>} representing the effect execution with result discarded
    */
   default <A> Kind<F, Unit> whenS_(Kind<F, Boolean> fcond, Kind<F, A> fa) {
     requireNonNull(fcond, "condition cannot be null");
