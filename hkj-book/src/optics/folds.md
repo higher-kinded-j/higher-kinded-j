@@ -9,6 +9,7 @@
 - Aggregating data with monoids for sums, products, and custom combiners
 - Composing folds with other optics for deep, conditional queries
 - The difference between `getAll`, `preview`, `find`, `exists`, `all`, and `length`
+- Maybe-based extensions for functional optional handling (`previewMaybe`, `findMaybe`, `getAllMaybe`)
 - When to use Fold vs Traversal vs direct field access vs Stream API
 - Building read-only data processing pipelines with clear intent
 ~~~
@@ -193,6 +194,346 @@ Returns the number of focused values as an `int`.
 int itemCount = itemsFold.length(order);
 // Result: 3
 ```
+
+### Step 2.5: Maybe-Based Fold Extensions
+
+~~~admonish title="Extension Methods"
+Higher-kinded-j provides extension methods that integrate `Fold` with the `Maybe` type, offering a more functional approach to handling absent values compared to Java's `Optional`. These extensions are available via static imports from `FoldExtensions`.
+~~~
+
+#### The Challenge: Working with Nullable Values
+
+Standard Fold operations use `Optional<A>` for operations that might not find a value (like `preview` and `find`). While `Optional` works well, functional programming often prefers `Maybe` because it:
+
+* Integrates seamlessly with Higher-Kinded Types (HKT)
+* Works consistently with other monadic operations (`flatMap`, `map`, `fold`)
+* Provides better composition with validation and error handling types
+* Offers a more principled functional API
+
+Think of `Maybe` as `Optional`'s more functional cousin—they both represent "a value or nothing", but `Maybe` plays more nicely with the rest of the functional toolkit.
+
+#### Think of Maybe-Based Extensions Like...
+
+* **A search that returns "found" or "not found"** - `Maybe` explicitly models presence or absence
+* **A safe lookup in a dictionary** - Either you get the value wrapped in `Just`, or you get `Nothing`
+* **A nullable pointer that can't cause NPE** - You must explicitly check before unwrapping
+* **Optional's functional sibling** - Same concept, better integration with functional patterns
+
+#### The Three Extension Methods
+
+All three methods are static imports from `org.higherkindedj.optics.extensions.FoldExtensions`:
+
+```java
+import static org.higherkindedj.optics.extensions.FoldExtensions.*;
+```
+
+##### 1. `previewMaybe(fold, source)` - Get First Value as Maybe
+
+The `previewMaybe` method is the `Maybe`-based equivalent of `preview()`. It returns the first focused value wrapped in `Maybe`, or `Maybe.nothing()` if none exist.
+
+```java
+import org.higherkindedj.hkt.maybe.Maybe;
+import static org.higherkindedj.optics.extensions.FoldExtensions.previewMaybe;
+
+Fold<Order, Product> itemsFold = OrderFolds.items();
+Order order = new Order("ORD-123", List.of(
+    new Product("Laptop", 999.99, "Electronics", true),
+    new Product("Mouse", 25.00, "Electronics", true)
+), "Alice");
+
+Maybe<Product> firstProduct = previewMaybe(itemsFold, order);
+// Result: Just(Product[Laptop, 999.99, ...])
+
+Order emptyOrder = new Order("ORD-456", List.of(), "Bob");
+Maybe<Product> noProduct = previewMaybe(itemsFold, emptyOrder);
+// Result: Nothing
+```
+
+**When to use `previewMaybe` vs `preview`:**
+
+* Use `previewMaybe` when working in a functional pipeline with other `Maybe` values
+* Use `preview` when interoperating with standard Java code expecting `Optional`
+* Use `previewMaybe` when you need HKT compatibility for generic functional abstractions
+
+##### 2. `findMaybe(fold, predicate, source)` - Find First Match as Maybe
+
+The `findMaybe` method is the `Maybe`-based equivalent of `find()`. It returns the first focused value matching the predicate, or `Maybe.nothing()` if no match is found.
+
+```java
+import static org.higherkindedj.optics.extensions.FoldExtensions.findMaybe;
+
+Fold<Order, Product> itemsFold = OrderFolds.items();
+
+Maybe<Product> expensiveProduct = findMaybe(
+    itemsFold,
+    product -> product.price() > 500.00,
+    order
+);
+// Result: Just(Product[Laptop, 999.99, ...])
+
+Maybe<Product> luxuryProduct = findMaybe(
+    itemsFold,
+    product -> product.price() > 5000.00,
+    order
+);
+// Result: Nothing
+```
+
+**Common Use Cases:**
+
+* **Product search**: Find first available item matching criteria
+* **Validation**: Locate the first invalid field in a form
+* **Configuration**: Find the first matching configuration option
+* **Inventory**: Locate first in-stock item in a category
+
+##### 3. `getAllMaybe(fold, source)` - Get All Values as Maybe-Wrapped List
+
+The `getAllMaybe` method returns all focused values as `Maybe<List<A>>`. If the Fold finds at least one value, you get `Just(List<A>)`. If it finds nothing, you get `Nothing`.
+
+This is particularly useful when you want to distinguish between "found an empty collection" and "found no results".
+
+```java
+import static org.higherkindedj.optics.extensions.FoldExtensions.getAllMaybe;
+
+Fold<Order, Product> itemsFold = OrderFolds.items();
+
+Maybe<List<Product>> allProducts = getAllMaybe(itemsFold, order);
+// Result: Just([Product[Laptop, ...], Product[Mouse, ...]])
+
+Order emptyOrder = new Order("ORD-456", List.of(), "Bob");
+Maybe<List<Product>> noProducts = getAllMaybe(itemsFold, emptyOrder);
+// Result: Nothing
+```
+
+**When to use `getAllMaybe` vs `getAll`:**
+
+| Scenario | Use `getAll()` | Use `getAllMaybe()` |
+|----------|----------------|---------------------|
+| You need the list regardless of emptiness | ✅ Returns `List<A>` (possibly empty) | ❌ Overkill |
+| You want to treat empty results as a failure case | ❌ Must check `isEmpty()` manually | ✅ Returns `Nothing` for empty results |
+| You're chaining functional operations with Maybe | ❌ Requires conversion | ✅ Directly composable |
+| Performance-critical batch processing | ✅ Direct list access | ❌ Extra Maybe wrapping |
+
+#### Real-World Scenario: Product Search with Maybe
+
+Here's a practical example showing how Maybe-based extensions simplify null-safe querying:
+
+```java
+import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.annotations.GenerateFolds;
+import org.higherkindedj.hkt.maybe.Maybe;
+import static org.higherkindedj.optics.extensions.FoldExtensions.*;
+
+@GenerateFolds
+public record ProductCatalog(List<Product> products) {}
+
+public class ProductSearchService {
+    private static final Fold<ProductCatalog, Product> ALL_PRODUCTS =
+        ProductCatalogFolds.products();
+
+    // Find the cheapest in-stock product in a category
+    public Maybe<Product> findCheapestInCategory(
+        ProductCatalog catalog,
+        String category
+    ) {
+        return getAllMaybe(ALL_PRODUCTS, catalog)
+            .map(products -> products.stream()
+                .filter(p -> category.equals(p.category()))
+                .filter(Product::inStock)
+                .min(Comparator.comparing(Product::price))
+                .orElse(null)
+            )
+            .flatMap(Maybe::fromNullable);  // Convert null to Nothing
+    }
+
+    // Get first premium product (>£1000)
+    public Maybe<Product> findPremiumProduct(ProductCatalog catalog) {
+        return findMaybe(
+            ALL_PRODUCTS,
+            product -> product.price() > 1000.00,
+            catalog
+        );
+    }
+
+    // Check if any products are available
+    public boolean hasAvailableProducts(ProductCatalog catalog) {
+        return getAllMaybe(ALL_PRODUCTS, catalog)
+            .map(products -> products.stream().anyMatch(Product::inStock))
+            .getOrElse(false);
+    }
+
+    // Extract all product names (or empty message)
+    public String getProductSummary(ProductCatalog catalog) {
+        return getAllMaybe(ALL_PRODUCTS, catalog)
+            .map(products -> products.stream()
+                .map(Product::name)
+                .collect(Collectors.joining(", "))
+            )
+            .getOrElse("No products available");
+    }
+}
+```
+
+#### Optional vs Maybe: A Comparison
+
+Understanding when to use each type helps you make informed decisions:
+
+| Aspect | `Optional<A>` | `Maybe<A>` |
+|--------|---------------|------------|
+| **Purpose** | Standard Java optional values | Functional optional values with HKT support |
+| **Package** | `java.util.Optional` | `org.higherkindedj.hkt.maybe.Maybe` |
+| **HKT Support** | ❌ No | ✅ Yes (integrates with `Kind<F, A>`) |
+| **Monadic Operations** | Limited (`map`, `flatMap`, `filter`) | Full (`map`, `flatMap`, `filter`, `fold`, `getOrElse`, etc.) |
+| **Java Interop** | ✅ Native support | ❌ Requires conversion |
+| **Functional Composition** | Basic | ✅ Excellent (works with Applicative, Monad, etc.) |
+| **Pattern Matching** | `ifPresent()`, `orElse()` | `isJust()`, `isNothing()`, `fold()` |
+| **Use Cases** | Standard Java APIs, interop | Functional pipelines, HKT abstractions |
+| **Conversion** | `Maybe.fromOptional(opt)` | `maybe.toOptional()` |
+
+**Best Practice**: Use `Optional` at API boundaries (public methods, external libraries) and `Maybe` internally in functional pipelines.
+
+#### When to Use Each Extension Method
+
+Here's a decision matrix to help you choose the right method:
+
+**Use `previewMaybe` when:**
+* You need the first value from a Fold
+* You're working in a functional pipeline with other `Maybe` values
+* You want to chain operations (`map`, `flatMap`, `fold`) on the result
+* You need HKT compatibility
+
+```java
+// Example: Get first expensive product and calculate discount
+Maybe<Double> discountedPrice = previewMaybe(productsFold, order)
+    .filter(p -> p.price() > 100)
+    .map(p -> p.price() * 0.9);
+```
+
+**Use `findMaybe` when:**
+* You need to locate a specific value matching a predicate
+* You want to avoid the verbosity of `getAll().stream().filter().findFirst()`
+* You're building search functionality
+* You want to short-circuit on the first match (performance)
+
+```java
+// Example: Find first out-of-stock item
+Maybe<Product> outOfStock = findMaybe(
+    productsFold,
+    p -> !p.inStock(),
+    order
+);
+```
+
+**Use `getAllMaybe` when:**
+* You want to treat empty results as a "nothing" case
+* You want to chain functional operations on the entire result set
+* You're building batch processing pipelines
+* You need to propagate "nothing found" through your computation
+
+```java
+// Example: Process all products or provide default behaviour
+String report = getAllMaybe(productsFold, order)
+    .map(products -> generateReport(products))
+    .getOrElse("No products to report");
+```
+
+#### Integration with Existing Fold Operations
+
+Maybe-based extensions work seamlessly alongside standard Fold operations. You can mix and match based on your needs:
+
+```java
+Fold<Order, Product> itemsFold = OrderFolds.items();
+
+// Standard Fold operations
+List<Product> allItems = itemsFold.getAll(order);           // Always returns list
+Optional<Product> firstOpt = itemsFold.preview(order);     // Optional-based
+int count = itemsFold.length(order);                        // Primitive int
+
+// Maybe-based extensions
+Maybe<Product> firstMaybe = previewMaybe(itemsFold, order);     // Maybe-based
+Maybe<Product> matchMaybe = findMaybe(itemsFold, p -> ..., order);  // Maybe-based
+Maybe<List<Product>> allMaybe = getAllMaybe(itemsFold, order);      // Maybe-wrapped list
+```
+
+**Conversion Between Optional and Maybe:**
+
+```java
+// Convert Optional to Maybe
+Optional<Product> optional = itemsFold.preview(order);
+Maybe<Product> maybe = Maybe.fromOptional(optional);
+
+// Convert Maybe to Optional
+Maybe<Product> maybe = previewMaybe(itemsFold, order);
+Optional<Product> optional = maybe.toOptional();
+```
+
+#### Performance Considerations
+
+Maybe-based extensions have minimal overhead:
+
+* **`previewMaybe`**: Same performance as `preview()`, just wraps in `Maybe` instead of `Optional`
+* **`findMaybe`**: Identical to `find()` - short-circuits on first match
+* **`getAllMaybe`**: Adds one extra `Maybe` wrapping over `getAll()` - negligible cost
+
+**Optimisation Tip**: For performance-critical code, prefer `getAll()` if you don't need the Maybe semantics. The extra wrapping and pattern matching adds a small but measurable cost in tight loops.
+
+#### Practical Example: Safe Navigation with Maybe
+
+Combining `getAllMaybe` with composed folds creates powerful null-safe query pipelines:
+
+```java
+import org.higherkindedj.optics.Fold;
+import org.higherkindedj.hkt.maybe.Maybe;
+import static org.higherkindedj.optics.extensions.FoldExtensions.*;
+
+@GenerateFolds
+public record OrderHistory(List<Order> orders) {}
+
+public class OrderAnalytics {
+    private static final Fold<OrderHistory, Order> ORDERS =
+        OrderHistoryFolds.orders();
+    private static final Fold<Order, Product> PRODUCTS =
+        OrderFolds.items();
+
+    // Calculate total revenue, handling empty history gracefully
+    public double calculateRevenue(OrderHistory history) {
+        return getAllMaybe(ORDERS, history)
+            .flatMap(orders -> {
+                List<Double> prices = orders.stream()
+                    .flatMap(order -> getAllMaybe(PRODUCTS, order)
+                        .map(products -> products.stream().map(Product::price))
+                        .getOrElse(Stream.empty()))
+                    .toList();
+                return prices.isEmpty() ? Maybe.nothing() : Maybe.just(prices);
+            })
+            .map(prices -> prices.stream().mapToDouble(Double::doubleValue).sum())
+            .getOrElse(0.0);
+    }
+
+    // Find most expensive product across all orders
+    public Maybe<Product> findMostExpensive(OrderHistory history) {
+        return getAllMaybe(ORDERS, history)
+            .flatMap(orders -> {
+                List<Product> allProducts = orders.stream()
+                    .flatMap(order -> getAllMaybe(PRODUCTS, order)
+                        .map(List::stream)
+                        .getOrElse(Stream.empty()))
+                    .toList();
+                return allProducts.isEmpty()
+                    ? Maybe.nothing()
+                    : Maybe.fromNullable(allProducts.stream()
+                        .max(Comparator.comparing(Product::price))
+                        .orElse(null));
+            });
+    }
+}
+```
+
+~~~admonish title="Complete Example"
+See [FoldExtensionsExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/extensions/FoldExtensionsExample.java) for a runnable demonstration of all Maybe-based Fold extensions.
+~~~
+
+---
 
 ### Step 3: Composing Folds for Deep Queries
 
