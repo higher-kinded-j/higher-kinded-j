@@ -107,8 +107,8 @@ public interface Monoids {
   }
 
   /**
-   * Returns a {@code Monoid} for boolean conjunction ({@code &&}). Combination is {@code &&}, identity is
-   * {@code true}.
+   * Returns a {@code Monoid} for boolean conjunction ({@code &&}). Combination is {@code &&},
+   * identity is {@code true}.
    */
   static Monoid<Boolean> booleanAnd() {
     return new Monoid<Boolean>() {
