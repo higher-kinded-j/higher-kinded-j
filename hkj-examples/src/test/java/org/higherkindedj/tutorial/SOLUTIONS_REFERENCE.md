@@ -612,3 +612,144 @@ Traversals.modify(traversal, transformFunction, source)
 lens.asTraversal()  // Lens -> Traversal
 prism.asTraversal() // Prism -> Traversal
 ```
+
+### Tutorial 08: Fluent Optics API
+
+**Exercise 1:**
+```java
+String name = OpticOps.get(person, nameLens);
+Person updated = OpticOps.set(person, ageLens, 31);
+```
+
+**Exercise 2:**
+```java
+Person older = OpticOps.modify(person, ageLens, age -> age + 1);
+Person capitalized = OpticOps.modify(person, nameLens, String::toUpperCase);
+```
+
+**Exercise 3:**
+```java
+List<String> names = OpticOps.getAll(team, playerNames);
+Team bonusApplied = OpticOps.modifyAll(team, playersTraversal, p -> new Player(p.name(), p.score() + 10));
+```
+
+**Exercise 4:**
+```java
+boolean hasHighScorers = OpticOps.exists(team, scores, score -> score >= 100);
+int playerCount = OpticOps.count(team, TeamTraversals.players());
+Optional<Player> topPlayer = OpticOps.find(team, players, p -> p.score() > 100);
+```
+
+**Exercise 5:**
+```java
+Either<String, User> validResult = OpticOps.modifyEither(user, emailLens, validateEmail);
+Either<String, User> invalidResult = OpticOps.modifyEither(invalidUser, emailLens, validateEmail);
+```
+
+**Exercise 6:**
+```java
+Maybe<Person> validResult = OpticOps.modifyMaybe(person, ageLens, validateAge);
+Maybe<Person> invalidResult = OpticOps.modifyMaybe(invalidPerson, ageLens, validateAge);
+```
+
+**Exercise 7:**
+```java
+Validated<List<String>, Order> result = OpticOps.modifyAllValidated(order, prices, validatePrice);
+Validated<List<String>, Order> validResult = OpticOps.modifyAllValidated(validOrder, validPrices, validatePrice);
+```
+
+### Tutorial 09: Advanced Optics DSL
+
+**Exercise 1:**
+```java
+Free<OpticOpKind.Witness, Integer> getProgram = OpticPrograms.get(person, ageLens);
+Free<OpticOpKind.Witness, Person> setProgram = OpticPrograms.set(person, ageLens, 31);
+```
+
+**Exercise 2:**
+```java
+Free<OpticOpKind.Witness, Counter> program =
+    OpticPrograms.get(counter, valueLens)
+        .flatMap(currentValue -> OpticPrograms.set(counter, valueLens, currentValue + 10));
+```
+
+**Exercise 3:**
+```java
+if (balance >= 1000) {
+    return OpticPrograms.set(account, statusLens, "APPROVED");
+} else {
+    return OpticPrograms.set(account, statusLens, "DENIED");
+}
+```
+
+**Exercise 4:**
+```java
+.flatMap(u2 -> OpticPrograms.set(u2, activeLens, true));
+```
+
+**Exercise 5:**
+```java
+LoggingOpticInterpreter logger = OpticInterpreters.logging();
+List<String> log = logger.getLog();
+```
+
+**Exercise 6:**
+```java
+ValidationOpticInterpreter validator = OpticInterpreters.validation();
+List<String> issues = validator.validate(program);
+```
+
+**Exercise 7:**
+```java
+.flatMap(o4 -> OpticPrograms.set(o4, statusLens, "SHIPPED"));
+```
+
+---
+
+## New API Features
+
+### Fluent Optics API (OpticOps)
+```java
+// Static methods (source-first)
+String name = OpticOps.get(person, PersonLenses.name());
+Person updated = OpticOps.set(person, PersonLenses.age(), 31);
+Person modified = OpticOps.modify(person, PersonLenses.age(), age -> age + 1);
+
+// Collection operations
+List<String> names = OpticOps.getAll(team, playerNames);
+Team updated = OpticOps.modifyAll(team, players, p -> transform(p));
+
+// Query operations
+boolean hasAdults = OpticOps.exists(team, ages, age -> age >= 18);
+int count = OpticOps.count(team, players);
+Optional<Player> first = OpticOps.find(team, players, p -> p.score() > 100);
+
+// Validation-aware operations
+Either<String, User> result = OpticOps.modifyEither(user, lens, validator);
+Maybe<Person> result = OpticOps.modifyMaybe(person, lens, validator);
+Validated<List<String>, Order> result = OpticOps.modifyAllValidated(order, traversal, validator);
+```
+
+### Free Monad DSL (OpticPrograms)
+```java
+// Build programs as data structures
+Free<OpticOpKind.Witness, Person> program =
+    OpticPrograms.get(person, ageLens)
+        .flatMap(age ->
+            age >= 18
+                ? OpticPrograms.set(person, statusLens, "ADULT")
+                : OpticPrograms.pure(person)
+        );
+
+// Execute with different interpreters
+Person result = OpticInterpreters.direct().run(program);
+
+// Logging for audit trails
+LoggingOpticInterpreter logger = OpticInterpreters.logging();
+Person result = logger.run(program);
+List<String> auditLog = logger.getLog();
+
+// Validation for dry-runs
+ValidationOpticInterpreter validator = OpticInterpreters.validation();
+List<String> issues = validator.validate(program);
+```

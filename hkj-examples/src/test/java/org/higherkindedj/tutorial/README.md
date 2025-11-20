@@ -6,7 +6,7 @@ Welcome to the Higher-Kinded-J tutorial series! These hands-on tutorials will te
 
 This tutorial series consists of two tracks:
 1. **Core Types** (7 tutorials, ~60 minutes) - Learn about Functors, Applicatives, Monads, and more
-2. **Optics** (7 tutorials, ~60 minutes) - Learn about Lenses, Prisms, and Traversals
+2. **Optics** (9 tutorials, ~90 minutes) - Learn about Lenses, Prisms, Traversals, and advanced patterns
 
 Each tutorial contains exercises where you need to replace `___` placeholders with working code. The tests will fail until you complete the exercises correctly.
 
@@ -117,6 +117,24 @@ Apply optics to real problems:
 - API response processing
 - E-commerce orders
 - Data validation
+
+### Tutorial 08: Fluent Optics API (~12 minutes)
+Learn the ergonomic fluent API:
+- OpticOps static methods (source-first)
+- Collection operations: getAll, modifyAll, setAll
+- Query operations: exists, count, find
+- Validation with Either, Maybe, Validated
+- Real-world form validation
+
+### Tutorial 09: Advanced Optics DSL (~15 minutes)
+Master the Free Monad DSL:
+- Building programs as data structures
+- Composing with flatMap
+- Conditional workflows
+- Multi-step transformations
+- Logging interpreter (audit trails)
+- Validation interpreter (dry-runs)
+- Real-world order processing pipeline
 
 ## Solutions
 

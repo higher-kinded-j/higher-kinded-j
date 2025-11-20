@@ -50,6 +50,7 @@ public class Tutorial04_TraversalBasics {
 
     // TODO: Replace ___ with code that modifies all players to double their scores
     // Hint: Use Traversals.modify(playersTraversal, player -> new Player(...), team)
+    // Note: Can also use OpticOps.modifyAll() for a more fluent API (covered in Tutorial 08)
     Team updated = ___;
 
     assertThat(updated.players().get(0).score()).isEqualTo(200);
