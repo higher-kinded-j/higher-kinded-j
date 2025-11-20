@@ -14,6 +14,8 @@ import org.higherkindedj.example.optics.fluent.model.OrderStatus;
 import org.higherkindedj.example.optics.fluent.model.OrderTraversals;
 import org.higherkindedj.example.optics.fluent.model.ShippingAddress;
 import org.higherkindedj.example.optics.fluent.model.ShippingAddressLenses;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.fluent.OpticOps;
@@ -53,6 +55,9 @@ public class FluentOpticOpsExample {
     System.out.println("\n" + "=".repeat(60) + "\n");
 
     queryingExamples(order);
+    System.out.println("\n" + "=".repeat(60) + "\n");
+
+    validationExamples(order);
   }
 
   // ============================================================================
@@ -284,6 +289,118 @@ public class FluentOpticOpsExample {
         OrderTraversals.items().andThen(OrderItemLenses.quantity().asTraversal());
     boolean allReasonable = OpticOps.querying(order).allMatch(orderToQuantities, qty -> qty < 10);
     System.out.println("  All quantities reasonable: " + allReasonable);
+  }
+
+  // ============================================================================
+  // PART 5: Validation-Aware Modifications
+  // ============================================================================
+
+  private static void validationExamples(Order order) {
+    System.out.println("--- Part 5: Validation-Aware Modifications ---\n");
+
+    System.out.println(
+        "OpticOps provides validation-aware modification methods that integrate with");
+    System.out.println("higher-kinded-j core types (Either, Maybe, Validated):\n");
+
+    // Example 1: Validate and modify with Either (short-circuiting)
+    System.out.println("Example 1: Validate price with Either (short-circuits on error)");
+    Traversal<Order, BigDecimal> orderToPrices =
+        OrderTraversals.items().andThen(OrderItemLenses.price().asTraversal());
+
+    // Simulate validation: prices must be positive
+    Either<String, Order> validatedOrder =
+        OpticOps.modifyAllEither(
+            order,
+            orderToPrices,
+            price -> {
+              if (price.compareTo(BigDecimal.ZERO) <= 0) {
+                return Either.left("Price must be positive: " + price);
+              }
+              return Either.right(price);
+            });
+
+    validatedOrder.fold(
+        error -> {
+          System.out.println("  ✗ Validation failed: " + error);
+          return null;
+        },
+        validOrder -> {
+          System.out.println("  ✓ All prices validated successfully");
+          return null;
+        });
+    System.out.println();
+
+    // Example 2: Validate and modify with Validated (accumulates all errors)
+    System.out.println("Example 2: Validate prices with Validated (accumulates errors)");
+
+    // Create an order with some invalid prices for demonstration
+    Order testOrder =
+        new Order(
+            "TEST-001",
+            OrderStatus.PENDING,
+            List.of(
+                new OrderItem("P1", "Item 1", 1, new BigDecimal("50.00")),
+                new OrderItem("P2", "Item 2", 2, new BigDecimal("100.00"))),
+            order.address());
+
+    Validated<List<String>, Order> validatedWithAccumulation =
+        OpticOps.modifyAllValidated(
+            testOrder,
+            orderToPrices,
+            price -> {
+              if (price.compareTo(new BigDecimal("1000")) > 0) {
+                return Validated.invalid("Price exceeds maximum: " + price);
+              }
+              if (price.compareTo(BigDecimal.ZERO) <= 0) {
+                return Validated.invalid("Price must be positive: " + price);
+              }
+              return Validated.valid(price);
+            });
+
+    validatedWithAccumulation.fold(
+        errors -> {
+          System.out.println("  ✗ Validation failed with " + errors.size() + " error(s):");
+          errors.forEach(error -> System.out.println("    - " + error));
+          return null;
+        },
+        validOrder -> {
+          System.out.println("  ✓ All prices validated (all constraints met)");
+          return null;
+        });
+    System.out.println();
+
+    // Example 3: Fluent builder style
+    System.out.println("Example 3: Using fluent builder for validation");
+
+    Either<String, Order> fluentValidation =
+        OpticOps.modifyingWithValidation(order)
+            .allThroughEither(
+                orderToPrices,
+                price ->
+                    price.compareTo(BigDecimal.ZERO) > 0
+                        ? Either.right(price)
+                        : Either.left("Invalid price: " + price));
+
+    fluentValidation.fold(
+        error -> {
+          System.out.println("  ✗ " + error);
+          return null;
+        },
+        validOrder -> {
+          System.out.println("  ✓ Validation successful using fluent API");
+          return null;
+        });
+    System.out.println();
+
+    System.out.println("Validation Methods Summary:");
+    System.out.println("  • modifyEither / throughEither: Single field, short-circuit on error");
+    System.out.println("  • modifyMaybe / throughMaybe: Optional validation, no error details");
+    System.out.println(
+        "  • modifyAllValidated / allThroughValidated: Multi-field, accumulate all errors");
+    System.out.println(
+        "  • modifyAllEither / allThroughEither: Multi-field, short-circuit on first error");
+    System.out.println();
+    System.out.println("For comprehensive validation examples, see FluentValidationExample.java");
   }
 
   // ============================================================================

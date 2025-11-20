@@ -73,6 +73,22 @@ public sealed interface Maybe<T> permits Just, Nothing {
   }
 
   /**
+   * Converts a {@link java.util.Optional} to a {@code Maybe}.
+   *
+   * <p>If the {@code Optional} is present, returns a {@code Maybe} with the value. If the {@code
+   * Optional} is empty, returns {@code Nothing}.
+   *
+   * @param optional the {@code Optional} to convert, which must be non-null.
+   * @param <T> the type of the value.
+   * @return a {@code Maybe} with the value present if the {@code Optional} is present, otherwise
+   *     {@code Nothing}. Will not be {@code null}.
+   * @throws NullPointerException if {@code optional} is {@code null}.
+   */
+  static <T> Maybe<T> fromOptional(java.util.Optional<T> optional) {
+    return optional.isPresent() ? just(optional.get()) : nothing();
+  }
+
+  /**
    * Returns {@code true} if a value is present in this {@code Maybe}, {@code false} otherwise. If
    * this method returns {@code true}, {@link #isNothing()} will return {@code false}.
    *

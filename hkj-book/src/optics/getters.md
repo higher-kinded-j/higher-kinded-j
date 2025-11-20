@@ -9,6 +9,7 @@
 - Creating computed and derived values without storing them
 - Composing Getters with other optics for deep data extraction
 - Factory methods: `of`, `to`, `constant`, `identity`, `first`, `second`
+- Null-safe navigation with `getMaybe` for functional optional handling
 - When to use Getter vs Lens vs direct field access
 - Building data transformation pipelines with clear read-only intent
 ~~~
@@ -232,6 +233,337 @@ boolean hasExperienced = listFold.andThen(Getter.of(Person::age).asFold())
     .exists(age -> age > 40, employees);
 // Result: depends on employee ages
 ```
+
+### Step 6: Maybe-Based Getter Extension
+
+~~~admonish title="Extension Method"
+Higher-kinded-j provides the `getMaybe` extension method that integrates `Getter` with the `Maybe` type, enabling null-safe navigation through potentially nullable fields. This extension is available via static import from `GetterExtensions`.
+~~~
+
+#### The Challenge: Null-Safe Navigation
+
+When working with nested data structures, intermediate values may be `null`, leading to `NullPointerException` if not handled carefully. Traditional approaches require verbose null checks at each level:
+
+```java
+// Verbose traditional approach with null checks
+Person person = company.getCeo();
+if (person != null) {
+    Address address = person.getAddress();
+    if (address != null) {
+        String city = address.getCity();
+        if (city != null) {
+            System.out.println("City: " + city);
+        }
+    }
+}
+```
+
+The `getMaybe` extension method provides a more functional approach by wrapping extracted values in `Maybe`, which explicitly models presence or absence without the risk of NPE.
+
+#### Think of getMaybe Like...
+
+* **A safe elevator** - Transports you to the desired floor, or tells you it's unavailable
+* **A null-safe wrapper** - Extracts values whilst protecting against null
+* **Optional's functional cousin** - Same safety guarantees, better functional composition
+* **A maybe-monad extractor** - Lifts extraction into the Maybe context
+
+#### How getMaybe Works
+
+The `getMaybe` static method is imported from `GetterExtensions`:
+
+```java
+import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
+```
+
+**Signature:**
+```java
+public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)
+```
+
+It extracts a value using the provided `Getter` and wraps it in `Maybe`:
+* If the extracted value is **non-null**, returns `Just(value)`
+* If the extracted value is **null**, returns `Nothing`
+
+#### Basic Usage Example
+
+```java
+import org.higherkindedj.optics.Getter;
+import org.higherkindedj.hkt.maybe.Maybe;
+import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
+
+public record Person(String firstName, String lastName, Address address) {}
+public record Address(String street, String city) {}
+
+Getter<Person, String> firstNameGetter = Getter.of(Person::firstName);
+Getter<Person, Address> addressGetter = Getter.of(Person::address);
+
+Person person = new Person("Jane", "Smith", address);
+
+// Extract non-null value
+Maybe<String> name = getMaybe(firstNameGetter, person);
+// Result: Just("Jane")
+
+// Extract nullable value
+Person personWithNullAddress = new Person("Bob", "Jones", null);
+Maybe<Address> address = getMaybe(addressGetter, personWithNullAddress);
+// Result: Nothing
+```
+
+#### Safe Navigation with Composed Getters
+
+The real power of `getMaybe` emerges when navigating nested structures with potentially null intermediate values. By using `flatMap`, you can safely chain extractions:
+
+```java
+Getter<Person, Address> addressGetter = Getter.of(Person::address);
+Getter<Address, String> cityGetter = Getter.of(Address::city);
+
+// Safe navigation: Person → Maybe<Address> → Maybe<String>
+Person personWithAddress = new Person("Jane", "Smith",
+    new Address("123 Main St", "London"));
+
+Maybe<String> city = getMaybe(addressGetter, personWithAddress)
+    .flatMap(addr -> getMaybe(cityGetter, addr));
+// Result: Just("London")
+
+// Safe with null intermediate
+Person personWithNullAddress = new Person("Bob", "Jones", null);
+
+Maybe<String> noCity = getMaybe(addressGetter, personWithNullAddress)
+    .flatMap(addr -> getMaybe(cityGetter, addr));
+// Result: Nothing (safely handles null address)
+```
+
+**Key Pattern**: Use `flatMap` to chain `getMaybe` calls, creating a null-safe pipeline.
+
+#### Comparison: Direct Access vs getMaybe
+
+Understanding when to use each approach:
+
+| Approach | Null Safety | Composability | Verbosity | Use Case |
+|----------|-------------|---------------|-----------|----------|
+| **Direct field access** | ❌ NPE risk | ❌ No | ✅ Minimal | Known non-null values |
+| **Manual null checks** | ✅ Safe | ❌ No | ❌ Very verbose | Simple cases |
+| **Optional chaining** | ✅ Safe | ⚠️ Limited | ⚠️ Moderate | Java interop |
+| **getMaybe** | ✅ Safe | ✅ Excellent | ✅ Concise | Functional pipelines |
+
+**Example Comparison:**
+
+```java
+// Direct access (risky)
+String city1 = person.address().city(); // NPE if address is null!
+
+// Manual null checks (verbose)
+String city2 = null;
+if (person.address() != null && person.address().city() != null) {
+    city2 = person.address().city();
+}
+
+// Optional chaining (better)
+Optional<String> city3 = Optional.ofNullable(person.address())
+    .map(Address::city);
+
+// getMaybe (best for functional code)
+Maybe<String> city4 = getMaybe(addressGetter, person)
+    .flatMap(addr -> getMaybe(cityGetter, addr));
+```
+
+#### Integration with Maybe Operations
+
+Once you've extracted a value into `Maybe`, you can leverage the full power of monadic operations:
+
+```java
+Getter<Person, Address> addressGetter = Getter.of(Person::address);
+Getter<Address, String> cityGetter = Getter.of(Address::city);
+
+Person person = new Person("Jane", "Smith",
+    new Address("123 Main St", "London"));
+
+// Extract and transform
+Maybe<String> uppercaseCity = getMaybe(addressGetter, person)
+    .flatMap(addr -> getMaybe(cityGetter, addr))
+    .map(String::toUpperCase);
+// Result: Just("LONDON")
+
+// Extract with default
+String cityOrDefault = getMaybe(addressGetter, person)
+    .flatMap(addr -> getMaybe(cityGetter, addr))
+    .getOrElse("Unknown");
+// Result: "London"
+
+// Extract and filter
+Maybe<String> longCityName = getMaybe(addressGetter, person)
+    .flatMap(addr -> getMaybe(cityGetter, addr))
+    .filter(name -> name.length() > 5);
+// Result: Just("London") (length is 6)
+
+// Chain multiple operations
+String report = getMaybe(addressGetter, person)
+    .flatMap(addr -> getMaybe(cityGetter, addr))
+    .map(city -> "Person lives in " + city)
+    .getOrElse("Address unknown");
+// Result: "Person lives in London"
+```
+
+#### When to Use getMaybe
+
+**Use `getMaybe` when:**
+* Navigating through **potentially null** intermediate values
+* Building **functional pipelines** with Maybe-based operations
+* You want **explicit presence/absence** semantics
+* Composing with other Maybe-returning functions
+* Working within HKT-based abstractions
+
+```java
+// Perfect for null-safe navigation
+Maybe<String> safeCity = getMaybe(addressGetter, person)
+    .flatMap(addr -> getMaybe(cityGetter, addr));
+```
+
+**Use standard `get()` when:**
+* You **know** the values are non-null
+* You're working in **performance-critical** code
+* You want **immediate NPE** on unexpected nulls (fail-fast)
+
+```java
+// Fine when values are guaranteed non-null
+String knownCity = cityGetter.get(knownAddress);
+```
+
+**Use `Getter.preview()` when:**
+* You prefer Java's `Optional` for **interoperability**
+* Working at API boundaries with standard Java code
+
+```java
+// Good for Java interop
+Optional<String> optionalCity = cityGetter.preview(address);
+```
+
+#### Real-World Scenario: Employee Profile Lookup
+
+Here's a practical example showing how `getMaybe` simplifies complex null-safe extractions:
+
+```java
+import org.higherkindedj.optics.Getter;
+import org.higherkindedj.hkt.maybe.Maybe;
+import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
+
+public record Employee(String id, PersonalInfo personalInfo) {}
+public record PersonalInfo(ContactInfo contactInfo, EmergencyContact emergencyContact) {}
+public record ContactInfo(String email, String phone, Address address) {}
+public record EmergencyContact(String name, String phone) {}
+public record Address(String street, String city, String postcode) {}
+
+public class EmployeeService {
+    private static final Getter<Employee, PersonalInfo> PERSONAL_INFO =
+        Getter.of(Employee::personalInfo);
+    private static final Getter<PersonalInfo, ContactInfo> CONTACT_INFO =
+        Getter.of(PersonalInfo::contactInfo);
+    private static final Getter<ContactInfo, Address> ADDRESS =
+        Getter.of(ContactInfo::address);
+    private static final Getter<Address, String> CITY =
+        Getter.of(Address::city);
+
+    // Extract employee city with full null safety
+    public Maybe<String> getEmployeeCity(Employee employee) {
+        return getMaybe(PERSONAL_INFO, employee)
+            .flatMap(info -> getMaybe(CONTACT_INFO, info))
+            .flatMap(contact -> getMaybe(ADDRESS, contact))
+            .flatMap(addr -> getMaybe(CITY, addr));
+    }
+
+    // Generate location-based welcome message
+    public String generateWelcomeMessage(Employee employee) {
+        return getEmployeeCity(employee)
+            .map(city -> "Welcome to our " + city + " office!")
+            .getOrElse("Welcome to our company!");
+    }
+
+    // Check if employee is in specific city
+    public boolean isEmployeeInCity(Employee employee, String targetCity) {
+        return getEmployeeCity(employee)
+            .filter(city -> city.equalsIgnoreCase(targetCity))
+            .isJust();
+    }
+
+    // Collect all cities from employee list (skipping unknowns)
+    public List<String> getAllCities(List<Employee> employees) {
+        return employees.stream()
+            .map(this::getEmployeeCity)
+            .filter(Maybe::isJust)
+            .map(Maybe::get)
+            .distinct()
+            .toList();
+    }
+
+    // Get city or fallback to emergency contact location
+    public String getAnyCityInfo(Employee employee) {
+        Getter<PersonalInfo, EmergencyContact> emergencyGetter =
+            Getter.of(PersonalInfo::emergencyContact);
+
+        // Try primary address first
+        Maybe<String> primaryCity = getMaybe(PERSONAL_INFO, employee)
+            .flatMap(info -> getMaybe(CONTACT_INFO, info))
+            .flatMap(contact -> getMaybe(ADDRESS, contact))
+            .flatMap(addr -> getMaybe(CITY, addr));
+
+        // If not found, could try emergency contact (simplified example)
+        return primaryCity.getOrElse("Location unknown");
+    }
+}
+```
+
+#### Performance Considerations
+
+`getMaybe` adds minimal overhead:
+
+* **One null check**: Checks if the extracted value is null
+* **One Maybe wrapping**: Creates `Just` or `Nothing` instance
+* **Same extraction cost**: Uses `Getter.get()` internally
+
+**Optimisation Tip**: For performance-critical hot paths where values are guaranteed non-null, use `Getter.get()` directly. For most business logic, the safety and composability of `getMaybe` far outweigh the negligible cost.
+
+```java
+// Hot path with guaranteed non-null (use direct get)
+String fastAccess = nameGetter.get(person);
+
+// Business logic with potential nulls (use getMaybe)
+Maybe<String> safeAccess = getMaybe(addressGetter, person)
+    .flatMap(addr -> getMaybe(cityGetter, addr));
+```
+
+#### Practical Pattern: Building Maybe-Safe Composed Getters
+
+Create reusable null-safe extraction functions:
+
+```java
+public class SafeGetters {
+    // Create a null-safe composed getter using Maybe
+    public static <A, B, C> Function<A, Maybe<C>> safePath(
+        Getter<A, B> first,
+        Getter<B, C> second
+    ) {
+        return source -> getMaybe(first, source)
+            .flatMap(intermediate -> getMaybe(second, intermediate));
+    }
+
+    // Usage example
+    private static final Function<Person, Maybe<String>> SAFE_CITY_LOOKUP =
+        safePath(
+            Getter.of(Person::address),
+            Getter.of(Address::city)
+        );
+
+    public static void main(String[] args) {
+        Person person = new Person("Jane", "Smith", null);
+        Maybe<String> city = SAFE_CITY_LOOKUP.apply(person);
+        // Result: Nothing (safely handled null address)
+    }
+}
+```
+
+~~~admonish title="Complete Example"
+See [GetterExtensionsExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/extensions/GetterExtensionsExample.java) for a runnable demonstration of `getMaybe` with practical scenarios.
+~~~
 
 ---
 

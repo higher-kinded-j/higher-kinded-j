@@ -370,6 +370,218 @@ public final class OpticOps {
   }
 
   // ============================================================================
+  // Validation-Aware Operations
+  // ============================================================================
+
+  /**
+   * Modifies the value focused by a {@link Lens} with Either-based validation.
+   *
+   * <p>This method provides a convenient way to modify a value with validation that can fail. The
+   * validator function returns {@code Either.right(validValue)} on success or {@code
+   * Either.left(error)} on failure.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Function<String, Either<String, String>> validateEmail = email ->
+   *     email.contains("@")
+   *         ? Either.right(email.toLowerCase())
+   *         : Either.left("Invalid email format");
+   *
+   * Either<String, User> result = OpticOps.modifyEither(
+   *     user,
+   *     UserLenses.email(),
+   *     validateEmail
+   * );
+   *
+   * result.fold(
+   *     error -> System.out.println("Validation failed: " + error),
+   *     validUser -> System.out.println("Updated user: " + validUser)
+   * );
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param lens The lens to focus with
+   * @param validator Function that returns Either.right(validValue) or Either.left(error)
+   * @param <E> The error type
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return Either.right(updated structure) if validation succeeds, Either.left(error) otherwise
+   */
+  public static <E, S, A> org.higherkindedj.hkt.either.Either<E, S> modifyEither(
+      S source, Lens<S, A> lens, Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+    A currentValue = lens.get(source);
+    return validator.apply(currentValue).map(validatedValue -> lens.set(validatedValue, source));
+  }
+
+  /**
+   * Modifies the value focused by a {@link Lens} with Maybe-based validation.
+   *
+   * <p>This method provides a convenient way to modify a value with optional validation. The
+   * validator function returns {@code Maybe.just(validValue)} on success or {@code Maybe.nothing()}
+   * on failure.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Function<Integer, Maybe<Integer>> validateAge = age ->
+   *     (age >= 0 && age <= 150) ? Maybe.just(age) : Maybe.nothing();
+   *
+   * Maybe<Person> result = OpticOps.modifyMaybe(
+   *     person,
+   *     PersonLenses.age(),
+   *     validateAge
+   * );
+   *
+   * result.fold(
+   *     () -> System.out.println("Validation failed"),
+   *     validPerson -> System.out.println("Updated person: " + validPerson)
+   * );
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param lens The lens to focus with
+   * @param validator Function that returns Maybe.just(validValue) or Maybe.nothing()
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return Maybe.just(updated structure) if validation succeeds, Maybe.nothing() otherwise
+   */
+  public static <S, A> org.higherkindedj.hkt.maybe.Maybe<S> modifyMaybe(
+      S source, Lens<S, A> lens, Function<A, org.higherkindedj.hkt.maybe.Maybe<A>> validator) {
+    A currentValue = lens.get(source);
+    return validator.apply(currentValue).map(validatedValue -> lens.set(validatedValue, source));
+  }
+
+  /**
+   * Modifies all values focused by a {@link Traversal} with Validated-based error accumulation.
+   *
+   * <p>This method validates and modifies all focused values, accumulating all errors rather than
+   * short-circuiting on the first failure. This is ideal when you want to collect all validation
+   * errors and present them to the user at once.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Function<Double, Validated<String, Double>> validatePrice = price -> {
+   *     if (price < 0) {
+   *         return Validated.invalid("Price cannot be negative");
+   *     } else if (price > 10000) {
+   *         return Validated.invalid("Price exceeds maximum");
+   *     } else {
+   *         return Validated.valid(price);
+   *     }
+   * };
+   *
+   * Validated<List<String>, Order> result = OpticOps.modifyAllValidated(
+   *     order,
+   *     OrderTraversals.itemPrices(),
+   *     validatePrice
+   * );
+   *
+   * result.fold(
+   *     errors -> System.out.println("Validation errors: " + errors),
+   *     validOrder -> System.out.println("All prices valid: " + validOrder)
+   * );
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param traversal The traversal to focus with
+   * @param validator Function that returns Validated.valid or Validated.invalid
+   * @param <E> The error type
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return Validated.valid(updated structure) if all validations succeed, Validated.invalid(all
+   *     errors) otherwise
+   */
+  public static <E, S, A> org.higherkindedj.hkt.validated.Validated<List<E>, S> modifyAllValidated(
+      S source,
+      Traversal<S, A> traversal,
+      Function<A, org.higherkindedj.hkt.validated.Validated<E, A>> validator) {
+    // Create applicative for Validated with List semigroup for error accumulation
+    org.higherkindedj.hkt.Applicative<
+            org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>>
+        applicative =
+            org.higherkindedj.hkt.validated.ValidatedMonad.instance(
+                org.higherkindedj.hkt.Semigroups.list());
+
+    // Lift the validator to work with List<E> errors
+    Function<
+            A,
+            org.higherkindedj.hkt.Kind<
+                org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>, A>>
+        liftedValidator =
+            a -> {
+              org.higherkindedj.hkt.validated.Validated<E, A> validated = validator.apply(a);
+              // Convert Validated<E, A> to Validated<List<E>, A>
+              org.higherkindedj.hkt.validated.Validated<List<E>, A> result =
+                  validated.bimap(List::of, Function.identity());
+              return org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED.widen(result);
+            };
+
+    // Use traversal's modifyF with the applicative
+    org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>, S>
+        resultKind = traversal.modifyF(liftedValidator, source, applicative);
+
+    return org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED.narrow(resultKind);
+  }
+
+  /**
+   * Modifies all values focused by a {@link Traversal} with Either-based short-circuiting.
+   *
+   * <p>This method validates and modifies all focused values, but stops at the first validation
+   * error (short-circuits). This is ideal when you want to fail fast and don't need to collect all
+   * errors.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Function<String, Either<String, String>> validateUsername = username ->
+   *     username.length() >= 3
+   *         ? Either.right(username.toLowerCase())
+   *         : Either.left("Username too short: " + username);
+   *
+   * Either<String, Team> result = OpticOps.modifyAllEither(
+   *     team,
+   *     TeamTraversals.playerUsernames(),
+   *     validateUsername
+   * );
+   *
+   * result.fold(
+   *     error -> System.out.println("First error: " + error),
+   *     validTeam -> System.out.println("All usernames valid: " + validTeam)
+   * );
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param traversal The traversal to focus with
+   * @param validator Function that returns Either.right or Either.left
+   * @param <E> The error type
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return Either.right(updated structure) if all validations succeed, Either.left(first error)
+   *     otherwise
+   */
+  public static <E, S, A> org.higherkindedj.hkt.either.Either<E, S> modifyAllEither(
+      S source,
+      Traversal<S, A> traversal,
+      Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+    // Create applicative for Either (short-circuits on first Left)
+    org.higherkindedj.hkt.Applicative<org.higherkindedj.hkt.either.EitherKind.Witness<E>>
+        applicative = org.higherkindedj.hkt.either.EitherMonad.instance();
+
+    // Lift the validator to the Kind type
+    Function<A, org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.either.EitherKind.Witness<E>, A>>
+        liftedValidator =
+            a -> org.higherkindedj.hkt.either.EitherKindHelper.EITHER.widen(validator.apply(a));
+
+    // Use traversal's modifyF with the applicative
+    org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.either.EitherKind.Witness<E>, S> resultKind =
+        traversal.modifyF(liftedValidator, source, applicative);
+
+    return org.higherkindedj.hkt.either.EitherKindHelper.EITHER.narrow(resultKind);
+  }
+
+  // ============================================================================
   // Query Operations
   // ============================================================================
 
@@ -643,6 +855,27 @@ public final class OpticOps {
    */
   public static <S> QueryBuilder<S> querying(S source) {
     return new QueryBuilder<>(source);
+  }
+
+  /**
+   * Starts a fluent workflow for validation-aware modifications.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Either<String, User> result = OpticOps.modifyingWithValidation(user)
+   *     .throughEither(emailLens, this::validateEmail);
+   *
+   * Validated<List<String>, Order> result = OpticOps.modifyingWithValidation(order)
+   *     .allThroughValidated(itemPrices, this::validatePrice);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param <S> The source type
+   * @return A {@link ModifyingWithValidation} builder for fluent method chaining
+   */
+  public static <S> ModifyingWithValidation<S> modifyingWithValidation(S source) {
+    return new ModifyingWithValidation<>(source);
   }
 
   // ============================================================================
@@ -958,6 +1191,141 @@ public final class OpticOps {
      */
     public <A> boolean isEmpty(Traversal<S, A> traversal) {
       return traversalToFold(traversal).isEmpty(source);
+    }
+  }
+
+  /**
+   * Builder for fluent validation-aware modify operations.
+   *
+   * <p>This builder provides methods for modifying values with validation that can fail, returning
+   * {@link org.higherkindedj.hkt.either.Either}, {@link org.higherkindedj.hkt.maybe.Maybe}, or
+   * {@link org.higherkindedj.hkt.validated.Validated} to represent success or failure.
+   *
+   * <h2>When to Use Each Method</h2>
+   *
+   * <ul>
+   *   <li><b>throughEither</b>: Single field validation with error short-circuiting
+   *   <li><b>throughMaybe</b>: Single field optional validation (success/nothing)
+   *   <li><b>allThroughValidated</b>: Multiple field validation with error accumulation
+   *   <li><b>allThroughEither</b>: Multiple field validation with error short-circuiting
+   * </ul>
+   *
+   * @param <S> The source type
+   */
+  public static final class ModifyingWithValidation<S> {
+    private final S source;
+
+    ModifyingWithValidation(S source) {
+      this.source = source;
+    }
+
+    /**
+     * Modifies through a {@link Lens} with Either-based validation.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Either<String, User> result = OpticOps.modifyingWithValidation(user)
+     *     .throughEither(emailLens, email ->
+     *         email.contains("@")
+     *             ? Either.right(email.toLowerCase())
+     *             : Either.left("Invalid email format")
+     *     );
+     * }</pre>
+     *
+     * @param lens The lens to focus with
+     * @param validator Function returning Either.right(valid) or Either.left(error)
+     * @param <E> The error type
+     * @param <A> The focused value type
+     * @return Either containing the updated structure or an error
+     */
+    public <E, A> org.higherkindedj.hkt.either.Either<E, S> throughEither(
+        Lens<S, A> lens, Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+      return modifyEither(source, lens, validator);
+    }
+
+    /**
+     * Modifies through a {@link Lens} with Maybe-based validation.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Maybe<Person> result = OpticOps.modifyingWithValidation(person)
+     *     .throughMaybe(ageLens, age ->
+     *         (age >= 0 && age <= 150)
+     *             ? Maybe.just(age)
+     *             : Maybe.nothing()
+     *     );
+     * }</pre>
+     *
+     * @param lens The lens to focus with
+     * @param validator Function returning Maybe.just(valid) or Maybe.nothing()
+     * @param <A> The focused value type
+     * @return Maybe containing the updated structure or nothing
+     */
+    public <A> org.higherkindedj.hkt.maybe.Maybe<S> throughMaybe(
+        Lens<S, A> lens, Function<A, org.higherkindedj.hkt.maybe.Maybe<A>> validator) {
+      return modifyMaybe(source, lens, validator);
+    }
+
+    /**
+     * Modifies all focused values with Validated accumulation.
+     *
+     * <p>All validation errors are accumulated rather than short-circuiting on the first error.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Validated<List<String>, Order> result = OpticOps.modifyingWithValidation(order)
+     *     .allThroughValidated(itemPrices, price -> {
+     *         if (price < 0) {
+     *             return Validated.invalid("Negative price");
+     *         } else if (price > 10000) {
+     *             return Validated.invalid("Price too high");
+     *         } else {
+     *             return Validated.valid(price);
+     *         }
+     *     });
+     * }</pre>
+     *
+     * @param traversal The traversal to focus with
+     * @param validator Function returning Validated.valid or Validated.invalid
+     * @param <E> The error type
+     * @param <A> The focused value type
+     * @return Validated containing the updated structure or accumulated errors
+     */
+    public <E, A> org.higherkindedj.hkt.validated.Validated<List<E>, S> allThroughValidated(
+        Traversal<S, A> traversal,
+        Function<A, org.higherkindedj.hkt.validated.Validated<E, A>> validator) {
+      return modifyAllValidated(source, traversal, validator);
+    }
+
+    /**
+     * Modifies all focused values with Either short-circuiting.
+     *
+     * <p>Stops at the first validation error (short-circuits).
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Either<String, Team> result = OpticOps.modifyingWithValidation(team)
+     *     .allThroughEither(playerNames, name ->
+     *         name.length() >= 3
+     *             ? Either.right(name.trim())
+     *             : Either.left("Name too short: " + name)
+     *     );
+     * }</pre>
+     *
+     * @param traversal The traversal to focus with
+     * @param validator Function returning Either.right or Either.left
+     * @param <E> The error type
+     * @param <A> The focused value type
+     * @return Either containing the updated structure or first error
+     */
+    public <E, A> org.higherkindedj.hkt.either.Either<E, S> allThroughEither(
+        Traversal<S, A> traversal,
+        Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+      return modifyAllEither(source, traversal, validator);
     }
   }
 }

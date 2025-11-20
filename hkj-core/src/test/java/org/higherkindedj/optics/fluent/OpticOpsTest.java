@@ -514,4 +514,472 @@ class OpticOpsTest {
     Team updated = OpticOps.modifyAll(team, ages, age -> age + 1);
     assertEquals(List.of(26, 31), OpticOps.getAll(updated, ages));
   }
+
+  // ============================================================================
+  // Validation-Aware Operations Tests
+  // ============================================================================
+
+  // Test data for validation
+  record User(String username, String email, int age) {}
+
+  static final Lens<User, String> USERNAME_LENS =
+      Lens.of(User::username, (user, username) -> new User(username, user.email(), user.age()));
+
+  static final Lens<User, String> EMAIL_LENS =
+      Lens.of(User::email, (user, email) -> new User(user.username(), email, user.age()));
+
+  static final Lens<User, Integer> USER_AGE_LENS =
+      Lens.of(User::age, (user, age) -> new User(user.username(), user.email(), age));
+
+  record Order(String orderId, List<Double> itemPrices) {}
+
+  static final Lens<Order, List<Double>> ITEM_PRICES_LENS =
+      Lens.of(Order::itemPrices, (order, prices) -> new Order(order.orderId(), prices));
+
+  static final Traversal<Order, Double> ITEM_PRICES_TRAVERSAL =
+      ITEM_PRICES_LENS.asTraversal().andThen(Traversals.forList());
+
+  // ===== modifyEither Tests =====
+
+  @Test
+  void testModifyEitherSuccess() {
+    User user = new User("alice", "ALICE@EXAMPLE.COM", 30);
+
+    org.higherkindedj.hkt.either.Either<String, User> result =
+        OpticOps.modifyEither(
+            user,
+            EMAIL_LENS,
+            email ->
+                email.contains("@")
+                    ? org.higherkindedj.hkt.either.Either.right(email.toLowerCase())
+                    : org.higherkindedj.hkt.either.Either.left("Invalid email format"));
+
+    assertTrue(result.isRight());
+    assertEquals("alice@example.com", result.getRight().email());
+  }
+
+  @Test
+  void testModifyEitherFailure() {
+    User user = new User("alice", "not-an-email", 30);
+
+    org.higherkindedj.hkt.either.Either<String, User> result =
+        OpticOps.modifyEither(
+            user,
+            EMAIL_LENS,
+            email ->
+                email.contains("@")
+                    ? org.higherkindedj.hkt.either.Either.right(email.toLowerCase())
+                    : org.higherkindedj.hkt.either.Either.left("Invalid email format"));
+
+    assertTrue(result.isLeft());
+    assertEquals("Invalid email format", result.getLeft());
+  }
+
+  @Test
+  void testModifyEitherPreservesOtherFields() {
+    User user = new User("alice", "alice@example.com", 30);
+
+    org.higherkindedj.hkt.either.Either<String, User> result =
+        OpticOps.modifyEither(
+            user,
+            EMAIL_LENS,
+            email -> org.higherkindedj.hkt.either.Either.right(email.toUpperCase()));
+
+    assertTrue(result.isRight());
+    User updated = result.getRight();
+    assertEquals("alice", updated.username()); // Preserved
+    assertEquals("ALICE@EXAMPLE.COM", updated.email()); // Modified
+    assertEquals(30, updated.age()); // Preserved
+  }
+
+  // ===== modifyMaybe Tests =====
+
+  @Test
+  void testModifyMaybeSuccess() {
+    User user = new User("alice", "alice@example.com", 30);
+
+    org.higherkindedj.hkt.maybe.Maybe<User> result =
+        OpticOps.modifyMaybe(
+            user,
+            USER_AGE_LENS,
+            age ->
+                (age >= 0 && age <= 150)
+                    ? org.higherkindedj.hkt.maybe.Maybe.just(age)
+                    : org.higherkindedj.hkt.maybe.Maybe.nothing());
+
+    assertTrue(result.isJust());
+    assertEquals(30, result.get().age());
+  }
+
+  @Test
+  void testModifyMaybeFailure() {
+    User user = new User("alice", "alice@example.com", 200);
+
+    org.higherkindedj.hkt.maybe.Maybe<User> result =
+        OpticOps.modifyMaybe(
+            user,
+            USER_AGE_LENS,
+            age ->
+                (age >= 0 && age <= 150)
+                    ? org.higherkindedj.hkt.maybe.Maybe.just(age)
+                    : org.higherkindedj.hkt.maybe.Maybe.nothing());
+
+    assertTrue(result.isNothing());
+  }
+
+  @Test
+  void testModifyMaybeWithTransformation() {
+    User user = new User("alice", "alice@example.com", 29);
+
+    org.higherkindedj.hkt.maybe.Maybe<User> result =
+        OpticOps.modifyMaybe(
+            user,
+            USER_AGE_LENS,
+            age -> {
+              int newAge = age + 1;
+              return (newAge >= 0 && newAge <= 150)
+                  ? org.higherkindedj.hkt.maybe.Maybe.just(newAge)
+                  : org.higherkindedj.hkt.maybe.Maybe.nothing();
+            });
+
+    assertTrue(result.isJust());
+    assertEquals(30, result.get().age());
+  }
+
+  // ===== modifyAllValidated Tests =====
+
+  @Test
+  void testModifyAllValidatedAllSuccess() {
+    Order order = new Order("ORD-001", List.of(10.0, 50.0, 100.0));
+
+    org.higherkindedj.hkt.validated.Validated<List<String>, Order> result =
+        OpticOps.modifyAllValidated(
+            order,
+            ITEM_PRICES_TRAVERSAL,
+            price -> {
+              if (price < 0) {
+                return org.higherkindedj.hkt.validated.Validated.invalid(
+                    "Price cannot be negative");
+              } else if (price > 10000) {
+                return org.higherkindedj.hkt.validated.Validated.invalid("Price exceeds maximum");
+              } else {
+                return org.higherkindedj.hkt.validated.Validated.valid(price);
+              }
+            });
+
+    assertTrue(result.isValid());
+    assertEquals(List.of(10.0, 50.0, 100.0), result.get().itemPrices());
+  }
+
+  @Test
+  void testModifyAllValidatedSingleError() {
+    Order order = new Order("ORD-002", List.of(10.0, -50.0, 100.0));
+
+    org.higherkindedj.hkt.validated.Validated<List<String>, Order> result =
+        OpticOps.modifyAllValidated(
+            order,
+            ITEM_PRICES_TRAVERSAL,
+            price -> {
+              if (price < 0) {
+                return org.higherkindedj.hkt.validated.Validated.invalid(
+                    "Price cannot be negative");
+              } else if (price > 10000) {
+                return org.higherkindedj.hkt.validated.Validated.invalid("Price exceeds maximum");
+              } else {
+                return org.higherkindedj.hkt.validated.Validated.valid(price);
+              }
+            });
+
+    assertTrue(result.isInvalid());
+    List<String> errors = result.getError();
+    assertEquals(1, errors.size());
+    assertTrue(errors.get(0).contains("negative"));
+  }
+
+  @Test
+  void testModifyAllValidatedMultipleErrors() {
+    Order order = new Order("ORD-003", List.of(-10.0, -50.0, 15000.0));
+
+    org.higherkindedj.hkt.validated.Validated<List<String>, Order> result =
+        OpticOps.modifyAllValidated(
+            order,
+            ITEM_PRICES_TRAVERSAL,
+            price -> {
+              if (price < 0) {
+                return org.higherkindedj.hkt.validated.Validated.invalid(
+                    "Price cannot be negative");
+              } else if (price > 10000) {
+                return org.higherkindedj.hkt.validated.Validated.invalid("Price exceeds maximum");
+              } else {
+                return org.higherkindedj.hkt.validated.Validated.valid(price);
+              }
+            });
+
+    assertTrue(result.isInvalid());
+    List<String> errors = result.getError();
+    assertEquals(3, errors.size()); // All errors accumulated
+    assertTrue(errors.get(0).contains("negative"));
+    assertTrue(errors.get(1).contains("negative"));
+    assertTrue(errors.get(2).contains("maximum"));
+  }
+
+  @Test
+  void testModifyAllValidatedEmptyTraversal() {
+    Order emptyOrder = new Order("ORD-004", List.of());
+
+    org.higherkindedj.hkt.validated.Validated<List<String>, Order> result =
+        OpticOps.modifyAllValidated(
+            emptyOrder,
+            ITEM_PRICES_TRAVERSAL,
+            price -> org.higherkindedj.hkt.validated.Validated.invalid("Should not be called"));
+
+    assertTrue(result.isValid()); // No errors because no items to validate
+    assertEquals(0, result.get().itemPrices().size());
+  }
+
+  // ===== modifyAllEither Tests =====
+
+  @Test
+  void testModifyAllEitherAllSuccess() {
+    Order order = new Order("ORD-005", List.of(10.0, 50.0, 100.0));
+
+    org.higherkindedj.hkt.either.Either<String, Order> result =
+        OpticOps.modifyAllEither(
+            order,
+            ITEM_PRICES_TRAVERSAL,
+            price ->
+                price >= 0
+                    ? org.higherkindedj.hkt.either.Either.right(price)
+                    : org.higherkindedj.hkt.either.Either.left("Negative price: " + price));
+
+    assertTrue(result.isRight());
+    assertEquals(List.of(10.0, 50.0, 100.0), result.getRight().itemPrices());
+  }
+
+  @Test
+  void testModifyAllEitherShortCircuits() {
+    Order order = new Order("ORD-006", List.of(-10.0, -50.0, -100.0));
+
+    org.higherkindedj.hkt.either.Either<String, Order> result =
+        OpticOps.modifyAllEither(
+            order,
+            ITEM_PRICES_TRAVERSAL,
+            price ->
+                price >= 0
+                    ? org.higherkindedj.hkt.either.Either.right(price)
+                    : org.higherkindedj.hkt.either.Either.left("Negative price: " + price));
+
+    assertTrue(result.isLeft());
+    // Should contain first error only (short-circuit)
+    String error = result.getLeft();
+    assertEquals("Negative price: -10.0", error);
+  }
+
+  @Test
+  void testModifyAllEitherEmptyTraversal() {
+    Order emptyOrder = new Order("ORD-007", List.of());
+
+    org.higherkindedj.hkt.either.Either<String, Order> result =
+        OpticOps.modifyAllEither(
+            emptyOrder,
+            ITEM_PRICES_TRAVERSAL,
+            price -> org.higherkindedj.hkt.either.Either.left("Should not be called"));
+
+    assertTrue(result.isRight()); // Success because no items to validate
+    assertEquals(0, result.getRight().itemPrices().size());
+  }
+
+  // ===== ModifyingWithValidation Builder Tests =====
+
+  @Test
+  void testModifyingWithValidationThroughEitherSuccess() {
+    User user = new User("alice", "ALICE@EXAMPLE.COM", 30);
+
+    org.higherkindedj.hkt.either.Either<String, User> result =
+        OpticOps.modifyingWithValidation(user)
+            .throughEither(
+                EMAIL_LENS,
+                email ->
+                    email.contains("@")
+                        ? org.higherkindedj.hkt.either.Either.right(email.toLowerCase())
+                        : org.higherkindedj.hkt.either.Either.left("Invalid email"));
+
+    assertTrue(result.isRight());
+    assertEquals("alice@example.com", result.getRight().email());
+  }
+
+  @Test
+  void testModifyingWithValidationThroughEitherFailure() {
+    User user = new User("alice", "not-an-email", 30);
+
+    org.higherkindedj.hkt.either.Either<String, User> result =
+        OpticOps.modifyingWithValidation(user)
+            .throughEither(
+                EMAIL_LENS,
+                email ->
+                    email.contains("@")
+                        ? org.higherkindedj.hkt.either.Either.right(email.toLowerCase())
+                        : org.higherkindedj.hkt.either.Either.left("Invalid email"));
+
+    assertTrue(result.isLeft());
+    assertEquals("Invalid email", result.getLeft());
+  }
+
+  @Test
+  void testModifyingWithValidationThroughMaybeSuccess() {
+    User user = new User("alice", "alice@example.com", 30);
+
+    org.higherkindedj.hkt.maybe.Maybe<User> result =
+        OpticOps.modifyingWithValidation(user)
+            .throughMaybe(
+                USER_AGE_LENS,
+                age ->
+                    (age >= 0 && age <= 150)
+                        ? org.higherkindedj.hkt.maybe.Maybe.just(age)
+                        : org.higherkindedj.hkt.maybe.Maybe.nothing());
+
+    assertTrue(result.isJust());
+    assertEquals(30, result.get().age());
+  }
+
+  @Test
+  void testModifyingWithValidationThroughMaybeFailure() {
+    User user = new User("alice", "alice@example.com", 200);
+
+    org.higherkindedj.hkt.maybe.Maybe<User> result =
+        OpticOps.modifyingWithValidation(user)
+            .throughMaybe(
+                USER_AGE_LENS,
+                age ->
+                    (age >= 0 && age <= 150)
+                        ? org.higherkindedj.hkt.maybe.Maybe.just(age)
+                        : org.higherkindedj.hkt.maybe.Maybe.nothing());
+
+    assertTrue(result.isNothing());
+  }
+
+  @Test
+  void testModifyingWithValidationAllThroughValidatedSuccess() {
+    Order order = new Order("ORD-008", List.of(10.0, 50.0, 100.0));
+
+    org.higherkindedj.hkt.validated.Validated<List<String>, Order> result =
+        OpticOps.modifyingWithValidation(order)
+            .allThroughValidated(
+                ITEM_PRICES_TRAVERSAL,
+                price ->
+                    price >= 0
+                        ? org.higherkindedj.hkt.validated.Validated.valid(price)
+                        : org.higherkindedj.hkt.validated.Validated.invalid("Negative price"));
+
+    assertTrue(result.isValid());
+    assertEquals(List.of(10.0, 50.0, 100.0), result.get().itemPrices());
+  }
+
+  @Test
+  void testModifyingWithValidationAllThroughValidatedMultipleErrors() {
+    Order order = new Order("ORD-009", List.of(-10.0, -50.0, 100.0));
+
+    org.higherkindedj.hkt.validated.Validated<List<String>, Order> result =
+        OpticOps.modifyingWithValidation(order)
+            .allThroughValidated(
+                ITEM_PRICES_TRAVERSAL,
+                price ->
+                    price >= 0
+                        ? org.higherkindedj.hkt.validated.Validated.valid(price)
+                        : org.higherkindedj.hkt.validated.Validated.invalid("Negative price"));
+
+    assertTrue(result.isInvalid());
+    assertEquals(2, result.getError().size()); // Two errors accumulated
+  }
+
+  @Test
+  void testModifyingWithValidationAllThroughEitherSuccess() {
+    Order order = new Order("ORD-010", List.of(10.0, 50.0, 100.0));
+
+    org.higherkindedj.hkt.either.Either<String, Order> result =
+        OpticOps.modifyingWithValidation(order)
+            .allThroughEither(
+                ITEM_PRICES_TRAVERSAL,
+                price ->
+                    price >= 0
+                        ? org.higherkindedj.hkt.either.Either.right(price)
+                        : org.higherkindedj.hkt.either.Either.left("Negative price"));
+
+    assertTrue(result.isRight());
+    assertEquals(List.of(10.0, 50.0, 100.0), result.getRight().itemPrices());
+  }
+
+  @Test
+  void testModifyingWithValidationAllThroughEitherShortCircuits() {
+    Order order = new Order("ORD-011", List.of(-10.0, -50.0, -100.0));
+
+    org.higherkindedj.hkt.either.Either<String, Order> result =
+        OpticOps.modifyingWithValidation(order)
+            .allThroughEither(
+                ITEM_PRICES_TRAVERSAL,
+                price ->
+                    price >= 0
+                        ? org.higherkindedj.hkt.either.Either.right(price)
+                        : org.higherkindedj.hkt.either.Either.left("Negative price"));
+
+    assertTrue(result.isLeft());
+    assertEquals("Negative price", result.getLeft()); // Only first error
+  }
+
+  // ===== Integration Tests =====
+
+  @Test
+  void testValidationChainingWithFold() {
+    User user = new User("alice", "alice@example.com", 30);
+
+    // First validate email
+    org.higherkindedj.hkt.either.Either<String, User> emailValidated =
+        OpticOps.modifyEither(
+            user,
+            EMAIL_LENS,
+            email ->
+                email.contains("@")
+                    ? org.higherkindedj.hkt.either.Either.right(email.toLowerCase())
+                    : org.higherkindedj.hkt.either.Either.left("Invalid email"));
+
+    // Then validate age if email was valid
+    org.higherkindedj.hkt.either.Either<String, User> fullyValidated =
+        emailValidated.flatMap(
+            validUser ->
+                OpticOps.modifyEither(
+                    validUser,
+                    USER_AGE_LENS,
+                    age ->
+                        (age >= 18)
+                            ? org.higherkindedj.hkt.either.Either.right(age)
+                            : org.higherkindedj.hkt.either.Either.left("Must be 18 or older")));
+
+    assertTrue(fullyValidated.isRight());
+    assertEquals("alice@example.com", fullyValidated.getRight().email());
+    assertEquals(30, fullyValidated.getRight().age());
+  }
+
+  @Test
+  void testValidationWithTransformation() {
+    User user = new User("ALICE", "alice@example.com", 30);
+
+    // Validate and normalize username
+    org.higherkindedj.hkt.either.Either<String, User> result =
+        OpticOps.modifyEither(
+            user,
+            USERNAME_LENS,
+            username -> {
+              if (username.length() < 3) {
+                return org.higherkindedj.hkt.either.Either.left("Username too short");
+              }
+              if (username.length() > 20) {
+                return org.higherkindedj.hkt.either.Either.left("Username too long");
+              }
+              // Normalize to lowercase
+              return org.higherkindedj.hkt.either.Either.right(username.toLowerCase());
+            });
+
+    assertTrue(result.isRight());
+    assertEquals("alice", result.getRight().username()); // Normalized to lowercase
+  }
 }
