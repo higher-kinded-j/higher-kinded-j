@@ -1,0 +1,2 @@
+org.higherkindedj.spring.autoconfigure.HkjAutoConfiguration
+org.higherkindedj.spring.autoconfigure.HkjWebMvcAutoConfiguration

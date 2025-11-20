@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: hkj-spring-example
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.higherkindedj: DEBUG
+    org.springframework.web: DEBUG
