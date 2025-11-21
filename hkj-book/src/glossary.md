@@ -705,12 +705,12 @@ Const<String, Double> doubleConst = stringConst.mapSecond(i -> i * 2.0);
 System.out.println(doubleConst.value()); // Still "hello" (unchanged!)
 
 // Bifunctor allows transforming the actual value
-Bifunctor<ConstKind.Witness> bifunctor = ConstBifunctor.INSTANCE;
-Const<Integer, Double> intConst = bifunctor.bimap(
+Bifunctor<ConstKind2.Witness> bifunctor = ConstBifunctor.INSTANCE;
+Const<Integer, Double> intConst = CONST.narrow2(bifunctor.bimap(
     String::length,
-    d -> d * 2,
-    stringConst
-);
+    i -> i * 2.0,
+    CONST.widen2(stringConst)
+));
 System.out.println(intConst.value()); // 5
 ```
 
