@@ -194,38 +194,36 @@
     /**
      * Initialize the version switcher
      */
-    function init() {
+    async function init() {
         const currentVersion = detectCurrentVersion();
 
-        // Fetch versions data
-        fetch(VERSIONS_JSON_PATH)
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error('Failed to load versions.json');
-                }
-                return response.json();
-            })
-            .then(function(versionsData) {
-                // Populate the version selector
-                populateVersionSelector(versionsData, currentVersion);
+        try {
+            // Fetch versions data
+            const response = await fetch(VERSIONS_JSON_PATH);
+            if (!response.ok) {
+                throw new Error('Failed to load versions.json');
+            }
+            const versionsData = await response.json();
 
-                // Add version badge
-                addVersionBadge(currentVersion, versionsData);
+            // Populate the version selector
+            populateVersionSelector(versionsData, currentVersion);
 
-                // Show outdated warning if applicable
-                if (versionsData.stable && currentVersion !== 'latest' && currentVersion !== versionsData.stable) {
-                    showOutdatedWarning(currentVersion, versionsData.stable);
-                }
-            })
-            .catch(function(error) {
-                console.error('Error loading version information:', error);
+            // Add version badge
+            addVersionBadge(currentVersion, versionsData);
 
-                // Fallback: just show current version in selector
-                const selector = document.getElementById(VERSION_SELECTOR_ID);
-                if (selector) {
-                    selector.innerHTML = `<option value="${currentVersion}">${currentVersion}</option>`;
-                }
-            });
+            // Show outdated warning if applicable
+            if (versionsData.stable && currentVersion !== 'latest' && currentVersion !== versionsData.stable) {
+                showOutdatedWarning(currentVersion, versionsData.stable);
+            }
+        } catch (error) {
+            console.error('Error loading version information:', error);
+
+            // Fallback: just show current version in selector
+            const selector = document.getElementById(VERSION_SELECTOR_ID);
+            if (selector) {
+                selector.innerHTML = `<option value="${currentVersion}">${currentVersion}</option>`;
+            }
+        }
     }
 
     // Initialize when DOM is ready

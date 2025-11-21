@@ -51,7 +51,7 @@ def parse_version(version_string: str) -> tuple:
         return (0, 0, 0)  # Will sort to the end
 
 
-def update_versions_file(repo_dir: Path, version: str, version_label: str, is_release: bool):
+def update_versions_file(repo_dir: Path, version: str, version_label: str):
     """Update versions.json with new version information."""
 
     data = load_versions(repo_dir)
@@ -101,18 +101,13 @@ def main():
                         help="Version identifier (e.g., v0.1.9 or 'latest')")
     parser.add_argument("--version-label", type=str, required=True,
                         help="Human-readable version label")
-    parser.add_argument("--is-release", type=str, required=True,
-                        help="Whether this is a release version (true/false)")
 
     args = parser.parse_args()
-
-    is_release = args.is_release.lower() == "true"
 
     update_versions_file(
         repo_dir=args.repo_dir,
         version=args.version,
-        version_label=args.version_label,
-        is_release=is_release
+        version_label=args.version_label
     )
 
 

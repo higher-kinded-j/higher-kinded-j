@@ -63,7 +63,6 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "deploy_path=${DEPLOY_PATH}" >> "$GITHUB_OUTPUT"
           echo "version_label=${VERSION_LABEL}" >> "$GITHUB_OUTPUT"
-          echo "is_release=$([[ "$VERSION" != "latest" ]] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Setup mdBook and Rust Environment
@@ -133,8 +132,7 @@ jobs:
           python .github/scripts/update_versions.py \
             --repo-dir gh-pages-repo \
             --version "${{ steps.version.outputs.version }}" \
-            --version-label "${{ steps.version.outputs.version_label }}" \
-            --is-release "${{ steps.version.outputs.is_release }}"
+            --version-label "${{ steps.version.outputs.version_label }}"
         shell: bash
 
       - name: Copy built book to deployment directory
