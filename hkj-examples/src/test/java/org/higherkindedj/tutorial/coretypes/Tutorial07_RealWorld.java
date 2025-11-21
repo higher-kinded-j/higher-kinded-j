@@ -69,16 +69,21 @@ public class Tutorial07_RealWorld {
         };
 
     // TODO: Replace null with code that validates all fields and creates a Registration
-    // Hint: Use map4 to combine all validations
+    // Hint: Use flatMap to chain validations together
     Either<ValidationError, Registration> result =
         validateUsername
-            .apply("alice")
-            .map4(
-                validateEmail.apply(null),
-                validatePassword.apply(null),
-                validateAge.apply(null),
-                (username, email, password, age) ->
-                    new Registration(username, email, password, age));
+            .apply(null)
+            .flatMap(
+                username ->
+                    validateEmail
+                        .apply(null)
+                        .flatMap(
+                            email ->
+                                validatePassword
+                                    .apply(null)
+                                    .flatMap(
+                                        password ->
+                                            validateAge.apply(null).map(age -> null))));
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().username()).isEqualTo("alice");
