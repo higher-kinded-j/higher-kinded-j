@@ -2,11 +2,11 @@
 ## _Combining Monadic Effects with Optionality_
 
 ~~~admonish info title="What You'll Learn"
-- How to add stateful computation to any existing monad
-- Building stack operations that can fail (StateT with Optional)
-- Understanding the relationship between State and StateT<S, Identity, A>
-- Creating complex workflows that manage both state and other effects
-- Using `get`, `set`, `modify` operations within transformer contexts
+- How to combine Maybe's optionality with other monadic effects
+- Building workflows where operations might produce Nothing within async contexts
+- Understanding the difference between MaybeT and OptionalT
+- Using `just`, `nothing`, and `fromMaybe` to construct MaybeT values
+- Handling Nothing states with Unit as the error type in MonadError
 ~~~
 
 ~~~ admonish example title="See Example Code:"
@@ -280,3 +280,57 @@ This example illustrates:
 unified monadic interface, abstracting away the manual checks and propagation of `Nothing` states.
 - When `MaybeTMonad` is used as a `MonadError`, the error type is `Unit`, indicating that the "error" (a `Nothing` state) doesn't carry a specific value beyond its occurrence.
 ~~~
+
+---
+
+## MaybeT vs OptionalT: When to Use Which?
+
+Both `MaybeT` and `OptionalT` serve similar purposes—combining optionality with other monadic effects. Here's when to choose each:
+
+### Use **MaybeT** when:
+- You're working within the higher-kinded-j ecosystem and want consistency with the `Maybe` type
+- You need a type that's explicitly designed for functional composition (more FP-native)
+- You want to avoid Java's `Optional` and its quirks (e.g., serialisation warnings, identity-sensitive operations)
+- You're building a system where `Maybe` is used throughout
+
+### Use **OptionalT** when:
+- You're integrating with existing Java code that uses `java.util.Optional`
+- You want to leverage familiar Java 8+ Optional APIs
+- Your team is more comfortable with standard Java types
+- You're wrapping external libraries that return `Optional`
+
+**In practice:** The choice often comes down to consistency with your existing codebase. Both offer equivalent functionality through their `MonadError` instances.
+
+---
+
+## Further Reading
+
+~~~admonish tip title="Learning Path"
+Start with the **Java-focused** resources to understand Maybe/Option patterns, then explore **General FP concepts** for deeper understanding, and finally check **Related Libraries** to see alternative approaches.
+~~~
+
+### Java-Focused Resources
+
+**Beginner Level:**
+- 📚 [Maybe vs Optional: Understanding the Difference](https://medium.com/@johnmcclean/maybe-monad-in-java-8-2e0b7d8e3e5a) - When to use custom Maybe over Java's Optional (10 min read)
+- 📄 [Null Handling Patterns in Modern Java](https://www.baeldung.com/java-avoid-null-check) - Comprehensive guide to null safety (15 min read)
+
+**Intermediate Level:**
+- 📄 [MonadZero and Failure](https://bartoszmilewski.com/2013/09/10/monoids-monads-and-monad-zero/) - Understanding failure representation (20 min read)
+- 📄 [Handling Nothing in Asynchronous Code](https://dzone.com/articles/functional-java-handling-optionals-in-completable) - DZone's practical patterns (12 min read)
+
+### General FP Concepts
+
+- 📖 [Maybe/Option Type](https://en.wikipedia.org/wiki/Option_type) - Wikipedia's cross-language overview
+- 📖 [A Fistful of Monads (Haskell)](http://learnyouahaskell.com/a-fistful-of-monads) - Accessible introduction to Maybe (30 min read)
+
+### Related Libraries & Comparisons
+
+- 🔗 [Vavr Option vs Java Optional](https://www.vavr.io/vavr-docs/#_option) - Feature comparison
+- 🔗 [Scala Option](https://www.scala-lang.org/api/2.13.3/scala/Option.html) - Scala's battle-tested implementation
+- 🔗 [Arrow Option (Kotlin)](https://arrow-kt.io/docs/apidocs/arrow-core/arrow.core/-option/) - Kotlin FP approach
+
+### Community & Discussion
+
+- 💬 [Maybe vs Either for Error Handling](https://stackoverflow.com/questions/48280735/maybe-vs-either-for-error-handling) - Stack Overflow comparison
+- 💬 [Why Use Maybe When We Have Optional?](https://www.reddit.com/r/java/comments/7t3q6k/why_implement_maybe_when_java_has_optional/) - Reddit discussion on use cases

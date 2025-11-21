@@ -102,7 +102,7 @@ Key characteristics:
 * **Notes:** Simplifies managing computations that depend on a read-only environment `R` while also involving other monadic effects from `F`. Requires a `Monad<F>` instance for the outer monad. The `run()` method of `ReaderT` takes `R` and returns `Kind<F, A>`.
 * **Usage:** [How to use the ReaderT Monad Transformer](./readert_transformer.md)
 
-### . `StateT<S, F, A>` (Monad Transformer)
+### 5. `StateT<S, F, A>` (Monad Transformer)
 
 * **Definition:** A monad transformer ([`StateT`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt//state_t/StateT.java)) that adds stateful computation (type `S`) to an underlying monad `F`. It represents a function `S -> Kind<F, StateTuple<S, A>>`.
 * **Kind Interface:**[`StateTKind<S, F, A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt//state_t/StateTKind.java)
@@ -112,3 +112,43 @@ Key characteristics:
   * [`StateTMonad<S, F>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt//state_t/StateTMonad.java) (`Monad<StateTKind.Witness<S, F>>`)
 * **Notes:** Allows combining stateful logic with other monadic effects from `F`. Requires a `Monad<F>` instance for the underlying monad. The `runStateT(initialState)` method executes the computation, returning `Kind<F, StateTuple<S, A>>`.
 * **Usage:**[How to use the StateT Monad Transformer](./statet_transformer.md)
+
+---
+
+## Further Reading
+
+~~~admonish tip title="Learning Path"
+Start with the **Java-focused** articles to understand why transformers matter in Java, then explore the **General FP** theory, and finally examine how other libraries implement these patterns.
+~~~
+
+### Java-Focused Resources
+
+**Beginner Level:**
+- 📚 [Monad Transformers in Java: A Practical Guide](https://medium.com/@johnmcclean/monad-transformers-in-java-e6f6b7e0f76d) - John McClean's clear explanation with Cyclops examples (15 min read)
+- 🎥 [Functional Programming in Java: Beyond Streams](https://www.youtube.com/watch?v=rPSL1alFIjI) - Venkat Subramaniam discusses composition patterns (45 min watch)
+- 📄 [Combining CompletableFuture with Optional: The Problem](https://www.baeldung.com/java-combine-optional-completablefuture) - Baeldung's treatment of nested monads (10 min read)
+
+**Intermediate Level:**
+- 📄 [Stacking Monads in Functional Java](https://medium.com/att-israel/stacking-monads-in-functional-java-c3c8a9c9c6e) - ATT Israel Engineering team's practical examples (20 min read)
+- 📄 [Vavr's Approach to Composition](https://www.vavr.io/) - Explore how Vavr handles similar challenges (interactive docs)
+
+**Advanced:**
+- 🔬 [Free Monads and Monad Transformers](https://blog.rockthejvm.com/free-monad/) - Rock the JVM's Scala-based but Java-applicable deep dive (30 min read)
+
+### General FP Concepts
+
+- 📖 [Monad Transformers Step by Step](https://page.mi.fu-berlin.de/scravy/realworldhaskell/materialien/monad-transformers-step-by-step.pdf) - Martin Grabmüller's classic paper, accessible even for Java developers (PDF, 40 min read)
+- 🌐 [Monad Transformer - HaskellWiki](https://wiki.haskell.org/Monad_Transformers_Explained) - Formal definitions with clear examples
+- 📖 [What is a Monad Transformer?](https://www.fpcomplete.com/haskell/tutorial/monad-transformers/) - FP Complete's tutorial with interactive examples
+
+### Related Libraries & Comparisons
+
+- 🔗 [Cyclops-React Transformers](https://github.com/aol/cyclops) - AOL's comprehensive Java FP library
+- 🔗 [Vavr Composition Patterns](https://www.vavr.io/vavr-docs/#_composition) - Alternative approach to the same problems
+- 🔗 [Arrow-kt Transformers](https://arrow-kt.io/docs/apidocs/arrow-fx-coroutines/arrow.fx.coroutines/-resource/) - Kotlin's excellent documentation
+- 🔗 [Cats MTL](https://typelevel.org/cats-mtl/) - Scala's monad transformer library (advanced)
+
+### Community & Discussion
+
+- 💬 [Why are Monad Transformers useful?](https://stackoverflow.com/questions/32579133/when-to-use-monad-transformers) - Stack Overflow discussion with practical examples
+- 💬 [Monad Transformers in Production](https://www.reddit.com/r/java/comments/8qhxzv/monad_transformers_in_production_code/) - Real-world experiences from Java developers

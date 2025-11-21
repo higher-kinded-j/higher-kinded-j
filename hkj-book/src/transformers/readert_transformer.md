@@ -12,7 +12,7 @@
 ~~~ admonish example title="See Example Code:"
 - [ReaderTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTExample.java)
 
-- [ReaderTUnitExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncExample.java)
+- [ReaderTAsyncExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncExample.java)
 
 - [ReaderTAsyncUnitExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader_t/ReaderTAsyncUnitExample.java)
 ~~~
@@ -178,10 +178,10 @@ Let's extend the asynchronous example to include an action that logs a message u
 
 ```java
     // Action: Log a message using AppConfig, complete asynchronously returning F<Unit>
-    public static Kind<CompletableFutureKind.Witness, Unit> logInitializationAsync(AppConfig config) {
+    public static Kind<CompletableFutureKind.Witness, Unit> logInitialisationAsync(AppConfig config) {
         CompletableFuture<Unit> future = CompletableFuture.runAsync(() -> {
             System.out.println("Thread: " + Thread.currentThread().getName() +
-                " - Initializing component with API Key: " + config.apiKey() +
+                " - Initialising component with API Key: " + config.apiKey() +
                 " for Service URL: " + config.serviceUrl());
             // Simulate some work
             try {
@@ -191,31 +191,31 @@ Let's extend the asynchronous example to include an action that logs a message u
                 throw new RuntimeException(e);
             }
             System.out.println("Thread: " + Thread.currentThread().getName() +
-                " - Initialization complete for: " + config.serviceUrl());
+                " - Initialisation complete for: " + config.serviceUrl());
         }, config.executor()).thenApply(v -> Unit.INSTANCE); // Ensure CompletableFuture<Unit>
         return FUTURE.widen(future);
     }
 
     // Wrap the action in ReaderT: R -> F<Unit>
-    public static ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initializeComponentRT() {
-        return ReaderT.of(ReaderTAsyncUnitExample::logInitializationAsync);
+    public static ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initialiseComponentRT() {
+        return ReaderT.of(ReaderTAsyncUnitExample::logInitialisationAsync);
     }
 
     public static void main(String[] args) {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         AppConfig prodConfig = new AppConfig("prod_secret_for_init", "[https://init.prod.service](https://init.prod.service)", executor);
 
-        // Get the ReaderT for the initialization action
-        ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initAction = initializeComponentRT();
+        // Get the ReaderT for the initialisation action
+        ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initAction = initialiseComponentRT();
 
-        System.out.println("--- Running Initialization Action with Prod Config ---");
+        System.out.println("--- Running Initialisation Action with Prod Config ---");
         // Run the action by providing the prodConfig environment
         // This returns Kind<CompletableFutureKind.Witness, Unit>
         Kind<CompletableFutureKind.Witness, Unit> futureUnit = initAction.run().apply(prodConfig);
 
         // Wait for completion and get the Unit result (which is just Unit.INSTANCE)
         Unit result = FUTURE.join(futureUnit);
-        System.out.println("Initialization Result: " + result); // Expected: Initialization Result: ()
+        System.out.println("Initialisation Result: " + result); // Expected: Initialisation Result: ()
 
         executor.shutdown();
         try {
@@ -230,7 +230,7 @@ Let's extend the asynchronous example to include an action that logs a message u
 ```
 This example illustrates:
 
-- An asynchronous action (`logInitializationAsync`) that depends on `AppConfig` but logically returns no specific data, so its result is `CompletableFuture<Unit>`.
+- An asynchronous action (`logInitialisationAsync`) that depends on `AppConfig` but logically returns no specific data, so its result is `CompletableFuture<Unit>`.
 - This action is wrapped into a `ReaderT<CompletableFutureKind.Witness, AppConfig, Unit>`.
 - When this `ReaderT` is run with an `AppConfig`, it yields a `Kind<CompletableFutureKind.Witness, Unit>`.
 - The final result of joining such a future is `Unit.INSTANCE`, signifying successful completion of the effectful, environment-dependent action.
@@ -382,3 +382,43 @@ public class ReaderTAsyncExample {
 ~~~ admonish important  title="Key Points:"
 `ReaderT` simplifies managing computations that require a shared, read-only environment while also dealing with other monadic effects, leading to cleaner, more composable, and testable code by deferring environment injection.
 ~~~
+
+---
+
+## Further Reading
+
+~~~admonish tip title="Learning Path"
+Start with the **Java-focused** resources to understand dependency injection patterns, then explore **General FP concepts** for deeper understanding, and finally check **Related Libraries** to see alternative approaches.
+~~~
+
+### Java-Focused Resources
+
+**Beginner Level:**
+- 📚 [Dependency Injection the Functional Way](https://www.baeldung.com/java-dependency-injection-functional) - Baeldung's introduction to Reader (15 min read)
+- 📄 [Reader Monad for Dependency Injection](https://medium.com/@johnmcclean/reader-monad-for-dependency-injection-in-java-9056d9501c75) - Practical examples without frameworks (12 min read)
+- 🎥 [Functional Dependency Injection](https://www.youtube.com/watch?v=ZasXwtTRkio) - Conference talk on Reader pattern (40 min watch)
+
+**Intermediate Level:**
+- 📄 [Configuration as Code with Reader](https://blog.rockthejvm.com/reader-monad/) - Rock the JVM's practical guide (20 min read)
+- 📄 [Reader vs Dependency Injection Frameworks](https://medium.com/@olxc/reader-monad-for-dependency-injection-4c5700c4c148) - When to use what (15 min read)
+
+**Advanced:**
+- 🔬 [ReaderT Design Pattern](https://www.fpcomplete.com/blog/readert-design-pattern/) - FP Complete's production patterns (30 min read)
+
+### General FP Concepts
+
+- 📖 [Reader Monad Explained](https://wiki.haskell.org/Reader_monad) - HaskellWiki's clear explanation
+- 📖 [Environment Passing Style](https://en.wikipedia.org/wiki/Environment_passing_style) - Wikipedia on the underlying concept
+- 📖 [Functions as Context](https://bartoszmilewski.com/2014/01/14/functors-are-containers/) - Bartosz Milewski's blog on function contexts
+
+### Related Libraries & Comparisons
+
+- 🔗 [Cats Reader](https://typelevel.org/cats/datatypes/kleisli.html) - Scala's implementation (called Kleisli)
+- 🔗 [Arrow Reader (Kotlin)](https://arrow-kt.io/docs/apidocs/arrow-core/arrow.core/-reader/) - Kotlin FP approach
+- 🔗 [Haskell's ReaderT](https://hackage.haskell.org/package/mtl-2.2.2/docs/Control-Monad-Reader.html) - Original inspiration
+
+### Community & Discussion
+
+- 💬 [Reader Monad vs Constructor Injection](https://stackoverflow.com/questions/14301361/why-is-the-reader-monad-useful) - Stack Overflow debate
+- 💬 [Using Reader in Production](https://www.reddit.com/r/functionalprogramming/comments/5qvzwq/reader_monad_in_production/) - Real-world experiences
+- 💬 [ReaderT Pattern at Scale](https://news.ycombinator.com/item?id=16743608) - HN discussion from production teams

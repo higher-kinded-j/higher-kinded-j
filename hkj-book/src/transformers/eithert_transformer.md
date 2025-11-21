@@ -417,3 +417,42 @@ The `Higher-Kinded-J` library simplifies the implementation and usage of concept
 
 In essence, the HKT simulation provided by `Higher-Kinded-J` allows defining the structure (`EitherT`) and the operations (`EitherTMonad`) generically over the outer monad `F`, overcoming Java's native limitations and making monad transformers feasible and much less boilerplate-heavy than they would otherwise be.
 ~~~
+
+---
+
+## Further Reading
+
+~~~admonish tip title="Learning Path"
+Start with the **Java-focused** resources to see practical applications, then explore **General FP concepts** for deeper understanding, and finally check **Related Libraries** to see alternative approaches.
+~~~
+
+### Java-Focused Resources
+
+**Beginner Level:**
+- 📚 [Error Handling with Either in Java](https://www.baeldung.com/java-either) - Baeldung's introduction to Either (10 min read)
+- 📄 [CompletableFuture Error Handling Patterns](https://www.nurkiewicz.com/2013/05/java-8-completablefuture-in-practice.html) - Tomasz Nurkiewicz's comparison to traditional async error handling (15 min read)
+- 🎥 [Railway Oriented Programming in Java](https://vimeo.com/113707214) - Scott Wlaschin's classic talk adapted to Java contexts (60 min watch)
+
+**Intermediate Level:**
+- 📄 [Combining Async and Error Handling in Java](https://medium.com/@johnmcclean/reactive-error-handling-with-cyclops-e2e82a3e5f5) - Real-world async error workflows (20 min read)
+- 📄 [Vavr's Either vs Java's Optional](https://www.vavr.io/vavr-docs/#_either) - When to choose what (15 min read)
+
+**Advanced:**
+- 🔬 [Type-Safe Error Handling at Scale](https://www.youtube.com/watch?v=3VSdGPQXoZ0) - Zalando's production experience (conference talk, 40 min)
+
+### General FP Concepts
+
+- 📖 [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) - F# for Fun and Profit's accessible explanation (20 min read)
+- 📖 [Handling Errors Without Exceptions](https://www.manning.com/books/functional-programming-in-scala) - Chapter 4 from "Functional Programming in Scala" (free excerpt)
+- 🌐 [Either Type - Wikipedia](https://en.wikipedia.org/wiki/Either_type) - Formal definition and language comparisons
+
+### Related Libraries & Comparisons
+
+- 🔗 [Vavr Either Documentation](https://www.vavr.io/vavr-docs/#_either) - Mature Java FP library's approach
+- 🔗 [Arrow Either](https://arrow-kt.io/docs/apidocs/arrow-core/arrow.core/-either/) - Kotlin's excellent API design
+- 🔗 [Result Type in Rust](https://doc.rust-lang.org/std/result/) - See how a systems language solves this problem
+
+### Community & Discussion
+
+- 💬 [Either vs Exceptions in Java](https://stackoverflow.com/questions/39868580/either-vs-exceptions-in-java) - Stack Overflow debate with practical insights
+- 💬 [Using Either in Production Java Code](https://news.ycombinator.com/item?id=15716149) - Hacker News discussion with war stories

@@ -25,14 +25,14 @@ public class ReaderTAsyncUnitExample {
       new ReaderTMonad<>(futureMonad);
 
   // Action: Log a message using AppConfig, complete asynchronously returning F<Unit>
-  public static Kind<CompletableFutureKind.Witness, Unit> logInitializationAsync(AppConfig config) {
+  public static Kind<CompletableFutureKind.Witness, Unit> logInitialisationAsync(AppConfig config) {
     CompletableFuture<Unit> future =
         CompletableFuture.runAsync(
                 () -> {
                   System.out.println(
                       "Thread: "
                           + Thread.currentThread().getName()
-                          + " - Initializing component with API Key: "
+                          + " - Initialising component with API Key: "
                           + config.apiKey()
                           + " for Service URL: "
                           + config.serviceUrl());
@@ -46,7 +46,7 @@ public class ReaderTAsyncUnitExample {
                   System.out.println(
                       "Thread: "
                           + Thread.currentThread().getName()
-                          + " - Initialization complete for: "
+                          + " - Initialisation complete for: "
                           + config.serviceUrl());
                 },
                 config.executor())
@@ -56,7 +56,7 @@ public class ReaderTAsyncUnitExample {
 
   // Wrap the action in ReaderT: R -> F<Unit>
   public static ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initialiseComponentRT() {
-    return ReaderT.of(ReaderTAsyncUnitExample::logInitializationAsync);
+    return ReaderT.of(ReaderTAsyncUnitExample::logInitialisationAsync);
   }
 
   public static void main(String[] args) {
@@ -67,17 +67,17 @@ public class ReaderTAsyncUnitExample {
             "[https://init.prod.service](https://init.prod.service)",
             executor);
 
-    // Get the ReaderT for the initialization action
+    // Get the ReaderT for the initialisation action
     ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initAction = initialiseComponentRT();
 
-    System.out.println("--- Running Initialization Action with Prod Config ---");
+    System.out.println("--- Running Initialisation Action with Prod Config ---");
     // Run the action by providing the prodConfig environment
     // This returns Kind<CompletableFutureKind.Witness, Unit>
     Kind<CompletableFutureKind.Witness, Unit> futureUnit = initAction.run().apply(prodConfig);
 
     // Wait for completion and get the Unit result (which is just Unit.INSTANCE)
     Unit result = FUTURE.join(futureUnit);
-    System.out.println("Initialization Result: " + result); // Expected: Initialization Result: ()
+    System.out.println("Initialisation Result: " + result); // Expected: Initialisation Result: ()
 
     executor.shutdown();
     try {
