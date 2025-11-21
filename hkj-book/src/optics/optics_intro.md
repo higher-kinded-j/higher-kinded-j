@@ -246,7 +246,7 @@ java
 var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
 ```
 
-This level of abstraction enables you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling.  
+This level of abstraction enables you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling.
 
 ## Making Optics Feel Natural in Java
 
