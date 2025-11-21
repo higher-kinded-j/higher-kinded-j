@@ -1,4 +1,4 @@
-# The Const Type: Constant Functors with Phantom Types 📌
+# The Const Type: Constant Functors with Phantom Types
 
 ~~~admonish info title="What You'll Learn"
 - Understanding phantom types and how Const ignores its second type parameter

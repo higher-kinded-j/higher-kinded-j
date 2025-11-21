@@ -1,4 +1,4 @@
-#The ListMonad:
+# The ListMonad:
 ## _Monadic Operations on Java Lists_
 
 ~~~admonish info title="What You'll Learn"

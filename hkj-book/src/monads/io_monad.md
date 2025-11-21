@@ -1,4 +1,4 @@
-#The IOMonad: 
+# The IOMonad:
 ## _Managing Side Effects with `IO`_
 
 ~~~admonish info title="What You'll Learn"
@@ -53,7 +53,7 @@ The `IO` functionality is built upon several related components:
 * **Composition**: Use `map` and `flatMap` (via `IOMonad`) to build complex sequences of side-effecting operations from smaller, reusable `IO` actions.
 * **Deferred Execution**: Effects are only performed when `unsafeRunSync` is called on the final, composed `IO` value. This separates the description of the program from its execution.
 
-**Important Note:**`IO` in this library primarily deals with *deferring* execution. It does *not* automatically provide sophisticated error handling like `Either` or `Try`, nor does it manage asynchronicity like `CompletableFuture`. Exceptions thrown during `unsafeRunSync` will typically propagate unless explicitly handled *within* the `Supplier` provided to `IOKindHelper.delay`.
+**Important Note:** `IO` in this library primarily deals with *deferring* execution. It does *not* automatically provide sophisticated error handling like `Either` or `Try`, nor does it manage asynchronicity like `CompletableFuture`. Exceptions thrown during `unsafeRunSync` will typically propagate unless explicitly handled *within* the `Supplier` provided to `IOKindHelper.delay`. For combining IO with typed error handling, consider using `EitherT<IOKind.Witness, E, A>` (monad transformer) or wrapping IO operations with `Try` for exception handling.
 
 ~~~admonish example title="Example 1: Creating Basic IO Actions"
 

@@ -1,4 +1,4 @@
-#The EitherMonad: 
+# The EitherMonad:
 ## _Typed Error Handling_
 
 ~~~admonish info title="What You'll Learn"
@@ -30,6 +30,10 @@ The implementation in this library is a `sealed interface Either<L, R>` with two
 ## Structure
 
 ![either_type.svg](../images/puml/either_type.svg)
+
+~~~admonish note title="Related Types"
+For handling exceptions specifically, see [Try Monad](./try_monad.md), which is an `Either` specialised with `Throwable` as the error type. For fail-fast validation with error accumulation in applicative context, see [Validated Monad](./validated_monad.md).
+~~~
 
 ## Creating Instances
 

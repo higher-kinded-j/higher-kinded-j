@@ -32,7 +32,9 @@ Key benefits include:
 * **Integration with HKT:** Provides HKT simulation (`TryKind`) and type class instances (`TryMonad`) to work seamlessly with generic functional abstractions operating over `Kind<F, A>`.
 * **Error Recovery:** Offers methods like `recover` and `recoverWith` to handle failures gracefully within the computation chain.
 
-It implements `MonadError<TryKind<?>, Throwable>`, signifying its monadic nature and its ability to handle errors of type `Throwable.
+It implements `MonadError<TryKind<?>, Throwable>`, signifying its monadic nature and its ability to handle errors of type `Throwable`.
+
+Now that we understand the structure and benefits of `Try`, let's explore how to create and work with `Try` instances in practice.
 
 ## How to Use `Try<T>`
 

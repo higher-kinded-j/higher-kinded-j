@@ -1,4 +1,4 @@
-#The Lazy Monad: 
+# The Lazy Monad:
 ## _Lazy Evaluation with `Lazy`_
 
 ~~~admonish info title="What You'll Learn"
@@ -13,7 +13,7 @@
 [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 ~~~
 
-This article introduces the `Lazy<A>` type and its associated components within the `higher-kinded-j` library. `Lazy` provides a mechanism for deferred computation, where a value is calculated only when needed and the result (or any exception thrown during calculation) is memoized (cached).
+This article introduces the `Lazy<A>` type and its associated components within the `higher-kinded-j` library. `Lazy` provides a mechanism for deferred computation, where a value is calculated only when needed and the result (or any exception thrown during calculation) is memoised (cached).
 ## Core Components
 
 **The Lazy Type**
@@ -45,7 +45,7 @@ The lazy evaluation feature revolves around these key types:
 
 * **Deferred Computation**: Use `Lazy` when you have potentially expensive computations that should only execute if their result is actually needed.
 * **Memoization**: The result (or exception) of the computation is stored after the first call to `force()`, subsequent calls return the cached result without re-computation.
-* **Exception Handling**: Computations wrapped in `Lazy.defer` can throw any `Throwable`. This exception is caught, memoized, and re-thrown by `force()`.
+* **Exception Handling**: Computations wrapped in `Lazy.defer` can throw any `Throwable`. This exception is caught, memoised, and re-thrown by `force()`.
 * **Functional Composition**: `LazyMonad` allows chaining lazy computations using `map` and `flatMap` while preserving laziness. The composition itself doesn't trigger evaluation; only forcing the final `LazyKind` does.
 * **HKT Integration**: `LazyKind` and `LazyMonad` enable using lazy computations within generic functional code expecting `Kind<F, A>` and `Monad<F>`.
 
@@ -93,7 +93,7 @@ try {
     System.out.println("Result 1: " + result1);
     System.out.println("Counter after first force: " + counter.get()); // Output: 1
 
-    // Force again - uses memoized result
+    // Force again - uses memoised result
     String result2 = LAZY.force(deferredLazy);
     System.out.println("Result 2: " + result2);
     System.out.println("Counter after second force: " + counter.get()); // Output: 1 (not re-computed)
@@ -105,11 +105,11 @@ try {
 
 } catch (Throwable t) { // Catch Throwable because force() can re-throw anything
     System.err.println("Caught exception during force: " + t);
-    // Exception is also memoized:
+    // Exception is also memoised:
     try {
         LAZY.force(deferredLazy);
     } catch (Throwable t2) {
-        System.err.println("Caught memoized exception: " + t2);
+        System.err.println("Caught memoised exception: " + t2);
         System.out.println("Counter after failed force: " + counter.get()); // Output: 1
     }
 }
