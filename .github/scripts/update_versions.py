@@ -9,7 +9,7 @@ documentation versions (both releases and latest snapshot).
 import json
 import argparse
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def load_versions(repo_dir: Path) -> dict:
@@ -47,15 +47,15 @@ def parse_version(version_string: str) -> tuple:
         # Convert to integers, handling up to 3 parts (major.minor.patch)
         return tuple(int(p) for p in parts[:3])
     except (ValueError, AttributeError):
-        # Fallback: return string for comparison if parsing fails
-        return (0, 0, 0)  # Will sort to the end
+        # Fallback for unparseable versions.
+        return (0, 0, 0)  # Will be sorted as the oldest version.
 
 
 def update_versions_file(repo_dir: Path, version: str, version_label: str):
     """Update versions.json with new version information."""
 
     data = load_versions(repo_dir)
-    current_time = datetime.utcnow().isoformat() + "Z"
+    current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
     if version == "latest":
         # Update latest snapshot

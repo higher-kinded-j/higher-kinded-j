@@ -43,7 +43,7 @@ higher-kinded-j.github.io/
 
 2. **Version Metadata** (`versions.json`)
    - Tracks all available documentation versions
-   - Identifies the stable/latest release
+   - Identifies the latest stable (tagged) release
    - Used by the version switcher UI
 
 3. **Version Switcher UI**
