@@ -4,9 +4,10 @@ package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.list.ListOf;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.validated.Validated;
@@ -96,8 +97,8 @@ public class Tutorial07_RealWorld {
 
     record ProcessedData(String userId, int score, String grade) {}
 
-    ListOf<RawData> rawData =
-        ListOf.of(
+    List<RawData> rawData =
+        List.of(
             new RawData("user1", "95"),
             new RawData("user2", "82"),
             new RawData("user3", "67"),
@@ -128,13 +129,15 @@ public class Tutorial07_RealWorld {
                 .map(score -> new ProcessedData(raw.userId(), score, calculateGrade.apply(score)));
 
     // TODO: Replace ___ with code that:
-    // 1. Maps over the raw data to process each record
-    // 2. Filters to keep only successful results (hint: use filter on Either)
-    // Note: You'll need to process the list and filter out failed parses
-    ListOf<ProcessedData> processed = ___;
+    // 1. Streams over the raw data to process each record
+    // 2. Filters to keep only successful results (Either.isRight())
+    // 3. Maps to extract the ProcessedData from successful Eithers
+    // 4. Collects to a list
+    // Hint: rawData.stream().map(processRecord).filter(Either::isRight).map(Either::getRight).collect(Collectors.toList())
+    List<ProcessedData> processed = ___;
 
     assertThat(processed.size()).isEqualTo(3); // user4 should be filtered out
-    assertThat(processed.toJavaList().getFirst().grade()).isEqualTo("A");
+    assertThat(processed.getFirst().grade()).isEqualTo("A");
   }
 
   /**
@@ -152,7 +155,7 @@ public class Tutorial07_RealWorld {
     record User(String name, String email) {}
 
     // A Reader that gets the app name from config
-    Reader<Config, String> getAppName = Reader.ask().map(config -> config.appName());
+    Reader<Config, String> getAppName = Reader.<Config>ask().map(config -> config.appName());
 
     // A Reader that formats a greeting
     Function<User, Reader<Config, String>> greetUser =
@@ -168,7 +171,7 @@ public class Tutorial07_RealWorld {
             .apply(new User("Alice", "alice@example.com"))
             .flatMap(
                 greeting ->
-                    Reader.ask()
+                    Reader.<Config>ask()
                         .map(
                             config ->
                                 ___));
@@ -240,7 +243,7 @@ public class Tutorial07_RealWorld {
    */
   @Test
   void exercise5_batchOperations() {
-    record Result(ListOf<String> successes, ListOf<String> failures) {}
+    record Result(List<String> successes, List<String> failures) {}
 
     Function<Integer, Either<String, String>> processItem =
         n -> {
@@ -251,16 +254,18 @@ public class Tutorial07_RealWorld {
           }
         };
 
-    ListOf<Integer> items = ListOf.of(1, 2, 3, 4, 5, 6);
+    List<Integer> items = List.of(1, 2, 3, 4, 5, 6);
 
     // TODO: Replace ___ with code that:
-    // 1. Maps over items to process each one (produces ListOf<Either<String, String>>)
-    // 2. Partitions the results into successes and failures
-    // Hint: Process the list, then manually separate Either.left and Either.right values
-    ListOf<Either<String, String>> processed = items.map(___);
+    // 1. Streams over items to process each one (produces Stream<Either<String, String>>)
+    // 2. Collects to a list
+    // Hint: items.stream().map(processItem).collect(Collectors.toList())
+    List<Either<String, String>> processed = ___;
 
-    ListOf<String> successes = processed.filter(e -> e.isRight()).map(e -> e.getRight());
-    ListOf<String> failures = processed.filter(e -> e.isLeft()).map(e -> e.getLeft());
+    List<String> successes =
+        processed.stream().filter(Either::isRight).map(Either::getRight).collect(Collectors.toList());
+    List<String> failures =
+        processed.stream().filter(Either::isLeft).map(Either::getLeft).collect(Collectors.toList());
 
     Result result = new Result(successes, failures);
 

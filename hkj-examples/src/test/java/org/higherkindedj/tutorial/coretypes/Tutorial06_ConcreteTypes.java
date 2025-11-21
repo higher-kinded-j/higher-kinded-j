@@ -4,9 +4,10 @@ package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.list.ListOf;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.Test;
@@ -102,19 +103,21 @@ public class Tutorial06_ConcreteTypes {
    *
    * <p>Use List when you have zero or more values and want to work with all of them.
    *
-   * <p>Task: Filter and transform a list of numbers
+   * <p>Task: Filter and transform a list of numbers using Java streams
    */
   @Test
   void exercise4_listOperations() {
-    ListOf<Integer> numbers = ListOf.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
     // TODO: Replace ___ with code that:
-    // 1. Filters to only even numbers
-    // 2. Multiplies each by 10
-    // Hint: Use .filter(...) and .map(...)
-    ListOf<Integer> result = ___;
+    // 1. Creates a stream from numbers
+    // 2. Filters to only even numbers
+    // 3. Maps to multiply each by 10
+    // 4. Collects back to a list
+    // Hint: numbers.stream().filter(n -> n % 2 == 0).map(n -> n * 10).collect(Collectors.toList())
+    List<Integer> result = ___;
 
-    assertThat(result.toJavaList()).containsExactly(20, 40, 60, 80, 100);
+    assertThat(result).containsExactly(20, 40, 60, 80, 100);
   }
 
   /**

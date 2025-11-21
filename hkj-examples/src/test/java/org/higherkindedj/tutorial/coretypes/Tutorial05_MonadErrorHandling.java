@@ -14,16 +14,15 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 05: MonadError - Explicit Error Handling
+ * Tutorial 05: Error Handling Patterns
  *
- * <p>MonadError extends Monad with operations for raising and handling errors in a principled way.
+ * <p>Learn how to handle errors gracefully using Either's fold() method and Try's recovery methods.
  *
- * <p>Key Concepts: - raiseError: creates an error value - handleErrorWith: recovers from errors
- * with another computation - recover: recovers from errors with a plain value - orElse: provides a
- * fallback value
+ * <p>Key Concepts: - fold: pattern match on Either to handle both error and success cases -
+ * Try.recover: recover from exceptions with a default value - MonadError typeclass: raiseError for
+ * creating error values
  *
- * <p>Types with MonadError: - Either<E, A>: explicit error type E - Try<A>: error is Throwable -
- * Validated<E, A>: accumulates errors
+ * <p>Types covered: - Either<E, A>: explicit error type E - Try<A>: error is Throwable
  */
 public class Tutorial05_MonadErrorHandling {
 
@@ -48,12 +47,11 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Exercise 2: Handling errors with handleErrorWith
+   * Exercise 2: Handling errors with fold
    *
-   * <p>handleErrorWith allows you to recover from an error by providing an alternative
-   * computation.
+   * <p>fold() allows you to pattern match on Either, providing different logic for Left and Right.
    *
-   * <p>Task: Recover from a parse error by trying an alternative
+   * <p>Task: Recover from a parse error using fold
    */
   @Test
   void exercise2_handleErrorWith() {
@@ -68,19 +66,18 @@ public class Tutorial05_MonadErrorHandling {
 
     Either<String, Integer> failed = parse.apply("not-a-number");
 
-    // TODO: Replace ___ with code that handles the error
-    // If there's an error, return Either.right(0) as a default
-    // Hint: failed.handleErrorWith(error -> Either.right(0))
-    Either<String, Integer> recovered = ___;
+    // TODO: Replace ___ with code that handles the error using fold
+    // If there's an error (Left), return 0; if success (Right), return the value
+    // Hint: failed.fold(error -> 0, value -> value)
+    Integer recovered = ___;
 
-    assertThat(recovered.isRight()).isTrue();
-    assertThat(recovered.getRight()).isEqualTo(0);
+    assertThat(recovered).isEqualTo(0);
   }
 
   /**
-   * Exercise 3: Recovering with a plain value
+   * Exercise 3: Recovering with a plain value using fold
    *
-   * <p>recover is like handleErrorWith but takes a plain value instead of a computation.
+   * <p>fold() can be used to recover from an error by providing a default value.
    *
    * <p>Task: Provide a default value for errors
    */
@@ -88,18 +85,17 @@ public class Tutorial05_MonadErrorHandling {
   void exercise3_recoverWithValue() {
     Either<String, Integer> error = Either.left("Database connection failed");
 
-    // TODO: Replace ___ with code that recovers with a default value
-    // Hint: error.recover(err -> -1)
-    Either<String, Integer> recovered = ___;
+    // TODO: Replace ___ with code that recovers with a default value using fold
+    // Hint: error.fold(err -> -1, value -> value)
+    Integer recovered = ___;
 
-    assertThat(recovered.isRight()).isTrue();
-    assertThat(recovered.getRight()).isEqualTo(-1);
+    assertThat(recovered).isEqualTo(-1);
   }
 
   /**
    * Exercise 4: Conditional error recovery
    *
-   * <p>You can inspect the error and decide whether to recover or not.
+   * <p>You can inspect the error and decide whether to recover or not using fold.
    *
    * <p>Task: Recover only from specific errors
    */
@@ -108,26 +104,26 @@ public class Tutorial05_MonadErrorHandling {
     Either<String, Integer> error = Either.left("NOT_FOUND");
 
     // TODO: Replace ___ with code that:
-    // - Recovers with 0 if error is "NOT_FOUND"
-    // - Re-raises other errors
-    Either<String, Integer> recovered =
-        error.handleErrorWith(
+    // - Returns 0 if error is "NOT_FOUND"
+    // - Returns -999 for other errors (to distinguish from success)
+    Integer recovered =
+        error.fold(
             err -> {
               if (err.equals("NOT_FOUND")) {
                 return ___;
               } else {
                 return ___;
               }
-            });
+            },
+            value -> value);
 
-    assertThat(recovered.isRight()).isTrue();
-    assertThat(recovered.getRight()).isEqualTo(0);
+    assertThat(recovered).isEqualTo(0);
   }
 
   /**
    * Exercise 5: Error handling in a chain
    *
-   * <p>Errors can occur at any point in a chain of operations.
+   * <p>Errors can occur at any point in a chain of operations. Use fold at the end to recover.
    *
    * <p>Task: Handle errors in the middle of a computation chain
    */
@@ -150,27 +146,28 @@ public class Tutorial05_MonadErrorHandling {
     // TODO: Replace ___ with a chain that:
     // 1. Parses the input
     // 2. Validates it's positive (will fail for "0")
-    // 3. Handles any error by returning Either.right(1)
-    Either<String, Integer> result = ___;
+    // 3. Uses fold to recover from any error with value 1
+    // Hint: input.flatMap(parse).flatMap(validatePositive).fold(err -> 1, value -> value)
+    Integer result = ___;
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo(1);
+    assertThat(result).isEqualTo(1);
   }
 
   /**
-   * Exercise 6: orElse for fallback values
+   * Exercise 6: Fallback values with fold
    *
-   * <p>orElse provides an alternative computation if the current one fails.
+   * <p>Use fold to provide a fallback Either if the primary one fails.
    *
-   * <p>Task: Use orElse to try a fallback
+   * <p>Task: Provide a fallback using fold
    */
   @Test
   void exercise6_orElseFallback() {
     Either<String, String> primary = Either.left("Primary failed");
     Either<String, String> fallback = Either.right("Fallback value");
 
-    // TODO: Replace ___ with code that uses orElse
-    // Hint: primary.orElse(fallback)
+    // TODO: Replace ___ with code that uses fold to return fallback on error
+    // If primary is Left, use fallback; if primary is Right, use primary's value wrapped in Right
+    // Hint: primary.fold(err -> fallback, value -> Either.right(value))
     Either<String, String> result = ___;
 
     assertThat(result.isRight()).isTrue();
@@ -209,12 +206,12 @@ public class Tutorial05_MonadErrorHandling {
   }
 
   /**
-   * Congratulations! You've completed Tutorial 05: Monad Error Handling
+   * Congratulations! You've completed Tutorial 05: Error Handling Patterns
    *
-   * <p>You now understand: ✓ How to raise errors with raiseError ✓ How to handle errors with
-   * handleErrorWith ✓ How to recover with plain values using recover ✓ How to conditionally handle
-   * specific errors ✓ How to use orElse for fallbacks ✓ How Try provides exception-safe
-   * computations
+   * <p>You now understand: ✓ How to raise errors with MonadError.raiseError ✓ How to handle errors
+   * using Either.fold() ✓ How to recover with plain values using fold ✓ How to conditionally handle
+   * specific errors ✓ How to provide fallbacks with fold ✓ How Try provides exception-safe
+   * computations with recover()
    *
    * <p>Next: Tutorial 06 - Concrete Types
    */

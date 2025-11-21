@@ -2,6 +2,29 @@
 
 This document contains the solutions for all exercises in the tutorial series.
 
+## Important API Notes
+
+The Core Types tutorials use the current higher-kinded-j API:
+
+### List Operations
+- Use `java.util.List` instead of a custom wrapper
+- For typeclass operations, use `ListFunctor.INSTANCE` and `ListMonad.INSTANCE`
+- Widen with `LIST.widen(list)` and narrow with `LIST.narrow(kind)`
+- For simple list transformations, use Java streams
+
+### Error Handling with Either
+- Either does NOT have instance methods: `handleErrorWith()`, `recover()`, or `orElse()`
+- Use `fold()` for error recovery: `either.fold(error -> defaultValue, value -> value)`
+- For fallback: `primary.fold(err -> fallback, Either::right)`
+
+### Reader.ask()
+- Must specify type parameter: `Reader.<Config>ask()`
+- Returns `Reader<R, R>` that yields the environment
+
+### Try Operations
+- Try DOES have `recover()` and `recoverWith()` methods
+- Use for exception handling: `Try.of(() -> riskyOperation)`
+
 ## Core Types Solutions
 
 ### Tutorial 01: Kind Basics
@@ -19,7 +42,7 @@ Either<String, Integer> either = EITHER.narrow(kind);
 **Exercise 3:**
 ```java
 Kind<ListKind.Witness, String> kind = LIST.widen(list);
-ListOf<String> narrowedList = LIST.narrow(kind);
+List<String> narrowedList = LIST.narrow(kind);
 ```
 
 **Exercise 4:**
@@ -41,7 +64,8 @@ Either<String, String> result = error.map(i -> i.toString());
 
 **Exercise 3:**
 ```java
-ListOf<Integer> doubled = numbers.map(n -> n * 2);
+ListFunctor functor = ListFunctor.INSTANCE;
+Kind<ListKind.Witness, Integer> doubled = functor.map(n -> n * 2, numbers);
 ```
 
 **Exercise 4:**
@@ -56,7 +80,8 @@ Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> "Value: " + i
 
 **Exercise 6:**
 ```java
-ListOf<String> uppercase = words.map(String::toUpperCase);
+ListFunctor functor = ListFunctor.INSTANCE;
+Kind<ListKind.Witness, String> uppercase = functor.map(String::toUpperCase, words);
 ```
 
 ### Tutorial 03: Applicative Combining
@@ -125,7 +150,8 @@ Maybe<String> email = userId.flatMap(findUser).flatMap(user -> user.email());
 
 **Exercise 6:**
 ```java
-ListOf<String> pairs = numbers1.flatMap(n1 -> numbers2.map(n2 -> n1 + "-" + n2));
+ListMonad monad = ListMonad.INSTANCE;
+Kind<ListKind.Witness, String> pairs = monad.flatMap(n1 -> monad.map(n2 -> n1 + "-" + n2, LIST.widen(numbers2)), numbers1);
 ```
 
 **Exercise 7:**
@@ -133,7 +159,7 @@ ListOf<String> pairs = numbers1.flatMap(n1 -> numbers2.map(n2 -> n1 + "-" + n2))
 return age.map2(city, (a, c) -> "Age: " + a + ", City: " + c);
 ```
 
-### Tutorial 05: Monad Error Handling
+### Tutorial 05: Error Handling Patterns
 
 **Exercise 1:**
 ```java
@@ -142,31 +168,31 @@ Kind<EitherKind.Witness<String>, Integer> error = monad.raiseError("Invalid inpu
 
 **Exercise 2:**
 ```java
-Either<String, Integer> recovered = failed.handleErrorWith(error -> Either.right(0));
+Integer recovered = failed.fold(error -> 0, value -> value);
 ```
 
 **Exercise 3:**
 ```java
-Either<String, Integer> recovered = error.recover(err -> -1);
+Integer recovered = error.fold(err -> -1, value -> value);
 ```
 
 **Exercise 4:**
 ```java
 if (err.equals("NOT_FOUND")) {
-  return Either.right(0);
+  return 0;
 } else {
-  return Either.left(err);
+  return -999;
 }
 ```
 
 **Exercise 5:**
 ```java
-Either<String, Integer> result = input.flatMap(parse).flatMap(validatePositive).handleErrorWith(err -> Either.right(1));
+Integer result = input.flatMap(parse).flatMap(validatePositive).fold(err -> 1, value -> value);
 ```
 
 **Exercise 6:**
 ```java
-Either<String, String> result = primary.orElse(fallback);
+Either<String, String> result = primary.fold(err -> fallback, value -> Either.right(value));
 ```
 
 **Exercise 7:**
@@ -202,7 +228,7 @@ String result2 = absent.getOrElse("Default");
 
 **Exercise 4:**
 ```java
-ListOf<Integer> result = numbers.filter(n -> n % 2 == 0).map(n -> n * 10);
+List<Integer> result = numbers.stream().filter(n -> n % 2 == 0).map(n -> n * 10).collect(Collectors.toList());
 ```
 
 **Exercise 5:**
@@ -245,10 +271,11 @@ Either<ValidationError, Registration> result =
 
 **Exercise 2:**
 ```java
-ListOf<ProcessedData> processed = rawData
+List<ProcessedData> processed = rawData.stream()
     .map(processRecord)
-    .filter(e -> e.isRight())
-    .map(e -> e.getRight());
+    .filter(Either::isRight)
+    .map(Either::getRight)
+    .collect(Collectors.toList());
 ```
 
 **Exercise 3:**
@@ -268,7 +295,7 @@ Either<String, User> missing = findUser.apply("user999").toEither("User not foun
 
 **Exercise 5:**
 ```java
-ListOf<Either<String, String>> processed = items.map(processItem);
+List<Either<String, String>> processed = items.stream().map(processItem).collect(Collectors.toList());
 ```
 
 **Exercise 6:**

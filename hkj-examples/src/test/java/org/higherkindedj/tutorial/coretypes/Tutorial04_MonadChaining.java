@@ -3,10 +3,14 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
+import java.util.List;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.list.ListOf;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.junit.jupiter.api.Test;
 
@@ -179,18 +183,19 @@ public class Tutorial04_MonadChaining {
    * <p>flatMap on List creates a Cartesian product - it applies the function to each element and
    * flattens the results.
    *
-   * <p>Task: Generate all pairs of numbers
+   * <p>Task: Generate all pairs of numbers using ListMonad
    */
   @Test
   void exercise6_flatMapWithList() {
-    ListOf<Integer> numbers1 = ListOf.of(1, 2);
-    ListOf<Integer> numbers2 = ListOf.of(10, 20);
+    ListMonad monad = ListMonad.INSTANCE;
+    Kind<ListKind.Witness, Integer> numbers1 = LIST.widen(List.of(1, 2));
+    List<Integer> numbers2 = List.of(10, 20);
 
-    // TODO: Replace ___ with code that creates all pairs
-    // Hint: numbers1.flatMap(n1 -> numbers2.map(n2 -> ...))
-    ListOf<String> pairs = ___;
+    // TODO: Replace ___ with code that creates all pairs using flatMap and map
+    // Hint: monad.flatMap(n1 -> monad.map(n2 -> n1 + "-" + n2, LIST.widen(numbers2)), numbers1)
+    Kind<ListKind.Witness, String> pairs = ___;
 
-    assertThat(pairs.toJavaList()).containsExactly("1-10", "1-20", "2-10", "2-20");
+    assertThat(LIST.narrow(pairs)).containsExactly("1-10", "1-20", "2-10", "2-20");
   }
 
   /**

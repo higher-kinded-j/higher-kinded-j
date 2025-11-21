@@ -6,13 +6,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
+import java.util.List;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.list.ListFunctor;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListOf;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -73,17 +73,18 @@ public class Tutorial02_FunctorMapping {
    *
    * <p>Mapping over a List applies the function to every element.
    *
-   * <p>Task: Double each number in the list
+   * <p>Task: Double each number in the list using the ListFunctor typeclass
    */
   @Test
   void exercise3_mapList() {
-    ListOf<Integer> numbers = ListOf.of(1, 2, 3, 4, 5);
+    ListFunctor functor = ListFunctor.INSTANCE;
+    Kind<ListKind.Witness, Integer> numbers = LIST.widen(List.of(1, 2, 3, 4, 5));
 
     // TODO: Replace ___ with code that doubles each number
-    // Hint: Use numbers.map(...) with a function that multiplies by 2
-    ListOf<Integer> doubled = ___;
+    // Hint: Use functor.map(n -> n * 2, numbers)
+    Kind<ListKind.Witness, Integer> doubled = ___;
 
-    assertThat(doubled.toJavaList()).containsExactly(2, 4, 6, 8, 10);
+    assertThat(LIST.narrow(doubled)).containsExactly(2, 4, 6, 8, 10);
   }
 
   /**
@@ -137,13 +138,14 @@ public class Tutorial02_FunctorMapping {
    */
   @Test
   void exercise6_methodReferences() {
-    ListOf<String> words = ListOf.of("hello", "world", "java");
+    ListFunctor functor = ListFunctor.INSTANCE;
+    Kind<ListKind.Witness, String> words = LIST.widen(List.of("hello", "world", "java"));
 
     // TODO: Replace ___ with a method reference that converts each string to uppercase
-    // Hint: String::toUpperCase
-    ListOf<String> uppercase = words.map(___);
+    // Hint: functor.map(String::toUpperCase, words)
+    Kind<ListKind.Witness, String> uppercase = ___;
 
-    assertThat(uppercase.toJavaList()).containsExactly("HELLO", "WORLD", "JAVA");
+    assertThat(LIST.narrow(uppercase)).containsExactly("HELLO", "WORLD", "JAVA");
   }
 
   /**

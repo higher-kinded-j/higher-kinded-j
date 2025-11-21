@@ -6,11 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
+import java.util.List;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListOf;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -77,18 +77,18 @@ public class Tutorial01_KindBasics {
    */
   @Test
   void exercise3_listKindConversion() {
-    ListOf<String> list = ListOf.of("apple", "banana", "cherry");
+    List<String> list = List.of("apple", "banana", "cherry");
 
     // TODO: Replace ___ with code that widens the list to Kind
     // Hint: Use the LIST helper's widen method
     Kind<ListKind.Witness, String> kind = ___;
 
-    // TODO: Replace ___ with code that narrows kind back to ListOf
+    // TODO: Replace ___ with code that narrows kind back to List
     // Hint: Use the LIST helper's narrow method
-    ListOf<String> narrowedList = ___;
+    List<String> narrowedList = ___;
 
     assertThat(narrowedList.size()).isEqualTo(3);
-    assertThat(narrowedList.toJavaList()).containsExactly("apple", "banana", "cherry");
+    assertThat(narrowedList).containsExactly("apple", "banana", "cherry");
   }
 
   /**
