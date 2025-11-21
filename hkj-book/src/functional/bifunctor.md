@@ -1,4 +1,4 @@
-# Bifunctor: Mapping Over Both Sides ⚖️
+# Bifunctor: Mapping Over Both Sides
 
 ~~~admonish info title="What You'll Learn"
 - How to transform types with two covariant parameters independently or simultaneously

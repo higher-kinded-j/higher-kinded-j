@@ -1,4 +1,4 @@
-# Monad: Sequencing Computations 🔗
+# Monad: Sequencing Computations
 
 ~~~admonish info title="What You'll Learn"
 - How to sequence computations where each step depends on previous results
@@ -21,7 +21,7 @@ A **`Monad`** is an `Applicative` that provides a new function called **`flatMap
 
 While `map` takes a simple function `A -> B`, `flatMap` takes a function that returns a new value *already wrapped in the monadic context*, i.e., `A -> Kind<F, B>`. `flatMap` then intelligently flattens the nested result `Kind<F, Kind<F, B>>` into a simple `Kind<F, B>`.
 
-This flattening behaviour is what allows you to chain operations together in a clean, readable sequence without creating deeply nested structures.
+This flattening behaviour is what enables you to chain operations together in a clean, readable sequence without creating deeply nested structures.
 
 ---
 
@@ -96,7 +96,7 @@ This is the primary method for chaining dependent operations.
 
 **Example: A Safe Database Workflow**
 
-Imagine a workflow where you need to fetch a userLogin, then use their ID to fetch their account, and finally use the account details to get their balance. Any of these steps could fail (e.g., return an empty `Optional`). With `flatMap`, the chain becomes clean and safe.
+Imagine a workflow where you need to fetch a user, then use their ID to fetch their account, and finally use the account details to get their balance. Any of these steps could fail (e.g., return an empty `Optional`). With `flatMap`, the chain becomes clean and safe.
 
 ```java
 import org.higherkindedj.hkt.Kind;
@@ -110,26 +110,26 @@ record User(int id, String name) {}
 record Account(int userId, String accountId) {}
 
 public Kind<Optional.Witness, User> findUser(int id) { /* ... */ }
-public Kind<Optional.Witness, Account> findAccount(User userLogin) { /* ... */ }
+public Kind<Optional.Witness, Account> findAccount(User user) { /* ... */ }
 public Kind<Optional.Witness, Double> getBalance(Account account) { /* ... */ }
 
 // --- Get the Monad instance for Optional ---
 Monad<Optional.Witness> monad = OptionalMonad.INSTANCE;
 
 // --- Scenario 1: Successful workflow ---
-Kind<Optional.Witness, Double> balanceSuccess = monad.flatMap(userLogin ->
+Kind<Optional.Witness, Double> balanceSuccess = monad.flatMap(user ->
     monad.flatMap(account ->
         getBalance(account),
-        findAccount(userLogin)),
+        findAccount(user)),
     findUser(1));
 
 // Result: Optional[1000.0]
 System.out.println(OPTIONAL.narrow(balanceSuccess));
 
-// --- Scenario 2: Failing workflow (userLogin not found) ---
-Kind<Optional.Witness, Double> balanceFailure = monad.flatMap(userLogin ->
+// --- Scenario 2: Failing workflow (user not found) ---
+Kind<Optional.Witness, Double> balanceFailure = monad.flatMap(user ->
     /* this part is never executed */
-    monad.flatMap(account -> getBalance(account), findAccount(userLogin)),
+    monad.flatMap(account -> getBalance(account), findAccount(user)),
     findUser(2)); // This returns Optional.empty()
 
 // The chain short-circuits immediately.
@@ -141,7 +141,7 @@ The `flatMap` chain elegantly handles the "happy path" while also providing robu
 
 ---
 
-## Utility Methods 🛠️
+## Utility Methods
 
 `Monad` also provides default methods for common tasks like debugging, conditional logic, and transforming results.
 
@@ -155,16 +155,16 @@ Let's imagine we only want to fetch accounts for "standard" users (ID < 100).
 // --- Get the Monad instance for Optional ---
 Monad<Optional.Witness> monad = OptionalMonad.INSTANCE;
 
-// A userLogin who meets the condition
+// A user who meets the condition
 Kind<Optional.Witness, User> standardUser = OPTIONAL.widen(Optional.of(new User(1, "Alice")));
-// A userLogin who does not
+// A user who does not
 Kind<Optional.Witness, User> premiumUser = OPTIONAL.widen(Optional.of(new User(101, "Bob")));
 
 // --- Scenario 1: Predicate is true ---
 Kind<Optional.Witness, Account> resultSuccess = monad.flatMapIfOrElse(
-    userLogin -> userLogin.id() < 100,      // Predicate: userLogin is standard
-    userLogin -> findAccount(userLogin),    // Action if true: find their account
-    userLogin -> OPTIONAL.widen(Optional.empty()), // Action if false: return empty
+    user -> user.id() < 100,      // Predicate: user is standard
+    user -> findAccount(user),    // Action if true: find their account
+    user -> OPTIONAL.widen(Optional.empty()), // Action if false: return empty
     standardUser
 );
 // Result: Optional[Account[userId=1, accountId=acc-123]]
@@ -173,9 +173,9 @@ System.out.println(OPTIONAL.narrow(resultSuccess));
 
 // --- Scenario 2: Predicate is false ---
 Kind<Optional.Witness, Account> resultFailure = monad.flatMapIfOrElse(
-    userLogin -> userLogin.id() < 100,
-    userLogin -> findAccount(userLogin),
-    userLogin -> OPTIONAL.widen(Optional.empty()), // This path is taken
+    user -> user.id() < 100,
+    user -> findAccount(user),
+    user -> OPTIONAL.widen(Optional.empty()), // This path is taken
     premiumUser
 );
 // Result: Optional.empty
@@ -187,13 +187,13 @@ System.out.println(OPTIONAL.narrow(resultFailure));
 Replaces the value inside a monad while preserving its effect (e.g., success or failure). This is useful when you only care *that* an operation succeeded, not what its result was.
 
 ```java
-// After finding a userLogin, we just want a confirmation message.
+// After finding a user, we just want a confirmation message.
 Kind<Optional.Witness, String> successMessage = monad.as("User found successfully", findUser(1));
 
 // Result: Optional["User found successfully"]
 System.out.println(OPTIONAL.narrow(successMessage));
 
-// If the userLogin isn't found, the effect (empty Optional) is preserved.
+// If the user isn't found, the effect (empty Optional) is preserved.
 Kind<Optional.Witness, String> failureMessage = monad.as("User found successfully", findUser(99));
 
 // Result: Optional.empty
@@ -205,19 +205,19 @@ System.out.println(OPTIONAL.narrow(failureMessage));
 Allows you to perform a side-effect (like logging) on the value inside a monad without altering the flow. The original monadic value is always returned.
 
 ```java
-// Log the userLogin's name if they are found
+// Log the user's name if they are found
 Kind<Optional.Witness, User> peekSuccess = monad.peek(
-    userLogin -> System.out.println("LOG: Found userLogin -> " + userLogin.name()),
+    user -> System.out.println("LOG: Found user -> " + user.name()),
     findUser(1)
 );
-// Console output: LOG: Found userLogin -> Alice
+// Console output: LOG: Found user -> Alice
 // Result: Optional[User[id=1, name=Alice]] (The original value is unchanged)
 System.out.println("Return value: " + OPTIONAL.narrow(peekSuccess));
 
 
-// If the userLogin isn't found, the action is never executed.
+// If the user isn't found, the action is never executed.
 Kind<Optional.Witness, User> peekFailure = monad.peek(
-    userLogin -> System.out.println("LOG: Found userLogin -> " + userLogin.name()),
+    user -> System.out.println("LOG: Found user -> " + user.name()),
     findUser(99)
 );
 // Console output: (nothing)

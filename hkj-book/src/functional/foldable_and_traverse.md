@@ -1,5 +1,4 @@
-# Foldable & Traverse: 
-## Reducing a Structure to a Summary
+# Foldable & Traverse: Reducing a Structure to a Summary
 
 ~~~admonish info title="What You'll Learn"
 - How to reduce any data structure to a summary value using `foldMap`

@@ -1,4 +1,4 @@
-# MonadError: Handling Errors Gracefully 🚨
+# MonadError: Handling Errors Gracefully
 
 While a `Monad` is excellent for sequencing operations that might fail (like with `Optional` or `Either`), it doesn't provide a standardised way to *inspect* or *recover* from those failures. The **`MonadError`** type class fills this gap.
 
@@ -41,7 +41,7 @@ public interface MonadError<F, E> extends Monad<F> {
 
 ### Why is it useful?
 
-`MonadError` formalizes the pattern of "try-catch" in a purely functional way. It lets you build complex workflows that need to handle specific types of errors without coupling your logic to a concrete implementation like `Either` or `Try`. You can write a function once, and it will work seamlessly with any data type that has a `MonadError` instance.
+`MonadError` formalises the pattern of "try-catch" in a purely functional way. It lets you build complex workflows that need to handle specific types of errors without coupling your logic to a concrete implementation like `Either` or `Try`. You can write a function once, and it will work seamlessly with any data type that has a `MonadError` instance.
 
 This is incredibly useful for building robust applications, separating business logic from error-handling logic, and providing sensible fallbacks when operations fail.
 
