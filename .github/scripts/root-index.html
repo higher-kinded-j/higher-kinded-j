@@ -73,26 +73,35 @@
             .then(response => response.json())
             .then(data => {
                 const container = document.getElementById('version-links');
-                container.innerHTML = '';
+                if (!data || !data.latest) {
+                    console.error('Invalid versions.json format: "latest" property is missing.');
+                    return; // Keep the default link
+                }
+
+                const fragment = document.createDocumentFragment();
 
                 // Add latest link
                 const latestLink = document.createElement('a');
                 latestLink.href = data.latest.path;
                 latestLink.textContent = data.latest.label;
-                container.appendChild(latestLink);
+                fragment.appendChild(latestLink);
 
                 // Add stable/release links
-                if (data.versions && data.versions.length > 0) {
+                if (data.versions && Array.isArray(data.versions)) {
                     data.versions.slice(0, 5).forEach(version => {
+                        if (!version || !version.path || !version.version) return;
                         const link = document.createElement('a');
                         link.href = version.path;
                         link.textContent = version.version;
                         if (version.version === data.stable) {
                             link.textContent += ' (Stable)';
                         }
-                        container.appendChild(link);
+                        fragment.appendChild(link);
                     });
                 }
+
+                container.innerHTML = '';
+                container.appendChild(fragment);
             })
             .catch(error => {
                 console.error('Error loading versions:', error);

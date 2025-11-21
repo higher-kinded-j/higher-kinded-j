@@ -104,22 +104,20 @@
         }
 
         // Add change event listener
-        selector.addEventListener('change', function() {
+        selector.addEventListener('change', async function() {
             const selectedVersion = this.value;
             if (selectedVersion && selectedVersion !== currentVersion) {
                 const currentPagePath = getCurrentPagePath();
                 const newUrl = buildVersionUrl(selectedVersion, currentPagePath);
 
                 // Check if the target page exists, otherwise go to home
-                checkPageExists(newUrl, function(exists) {
-                    if (exists) {
-                        window.location.href = newUrl;
-                    } else {
-                        // Fallback to version home page
-                        const homeUrl = selectedVersion === 'latest' ? '/latest/home.html' : `/${selectedVersion}/home.html`;
-                        window.location.href = homeUrl;
-                    }
-                });
+                if (await checkPageExists(newUrl)) {
+                    window.location.href = newUrl;
+                } else {
+                    // Fallback to version home page
+                    const homeUrl = selectedVersion === 'latest' ? '/latest/home.html' : `/${selectedVersion}/home.html`;
+                    window.location.href = homeUrl;
+                }
             }
         });
     }
@@ -128,17 +126,16 @@
      * Check if a page exists by making a HEAD request
      * This prevents users from hitting 404 pages when switching versions
      */
-    function checkPageExists(url, callback) {
+    async function checkPageExists(url) {
         // Use fetch with a HEAD request to check if the page exists without downloading it
-        fetch(url, { method: 'HEAD' })
-            .then(function(response) {
-                // response.ok is true for statuses in the range 200-299
-                callback(response.ok);
-            })
-            .catch(function() {
-                // A network error occurred, assume the page doesn't exist
-                callback(false);
-            });
+        try {
+            const response = await fetch(url, { method: 'HEAD' });
+            // response.ok is true for statuses in the range 200-299
+            return response.ok;
+        } catch {
+            // A network error occurred, assume the page doesn't exist
+            return false;
+        }
     }
 
     /**
@@ -177,16 +174,30 @@
 
         const warning = document.createElement('div');
         warning.className = 'version-warning';
-        warning.innerHTML = `
-            <div class="version-warning-content">
-                <strong>⚠️ Outdated Documentation</strong>
-                <p>
-                    You are viewing documentation for version <strong>${currentVersion}</strong>.
-                    The latest stable version is <strong>${stableVersion}</strong>.
-                    <a href="/${stableVersion}${getCurrentPagePath()}">View latest version</a>
-                </p>
-            </div>
-        `;
+
+        const warningContent = document.createElement('div');
+        warningContent.className = 'version-warning-content';
+
+        const title = document.createElement('strong');
+        title.textContent = '⚠️ Outdated Documentation';
+
+        const p = document.createElement('p');
+        const currentVersionStrong = document.createElement('strong');
+        currentVersionStrong.textContent = currentVersion;
+        const stableVersionStrong = document.createElement('strong');
+        stableVersionStrong.textContent = stableVersion;
+        const link = document.createElement('a');
+        link.href = `/${stableVersion}${getCurrentPagePath()}`;
+        link.textContent = 'View latest version';
+
+        p.append(
+            'You are viewing documentation for version ', currentVersionStrong,
+            '. The latest stable version is ', stableVersionStrong, '. '
+        );
+        p.appendChild(link);
+
+        warningContent.append(title, p);
+        warning.appendChild(warningContent);
 
         content.insertBefore(warning, content.firstChild);
     }
