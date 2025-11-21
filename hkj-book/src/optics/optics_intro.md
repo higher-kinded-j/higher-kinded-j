@@ -33,7 +33,7 @@ This is the problem that **Optics** solve.
 
 At their core, optics are simply **composable, functional getters and setters** for immutable data structures.
 
-Think of an optic as a zoom lens for your data. It's a first-class object that represents a path from a whole structure (like `User`) to a specific part (like the street `name`). Because it's an object, you can pass it around, compose it with other optics, and use it to perform functional updates.
+Think of an optic as a *zoom lens* for your data. It's a first-class object that represents a path from a whole structure (like `User`) to a specific part (like the street `name`). Because it's an object, you can pass it around, compose it with other optics, and use it to perform functional updates.
 
 ## Think of Optics Like...
 
