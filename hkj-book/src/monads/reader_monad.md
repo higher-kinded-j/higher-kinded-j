@@ -257,9 +257,25 @@ In this example:
 ~~~
 
 ~~~admonish important  title="Key Points:"
-The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management. 
+The Reader monad (`Reader<R, A>`, `ReaderKind`, `ReaderMonad`) in `Higher-Kinded-J` provides a functional approach to dependency injection and configuration management.
 
-It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using Higher-Kinded-J and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`. 
+It allows you to define computations that depend on a read-only environment `R` without explicitly passing `R` everywhere. By using Higher-Kinded-J and the `ReaderMonad`, you can compose these dependent functions cleanly using `map` and `flatMap`, providing the actual environment only once when the final computation is executed via `runReader`.
 
 This leads to more modular, testable, and less cluttered code when dealing with shared context.
+~~~
+
+~~~ admonish tip title="Further Reading"
+For deeper exploration of the Reader monad and dependency injection patterns:
+
+**Foundational Resources:**
+- **Cats Documentation**: [Reader Monad](https://typelevel.org/cats/datatypes/reader.html) - Scala implementation with practical examples
+- **Haskell Wiki**: [Reader Monad](https://wiki.haskell.org/All_About_Monads#The_Reader_monad) - Theoretical foundation and use cases
+- **Mark Seemann**: [Dependency Injection Revisited](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) - Functional alternatives to traditional DI
+
+**Java-Focused Resources:**
+- **Functional Java**: [Reader implementation](http://www.functionaljava.org/javadoc/4.8.1/functionaljava/fj/Reader.html) - Pure functional library for Java with Reader monad
+- **Vavr Documentation**: [Function composition patterns](https://docs.vavr.io/#_functions) - Demonstrates functional composition techniques applicable to Reader pattern
+- **Baeldung**: [Introduction to Vavr](https://www.baeldung.com/vavr) - Java FP patterns and idioms
+- **Richard Warburton**: "Java 8 Lambdas" (O'Reilly, 2014) - Functional programming fundamentals in Java
+- **Pierre-Yves Saumont**: "Functional Programming in Java" (Manning, 2017) - Chapter on handling dependencies functionally
 ~~~

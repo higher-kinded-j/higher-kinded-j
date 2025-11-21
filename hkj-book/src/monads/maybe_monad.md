@@ -1,4 +1,4 @@
-#The MaybeMonad:
+# The MaybeMonad:
 ## _Handling Optional Values with Non-Null Guarantee_
 
 ~~~admonish info title="What You'll Learn"
@@ -15,7 +15,9 @@
 
 ## Purpose
 
-The `Maybe<T>` type in `Higher-Kinded-J` represents a value that might be present (`Just<T>`) or absent (`Nothing<T>`). It is conceptually similar to `java.util.Optional<T>` but with a key distinction: a `Just<T>` is guaranteed to hold a **non-null** value. This strictness helps prevent `NullPointerExceptions` when a value is asserted to be present. `Maybe.fromNullable(T value)` or `MaybeMonad.of(T value)` should be used if the input value could be null, as these will correctly produce a `Nothing` in such cases.
+How do you handle optional values in Java without falling into the null pointer trap? The `Maybe<T>` type in Higher-Kinded-J provides an elegant solution—representing a value that might be present (`Just<T>`) or absent (`Nothing<T>`), with one crucial guarantee: a `Just<T>` will never hold null.
+
+The `Maybe<T>` type is conceptually similar to `java.util.Optional<T>` but with a key distinction: a `Just<T>` is guaranteed to hold a **non-null** value. This strictness helps prevent `NullPointerExceptions` when a value is asserted to be present. `Maybe.fromNullable(T value)` or `MaybeMonad.of(T value)` should be used if the input value could be null, as these will correctly produce a `Nothing` in such cases.
 
 The `MaybeMonad` provides a monadic interface for `Maybe`, allowing for functional composition and integration with the Higher-Kinded Type (HKT) system. This facilitates chaining operations that may or may not yield a value, propagating the `Nothing` state automatically.
 
@@ -33,6 +35,10 @@ It implements `MonadError<MaybeKind.Witness, Unit>`, which transitively includes
 ## Structure
 
 ![maybe_monad.svg](../images/puml/maybe_monad.svg)
+
+~~~admonish note title="Related Types"
+For working with Java's standard `Optional` type in the HKT system, see [Optional Monad](./optional_monad.md). For error handling with typed error values, see [Either Monad](./either_monad.md).
+~~~
 
 
 ## How to Use `MaybeMonad` and `Maybe`

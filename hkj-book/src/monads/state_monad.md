@@ -17,9 +17,11 @@
 
 ## Purpose
 
-In many applications, we need to manage computations that involve **state** that changes over time. 
+State is everywhere in programming—counters increment, configurations update, game characters level up. Yet managing state functionally, without mutation, often feels like fighting the paradigm. The State monad resolves this tension elegantly.
 
-Examples could include:
+In many applications, we need to manage computations that involve **state** that changes over time.
+
+Examples include:
 
 * A counter being incremented.
 * A configuration object being updated.
@@ -351,10 +353,24 @@ History contains 4 transaction(s):
 ~~~
 
 ~~~admonish important  title="Key Points:"
-The State monad (`State<S, A>`, `StateKind`, `StateMonad`) , as provided by higher-kinded-j, offers an elegant and functional way to manage state transformations. 
+The State monad (`State<S, A>`, `StateKind`, `StateMonad`) , as provided by higher-kinded-j, offers an elegant and functional way to manage state transformations.
 
 By defining atomic state operations and composing them with map and flatMap, you can build complex stateful workflows that are easier to reason about, test, and maintain, as the state is explicitly managed by the monad's structure rather than through mutable side effects. The For comprehension helps simplify the workflow.
 
 Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.
+
+~~~
+
+~~~ admonish tip title="Further Reading"
+For deeper exploration of the State monad and its applications:
+
+**Foundational Resources:**
+- **Philip Wadler**: [Monads for functional programming](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf) - Classic paper introducing monads including State
+- **Cats Documentation**: [State Monad](https://typelevel.org/cats/datatypes/state.html) - Scala implementation with comprehensive examples
+- **Haskell Wiki**: [State Monad](https://wiki.haskell.org/State_Monad) - Conceptual foundation and theory
+
+**Java-Focused Resources:**
+- **Pierre-Yves Saumont**: "Functional Programming in Java" (Manning, 2017) - Deep dive into functional techniques including state management
+- **Venkat Subramaniam**: "Functional Programming in Java" (O'Reilly, 2014) - Practical guide to FP patterns in modern Java
 
 ~~~

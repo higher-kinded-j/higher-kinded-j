@@ -211,7 +211,7 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ### 14. `State<S, A>`
 
-* **Type Definition**: Custom functional interface ([`State`](hhttps://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/State.java)) wrapping `Function<S, StateTuple<S, A>>`.
+* **Type Definition**: Custom functional interface ([`State`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/State.java)) wrapping `Function<S, StateTuple<S, A>>`.
 * **`StateKind<S,A>` Interface**: `State<S,A>` itself implements `StateKind<S,A>`, and `StateKind<S,A> extends Kind<StateKind.Witness<S>, A>`.
 * **Witness Type `F_WITNESS`**: `StateKind.Witness<S>` (State type `S` is fixed).
 * **`StateKindHelper`**: `wrap` casts `State` to `Kind`; `unwrap` casts `Kind` to `State`. Provides `pure(value)`, `get()`, `set(state)`, `modify(func)`, `inspect(func)`, `runState(kind, initialState)`, etc.
@@ -252,14 +252,14 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ---
 
-### 15. `Const<C, A>`
+### 17. `Const<C, A>`
 
-* **Type Definition**: Custom record ([`Const`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/const_/Const.java)) holding a constant value of type `C` whilst treating `A` as a phantom type parameter (present in the type signature but not stored).
-* **`ConstKind2<C, A>` Interface**: ([`ConstKind2<C, A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/const_/ConstKind2.java)) extends `Kind2<ConstKind2.Witness, C, A>`. This interface allows `Const` to be used with bifunctor operations.
+* **Type Definition**: Custom record ([`Const`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/Const.java)) holding a constant value of type `C` whilst treating `A` as a phantom type parameter (present in the type signature but not stored).
+* **`ConstKind2<C, A>` Interface**: ([`ConstKind2<C, A>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/ConstKind2.java)) extends `Kind2<ConstKind2.Witness, C, A>`. This interface allows `Const` to be used with bifunctor operations.
 * **Witness Type `F_WITNESS`**: `ConstKind2.Witness` (used for bifunctor type class instances).
-* **`ConstKindHelper` Class**: ([`ConstKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/const_/ConstKindHelper.java)). Provides `widen2` to cast `Const<C, A>` to `Kind2<ConstKind2.Witness, C, A>` and `narrow2` to cast back. Uses an internal `ConstKind2Holder<C, A>` record that implements `ConstKind2<C, A>`.
+* **`ConstKindHelper` Class**: ([`ConstKindHelper`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/ConstKindHelper.java)). Provides `widen2` to cast `Const<C, A>` to `Kind2<ConstKind2.Witness, C, A>` and `narrow2` to cast back. Uses an internal `ConstKind2Holder<C, A>` record that implements `ConstKind2<C, A>`.
 * **Type Class Instances**: (Only bifunctor, no monad instance as mapping the phantom type has no computational effect)
-  * [`ConstBifunctor`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/const_/ConstBifunctor.java) (`Bifunctor<ConstKind2.Witness>`). This instance provides `first` (transforms the constant value), `second` (changes only the phantom type), and `bimap` (combines both, though only `first` affects the constant value).
+  * [`ConstBifunctor`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/constant/ConstBifunctor.java) (`Bifunctor<ConstKind2.Witness>`). This instance provides `first` (transforms the constant value), `second` (changes only the phantom type), and `bimap` (combines both, though only `first` affects the constant value).
 * **Notes**: The second type parameter `A` is **phantom**—it exists only in the type signature and has no runtime representation. Calling `mapSecond` or `second` preserves the constant value whilst changing the phantom type in the signature. This makes `Const` particularly useful for fold implementations (accumulating a single value), getter patterns in lens libraries (van Laarhoven lenses), and data extraction from structures without transformation. The mapper function in `second` is applied to `null` for exception propagation, so use null-safe mappers. Similar to `Const` in Scala's Cats and Scalaz libraries.
 * **Usage**: [How to use the Const Type](./const_type.md)
 

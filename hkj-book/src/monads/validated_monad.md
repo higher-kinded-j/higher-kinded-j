@@ -3,9 +3,9 @@
 
 ~~~admonish info title="What You'll Learn"
 - How to distinguish between valid and invalid data with explicit types
-- Building form validation that collects all errors, not just the first one
-- Using Validated as a MonadError for standardised error handling
-- The difference between fail-fast (Monad) and error-accumulating (Applicative) validation
+- Using Validated as a MonadError for fail-fast error handling
+- Understanding when to use monadic operations (fail-fast) vs applicative operations (error accumulation)
+- The difference between fail-fast validation (Monad/MonadError) and error-accumulating validation (Applicative with Semigroup)
 - Real-world input validation scenarios with detailed error reporting
 ~~~
 
@@ -40,6 +40,10 @@ The `ValidatedMonad<E>` provides a monadic interface for `Validated<E, A>` (wher
 
 **Monadic Structure** The `ValidatedMonad<E>` enables monadic operations on `ValidatedKind.Witness<E>`.
 ![validated_monad.svg](../images/puml/validated_monad.svg)
+
+~~~admonish note title="Related Types"
+Unlike [Either Monad](./either_monad.md) which is fail-fast in both Monad and Applicative contexts, `Validated` can be used with `Applicative` operations for error accumulation (when `E` has a `Semigroup` instance). When used as a Monad via `ValidatedMonad`, it behaves fail-fast like Either.
+~~~
 
 ## How to Use `ValidatedMonad<E>` and `Validated<E, A>`
 

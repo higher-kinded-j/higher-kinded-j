@@ -6,6 +6,7 @@ left to right direction
 
 package "Supported Types (Monad Implementations)" {
     class ListMonad
+    class StreamMonad
     class OptionalMonad
     class MaybeMonad
     class "EitherMonad<L>" as EitherMonad
@@ -18,8 +19,11 @@ package "Supported Types (Monad Implementations)" {
     class "StateMonad<S>" as StateMonad
     class "WriterMonad<W>" as WriterMonad
     class "ValidatedMonad<E>" as ValidatedMonad
+    class TrampolineMonad
+    class "FreeMonad<F>" as FreeMonad
 
     ListMonad <|.. CoreInterfaces.Monad
+    StreamMonad <|.. CoreInterfaces.MonadZero
     OptionalMonad <|.. CoreInterfaces.MonadError
     MaybeMonad <|.. CoreInterfaces.MonadError
     EitherMonad <|.. CoreInterfaces.MonadError
@@ -32,11 +36,22 @@ package "Supported Types (Monad Implementations)" {
     ReaderMonad <|.. CoreInterfaces.Monad
     StateMonad <|.. CoreInterfaces.Monad
     WriterMonad <|.. CoreInterfaces.Monad
+    TrampolineMonad <|.. CoreInterfaces.Monad
+    FreeMonad <|.. CoreInterfaces.Monad
 
     ' Example relation for Optional
     OptionalMonad ..> "Simulation Plumbing.OptionalKind" : operates on witness
 }
 
-
+'package "Bifunctor Implementations" {
+'    class ConstBifunctor
+'
+'    ConstBifunctor <|.. CoreInterfaces.Bifunctor
+'
+'    note right of ConstBifunctor
+'        Const<C, A> holds constant value C
+'        with phantom type parameter A
+'    end note
+'}
 
 @enduml
