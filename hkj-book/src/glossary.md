@@ -1,4 +1,4 @@
-# Glossary of Functional Programming Terms 📖
+# Glossary of Functional Programming Terms
 
 ~~~admonish info title="What This Section Covers"
 - Key terminology used throughout Higher-Kinded-J documentation
@@ -21,9 +21,13 @@ This glossary provides clear, practical explanations of functional programming a
 
 **Example:**
 ```java
-// Contravariant behaviour in Java
-Consumer<Object> objectConsumer = obj -> System.out.println(obj);
-Consumer<String> stringConsumer = objectConsumer; // ✅ Can accept more general consumer
+// Contravariant behaviour in Java (function parameters)
+// A function accepting Object can be used where one accepting String is expected
+Comparator<Object> objectComparator = (a, b) -> a.toString().compareTo(b.toString());
+Comparator<String> stringComparator = objectComparator; // ✅ Valid - contravariance in action
+
+// Note: Java's Consumer<T> is invariant, so Consumer<Object> ≠ Consumer<String>
+// But function *parameters* are naturally contravariant
 
 // In Higher-Kinded-J: Profunctor's first parameter is contravariant
 Profunctor<FunctionKind.Witness> prof = FunctionProfunctor.INSTANCE;
@@ -680,6 +684,43 @@ Kind<OptionalKind.Witness, String> empty =
 - Error types for contexts where absence is the only error (Optional, Maybe)
 
 **Related:** [Core Concepts](hkts/core-concepts.md)
+
+---
+
+### Const
+
+**Definition:** A constant functor that wraps a value of type `C` whilst ignoring a phantom type parameter `A`. The second type parameter exists purely for type-level information and has no runtime representation.
+
+**Structure:** `Const<C, A>` where `C` is the concrete value type and `A` is phantom.
+
+**Example:**
+```java
+// Store a String, phantom type is Integer
+Const<String, Integer> stringConst = new Const<>("hello");
+
+String value = stringConst.value(); // "hello"
+
+// Mapping over the phantom type changes the signature but not the value
+Const<String, Double> doubleConst = stringConst.mapSecond(i -> i * 2.0);
+System.out.println(doubleConst.value()); // Still "hello" (unchanged!)
+
+// Bifunctor allows transforming the actual value
+Bifunctor<ConstKind2.Witness> bifunctor = ConstBifunctor.INSTANCE;
+Const<Integer, Double> intConst = CONST.narrow2(bifunctor.bimap(
+    String::length,
+    i -> i * 2.0,
+    CONST.widen2(stringConst)
+));
+System.out.println(intConst.value()); // 5
+```
+
+**When To Use:**
+- Implementing van Laarhoven lenses and folds
+- Accumulating values whilst traversing structures
+- Teaching phantom types and their practical applications
+- Building optics that extract rather than modify data
+
+**Related:** [Phantom Type](#phantom-type), [Bifunctor](#bifunctor), [Const Type Documentation](monads/const_type.md)
 
 ---
 
