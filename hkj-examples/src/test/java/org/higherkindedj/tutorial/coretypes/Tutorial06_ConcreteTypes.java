@@ -35,11 +35,11 @@ public class Tutorial06_ConcreteTypes {
   void exercise1_eitherForErrorHandling() {
     Function<Integer, Either<String, Integer>> validateAge =
         age -> {
-          // TODO: Replace ___ with validation logic
+          // TODO: Replace null with validation logic
           // Return Either.left("Too young") if age < 18
           // Return Either.left("Invalid age") if age < 0 or age > 150
           // Otherwise return Either.right(age)
-          return ___;
+          return null;
         };
 
     assertThat(validateAge.apply(25).isRight()).isTrue();
@@ -63,10 +63,10 @@ public class Tutorial06_ConcreteTypes {
   void exercise2_maybeForOptionalValues() {
     Function<String, Maybe<String>> lookup =
         key -> {
-          // TODO: Replace ___ with lookup logic
+          // TODO: Replace null with lookup logic
           // Return Maybe.just("value") if key equals "key1"
           // Return Maybe.nothing() otherwise
-          return ___;
+          return null;
         };
 
     Maybe<String> found = lookup.apply("key1");
@@ -89,10 +89,10 @@ public class Tutorial06_ConcreteTypes {
     Maybe<String> present = Maybe.just("Hello");
     Maybe<String> absent = Maybe.nothing();
 
-    // TODO: Replace ___ with code that gets the value or returns "Default"
+    // TODO: Replace null with code that gets the value or returns "Default"
     // Hint: Use .getOrElse(...)
-    String result1 = ___;
-    String result2 = ___;
+    String result1 = null;
+    String result2 = null;
 
     assertThat(result1).isEqualTo("Hello");
     assertThat(result2).isEqualTo("Default");
@@ -109,13 +109,13 @@ public class Tutorial06_ConcreteTypes {
   void exercise4_listOperations() {
     List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Creates a stream from numbers
     // 2. Filters to only even numbers
     // 3. Maps to multiply each by 10
     // 4. Collects back to a list
     // Hint: numbers.stream().filter(n -> n % 2 == 0).map(n -> n * 10).collect(Collectors.toList())
-    List<Integer> result = ___;
+    List<Integer> result = null;
 
     assertThat(result).containsExactly(20, 40, 60, 80, 100);
   }
@@ -146,8 +146,8 @@ public class Tutorial06_ConcreteTypes {
     Validated<String, Integer> validAge = validateAge.apply(25);
     Validated<String, String> validEmail = validateEmail.apply("alice@example.com");
 
-    // TODO: Replace ___ with code that combines the three validations using map3
-    Validated<String, User> validUser = ___;
+    // TODO: Replace null with code that combines the three validations using map3
+    Validated<String, User> validUser = null;
 
     assertThat(validUser.isValid()).isTrue();
 
@@ -156,8 +156,8 @@ public class Tutorial06_ConcreteTypes {
     Validated<String, Integer> invalidAge = validateAge.apply(15);
     Validated<String, String> invalidEmail = validateEmail.apply("not-an-email");
 
-    // TODO: Replace ___ with code that combines the invalid validations
-    Validated<String, User> invalidUser = ___;
+    // TODO: Replace null with code that combines the invalid validations
+    Validated<String, User> invalidUser = null;
 
     assertThat(invalidUser.isInvalid()).isTrue();
     // Validated accumulates errors (implementation-dependent on how Semigroup works)
@@ -175,10 +175,10 @@ public class Tutorial06_ConcreteTypes {
     Maybe<String> present = Maybe.just("value");
     Maybe<String> absent = Maybe.nothing();
 
-    // TODO: Replace ___ with code that converts Maybe to Either
+    // TODO: Replace null with code that converts Maybe to Either
     // Hint: Use .toEither("Error message")
-    Either<String, String> either1 = ___;
-    Either<String, String> either2 = ___;
+    Either<String, String> either1 = null;
+    Either<String, String> either2 = null;
 
     assertThat(either1.isRight()).isTrue();
     assertThat(either1.getRight()).isEqualTo("value");
@@ -199,10 +199,10 @@ public class Tutorial06_ConcreteTypes {
     // Option 1: Use Either to provide an error message
     Function<Integer, Function<Integer, Either<String, Integer>>> safeDivideEither =
         a -> b -> {
-          // TODO: Replace ___ with Either-based division
+          // TODO: Replace null with Either-based division
           // Return Left("Division by zero") if b == 0
           // Otherwise return Right(a / b)
-          return ___;
+          return null;
         };
 
     assertThat(safeDivideEither.apply(10).apply(2).getRight()).isEqualTo(5);
@@ -211,10 +211,10 @@ public class Tutorial06_ConcreteTypes {
     // Option 2: Use Maybe if you don't need an error message
     Function<Integer, Function<Integer, Maybe<Integer>>> safeDivideMaybe =
         a -> b -> {
-          // TODO: Replace ___ with Maybe-based division
+          // TODO: Replace null with Maybe-based division
           // Return Nothing if b == 0
           // Otherwise return Just(a / b)
-          return ___;
+          return null;
         };
 
     assertThat(safeDivideMaybe.apply(10).apply(2).get()).isEqualTo(5);

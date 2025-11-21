@@ -51,9 +51,9 @@ public class Tutorial04_MonadChaining {
 
     Either<String, String> input = Either.right("42");
 
-    // TODO: Replace ___ with code that uses flatMap to parse the string
+    // TODO: Replace null with code that uses flatMap to parse the string
     // Hint: input.flatMap(parse)
-    Either<String, Integer> result = ___;
+    Either<String, Integer> result = null;
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(42);
@@ -85,9 +85,9 @@ public class Tutorial04_MonadChaining {
 
     Either<String, String> input = Either.right("5");
 
-    // TODO: Replace ___ with chained flatMap operations
+    // TODO: Replace null with chained flatMap operations
     // Hint: input.flatMap(parse).flatMap(validatePositive).flatMap(divideHundredBy)
-    Either<String, Double> result = ___;
+    Either<String, Double> result = null;
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(20.0);
@@ -116,9 +116,9 @@ public class Tutorial04_MonadChaining {
 
     Either<String, String> input = Either.right("-5"); // Will fail validation
 
-    // TODO: Replace ___ with chained operations
+    // TODO: Replace null with chained operations
     // The chain will stop at validatePositive because -5 is not positive
-    Either<String, Integer> result = input.flatMap(parse).flatMap(___);
+    Either<String, Integer> result = input.flatMap(parse).flatMap(validatePositive);
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Must be positive");
@@ -140,8 +140,8 @@ public class Tutorial04_MonadChaining {
     Either<String, Integer> value = Either.right(5);
 
     // This function returns Either, so we need flatMap, not map
-    // TODO: Replace ___ with the correct method (flatMap)
-    Either<String, Integer> result = value.___(validate);
+    // TODO: Replace null with the correct method (flatMap)
+    Either<String, Integer> result = value.flatMap(validate);
 
     assertThat(result.getRight()).isEqualTo(10);
   }
@@ -168,10 +168,10 @@ public class Tutorial04_MonadChaining {
 
     Maybe<String> userId = Maybe.just("user1");
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Finds the user by ID (flatMap with findUser)
     // 2. Gets their email (flatMap with user -> user.email())
-    Maybe<String> email = ___;
+    Maybe<String> email = null;
 
     assertThat(email.isJust()).isTrue();
     assertThat(email.get()).isEqualTo("alice@example.com");
@@ -191,9 +191,9 @@ public class Tutorial04_MonadChaining {
     Kind<ListKind.Witness, Integer> numbers1 = LIST.widen(List.of(1, 2));
     List<Integer> numbers2 = List.of(10, 20);
 
-    // TODO: Replace ___ with code that creates all pairs using flatMap and map
+    // TODO: Replace null with code that creates all pairs using flatMap and map
     // Hint: monad.flatMap(n1 -> monad.map(n2 -> n1 + "-" + n2, LIST.widen(numbers2)), numbers1)
-    Kind<ListKind.Witness, String> pairs = ___;
+    Kind<ListKind.Witness, String> pairs = null;
 
     assertThat(LIST.narrow(pairs)).containsExactly("1-10", "1-20", "2-10", "2-20");
   }
@@ -212,7 +212,7 @@ public class Tutorial04_MonadChaining {
 
     Either<String, String> userId = Either.right("user1");
 
-    // TODO: Replace ___ with code that uses flatMap to get both age and city
+    // TODO: Replace null with code that uses flatMap to get both age and city
     // Then combine them into a description string
     Either<String, String> result =
         userId.flatMap(
@@ -220,7 +220,7 @@ public class Tutorial04_MonadChaining {
               Either<String, Integer> age = getUserAge.apply(id);
               Either<String, String> city = getUserCity.apply(id);
               // Use map2 to combine age and city
-              return ___;
+              return null;
             });
 
     assertThat(result.getRight()).isEqualTo("Age: 30, City: New York");

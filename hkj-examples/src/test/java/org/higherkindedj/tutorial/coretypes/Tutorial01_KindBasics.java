@@ -40,9 +40,9 @@ public class Tutorial01_KindBasics {
   void exercise1_widenEitherToKind() {
     Either<String, Integer> either = Either.right(42);
 
-    // TODO: Replace ___ with code that widens either to Kind
+    // TODO: Replace null with code that widens either to Kind
     // Hint: Use the EITHER helper's widen method
-    Kind<EitherKind.Witness<String>, Integer> kind = ___;
+    Kind<EitherKind.Witness<String>, Integer> kind = null;
 
     // Verify by narrowing back and checking the value
     assertThat(EITHER.narrow(kind).getRight()).isEqualTo(42);
@@ -60,9 +60,9 @@ public class Tutorial01_KindBasics {
   void exercise2_narrowKindToEither() {
     Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(Either.right(100));
 
-    // TODO: Replace ___ with code that narrows kind to Either
+    // TODO: Replace null with code that narrows kind to Either
     // Hint: Use the EITHER helper's narrow method
-    Either<String, Integer> either = ___;
+    Either<String, Integer> either = null;
 
     assertThat(either.isRight()).isTrue();
     assertThat(either.getRight()).isEqualTo(100);
@@ -79,13 +79,13 @@ public class Tutorial01_KindBasics {
   void exercise3_listKindConversion() {
     List<String> list = List.of("apple", "banana", "cherry");
 
-    // TODO: Replace ___ with code that widens the list to Kind
+    // TODO: Replace null with code that widens the list to Kind
     // Hint: Use the LIST helper's widen method
-    Kind<ListKind.Witness, String> kind = ___;
+    Kind<ListKind.Witness, String> kind = null;
 
-    // TODO: Replace ___ with code that narrows kind back to List
+    // TODO: Replace null with code that narrows kind back to List
     // Hint: Use the LIST helper's narrow method
-    List<String> narrowedList = ___;
+    List<String> narrowedList = null;
 
     assertThat(narrowedList.size()).isEqualTo(3);
     assertThat(narrowedList).containsExactly("apple", "banana", "cherry");
@@ -104,9 +104,9 @@ public class Tutorial01_KindBasics {
   void exercise4_understandingWitnessTypes() {
     Either<String, Boolean> either = Either.right(true);
 
-    // TODO: Replace ___ with the correct witness type for Either<String, Boolean>
+    // TODO: Fill in the correct witness type for Either<String, Boolean>
     // Hint: The witness type should be EitherKind.Witness<String>
-    Kind<___, Boolean> kind = EITHER.widen(either);
+    Kind<EitherKind.Witness<String>, Boolean> kind = EITHER.widen(either);
 
     Either<String, Boolean> result = EITHER.narrow(kind);
     assertThat(result.getRight()).isTrue();

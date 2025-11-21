@@ -33,9 +33,9 @@ public class Tutorial03_ApplicativeCombining {
    */
   @Test
   void exercise1_liftingValues() {
-    // TODO: Replace ___ with code that creates Either.right(42)
+    // TODO: Replace null with code that creates Either.right(42)
     // Hint: Use Either.right() to lift the value
-    Either<String, Integer> result = ___;
+    Either<String, Integer> result = null;
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(42);
@@ -53,9 +53,9 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> value2 = Either.right(20);
 
-    // TODO: Replace ___ with code that uses map2 to add the two values
+    // TODO: Replace null with code that uses map2 to add the two values
     // Hint: value1.map2(value2, (a, b) -> a + b)
-    Either<String, Integer> result = ___;
+    Either<String, Integer> result = null;
 
     assertThat(result.getRight()).isEqualTo(30);
   }
@@ -73,8 +73,8 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> error = Either.left("Error occurred");
 
-    // TODO: Replace ___ with code that attempts to combine value1 and error
-    Either<String, Integer> result = ___;
+    // TODO: Replace null with code that attempts to combine value1 and error
+    Either<String, Integer> result = null;
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Error occurred");
@@ -95,9 +95,9 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, Integer> age = Either.right(30);
     Either<String, String> email = Either.right("alice@example.com");
 
-    // TODO: Replace ___ with code that uses map3 to create a Person
+    // TODO: Replace null with code that uses map3 to create a Person
     // Hint: name.map3(age, email, (n, a, e) -> new Person(n, a, e))
-    Either<String, Person> result = ___;
+    Either<String, Person> result = null;
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().name()).isEqualTo("Alice");
@@ -122,9 +122,9 @@ public class Tutorial03_ApplicativeCombining {
     Validated<String, Integer> age = Validated.invalid("Age must be positive");
     Validated<String, String> email = Validated.invalid("Email is invalid");
 
-    // TODO: Replace ___ with code that uses map3 to combine the validations
+    // TODO: Replace null with code that uses map3 to combine the validations
     // Even though all are invalid, Validated will accumulate all errors
-    Validated<String, FormData> result = ___;
+    Validated<String, FormData> result = null;
 
     assertThat(result.isInvalid()).isTrue();
     // Validated accumulates errors - in this case, it will contain one of the errors
@@ -147,9 +147,9 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, Integer> quantity = Either.right(2);
     Either<String, Double> price = Either.right(999.99);
 
-    // TODO: Replace ___ with code that uses map4 to create an Order
+    // TODO: Replace null with code that uses map4 to create an Order
     // Hint: id.map4(product, quantity, price, (i, p, q, pr) -> new Order(i, p, q, pr))
-    Either<String, Order> result = ___;
+    Either<String, Order> result = null;
 
     assertThat(result.isRight()).isTrue();
     Order order = result.getRight();
@@ -176,8 +176,8 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, String> zip = Either.right("62701");
     Either<String, String> country = Either.right("USA");
 
-    // TODO: Replace ___ with code that uses map5 to create an Address
-    Either<String, Address> result = ___;
+    // TODO: Replace null with code that uses map5 to create an Address
+    Either<String, Address> result = null;
 
     assertThat(result.isRight()).isTrue();
     Address address = result.getRight();

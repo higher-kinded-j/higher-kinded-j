@@ -37,9 +37,9 @@ public class Tutorial05_MonadErrorHandling {
   void exercise1_raisingErrors() {
     EitherMonad<String> monad = EitherMonad.instance();
 
-    // TODO: Replace ___ with code that raises an error "Invalid input"
+    // TODO: Replace null with code that raises an error "Invalid input"
     // Hint: Use monad.raiseError(...)
-    Kind<EitherKind.Witness<String>, Integer> error = ___;
+    Kind<EitherKind.Witness<String>, Integer> error = null;
 
     Either<String, Integer> result = EITHER.narrow(error);
     assertThat(result.isLeft()).isTrue();
@@ -66,10 +66,10 @@ public class Tutorial05_MonadErrorHandling {
 
     Either<String, Integer> failed = parse.apply("not-a-number");
 
-    // TODO: Replace ___ with code that handles the error using fold
+    // TODO: Replace null with code that handles the error using fold
     // If there's an error (Left), return 0; if success (Right), return the value
     // Hint: failed.fold(error -> 0, value -> value)
-    Integer recovered = ___;
+    Integer recovered = null;
 
     assertThat(recovered).isEqualTo(0);
   }
@@ -85,9 +85,9 @@ public class Tutorial05_MonadErrorHandling {
   void exercise3_recoverWithValue() {
     Either<String, Integer> error = Either.left("Database connection failed");
 
-    // TODO: Replace ___ with code that recovers with a default value using fold
+    // TODO: Replace null with code that recovers with a default value using fold
     // Hint: error.fold(err -> -1, value -> value)
-    Integer recovered = ___;
+    Integer recovered = null;
 
     assertThat(recovered).isEqualTo(-1);
   }
@@ -103,16 +103,16 @@ public class Tutorial05_MonadErrorHandling {
   void exercise4_conditionalRecovery() {
     Either<String, Integer> error = Either.left("NOT_FOUND");
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // - Returns 0 if error is "NOT_FOUND"
     // - Returns -999 for other errors (to distinguish from success)
     Integer recovered =
         error.fold(
             err -> {
               if (err.equals("NOT_FOUND")) {
-                return ___;
+                return null;
               } else {
-                return ___;
+                return null;
               }
             },
             value -> value);
@@ -143,12 +143,12 @@ public class Tutorial05_MonadErrorHandling {
 
     Either<String, String> input = Either.right("0");
 
-    // TODO: Replace ___ with a chain that:
+    // TODO: Replace null with a chain that:
     // 1. Parses the input
     // 2. Validates it's positive (will fail for "0")
     // 3. Uses fold to recover from any error with value 1
     // Hint: input.flatMap(parse).flatMap(validatePositive).fold(err -> 1, value -> value)
-    Integer result = ___;
+    Integer result = null;
 
     assertThat(result).isEqualTo(1);
   }
@@ -165,10 +165,10 @@ public class Tutorial05_MonadErrorHandling {
     Either<String, String> primary = Either.left("Primary failed");
     Either<String, String> fallback = Either.right("Fallback value");
 
-    // TODO: Replace ___ with code that uses fold to return fallback on error
+    // TODO: Replace null with code that uses fold to return fallback on error
     // If primary is Left, use fallback; if primary is Right, use primary's value wrapped in Right
     // Hint: primary.fold(err -> fallback, value -> Either.right(value))
-    Either<String, String> result = ___;
+    Either<String, String> result = null;
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo("Fallback value");
@@ -191,15 +191,15 @@ public class Tutorial05_MonadErrorHandling {
           return 100 / n;
         };
 
-    // TODO: Replace ___ with code that wraps the risky operation in Try
+    // TODO: Replace null with code that wraps the risky operation in Try
     // Hint: Try.of(() -> riskyDivision.apply(0))
-    Try<Integer> result = ___;
+    Try<Integer> result = null;
 
     assertThat(result.isFailure()).isTrue();
 
-    // TODO: Replace ___ with code that recovers from the exception
+    // TODO: Replace null with code that recovers from the exception
     // Hint: result.recover(ex -> -1)
-    Try<Integer> recovered = ___;
+    Try<Integer> recovered = null;
 
     assertThat(recovered.isSuccess()).isTrue();
     assertThat(recovered.get()).isEqualTo(-1);

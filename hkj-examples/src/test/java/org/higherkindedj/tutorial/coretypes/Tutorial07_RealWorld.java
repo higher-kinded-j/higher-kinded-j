@@ -68,15 +68,15 @@ public class Tutorial07_RealWorld {
           return Either.right(age);
         };
 
-    // TODO: Replace ___ with code that validates all fields and creates a Registration
+    // TODO: Replace null with code that validates all fields and creates a Registration
     // Hint: Use map4 to combine all validations
     Either<ValidationError, Registration> result =
         validateUsername
             .apply("alice")
             .map4(
-                ___,
-                ___,
-                ___,
+                null,
+                null,
+                null,
                 (username, email, password, age) ->
                     new Registration(username, email, password, age));
 
@@ -128,13 +128,13 @@ public class Tutorial07_RealWorld {
                 .apply(raw.scoreStr())
                 .map(score -> new ProcessedData(raw.userId(), score, calculateGrade.apply(score)));
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Streams over the raw data to process each record
     // 2. Filters to keep only successful results (Either.isRight())
     // 3. Maps to extract the ProcessedData from successful Eithers
     // 4. Collects to a list
     // Hint: rawData.stream().map(processRecord).filter(Either::isRight).map(Either::getRight).collect(Collectors.toList())
-    List<ProcessedData> processed = ___;
+    List<ProcessedData> processed = null;
 
     assertThat(processed.size()).isEqualTo(3); // user4 should be filtered out
     assertThat(processed.getFirst().grade()).isEqualTo("A");
@@ -163,7 +163,7 @@ public class Tutorial07_RealWorld {
             getAppName.map(
                 appName -> String.format("Welcome to %s, %s!", appName, user.name()));
 
-    // TODO: Replace ___ with code that creates a Reader that:
+    // TODO: Replace null with code that creates a Reader that:
     // 1. Gets the app version from config
     // 2. Appends it to a greeting message
     Reader<Config, String> getVersionedGreeting =
@@ -173,8 +173,7 @@ public class Tutorial07_RealWorld {
                 greeting ->
                     Reader.<Config>ask()
                         .map(
-                            config ->
-                                ___));
+                            config -> null));
 
     Config config = new Config("MyApp", "1.0.0", false);
     String result = getVersionedGreeting.run(config);
@@ -214,21 +213,21 @@ public class Tutorial07_RealWorld {
           return Either.right(user);
         };
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Looks up the user (Maybe)
     // 2. Converts Maybe to Either (use .toEither(...))
     // 3. Validates the user (Either)
     Either<String, User> result =
         findUser
             .apply("user1")
-            .___
-            .flatMap(___);
+            .toEither("User not found")
+            .flatMap(validateUser);
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().name()).isEqualTo("Alice");
 
-    // TODO: Replace ___ with code that handles a missing user
-    Either<String, User> missing = ___;
+    // TODO: Replace null with code that handles a missing user
+    Either<String, User> missing = null;
 
     assertThat(missing.isLeft()).isTrue();
     assertThat(missing.getLeft()).isEqualTo("User not found");
@@ -256,11 +255,11 @@ public class Tutorial07_RealWorld {
 
     List<Integer> items = List.of(1, 2, 3, 4, 5, 6);
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Streams over items to process each one (produces Stream<Either<String, String>>)
     // 2. Collects to a list
     // Hint: items.stream().map(processItem).collect(Collectors.toList())
-    List<Either<String, String>> processed = ___;
+    List<Either<String, String>> processed = null;
 
     List<String> successes =
         processed.stream().filter(Either::isRight).map(Either::getRight).collect(Collectors.toList());
@@ -311,10 +310,10 @@ public class Tutorial07_RealWorld {
     RawOrder order = new RawOrder("PROD-001", 2, 50.0);
     Config config = new Config(0.08, 10.0);
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Validates the order
     // 2. Maps it through the processOrder function with config
-    Either<String, ProcessedOrder> result = validateOrder.apply(order).map(___);
+    Either<String, ProcessedOrder> result = validateOrder.apply(order).map(o -> null);
 
     assertThat(result.isRight()).isTrue();
     ProcessedOrder processed = result.getRight();

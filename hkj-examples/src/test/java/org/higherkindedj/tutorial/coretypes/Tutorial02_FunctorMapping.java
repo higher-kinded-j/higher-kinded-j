@@ -41,9 +41,9 @@ public class Tutorial02_FunctorMapping {
   void exercise1_mapEither() {
     Either<String, Integer> either = Either.right(42);
 
-    // TODO: Replace ___ with code that maps the integer to a string
+    // TODO: Replace null with code that maps the integer to a string
     // Hint: Use either.map(...) with a function that converts Integer to String
-    Either<String, String> result = ___;
+    Either<String, String> result = null;
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo("42");
@@ -60,9 +60,9 @@ public class Tutorial02_FunctorMapping {
   void exercise2_mapDoesNotAffectLeft() {
     Either<String, Integer> error = Either.left("Error occurred");
 
-    // TODO: Replace ___ with code that attempts to map the error case
+    // TODO: Replace null with code that attempts to map the error case
     // The map will not be applied since this is a Left
-    Either<String, String> result = error.map(___);
+    Either<String, String> result = error.map(i -> null);
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Error occurred");
@@ -80,9 +80,9 @@ public class Tutorial02_FunctorMapping {
     ListMonad monad = ListMonad.INSTANCE;
     Kind<ListKind.Witness, Integer> numbers = LIST.widen(List.of(1, 2, 3, 4, 5));
 
-    // TODO: Replace ___ with code that doubles each number
+    // TODO: Replace null with code that doubles each number
     // Hint: Use monad.map(n -> n * 2, numbers)
-    Kind<ListKind.Witness, Integer> doubled = ___;
+    Kind<ListKind.Witness, Integer> doubled = null;
 
     assertThat(LIST.narrow(doubled)).containsExactly(2, 4, 6, 8, 10);
   }
@@ -99,11 +99,11 @@ public class Tutorial02_FunctorMapping {
   void exercise4_chainingMaps() {
     Either<String, Integer> value = Either.right(10);
 
-    // TODO: Replace ___ with chained map operations that:
+    // TODO: Replace null with chained map operations that:
     // 1. Multiply by 2 (10 -> 20)
     // 2. Add 5 (20 -> 25)
     // 3. Convert to String (25 -> "25")
-    Either<String, String> result = ___;
+    Either<String, String> result = null;
 
     assertThat(result.getRight()).isEqualTo("25");
   }
@@ -121,9 +121,9 @@ public class Tutorial02_FunctorMapping {
     EitherFunctor<String> functor = EitherFunctor.instance();
     Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(Either.right(100));
 
-    // TODO: Replace ___ with code that uses functor.map() to transform the value
+    // TODO: Replace null with code that uses functor.map() to transform the value
     // Hint: functor.map(function, kind)
-    Kind<EitherKind.Witness<String>, String> mapped = functor.map(___, kind);
+    Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> null, kind);
 
     Either<String, String> result = EITHER.narrow(mapped);
     assertThat(result.getRight()).isEqualTo("Value: 100");
@@ -141,9 +141,9 @@ public class Tutorial02_FunctorMapping {
     ListMonad monad = ListMonad.INSTANCE;
     Kind<ListKind.Witness, String> words = LIST.widen(List.of("hello", "world", "java"));
 
-    // TODO: Replace ___ with a method reference that converts each string to uppercase
+    // TODO: Replace null with a method reference that converts each string to uppercase
     // Hint: monad.map(String::toUpperCase, words)
-    Kind<ListKind.Witness, String> uppercase = ___;
+    Kind<ListKind.Witness, String> uppercase = null;
 
     assertThat(LIST.narrow(uppercase)).containsExactly("HELLO", "WORLD", "JAVA");
   }
