@@ -132,29 +132,35 @@ public class Tutorial05_OpticsComposition {
    */
   @Test
   void exercise2_prismPlusLens() {
-    @GeneratePrisms
-    sealed interface PaymentMethod {}
-
     @GenerateLenses
-    record CreditCard(String number, String cvv) implements PaymentMethod {}
+    record Order(String id, PaymentMethod1 payment) {}
 
-    record Cash() implements PaymentMethod {}
+    // Manual implementations
+    class PaymentMethodPrisms {
+      public static Prism<PaymentMethod1, CreditCard1> creditCard() {
+        return Prism.of(
+            pm -> pm instanceof CreditCard1 cc ? Optional.of(cc) : Optional.empty(), cc -> cc);
+      }
+    }
 
-    @GenerateLenses
-    record Order(String id, PaymentMethod payment) {}
+    class CreditCardLenses {
+      public static Lens<CreditCard1, String> cvv() {
+        return Lens.of(CreditCard1::cvv, newCvv -> cc -> new CreditCard1(cc.number(), newCvv));
+      }
+    }
 
-    Order order = new Order("ORD-001", new CreditCard("1234-5678", "123"));
+    Order order = new Order("ORD-001", new CreditCard1("1234-5678", "123"));
 
-    Prism<PaymentMethod, CreditCard> creditCardPrism = PaymentMethodPrisms.creditCard();
-    Lens<CreditCard, String> cvvLens = CreditCardLenses.cvv();
+    Prism<PaymentMethod1, CreditCard1> creditCardPrism = PaymentMethodPrisms.creditCard();
+    Lens<CreditCard1, String> cvvLens = CreditCardLenses.cvv();
 
     // TODO: Replace null with composed optic: Prism + Lens
     // This creates a Prism<PaymentMethod, String> for the CVV
     // Hint: creditCardPrism.andThen(cvvLens)
-    Prism<PaymentMethod, String> cvvPrism = null;
+    Prism<PaymentMethod1, String> cvvPrism = null;
 
-    PaymentMethod updated = cvvPrism.modify(cvv -> "999", order.payment());
-    assertThat(((CreditCard) updated).cvv()).isEqualTo("999");
+    PaymentMethod1 updated = cvvPrism.modify(cvv -> "999", order.payment());
+    assertThat(((CreditCard1) updated).cvv()).isEqualTo("999");
   }
 
   /**
@@ -173,15 +179,25 @@ public class Tutorial05_OpticsComposition {
     @GenerateTraversals
     record Order(String id, List<Item> items) {}
 
+    // Manual implementations
+    class OrderLenses {
+      public static Lens<Order, List<Item>> items() {
+        return Lens.of(Order::items, newItems -> o -> new Order(o.id(), newItems));
+      }
+    }
+
+    class OrderTraversals {
+      public static Traversal<Order, Item> items() {
+        return listTraversal(Order::items, (o, items) -> new Order(o.id(), items));
+      }
+    }
+
     Order order =
         new Order("ORD-001", List.of(new Item("Widget", 10.0), new Item("Gadget", 20.0)));
 
-    Lens<Order, List<Item>> itemsLens = OrderLenses.items();
-    Traversal<List<Item>, Item> listTraversal = Traversals.traverseList();
-
-    // TODO: Replace null with composed optic: Lens + Traversal
+    // TODO: Replace null with composed optic: Lens + Traversal over list items
     // This creates a Traversal<Order, Item>
-    // Hint: itemsLens.asTraversal().andThen(listTraversal)
+    // Hint: Use OrderTraversals.items() which traverses the items
     Traversal<Order, Item> orderToItems = null;
 
     // Apply 10% discount to all items
@@ -201,33 +217,42 @@ public class Tutorial05_OpticsComposition {
    */
   @Test
   void exercise4_complexComposition() {
-    @GeneratePrisms
-    sealed interface JsonValue {}
+    // Manual implementations
+    class JsonObjectLenses {
+      public static Lens<JsonObject1, JsonValue1> data() {
+        return Lens.of(JsonObject1::data, newData -> jo -> new JsonObject1(jo.name(), newData));
+      }
+    }
 
-    @GenerateLenses
-    record JsonString(String value) implements JsonValue {}
+    class JsonValuePrisms {
+      public static Prism<JsonValue1, JsonString1> jsonString() {
+        return Prism.of(
+            jv -> jv instanceof JsonString1 js ? Optional.of(js) : Optional.empty(), js -> js);
+      }
+    }
 
-    record JsonNumber(double value) implements JsonValue {}
+    class JsonStringLenses {
+      public static Lens<JsonString1, String> value() {
+        return Lens.of(JsonString1::value, newValue -> js -> new JsonString1(newValue));
+      }
+    }
 
-    @GenerateLenses
-    record JsonObject(String name, JsonValue data) implements JsonValue {}
+    JsonObject1 root = new JsonObject1("root", new JsonString1("Hello"));
 
-    JsonObject root = new JsonObject("root", new JsonString("Hello"));
-
-    Lens<JsonObject, JsonValue> dataLens = JsonObjectLenses.data();
-    Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
-    Lens<JsonString, String> valueLens = JsonStringLenses.value();
+    Lens<JsonObject1, JsonValue1> dataLens = JsonObjectLenses.data();
+    Prism<JsonValue1, JsonString1> stringPrism = JsonValuePrisms.jsonString();
+    Lens<JsonString1, String> valueLens = JsonStringLenses.value();
 
     // TODO: Replace null with a chain: Lens + Prism + Lens
     // to access the string value inside the JsonObject's data field
-    Prism<JsonObject, String> valueAccess =
+    Prism<JsonObject1, String> valueAccess =
         dataLens.andThen(stringPrism).andThen(null);
 
-    Maybe<String> value = valueAccess.getOptional(root);
+    Optional<String> value = valueAccess.getOptional(root);
     assertThat(value.get()).isEqualTo("Hello");
 
-    JsonObject updated = valueAccess.modify(s -> s.toUpperCase(), root);
-    assertThat(((JsonString) updated.data()).value()).isEqualTo("HELLO");
+    JsonObject1 updated = valueAccess.modify(s -> s.toUpperCase(), root);
+    assertThat(((JsonString1) updated.data()).value()).isEqualTo("HELLO");
   }
 
   /**
@@ -239,30 +264,34 @@ public class Tutorial05_OpticsComposition {
    */
   @Test
   void exercise5_traversalPlusPrism() {
-    @GeneratePrisms
-    sealed interface JsonValue {}
+    // Manual implementations
+    class JsonArrayTraversals {
+      public static Traversal<JsonArray1, JsonValue1> values() {
+        return listTraversal(JsonArray1::values, (ja, vals) -> new JsonArray1(vals));
+      }
+    }
 
-    record JsonString(String value) implements JsonValue {}
+    class JsonValuePrisms {
+      public static Prism<JsonValue1, JsonString1> jsonString() {
+        return Prism.of(
+            jv -> jv instanceof JsonString1 js ? Optional.of(js) : Optional.empty(), js -> js);
+      }
+    }
 
-    record JsonNumber(double value) implements JsonValue {}
-
-    @GenerateTraversals
-    record JsonArray(List<JsonValue> values) {}
-
-    JsonArray array =
-        new JsonArray(
+    JsonArray1 array =
+        new JsonArray1(
             List.of(
-                new JsonString("hello"), new JsonNumber(42), new JsonString("world")));
+                new JsonString1("hello"), new JsonNumber1(42), new JsonString1("world")));
 
-    Traversal<JsonArray, JsonValue> valuesTraversal = JsonArrayTraversals.values();
-    Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+    Traversal<JsonArray1, JsonValue1> valuesTraversal = JsonArrayTraversals.values();
+    Prism<JsonValue1, JsonString1> stringPrism = JsonValuePrisms.jsonString();
 
     // TODO: Replace null with composed optic: Traversal + Prism
     // to focus only on JsonString values
-    Traversal<JsonArray, JsonString> stringValues = null;
+    Traversal<JsonArray1, JsonString1> stringValues = null;
 
     List<String> strings =
-        Traversals.getAll(stringValues.andThen(Lens.of(JsonString::value, v -> js -> new JsonString(v)).asTraversal()), array);
+        Traversals.getAll(stringValues.andThen(Lens.of(JsonString1::value, v -> js -> new JsonString1(v)).asTraversal()), array);
 
     assertThat(strings).containsExactly("hello", "world");
   }
@@ -286,6 +315,25 @@ public class Tutorial05_OpticsComposition {
     @GenerateLenses
     @GenerateTraversals
     record League(String name, List<Team> teams) {}
+
+    // Manual implementations
+    class PlayerLenses {
+      public static Lens<Player, Integer> score() {
+        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+      }
+    }
+
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
+
+    class LeagueTraversals {
+      public static Traversal<League, Team> teams() {
+        return listTraversal(League::teams, (l, ts) -> new League(l.name(), ts));
+      }
+    }
 
     League league =
         new League(
@@ -319,27 +367,48 @@ public class Tutorial05_OpticsComposition {
     @GenerateLenses
     record Address(String street, String city) {}
 
-    @GeneratePrisms
-    sealed interface Contact {}
-
     @GenerateLenses
-    record Email(String address) implements Contact {}
+    record User(String name, Address address, Contact1 contact) {}
 
-    @GenerateLenses
-    record Phone(String number) implements Contact {}
+    // Manual implementations
+    class AddressLenses {
+      public static Lens<Address, String> city() {
+        return Lens.of(Address::city, newCity -> a -> new Address(a.street(), newCity));
+      }
+    }
 
-    @GenerateLenses
-    record User(String name, Address address, Contact contact) {}
+    class UserLenses {
+      public static Lens<User, Address> address() {
+        return Lens.of(User::address, newAddr -> u -> new User(u.name(), newAddr, u.contact()));
+      }
+
+      public static Lens<User, Contact1> contact() {
+        return Lens.of(User::contact, newContact -> u -> new User(u.name(), u.address(), newContact));
+      }
+    }
+
+    class ContactPrisms {
+      public static Prism<Contact1, Email1> email() {
+        return Prism.of(
+            c -> c instanceof Email1 e ? Optional.of(e) : Optional.empty(), e -> e);
+      }
+    }
+
+    class EmailLenses {
+      public static Lens<Email1, String> address() {
+        return Lens.of(Email1::address, newAddr -> e -> new Email1(newAddr));
+      }
+    }
 
     User user =
-        new User("Alice", new Address("123 Main St", "Springfield"), new Email("alice@example.com"));
+        new User("Alice", new Address("123 Main St", "Springfield"), new Email1("alice@example.com"));
 
     // Define reusable optic components
     Lens<User, Address> userToAddress = UserLenses.address();
     Lens<Address, String> addressToCity = AddressLenses.city();
-    Lens<User, Contact> userToContact = UserLenses.contact();
-    Prism<Contact, Email> emailPrism = ContactPrisms.email();
-    Lens<Email, String> emailToAddress = EmailLenses.address();
+    Lens<User, Contact1> userToContact = UserLenses.contact();
+    Prism<Contact1, Email1> emailPrism = ContactPrisms.email();
+    Lens<Email1, String> emailToAddress = EmailLenses.address();
 
     // TODO: Compose these into useful pipelines
     // 1. User -> city
