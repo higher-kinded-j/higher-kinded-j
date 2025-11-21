@@ -1,12 +1,20 @@
-name: Deploy mdBook to higher-kinded-j.github.io
+# DEPRECATED: This workflow has been replaced by deploy-mdbook-versioned.yml
+# The new workflow supports versioned documentation with a version switcher.
+# See .github/VERSIONED_DOCS.md for details.
+#
+# This workflow is kept for reference but should be disabled once the new
+# versioned deployment is confirmed working.
+
+name: Deploy mdBook to higher-kinded-j.github.io (DEPRECATED)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'hkj-book/**'
-      - '.github/workflows/deploy-mdbook.yml'
+  # Automatic triggers disabled - use deploy-mdbook-versioned.yml instead
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'hkj-book/**'
+  #     - '.github/workflows/deploy-mdbook.yml'
   workflow_dispatch:
 jobs:
   deploy-book:

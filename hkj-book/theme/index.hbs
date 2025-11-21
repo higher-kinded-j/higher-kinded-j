@@ -145,6 +145,11 @@
                             <i class="fa fa-search"></i>
                         </button>
                         {{/if}}
+                        <div class="version-selector-container">
+                            <select id="version-selector" class="version-selector" aria-label="Select documentation version" title="Select documentation version">
+                                <option value="">Loading versions...</option>
+                            </select>
+                        </div>
                     </div>
 
                     <h1 class="menu-title">{{ book_title }}</h1>
@@ -300,6 +305,7 @@
         <script src="{{ resource "book.js" }}"></script>
 
         <!-- Custom JS scripts -->
+        <script src="{{ resource "version-switcher.js" }}"></script>
         {{#each additional_js}}
         <script src="{{ resource this}}"></script>
         {{/each}}

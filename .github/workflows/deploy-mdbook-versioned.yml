@@ -1,0 +1,175 @@
+name: Deploy Versioned mdBook to higher-kinded-j.github.io
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'hkj-book/**'
+      - '.github/workflows/deploy-mdbook-versioned.yml'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., v0.1.9 for release or "latest" for snapshot)'
+        required: true
+        default: 'latest'
+
+jobs:
+  deploy-book:
+    runs-on: ubuntu-latest
+    env:
+      MDBOOK_ADMONISH_VERSION: "1.19.0"
+      MDBOOK_ALERTS_VERSION: "0.7.0"
+      BOOK_ROOT_DIR: "hkj-book"
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout 'higher-kinded-j' repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for version detection
+
+      - name: Determine deployment version and path
+        id: version
+        run: |
+          VERSION=""
+          DEPLOY_PATH=""
+          VERSION_LABEL=""
+
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tagged release
+            VERSION="${{ github.ref_name }}"
+            DEPLOY_PATH="${VERSION}"
+            VERSION_LABEL="${VERSION}"
+            echo "Deploying tagged release: ${VERSION}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.version }}" != "latest" ]]; then
+            # Manual dispatch with specific version
+            VERSION="${{ github.event.inputs.version }}"
+            DEPLOY_PATH="${VERSION}"
+            VERSION_LABEL="${VERSION}"
+            echo "Deploying manual version: ${VERSION}"
+          else
+            # Latest snapshot from main
+            VERSION="latest"
+            DEPLOY_PATH="latest"
+            VERSION_LABEL="Latest (Snapshot)"
+            echo "Deploying latest snapshot from main branch"
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "deploy_path=${DEPLOY_PATH}" >> "$GITHUB_OUTPUT"
+          echo "version_label=${VERSION_LABEL}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Setup mdBook and Rust Environment
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.51'
+
+      - name: Install 'mdbook-admonish'
+        run: |
+          cargo install mdbook-admonish --version ${{ env.MDBOOK_ADMONISH_VERSION }} --locked
+
+      - name: Install 'mdbook-alerts'
+        run: |
+          cargo install mdbook-alerts --version ${{ env.MDBOOK_ALERTS_VERSION }} --locked
+
+      - name: Setup mdbook-admonish assets
+        working-directory: ./${{ env.BOOK_ROOT_DIR }}
+        run: |
+          mdbook-admonish install .
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Copy root files to book source
+        run: |
+          BOOK_SRC_DIR="${{ env.BOOK_ROOT_DIR }}/src"
+          mkdir -p "$BOOK_SRC_DIR"
+          echo "Copying root files to $BOOK_SRC_DIR"
+          cp CONTRIBUTING.md "$BOOK_SRC_DIR/"
+          cp LICENSE.md "$BOOK_SRC_DIR/"
+          cp CODE_OF_CONDUCT.md "$BOOK_SRC_DIR/"
+          echo "Files copied:"
+          ls -l "$BOOK_SRC_DIR"
+
+      - name: Inject version information into book
+        run: |
+          # Add version metadata that can be used by the version switcher
+          cat >> "${{ env.BOOK_ROOT_DIR }}/book.toml" << EOF
+
+          [output.html.version]
+          current = "${{ steps.version.outputs.version }}"
+          label = "${{ steps.version.outputs.version_label }}"
+          EOF
+        shell: bash
+
+      - name: Build mdBook
+        working-directory: ./${{ env.BOOK_ROOT_DIR }}
+        run: mdbook build
+
+      - name: Generate Sitemap
+        run: python .github/scripts/generate_sitemap.py
+        env:
+          MDBOOK_OUTPUT_DIR: ./${{ env.BOOK_ROOT_DIR }}/book
+          MDBOOK_SITE_URL: "https://higher-kinded-j.github.io/${{ steps.version.outputs.deploy_path }}/"
+
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: higher-kinded-j/higher-kinded-j.github.io
+          path: gh-pages-repo
+          token: ${{ secrets.GH_PAGES_PAT }}
+
+      - name: Update versions.json metadata
+        run: |
+          python .github/scripts/update_versions.py \
+            --repo-dir gh-pages-repo \
+            --version "${{ steps.version.outputs.version }}" \
+            --version-label "${{ steps.version.outputs.version_label }}"
+        shell: bash
+
+      - name: Copy built book to deployment directory
+        run: |
+          DEPLOY_PATH="gh-pages-repo/${{ steps.version.outputs.deploy_path }}"
+
+          # Remove old version if it exists
+          rm -rf "$DEPLOY_PATH"
+
+          # Create deployment directory and copy book
+          mkdir -p "$DEPLOY_PATH"
+          cp -r ${{ env.BOOK_ROOT_DIR }}/book/* "$DEPLOY_PATH/"
+
+          echo "Book deployed to: $DEPLOY_PATH"
+          ls -la "$DEPLOY_PATH"
+        shell: bash
+
+      - name: Create/update root index.html
+        run: |
+          # Copy the redirect page to root if it doesn't exist
+          if [ ! -f "gh-pages-repo/index.html" ]; then
+            cp .github/scripts/root-index.html gh-pages-repo/index.html
+          fi
+        shell: bash
+
+      - name: Commit and push changes
+        working-directory: gh-pages-repo
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git add .
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "docs: Deploy ${{ steps.version.outputs.version_label }} documentation"
+            git push origin main
+          fi
+        shell: bash
