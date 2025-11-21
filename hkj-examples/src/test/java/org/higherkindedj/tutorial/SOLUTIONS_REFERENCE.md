@@ -8,7 +8,7 @@ The Core Types tutorials use the current higher-kinded-j API:
 
 ### List Operations
 - Use `java.util.List` instead of a custom wrapper
-- For typeclass operations, use `ListFunctor.INSTANCE` and `ListMonad.INSTANCE`
+- For typeclass operations, use `ListMonad.INSTANCE` (ListFunctor is package-private)
 - Widen with `LIST.widen(list)` and narrow with `LIST.narrow(kind)`
 - For simple list transformations, use Java streams
 
@@ -64,8 +64,8 @@ Either<String, String> result = error.map(i -> i.toString());
 
 **Exercise 3:**
 ```java
-ListFunctor functor = ListFunctor.INSTANCE;
-Kind<ListKind.Witness, Integer> doubled = functor.map(n -> n * 2, numbers);
+ListMonad monad = ListMonad.INSTANCE;
+Kind<ListKind.Witness, Integer> doubled = monad.map(n -> n * 2, numbers);
 ```
 
 **Exercise 4:**
@@ -80,8 +80,8 @@ Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> "Value: " + i
 
 **Exercise 6:**
 ```java
-ListFunctor functor = ListFunctor.INSTANCE;
-Kind<ListKind.Witness, String> uppercase = functor.map(String::toUpperCase, words);
+ListMonad monad = ListMonad.INSTANCE;
+Kind<ListKind.Witness, String> uppercase = monad.map(String::toUpperCase, words);
 ```
 
 ### Tutorial 03: Applicative Combining
