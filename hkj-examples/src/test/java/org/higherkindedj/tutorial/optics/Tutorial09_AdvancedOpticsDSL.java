@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.util.List;
 import org.higherkindedj.hkt.free.Free;
@@ -53,6 +54,17 @@ public class Tutorial09_AdvancedOpticsDSL {
     @GenerateLenses
     record Person(String name, int age) {}
 
+    // Manual implementation (annotation processor would generate this)
+    class PersonLenses {
+      public static Lens<Person, String> name() {
+        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age()));
+      }
+
+      public static Lens<Person, Integer> age() {
+        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge));
+      }
+    }
+
     Person person = new Person("Alice", 30);
 
     Lens<Person, String> nameLens = PersonLenses.name();
@@ -88,6 +100,13 @@ public class Tutorial09_AdvancedOpticsDSL {
     @GenerateLenses
     record Counter(int value) {}
 
+    // Manual implementation (annotation processor would generate this)
+    class CounterLenses {
+      public static Lens<Counter, Integer> value() {
+        return Lens.of(Counter::value, newValue -> c -> new Counter(newValue));
+      }
+    }
+
     Counter counter = new Counter(5);
 
     Lens<Counter, Integer> valueLens = CounterLenses.value();
@@ -115,6 +134,21 @@ public class Tutorial09_AdvancedOpticsDSL {
   void exercise3_conditionalWorkflows() {
     @GenerateLenses
     record Account(String id, double balance, String status) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class AccountLenses {
+      public static Lens<Account, String> id() {
+        return Lens.of(Account::id, newId -> a -> new Account(newId, a.balance(), a.status()));
+      }
+
+      public static Lens<Account, Double> balance() {
+        return Lens.of(Account::balance, newBalance -> a -> new Account(a.id(), newBalance, a.status()));
+      }
+
+      public static Lens<Account, String> status() {
+        return Lens.of(Account::status, newStatus -> a -> new Account(a.id(), a.balance(), newStatus));
+      }
+    }
 
     Account account = new Account("ACC-001", 1500.0, "PENDING");
 
@@ -172,6 +206,25 @@ public class Tutorial09_AdvancedOpticsDSL {
     @GenerateLenses
     record User(String id, String name, String email, boolean active) {}
 
+    // Manual implementation (annotation processor would generate this)
+    class UserLenses {
+      public static Lens<User, String> id() {
+        return Lens.of(User::id, newId -> u -> new User(newId, u.name(), u.email(), u.active()));
+      }
+
+      public static Lens<User, String> name() {
+        return Lens.of(User::name, newName -> u -> new User(u.id(), newName, u.email(), u.active()));
+      }
+
+      public static Lens<User, String> email() {
+        return Lens.of(User::email, newEmail -> u -> new User(u.id(), u.name(), newEmail, u.active()));
+      }
+
+      public static Lens<User, Boolean> active() {
+        return Lens.of(User::active, newActive -> u -> new User(u.id(), u.name(), u.email(), newActive));
+      }
+    }
+
     User user = new User("user1", "alice", "ALICE@EXAMPLE.COM", false);
 
     Lens<User, String> nameLens = UserLenses.name();
@@ -216,6 +269,21 @@ public class Tutorial09_AdvancedOpticsDSL {
     @GenerateLenses
     record Document(String id, String title, String status) {}
 
+    // Manual implementation (annotation processor would generate this)
+    class DocumentLenses {
+      public static Lens<Document, String> id() {
+        return Lens.of(Document::id, newId -> d -> new Document(newId, d.title(), d.status()));
+      }
+
+      public static Lens<Document, String> title() {
+        return Lens.of(Document::title, newTitle -> d -> new Document(d.id(), newTitle, d.status()));
+      }
+
+      public static Lens<Document, String> status() {
+        return Lens.of(Document::status, newStatus -> d -> new Document(d.id(), d.title(), newStatus));
+      }
+    }
+
     Document doc = new Document("DOC-001", "Report", "DRAFT");
 
     Lens<Document, String> statusLens = DocumentLenses.status();
@@ -255,6 +323,21 @@ public class Tutorial09_AdvancedOpticsDSL {
   void exercise6_validationInterpreter() {
     @GenerateLenses
     record Config(String env, int maxConnections, boolean debugMode) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class ConfigLenses {
+      public static Lens<Config, String> env() {
+        return Lens.of(Config::env, newEnv -> c -> new Config(newEnv, c.maxConnections(), c.debugMode()));
+      }
+
+      public static Lens<Config, Integer> maxConnections() {
+        return Lens.of(Config::maxConnections, newMax -> c -> new Config(c.env(), newMax, c.debugMode()));
+      }
+
+      public static Lens<Config, Boolean> debugMode() {
+        return Lens.of(Config::debugMode, newDebug -> c -> new Config(c.env(), c.maxConnections(), newDebug));
+      }
+    }
 
     Config config = new Config("production", 100, false);
 
@@ -298,6 +381,29 @@ public class Tutorial09_AdvancedOpticsDSL {
     @GenerateLenses
     record Order(
         String id, double total, String status, boolean paid, boolean shipped) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class OrderLenses {
+      public static Lens<Order, String> id() {
+        return Lens.of(Order::id, newId -> o -> new Order(newId, o.total(), o.status(), o.paid(), o.shipped()));
+      }
+
+      public static Lens<Order, Double> total() {
+        return Lens.of(Order::total, newTotal -> o -> new Order(o.id(), newTotal, o.status(), o.paid(), o.shipped()));
+      }
+
+      public static Lens<Order, String> status() {
+        return Lens.of(Order::status, newStatus -> o -> new Order(o.id(), o.total(), newStatus, o.paid(), o.shipped()));
+      }
+
+      public static Lens<Order, Boolean> paid() {
+        return Lens.of(Order::paid, newPaid -> o -> new Order(o.id(), o.total(), o.status(), newPaid, o.shipped()));
+      }
+
+      public static Lens<Order, Boolean> shipped() {
+        return Lens.of(Order::shipped, newShipped -> o -> new Order(o.id(), o.total(), o.status(), o.paid(), newShipped));
+      }
+    }
 
     Order order = new Order("ORD-001", 150.0, "PENDING", false, false);
 
