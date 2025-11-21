@@ -15,7 +15,7 @@ The core pattern involves creating:
 
 * An `XxxKind` interface with a nested `Witness` type (this remains the same).
 * An `XxxConverterOps` interface defining the `widen` and `narrow` operations for the specific type.
-* An `XxxKindHelper`**enum** that implements `XxxConverterOps` and provides a singleton instance (e.g., `SET`, `MY_TYPE`) for accessing these operations as instance methods.
+* An `XxxKindHelper` **enum** that implements `XxxConverterOps` and provides a singleton instance (e.g., `SET`, `MY_TYPE`) for accessing these operations as instance methods.
 * Type class instances (e.g., for `Functor`, `Monad`).
 
 For external types, an additional `XxxHolder` record is typically used internally by the helper enum to wrap the external type.
@@ -25,6 +25,8 @@ For external types, an additional `XxxHolder` record is typically used internall
 Since we cannot modify `java.util.Set` to directly implement our `Kind` structure, we need a wrapper (a `Holder`).
 
 **Goal:** Simulate `java.util.Set<A>` as `Kind<SetKind.Witness, A>` and provide `Functor`, `Applicative`, and `Monad` instances for it.
+
+**Note:** This pattern is useful when integrating third-party libraries or JDK types that you cannot modify directly.
 
 ~~~admonish
 
@@ -222,7 +224,7 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 
 ~~~admonish
 
-* **Immutability**: Favor immutable data structures for your `Holder` or custom type if possible, as this aligns well with functional programming principles.
+* **Immutability**: Favour immutable data structures for your `Holder` or custom type if possible, as this aligns well with functional programming principles.
 * **Null Handling**: Be very clear about null handling. Can the wrapped Java type be null? Can the value `A` inside be null? `KindHelper`'s `widen` method should typically reject a null container itself. `Monad.of(null)` behaviour depends on the specific monad (e.g., `OptionalMonad.OPTIONAL_MONAD.of(null)` is empty via `OPTIONAL.widen(Optional.empty())`, `ListMonad.LIST_MONAD.of(null)` might be an empty list or a list with a null element based on its definition).
 * **Testing**: Thoroughly test your `XxxKindHelper` enum (especially `narrow` with invalid inputs) and your type class instances (Functor, Applicative, Monad laws).
 

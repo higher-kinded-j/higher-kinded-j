@@ -48,7 +48,7 @@ int square(int num) {
 
 Let us consider `Set<T>`. `Set` itself without the `T`, is a type constructor.  Think of it as a "function" for types: Supply it a type (like `Integer`), and it produces a new concrete type `Set<Integer>`.  
 
-A higher-kinded type allows us to write code that is generic over `Set`itself, or `List` or `CompletableFuture`.
+A higher-kinded type allows us to write code that is generic over `Set` itself, or `List`, or `CompletableFuture`.
 
 
 ### Generic code in Practice
@@ -82,7 +82,7 @@ We abstract the behaviour into a function and pass it in. This is much more flex
 <A, B> CompletableFuture<B> mapFuture(CompletableFuture<A> future, Function<A, B> f);
 
 ```
-Notice the repeated pattern. The core logic is the same, but the "container" is different.
+Notice the repeated pattern: the core logic is the same, but the "container" is different.
 
 
 _With Higher-Kinded Types:_
@@ -115,7 +115,7 @@ We will discuss the `GenericExample.java` in detail later, but you can take a pe
 
 In short: a higher-kinded type is a way to be generic over the container type itself.
 Think about the different "container" types you use every day in Java: `List<T>`, `Optional<T>`, `Future<T>`, `Set<T>`. All of these are generic containers that hold a value of type `T`.
-The problem is, you can't write a single method in Java that accepts any of these containers and performs an action, because `List`, `Optional`, and `Future` don't share a useful common interface. A higher-kinded type solves this by letting you write code that works with `F<T>`, where `F` itself is a variable representing the container type (`List`, `Optional`, etc.).
+The problem is that you can't write a single method in Java that accepts any of these containers and performs an action, because `List`, `Optional`, and `Future` don't share a useful common interface. A higher-kinded type solves this by letting you write code that works with `F<T>`, where `F` itself is a variable representing the container type (`List`, `Optional`, etc.).
 
 ## Building Up from Java Generics
 
@@ -176,7 +176,7 @@ Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunct
 * **Leverage Functional Patterns:** Consistently apply powerful patterns like `map`, `flatMap`, `ap`, `sequence`, `traverse`, and monadic error handling (`raiseError`, `handleErrorWith`) across diverse data types.
 * **Build Composable Systems:** Create complex workflows and abstractions by composing smaller, generic pieces, as demonstrated in the included [Order Processing Example](order-walkthrough.md).
 * **Understand HKT Concepts:** Provides a practical, hands-on way to understand HKTs and type classes even within Java's limitations.
-* **Lay the Foundations:** Building on HKTs opens the possibilities for Optics
+* **Lay the Foundations:** Building on HKTs unlocks the possibilities for advanced abstractions like [Optics](../optics/optics_intro.md), which provide composable ways to access and modify nested data structures.
 
 While Higher-Kinded-J introduces some boilerplate compared to languages with native HKT support, it offers a valuable way to explore these powerful functional programming concepts in Java.
 

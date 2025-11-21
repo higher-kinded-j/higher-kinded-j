@@ -176,7 +176,7 @@ Learn more about the [IO Monad](../monads/io_monad.md) and [Either Monad](../mon
 
 ### Step 4: Game Logic as State Transitions
 
-This is the heart of our application. It contains the rules of draughts. The `applyMove` method takes a `MoveCommand `and returns a `State` computation. This computation, when run, will validate the move against the current `GameState`, and if valid, produce a `MoveResult` and the new `GameState`. _This entire class has no side effects._
+This is the heart of our application, containing the complete rules of draughts. The `applyMove` method takes a `MoveCommand` and returns a `State` computation. This computation, when run, will validate the move against the current `GameState`, and if valid, produce a `MoveResult` and the new `GameState`. _This entire class has no side effects._
 
 ```java
 public class GameLogicSimple {
@@ -324,7 +324,9 @@ Now, we combine these pieces. The main loop needs to:
 3. If the input is valid, apply it to the game logic (`State`).
 4. Loop with the new game state.
 
-This sequence of operations is a goodt use case for a `For` comprehension to improve on nested `flatMap` calls.
+This sequence of operations is a good use case for a `For` comprehension to improve on nested `flatMap` calls.
+
+Here's how we compose these pieces together in the main game loop:
 
 ```java
 
@@ -554,7 +556,7 @@ If another jump is not possible, we will switch the player as normal.
 
 Having seen the complete code, let's reflect on the benefits:
 
-* **Testability**: The `GameLogic` class is completely pure. It has no side effects and doesn't depend on `System.in` or `System.out`. You can test the entire rules engine by simply providing a `GameState` and a `MoveCommand` and asserting on the resulting `GameState` and `MoveResult`. This is significantly easier than testing code that is tangled with console I/O.
+* **Testability**: The `GameLogic` class is completely pure, that is to say it has no side effects and doesn't depend on `System.in` or `System.out`. You can test the entire rules engine simply by providing a `GameState` and a `MoveCommand`, then asserting on the resulting `GameState` and `MoveResult`. This is significantly easier than testing code that's tangled with console I/O.
 * **Composability**: The `gameLoop` in `Draughts.java` is a beautiful example of composition. It clearly and declaratively lays out the sequence of events for a game turn: `display -> read -> process`. The `flatMap` calls hide all the messy details of passing state and results from one step to the next.
 * **Reasoning**: The type signatures tell a story. `IO<Either<GameError, MoveCommand>>` is far more descriptive than a method that returns a `MoveCommand` but might throw an exception or return `null`. It explicitly forces the caller to handle both the success and error cases.
 * **Maintainability**: If you want to change from a command-line interface to a graphical one, you only need to replace `BoardDisplay` and `InputHandler`. The entire core `GameLogic` remains untouched because it's completely decoupled from the presentation layer.
