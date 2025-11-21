@@ -4,7 +4,9 @@ package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
+import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -26,6 +28,27 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial04_TraversalBasics {
 
+  // Manual traversal/lens implementations (annotation processor generates these in real projects)
+  // These are generic helpers that work with the record types defined in each test method
+
+  /** Helper to create a Traversal for List fields */
+  static <S, A> Traversal<S, A> listTraversal(
+      java.util.function.Function<S, List<A>> getter,
+      java.util.function.BiFunction<S, List<A>, S> setter) {
+    return Traversal.of(
+        (applicative, f, s) -> {
+          List<A> list = getter.apply(s);
+          var listKind =
+              Traversals.traverseList(
+                  list,
+                  a -> f.apply(a),
+                  applicative);
+          return applicative.map(
+              listKind,
+              newList -> setter.apply(s, newList));
+        });
+  }
+
   /**
    * Exercise 1: Modifying all elements
    *
@@ -41,6 +64,13 @@ public class Tutorial04_TraversalBasics {
     @GenerateLenses
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
+
+    // Manual implementations
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
 
     Team team =
         new Team(
@@ -77,6 +107,19 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record League(String name, List<Team> teams) {}
 
+    // Manual implementations
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
+
+    class LeagueTraversals {
+      public static Traversal<League, Team> teams() {
+        return listTraversal(League::teams, (l, ts) -> new League(l.name(), ts));
+      }
+    }
+
     League league =
         new League(
             "Pro League",
@@ -111,6 +154,19 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
+    // Manual implementations
+    class PlayerLenses {
+      public static Lens<Player, Integer> score() {
+        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+      }
+    }
+
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
+
     Team team =
         new Team("Team Alpha", List.of(new Player("Alice", 100), new Player("Bob", 90)));
 
@@ -140,6 +196,13 @@ public class Tutorial04_TraversalBasics {
     @GenerateLenses
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
+
+    // Manual implementations
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
 
     Team team =
         new Team(
@@ -176,6 +239,19 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
+    // Manual implementations
+    class PlayerLenses {
+      public static Lens<Player, String> name() {
+        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+      }
+    }
+
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
+
     Team team =
         new Team("Team Alpha", List.of(new Player("Alice", 100), new Player("Bob", 90)));
 
@@ -208,6 +284,25 @@ public class Tutorial04_TraversalBasics {
     @GenerateLenses
     @GenerateTraversals
     record Tournament(List<Team> teams) {}
+
+    // Manual implementations
+    class PlayerLenses {
+      public static Lens<Player, String> name() {
+        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+      }
+    }
+
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps, t.won()));
+      }
+    }
+
+    class TournamentTraversals {
+      public static Traversal<Tournament, Team> teams() {
+        return listTraversal(Tournament::teams, (t, ts) -> new Tournament(ts));
+      }
+    }
 
     Tournament tournament =
         new Tournament(
@@ -249,6 +344,13 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
+    // Manual implementations
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
+      }
+    }
+
     Team team =
         new Team(
             "Team Alpha",
@@ -259,13 +361,13 @@ public class Tutorial04_TraversalBasics {
 
     Traversal<Team, Player> playersTraversal = TeamTraversals.players();
 
-    // TODO: Replace null with code that gives different bonuses:
+    // TODO: Replace 0 with code that gives different bonuses:
     // +10 for score >= 100, +5 for score < 100
     Team updated =
         Traversals.modify(
             playersTraversal,
             p -> {
-              int bonus = null;
+              int bonus = 0;
               return new Player(p.name(), p.score() + bonus);
             },
             team);
