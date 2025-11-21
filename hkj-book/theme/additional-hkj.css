@@ -11,3 +11,124 @@ li :is(ul, ol) {
 h1 + h2 {
     margin-top: -2.0rem;
 }
+
+/* Version Switcher Styles */
+.version-selector-container {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+}
+
+.version-selector {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--theme-popup-border);
+    background-color: var(--theme-popup-bg);
+    color: var(--fg);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    max-width: 180px;
+}
+
+.version-selector:hover {
+    border-color: var(--theme-hover);
+    background-color: var(--theme-hover);
+}
+
+.version-selector:focus {
+    outline: 2px solid var(--links);
+    outline-offset: 2px;
+}
+
+/* Version Badge */
+.version-badge {
+    display: inline-block;
+    margin-left: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background-color: var(--theme-popup-bg);
+    border: 1px solid var(--theme-popup-border);
+    vertical-align: middle;
+}
+
+.version-badge-snapshot {
+    background-color: #fbbf24;
+    color: #78350f;
+    border-color: #f59e0b;
+}
+
+.version-badge-stable {
+    background-color: #22c55e;
+    color: #14532d;
+    border-color: #16a34a;
+}
+
+/* Outdated Version Warning Banner */
+.version-warning {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.version-warning-content {
+    color: #78350f;
+}
+
+.version-warning-content strong {
+    color: #92400e;
+}
+
+.version-warning-content p {
+    margin: 0.5rem 0 0 0;
+    line-height: 1.6;
+}
+
+.version-warning-content a {
+    color: #c2410c;
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.version-warning-content a:hover {
+    color: #9a3412;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 1080px) {
+    .version-selector-container {
+        margin-left: 5px;
+    }
+
+    .version-selector {
+        max-width: 120px;
+        font-size: 0.8rem;
+        padding: 3px 6px;
+    }
+
+    .version-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        margin-left: 0.5rem;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .version-selector-container {
+        display: none; /* Hide on very small screens to save space */
+    }
+
+    .version-badge {
+        display: none;
+    }
+
+    .version-warning {
+        padding: 0.75rem 1rem;
+        margin: 1rem 0;
+    }
+}

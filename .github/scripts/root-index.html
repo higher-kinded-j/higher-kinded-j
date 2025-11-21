@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0; url=/latest/">
+    <title>Higher-Kinded-J Documentation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            margin: 0 0 1rem 0;
+            font-size: 2.5rem;
+        }
+        p {
+            margin: 0.5rem 0;
+            font-size: 1.2rem;
+        }
+        a {
+            color: #ffd700;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .version-links {
+            margin-top: 2rem;
+        }
+        .version-links a {
+            display: inline-block;
+            margin: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .version-links a:hover {
+            background: rgba(255, 255, 255, 0.3);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Higher-Kinded-J Documentation</h1>
+        <p>Redirecting to the latest documentation...</p>
+        <p>If you are not redirected automatically, <a href="/latest/">click here</a>.</p>
+
+        <div class="version-links" id="version-links">
+            <a href="/latest/">Latest (Snapshot)</a>
+        </div>
+    </div>
+
+    <script>
+        // Load version information and populate links
+        fetch('/versions.json')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('version-links');
+                container.innerHTML = '';
+
+                // Add latest link
+                const latestLink = document.createElement('a');
+                latestLink.href = data.latest.path;
+                latestLink.textContent = data.latest.label;
+                container.appendChild(latestLink);
+
+                // Add stable/release links
+                if (data.versions && data.versions.length > 0) {
+                    data.versions.slice(0, 5).forEach(version => {
+                        const link = document.createElement('a');
+                        link.href = version.path;
+                        link.textContent = version.version;
+                        if (version.version === data.stable) {
+                            link.textContent += ' (Stable)';
+                        }
+                        container.appendChild(link);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading versions:', error);
+            });
+    </script>
+</body>
+</html>
