@@ -332,7 +332,7 @@ public sealed interface Validated<E, A> permits Valid, Invalid {
    * Validated<Error, Unit> justCheckValidity = userValidation.asUnit();
    * }</pre>
    *
-   * @return A Validated<E, Unit> with the same validity but Unit as value
+   * @return A {@code Validated<E, Unit>} with the same validity but Unit as value
    */
   default Validated<E, Unit> asUnit() {
     return map(a -> Unit.INSTANCE);

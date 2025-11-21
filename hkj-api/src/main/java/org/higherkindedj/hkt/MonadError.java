@@ -39,7 +39,7 @@ public interface MonadError<F, E> extends Monad<F> {
    *
    * @param ma The monadic value potentially containing an error. Assumed non-null.
    * @param handler A function that takes an error 'e' and returns a new monadic value, potentially
-   * @param handler A function that takes an error 'e' and returns a new monadic value, potentially
+   *     recovering from the error. Assumed non-null.
    * @param <A> The type of the value within the monad.
    * @return The original monadic value if it was successful, or the result of the handler if it
    *     contained an error. Guaranteed non-null.

@@ -9,19 +9,19 @@ Consider a simple nested record structure:
 ```java
 record Street(String name, int number) {}
 record Address(Street street, String city) {}
-record User(String name, Address address) {}e
+record User(String name, Address address) {}
 ```
 
-How do you update the userLogin's street name? In standard Java, you're forced into a "copy-and-update" cascade:
+How do you update the user's street name? In standard Java, you're forced into a "copy-and-update" cascade:
 
 ```java
 // What most Java developers actually write
-public User updateStreetName(User userLogin, String newStreetName) {
-    var address = userLogin.address();
+public User updateStreetName(User user, String newStreetName) {
+    var address = user.address();
     var street = address.street();
     var newStreet = new Street(newStreetName, street.number());
     var newAddress = new Address(newStreet, address.city());
-    return new User(userLogin.name(), newAddress);
+    return new User(user.name(), newAddress);
 }
 ```
 
@@ -65,7 +65,7 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
   2. Convenient **`with*` helper methods** for easy updates (e.g., `UserLenses.withAddress(...)`).
 * **Example (Deep Update with Lenses)**:
 
-  * To solve our initial problem of updating the userLogin's street name, we compose lenses:
+  * To solve our initial problem of updating the user's street name, we compose lenses:
 
 ```java
     // Compose lenses to create a direct path to the nested data
@@ -185,7 +185,7 @@ A **Fold** is a read-only optic designed specifically for querying and extractin
   * `isEmpty(source)`: Check if there are zero focused values
   * `length(source)`: Count the number of focused values
 
-**Why Fold is Important**: While `Traversal` can do everything `Fold` can do, using `Fold` makes your code's intent crystal clear—"I'm only reading this data, not modifying it." This is valuable for code reviewers, for preventing accidental mutations, and for expressing domain logic where queries should be separated from commands (CQRS pattern).
+**Why Fold is Important**: While `Traversal` can do everything `Fold` can do, using `Fold` makes your code's intent crystal clear—"I'm only reading this data, not modifying it." This is valuable for code reviewers, for preventing accidental mutations, and for expressing domain logic where queries should be separated from commands ([CQRS pattern](https://martinfowler.com/bliki/CQRS.html)).
 
 ## Advanced Capabilities: Profunctor Adaptations
 
@@ -246,11 +246,11 @@ java
 var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
 ```
 
-This level of abstraction allows you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling—a core benefit of functional programming brought to Java by the foundation `higher-kinded-j` provides.
+This level of abstraction allows you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling.  
 
 ## Making Optics Feel Natural in Java
 
-Whilst optics are powerful, their functional programming origins can make them feel foreign to Java developers. To bridge this gap, `higher-kinded-j` provides two complementary approaches for working with optics:
+While optics are powerful, their functional programming origins can make them feel foreign to Java developers. To bridge this gap, `higher-kinded-j` provides two complementary approaches for working with optics:
 
 ### Fluent API for Optics
 

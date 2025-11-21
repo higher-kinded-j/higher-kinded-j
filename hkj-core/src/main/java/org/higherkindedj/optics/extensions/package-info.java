@@ -92,7 +92,6 @@
  * // If validation fails, get ALL error messages, not just the first one
  * }</pre>
  *
- * @see org.higherkindedj.optics
  * @see org.higherkindedj.hkt.maybe
  * @see org.higherkindedj.hkt.either
  * @see org.higherkindedj.hkt.validated

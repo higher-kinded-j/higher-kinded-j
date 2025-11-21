@@ -196,7 +196,7 @@ public interface Reader<R, A> {
    *
    * @param consumer The consumer that processes the environment, must not be null
    * @param <R> The environment type
-   * @return A Reader<R, Unit> that applies the consumer
+   * @return A {@code Reader<R, Unit>} that applies the consumer
    * @throws NullPointerException if consumer is null
    */
   static <R> Reader<R, Unit> fromConsumer(Consumer<R> consumer) {
@@ -217,7 +217,7 @@ public interface Reader<R, A> {
    * Reader<Config, Unit> justReadConfig = getHost.asUnit();
    * }</pre>
    *
-   * @return A Reader<R, Unit> that reads the same environment but returns Unit
+   * @return A {@code Reader<R, Unit>} that reads the same environment but returns Unit
    */
   default Reader<R, Unit> asUnit() {
     return env -> {

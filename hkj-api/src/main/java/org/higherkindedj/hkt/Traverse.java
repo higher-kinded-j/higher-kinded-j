@@ -279,12 +279,12 @@ public interface Traverse<T> extends Functor<T>, Foldable<T> {
    * <p><b>Type Transformation:</b>
    *
    * <pre>
-   * Structure<Effect<A>> ──sequenceA──> Effect<Structure<A>>
+   * Structure&lt;Effect&lt;A&gt;&gt; ──sequenceA──&gt; Effect&lt;Structure&lt;A&gt;&gt;
    *
    * Examples:
-   * List<Optional<Int>>  ──>  Optional<List<Int>>
-   * Tree<IO<String>>     ──>  IO<Tree<String>>
-   * Set<Validation<E,A>> ──>  Validation<E, Set<A>>
+   * List&lt;Optional&lt;Int&gt;&gt;  ──&gt;  Optional&lt;List&lt;Int&gt;&gt;
+   * Tree&lt;IO&lt;String&gt;&gt;     ──&gt;  IO&lt;Tree&lt;String&gt;&gt;
+   * Set&lt;Validation&lt;E,A&gt;&gt; ──&gt;  Validation&lt;E, Set&lt;A&gt;&gt;
    * </pre>
    *
    * @param <G> The type constructor of the applicative effect that is currently nested inside the

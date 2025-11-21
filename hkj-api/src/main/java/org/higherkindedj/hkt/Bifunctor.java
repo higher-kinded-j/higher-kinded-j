@@ -30,7 +30,7 @@ import org.jspecify.annotations.NullMarked;
  * apply both functions to get {@code F<C, D>}, preserving the structure:
  *
  * <pre>
- * F<A, B> + (A -> C) + (B -> D) ──bimap──> F<C, D>
+ * F&lt;A, B&gt; + (A -&gt; C) + (B -&gt; D) ──bimap──&gt; F&lt;C, D&gt;
  * </pre>
  *
  * <h2>Common Examples</h2>
@@ -276,15 +276,15 @@ public interface Bifunctor<F> {
    * <p><b>Type Transformation:</b>
    *
    * <pre>
-   * F<A, B> ──bimap(f: A → C, g: B → D)──> F<C, D>
+   * F&lt;A, B&gt; ──bimap(f: A → C, g: B → D)──&gt; F&lt;C, D&gt;
    *
    * Examples:
-   * Either<String, Integer>         ──bimap(Exception::new, n -> n * 2)──>
-   *                                                     Either<Exception, Integer>
-   * Tuple2<String, Integer>         ──bimap(String::length, Object::toString)──>
-   *                                                     Tuple2<Integer, String>
-   * Validated<List<Error>, User>    ──bimap(errors -> ..., User::getName)──>
-   *                                                     Validated<List<String>, String>
+   * Either&lt;String, Integer&gt;         ──bimap(Exception::new, n -&gt; n * 2)──&gt;
+   *                                                     Either&lt;Exception, Integer&gt;
+   * Tuple2&lt;String, Integer&gt;         ──bimap(String::length, Object::toString)──&gt;
+   *                                                     Tuple2&lt;Integer, String&gt;
+   * Validated&lt;List&lt;Error&gt;, User&gt;    ──bimap(errors -&gt; ..., User::getName)──&gt;
+   *                                                     Validated&lt;List&lt;String&gt;, String&gt;
    * </pre>
    *
    * <p><b>Example Usage:</b>
@@ -356,12 +356,12 @@ public interface Bifunctor<F> {
    * <p><b>Type Transformation:</b>
    *
    * <pre>
-   * F<A, B> ──first(f: A → C)──> F<C, B>
+   * F&lt;A, B&gt; ──first(f: A → C)──&gt; F&lt;C, B&gt;
    *
    * Examples:
-   * Either<String, Integer>     ──first(Exception::new)──>     Either<Exception, Integer>
-   * Tuple2<String, Integer>     ──first(String::length)──>     Tuple2<Integer, Integer>
-   * Validated<Error, User>      ──first(Error::getMessage)──>  Validated<String, User>
+   * Either&lt;String, Integer&gt;     ──first(Exception::new)──&gt;     Either&lt;Exception, Integer&gt;
+   * Tuple2&lt;String, Integer&gt;     ──first(String::length)──&gt;     Tuple2&lt;Integer, Integer&gt;
+   * Validated&lt;Error, User&gt;      ──first(Error::getMessage)──&gt;  Validated&lt;String, User&gt;
    * </pre>
    *
    * <p><b>Example Usage:</b>
@@ -420,12 +420,12 @@ public interface Bifunctor<F> {
    * <p><b>Type Transformation:</b>
    *
    * <pre>
-   * F<A, B> ──second(g: B → D)──> F<A, D>
+   * F&lt;A, B&gt; ──second(g: B → D)──&gt; F&lt;A, D&gt;
    *
    * Examples:
-   * Either<String, Integer>     ──second(n -> n * 2)──>        Either<String, Integer>
-   * Tuple2<String, Integer>     ──second(Object::toString)──>  Tuple2<String, String>
-   * Validated<Error, User>      ──second(User::getName)──>     Validated<Error, String>
+   * Either&lt;String, Integer&gt;     ──second(n -&gt; n * 2)──&gt;        Either&lt;String, Integer&gt;
+   * Tuple2&lt;String, Integer&gt;     ──second(Object::toString)──&gt;  Tuple2&lt;String, String&gt;
+   * Validated&lt;Error, User&gt;      ──second(User::getName)──&gt;     Validated&lt;Error, String&gt;
    * </pre>
    *
    * <p><b>Example Usage:</b>

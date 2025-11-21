@@ -31,7 +31,7 @@ import org.jspecify.annotations.NullMarked;
  *   <li><b>Fluent builders</b> - Method chaining for more explicit workflows
  * </ul>
  *
- * <h2>Static Methods (Simple & Direct)</h2>
+ * <h2>Static Methods (Simple &amp; Direct)</h2>
  *
  * <pre>{@code
  * // Get a value

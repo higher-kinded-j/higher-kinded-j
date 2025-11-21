@@ -26,7 +26,7 @@ public enum FunctionValidator {
    * @param <T> The function type
    * @return The validated function
    * @throws NullPointerException with context-specific message if function is null
-   * @example
+   *     <p>Example usage:
    *     <pre>
    * Validation.functionValidator().requireMapper(f, StateTMonad.class, "map");
    * // Error: "function f for StateTMonad.map cannot be null"
@@ -65,7 +65,7 @@ public enum FunctionValidator {
    * @param <T> The function type
    * @return The validated function
    * @throws NullPointerException with context-specific message if function is null
-   * @example
+   *     <p>Example usage:
    *     <pre>
    * Validation.functionValidator().requireFlatMapper(f, StateTMonad.class, FLAT_MAP);
    * // Error: "function f for StateTMonad.flatMap cannot be null"
@@ -172,12 +172,11 @@ public enum FunctionValidator {
    * @param operation The operation name
    * @param <T> The function type
    * @return The validated function
-   * @throws NullPointerException with context-specific message if function is null
-   * @example
+   * @throws NullPointerException with context-specific message if function is null Example usage:
    *     <pre>
    * Validation.functionValidator().requireFunction(fn, "runStateTFn", StateT.class, "construction");
    * // Error: "runStateTFn for StateT construction cannot be null"
-   * </pre>
+   *  </pre>
    */
   public <T> T requireFunction(
       T function, String functionName, Class<?> contextClass, Operation operation) {
@@ -213,7 +212,7 @@ public enum FunctionValidator {
    * @param <T> The result type
    * @return The validated result
    * @throws KindUnwrapException if result is null
-   * @example
+   *     <p>Example usage:
    *     <pre>
    * Validation.functionValidator().requireNonNullResult(kindB, StateTMonad.class, "flatMap");
    * // Error: "Function in StateTMonad.flatMap returned null, which is not allowed"

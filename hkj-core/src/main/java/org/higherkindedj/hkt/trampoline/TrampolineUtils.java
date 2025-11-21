@@ -62,7 +62,7 @@ import org.jspecify.annotations.NullMarked;
  * <h2>Performance Considerations</h2>
  *
  * <p>These utilities add a small overhead due to trampoline wrapping. For most standard
- * applicatives (Id, Optional, Either) on moderately-sized lists (<10,000 elements), the standard
+ * applicatives (Id, Optional, Either) on moderately-sized lists (&lt;10,000 elements), the standard
  * traverse implementations are sufficient and more efficient.
  *
  * @see Trampoline
