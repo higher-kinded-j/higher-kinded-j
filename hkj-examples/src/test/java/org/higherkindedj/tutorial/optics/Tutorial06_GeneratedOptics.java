@@ -3,9 +3,15 @@
 package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -28,6 +34,60 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial06_GeneratedOptics {
 
+  // Sealed interfaces must be at class level
+  @GeneratePrisms
+  sealed interface Result2 {}
+
+  record Success2(String message) implements Result2 {}
+
+  record Failure2(String error) implements Result2 {}
+
+  @GeneratePrisms
+  sealed interface NotificationType7 {}
+
+  record Email7(String to, String subject) implements NotificationType7 {}
+
+  record SMS7(String phoneNumber, String message) implements NotificationType7 {}
+
+  // Manual traversal/lens/prism implementations (annotation processor generates these in real
+  // projects)
+
+  /** Helper to create a Traversal for List fields */
+  static <S, A> Traversal<S, A> listTraversal(
+      java.util.function.Function<S, List<A>> getter,
+      java.util.function.BiFunction<S, List<A>, S> setter) {
+    return Traversal.of(
+        (applicative, f, s) -> {
+          List<A> list = getter.apply(s);
+          var listKind =
+              Traversals.traverseList(
+                  list,
+                  a -> f.apply(a),
+                  applicative);
+          return applicative.map(
+              listKind,
+              newList -> setter.apply(s, newList));
+        });
+  }
+
+  /** Helper to create a Traversal for Map fields (traverses values) */
+  static <S, K, V> Traversal<S, V> mapTraversal(
+      java.util.function.Function<S, Map<K, V>> getter,
+      java.util.function.BiFunction<S, Map<K, V>, S> setter) {
+    return Traversal.of(
+        (applicative, f, s) -> {
+          Map<K, V> map = getter.apply(s);
+          var mapKind =
+              Traversals.traverseMap(
+                  map,
+                  v -> f.apply(v),
+                  applicative);
+          return applicative.map(
+              mapKind,
+              newMap -> setter.apply(s, newMap));
+        });
+  }
+
   /**
    * Exercise 1: Using @GenerateLenses
    *
@@ -40,6 +100,25 @@ public class Tutorial06_GeneratedOptics {
   void exercise1_generatedLenses() {
     @GenerateLenses
     record Person(String name, int age, String email) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class PersonLenses {
+      public static Lens<Person, String> name() {
+        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age(), p.email()));
+      }
+
+      public static Lens<Person, Integer> age() {
+        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge, p.email()));
+      }
+
+      public static Lens<Person, String> email() {
+        return Lens.of(Person::email, newEmail -> p -> new Person(p.name(), p.age(), newEmail));
+      }
+
+      public static Person withEmail(Person p, String newEmail) {
+        return new Person(p.name(), p.age(), newEmail);
+      }
+    }
 
     Person person = new Person("Alice", 30, "alice@example.com");
 
@@ -70,27 +149,35 @@ public class Tutorial06_GeneratedOptics {
    */
   @Test
   void exercise2_generatedPrisms() {
-    @GeneratePrisms
-    sealed interface Result {}
+    // Manual implementation (annotation processor would generate this)
+    class ResultPrisms {
+      public static Prism<Result2, Success2> success() {
+        return Prism.of(
+            r -> r instanceof Success2 s ? Optional.of(s) : Optional.empty(),
+            s -> s);
+      }
 
-    record Success(String message) implements Result {}
+      public static Prism<Result2, Failure2> failure() {
+        return Prism.of(
+            r -> r instanceof Failure2 f ? Optional.of(f) : Optional.empty(),
+            f -> f);
+      }
+    }
 
-    record Failure(String error) implements Result {}
-
-    Result result = new Success("Operation completed");
+    Result2 result = new Success2("Operation completed");
 
     // TODO: Replace null with generated prism access
     // Hint: ResultPrisms.success().getOptional(result)
     var successOpt = null;
 
-    assertThat(successOpt.isJust()).isTrue();
+    assertThat(successOpt.isPresent()).isTrue();
     assertThat(successOpt.get().message()).isEqualTo("Operation completed");
 
     // TODO: Replace null with generated prism construction
-    // Hint: ResultPrisms.failure().build(new Failure("Error"))
-    Result failure = null;
+    // Hint: ResultPrisms.failure().build(new Failure2("Error"))
+    Result2 failure = null;
 
-    assertThat(failure).isInstanceOf(Failure.class);
+    assertThat(failure).isInstanceOf(Failure2.class);
   }
 
   /**
@@ -107,6 +194,13 @@ public class Tutorial06_GeneratedOptics {
 
     @GenerateTraversals
     record Cart(List<Item> items) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class CartTraversals {
+      public static Traversal<Cart, Item> items() {
+        return listTraversal(Cart::items, (c, items) -> new Cart(items));
+      }
+    }
 
     Cart cart =
         new Cart(List.of(new Item("Widget", 10.0), new Item("Gadget", 20.0)));
@@ -141,6 +235,37 @@ public class Tutorial06_GeneratedOptics {
     @GenerateLenses
     record Employee(String name, Company company) {}
 
+    // Manual implementations (annotation processor would generate these)
+    class AddressLenses {
+      public static Lens<Address, String> street() {
+        return Lens.of(Address::street, newStreet -> a -> new Address(newStreet, a.city()));
+      }
+
+      public static Lens<Address, String> city() {
+        return Lens.of(Address::city, newCity -> a -> new Address(a.street(), newCity));
+      }
+    }
+
+    class CompanyLenses {
+      public static Lens<Company, String> name() {
+        return Lens.of(Company::name, newName -> c -> new Company(newName, c.address()));
+      }
+
+      public static Lens<Company, Address> address() {
+        return Lens.of(Company::address, newAddress -> c -> new Company(c.name(), newAddress));
+      }
+    }
+
+    class EmployeeLenses {
+      public static Lens<Employee, String> name() {
+        return Lens.of(Employee::name, newName -> e -> new Employee(newName, e.company()));
+      }
+
+      public static Lens<Employee, Company> company() {
+        return Lens.of(Employee::company, newCompany -> e -> new Employee(e.name(), newCompany));
+      }
+    }
+
     Employee emp =
         new Employee("Alice", new Company("TechCorp", new Address("123 Main", "Springfield")));
 
@@ -169,6 +294,13 @@ public class Tutorial06_GeneratedOptics {
 
     @GenerateTraversals
     record Inventory(Map<String, Product> products) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class InventoryTraversals {
+      public static Traversal<Inventory, Product> products() {
+        return mapTraversal(Inventory::products, (i, products) -> new Inventory(products));
+      }
+    }
 
     Inventory inventory =
         new Inventory(
@@ -201,6 +333,29 @@ public class Tutorial06_GeneratedOptics {
     @GenerateLenses
     record User(String id, String name, String email, boolean active) {}
 
+    // Manual implementation (annotation processor would generate this)
+    class UserLenses {
+      public static Lens<User, String> id() {
+        return Lens.of(User::id, newId -> u -> new User(newId, u.name(), u.email(), u.active()));
+      }
+
+      public static Lens<User, String> name() {
+        return Lens.of(User::name, newName -> u -> new User(u.id(), newName, u.email(), u.active()));
+      }
+
+      public static Lens<User, String> email() {
+        return Lens.of(User::email, newEmail -> u -> new User(u.id(), u.name(), newEmail, u.active()));
+      }
+
+      public static Lens<User, Boolean> active() {
+        return Lens.of(User::active, newActive -> u -> new User(u.id(), u.name(), u.email(), newActive));
+      }
+
+      public static User withName(User u, String newName) {
+        return new User(u.id(), newName, u.email(), u.active());
+      }
+    }
+
     User user = new User("user1", "Alice", "alice@example.com", true);
 
     // Using lens.set() (functional style)
@@ -226,27 +381,77 @@ public class Tutorial06_GeneratedOptics {
    */
   @Test
   void exercise7_complexScenario() {
-    @GeneratePrisms
-    sealed interface NotificationType {}
-
     @GenerateLenses
-    record Email(String to, String subject) implements NotificationType {}
-
-    @GenerateLenses
-    record SMS(String phoneNumber, String message) implements NotificationType {}
-
-    @GenerateLenses
-    record Notification(String id, NotificationType type, boolean sent) {}
+    record Notification(String id, NotificationType7 type, boolean sent) {}
 
     @GenerateTraversals
     record NotificationQueue(List<Notification> notifications) {}
 
+    // Manual implementations (annotation processor would generate these)
+    class EmailLenses {
+      public static Lens<Email7, String> to() {
+        return Lens.of(Email7::to, newTo -> e -> new Email7(newTo, e.subject()));
+      }
+
+      public static Lens<Email7, String> subject() {
+        return Lens.of(Email7::subject, newSubject -> e -> new Email7(e.to(), newSubject));
+      }
+    }
+
+    class SMSLenses {
+      public static Lens<SMS7, String> phoneNumber() {
+        return Lens.of(SMS7::phoneNumber, newPhone -> s -> new SMS7(newPhone, s.message()));
+      }
+
+      public static Lens<SMS7, String> message() {
+        return Lens.of(SMS7::message, newMessage -> s -> new SMS7(s.phoneNumber(), newMessage));
+      }
+    }
+
+    class NotificationTypePrisms {
+      public static Prism<NotificationType7, Email7> email() {
+        return Prism.of(
+            nt -> nt instanceof Email7 e ? Optional.of(e) : Optional.empty(),
+            e -> e);
+      }
+
+      public static Prism<NotificationType7, SMS7> sms() {
+        return Prism.of(
+            nt -> nt instanceof SMS7 s ? Optional.of(s) : Optional.empty(),
+            s -> s);
+      }
+    }
+
+    class NotificationLenses {
+      public static Lens<Notification, String> id() {
+        return Lens.of(Notification::id, newId -> n -> new Notification(newId, n.type(), n.sent()));
+      }
+
+      public static Lens<Notification, NotificationType7> type() {
+        return Lens.of(Notification::type, newType -> n -> new Notification(n.id(), newType, n.sent()));
+      }
+
+      public static Lens<Notification, Boolean> sent() {
+        return Lens.of(Notification::sent, newSent -> n -> new Notification(n.id(), n.type(), newSent));
+      }
+
+      public static Notification withSent(Notification n, boolean newSent) {
+        return new Notification(n.id(), n.type(), newSent);
+      }
+    }
+
+    class NotificationQueueTraversals {
+      public static Traversal<NotificationQueue, Notification> notifications() {
+        return listTraversal(NotificationQueue::notifications, (nq, notifications) -> new NotificationQueue(notifications));
+      }
+    }
+
     NotificationQueue queue =
         new NotificationQueue(
             List.of(
-                new Notification("1", new Email("user@example.com", "Welcome"), false),
-                new Notification("2", new SMS("555-1234", "Code: 1234"), false),
-                new Notification("3", new Email("admin@example.com", "Alert"), false)));
+                new Notification("1", new Email7("user@example.com", "Welcome"), false),
+                new Notification("2", new SMS7("555-1234", "Code: 1234"), false),
+                new Notification("3", new Email7("admin@example.com", "Alert"), false)));
 
     // TODO: Replace null with a composition that:
     // 1. Traverses all notifications
@@ -255,8 +460,7 @@ public class Tutorial06_GeneratedOptics {
     var emailSubjectsTraversal =
         NotificationQueueTraversals.notifications()
             .andThen(NotificationLenses.type().asTraversal())
-            .andThen(null
-.asTraversal())
+            .andThen(NotificationTypePrisms.email().asTraversal())
             .andThen(EmailLenses.subject().asTraversal());
 
     List<String> subjects = Traversals.getAll(emailSubjectsTraversal, queue);
