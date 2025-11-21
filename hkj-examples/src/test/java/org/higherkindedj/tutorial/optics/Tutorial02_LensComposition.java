@@ -50,9 +50,9 @@ public class Tutorial02_LensComposition {
     Lens<Person, Company> personToCompany = PersonLenses.company();
     Lens<Company, String> companyToName = CompanyLenses.name();
 
-    // TODO: Replace ___ with code that composes the two lenses
+    // TODO: Replace null with code that composes the two lenses
     // Hint: personToCompany.andThen(companyToName)
-    Lens<Person, String> personToCompanyName = ___;
+    Lens<Person, String> personToCompanyName = null;
 
     String companyName = personToCompanyName.get(person);
     assertThat(companyName).isEqualTo("Acme Corp");
@@ -74,10 +74,10 @@ public class Tutorial02_LensComposition {
         new Person(
             "Alice", 30, new Company("Acme Corp", new Address("123 Main St", "Springfield", "12345")));
 
-    // TODO: Replace ___ with composed lenses that go:
+    // TODO: Replace null with composed lenses that go:
     // Person -> Company -> Address -> city
     // Hint: Use PersonLenses.company().andThen(...).andThen(...)
-    Lens<Person, String> personToCity = ___;
+    Lens<Person, String> personToCity = null;
 
     String city = personToCity.get(person);
     assertThat(city).isEqualTo("Springfield");
@@ -106,9 +106,9 @@ public class Tutorial02_LensComposition {
     Lens<Person, String> personToStreet =
         PersonLenses.company().andThen(CompanyLenses.address()).andThen(AddressLenses.street());
 
-    // TODO: Replace ___ with code that modifies the street to uppercase
+    // TODO: Replace null with code that modifies the street to uppercase
     // Hint: personToStreet.modify(String::toUpperCase, person)
-    Person updated = ___;
+    Person updated = null;
 
     assertThat(updated.company().address().street()).isEqualTo("123 MAIN ST");
   }
@@ -130,10 +130,10 @@ public class Tutorial02_LensComposition {
     Lens<Person, String> cityLens =
         PersonLenses.company().andThen(CompanyLenses.address()).andThen(AddressLenses.city());
 
-    // TODO: Replace ___ with chained lens updates:
+    // TODO: Replace null with chained lens updates:
     // 1. Set company name to "MegaCorp"
     // 2. Set city to "Capital City"
-    Person updated = ___;
+    Person updated = null;
 
     assertThat(updated.company().name()).isEqualTo("MegaCorp");
     assertThat(updated.company().address().city()).isEqualTo("Capital City");
@@ -163,11 +163,11 @@ public class Tutorial02_LensComposition {
     Lens<Config, String> configToHost = ConfigLenses.host();
     Lens<Config, Integer> configToPort = ConfigLenses.port();
 
-    // TODO: Replace ___ with a composed lens for Application -> Database -> Config -> host
-    Lens<Application, String> appToHost = ___;
+    // TODO: Replace null with a composed lens for Application -> Database -> Config -> host
+    Lens<Application, String> appToHost = null;
 
-    // TODO: Replace ___ with a composed lens for Application -> Database -> Config -> port
-    Lens<Application, Integer> appToPort = ___;
+    // TODO: Replace null with a composed lens for Application -> Database -> Config -> port
+    Lens<Application, Integer> appToPort = null;
 
     Application app =
         new Application(
@@ -199,9 +199,9 @@ public class Tutorial02_LensComposition {
     Person updated1 = cityLens.set("New City", person);
 
     // Using helper methods (more discoverable in IDE)
-    // TODO: Replace ___ with the equivalent update using with* helper methods
+    // TODO: Replace null with the equivalent update using with* helper methods
     // Hint: PersonLenses.withCompany(person, CompanyLenses.with...)
-    Person updated2 = ___;
+    Person updated2 = null;
 
     assertThat(updated1.company().address().city()).isEqualTo("New City");
     assertThat(updated2.company().address().city()).isEqualTo("New City");
@@ -231,9 +231,9 @@ public class Tutorial02_LensComposition {
             "Alice",
             new PaymentInfo("1234-5678", new Address("456 Oak St", "Springfield")));
 
-    // TODO: Replace ___ with a composed lens that accesses:
+    // TODO: Replace null with a composed lens that accesses:
     // User -> PaymentInfo -> billingAddress -> city
-    Lens<User, String> billingCityLens = ___;
+    Lens<User, String> billingCityLens = null;
 
     User updated = billingCityLens.set("Capital City", user);
 

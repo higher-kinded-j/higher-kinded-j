@@ -48,10 +48,10 @@ public class Tutorial04_TraversalBasics {
 
     Traversal<Team, Player> playersTraversal = TeamTraversals.players();
 
-    // TODO: Replace ___ with code that modifies all players to double their scores
+    // TODO: Replace null with code that modifies all players to double their scores
     // Hint: Use Traversals.modify(playersTraversal, player -> new Player(...), team)
     // Note: Can also use OpticOps.modifyAll() for a more fluent API (covered in Tutorial 08)
-    Team updated = ___;
+    Team updated = null;
 
     assertThat(updated.players().get(0).score()).isEqualTo(200);
     assertThat(updated.players().get(1).score()).isEqualTo(180);
@@ -84,9 +84,9 @@ public class Tutorial04_TraversalBasics {
                 new Team("Team A", List.of(new Player("Alice", 100), new Player("Bob", 90))),
                 new Team("Team B", List.of(new Player("Charlie", 110), new Player("Diana", 120)))));
 
-    // TODO: Replace ___ with composed traversals that access all players
+    // TODO: Replace null with composed traversals that access all players
     // Hint: LeagueTraversals.teams().andThen(TeamTraversals.players())
-    Traversal<League, Player> allPlayers = ___;
+    Traversal<League, Player> allPlayers = null;
 
     // Add 10 bonus points to all players
     League updated = Traversals.modify(allPlayers, p -> new Player(p.name(), p.score() + 10), league);
@@ -114,10 +114,10 @@ public class Tutorial04_TraversalBasics {
     Team team =
         new Team("Team Alpha", List.of(new Player("Alice", 100), new Player("Bob", 90)));
 
-    // TODO: Replace ___ with a composition of traversal and lens
+    // TODO: Replace null with a composition of traversal and lens
     // to focus on just the scores
     // Hint: TeamTraversals.players().andThen(PlayerLenses.score().asTraversal())
-    Traversal<Team, Integer> allScores = ___;
+    Traversal<Team, Integer> allScores = null;
 
     Team updated = Traversals.modify(allScores, score -> score + 5, team);
 
@@ -148,9 +148,9 @@ public class Tutorial04_TraversalBasics {
 
     Traversal<Team, Player> playersTraversal = TeamTraversals.players();
 
-    // TODO: Replace ___ with a filtered traversal that only targets players with score > 100
+    // TODO: Replace null with a filtered traversal that only targets players with score > 100
     // Hint: playersTraversal.filtered(p -> p.score() > 100)
-    Traversal<Team, Player> highScorers = ___;
+    Traversal<Team, Player> highScorers = null;
 
     Team updated =
         Traversals.modify(highScorers, p -> new Player(p.name(), p.score() + 10), team);
@@ -182,9 +182,9 @@ public class Tutorial04_TraversalBasics {
     Traversal<Team, String> allNames =
         TeamTraversals.players().andThen(PlayerLenses.name().asTraversal());
 
-    // TODO: Replace ___ with code that gets all player names
+    // TODO: Replace null with code that gets all player names
     // Hint: Traversals.getAll(allNames, team)
-    List<String> names = ___;
+    List<String> names = null;
 
     assertThat(names).containsExactly("Alice", "Bob");
   }
@@ -216,15 +216,15 @@ public class Tutorial04_TraversalBasics {
                 new Team("Team B", List.of(new Player("Charlie", 95), new Player("Diana", 130)), false),
                 new Team("Team C", List.of(new Player("Eve", 110)), true)));
 
-    // TODO: Replace ___ with a traversal that:
+    // TODO: Replace null with a traversal that:
     // 1. Filters to winning teams (won == true)
     // 2. Gets their players
     // 3. Filters to players with score >= 100
     Traversal<Tournament, Player> winningHighScorers =
         TournamentTraversals.teams()
-            .filtered(___)
+            .filtered(null)
             .andThen(TeamTraversals.players())
-            .filtered(___);
+            .filtered(null);
 
     List<String> names = Traversals.getAll(
         winningHighScorers.andThen(PlayerLenses.name().asTraversal()),
@@ -259,13 +259,13 @@ public class Tutorial04_TraversalBasics {
 
     Traversal<Team, Player> playersTraversal = TeamTraversals.players();
 
-    // TODO: Replace ___ with code that gives different bonuses:
+    // TODO: Replace null with code that gives different bonuses:
     // +10 for score >= 100, +5 for score < 100
     Team updated =
         Traversals.modify(
             playersTraversal,
             p -> {
-              int bonus = ___;
+              int bonus = null;
               return new Player(p.name(), p.score() + bonus);
             },
             team);

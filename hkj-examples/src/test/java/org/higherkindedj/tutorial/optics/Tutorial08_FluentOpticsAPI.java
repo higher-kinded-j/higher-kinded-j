@@ -53,15 +53,15 @@ public class Tutorial08_FluentOpticsAPI {
     Lens<Person, String> nameLens = PersonLenses.name();
     Lens<Person, Integer> ageLens = PersonLenses.age();
 
-    // TODO: Replace ___ with OpticOps.get() to extract the name
+    // TODO: Replace null with OpticOps.get() to extract the name
     // Hint: OpticOps.get(person, nameLens)
-    String name = ___;
+    String name = null;
 
     assertThat(name).isEqualTo("Alice");
 
-    // TODO: Replace ___ with OpticOps.set() to update the age to 31
+    // TODO: Replace null with OpticOps.set() to update the age to 31
     // Hint: OpticOps.set(person, ageLens, 31)
-    Person updated = ___;
+    Person updated = null;
 
     assertThat(updated.age()).isEqualTo(31);
     assertThat(updated.name()).isEqualTo("Alice"); // Other fields unchanged
@@ -84,15 +84,15 @@ public class Tutorial08_FluentOpticsAPI {
     Lens<Person, String> nameLens = PersonLenses.name();
     Lens<Person, Integer> ageLens = PersonLenses.age();
 
-    // TODO: Replace ___ with OpticOps.modify() to increment age by 1
+    // TODO: Replace null with OpticOps.modify() to increment age by 1
     // Hint: OpticOps.modify(person, ageLens, age -> age + 1)
-    Person older = ___;
+    Person older = null;
 
     assertThat(older.age()).isEqualTo(31);
 
-    // TODO: Replace ___ with OpticOps.modify() to uppercase the name
+    // TODO: Replace null with OpticOps.modify() to uppercase the name
     // Hint: OpticOps.modify(person, nameLens, String::toUpperCase)
-    Person capitalized = ___;
+    Person capitalized = null;
 
     assertThat(capitalized.name()).isEqualTo("ALICE");
   }
@@ -120,17 +120,17 @@ public class Tutorial08_FluentOpticsAPI {
     Traversal<Team, String> playerNames =
         TeamTraversals.players().andThen(PlayerLenses.name().asTraversal());
 
-    // TODO: Replace ___ with OpticOps.getAll() to extract all player names
+    // TODO: Replace null with OpticOps.getAll() to extract all player names
     // Hint: OpticOps.getAll(team, playerNames)
-    List<String> names = ___;
+    List<String> names = null;
 
     assertThat(names).containsExactly("Alice", "Bob");
 
     Traversal<Team, Player> playersTraversal = TeamTraversals.players();
 
-    // TODO: Replace ___ with OpticOps.modifyAll() to give everyone +10 bonus points
+    // TODO: Replace null with OpticOps.modifyAll() to give everyone +10 bonus points
     // Hint: OpticOps.modifyAll(team, playersTraversal, p -> new Player(p.name(), p.score() + 10))
-    Team bonusApplied = ___;
+    Team bonusApplied = null;
 
     assertThat(bonusApplied.players().get(0).score()).isEqualTo(110);
     assertThat(bonusApplied.players().get(1).score()).isEqualTo(100);
@@ -160,23 +160,23 @@ public class Tutorial08_FluentOpticsAPI {
     Traversal<Team, Integer> scores =
         TeamTraversals.players().andThen(PlayerLenses.score().asTraversal());
 
-    // TODO: Replace ___ with OpticOps.exists() to check if any score >= 100
+    // TODO: Replace null with OpticOps.exists() to check if any score >= 100
     // Hint: OpticOps.exists(team, scores, score -> score >= 100)
-    boolean hasHighScorers = ___;
+    boolean hasHighScorers = null;
 
     assertThat(hasHighScorers).isTrue();
 
-    // TODO: Replace ___ with OpticOps.count() to count total players
+    // TODO: Replace null with OpticOps.count() to count total players
     // Hint: OpticOps.count(team, TeamTraversals.players())
-    int playerCount = ___;
+    int playerCount = null;
 
     assertThat(playerCount).isEqualTo(3);
 
     Traversal<Team, Player> players = TeamTraversals.players();
 
-    // TODO: Replace ___ with OpticOps.find() to find first player with score > 100
+    // TODO: Replace null with OpticOps.find() to find first player with score > 100
     // Hint: OpticOps.find(team, players, p -> p.score() > 100)
-    Optional<Player> topPlayer = ___;
+    Optional<Player> topPlayer = null;
 
     assertThat(topPlayer).isPresent();
     assertThat(topPlayer.get().name()).isEqualTo("Alice");
@@ -210,9 +210,9 @@ public class Tutorial08_FluentOpticsAPI {
           return Either.right(email.toLowerCase());
         };
 
-    // TODO: Replace ___ with OpticOps.modifyEither() to validate and normalize email
+    // TODO: Replace null with OpticOps.modifyEither() to validate and normalize email
     // Hint: OpticOps.modifyEither(user, emailLens, validateEmail)
-    Either<String, User> validResult = ___;
+    Either<String, User> validResult = null;
 
     assertThat(validResult.isRight()).isTrue();
     assertThat(validResult.getRight().email()).isEqualTo("alice@example.com");
@@ -220,8 +220,8 @@ public class Tutorial08_FluentOpticsAPI {
     // Test with invalid email
     User invalidUser = new User("user2", "notanemail");
 
-    // TODO: Replace ___ with OpticOps.modifyEither() on invalid email
-    Either<String, User> invalidResult = ___;
+    // TODO: Replace null with OpticOps.modifyEither() on invalid email
+    Either<String, User> invalidResult = null;
 
     assertThat(invalidResult.isLeft()).isTrue();
     assertThat(invalidResult.getLeft()).contains("missing @");
@@ -247,17 +247,17 @@ public class Tutorial08_FluentOpticsAPI {
     java.util.function.Function<Integer, Maybe<Integer>> validateAge =
         age -> (age >= 0 && age <= 150) ? Maybe.just(age) : Maybe.nothing();
 
-    // TODO: Replace ___ with OpticOps.modifyMaybe() to validate age
+    // TODO: Replace null with OpticOps.modifyMaybe() to validate age
     // Hint: OpticOps.modifyMaybe(person, ageLens, validateAge)
-    Maybe<Person> validResult = ___;
+    Maybe<Person> validResult = null;
 
     assertThat(validResult.isJust()).isTrue();
 
     // Test with invalid age
     Person invalidPerson = new Person("Bob", 200);
 
-    // TODO: Replace ___ with OpticOps.modifyMaybe() on invalid age
-    Maybe<Person> invalidResult = ___;
+    // TODO: Replace null with OpticOps.modifyMaybe() on invalid age
+    Maybe<Person> invalidResult = null;
 
     assertThat(invalidResult.isNothing()).isTrue();
   }
@@ -295,9 +295,9 @@ public class Tutorial08_FluentOpticsAPI {
                 ? Validated.valid(price)
                 : Validated.invalid("Price must be positive: " + price);
 
-    // TODO: Replace ___ with OpticOps.modifyAllValidated() to validate all prices
+    // TODO: Replace null with OpticOps.modifyAllValidated() to validate all prices
     // Hint: OpticOps.modifyAllValidated(order, prices, validatePrice)
-    Validated<List<String>, Order> result = ___;
+    Validated<List<String>, Order> result = null;
 
     // Should be invalid because we have negative and zero prices
     assertThat(result.isInvalid()).isTrue();
@@ -312,8 +312,8 @@ public class Tutorial08_FluentOpticsAPI {
     Traversal<Order, Double> validPrices =
         OrderTraversals.items().andThen(ItemLenses.price().asTraversal());
 
-    // TODO: Replace ___ with OpticOps.modifyAllValidated() on valid order
-    Validated<List<String>, Order> validResult = ___;
+    // TODO: Replace null with OpticOps.modifyAllValidated() on valid order
+    Validated<List<String>, Order> validResult = null;
 
     assertThat(validResult.isValid()).isTrue();
   }

@@ -55,10 +55,10 @@ public class Tutorial05_OpticsComposition {
     Lens<Order, PaymentMethod> orderToPayment = OrderLenses.payment();
     Prism<PaymentMethod, CreditCard> creditCardPrism = PaymentMethodPrisms.creditCard();
 
-    // TODO: Replace ___ with composed optic: Lens + Prism
+    // TODO: Replace null with composed optic: Lens + Prism
     // This creates a Prism<Order, CreditCard>
     // Hint: orderToPayment.andThen(creditCardPrism)
-    Prism<Order, CreditCard> orderToCreditCard = ___;
+    Prism<Order, CreditCard> orderToCreditCard = null;
 
     Maybe<CreditCard> card = orderToCreditCard.getOptional(order);
     assertThat(card.isJust()).isTrue();
@@ -90,10 +90,10 @@ public class Tutorial05_OpticsComposition {
     Prism<PaymentMethod, CreditCard> creditCardPrism = PaymentMethodPrisms.creditCard();
     Lens<CreditCard, String> cvvLens = CreditCardLenses.cvv();
 
-    // TODO: Replace ___ with composed optic: Prism + Lens
+    // TODO: Replace null with composed optic: Prism + Lens
     // This creates a Prism<PaymentMethod, String> for the CVV
     // Hint: creditCardPrism.andThen(cvvLens)
-    Prism<PaymentMethod, String> cvvPrism = ___;
+    Prism<PaymentMethod, String> cvvPrism = null;
 
     PaymentMethod updated = cvvPrism.modify(cvv -> "999", order.payment());
     assertThat(((CreditCard) updated).cvv()).isEqualTo("999");
@@ -121,10 +121,10 @@ public class Tutorial05_OpticsComposition {
     Lens<Order, List<Item>> itemsLens = OrderLenses.items();
     Traversal<List<Item>, Item> listTraversal = Traversals.traverseList();
 
-    // TODO: Replace ___ with composed optic: Lens + Traversal
+    // TODO: Replace null with composed optic: Lens + Traversal
     // This creates a Traversal<Order, Item>
     // Hint: itemsLens.asTraversal().andThen(listTraversal)
-    Traversal<Order, Item> orderToItems = ___;
+    Traversal<Order, Item> orderToItems = null;
 
     // Apply 10% discount to all items
     Order updated =
@@ -160,10 +160,10 @@ public class Tutorial05_OpticsComposition {
     Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
     Lens<JsonString, String> valueLens = JsonStringLenses.value();
 
-    // TODO: Replace ___ with a chain: Lens + Prism + Lens
+    // TODO: Replace null with a chain: Lens + Prism + Lens
     // to access the string value inside the JsonObject's data field
     Prism<JsonObject, String> valueAccess =
-        dataLens.andThen(stringPrism).andThen(___);
+        dataLens.andThen(stringPrism).andThen(null);
 
     Maybe<String> value = valueAccess.getOptional(root);
     assertThat(value.get()).isEqualTo("Hello");
@@ -199,9 +199,9 @@ public class Tutorial05_OpticsComposition {
     Traversal<JsonArray, JsonValue> valuesTraversal = JsonArrayTraversals.values();
     Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
 
-    // TODO: Replace ___ with composed optic: Traversal + Prism
+    // TODO: Replace null with composed optic: Traversal + Prism
     // to focus only on JsonString values
-    Traversal<JsonArray, JsonString> stringValues = ___;
+    Traversal<JsonArray, JsonString> stringValues = null;
 
     List<String> strings =
         Traversals.getAll(stringValues.andThen(Lens.of(JsonString::value, v -> js -> new JsonString(v)).asTraversal()), array);
@@ -236,9 +236,9 @@ public class Tutorial05_OpticsComposition {
                 new Team("Team A", List.of(new Player("Alice", 100))),
                 new Team("Team B", List.of(new Player("Bob", 90), new Player("Charlie", 110)))));
 
-    // TODO: Replace ___ with a fully composed optic chain:
+    // TODO: Replace null with a fully composed optic chain:
     // League -> teams (Traversal) -> players (Traversal) -> score (Lens)
-    Traversal<League, Integer> allScores = ___;
+    Traversal<League, Integer> allScores = null;
 
     List<Integer> scores = Traversals.getAll(allScores, league);
     assertThat(scores).containsExactly(100, 90, 110);
@@ -285,10 +285,10 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Compose these into useful pipelines
     // 1. User -> city
-    Lens<User, String> userToCity = ___;
+    Lens<User, String> userToCity = null;
 
     // 2. User -> email address (optional)
-    Prism<User, String> userToEmailAddress = ___;
+    Prism<User, String> userToEmailAddress = null;
 
     assertThat(userToCity.get(user)).isEqualTo("Springfield");
     assertThat(userToEmailAddress.getOptional(user).get()).isEqualTo("alice@example.com");

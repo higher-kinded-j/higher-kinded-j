@@ -176,7 +176,7 @@ public class Tutorial06_ConcreteTypes {
     Maybe<String> absent = Maybe.nothing();
 
     // TODO: Replace null with code that converts Maybe to Either
-    // Hint: Use .toEither("Error message")
+    // Hint: Use pattern: present.isJust() ? Either.right(present.get()) : Either.left("Not found")
     Either<String, String> either1 = null;
     Either<String, String> either2 = null;
 

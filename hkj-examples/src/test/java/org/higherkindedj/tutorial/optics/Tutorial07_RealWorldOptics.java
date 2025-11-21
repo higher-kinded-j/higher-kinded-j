@@ -53,15 +53,15 @@ public class Tutorial07_RealWorldOptics {
             new UserSettings(
                 new NotificationPrefs(true, false, true), new PrivacySettings(false, false)));
 
-    // TODO: Replace ___ with a lens that accesses the email notification preference
+    // TODO: Replace null with a lens that accesses the email notification preference
     // Hint: Compose lenses through settings -> notifications -> email
-    Lens<UserProfile, Boolean> emailNotifLens = ___;
+    Lens<UserProfile, Boolean> emailNotifLens = null;
 
     // Enable email notifications
     UserProfile updated = emailNotifLens.set(true, user);
     assertThat(updated.settings().notifications().email()).isTrue();
 
-    // TODO: Replace ___ with code that toggles the publicProfile setting
+    // TODO: Replace null with code that toggles the publicProfile setting
     // Hint: Use the privacy lens and modify with boolean negation
     Lens<UserProfile, Boolean> publicProfileLens =
         UserProfileLenses.settings()
@@ -107,19 +107,19 @@ public class Tutorial07_RealWorldOptics {
     Prism<ApiResponse, SuccessResponse> successPrism = ApiResponsePrisms.successResponse();
     Traversal<SuccessResponse, Location> locationsTraversal = SuccessResponseTraversals.locations();
 
-    // TODO: Replace ___ with a composed optic that extracts all city names
+    // TODO: Replace null with a composed optic that extracts all city names
     // Hint: Compose success prism -> locations traversal -> city lens
-    Traversal<ApiResponse, String> citiesTraversal = ___;
+    Traversal<ApiResponse, String> citiesTraversal = null;
 
     List<String> cities = Traversals.getAll(citiesTraversal, response);
     assertThat(cities).containsExactly("New York", "London");
 
-    // TODO: Replace ___ with code that adjusts all latitudes by +1.0
+    // TODO: Replace null with code that adjusts all latitudes by +1.0
     Traversal<ApiResponse, Double> latitudesTraversal =
         successPrism
             .asTraversal()
             .andThen(locationsTraversal)
-            .andThen(___)
+            .andThen(null)
             .andThen(CoordinatesLenses.lat().asTraversal());
 
     ApiResponse adjusted = Traversals.modify(latitudesTraversal, lat -> lat + 1.0, response);
@@ -162,16 +162,16 @@ public class Tutorial07_RealWorldOptics {
             new Pending(),
             0.0);
 
-    // TODO: Replace ___ with a traversal that accesses all item prices
-    Traversal<Order, Double> pricesTraversal = ___;
+    // TODO: Replace null with a traversal that accesses all item prices
+    Traversal<Order, Double> pricesTraversal = null;
 
     // Calculate total before discount
     List<Double> prices = Traversals.getAll(pricesTraversal, order);
     double total = prices.stream().mapToDouble(p -> p).sum();
     assertThat(total).isEqualTo(45.0); // 2*10 + 1*25
 
-    // TODO: Replace ___ with code that applies a 10% discount to all items
-    Order discounted = ___;
+    // TODO: Replace null with code that applies a 10% discount to all items
+    Order discounted = null;
 
     List<Double> newPrices = Traversals.getAll(pricesTraversal, discounted);
     double newTotal = newPrices.stream().mapToDouble(p -> p).sum();
@@ -216,8 +216,8 @@ public class Tutorial07_RealWorldOptics {
                     "bob@example.com",
                     List.of(new Address("456 oak ave", "shelbyville", "il", "62702")))));
 
-    // TODO: Replace ___ with a traversal that accesses all customer names
-    Traversal<CustomerDatabase, String> namesTraversal = ___;
+    // TODO: Replace null with a traversal that accesses all customer names
+    Traversal<CustomerDatabase, String> namesTraversal = null;
 
     // Trim and normalize names
     CustomerDatabase normalized =
@@ -226,10 +226,10 @@ public class Tutorial07_RealWorldOptics {
     List<String> names = Traversals.getAll(namesTraversal, normalized);
     assertThat(names.get(0)).isEqualTo("Alice Smith"); // Trimmed
 
-    // TODO: Replace ___ with a traversal that accesses all city names in all addresses
+    // TODO: Replace null with a traversal that accesses all city names in all addresses
     Traversal<CustomerDatabase, String> citiesTraversal =
         CustomerDatabaseTraversals.customers()
-            .andThen(___)
+            .andThen(null)
             .andThen(AddressLenses.city().asTraversal());
 
     // Capitalize all cities
@@ -267,8 +267,8 @@ public class Tutorial07_RealWorldOptics {
             new DatabaseConfig("localhost", 5432, "dev_user", false),
             new CacheConfig("localhost", 6379, 3600));
 
-    // TODO: Replace ___ with a lens to access the database SSL setting
-    Lens<AppConfig, Boolean> dbSslLens = ___;
+    // TODO: Replace null with a lens to access the database SSL setting
+    Lens<AppConfig, Boolean> dbSslLens = null;
 
     // Enable SSL for production
     AppConfig prodConfig =
@@ -279,7 +279,7 @@ public class Tutorial07_RealWorldOptics {
     assertThat(prodConfig.environment()).isEqualTo("production");
     assertThat(prodConfig.database().ssl()).isTrue();
 
-    // TODO: Replace ___ with code that updates both database and cache hosts to
+    // TODO: Replace null with code that updates both database and cache hosts to
     // "prod.example.com"
     Lens<AppConfig, String> dbHostLens =
         AppConfigLenses.database().andThen(DatabaseConfigLenses.host());
@@ -287,7 +287,7 @@ public class Tutorial07_RealWorldOptics {
         AppConfigLenses.cache().andThen(CacheConfigLenses.host());
 
     AppConfig updated = dbHostLens.set("prod.example.com", prodConfig);
-    updated = ___;
+    updated = null;
 
     assertThat(updated.database().host()).isEqualTo("prod.example.com");
     assertThat(updated.cache().host()).isEqualTo("prod.example.com");
@@ -328,10 +328,10 @@ public class Tutorial07_RealWorldOptics {
 
     Prism<Event, Purchase> purchasePrism = EventPrisms.purchase();
 
-    // TODO: Replace ___ with a traversal that gets all purchase amounts
+    // TODO: Replace null with a traversal that gets all purchase amounts
     Traversal<EventStream, Double> purchaseAmounts =
         EventStreamTraversals.events()
-            .andThen(___.asTraversal())
+            .andThen(null.asTraversal())
             .andThen(PurchaseLenses.amount().asTraversal());
 
     List<Double> amounts = Traversals.getAll(purchaseAmounts, stream);

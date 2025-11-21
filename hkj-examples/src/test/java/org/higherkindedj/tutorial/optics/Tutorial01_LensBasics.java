@@ -45,8 +45,8 @@ public class Tutorial01_LensBasics {
   void exercise1_gettingValue() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace ___ with code that uses nameLens.get() to extract the name
-    String name = ___;
+    // TODO: Replace null with code that uses nameLens.get() to extract the name
+    String name = null;
 
     assertThat(name).isEqualTo("Alice");
   }
@@ -62,9 +62,9 @@ public class Tutorial01_LensBasics {
   void exercise2_settingValue() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace ___ with code that uses nameLens.set() to change the name to "Bob"
+    // TODO: Replace null with code that uses nameLens.set() to change the name to "Bob"
     // Hint: nameLens.set("Bob", person)
-    Person updated = ___;
+    Person updated = null;
 
     assertThat(updated.name()).isEqualTo("Bob");
     assertThat(updated.age()).isEqualTo(30); // Other fields unchanged
@@ -82,9 +82,9 @@ public class Tutorial01_LensBasics {
   void exercise3_modifyingValue() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace ___ with code that uses ageLens.modify() to increment the age
+    // TODO: Replace null with code that uses ageLens.modify() to increment the age
     // Hint: ageLens.modify(age -> age + 1, person)
-    Person updated = ___;
+    Person updated = null;
 
     assertThat(updated.age()).isEqualTo(31);
     assertThat(person.age()).isEqualTo(30); // Original unchanged
@@ -101,11 +101,11 @@ public class Tutorial01_LensBasics {
   void exercise4_chainingUpdates() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Updates the name to "Bob"
     // 2. Then increments the age by 5
     // Hint: Chain two lens operations - nameLens.set(...) then ageLens.modify(...)
-    Person updated = ___;
+    Person updated = null;
 
     assertThat(updated.name()).isEqualTo("Bob");
     assertThat(updated.age()).isEqualTo(35);
@@ -125,16 +125,16 @@ public class Tutorial01_LensBasics {
 
     Product product = new Product("PROD-001", "Laptop", 999.99);
 
-    // TODO: Replace ___ with code that uses the generated ProductLenses.name() lens
+    // TODO: Replace null with code that uses the generated ProductLenses.name() lens
     // to get the product name
-    String name = ___;
+    String name = null;
 
     assertThat(name).isEqualTo("Laptop");
 
-    // TODO: Replace ___ with code that uses ProductLenses.price() lens
+    // TODO: Replace null with code that uses ProductLenses.price() lens
     // to increase the price by 10%
     // Hint: ProductLenses.price().modify(p -> p * 1.1, product)
-    Product updated = ___;
+    Product updated = null;
 
     assertThat(updated.price()).isCloseTo(1099.989, within(0.01));
   }
@@ -150,9 +150,9 @@ public class Tutorial01_LensBasics {
   void exercise6_customLens() {
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace ___ with code that creates a lens for the email field
+    // TODO: Replace null with code that creates a lens for the email field
     // Hint: Lens.of(Person::email, newEmail -> person -> new Person(...))
-    Lens<Person, String> emailLens = ___;
+    Lens<Person, String> emailLens = null;
 
     String email = emailLens.get(person);
     assertThat(email).isEqualTo("alice@example.com");
@@ -172,9 +172,9 @@ public class Tutorial01_LensBasics {
   void exercise7_methodReferences() {
     Person person = new Person("alice", 30, "alice@example.com");
 
-    // TODO: Replace ___ with code that uses nameLens.modify() with String::toUpperCase
+    // TODO: Replace null with code that uses nameLens.modify() with String::toUpperCase
     // to capitalize the name
-    Person updated = ___;
+    Person updated = null;
 
     assertThat(updated.name()).isEqualTo("ALICE");
   }

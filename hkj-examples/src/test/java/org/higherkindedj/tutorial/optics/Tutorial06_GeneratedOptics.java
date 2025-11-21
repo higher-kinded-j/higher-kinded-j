@@ -43,17 +43,17 @@ public class Tutorial06_GeneratedOptics {
 
     Person person = new Person("Alice", 30, "alice@example.com");
 
-    // TODO: Replace ___ with generated lens access
+    // TODO: Replace null with generated lens access
     // Hint: PersonLenses.name().get(person)
-    String name = ___;
+    String name = null;
 
-    // TODO: Replace ___ with generated lens modification
+    // TODO: Replace null with generated lens modification
     // Hint: PersonLenses.age().set(31, person)
-    Person updated = ___;
+    Person updated = null;
 
-    // TODO: Replace ___ with generated helper method
+    // TODO: Replace null with generated helper method
     // Hint: PersonLenses.withEmail(person, "new@example.com")
-    Person updated2 = ___;
+    Person updated2 = null;
 
     assertThat(name).isEqualTo("Alice");
     assertThat(updated.age()).isEqualTo(31);
@@ -79,16 +79,16 @@ public class Tutorial06_GeneratedOptics {
 
     Result result = new Success("Operation completed");
 
-    // TODO: Replace ___ with generated prism access
+    // TODO: Replace null with generated prism access
     // Hint: ResultPrisms.success().getOptional(result)
-    var successOpt = ___;
+    var successOpt = null;
 
     assertThat(successOpt.isJust()).isTrue();
     assertThat(successOpt.get().message()).isEqualTo("Operation completed");
 
-    // TODO: Replace ___ with generated prism construction
+    // TODO: Replace null with generated prism construction
     // Hint: ResultPrisms.failure().build(new Failure("Error"))
-    Result failure = ___;
+    Result failure = null;
 
     assertThat(failure).isInstanceOf(Failure.class);
   }
@@ -111,9 +111,9 @@ public class Tutorial06_GeneratedOptics {
     Cart cart =
         new Cart(List.of(new Item("Widget", 10.0), new Item("Gadget", 20.0)));
 
-    // TODO: Replace ___ with generated traversal to access all items
+    // TODO: Replace null with generated traversal to access all items
     // Hint: CartTraversals.items()
-    var itemsTraversal = ___;
+    var itemsTraversal = null;
 
     // Apply 10% discount to all items
     Cart discounted =
@@ -144,10 +144,10 @@ public class Tutorial06_GeneratedOptics {
     Employee emp =
         new Employee("Alice", new Company("TechCorp", new Address("123 Main", "Springfield")));
 
-    // TODO: Replace ___ with a composition of generated lenses
+    // TODO: Replace null with a composition of generated lenses
     // to access the employee's company's city
     // Hint: EmployeeLenses.company().andThen(...).andThen(...)
-    var cityLens = ___;
+    var cityLens = null;
 
     assertThat(cityLens.get(emp)).isEqualTo("Springfield");
 
@@ -176,9 +176,9 @@ public class Tutorial06_GeneratedOptics {
                 "PROD-1", new Product("Widget", 10.0),
                 "PROD-2", new Product("Gadget", 20.0)));
 
-    // TODO: Replace ___ with generated map traversal
+    // TODO: Replace null with generated map traversal
     // Hint: InventoryTraversals.products()
-    var productsTraversal = ___;
+    var productsTraversal = null;
 
     // Increase all prices by 10%
     Inventory updated =
@@ -206,9 +206,9 @@ public class Tutorial06_GeneratedOptics {
     // Using lens.set() (functional style)
     User updated1 = UserLenses.name().set("Bob", user);
 
-    // TODO: Replace ___ with equivalent using with* helper
+    // TODO: Replace null with equivalent using with* helper
     // Hint: UserLenses.withName(user, "Bob")
-    User updated2 = ___;
+    User updated2 = null;
 
     assertThat(updated1.name()).isEqualTo("Bob");
     assertThat(updated2.name()).isEqualTo("Bob");
@@ -248,14 +248,14 @@ public class Tutorial06_GeneratedOptics {
                 new Notification("2", new SMS("555-1234", "Code: 1234"), false),
                 new Notification("3", new Email("admin@example.com", "Alert"), false)));
 
-    // TODO: Replace ___ with a composition that:
+    // TODO: Replace null with a composition that:
     // 1. Traverses all notifications
     // 2. Filters to Email types only
     // 3. Gets the email subject
     var emailSubjectsTraversal =
         NotificationQueueTraversals.notifications()
             .andThen(NotificationLenses.type().asTraversal())
-            .andThen(___
+            .andThen(null
 .asTraversal())
             .andThen(EmailLenses.subject().asTraversal());
 

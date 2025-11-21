@@ -58,9 +58,9 @@ public class Tutorial09_AdvancedOpticsDSL {
     Lens<Person, String> nameLens = PersonLenses.name();
     Lens<Person, Integer> ageLens = PersonLenses.age();
 
-    // TODO: Replace ___ with OpticPrograms.get() to create a program that reads the age
+    // TODO: Replace null with OpticPrograms.get() to create a program that reads the age
     // Hint: OpticPrograms.get(person, ageLens)
-    Free<OpticOpKind.Witness, Integer> getProgram = ___;
+    Free<OpticOpKind.Witness, Integer> getProgram = null;
 
     // Execute the program
     DirectOpticInterpreter interpreter = OpticInterpreters.direct();
@@ -68,9 +68,9 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     assertThat(age).isEqualTo(30);
 
-    // TODO: Replace ___ with OpticPrograms.set() to create a program that sets age to 31
+    // TODO: Replace null with OpticPrograms.set() to create a program that sets age to 31
     // Hint: OpticPrograms.set(person, ageLens, 31)
-    Free<OpticOpKind.Witness, Person> setProgram = ___;
+    Free<OpticOpKind.Witness, Person> setProgram = null;
 
     Person updated = interpreter.run(setProgram);
     assertThat(updated.age()).isEqualTo(31);
@@ -93,11 +93,11 @@ public class Tutorial09_AdvancedOpticsDSL {
     Lens<Counter, Integer> valueLens = CounterLenses.value();
 
     // Build a program that reads the current value, adds 10, then sets it back
-    // TODO: Replace ___ with a composed program using flatMap
+    // TODO: Replace null with a composed program using flatMap
     // Hint: OpticPrograms.get(counter, valueLens).flatMap(v -> OpticPrograms.set(...))
     Free<OpticOpKind.Witness, Counter> program =
         OpticPrograms.get(counter, valueLens)
-            .flatMap(currentValue -> ___);
+            .flatMap(currentValue -> null);
 
     Counter result = OpticInterpreters.direct().run(program);
     assertThat(result.value()).isEqualTo(15);
@@ -126,16 +126,16 @@ public class Tutorial09_AdvancedOpticsDSL {
     // 2. If balance >= 1000, set status to "APPROVED"
     // 3. If balance < 1000, set status to "DENIED"
     //
-    // TODO: Replace ___ with a conditional program
+    // TODO: Replace null with a conditional program
     // Hint: Use OpticPrograms.get().flatMap() with if-else to choose which program to run
     Free<OpticOpKind.Witness, Account> program =
         OpticPrograms.get(account, balanceLens)
             .flatMap(
                 balance -> {
                   if (balance >= 1000) {
-                    return ___;
+                    return null;
                   } else {
-                    return ___;
+                    return null;
                   }
                 });
 
@@ -183,14 +183,14 @@ public class Tutorial09_AdvancedOpticsDSL {
     // 2. Lowercases the email
     // 3. Sets active to true
     //
-    // TODO: Replace ___ with a multi-step program using flatMap chains
+    // TODO: Replace null with a multi-step program using flatMap chains
     // Hint: OpticPrograms.modify().flatMap(u1 -> OpticPrograms.modify(...).flatMap(u2 -> ...))
     Free<OpticOpKind.Witness, User> program =
         OpticPrograms.modify(user, nameLens, name -> capitalize(name))
             .flatMap(
                 u1 ->
                     OpticPrograms.modify(u1, emailLens, String::toLowerCase)
-                        .flatMap(u2 -> ___));
+                        .flatMap(u2 -> null));
 
     User result = OpticInterpreters.direct().run(program);
     assertThat(result.name()).isEqualTo("Alice");
@@ -226,9 +226,9 @@ public class Tutorial09_AdvancedOpticsDSL {
         OpticPrograms.modify(doc, titleLens, title -> title + " (Revised)")
             .flatMap(d -> OpticPrograms.set(d, statusLens, "PUBLISHED"));
 
-    // TODO: Replace ___ with the logging interpreter
+    // TODO: Replace null with the logging interpreter
     // Hint: OpticInterpreters.logging()
-    LoggingOpticInterpreter logger = ___;
+    LoggingOpticInterpreter logger = null;
 
     Document result = logger.run(program);
 
@@ -236,8 +236,8 @@ public class Tutorial09_AdvancedOpticsDSL {
     assertThat(result.status()).isEqualTo("PUBLISHED");
 
     // Check the audit log
-    // TODO: Replace ___ with logger.getLog()
-    List<String> log = ___;
+    // TODO: Replace null with logger.getLog()
+    List<String> log = null;
 
     assertThat(log).isNotEmpty();
     // Log should contain operations performed
@@ -273,13 +273,13 @@ public class Tutorial09_AdvancedOpticsDSL {
                   }
                 });
 
-    // TODO: Replace ___ with the validation interpreter
+    // TODO: Replace null with the validation interpreter
     // Hint: OpticInterpreters.validation()
-    ValidationOpticInterpreter validator = ___;
+    ValidationOpticInterpreter validator = null;
 
     // Validate the program (dry-run)
-    // TODO: Replace ___ with validator.validate(program)
-    List<String> issues = ___;
+    // TODO: Replace null with validator.validate(program)
+    List<String> issues = null;
 
     // The validator can detect potential issues
     // In this simple case, it validates the structure is correct
@@ -314,7 +314,7 @@ public class Tutorial09_AdvancedOpticsDSL {
     // 5. Mark as shipped
     // 6. Update status to "SHIPPED"
     //
-    // TODO: Replace ___ with the complete workflow program
+    // TODO: Replace null with the complete workflow program
     Free<OpticOpKind.Witness, Order> workflow =
         OpticPrograms.get(order, totalLens)
             .flatMap(
@@ -330,7 +330,7 @@ public class Tutorial09_AdvancedOpticsDSL {
                       .flatMap(o1 -> OpticPrograms.set(o1, paidLens, true))
                       .flatMap(o2 -> OpticPrograms.set(o2, statusLens, "PROCESSING"))
                       .flatMap(o3 -> OpticPrograms.set(o3, shippedLens, true))
-                      .flatMap(o4 -> ___);
+                      .flatMap(o4 -> null);
                 });
 
     // Execute with logging

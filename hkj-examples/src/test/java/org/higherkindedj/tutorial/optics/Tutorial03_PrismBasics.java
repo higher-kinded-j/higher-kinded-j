@@ -48,9 +48,9 @@ public class Tutorial03_PrismBasics {
 
     Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
-    // TODO: Replace ___ with code that uses circlePrism.getOptional()
+    // TODO: Replace null with code that uses circlePrism.getOptional()
     // to extract the circle
-    Maybe<Circle> extracted = ___;
+    Maybe<Circle> extracted = null;
 
     assertThat(extracted.isJust()).isTrue();
     assertThat(extracted.get().radius()).isEqualTo(5.0);
@@ -73,10 +73,10 @@ public class Tutorial03_PrismBasics {
 
     Circle circle = new Circle(7.5);
 
-    // TODO: Replace ___ with code that uses circlePrism.build()
+    // TODO: Replace null with code that uses circlePrism.build()
     // to create a Shape from a Circle
     // Hint: circlePrism.build(circle)
-    Shape shape = ___;
+    Shape shape = null;
 
     assertThat(shape).isInstanceOf(Circle.class);
     assertThat(((Circle) shape).radius()).isEqualTo(7.5);
@@ -96,10 +96,10 @@ public class Tutorial03_PrismBasics {
 
     Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
 
-    // TODO: Replace ___ with code that uses circlePrism.modify()
+    // TODO: Replace null with code that uses circlePrism.modify()
     // to double the circle's radius
     // Hint: circlePrism.modify(c -> new Circle(c.radius() * 2), circle)
-    Shape doubledCircle = ___;
+    Shape doubledCircle = null;
 
     assertThat(((Circle) doubledCircle).radius()).isEqualTo(10.0);
 
@@ -123,7 +123,7 @@ public class Tutorial03_PrismBasics {
 
     Shape shape = new Rectangle(5.0, 10.0);
 
-    // TODO: Replace ___ with code that calculates area using prisms
+    // TODO: Replace null with code that calculates area using prisms
     // Try each prism and calculate the appropriate area
     double area =
         circlePrism
@@ -156,11 +156,11 @@ public class Tutorial03_PrismBasics {
 
     Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
 
-    // TODO: Replace ___ with code that:
+    // TODO: Replace null with code that:
     // 1. Uses the prism to get the JsonString
     // 2. Maps over it to extract the value field
     // Hint: stringPrism.getOptional(stringValue).map(js -> js.value())
-    Maybe<String> value = ___;
+    Maybe<String> value = null;
 
     assertThat(value.get()).isEqualTo("Hello");
   }
@@ -187,10 +187,10 @@ public class Tutorial03_PrismBasics {
 
     Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
 
-    // TODO: Replace ___ with code that uppercases the strings
+    // TODO: Replace null with code that uppercases the strings
     // Use stringPrism.modify() to transform matching values
     JsonValue updated1 = stringPrism.modify(js -> new JsonString(js.value().toUpperCase()), string1);
-    JsonValue updated2 = ___;
+    JsonValue updated2 = null;
     JsonValue updated3 = stringPrism.modify(js -> new JsonString(js.value().toUpperCase()), number);
 
     assertThat(((JsonString) updated1).value()).isEqualTo("HELLO");
@@ -213,11 +213,11 @@ public class Tutorial03_PrismBasics {
     Shape shape2 = new Rectangle(10.0, 20.0);
     Shape shape3 = new Circle(3.0);
 
-    // TODO: Replace ___ with code that checks if shapes are circles
+    // TODO: Replace null with code that checks if shapes are circles
     // Hint: circlePrism.matches(shape)
-    boolean isCircle1 = ___;
-    boolean isCircle2 = ___;
-    boolean isCircle3 = ___;
+    boolean isCircle1 = null;
+    boolean isCircle2 = null;
+    boolean isCircle3 = null;
 
     assertThat(isCircle1).isTrue();
     assertThat(isCircle2).isFalse();

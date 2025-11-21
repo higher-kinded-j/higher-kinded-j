@@ -74,9 +74,9 @@ public class Tutorial07_RealWorld {
         validateUsername
             .apply("alice")
             .map4(
-                null,
-                null,
-                null,
+                validateEmail.apply(null),
+                validatePassword.apply(null),
+                validateAge.apply(null),
                 (username, email, password, age) ->
                     new Registration(username, email, password, age));
 
@@ -215,19 +215,20 @@ public class Tutorial07_RealWorld {
 
     // TODO: Replace null with code that:
     // 1. Looks up the user (Maybe)
-    // 2. Converts Maybe to Either (use .toEither(...))
+    // 2. Converts Maybe to Either (use pattern: maybe.isJust() ? Either.right(maybe.get()) : Either.left("error"))
     // 3. Validates the user (Either)
-    Either<String, User> result =
-        findUser
-            .apply("user1")
-            .toEither("User not found")
-            .flatMap(validateUser);
+    Maybe<User> maybeUser = findUser.apply("user1");
+    Either<String, User> eitherUser =
+        maybeUser.isJust() ? Either.right(maybeUser.get()) : Either.left("User not found");
+    Either<String, User> result = eitherUser.flatMap(validateUser);
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().name()).isEqualTo("Alice");
 
     // TODO: Replace null with code that handles a missing user
-    Either<String, User> missing = null;
+    Maybe<User> maybeMissing = findUser.apply(null);
+    Either<String, User> missing =
+        maybeMissing.isJust() ? Either.right(maybeMissing.get()) : Either.left("User not found");
 
     assertThat(missing.isLeft()).isTrue();
     assertThat(missing.getLeft()).isEqualTo("User not found");

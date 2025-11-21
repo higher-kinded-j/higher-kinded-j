@@ -5,7 +5,6 @@ package org.higherkindedj.tutorial.coretypes;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherApplicative;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.Test;
 
