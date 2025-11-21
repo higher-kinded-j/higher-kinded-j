@@ -1,4 +1,4 @@
-# Profunctor: Building Adaptable Data Pipelines 🔄
+# Profunctor: Building Adaptable Data Pipelines
 
 ~~~admonish info title="What You'll Learn"
 - How to build adaptable data transformation pipelines

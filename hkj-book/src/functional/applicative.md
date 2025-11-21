@@ -1,4 +1,4 @@
-# Applicative: Applying Wrapped Functions ✨
+# Applicative: Applying Wrapped Functions
 
 ~~~admonish info title="What You'll Learn"
 - How to apply wrapped functions to wrapped values using `ap`
@@ -8,7 +8,7 @@
 - Real-world validation scenarios with the Validated type
 ~~~
 
-While a `Functor` is great for applying a *simple* function to a value inside a context, what happens when the function you want to apply is *also* wrapped in a context? This is where the **`Applicative`** type class comes in. It's the next step up in power from a `Functor` and allows you to combine multiple computations within a context in a very powerful way.
+Whilst a `Functor` excels at applying a *pure* function to a value inside a context, what happens when the function you want to apply is *also* wrapped in a context? This is where the **`Applicative`** type class comes in. It's the next step up in power from a `Functor` and allows you to combine multiple computations within a context in a very powerful way.
 
 ---
 
@@ -51,7 +51,7 @@ public interface Applicative<F> extends Functor<F> {
 
 The primary use case for `Applicative` is to combine the results of several independent computations that are all inside the same context. The classic example is **data validation**, where you want to validate multiple fields and accumulate all the errors.
 
-While a `Monad` (using `flatMap`) can also combine computations, it can't accumulate errors in the same way. When a monadic chain fails, it short-circuits, giving you only the *first* error. An `Applicative`, on the other hand, can process all computations independently and combine the results.
+Whilst a `Monad` (using `flatMap`) can also combine computations, it cannot accumulate errors in the same way. When a monadic chain fails, it short-circuits, giving you only the *first* error. An `Applicative`, on the other hand, can process all computations independently and combine the results.
 
 **Example: Validating a User Registration Form**
 

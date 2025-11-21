@@ -1,4 +1,4 @@
-# Selective: Conditional Effects 🔀
+# Selective: Conditional Effects
 
 ~~~admonish info title="What You'll Learn"
 - How Selective bridges the gap between Applicative and Monad

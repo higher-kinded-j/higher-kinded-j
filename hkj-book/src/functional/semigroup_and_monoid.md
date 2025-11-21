@@ -1,5 +1,4 @@
-# Semigroup and Monoid: 
-## Foundational Type Classes 🧮
+# Semigroup and Monoid: Foundational Type Classes
 
 ~~~admonish info title="What You'll Learn"
 - The fundamental building blocks for combining data: Semigroup and Monoid

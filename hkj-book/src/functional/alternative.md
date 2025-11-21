@@ -269,7 +269,7 @@ In practice, since `MonadZero` extends `Alternative` in higher-kinded-j, types l
 ### When to Use Alternative
 
 Use Alternative when you need to:
-* **Try multiple alternatives** with fallback behavior
+* **Try multiple alternatives** with fallback behaviour
 * **Combine all possibilities** (for List/Stream)
 * **Conditionally proceed** based on boolean conditions (`guard()`)
 * **Build parser combinators** or similar choice-based systems
