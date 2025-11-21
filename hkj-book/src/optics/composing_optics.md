@@ -269,7 +269,7 @@ Optic composition is designed for efficiency:
 * **Structural sharing**: Unchanged parts of data structures are reused
 * **Single-pass processing**: `modifyF` traverses the structure only once
 * **Memory efficient**: Only creates new objects for changed data
-* **Compile-time Optimisation**: Complex compositions are Optimised by the JVM
+* **JIT compiler optimisation**: Complex compositions are optimised by the JVM's just-in-time compiler through method inlining
 
 **Best Practice**: Create composed optics as constants for reuse:
 
@@ -825,5 +825,5 @@ See: [Fluent API for Optics - Part 2.5: Validation-Aware Modifications](fluent_a
 
 ---
 
-**Previous:**[Profunctor Optics: Advanced Data Transformation](profunctor_optics.md)
-**Next:**[Optics Examples](optics_examples.md)
+**Previous:** [Profunctor Optics: Advanced Data Transformation](profunctor_optics.md)
+**Next:** [Optics Examples](optics_examples.md)

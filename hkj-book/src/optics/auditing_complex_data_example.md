@@ -397,4 +397,4 @@ This combination of composability, type safety, and profunctor adaptability make
 
 ---
 
-**Previous:**[Optics Examples](optics_examples.md)
+**Previous:** [Optics Examples](optics_examples.md)

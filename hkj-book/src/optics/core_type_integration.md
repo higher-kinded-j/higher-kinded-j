@@ -1,6 +1,6 @@
 # Working with Core Types and Optics
 
-![integration.jpg](../images/optics.jpg)
+![Diagram illustrating optics integration with functional core types like Maybe, Either, and Validated](../images/optics.jpg)
 
 As you've learnt from the previous chapters, optics provide a powerful way to focus on and modify immutable data structures. But what happens when the data you're working with is wrapped in Higher-Kinded-J's core types—`Maybe`, `Either`, `Validated`, or `Try`?
 

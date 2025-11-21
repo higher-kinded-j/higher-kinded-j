@@ -1,6 +1,6 @@
 # Fluent API for Optics: Java-Friendly Optic Operations
 
-![fluent_code.jpg](../images/lens2.jpg)
+![Illustration of fluent API patterns for Java-friendly optic operations](../images/lens2.jpg)
 
 ~~~admonish info title="What You'll Learn"
 - Two styles of optic operations: static methods and fluent builders
