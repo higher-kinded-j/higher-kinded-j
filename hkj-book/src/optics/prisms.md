@@ -2,7 +2,7 @@
 
 ## _Working with Sum Types_
 
-![prism.jpeg](../images/prism.jpeg)
+![Visual representation of a prism safely extracting one variant from a sum type](../images/prism.jpeg)
 
 ~~~admonish info title="What You'll Learn"
 - How to safely work with sum types and sealed interfaces

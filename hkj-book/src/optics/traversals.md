@@ -812,5 +812,5 @@ This is the reason they can all be composed together so seamlessly. By mastering
 
 ---
 
-**Previous:**[Isomorphisms: Data Equivalence](iso.md)
-**Next:**[Folds: Querying Immutable Data](folds.md)
+**Previous:** [Isomorphisms: Data Equivalence](iso.md)
+**Next:** [Folds: Querying Immutable Data](folds.md)

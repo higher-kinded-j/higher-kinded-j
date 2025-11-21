@@ -1,8 +1,8 @@
 # An Introduction to Optics
 
-![optics.jpg](../images/optics.jpg)
+![Diagram showing optics as composable lenses focusing on nested data structures](../images/optics.jpg)
 
-As Java developers, we love the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data can be a verbose and error-prone nightmare.
+As Java developers, we appreciate the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data can be a verbose and error-prone nightmare.
 
 Consider a simple nested record structure:
 
@@ -33,7 +33,7 @@ This is the problem that **Optics** solve.
 
 At their core, optics are simply **composable, functional getters and setters** for immutable data structures.
 
-Think of an optic as a "zoom lens" for your data. It's a first-class object that represents a path from a whole structure (like `User`) to a specific part (like the street `name`). Because it's an object, you can pass it around, compose it with other optics, and use it to perform functional updates.
+Think of an optic as a *zoom lens* for your data. It's a first-class object that represents a path from a whole structure (like `User`) to a specific part (like the street `name`). Because it's an object, you can pass it around, compose it with other optics, and use it to perform functional updates.
 
 ## Think of Optics Like...
 
@@ -246,7 +246,7 @@ java
 var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
 ```
 
-This level of abstraction allows you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling.  
+This level of abstraction enables you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling.
 
 ## Making Optics Feel Natural in Java
 
@@ -293,6 +293,6 @@ This powerful pattern is explored in detail in the [Free Monad DSL Guide](free_m
 
 ---
 
-**Next:**[Lenses: Working with Product Types](lenses.md)
+**Next:** [Lenses: Working with Product Types](lenses.md)
 
 

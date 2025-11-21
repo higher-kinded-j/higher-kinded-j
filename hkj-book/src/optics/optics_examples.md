@@ -238,5 +238,5 @@ These examples focus on using generated traversals for specific collection and c
 * **Demonstrates**: Traversing a `Try<Integer>` field.
 * **Scenario**: A `NetworkRequest` record holds the result of an operation that could have thrown an exception, wrapped in a `Try`. The traversal allows modification of the value only if the `Try` is a `Success`, leaving a `Failure` (containing an exception) unchanged.
 
-**Previous:**[Profunctor Optics: Advanced Data Transformation](composing_optics.md)
-**Next:**[Auditing Complex Data: The Power of Optics](auditing_complex_data_example.md)
+**Previous:** [Profunctor Optics: Advanced Data Transformation](composing_optics.md)
+**Next:** [Auditing Complex Data: The Power of Optics](auditing_complex_data_example.md)

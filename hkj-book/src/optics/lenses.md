@@ -2,7 +2,7 @@
 
 ## _Working with Product Types_
 
-![lens2.jpg](../images/lens2.jpg)
+![Visual representation of a lens focusing on a single field within nested immutable data structures](../images/lens2.jpg)
 
 ~~~admonish info title="What You'll Learn"
 - How to safely access and update fields in immutable data structures
@@ -353,5 +353,5 @@ Kind<ValidatedKind.Witness<String>, Employee> result =
 
 ---
 
-**Previous:**[An Introduction to Optics](optics_intro.md)
-**Next:**[Prisms: Working with Sum Types](prisms.md)
+**Previous:** [An Introduction to Optics](optics_intro.md)
+**Next:** [Prisms: Working with Sum Types](prisms.md)
