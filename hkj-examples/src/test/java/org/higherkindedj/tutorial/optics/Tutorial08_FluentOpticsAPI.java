@@ -35,6 +35,26 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial08_FluentOpticsAPI {
 
+  // Manual traversal/lens implementations (annotation processor generates these in real projects)
+
+  /** Helper to create a Traversal for List fields */
+  static <S, A> Traversal<S, A> listTraversal(
+      java.util.function.Function<S, List<A>> getter,
+      java.util.function.BiFunction<S, List<A>, S> setter) {
+    return Traversal.of(
+        (applicative, f, s) -> {
+          List<A> list = getter.apply(s);
+          var listKind =
+              org.higherkindedj.optics.util.Traversals.traverseList(
+                  list,
+                  a -> f.apply(a),
+                  applicative);
+          return applicative.map(
+              listKind,
+              newList -> setter.apply(s, newList));
+        });
+  }
+
   /**
    * Exercise 1: Basic get and set operations
    *
@@ -47,6 +67,21 @@ public class Tutorial08_FluentOpticsAPI {
   void exercise1_basicGetAndSet() {
     @GenerateLenses
     record Person(String name, int age, String email) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class PersonLenses {
+      public static Lens<Person, String> name() {
+        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age(), p.email()));
+      }
+
+      public static Lens<Person, Integer> age() {
+        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge, p.email()));
+      }
+
+      public static Lens<Person, String> email() {
+        return Lens.of(Person::email, newEmail -> p -> new Person(p.name(), p.age(), newEmail));
+      }
+    }
 
     Person person = new Person("Alice", 30, "alice@example.com");
 
@@ -78,6 +113,17 @@ public class Tutorial08_FluentOpticsAPI {
   void exercise2_modifyOperations() {
     @GenerateLenses
     record Person(String name, int age) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class PersonLenses {
+      public static Lens<Person, String> name() {
+        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age()));
+      }
+
+      public static Lens<Person, Integer> age() {
+        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge));
+      }
+    }
 
     Person person = new Person("alice", 30);
 
@@ -112,6 +158,23 @@ public class Tutorial08_FluentOpticsAPI {
     @GenerateLenses
     @GenerateTraversals
     record Team(String teamName, List<Player> players) {}
+
+    // Manual implementations (annotation processor would generate these)
+    class PlayerLenses {
+      public static Lens<Player, String> name() {
+        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+      }
+
+      public static Lens<Player, Integer> score() {
+        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+      }
+    }
+
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(t.teamName(), ps));
+      }
+    }
 
     Team team =
         new Team(
@@ -152,6 +215,23 @@ public class Tutorial08_FluentOpticsAPI {
     @GenerateTraversals
     record Team(List<Player> players) {}
 
+    // Manual implementations (annotation processor would generate these)
+    class PlayerLenses {
+      public static Lens<Player, String> name() {
+        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+      }
+
+      public static Lens<Player, Integer> score() {
+        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+      }
+    }
+
+    class TeamTraversals {
+      public static Traversal<Team, Player> players() {
+        return listTraversal(Team::players, (t, ps) -> new Team(ps));
+      }
+    }
+
     Team team =
         new Team(
             List.of(
@@ -160,15 +240,15 @@ public class Tutorial08_FluentOpticsAPI {
     Traversal<Team, Integer> scores =
         TeamTraversals.players().andThen(PlayerLenses.score().asTraversal());
 
-    // TODO: Replace null with OpticOps.exists() to check if any score >= 100
+    // TODO: Replace false with OpticOps.exists() to check if any score >= 100
     // Hint: OpticOps.exists(team, scores, score -> score >= 100)
-    boolean hasHighScorers = null;
+    boolean hasHighScorers = false;
 
     assertThat(hasHighScorers).isTrue();
 
-    // TODO: Replace null with OpticOps.count() to count total players
+    // TODO: Replace 0 with OpticOps.count() to count total players
     // Hint: OpticOps.count(team, TeamTraversals.players())
-    int playerCount = null;
+    int playerCount = 0;
 
     assertThat(playerCount).isEqualTo(3);
 
@@ -193,6 +273,17 @@ public class Tutorial08_FluentOpticsAPI {
   void exercise5_validationWithEither() {
     @GenerateLenses
     record User(String id, String email) {}
+
+    // Manual implementation (annotation processor would generate this)
+    class UserLenses {
+      public static Lens<User, String> id() {
+        return Lens.of(User::id, newId -> u -> new User(newId, u.email()));
+      }
+
+      public static Lens<User, String> email() {
+        return Lens.of(User::email, newEmail -> u -> new User(u.id(), newEmail));
+      }
+    }
 
     User user = new User("user1", "alice@example.com");
 
@@ -239,6 +330,17 @@ public class Tutorial08_FluentOpticsAPI {
     @GenerateLenses
     record Person(String name, int age) {}
 
+    // Manual implementation (annotation processor would generate this)
+    class PersonLenses {
+      public static Lens<Person, String> name() {
+        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age()));
+      }
+
+      public static Lens<Person, Integer> age() {
+        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge));
+      }
+    }
+
     Person person = new Person("Alice", 30);
 
     Lens<Person, Integer> ageLens = PersonLenses.age();
@@ -279,6 +381,23 @@ public class Tutorial08_FluentOpticsAPI {
     @GenerateTraversals
     record Order(String id, List<Item> items) {}
 
+    // Manual implementations (annotation processor would generate these)
+    class ItemLenses {
+      public static Lens<Item, String> name() {
+        return Lens.of(Item::name, newName -> i -> new Item(newName, i.price()));
+      }
+
+      public static Lens<Item, Double> price() {
+        return Lens.of(Item::price, newPrice -> i -> new Item(i.name(), newPrice));
+      }
+    }
+
+    class OrderTraversals {
+      public static Traversal<Order, Item> items() {
+        return listTraversal(Order::items, (o, items) -> new Order(o.id(), items));
+      }
+    }
+
     Order order =
         new Order(
             "ORD-001",
@@ -302,7 +421,7 @@ public class Tutorial08_FluentOpticsAPI {
     // Should be invalid because we have negative and zero prices
     assertThat(result.isInvalid()).isTrue();
     // Validated accumulates errors (at least 2 invalid prices)
-    List<String> errors = result.getInvalid();
+    List<String> errors = result.fold(errorList -> errorList, valid -> List.of());
     assertThat(errors.size()).isGreaterThanOrEqualTo(1);
 
     // Test with all valid prices
