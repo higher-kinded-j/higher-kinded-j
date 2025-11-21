@@ -7,6 +7,7 @@ multilingual = false
 src = "src"
 [output.html]
 additional-css = ["./mdbook-admonish.css", "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", "./theme/catppuccin-alerts.css", "./theme/additional-hkj.css"]
+additional-js = ["./theme/version-switcher.js"]
 default-theme = "latte"
 preferred-dark-theme = "macchiato"
 site-url = "https://higher-kinded-j.github.io"
