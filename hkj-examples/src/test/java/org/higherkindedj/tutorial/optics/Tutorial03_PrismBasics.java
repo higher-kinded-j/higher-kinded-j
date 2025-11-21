@@ -4,6 +4,7 @@ package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Optional;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -34,6 +35,44 @@ public class Tutorial03_PrismBasics {
 
   record Triangle(double base, double height) implements Shape {}
 
+  // Manual prism implementations (annotation processor will generate these in real projects)
+  static class ShapePrisms {
+    public static Prism<Shape, Circle> circle() {
+      return Prism.of(
+          s -> s instanceof Circle c ? Optional.of(c) : Optional.empty(), c -> c);
+    }
+
+    public static Prism<Shape, Rectangle> rectangle() {
+      return Prism.of(
+          s -> s instanceof Rectangle r ? Optional.of(r) : Optional.empty(), r -> r);
+    }
+
+    public static Prism<Shape, Triangle> triangle() {
+      return Prism.of(
+          s -> s instanceof Triangle t ? Optional.of(t) : Optional.empty(), t -> t);
+    }
+  }
+
+  // JsonValue sealed interface for exercises 5-6
+  @GeneratePrisms
+  sealed interface JsonValue {}
+
+  record JsonString(String value) implements JsonValue {}
+
+  record JsonNumber(double value) implements JsonValue {}
+
+  static class JsonValuePrisms {
+    public static Prism<JsonValue, JsonString> jsonString() {
+      return Prism.of(
+          jv -> jv instanceof JsonString js ? Optional.of(js) : Optional.empty(), js -> js);
+    }
+
+    public static Prism<JsonValue, JsonNumber> jsonNumber() {
+      return Prism.of(
+          jv -> jv instanceof JsonNumber jn ? Optional.of(jn) : Optional.empty(), jn -> jn);
+    }
+  }
+
   /**
    * Exercise 1: Getting a value with a Prism
    *
@@ -50,14 +89,14 @@ public class Tutorial03_PrismBasics {
 
     // TODO: Replace null with code that uses circlePrism.getOptional()
     // to extract the circle
-    Maybe<Circle> extracted = null;
+    Optional<Circle> extracted = null;
 
-    assertThat(extracted.isJust()).isTrue();
+    assertThat(extracted.isPresent()).isTrue();
     assertThat(extracted.get().radius()).isEqualTo(5.0);
 
     // Prism fails when shape doesn't match
-    Maybe<Circle> notACircle = circlePrism.getOptional(rectangle);
-    assertThat(notACircle.isNothing()).isTrue();
+    Optional<Circle> notACircle = circlePrism.getOptional(rectangle);
+    assertThat(notACircle.isEmpty()).isTrue();
   }
 
   /**
@@ -123,15 +162,11 @@ public class Tutorial03_PrismBasics {
 
     Shape shape = new Rectangle(5.0, 10.0);
 
-    // TODO: Replace null with code that calculates area using prisms
+    // TODO: Replace 0.0 with code that calculates area using prisms
     // Try each prism and calculate the appropriate area
-    double area =
-        circlePrism
-            .getOptional(shape)
-            .map(c -> Math.PI * c.radius() * c.radius())
-            .orElse(() -> rectanglePrism.getOptional(shape).map(r -> r.width() * r.height()))
-            .orElse(() -> trianglePrism.getOptional(shape).map(t -> 0.5 * t.base() * t.height()))
-            .getOrElse(0.0);
+    // Hint: Use if-else with circlePrism.getOptional(shape).isPresent()
+    // Or use circlePrism.getOptional(shape).map(...).orElse(value)
+    double area = 0.0;
 
     assertThat(area).isEqualTo(50.0); // 5 * 10
   }
@@ -145,13 +180,6 @@ public class Tutorial03_PrismBasics {
    */
   @Test
   void exercise5_composingPrismWithLens() {
-    @GeneratePrisms
-    sealed interface JsonValue {}
-
-    record JsonString(String value) implements JsonValue {}
-
-    record JsonNumber(double value) implements JsonValue {}
-
     JsonValue stringValue = new JsonString("Hello");
 
     Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
@@ -160,7 +188,7 @@ public class Tutorial03_PrismBasics {
     // 1. Uses the prism to get the JsonString
     // 2. Maps over it to extract the value field
     // Hint: stringPrism.getOptional(stringValue).map(js -> js.value())
-    Maybe<String> value = null;
+    Optional<String> value = null;
 
     assertThat(value.get()).isEqualTo("Hello");
   }
@@ -174,13 +202,6 @@ public class Tutorial03_PrismBasics {
    */
   @Test
   void exercise6_conditionalUpdates() {
-    @GeneratePrisms
-    sealed interface JsonValue {}
-
-    record JsonString(String value) implements JsonValue {}
-
-    record JsonNumber(double value) implements JsonValue {}
-
     JsonValue string1 = new JsonString("hello");
     JsonValue string2 = new JsonString("world");
     JsonValue number = new JsonNumber(42.0);
@@ -213,11 +234,11 @@ public class Tutorial03_PrismBasics {
     Shape shape2 = new Rectangle(10.0, 20.0);
     Shape shape3 = new Circle(3.0);
 
-    // TODO: Replace null with code that checks if shapes are circles
+    // TODO: Replace false with code that checks if shapes are circles
     // Hint: circlePrism.matches(shape)
-    boolean isCircle1 = null;
-    boolean isCircle2 = null;
-    boolean isCircle3 = null;
+    boolean isCircle1 = false;
+    boolean isCircle2 = false;
+    boolean isCircle3 = false;
 
     assertThat(isCircle1).isTrue();
     assertThat(isCircle2).isFalse();

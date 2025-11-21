@@ -34,6 +34,33 @@ public class Tutorial02_LensComposition {
   @GenerateLenses
   record Person(String name, int age, Company company) {}
 
+  // Manual lenses (annotation processor will generate these in real projects)
+  static class PersonLenses {
+    public static Lens<Person, Company> company() {
+      return Lens.of(Person::company, newCompany -> p -> new Person(p.name(), p.age(), newCompany));
+    }
+  }
+
+  static class CompanyLenses {
+    public static Lens<Company, String> name() {
+      return Lens.of(Company::name, newName -> c -> new Company(newName, c.address()));
+    }
+
+    public static Lens<Company, Address> address() {
+      return Lens.of(Company::address, newAddress -> c -> new Company(c.name(), newAddress));
+    }
+  }
+
+  static class AddressLenses {
+    public static Lens<Address, String> street() {
+      return Lens.of(Address::street, newStreet -> a -> new Address(newStreet, a.city(), a.zipCode()));
+    }
+
+    public static Lens<Address, String> city() {
+      return Lens.of(Address::city, newCity -> a -> new Address(a.street(), newCity, a.zipCode()));
+    }
+  }
+
   /**
    * Exercise 1: Composing two lenses
    *
@@ -156,6 +183,29 @@ public class Tutorial02_LensComposition {
 
     @GenerateLenses
     record Application(String name, Database database) {}
+
+    // Manual lens implementations
+    class ConfigLenses {
+      public static Lens<Config, String> host() {
+        return Lens.of(Config::host, newHost -> c -> new Config(newHost, c.port()));
+      }
+
+      public static Lens<Config, Integer> port() {
+        return Lens.of(Config::port, newPort -> c -> new Config(c.host(), newPort));
+      }
+    }
+
+    class DatabaseLenses {
+      public static Lens<Database, Config> config() {
+        return Lens.of(Database::config, newConfig -> d -> new Database(d.name(), newConfig));
+      }
+    }
+
+    class ApplicationLenses {
+      public static Lens<Application, Database> database() {
+        return Lens.of(Application::database, newDb -> a -> new Application(a.name(), newDb));
+      }
+    }
 
     // Define reusable composed lenses
     Lens<Application, Database> appToDb = ApplicationLenses.database();
