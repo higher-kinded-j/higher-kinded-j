@@ -3,8 +3,10 @@
 package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.util.List;
+import java.util.Optional;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -29,6 +31,57 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial05_OpticsComposition {
 
+  // Shared sealed interfaces for exercises (must be at class level)
+
+  // PaymentMethod for exercises 1-2
+  @GeneratePrisms
+  sealed interface PaymentMethod1 permits CreditCard1, BankAccount1, Cash1 {}
+
+  @GenerateLenses
+  record CreditCard1(String number, String cvv) implements PaymentMethod1 {}
+
+  @GenerateLenses
+  record BankAccount1(String accountNumber, String routingNumber) implements PaymentMethod1 {}
+
+  record Cash1() implements PaymentMethod1 {}
+
+  // JsonValue for exercises 4-5
+  @GeneratePrisms
+  sealed interface JsonValue1 permits JsonString1, JsonNumber1, JsonObject1, JsonArray1 {}
+
+  @GenerateLenses
+  record JsonString1(String value) implements JsonValue1 {}
+
+  record JsonNumber1(double value) implements JsonValue1 {}
+
+  @GenerateLenses
+  record JsonObject1(String name, JsonValue1 data) implements JsonValue1 {}
+
+  @GenerateLenses
+  @GenerateTraversals
+  record JsonArray1(List<JsonValue1> values) implements JsonValue1 {}
+
+  // Contact for exercise 7
+  @GeneratePrisms
+  sealed interface Contact1 permits Email1, Phone1 {}
+
+  @GenerateLenses
+  record Email1(String address) implements Contact1 {}
+
+  record Phone1(String number) implements Contact1 {}
+
+  // Helper for creating list traversals
+  static <S, A> Traversal<S, A> listTraversal(
+      java.util.function.Function<S, List<A>> getter,
+      java.util.function.BiFunction<S, List<A>, S> setter) {
+    return Traversal.of(
+        (applicative, f, s) -> {
+          List<A> list = getter.apply(s);
+          var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
+          return applicative.map(listKind, newList -> setter.apply(s, newList));
+        });
+  }
+
   /**
    * Exercise 1: Lens + Prism composition
    *
@@ -38,30 +91,35 @@ public class Tutorial05_OpticsComposition {
    */
   @Test
   void exercise1_lensPlusPrism() {
-    @GeneratePrisms
-    sealed interface PaymentMethod {}
-
     @GenerateLenses
-    record CreditCard(String number, String cvv) implements PaymentMethod {}
+    record Order(String id, PaymentMethod1 payment) {}
 
-    @GenerateLenses
-    record BankAccount(String accountNumber, String routingNumber) implements PaymentMethod {}
+    // Manual implementations
+    class OrderLenses {
+      public static Lens<Order, PaymentMethod1> payment() {
+        return Lens.of(Order::payment, newPmt -> o -> new Order(o.id(), newPmt));
+      }
+    }
 
-    @GenerateLenses
-    record Order(String id, PaymentMethod payment) {}
+    class PaymentMethodPrisms {
+      public static Prism<PaymentMethod1, CreditCard1> creditCard() {
+        return Prism.of(
+            pm -> pm instanceof CreditCard1 cc ? Optional.of(cc) : Optional.empty(), cc -> cc);
+      }
+    }
 
-    Order order = new Order("ORD-001", new CreditCard("1234-5678", "123"));
+    Order order = new Order("ORD-001", new CreditCard1("1234-5678", "123"));
 
-    Lens<Order, PaymentMethod> orderToPayment = OrderLenses.payment();
-    Prism<PaymentMethod, CreditCard> creditCardPrism = PaymentMethodPrisms.creditCard();
+    Lens<Order, PaymentMethod1> orderToPayment = OrderLenses.payment();
+    Prism<PaymentMethod1, CreditCard1> creditCardPrism = PaymentMethodPrisms.creditCard();
 
     // TODO: Replace null with composed optic: Lens + Prism
     // This creates a Prism<Order, CreditCard>
     // Hint: orderToPayment.andThen(creditCardPrism)
-    Prism<Order, CreditCard> orderToCreditCard = null;
+    Prism<Order, CreditCard1> orderToCreditCard = null;
 
-    Maybe<CreditCard> card = orderToCreditCard.getOptional(order);
-    assertThat(card.isJust()).isTrue();
+    Optional<CreditCard1> card = orderToCreditCard.getOptional(order);
+    assertThat(card.isPresent()).isTrue();
     assertThat(card.get().number()).isEqualTo("1234-5678");
   }
 
