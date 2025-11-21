@@ -9,7 +9,7 @@
          |___/                                                              
 ```
 
-## _Bringing Higher-Kinded Types and Optics to Java functional patterns_
+## _Bringing Higher-Kinded Types and Composable Optics to Java_
 
 [![Static Badge](https://img.shields.io/badge/code-blue?logo=github)
 ](https://github.com/higher-kinded-j/higher-kinded-j)
@@ -31,7 +31,7 @@ Java's powerful type system excels in many areas, but it lacks native support fo
 
 ### [Optics](https://higher-kinded-j.github.io/optics/optics_intro.html)
 
-Working with nested immutable data structures in Java can be verbose and tedious. Optics provide a solution by offering a principled way to access and modify parts of a larger structure. They are composable getters and setters that allow you to "focus" on a specific piece of data within a nested object graph and perform operations on it without boilerplate. This library uses an annotation processor to generate the necessary Optics for your data classes automatically.
+Working with nested immutable data structures in Java can be verbose and tedious. Optics provide a solution by offering a principled way to access and modify parts of a larger structure. They are composable getters and setters that allow you to "focus" on a specific piece of data within a nested object graph and perform operations on it without boilerplate. The library includes advanced capabilities such as filtered traversals, indexed optics for position-aware transformations, and a fluent API for Java-friendly syntax. An annotation processor generates the necessary Optics for your data classes automatically.
 
 ## Applying to Your Applications
 
@@ -43,6 +43,7 @@ You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 * **Managing Side Effects:** Use the `IO` monad to explicitly track and sequence side-effecting operations.
 * **Dependency Injection:** Use the `Reader` monad to manage dependencies cleanly.
 * **State Management:** Use the `State` monad for computations that need to thread state through.
+* **Advanced Data Querying:** Use **Filtered Traversals** and **Indexed Optics** to perform sophisticated queries and position-aware transformations on nested collections.
 * **Learning Tool:** Understand HKTs, type classes, and Optics through concrete Java examples.
 
 
@@ -94,6 +95,20 @@ For instance, you can update a deeply nested field in an immutable object with a
 ```
 [Full Example](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
 
+The library also provides powerful utilities for common patterns:
+
+```java
+// Filter traversals by predicates
+Traversal<League, Player> activePlayersOnly =
+    leagueToAllPlayers.filtered(player -> player.isActive());
+
+// Work with positions using indexed optics
+List<Player> players = List.of(player1, player2, player3);
+IndexedTraversal<Integer, List<Player>, Player> playersWithIndex =
+    IndexedTraversals.forList();
+// Now you can track positions: playersWithIndex.imodify((index, player) -> ...)
+```
+
 ## Requirements
 
 * **Java Development Kit (JDK): Version 24** or later.
@@ -134,9 +149,10 @@ repositories {
 }
 ```
 
-* **Annotate your data classes:** Use the provided annotations (e.g., `@GenerateLenses`) on your immutable classes. [Lenses]((https://higher-kinded-j.github.io/optics/lenses.html))
-* **Build your project:** The annotation processor will generate the corresponding `Lens` and `Prism`, `Iso` or `Traversal` implementations for you.
+* **Annotate your data classes:** Use the provided annotations (e.g., `@GenerateLenses`) on your immutable classes. [Lenses](https://higher-kinded-j.github.io/optics/lenses.html)
+* **Build your project:** The annotation processor will generate the corresponding `Lens`, `Prism`, `Iso`, `Fold`, and `Traversal` implementations for you.
 * **Use the generated Optics:** Import and use the generated optics classes to manipulate your data structures in a clean, functional, and immutable way.
+* **Explore advanced features:** Apply [filtered traversals](https://higher-kinded-j.github.io/optics/filtered_optics.html), [indexed optics](https://higher-kinded-j.github.io/optics/indexed_optics.html), or the [fluent API](https://higher-kinded-j.github.io/optics/fluent_api.html) for more sophisticated data manipulation patterns.
 
 ## 
 
@@ -213,6 +229,7 @@ Contributions to this project are very welcome! Whether it's adding new features
 * **Improve Annotation Processor:** Enhance the code generation capabilities to support more patterns or edge cases.
 * **Simulate More Types:** Add HKT simulations and type class instances for other common Java types (e.g., `Stream`, `java.time` types) or functional concepts.
 * **Implement More Type Classes:** Add implementations for other useful type classes like `Traverse`, `Semigroup`, etc., where applicable.
+* **Enhance Optics Library:** Extend the optics capabilities with new combinators, improve the fluent API, or add support for additional data structures.
 * **Enhance Existing Implementations:** Improve performance, clarity, or robustness of the current simulations and type class instances.
 * **Add Examples:** Create more diverse examples showcasing different use cases of Higher-Kinded Type simulation.
 * **Improve Documentation:** Clarify concepts, add tutorials, or improve the hkj-book/README.

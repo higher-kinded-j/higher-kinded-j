@@ -9,15 +9,13 @@
          |___/                                                            
 ```
 
-## [_Bringing Higher-Kinded Types and Optics to Java functional patterns_](https://github.com/higher-kinded-j/higher-kinded-j)
+## [_Bringing Higher-Kinded Types and Composable Optics to Java_](https://github.com/higher-kinded-j/higher-kinded-j)
 
 [![Static Badge](https://img.shields.io/badge/code-blue?logo=github)
 ](https://github.com/higher-kinded-j/higher-kinded-j)
 [![Codecov](https://img.shields.io/codecov/c/github/higher-kinded-j/higher-kinded-j?token=VR0K0ZEDHD)](https://codecov.io/gh/higher-kinded-j/higher-kinded-j) [![Maven Central Version](https://img.shields.io/maven-central/v/io.github.higher-kinded-j/hkj-core)](https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core) [![GitHub Discussions](https://img.shields.io/github/discussions/higher-kinded-j/higher-kinded-j)](https://github.com/higher-kinded-j/higher-kinded-j/discussions) [![Mastodon Follow](https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto)](https://techhub.social/@ultramagnetic)
 
-Higher-Kinded-J brings two powerful functional programming toolsets to Java, enabling developers to write more abstract, composable, and robust code.
-
-Higher-Kinded-J brings two powerful functional programming toolsets to Java:
+Higher-Kinded-J brings two powerful functional programming toolsets to Java, enabling developers to write more abstract, composable, and robust code:
 
 1. A **Higher-Kinded Types (HKT) Simulation** to abstract over computational contexts like `Optional`, `List`, or `CompletableFuture`.
 2. A powerful **Optics Library** to abstract over immutable data structures, with boilerplate-free code generation.
@@ -47,11 +45,13 @@ Higher-Kinded-J provides a full-featured **Optics library** that treats data acc
 
 **With Optics, you can:**
 
-* **Eliminate Boilerplate:** An annotation processor **generates**`Lens`, `Prism`, and `Traversal` optics for your records and sealed interfaces automatically.
+* **Eliminate Boilerplate:** An annotation processor **generates** `Lens`, `Prism`, `Iso`, `Fold`, and `Traversal` optics for your records and sealed interfaces automatically.
 * **Perform Deep Updates Effortlessly:** Compose optics to create a path deep into a nested structure and perform immutable updates in a single, readable line.
 * **Decouple Data and Operations:** Model your data cleanly as immutable records, while defining complex, reusable operations separately as optics.
 * **Perform Effectful Updates:** The Optics library is built on top of the HKT simulation, allowing you to perform failable, asynchronous, or stateful updates using the powerful `modifyF` method.
 * **Adapt to Different Data Types:** Every optic is a profunctor, meaning it can be adapted to work with different source and target types using `contramap`, `map`, and `dimap` operations. This provides incredible flexibility for API integration, legacy system support, and data format transformations.
+* **Query with Precision:** Use **filtered traversals** to declaratively focus on elements matching predicates, and **indexed optics** to perform position-aware transformations with full index tracking.
+* **Java-Friendly Syntax:** Leverage the **fluent API** for discoverable, readable optic operations, or use the **Free Monad DSL** to build composable optic programs with multiple execution strategies (direct, logging, validation).
 
 ## Getting Started
 
@@ -103,6 +103,12 @@ This series provides a practical, step-by-step introduction to solving real-worl
 5. **[Practical Guide: Traversals](optics/traversals.md):** Master the `Traversal` for performing bulk updates on collections.
 6. **[Profunctor Optics](optics/profunctor_optics.md):** Discover how to adapt optics to work with different data types and structures.
 7. **[Capstone Example: Deep Validation](optics/composing_optics.md):** A complete example that composes multiple optics to solve a complex problem.
+8. **[Practical Guide: Filtered Optics](optics/filtered_optics.md):** Learn how to compose predicates with optics for declarative filtering.
+9. **[Practical Guide: Indexed Optics](optics/indexed_optics.md):** Discover position-aware transformations with index tracking.
+10. **[Practical Guide: Limiting Traversals](optics/limiting_traversals.md):** Master traversals that focus on portions of lists.
+11. **[Fluent API for Optics](optics/fluent_api.md):** Explore Java-friendly syntax for optic operations.
+12. **[Free Monad DSL](optics/free_monad_dsl.md):** Build composable optic programs as data structures.
+13. **[Optic Interpreters](optics/interpreters.md):** Execute optic programs with different strategies (logging, validation).
 
 #### HKT Core Concepts
 
