@@ -111,8 +111,7 @@ The `OrderWorkflowRunner` initialises and calls `Workflow1` (or `Workflow2`). Th
 
 We start with `OrderData` and create an initial `WorkflowContext`.
 
-Next `eitherTMonad.of(initialContext)` lifts this context into an `EitherT` value. This represents a `CompletableFuture` that is already successfully completed with an `Either.Right(initialContext)`.We start with OrderData and create an initial WorkflowContext.
-  eitherTMonad.of(initialContext) lifts this context into an EitherT value. This represents a CompletableFuture that is already successfully completed with an Either.Right(initialContext).
+Next, `eitherTMonad.of(initialContext)` lifts this context into an `EitherT` value, representing a `CompletableFuture` that is already successfully completed with an `Either.Right(initialContext)`.
 
 
 

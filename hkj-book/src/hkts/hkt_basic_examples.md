@@ -288,7 +288,7 @@ Try<Double> result = input.flatMap(safeDivide);
 
 This example showcases the **Validated applicative functor**. While it has a `Monad` instance, it's often used as an `Applicative` to accumulate errors. This example, however, focuses on its monadic (fail-fast) behaviour.
 
-* **Key Concept**: `Validated` is used for validation scenarios where you want to either get a valid result or a collection of validation errors.
+* **Key Concept**: `Validated` is used for validation scenarios where you want either to get a valid result or to accumulate validation errors.
 * **Demonstrates**:
   * Creating `Valid` and `Invalid` instances.
   * Using `flatMap` to chain validation steps, where the first `Invalid` result short-circuits the computation.
@@ -358,7 +358,7 @@ Kind<OptionalKind.Witness, Integer> doubledOpt = mapWithFunctor(optionalMonad, d
 ```
 ### [ProfunctorExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/profunctor/ProfunctorExample.java)
 
-This example demonstrates the **Profunctor** type class using `FunctionProfunctor`. It shows how to build flexible, adaptable data transformation pipelines.
+This example demonstrates the **Profunctor** type class using `FunctionProfunctor`, showing how to build flexible, adaptable data transformation pipelines.
 
 * **Key Concept**: A `Profunctor` is contravariant in its first parameter and covariant in its second, making it perfect for adapting both the input and output of functions.
 * **Demonstrates**:
@@ -416,5 +416,9 @@ These examples show how to use **monad transformers** (`EitherT`, `MaybeT`, `Opt
 
 * **Key Concept**: `StateT` combines the `State` monad with an outer monad `F`. This is for stateful computations that also involve effects from `F`.
 * **Scenario**: A stateful stack that can fail (using `Optional` as the outer monad), where popping from an empty stack results in `Optional.empty()`.
+
+---
+
+For more advanced patterns combining State with other monads, see the [Order Processing Example](order-walkthrough.md) which demonstrates `StateT` with `EitherT`.
 
 ```

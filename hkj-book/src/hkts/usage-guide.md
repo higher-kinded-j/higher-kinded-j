@@ -89,7 +89,7 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
     Function<String, Integer> lengthFunc = String::length;
     // Apply map using the monad instance
     Kind<OptionalKind.Witness, Integer> lengthKind = optionalMonad.map(lengthFunc, optionalKind);
-    // lengthKind now represents Kind<OptionalKind.Witness, Integer> containing Optional.of(4) if "test"
+    // lengthKind now represents Kind<OptionalKind.Witness, Integer> containing Optional.of(4)
 
     // --- Using flatMap ---
     // Function A -> Kind<F_WITNESS, B>
@@ -101,13 +101,15 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
 
     // --- Using MonadError (for Optional, error type is Unit) ---
     Kind<OptionalKind.Witness, String> emptyKind = optionalMonad.raiseError(Unit.INSTANCE); // Represents Optional.empty()
-    // Handle the empty case (error state) using handleErrorWith (handleError was changed to handleErrorWith generally)
+    // Handle the empty case (error state) using handleErrorWith
     Kind<OptionalKind.Witness, String> handledKind = optionalMonad.handleErrorWith(
         emptyKind,
         ignoredError -> OPTIONAL.widen(Optional.of("Default Value")) // Ensure recovery function also returns a Kind
     );
    
    ```
+
+**Note**: For complex chains of monadic operations, consider using [For Comprehensions](../functional/for_comprehension.md) which provide more readable syntax than nested `flatMap` calls.
 ~~~
 ~~~admonish title="Step 5: Unwrap/Narrow the Result (_Kind<F_WITNESS, A> -> JavaType<A>_)"
 

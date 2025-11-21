@@ -88,7 +88,7 @@ Kind<ValidatedKind.Witness<List<String>>, User> userLogin =
 **Utility Methods:**
 - `as(B value, Kind<F,A> fa)` - replace value, keep effect
 - `peek(Consumer<A> action, Kind<F,A> fa)` - side effect without changing value
-- `flatMap2/3/4/5(...)` - combine multiple monadic values with effectful function
+- `flatMap2/3/4/5(...)` - combine multiple monadic values where the combining function itself returns a monadic value (useful for dependent validations or operations)
 
 **Example:**
 ```java
@@ -160,7 +160,7 @@ Kind<EitherKind.Witness<String>, Double> result =
 
 **Use When:**
 - You need conditional effects but want static analysis
-- All possible branches should be visible at construction time
+- All possible branches should be visible at construction time (enabling static analysis)
 - You want more power than Applicative but less than Monad
 - Building feature flags, conditional logging, or validation with alternatives
 
@@ -401,7 +401,7 @@ Kind2<FunctionKind.Witness, Integer, String> fullAdaptation =
 - Need to transform values? → **Functor**
 - Need to combine independent operations? → **Applicative**
 - Need conditional effects with static structure? → **Selective**
-- Need sequential dependent operations? → **Monad**
+- Need sequential dependent operations? → **Monad** (chain dependent computations with dynamic choices based on previous results)
 - Need error recovery? → **MonadError**
 - Need to process collections with effects? → **Traverse**
 - Need to adapt function interfaces? → **Profunctor**
