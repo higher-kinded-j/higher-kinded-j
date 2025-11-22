@@ -53,6 +53,13 @@
   - [An Order Workflow](hkts/order-walkthrough.md)
   - [Draughts Game](hkts/draughts.md)
 
+# Hands-On Learning
+- [Interactive Tutorials](tutorials/tutorials_intro.md)
+  - [Core Types Track](tutorials/coretypes_track.md)
+  - [Optics Track](tutorials/optics_track.md)
+  - [Solutions Guide](tutorials/solutions_guide.md)
+  - [Troubleshooting](tutorials/troubleshooting.md)
+
 # Optics
 - [Optics Introduction](optics/optics_intro.md)
   - [Lenses](optics/lenses.md)
