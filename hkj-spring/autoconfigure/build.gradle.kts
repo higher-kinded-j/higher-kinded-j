@@ -10,6 +10,7 @@ dependencies {
   // Spring Boot auto-configuration
   implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.7"))
   implementation("org.springframework.boot:spring-boot-autoconfigure")
+  annotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:3.5.7"))
   annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
   annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
