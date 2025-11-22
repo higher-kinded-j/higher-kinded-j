@@ -57,11 +57,11 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Manual implementation (annotation processor would generate this)
     class PersonLenses {
       public static Lens<Person, String> name() {
-        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age()));
+        return Lens.of(Person::name, (p, newName) -> new Person(newName, p.age()));
       }
 
       public static Lens<Person, Integer> age() {
-        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge));
+        return Lens.of(Person::age, (p, newAge) -> new Person(p.name(), newAge));
       }
     }
 
@@ -103,7 +103,7 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Manual implementation (annotation processor would generate this)
     class CounterLenses {
       public static Lens<Counter, Integer> value() {
-        return Lens.of(Counter::value, newValue -> c -> new Counter(newValue));
+        return Lens.of(Counter::value, (c, newValue) -> new Counter(newValue));
       }
     }
 
@@ -138,15 +138,15 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Manual implementation (annotation processor would generate this)
     class AccountLenses {
       public static Lens<Account, String> id() {
-        return Lens.of(Account::id, newId -> a -> new Account(newId, a.balance(), a.status()));
+        return Lens.of(Account::id, (a, newId) -> new Account(newId, a.balance(), a.status()));
       }
 
       public static Lens<Account, Double> balance() {
-        return Lens.of(Account::balance, newBalance -> a -> new Account(a.id(), newBalance, a.status()));
+        return Lens.of(Account::balance, (a, newBalance) -> new Account(a.id(), newBalance, a.status()));
       }
 
       public static Lens<Account, String> status() {
-        return Lens.of(Account::status, newStatus -> a -> new Account(a.id(), a.balance(), newStatus));
+        return Lens.of(Account::status, (a, newStatus) -> new Account(a.id(), a.balance(), newStatus));
       }
     }
 
@@ -209,19 +209,19 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Manual implementation (annotation processor would generate this)
     class UserLenses {
       public static Lens<User, String> id() {
-        return Lens.of(User::id, newId -> u -> new User(newId, u.name(), u.email(), u.active()));
+        return Lens.of(User::id, (u, newId) -> new User(newId, u.name(), u.email(), u.active()));
       }
 
       public static Lens<User, String> name() {
-        return Lens.of(User::name, newName -> u -> new User(u.id(), newName, u.email(), u.active()));
+        return Lens.of(User::name, (u, newName) -> new User(u.id(), newName, u.email(), u.active()));
       }
 
       public static Lens<User, String> email() {
-        return Lens.of(User::email, newEmail -> u -> new User(u.id(), u.name(), newEmail, u.active()));
+        return Lens.of(User::email, (u, newEmail) -> new User(u.id(), u.name(), newEmail, u.active()));
       }
 
       public static Lens<User, Boolean> active() {
-        return Lens.of(User::active, newActive -> u -> new User(u.id(), u.name(), u.email(), newActive));
+        return Lens.of(User::active, (u, newActive) -> new User(u.id(), u.name(), u.email(), newActive));
       }
     }
 
@@ -272,15 +272,15 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Manual implementation (annotation processor would generate this)
     class DocumentLenses {
       public static Lens<Document, String> id() {
-        return Lens.of(Document::id, newId -> d -> new Document(newId, d.title(), d.status()));
+        return Lens.of(Document::id, (d, newId) -> new Document(newId, d.title(), d.status()));
       }
 
       public static Lens<Document, String> title() {
-        return Lens.of(Document::title, newTitle -> d -> new Document(d.id(), newTitle, d.status()));
+        return Lens.of(Document::title, (d, newTitle) -> new Document(d.id(), newTitle, d.status()));
       }
 
       public static Lens<Document, String> status() {
-        return Lens.of(Document::status, newStatus -> d -> new Document(d.id(), d.title(), newStatus));
+        return Lens.of(Document::status, (d, newStatus) -> new Document(d.id(), d.title(), newStatus));
       }
     }
 
@@ -327,15 +327,15 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Manual implementation (annotation processor would generate this)
     class ConfigLenses {
       public static Lens<Config, String> env() {
-        return Lens.of(Config::env, newEnv -> c -> new Config(newEnv, c.maxConnections(), c.debugMode()));
+        return Lens.of(Config::env, (c, newEnv) -> new Config(newEnv, c.maxConnections(), c.debugMode()));
       }
 
       public static Lens<Config, Integer> maxConnections() {
-        return Lens.of(Config::maxConnections, newMax -> c -> new Config(c.env(), newMax, c.debugMode()));
+        return Lens.of(Config::maxConnections, (c, newMax) -> new Config(c.env(), newMax, c.debugMode()));
       }
 
       public static Lens<Config, Boolean> debugMode() {
-        return Lens.of(Config::debugMode, newDebug -> c -> new Config(c.env(), c.maxConnections(), newDebug));
+        return Lens.of(Config::debugMode, (c, newDebug) -> new Config(c.env(), c.maxConnections(), newDebug));
       }
     }
 
@@ -385,23 +385,23 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Manual implementation (annotation processor would generate this)
     class OrderLenses {
       public static Lens<Order, String> id() {
-        return Lens.of(Order::id, newId -> o -> new Order(newId, o.total(), o.status(), o.paid(), o.shipped()));
+        return Lens.of(Order::id, (o, newId) -> new Order(newId, o.total(), o.status(), o.paid(), o.shipped()));
       }
 
       public static Lens<Order, Double> total() {
-        return Lens.of(Order::total, newTotal -> o -> new Order(o.id(), newTotal, o.status(), o.paid(), o.shipped()));
+        return Lens.of(Order::total, (o, newTotal) -> new Order(o.id(), newTotal, o.status(), o.paid(), o.shipped()));
       }
 
       public static Lens<Order, String> status() {
-        return Lens.of(Order::status, newStatus -> o -> new Order(o.id(), o.total(), newStatus, o.paid(), o.shipped()));
+        return Lens.of(Order::status, (o, newStatus) -> new Order(o.id(), o.total(), newStatus, o.paid(), o.shipped()));
       }
 
       public static Lens<Order, Boolean> paid() {
-        return Lens.of(Order::paid, newPaid -> o -> new Order(o.id(), o.total(), o.status(), newPaid, o.shipped()));
+        return Lens.of(Order::paid, (o, newPaid) -> new Order(o.id(), o.total(), o.status(), newPaid, o.shipped()));
       }
 
       public static Lens<Order, Boolean> shipped() {
-        return Lens.of(Order::shipped, newShipped -> o -> new Order(o.id(), o.total(), o.status(), o.paid(), newShipped));
+        return Lens.of(Order::shipped, (o, newShipped) -> new Order(o.id(), o.total(), o.status(), o.paid(), newShipped));
       }
     }
 

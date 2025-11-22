@@ -35,18 +35,23 @@ public class Tutorial04_TraversalBasics {
   static <S, A> Traversal<S, A> listTraversal(
       java.util.function.Function<S, List<A>> getter,
       java.util.function.BiFunction<S, List<A>, S> setter) {
-    return Traversal.of(
-        (applicative, f, s) -> {
-          List<A> list = getter.apply(s);
-          var listKind =
-              Traversals.traverseList(
-                  list,
-                  a -> f.apply(a),
-                  applicative);
-          return applicative.map(
-              listKind,
-              newList -> setter.apply(s, newList));
-        });
+    return new Traversal<S, A>() {
+      @Override
+      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
+          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
+          S s,
+          org.higherkindedj.hkt.Applicative<F> applicative) {
+        List<A> list = getter.apply(s);
+        var listKind =
+            Traversals.traverseList(
+                list,
+                a -> f.apply(a),
+                applicative);
+        return applicative.map(
+            listKind,
+            newList -> setter.apply(s, newList));
+      }
+    };
   }
 
   /**
@@ -157,7 +162,7 @@ public class Tutorial04_TraversalBasics {
     // Manual implementations
     class PlayerLenses {
       public static Lens<Player, Integer> score() {
-        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+        return Lens.of(Player::score, (p, newScore) -> new Player(p.name(), newScore));
       }
     }
 
@@ -242,7 +247,7 @@ public class Tutorial04_TraversalBasics {
     // Manual implementations
     class PlayerLenses {
       public static Lens<Player, String> name() {
-        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+        return Lens.of(Player::name, (p, newName) -> new Player(newName, p.score()));
       }
     }
 
@@ -288,7 +293,7 @@ public class Tutorial04_TraversalBasics {
     // Manual implementations
     class PlayerLenses {
       public static Lens<Player, String> name() {
-        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+        return Lens.of(Player::name, (p, newName) -> new Player(newName, p.score()));
       }
     }
 

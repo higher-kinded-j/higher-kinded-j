@@ -74,12 +74,17 @@ public class Tutorial05_OpticsComposition {
   static <S, A> Traversal<S, A> listTraversal(
       java.util.function.Function<S, List<A>> getter,
       java.util.function.BiFunction<S, List<A>, S> setter) {
-    return Traversal.of(
-        (applicative, f, s) -> {
-          List<A> list = getter.apply(s);
-          var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
-          return applicative.map(listKind, newList -> setter.apply(s, newList));
-        });
+    return new Traversal<S, A>() {
+      @Override
+      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
+          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
+          S s,
+          org.higherkindedj.hkt.Applicative<F> applicative) {
+        List<A> list = getter.apply(s);
+        var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
+        return applicative.map(listKind, newList -> setter.apply(s, newList));
+      }
+    };
   }
 
   /**
@@ -97,7 +102,7 @@ public class Tutorial05_OpticsComposition {
     // Manual implementations
     class OrderLenses {
       public static Lens<Order, PaymentMethod1> payment() {
-        return Lens.of(Order::payment, newPmt -> o -> new Order(o.id(), newPmt));
+        return Lens.of(Order::payment, (o, newPmt) -> new Order(o.id(), newPmt));
       }
     }
 
@@ -145,7 +150,7 @@ public class Tutorial05_OpticsComposition {
 
     class CreditCardLenses {
       public static Lens<CreditCard1, String> cvv() {
-        return Lens.of(CreditCard1::cvv, newCvv -> cc -> new CreditCard1(cc.number(), newCvv));
+        return Lens.of(CreditCard1::cvv, (cc, newCvv) -> new CreditCard1(cc.number(), newCvv));
       }
     }
 
@@ -182,7 +187,7 @@ public class Tutorial05_OpticsComposition {
     // Manual implementations
     class OrderLenses {
       public static Lens<Order, List<Item>> items() {
-        return Lens.of(Order::items, newItems -> o -> new Order(o.id(), newItems));
+        return Lens.of(Order::items, (o, newItems) -> new Order(o.id(), newItems));
       }
     }
 
@@ -220,7 +225,7 @@ public class Tutorial05_OpticsComposition {
     // Manual implementations
     class JsonObjectLenses {
       public static Lens<JsonObject1, JsonValue1> data() {
-        return Lens.of(JsonObject1::data, newData -> jo -> new JsonObject1(jo.name(), newData));
+        return Lens.of(JsonObject1::data, (jo, newData) -> new JsonObject1(jo.name(), newData));
       }
     }
 
@@ -233,7 +238,7 @@ public class Tutorial05_OpticsComposition {
 
     class JsonStringLenses {
       public static Lens<JsonString1, String> value() {
-        return Lens.of(JsonString1::value, newValue -> js -> new JsonString1(newValue));
+        return Lens.of(JsonString1::value, (js, newValue) -> new JsonString1(newValue));
       }
     }
 
@@ -291,7 +296,7 @@ public class Tutorial05_OpticsComposition {
     Traversal<JsonArray1, JsonString1> stringValues = null;
 
     List<String> strings =
-        Traversals.getAll(stringValues.andThen(Lens.of(JsonString1::value, v -> js -> new JsonString1(v)).asTraversal()), array);
+        Traversals.getAll(stringValues.andThen(Lens.of(JsonString1::value, (js, v) -> new JsonString1(v)).asTraversal()), array);
 
     assertThat(strings).containsExactly("hello", "world");
   }
@@ -319,7 +324,7 @@ public class Tutorial05_OpticsComposition {
     // Manual implementations
     class PlayerLenses {
       public static Lens<Player, Integer> score() {
-        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+        return Lens.of(Player::score, (p, newScore) -> new Player(p.name(), newScore));
       }
     }
 
@@ -373,17 +378,17 @@ public class Tutorial05_OpticsComposition {
     // Manual implementations
     class AddressLenses {
       public static Lens<Address, String> city() {
-        return Lens.of(Address::city, newCity -> a -> new Address(a.street(), newCity));
+        return Lens.of(Address::city, (a, newCity) -> new Address(a.street(), newCity));
       }
     }
 
     class UserLenses {
       public static Lens<User, Address> address() {
-        return Lens.of(User::address, newAddr -> u -> new User(u.name(), newAddr, u.contact()));
+        return Lens.of(User::address, (u, newAddr) -> new User(u.name(), newAddr, u.contact()));
       }
 
       public static Lens<User, Contact1> contact() {
-        return Lens.of(User::contact, newContact -> u -> new User(u.name(), u.address(), newContact));
+        return Lens.of(User::contact, (u, newContact) -> new User(u.name(), u.address(), newContact));
       }
     }
 
@@ -396,7 +401,7 @@ public class Tutorial05_OpticsComposition {
 
     class EmailLenses {
       public static Lens<Email1, String> address() {
-        return Lens.of(Email1::address, newAddr -> e -> new Email1(newAddr));
+        return Lens.of(Email1::address, (e, newAddr) -> new Email1(newAddr));
       }
     }
 

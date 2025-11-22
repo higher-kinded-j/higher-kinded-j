@@ -69,18 +69,23 @@ public class Tutorial07_RealWorldOptics {
   static <S, A> Traversal<S, A> listTraversal(
       java.util.function.Function<S, List<A>> getter,
       java.util.function.BiFunction<S, List<A>, S> setter) {
-    return Traversal.of(
-        (applicative, f, s) -> {
-          List<A> list = getter.apply(s);
-          var listKind =
-              Traversals.traverseList(
-                  list,
-                  a -> f.apply(a),
-                  applicative);
-          return applicative.map(
-              listKind,
-              newList -> setter.apply(s, newList));
-        });
+    return new Traversal<S, A>() {
+      @Override
+      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
+          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
+          S s,
+          org.higherkindedj.hkt.Applicative<F> applicative) {
+        List<A> list = getter.apply(s);
+        var listKind =
+            Traversals.traverseList(
+                list,
+                a -> f.apply(a),
+                applicative);
+        return applicative.map(
+            listKind,
+            newList -> setter.apply(s, newList));
+      }
+    };
   }
 
   /**
@@ -107,53 +112,53 @@ public class Tutorial07_RealWorldOptics {
     // Manual implementations (annotation processor would generate these)
     class NotificationPrefsLenses {
       public static Lens<NotificationPrefs, Boolean> email() {
-        return Lens.of(NotificationPrefs::email, newEmail -> np -> new NotificationPrefs(newEmail, np.sms(), np.push()));
+        return Lens.of(NotificationPrefs::email, (np, newEmail) -> new NotificationPrefs(newEmail, np.sms(), np.push()));
       }
 
       public static Lens<NotificationPrefs, Boolean> sms() {
-        return Lens.of(NotificationPrefs::sms, newSms -> np -> new NotificationPrefs(np.email(), newSms, np.push()));
+        return Lens.of(NotificationPrefs::sms, (np, newSms) -> new NotificationPrefs(np.email(), newSms, np.push()));
       }
 
       public static Lens<NotificationPrefs, Boolean> push() {
-        return Lens.of(NotificationPrefs::push, newPush -> np -> new NotificationPrefs(np.email(), np.sms(), newPush));
+        return Lens.of(NotificationPrefs::push, (np, newPush) -> new NotificationPrefs(np.email(), np.sms(), newPush));
       }
     }
 
     class PrivacySettingsLenses {
       public static Lens<PrivacySettings, Boolean> publicProfile() {
-        return Lens.of(PrivacySettings::publicProfile, newPublic -> ps -> new PrivacySettings(newPublic, ps.showEmail()));
+        return Lens.of(PrivacySettings::publicProfile, (ps, newPublic) -> new PrivacySettings(newPublic, ps.showEmail()));
       }
 
       public static Lens<PrivacySettings, Boolean> showEmail() {
-        return Lens.of(PrivacySettings::showEmail, newShow -> ps -> new PrivacySettings(ps.publicProfile(), newShow));
+        return Lens.of(PrivacySettings::showEmail, (ps, newShow) -> new PrivacySettings(ps.publicProfile(), newShow));
       }
     }
 
     class UserSettingsLenses {
       public static Lens<UserSettings, NotificationPrefs> notifications() {
-        return Lens.of(UserSettings::notifications, newNotif -> us -> new UserSettings(newNotif, us.privacy()));
+        return Lens.of(UserSettings::notifications, (us, newNotif) -> new UserSettings(newNotif, us.privacy()));
       }
 
       public static Lens<UserSettings, PrivacySettings> privacy() {
-        return Lens.of(UserSettings::privacy, newPrivacy -> us -> new UserSettings(us.notifications(), newPrivacy));
+        return Lens.of(UserSettings::privacy, (us, newPrivacy) -> new UserSettings(us.notifications(), newPrivacy));
       }
     }
 
     class UserProfileLenses {
       public static Lens<UserProfile, String> id() {
-        return Lens.of(UserProfile::id, newId -> up -> new UserProfile(newId, up.name(), up.email(), up.settings()));
+        return Lens.of(UserProfile::id, (up, newId) -> new UserProfile(newId, up.name(), up.email(), up.settings()));
       }
 
       public static Lens<UserProfile, String> name() {
-        return Lens.of(UserProfile::name, newName -> up -> new UserProfile(up.id(), newName, up.email(), up.settings()));
+        return Lens.of(UserProfile::name, (up, newName) -> new UserProfile(up.id(), newName, up.email(), up.settings()));
       }
 
       public static Lens<UserProfile, String> email() {
-        return Lens.of(UserProfile::email, newEmail -> up -> new UserProfile(up.id(), up.name(), newEmail, up.settings()));
+        return Lens.of(UserProfile::email, (up, newEmail) -> new UserProfile(up.id(), up.name(), newEmail, up.settings()));
       }
 
       public static Lens<UserProfile, UserSettings> settings() {
-        return Lens.of(UserProfile::settings, newSettings -> up -> new UserProfile(up.id(), up.name(), up.email(), newSettings));
+        return Lens.of(UserProfile::settings, (up, newSettings) -> new UserProfile(up.id(), up.name(), up.email(), newSettings));
       }
     }
 
@@ -196,25 +201,25 @@ public class Tutorial07_RealWorldOptics {
     // Manual implementations (annotation processor would generate these)
     class CoordinatesLenses {
       public static Lens<Coordinates2, Double> lat() {
-        return Lens.of(Coordinates2::lat, newLat -> c -> new Coordinates2(newLat, c.lon()));
+        return Lens.of(Coordinates2::lat, (c, newLat) -> new Coordinates2(newLat, c.lon()));
       }
 
       public static Lens<Coordinates2, Double> lon() {
-        return Lens.of(Coordinates2::lon, newLon -> c -> new Coordinates2(c.lat(), newLon));
+        return Lens.of(Coordinates2::lon, (c, newLon) -> new Coordinates2(c.lat(), newLon));
       }
     }
 
     class LocationLenses {
       public static Lens<Location2, String> city() {
-        return Lens.of(Location2::city, newCity -> l -> new Location2(newCity, l.country(), l.coords()));
+        return Lens.of(Location2::city, (l, newCity) -> new Location2(newCity, l.country(), l.coords()));
       }
 
       public static Lens<Location2, String> country() {
-        return Lens.of(Location2::country, newCountry -> l -> new Location2(l.city(), newCountry, l.coords()));
+        return Lens.of(Location2::country, (l, newCountry) -> new Location2(l.city(), newCountry, l.coords()));
       }
 
       public static Lens<Location2, Coordinates2> coords() {
-        return Lens.of(Location2::coords, newCoords -> l -> new Location2(l.city(), l.country(), newCoords));
+        return Lens.of(Location2::coords, (l, newCoords) -> new Location2(l.city(), l.country(), newCoords));
       }
     }
 
@@ -287,37 +292,37 @@ public class Tutorial07_RealWorldOptics {
     // Manual implementations (annotation processor would generate these)
     class LineItemLenses {
       public static Lens<LineItem, String> productId() {
-        return Lens.of(LineItem::productId, newId -> li -> new LineItem(newId, li.name(), li.quantity(), li.price()));
+        return Lens.of(LineItem::productId, (li, newId) -> new LineItem(newId, li.name(), li.quantity(), li.price()));
       }
 
       public static Lens<LineItem, String> name() {
-        return Lens.of(LineItem::name, newName -> li -> new LineItem(li.productId(), newName, li.quantity(), li.price()));
+        return Lens.of(LineItem::name, (li, newName) -> new LineItem(li.productId(), newName, li.quantity(), li.price()));
       }
 
       public static Lens<LineItem, Integer> quantity() {
-        return Lens.of(LineItem::quantity, newQty -> li -> new LineItem(li.productId(), li.name(), newQty, li.price()));
+        return Lens.of(LineItem::quantity, (li, newQty) -> new LineItem(li.productId(), li.name(), newQty, li.price()));
       }
 
       public static Lens<LineItem, Double> price() {
-        return Lens.of(LineItem::price, newPrice -> li -> new LineItem(li.productId(), li.name(), li.quantity(), newPrice));
+        return Lens.of(LineItem::price, (li, newPrice) -> new LineItem(li.productId(), li.name(), li.quantity(), newPrice));
       }
     }
 
     class OrderLenses {
       public static Lens<Order, String> orderId() {
-        return Lens.of(Order::orderId, newId -> o -> new Order(newId, o.items(), o.status(), o.discount()));
+        return Lens.of(Order::orderId, (o, newId) -> new Order(newId, o.items(), o.status(), o.discount()));
       }
 
       public static Lens<Order, List<LineItem>> items() {
-        return Lens.of(Order::items, newItems -> o -> new Order(o.orderId(), newItems, o.status(), o.discount()));
+        return Lens.of(Order::items, (o, newItems) -> new Order(o.orderId(), newItems, o.status(), o.discount()));
       }
 
       public static Lens<Order, OrderStatus3> status() {
-        return Lens.of(Order::status, newStatus -> o -> new Order(o.orderId(), o.items(), newStatus, o.discount()));
+        return Lens.of(Order::status, (o, newStatus) -> new Order(o.orderId(), o.items(), newStatus, o.discount()));
       }
 
       public static Lens<Order, Double> discount() {
-        return Lens.of(Order::discount, newDiscount -> o -> new Order(o.orderId(), o.items(), o.status(), newDiscount));
+        return Lens.of(Order::discount, (o, newDiscount) -> new Order(o.orderId(), o.items(), o.status(), newDiscount));
       }
     }
 
@@ -379,37 +384,37 @@ public class Tutorial07_RealWorldOptics {
     // Manual implementations (annotation processor would generate these)
     class AddressLenses {
       public static Lens<Address, String> street() {
-        return Lens.of(Address::street, newStreet -> a -> new Address(newStreet, a.city(), a.state(), a.zip()));
+        return Lens.of(Address::street, (a, newStreet) -> new Address(newStreet, a.city(), a.state(), a.zip()));
       }
 
       public static Lens<Address, String> city() {
-        return Lens.of(Address::city, newCity -> a -> new Address(a.street(), newCity, a.state(), a.zip()));
+        return Lens.of(Address::city, (a, newCity) -> new Address(a.street(), newCity, a.state(), a.zip()));
       }
 
       public static Lens<Address, String> state() {
-        return Lens.of(Address::state, newState -> a -> new Address(a.street(), a.city(), newState, a.zip()));
+        return Lens.of(Address::state, (a, newState) -> new Address(a.street(), a.city(), newState, a.zip()));
       }
 
       public static Lens<Address, String> zip() {
-        return Lens.of(Address::zip, newZip -> a -> new Address(a.street(), a.city(), a.state(), newZip));
+        return Lens.of(Address::zip, (a, newZip) -> new Address(a.street(), a.city(), a.state(), newZip));
       }
     }
 
     class CustomerLenses {
       public static Lens<Customer, String> id() {
-        return Lens.of(Customer::id, newId -> c -> new Customer(newId, c.name(), c.email(), c.addresses()));
+        return Lens.of(Customer::id, (c, newId) -> new Customer(newId, c.name(), c.email(), c.addresses()));
       }
 
       public static Lens<Customer, String> name() {
-        return Lens.of(Customer::name, newName -> c -> new Customer(c.id(), newName, c.email(), c.addresses()));
+        return Lens.of(Customer::name, (c, newName) -> new Customer(c.id(), newName, c.email(), c.addresses()));
       }
 
       public static Lens<Customer, String> email() {
-        return Lens.of(Customer::email, newEmail -> c -> new Customer(c.id(), c.name(), newEmail, c.addresses()));
+        return Lens.of(Customer::email, (c, newEmail) -> new Customer(c.id(), c.name(), newEmail, c.addresses()));
       }
 
       public static Lens<Customer, List<Address>> addresses() {
-        return Lens.of(Customer::addresses, newAddrs -> c -> new Customer(c.id(), c.name(), c.email(), newAddrs));
+        return Lens.of(Customer::addresses, (c, newAddrs) -> new Customer(c.id(), c.name(), c.email(), newAddrs));
       }
     }
 
@@ -487,47 +492,47 @@ public class Tutorial07_RealWorldOptics {
     // Manual implementations (annotation processor would generate these)
     class DatabaseConfigLenses {
       public static Lens<DatabaseConfig, String> host() {
-        return Lens.of(DatabaseConfig::host, newHost -> dc -> new DatabaseConfig(newHost, dc.port(), dc.username(), dc.ssl()));
+        return Lens.of(DatabaseConfig::host, (dc, newHost) -> new DatabaseConfig(newHost, dc.port(), dc.username(), dc.ssl()));
       }
 
       public static Lens<DatabaseConfig, Integer> port() {
-        return Lens.of(DatabaseConfig::port, newPort -> dc -> new DatabaseConfig(dc.host(), newPort, dc.username(), dc.ssl()));
+        return Lens.of(DatabaseConfig::port, (dc, newPort) -> new DatabaseConfig(dc.host(), newPort, dc.username(), dc.ssl()));
       }
 
       public static Lens<DatabaseConfig, String> username() {
-        return Lens.of(DatabaseConfig::username, newUser -> dc -> new DatabaseConfig(dc.host(), dc.port(), newUser, dc.ssl()));
+        return Lens.of(DatabaseConfig::username, (dc, newUser) -> new DatabaseConfig(dc.host(), dc.port(), newUser, dc.ssl()));
       }
 
       public static Lens<DatabaseConfig, Boolean> ssl() {
-        return Lens.of(DatabaseConfig::ssl, newSsl -> dc -> new DatabaseConfig(dc.host(), dc.port(), dc.username(), newSsl));
+        return Lens.of(DatabaseConfig::ssl, (dc, newSsl) -> new DatabaseConfig(dc.host(), dc.port(), dc.username(), newSsl));
       }
     }
 
     class CacheConfigLenses {
       public static Lens<CacheConfig, String> host() {
-        return Lens.of(CacheConfig::host, newHost -> cc -> new CacheConfig(newHost, cc.port(), cc.ttl()));
+        return Lens.of(CacheConfig::host, (cc, newHost) -> new CacheConfig(newHost, cc.port(), cc.ttl()));
       }
 
       public static Lens<CacheConfig, Integer> port() {
-        return Lens.of(CacheConfig::port, newPort -> cc -> new CacheConfig(cc.host(), newPort, cc.ttl()));
+        return Lens.of(CacheConfig::port, (cc, newPort) -> new CacheConfig(cc.host(), newPort, cc.ttl()));
       }
 
       public static Lens<CacheConfig, Integer> ttl() {
-        return Lens.of(CacheConfig::ttl, newTtl -> cc -> new CacheConfig(cc.host(), cc.port(), newTtl));
+        return Lens.of(CacheConfig::ttl, (cc, newTtl) -> new CacheConfig(cc.host(), cc.port(), newTtl));
       }
     }
 
     class AppConfigLenses {
       public static Lens<AppConfig, String> environment() {
-        return Lens.of(AppConfig::environment, newEnv -> ac -> new AppConfig(newEnv, ac.database(), ac.cache()));
+        return Lens.of(AppConfig::environment, (ac, newEnv) -> new AppConfig(newEnv, ac.database(), ac.cache()));
       }
 
       public static Lens<AppConfig, DatabaseConfig> database() {
-        return Lens.of(AppConfig::database, newDb -> ac -> new AppConfig(ac.environment(), newDb, ac.cache()));
+        return Lens.of(AppConfig::database, (ac, newDb) -> new AppConfig(ac.environment(), newDb, ac.cache()));
       }
 
       public static Lens<AppConfig, CacheConfig> cache() {
-        return Lens.of(AppConfig::cache, newCache -> ac -> new AppConfig(ac.environment(), ac.database(), newCache));
+        return Lens.of(AppConfig::cache, (ac, newCache) -> new AppConfig(ac.environment(), ac.database(), newCache));
       }
     }
 
@@ -578,39 +583,39 @@ public class Tutorial07_RealWorldOptics {
     // Manual implementations (annotation processor would generate these)
     class UserLoginLenses {
       public static Lens<UserLogin6, String> userId() {
-        return Lens.of(UserLogin6::userId, newId -> ul -> new UserLogin6(newId, ul.timestamp()));
+        return Lens.of(UserLogin6::userId, (ul, newId) -> new UserLogin6(newId, ul.timestamp()));
       }
 
       public static Lens<UserLogin6, Long> timestamp() {
-        return Lens.of(UserLogin6::timestamp, newTs -> ul -> new UserLogin6(ul.userId(), newTs));
+        return Lens.of(UserLogin6::timestamp, (ul, newTs) -> new UserLogin6(ul.userId(), newTs));
       }
     }
 
     class PageViewLenses {
       public static Lens<PageView6, String> userId() {
-        return Lens.of(PageView6::userId, newId -> pv -> new PageView6(newId, pv.page(), pv.timestamp()));
+        return Lens.of(PageView6::userId, (pv, newId) -> new PageView6(newId, pv.page(), pv.timestamp()));
       }
 
       public static Lens<PageView6, String> page() {
-        return Lens.of(PageView6::page, newPage -> pv -> new PageView6(pv.userId(), newPage, pv.timestamp()));
+        return Lens.of(PageView6::page, (pv, newPage) -> new PageView6(pv.userId(), newPage, pv.timestamp()));
       }
 
       public static Lens<PageView6, Long> timestamp() {
-        return Lens.of(PageView6::timestamp, newTs -> pv -> new PageView6(pv.userId(), pv.page(), newTs));
+        return Lens.of(PageView6::timestamp, (pv, newTs) -> new PageView6(pv.userId(), pv.page(), newTs));
       }
     }
 
     class PurchaseLenses {
       public static Lens<Purchase6, String> userId() {
-        return Lens.of(Purchase6::userId, newId -> p -> new Purchase6(newId, p.amount(), p.timestamp()));
+        return Lens.of(Purchase6::userId, (p, newId) -> new Purchase6(newId, p.amount(), p.timestamp()));
       }
 
       public static Lens<Purchase6, Double> amount() {
-        return Lens.of(Purchase6::amount, newAmt -> p -> new Purchase6(p.userId(), newAmt, p.timestamp()));
+        return Lens.of(Purchase6::amount, (p, newAmt) -> new Purchase6(p.userId(), newAmt, p.timestamp()));
       }
 
       public static Lens<Purchase6, Long> timestamp() {
-        return Lens.of(Purchase6::timestamp, newTs -> p -> new Purchase6(p.userId(), p.amount(), newTs));
+        return Lens.of(Purchase6::timestamp, (p, newTs) -> new Purchase6(p.userId(), p.amount(), newTs));
       }
     }
 

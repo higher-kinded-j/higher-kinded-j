@@ -41,18 +41,23 @@ public class Tutorial08_FluentOpticsAPI {
   static <S, A> Traversal<S, A> listTraversal(
       java.util.function.Function<S, List<A>> getter,
       java.util.function.BiFunction<S, List<A>, S> setter) {
-    return Traversal.of(
-        (applicative, f, s) -> {
-          List<A> list = getter.apply(s);
-          var listKind =
-              org.higherkindedj.optics.util.Traversals.traverseList(
-                  list,
-                  a -> f.apply(a),
-                  applicative);
-          return applicative.map(
-              listKind,
-              newList -> setter.apply(s, newList));
-        });
+    return new Traversal<S, A>() {
+      @Override
+      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
+          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
+          S s,
+          org.higherkindedj.hkt.Applicative<F> applicative) {
+        List<A> list = getter.apply(s);
+        var listKind =
+            org.higherkindedj.optics.util.Traversals.traverseList(
+                list,
+                a -> f.apply(a),
+                applicative);
+        return applicative.map(
+            listKind,
+            newList -> setter.apply(s, newList));
+      }
+    };
   }
 
   /**
@@ -71,15 +76,15 @@ public class Tutorial08_FluentOpticsAPI {
     // Manual implementation (annotation processor would generate this)
     class PersonLenses {
       public static Lens<Person, String> name() {
-        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age(), p.email()));
+        return Lens.of(Person::name, (p, newName) -> new Person(newName, p.age(), p.email()));
       }
 
       public static Lens<Person, Integer> age() {
-        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge, p.email()));
+        return Lens.of(Person::age, (p, newAge) -> new Person(p.name(), newAge, p.email()));
       }
 
       public static Lens<Person, String> email() {
-        return Lens.of(Person::email, newEmail -> p -> new Person(p.name(), p.age(), newEmail));
+        return Lens.of(Person::email, (p, newEmail) -> new Person(p.name(), p.age(), newEmail));
       }
     }
 
@@ -117,11 +122,11 @@ public class Tutorial08_FluentOpticsAPI {
     // Manual implementation (annotation processor would generate this)
     class PersonLenses {
       public static Lens<Person, String> name() {
-        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age()));
+        return Lens.of(Person::name, (p, newName) -> new Person(newName, p.age()));
       }
 
       public static Lens<Person, Integer> age() {
-        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge));
+        return Lens.of(Person::age, (p, newAge) -> new Person(p.name(), newAge));
       }
     }
 
@@ -162,11 +167,11 @@ public class Tutorial08_FluentOpticsAPI {
     // Manual implementations (annotation processor would generate these)
     class PlayerLenses {
       public static Lens<Player, String> name() {
-        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+        return Lens.of(Player::name, (p, newName) -> new Player(newName, p.score()));
       }
 
       public static Lens<Player, Integer> score() {
-        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+        return Lens.of(Player::score, (p, newScore) -> new Player(p.name(), newScore));
       }
     }
 
@@ -218,11 +223,11 @@ public class Tutorial08_FluentOpticsAPI {
     // Manual implementations (annotation processor would generate these)
     class PlayerLenses {
       public static Lens<Player, String> name() {
-        return Lens.of(Player::name, newName -> p -> new Player(newName, p.score()));
+        return Lens.of(Player::name, (p, newName) -> new Player(newName, p.score()));
       }
 
       public static Lens<Player, Integer> score() {
-        return Lens.of(Player::score, newScore -> p -> new Player(p.name(), newScore));
+        return Lens.of(Player::score, (p, newScore) -> new Player(p.name(), newScore));
       }
     }
 
@@ -277,11 +282,11 @@ public class Tutorial08_FluentOpticsAPI {
     // Manual implementation (annotation processor would generate this)
     class UserLenses {
       public static Lens<User, String> id() {
-        return Lens.of(User::id, newId -> u -> new User(newId, u.email()));
+        return Lens.of(User::id, (u, newId) -> new User(newId, u.email()));
       }
 
       public static Lens<User, String> email() {
-        return Lens.of(User::email, newEmail -> u -> new User(u.id(), newEmail));
+        return Lens.of(User::email, (u, newEmail) -> new User(u.id(), newEmail));
       }
     }
 
@@ -333,11 +338,11 @@ public class Tutorial08_FluentOpticsAPI {
     // Manual implementation (annotation processor would generate this)
     class PersonLenses {
       public static Lens<Person, String> name() {
-        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age()));
+        return Lens.of(Person::name, (p, newName) -> new Person(newName, p.age()));
       }
 
       public static Lens<Person, Integer> age() {
-        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge));
+        return Lens.of(Person::age, (p, newAge) -> new Person(p.name(), newAge));
       }
     }
 
@@ -384,11 +389,11 @@ public class Tutorial08_FluentOpticsAPI {
     // Manual implementations (annotation processor would generate these)
     class ItemLenses {
       public static Lens<Item, String> name() {
-        return Lens.of(Item::name, newName -> i -> new Item(newName, i.price()));
+        return Lens.of(Item::name, (i, newName) -> new Item(newName, i.price()));
       }
 
       public static Lens<Item, Double> price() {
-        return Lens.of(Item::price, newPrice -> i -> new Item(i.name(), newPrice));
+        return Lens.of(Item::price, (i, newPrice) -> new Item(i.name(), newPrice));
       }
     }
 

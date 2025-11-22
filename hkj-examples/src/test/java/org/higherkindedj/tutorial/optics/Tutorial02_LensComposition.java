@@ -37,27 +37,27 @@ public class Tutorial02_LensComposition {
   // Manual lenses (annotation processor will generate these in real projects)
   static class PersonLenses {
     public static Lens<Person, Company> company() {
-      return Lens.of(Person::company, newCompany -> p -> new Person(p.name(), p.age(), newCompany));
+      return Lens.of(Person::company, (p, newCompany) -> new Person(p.name(), p.age(), newCompany));
     }
   }
 
   static class CompanyLenses {
     public static Lens<Company, String> name() {
-      return Lens.of(Company::name, newName -> c -> new Company(newName, c.address()));
+      return Lens.of(Company::name, (c, newName) -> new Company(newName, c.address()));
     }
 
     public static Lens<Company, Address> address() {
-      return Lens.of(Company::address, newAddress -> c -> new Company(c.name(), newAddress));
+      return Lens.of(Company::address, (c, newAddress) -> new Company(c.name(), newAddress));
     }
   }
 
   static class AddressLenses {
     public static Lens<Address, String> street() {
-      return Lens.of(Address::street, newStreet -> a -> new Address(newStreet, a.city(), a.zipCode()));
+      return Lens.of(Address::street, (a, newStreet) -> new Address(newStreet, a.city(), a.zipCode()));
     }
 
     public static Lens<Address, String> city() {
-      return Lens.of(Address::city, newCity -> a -> new Address(a.street(), newCity, a.zipCode()));
+      return Lens.of(Address::city, (a, newCity) -> new Address(a.street(), newCity, a.zipCode()));
     }
   }
 
@@ -187,23 +187,23 @@ public class Tutorial02_LensComposition {
     // Manual lens implementations
     class ConfigLenses {
       public static Lens<Config, String> host() {
-        return Lens.of(Config::host, newHost -> c -> new Config(newHost, c.port()));
+        return Lens.of(Config::host, (c, newHost) -> new Config(newHost, c.port()));
       }
 
       public static Lens<Config, Integer> port() {
-        return Lens.of(Config::port, newPort -> c -> new Config(c.host(), newPort));
+        return Lens.of(Config::port, (c, newPort) -> new Config(c.host(), newPort));
       }
     }
 
     class DatabaseLenses {
       public static Lens<Database, Config> config() {
-        return Lens.of(Database::config, newConfig -> d -> new Database(d.name(), newConfig));
+        return Lens.of(Database::config, (d, newConfig) -> new Database(d.name(), newConfig));
       }
     }
 
     class ApplicationLenses {
       public static Lens<Application, Database> database() {
-        return Lens.of(Application::database, newDb -> a -> new Application(a.name(), newDb));
+        return Lens.of(Application::database, (a, newDb) -> new Application(a.name(), newDb));
       }
     }
 
