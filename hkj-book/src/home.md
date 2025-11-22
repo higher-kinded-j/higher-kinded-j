@@ -53,6 +53,15 @@ Higher-Kinded-J provides a full-featured **Optics library** that treats data acc
 * **Query with Precision:** Use **filtered traversals** to declaratively focus on elements matching predicates, and **indexed optics** to perform position-aware transformations with full index tracking.
 * **Java-Friendly Syntax:** Leverage the **fluent API** for discoverable, readable optic operations, or use the **Free Monad DSL** to build composable optic programs with multiple execution strategies (direct, logging, validation).
 
+## Learn by Doing 🎯
+
+The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Each tutorial guides you through hands-on exercises with immediate test feedback.
+
+- **[Core Types Tutorials](tutorials/coretypes_track.md)** (~60 minutes): Master Functors, Applicatives, and Monads through 7 progressive tutorials that build from `Kind<F, A>` basics to production workflows
+- **[Optics Tutorials](tutorials/optics_track.md)** (~90 minutes): Learn Lenses, Prisms, and Traversals with 9 tutorials covering real-world scenarios from simple field updates to complex Free Monad DSLs
+
+Perfect for developers who prefer learning by building rather than just reading. [Get started →](tutorials/tutorials_intro.md)
+
 ## Getting Started
 
 > [!NOTE]

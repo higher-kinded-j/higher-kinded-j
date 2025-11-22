@@ -10,6 +10,10 @@
 - Real-world benefits: less boilerplate, more abstraction, better composition
 ~~~
 
+~~~admonish tip title="Hands-On Learning"
+Want to learn by doing? Try our **[Core Types Tutorial Track](../tutorials/coretypes_track.md)** with 7 interactive exercises that take you from `Kind<F, A>` basics to production workflows in ~60 minutes.
+~~~
+
 We can think about Higher-Kinded Types (HKT) by making an analogy with Higher-Order Functions (HOF).
 
 _higher-kinded types are to types what higher-order functions are to functions._ 

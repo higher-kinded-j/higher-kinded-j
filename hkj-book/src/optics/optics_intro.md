@@ -2,6 +2,10 @@
 
 ![Diagram showing optics as composable lenses focusing on nested data structures](../images/optics.jpg)
 
+~~~admonish tip title="Learn Optics Hands-On"
+Ready to master optics through practice? Our **[Optics Tutorial Track](../tutorials/optics_track.md)** offers 9 interactive tutorials covering Lenses, Prisms, Traversals, and the Free Monad DSL in ~90 minutes.
+~~~
+
 As Java developers, we appreciate the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data can be a verbose and error-prone nightmare.
 
 Consider a simple nested record structure:
