@@ -77,19 +77,27 @@ public class Tutorial06_GeneratedOptics {
   static <S, K, V> Traversal<S, V> mapTraversal(
       java.util.function.Function<S, Map<K, V>> getter,
       java.util.function.BiFunction<S, Map<K, V>, S> setter) {
-    return new Traversal<S, A>() {
+    return new Traversal<S, V>() {
       @Override
       public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
-          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
+          java.util.function.Function<V, org.higherkindedj.hkt.Kind<F, V>> f,
           S s,
           org.higherkindedj.hkt.Applicative<F> applicative) {
           Map<K, V> map = getter.apply(s);
-          var mapKind =
-              Traversals.traverseMap(
-                  map,
-                  v -> f.apply(v),
-                  applicative);
-          return applicative.map(newMap -> setter.apply(s, newMap), mapKind);
+          // Note: traverseMap doesn't exist in the library, so we'll convert to list
+          var values = new java.util.ArrayList<>(map.values());
+          var valuesKind = Traversals.traverseList(values, v -> f.apply(v), applicative);
+          return applicative.map(
+              newValues -> {
+                var newMap = new java.util.LinkedHashMap<K, V>();
+                var keyIter = map.keySet().iterator();
+                var valueIter = newValues.iterator();
+                while (keyIter.hasNext() && valueIter.hasNext()) {
+                  newMap.put(keyIter.next(), valueIter.next());
+                }
+                return setter.apply(s, newMap);
+              },
+              valuesKind);
       }
     };
   }
