@@ -43,7 +43,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with code that maps the integer to a string
     // Hint: Use either.map(...) with a function that converts Integer to String
-    Either<String, String> result = null;
+    Either<String, String> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo("42");
@@ -82,7 +82,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with code that doubles each number
     // Hint: Use monad.map(n -> n * 2, numbers)
-    Kind<ListKind.Witness, Integer> doubled = null;
+    Kind<ListKind.Witness, Integer> doubled = throw new RuntimeException("Answer required");
 
     assertThat(LIST.narrow(doubled)).containsExactly(2, 4, 6, 8, 10);
   }
@@ -103,7 +103,7 @@ public class Tutorial02_FunctorMapping {
     // 1. Multiply by 2 (10 -> 20)
     // 2. Add 5 (20 -> 25)
     // 3. Convert to String (25 -> "25")
-    Either<String, String> result = null;
+    Either<String, String> result = throw new RuntimeException("Answer required");
 
     assertThat(result.getRight()).isEqualTo("25");
   }
@@ -143,7 +143,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with a method reference that converts each string to uppercase
     // Hint: monad.map(String::toUpperCase, words)
-    Kind<ListKind.Witness, String> uppercase = null;
+    Kind<ListKind.Witness, String> uppercase = throw new RuntimeException("Answer required");
 
     assertThat(LIST.narrow(uppercase)).containsExactly("HELLO", "WORLD", "JAVA");
   }

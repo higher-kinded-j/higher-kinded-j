@@ -53,7 +53,7 @@ public class Tutorial04_MonadChaining {
 
     // TODO: Replace null with code that uses flatMap to parse the string
     // Hint: input.flatMap(parse)
-    Either<String, Integer> result = null;
+    Either<String, Integer> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(42);
@@ -87,7 +87,7 @@ public class Tutorial04_MonadChaining {
 
     // TODO: Replace null with chained flatMap operations
     // Hint: input.flatMap(parse).flatMap(validatePositive).flatMap(divideHundredBy)
-    Either<String, Double> result = null;
+    Either<String, Double> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(20.0);
@@ -171,7 +171,7 @@ public class Tutorial04_MonadChaining {
     // TODO: Replace null with code that:
     // 1. Finds the user by ID (flatMap with findUser)
     // 2. Gets their email (flatMap with user -> user.email())
-    Maybe<String> email = null;
+    Maybe<String> email = throw new RuntimeException("Answer required");
 
     assertThat(email.isJust()).isTrue();
     assertThat(email.get()).isEqualTo("alice@example.com");
@@ -193,7 +193,7 @@ public class Tutorial04_MonadChaining {
 
     // TODO: Replace null with code that creates all pairs using flatMap and map
     // Hint: monad.flatMap(n1 -> monad.map(n2 -> n1 + "-" + n2, LIST.widen(numbers2)), numbers1)
-    Kind<ListKind.Witness, String> pairs = null;
+    Kind<ListKind.Witness, String> pairs = throw new RuntimeException("Answer required");
 
     assertThat(LIST.narrow(pairs)).containsExactly("1-10", "1-20", "2-10", "2-20");
   }

@@ -89,7 +89,7 @@ public class Tutorial03_PrismBasics {
 
     // TODO: Replace null with code that uses circlePrism.getOptional()
     // to extract the circle
-    Optional<Circle> extracted = null;
+    Optional<Circle> extracted = throw new RuntimeException("Answer required");
 
     assertThat(extracted.isPresent()).isTrue();
     assertThat(extracted.get().radius()).isEqualTo(5.0);
@@ -115,7 +115,7 @@ public class Tutorial03_PrismBasics {
     // TODO: Replace null with code that uses circlePrism.build()
     // to create a Shape from a Circle
     // Hint: circlePrism.build(circle)
-    Shape shape = null;
+    Shape shape = throw new RuntimeException("Answer required");
 
     assertThat(shape).isInstanceOf(Circle.class);
     assertThat(((Circle) shape).radius()).isEqualTo(7.5);
@@ -138,7 +138,7 @@ public class Tutorial03_PrismBasics {
     // TODO: Replace null with code that uses circlePrism.modify()
     // to double the circle's radius
     // Hint: circlePrism.modify(c -> new Circle(c.radius() * 2), circle)
-    Shape doubledCircle = null;
+    Shape doubledCircle = throw new RuntimeException("Answer required");
 
     assertThat(((Circle) doubledCircle).radius()).isEqualTo(10.0);
 
@@ -188,7 +188,7 @@ public class Tutorial03_PrismBasics {
     // 1. Uses the prism to get the JsonString
     // 2. Maps over it to extract the value field
     // Hint: stringPrism.getOptional(stringValue).map(js -> js.value())
-    Optional<String> value = null;
+    Optional<String> value = throw new RuntimeException("Answer required");
 
     assertThat(value.get()).isEqualTo("Hello");
   }
@@ -211,7 +211,7 @@ public class Tutorial03_PrismBasics {
     // TODO: Replace null with code that uppercases the strings
     // Use stringPrism.modify() to transform matching values
     JsonValue updated1 = stringPrism.modify(js -> new JsonString(js.value().toUpperCase()), string1);
-    JsonValue updated2 = null;
+    JsonValue updated2 = throw new RuntimeException("Answer required");
     JsonValue updated3 = stringPrism.modify(js -> new JsonString(js.value().toUpperCase()), number);
 
     assertThat(((JsonString) updated1).value()).isEqualTo("HELLO");

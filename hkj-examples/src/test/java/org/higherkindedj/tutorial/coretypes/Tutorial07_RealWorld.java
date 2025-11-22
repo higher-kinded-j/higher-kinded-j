@@ -139,7 +139,7 @@ public class Tutorial07_RealWorld {
     // 3. Maps to extract the ProcessedData from successful Eithers
     // 4. Collects to a list
     // Hint: rawData.stream().map(processRecord).filter(Either::isRight).map(Either::getRight).collect(Collectors.toList())
-    List<ProcessedData> processed = null;
+    List<ProcessedData> processed = throw new RuntimeException("Answer required");
 
     assertThat(processed.size()).isEqualTo(3); // user4 should be filtered out
     assertThat(processed.getFirst().grade()).isEqualTo("A");
@@ -265,7 +265,7 @@ public class Tutorial07_RealWorld {
     // 1. Streams over items to process each one (produces Stream<Either<String, String>>)
     // 2. Collects to a list
     // Hint: items.stream().map(processItem).collect(Collectors.toList())
-    List<Either<String, String>> processed = null;
+    List<Either<String, String>> processed = throw new RuntimeException("Answer required");
 
     List<String> successes =
         processed.stream().filter(Either::isRight).map(Either::getRight).collect(Collectors.toList());

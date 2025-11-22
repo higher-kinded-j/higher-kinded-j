@@ -34,7 +34,7 @@ public class Tutorial03_ApplicativeCombining {
   void exercise1_liftingValues() {
     // TODO: Replace null with code that creates Either.right(42)
     // Hint: Use Either.right() to lift the value
-    Either<String, Integer> result = null;
+    Either<String, Integer> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo(42);
@@ -54,7 +54,7 @@ public class Tutorial03_ApplicativeCombining {
 
     // TODO: Replace null with code that uses map2 to add the two values
     // Hint: value1.map2(value2, (a, b) -> a + b)
-    Either<String, Integer> result = null;
+    Either<String, Integer> result = throw new RuntimeException("Answer required");
 
     assertThat(result.getRight()).isEqualTo(30);
   }
@@ -73,7 +73,7 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, Integer> error = Either.left("Error occurred");
 
     // TODO: Replace null with code that attempts to combine value1 and error
-    Either<String, Integer> result = null;
+    Either<String, Integer> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Error occurred");
@@ -96,7 +96,7 @@ public class Tutorial03_ApplicativeCombining {
 
     // TODO: Replace null with code that uses map3 to create a Person
     // Hint: name.map3(age, email, (n, a, e) -> new Person(n, a, e))
-    Either<String, Person> result = null;
+    Either<String, Person> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().name()).isEqualTo("Alice");
@@ -123,7 +123,7 @@ public class Tutorial03_ApplicativeCombining {
 
     // TODO: Replace null with code that uses map3 to combine the validations
     // Even though all are invalid, Validated will accumulate all errors
-    Validated<String, FormData> result = null;
+    Validated<String, FormData> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isInvalid()).isTrue();
     // Validated accumulates errors - in this case, it will contain one of the errors
@@ -148,7 +148,7 @@ public class Tutorial03_ApplicativeCombining {
 
     // TODO: Replace null with code that uses map4 to create an Order
     // Hint: id.map4(product, quantity, price, (i, p, q, pr) -> new Order(i, p, q, pr))
-    Either<String, Order> result = null;
+    Either<String, Order> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isRight()).isTrue();
     Order order = result.getRight();
@@ -176,7 +176,7 @@ public class Tutorial03_ApplicativeCombining {
     Either<String, String> country = Either.right("USA");
 
     // TODO: Replace null with code that uses map5 to create an Address
-    Either<String, Address> result = null;
+    Either<String, Address> result = throw new RuntimeException("Answer required");
 
     assertThat(result.isRight()).isTrue();
     Address address = result.getRight();

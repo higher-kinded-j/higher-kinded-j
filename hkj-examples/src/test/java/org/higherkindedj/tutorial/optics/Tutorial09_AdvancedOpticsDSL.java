@@ -72,7 +72,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with OpticPrograms.get() to create a program that reads the age
     // Hint: OpticPrograms.get(person, ageLens)
-    Free<OpticOpKind.Witness, Integer> getProgram = null;
+    Free<OpticOpKind.Witness, Integer> getProgram = throw new RuntimeException("Answer required");
 
     // Execute the program
     DirectOpticInterpreter interpreter = OpticInterpreters.direct();
@@ -82,7 +82,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with OpticPrograms.set() to create a program that sets age to 31
     // Hint: OpticPrograms.set(person, ageLens, 31)
-    Free<OpticOpKind.Witness, Person> setProgram = null;
+    Free<OpticOpKind.Witness, Person> setProgram = throw new RuntimeException("Answer required");
 
     Person updated = interpreter.run(setProgram);
     assertThat(updated.age()).isEqualTo(31);
@@ -296,7 +296,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with the logging interpreter
     // Hint: OpticInterpreters.logging()
-    LoggingOpticInterpreter logger = null;
+    LoggingOpticInterpreter logger = throw new RuntimeException("Answer required");
 
     Document result = logger.run(program);
 
@@ -305,7 +305,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // Check the audit log
     // TODO: Replace null with logger.getLog()
-    List<String> log = null;
+    List<String> log = throw new RuntimeException("Answer required");
 
     assertThat(log).isNotEmpty();
     // Log should contain operations performed
@@ -358,11 +358,11 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with the validation interpreter
     // Hint: OpticInterpreters.validation()
-    ValidationOpticInterpreter validator = null;
+    ValidationOpticInterpreter validator = throw new RuntimeException("Answer required");
 
     // Validate the program (dry-run)
     // TODO: Replace null with validator.validate(program)
-    List<String> issues = null;
+    List<String> issues = throw new RuntimeException("Answer required");
 
     // The validator can detect potential issues
     // In this simple case, it validates the structure is correct

@@ -42,7 +42,7 @@ public class Tutorial01_KindBasics {
 
     // TODO: Replace null with code that widens either to Kind
     // Hint: Use the EITHER helper's widen method
-    Kind<EitherKind.Witness<String>, Integer> kind = null;
+    Kind<EitherKind.Witness<String>, Integer> kind = throw new RuntimeException("Answer required");
 
     // Verify by narrowing back and checking the value
     assertThat(EITHER.narrow(kind).getRight()).isEqualTo(42);
@@ -62,7 +62,7 @@ public class Tutorial01_KindBasics {
 
     // TODO: Replace null with code that narrows kind to Either
     // Hint: Use the EITHER helper's narrow method
-    Either<String, Integer> either = null;
+    Either<String, Integer> either = throw new RuntimeException("Answer required");
 
     assertThat(either.isRight()).isTrue();
     assertThat(either.getRight()).isEqualTo(100);
@@ -81,11 +81,11 @@ public class Tutorial01_KindBasics {
 
     // TODO: Replace null with code that widens the list to Kind
     // Hint: Use the LIST helper's widen method
-    Kind<ListKind.Witness, String> kind = null;
+    Kind<ListKind.Witness, String> kind = throw new RuntimeException("Answer required");
 
     // TODO: Replace null with code that narrows kind back to List
     // Hint: Use the LIST helper's narrow method
-    List<String> narrowedList = null;
+    List<String> narrowedList = throw new RuntimeException("Answer required");
 
     assertThat(narrowedList.size()).isEqualTo(3);
     assertThat(narrowedList).containsExactly("apple", "banana", "cherry");

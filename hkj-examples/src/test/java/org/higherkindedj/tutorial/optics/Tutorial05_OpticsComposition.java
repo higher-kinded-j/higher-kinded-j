@@ -121,7 +121,7 @@ public class Tutorial05_OpticsComposition {
     // TODO: Replace null with composed optic: Lens + Prism
     // This creates a Prism<Order, CreditCard>
     // Hint: orderToPayment.andThen(creditCardPrism)
-    Prism<Order, CreditCard1> orderToCreditCard = null;
+    Prism<Order, CreditCard1> orderToCreditCard = throw new RuntimeException("Answer required");
 
     Optional<CreditCard1> card = orderToCreditCard.getOptional(order);
     assertThat(card.isPresent()).isTrue();
@@ -162,7 +162,7 @@ public class Tutorial05_OpticsComposition {
     // TODO: Replace null with composed optic: Prism + Lens
     // This creates a Prism<PaymentMethod, String> for the CVV
     // Hint: creditCardPrism.andThen(cvvLens)
-    Prism<PaymentMethod1, String> cvvPrism = null;
+    Prism<PaymentMethod1, String> cvvPrism = throw new RuntimeException("Answer required");
 
     PaymentMethod1 updated = cvvPrism.modify(cvv -> "999", order.payment());
     assertThat(((CreditCard1) updated).cvv()).isEqualTo("999");
@@ -203,7 +203,7 @@ public class Tutorial05_OpticsComposition {
     // TODO: Replace null with composed optic: Lens + Traversal over list items
     // This creates a Traversal<Order, Item>
     // Hint: Use OrderTraversals.items() which traverses the items
-    Traversal<Order, Item> orderToItems = null;
+    Traversal<Order, Item> orderToItems = throw new RuntimeException("Answer required");
 
     // Apply 10% discount to all items
     Order updated =
@@ -252,7 +252,7 @@ public class Tutorial05_OpticsComposition {
     // to access the string value inside the JsonObject's data field
     // NOTE: This requires specialized Lens.andThen(Prism) and Prism.andThen(Lens)
     // methods to preserve Prism type, which aren't yet implemented in the API
-    Prism<JsonObject1, String> valueAccess = null;
+    Prism<JsonObject1, String> valueAccess = throw new RuntimeException("Answer required");
 
     Optional<String> value = valueAccess.getOptional(root);
     assertThat(value.get()).isEqualTo("Hello");
@@ -294,7 +294,7 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Replace null with composed optic: Traversal + Prism
     // to focus only on JsonString values
-    Traversal<JsonArray1, JsonString1> stringValues = null;
+    Traversal<JsonArray1, JsonString1> stringValues = throw new RuntimeException("Answer required");
 
     List<String> strings =
         Traversals.getAll(stringValues.andThen(Lens.of(JsonString1::value, (js, v) -> new JsonString1(v)).asTraversal()), array);
@@ -350,7 +350,7 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Replace null with a fully composed optic chain:
     // League -> teams (Traversal) -> players (Traversal) -> score (Lens)
-    Traversal<League, Integer> allScores = null;
+    Traversal<League, Integer> allScores = throw new RuntimeException("Answer required");
 
     List<Integer> scores = Traversals.getAll(allScores, league);
     assertThat(scores).containsExactly(100, 90, 110);
@@ -418,10 +418,10 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Compose these into useful pipelines
     // 1. User -> city
-    Lens<User, String> userToCity = null;
+    Lens<User, String> userToCity = throw new RuntimeException("Answer required");
 
     // 2. User -> email address (optional)
-    Prism<User, String> userToEmailAddress = null;
+    Prism<User, String> userToEmailAddress = throw new RuntimeException("Answer required");
 
     assertThat(userToCity.get(user)).isEqualTo("Springfield");
     assertThat(userToEmailAddress.getOptional(user).get()).isEqualTo("alice@example.com");

@@ -47,7 +47,7 @@ public class Tutorial01_LensBasics {
     Person person = new Person("Alice", 30, "alice@example.com");
 
     // TODO: Replace null with code that uses nameLens.get() to extract the name
-    String name = null;
+    String name = throw new RuntimeException("Answer required");
 
     assertThat(name).isEqualTo("Alice");
   }
@@ -65,7 +65,7 @@ public class Tutorial01_LensBasics {
 
     // TODO: Replace null with code that uses nameLens.set() to change the name to "Bob"
     // Hint: nameLens.set("Bob", person)
-    Person updated = null;
+    Person updated = throw new RuntimeException("Answer required");
 
     assertThat(updated.name()).isEqualTo("Bob");
     assertThat(updated.age()).isEqualTo(30); // Other fields unchanged
@@ -85,7 +85,7 @@ public class Tutorial01_LensBasics {
 
     // TODO: Replace null with code that uses ageLens.modify() to increment the age
     // Hint: ageLens.modify(age -> age + 1, person)
-    Person updated = null;
+    Person updated = throw new RuntimeException("Answer required");
 
     assertThat(updated.age()).isEqualTo(31);
     assertThat(person.age()).isEqualTo(30); // Original unchanged
@@ -106,7 +106,7 @@ public class Tutorial01_LensBasics {
     // 1. Updates the name to "Bob"
     // 2. Then increments the age by 5
     // Hint: Chain two lens operations - nameLens.set(...) then ageLens.modify(...)
-    Person updated = null;
+    Person updated = throw new RuntimeException("Answer required");
 
     assertThat(updated.name()).isEqualTo("Bob");
     assertThat(updated.age()).isEqualTo(35);
@@ -128,14 +128,14 @@ public class Tutorial01_LensBasics {
 
     // TODO: Replace null with code that uses the generated ProductLenses.name() lens
     // to get the product name
-    String name = null;
+    String name = throw new RuntimeException("Answer required");
 
     assertThat(name).isEqualTo("Laptop");
 
     // TODO: Replace null with code that uses ProductLenses.price() lens
     // to increase the price by 10%
     // Hint: ProductLenses.price().modify(p -> p * 1.1, product)
-    Product updated = null;
+    Product updated = throw new RuntimeException("Answer required");
 
     assertThat(updated.price()).isCloseTo(1099.989, within(0.01));
   }
@@ -153,7 +153,7 @@ public class Tutorial01_LensBasics {
 
     // TODO: Replace null with code that creates a lens for the email field
     // Hint: Lens.of(Person::email, newEmail -> person -> new Person(...))
-    Lens<Person, String> emailLens = null;
+    Lens<Person, String> emailLens = throw new RuntimeException("Answer required");
 
     String email = emailLens.get(person);
     assertThat(email).isEqualTo("alice@example.com");
@@ -175,7 +175,7 @@ public class Tutorial01_LensBasics {
 
     // TODO: Replace null with code that uses nameLens.modify() with String::toUpperCase
     // to capitalize the name
-    Person updated = null;
+    Person updated = throw new RuntimeException("Answer required");
 
     assertThat(updated.name()).isEqualTo("ALICE");
   }

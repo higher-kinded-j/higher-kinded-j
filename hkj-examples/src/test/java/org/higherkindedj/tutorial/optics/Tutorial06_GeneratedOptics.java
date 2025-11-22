@@ -138,15 +138,15 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with generated lens access
     // Hint: PersonLenses.name().get(person)
-    String name = null;
+    String name = throw new RuntimeException("Answer required");
 
     // TODO: Replace null with generated lens modification
     // Hint: PersonLenses.age().set(31, person)
-    Person updated = null;
+    Person updated = throw new RuntimeException("Answer required");
 
     // TODO: Replace null with generated helper method
     // Hint: PersonLenses.withEmail(person, "new@example.com")
-    Person updated2 = null;
+    Person updated2 = throw new RuntimeException("Answer required");
 
     assertThat(name).isEqualTo("Alice");
     assertThat(updated.age()).isEqualTo(31);
@@ -182,14 +182,14 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with generated prism access
     // Hint: ResultPrisms.success().getOptional(result)
-    Optional<Success2> successOpt = null;
+    Optional<Success2> successOpt = throw new RuntimeException("Answer required");
 
     assertThat(successOpt.isPresent()).isTrue();
     assertThat(successOpt.get().message()).isEqualTo("Operation completed");
 
     // TODO: Replace null with generated prism construction
     // Hint: ResultPrisms.failure().build(new Failure2("Error"))
-    Result2 failure = null;
+    Result2 failure = throw new RuntimeException("Answer required");
 
     assertThat(failure).isInstanceOf(Failure2.class);
   }
@@ -221,7 +221,7 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with generated traversal to access all items
     // Hint: CartTraversals.items()
-    Traversal<Cart, Item> itemsTraversal = null;
+    Traversal<Cart, Item> itemsTraversal = throw new RuntimeException("Answer required");
 
     // Apply 10% discount to all items
     Cart discounted =
@@ -286,7 +286,7 @@ public class Tutorial06_GeneratedOptics {
     // TODO: Replace null with a composition of generated lenses
     // to access the employee's company's city
     // Hint: EmployeeLenses.company().andThen(...).andThen(...)
-    Lens<Employee, String> cityLens = null;
+    Lens<Employee, String> cityLens = throw new RuntimeException("Answer required");
 
     assertThat(cityLens.get(emp)).isEqualTo("Springfield");
 
@@ -324,7 +324,7 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with generated map traversal
     // Hint: InventoryTraversals.products()
-    Traversal<Inventory, Product> productsTraversal = null;
+    Traversal<Inventory, Product> productsTraversal = throw new RuntimeException("Answer required");
 
     // Increase all prices by 10%
     Inventory updated =
@@ -377,7 +377,7 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with equivalent using with* helper
     // Hint: UserLenses.withName(user, "Bob")
-    User updated2 = null;
+    User updated2 = throw new RuntimeException("Answer required");
 
     assertThat(updated1.name()).isEqualTo("Bob");
     assertThat(updated2.name()).isEqualTo("Bob");
