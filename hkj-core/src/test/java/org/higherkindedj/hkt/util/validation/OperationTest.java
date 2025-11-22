@@ -5,346 +5,98 @@ package org.higherkindedj.hkt.util.validation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("Operation")
 class OperationTest {
 
-  @Test
-  @DisplayName("AP should have correct label")
-  void apShouldHaveCorrectLabel() {
-    assertThat(AP.toString()).isEqualTo("ap");
+  @ParameterizedTest(name = "{0} should have label \"{1}\"")
+  @MethodSource("operationLabels")
+  @DisplayName("Each operation should have correct toString() label in camelCase format")
+  void eachOperationShouldHaveCorrectLabel(Operation operation, String expectedLabel) {
+    assertThat(operation.toString()).isEqualTo(expectedLabel);
   }
 
-  @Test
-  @DisplayName("MAP should have correct label")
-  void mapShouldHaveCorrectLabel() {
-    assertThat(MAP.toString()).isEqualTo("map");
-  }
-
-  @Test
-  @DisplayName("MAP_2 should have correct label")
-  void map2ShouldHaveCorrectLabel() {
-    assertThat(MAP_2.toString()).isEqualTo("map2");
-  }
-
-  @Test
-  @DisplayName("MAP_3 should have correct label")
-  void map3ShouldHaveCorrectLabel() {
-    assertThat(MAP_3.toString()).isEqualTo("map3");
-  }
-
-  @Test
-  @DisplayName("MAP_4 should have correct label")
-  void map4ShouldHaveCorrectLabel() {
-    assertThat(MAP_4.toString()).isEqualTo("map4");
-  }
-
-  @Test
-  @DisplayName("MAP_5 should have correct label")
-  void map5ShouldHaveCorrectLabel() {
-    assertThat(MAP_5.toString()).isEqualTo("map5");
-  }
-
-  @Test
-  @DisplayName("FLAT_MAP should have correct label")
-  void flatMapShouldHaveCorrectLabel() {
-    assertThat(FLAT_MAP.toString()).isEqualTo("flatMap");
-  }
-
-  @Test
-  @DisplayName("FOLD_MAP should have correct label")
-  void foldMapShouldHaveCorrectLabel() {
-    assertThat(FOLD_MAP.toString()).isEqualTo("foldMap");
-  }
-
-  @Test
-  @DisplayName("TRAVERSE should have correct label")
-  void traverseShouldHaveCorrectLabel() {
-    assertThat(TRAVERSE.toString()).isEqualTo("traverse");
-  }
-
-  @Test
-  @DisplayName("HANDLE_ERROR_WITH should have correct label")
-  void handleErrorWithShouldHaveCorrectLabel() {
-    assertThat(HANDLE_ERROR_WITH.toString()).isEqualTo("handleErrorWith");
-  }
-
-  @Test
-  @DisplayName("RECOVER_WITH should have correct label")
-  void recoverWithShouldHaveCorrectLabel() {
-    assertThat(RECOVER_WITH.toString()).isEqualTo("recoverWith");
-  }
-
-  @Test
-  @DisplayName("RECOVER should have correct label")
-  void recoverShouldHaveCorrectLabel() {
-    assertThat(RECOVER.toString()).isEqualTo("recover");
-  }
-
-  @Test
-  @DisplayName("RAISE_ERROR should have correct label")
-  void raiseErrorShouldHaveCorrectLabel() {
-    assertThat(RAISE_ERROR.toString()).isEqualTo("raiseError");
-  }
-
-  @Test
-  @DisplayName("CONSTRUCTION should have correct label")
-  void constructionShouldHaveCorrectLabel() {
-    assertThat(CONSTRUCTION.toString()).isEqualTo("construction");
-  }
-
-  @Test
-  @DisplayName("LEFT should have correct label")
-  void leftShouldHaveCorrectLabel() {
-    assertThat(LEFT.toString()).isEqualTo("left");
-  }
-
-  @Test
-  @DisplayName("RIGHT should have correct label")
-  void rightShouldHaveCorrectLabel() {
-    assertThat(RIGHT.toString()).isEqualTo("right");
-  }
-
-  @Test
-  @DisplayName("FROM_KIND should have correct label")
-  void fromKindShouldHaveCorrectLabel() {
-    assertThat(FROM_KIND.toString()).isEqualTo("fromKind");
-  }
-
-  @Test
-  @DisplayName("FROM_EITHER should have correct label")
-  void fromEitherShouldHaveCorrectLabel() {
-    assertThat(FROM_EITHER.toString()).isEqualTo("fromEither");
-  }
-
-  @Test
-  @DisplayName("FROM_MAYBE should have correct label")
-  void fromMaybeShouldHaveCorrectLabel() {
-    assertThat(FROM_MAYBE.toString()).isEqualTo("fromMaybe");
-  }
-
-  @Test
-  @DisplayName("FROM_OPTIONAL should have correct label")
-  void fromOptionalShouldHaveCorrectLabel() {
-    assertThat(FROM_OPTIONAL.toString()).isEqualTo("fromOptional");
-  }
-
-  @Test
-  @DisplayName("FROM_LIST should have correct label")
-  void fromListShouldHaveCorrectLabel() {
-    assertThat(FROM_LIST.toString()).isEqualTo("fromList");
-  }
-
-  @Test
-  @DisplayName("FROM_OPTIONAL_LIST should have correct label")
-  void fromOptionalListShouldHaveCorrectLabel() {
-    assertThat(FROM_OPTIONAL_LIST.toString()).isEqualTo("fromOptionalList");
-  }
-
-  @Test
-  @DisplayName("LIFT_F should have correct label")
-  void liftFShouldHaveCorrectLabel() {
-    assertThat(LIFT_F.toString()).isEqualTo("liftF");
-  }
-
-  @Test
-  @DisplayName("OF should have correct label")
-  void ofShouldHaveCorrectLabel() {
-    assertThat(OF.toString()).isEqualTo("of");
-  }
-
-  @Test
-  @DisplayName("ASK should have correct label")
-  void askShouldHaveCorrectLabel() {
-    assertThat(ASK.toString()).isEqualTo("ask");
-  }
-
-  @Test
-  @DisplayName("SET should have correct label")
-  void setShouldHaveCorrectLabel() {
-    assertThat(SET.toString()).isEqualTo("set");
-  }
-
-  @Test
-  @DisplayName("MODIFY should have correct label")
-  void modifyShouldHaveCorrectLabel() {
-    assertThat(MODIFY.toString()).isEqualTo("modify");
-  }
-
-  @Test
-  @DisplayName("INSPECT should have correct label")
-  void inspectShouldHaveCorrectLabel() {
-    assertThat(INSPECT.toString()).isEqualTo("inspect");
-  }
-
-  @Test
-  @DisplayName("RUN_STATE should have correct label")
-  void runStateShouldHaveCorrectLabel() {
-    assertThat(RUN_STATE.toString()).isEqualTo("runState");
-  }
-
-  @Test
-  @DisplayName("STATE_T should have correct label")
-  void stateTShouldHaveCorrectLabel() {
-    assertThat(STATE_T.toString()).isEqualTo("stateT");
-  }
-
-  @Test
-  @DisplayName("RUN_STATE_T should have correct label")
-  void runStateTShouldHaveCorrectLabel() {
-    assertThat(RUN_STATE_T.toString()).isEqualTo("runStateT");
-  }
-
-  @Test
-  @DisplayName("EVAL_STATE_T should have correct label")
-  void evalStateTShouldHaveCorrectLabel() {
-    assertThat(EVAL_STATE_T.toString()).isEqualTo("evalStateT");
-  }
-
-  @Test
-  @DisplayName("EXEC_STATE_T should have correct label")
-  void execStateTShouldHaveCorrectLabel() {
-    assertThat(EXEC_STATE_T.toString()).isEqualTo("execStateT");
-  }
-
-  @Test
-  @DisplayName("JUST should have correct label")
-  void justShouldHaveCorrectLabel() {
-    assertThat(JUST.toString()).isEqualTo("just");
-  }
-
-  @Test
-  @DisplayName("DEFER should have correct label")
-  void deferShouldHaveCorrectLabel() {
-    assertThat(DEFER.toString()).isEqualTo("defer");
-  }
-
-  @Test
-  @DisplayName("SOME should have correct label")
-  void someShouldHaveCorrectLabel() {
-    assertThat(SOME.toString()).isEqualTo("some");
-  }
-
-  @Test
-  @DisplayName("NONE should have correct label")
-  void noneShouldHaveCorrectLabel() {
-    assertThat(NONE.toString()).isEqualTo("none");
-  }
-
-  @Test
-  @DisplayName("READER should have correct label")
-  void readerShouldHaveCorrectLabel() {
-    assertThat(READER.toString()).isEqualTo("reader");
-  }
-
-  @Test
-  @DisplayName("RUN_READER should have correct label")
-  void runReaderShouldHaveCorrectLabel() {
-    assertThat(RUN_READER.toString()).isEqualTo("runReader");
-  }
-
-  @Test
-  @DisplayName("FOLD should have correct label")
-  void foldShouldHaveCorrectLabel() {
-    assertThat(FOLD.toString()).isEqualTo("fold");
-  }
-
-  @Test
-  @DisplayName("TO_EITHER should have correct label")
-  void toEitherShouldHaveCorrectLabel() {
-    assertThat(TO_EITHER.toString()).isEqualTo("toEither");
-  }
-
-  @Test
-  @DisplayName("MATCH should have correct label")
-  void matchShouldHaveCorrectLabel() {
-    assertThat(MATCH.toString()).isEqualTo("match");
-  }
-
-  @Test
-  @DisplayName("OR_ELSE_GET should have correct label")
-  void orElseGetShouldHaveCorrectLabel() {
-    assertThat(OR_ELSE_GET.toString()).isEqualTo("orElseGet");
-  }
-
-  @Test
-  @DisplayName("OR_EITHER should have correct label")
-  void orEitherShouldHaveCorrectLabel() {
-    assertThat(OR_EITHER.toString()).isEqualTo("orEither");
-  }
-
-  @Test
-  @DisplayName("RECOVER_FUNCTION should have correct label")
-  void recoverFunctionShouldHaveCorrectLabel() {
-    assertThat(RECOVER_FUNCTION.toString()).isEqualTo("recoverFunction");
-  }
-
-  @Test
-  @DisplayName("VALUE should have correct label")
-  void valueShouldHaveCorrectLabel() {
-    assertThat(VALUE.toString()).isEqualTo("value");
-  }
-
-  @Test
-  @DisplayName("TELL should have correct label")
-  void tellShouldHaveCorrectLabel() {
-    assertThat(TELL.toString()).isEqualTo("tell");
-  }
-
-  @Test
-  @DisplayName("IF_LEFT should have correct label")
-  void ifLeftShouldHaveCorrectLabel() {
-    assertThat(IF_LEFT.toString()).isEqualTo("ifLeft");
-  }
-
-  @Test
-  @DisplayName("IF_RIGHT should have correct label")
-  void ifRightShouldHaveCorrectLabel() {
-    assertThat(IF_RIGHT.toString()).isEqualTo("ifRight");
-  }
-
-  @Test
-  @DisplayName("SEQUENCE_A should have correct label")
-  void sequenceAShouldHaveCorrectLabel() {
-    assertThat(SEQUENCE_A.toString()).isEqualTo("sequenceA");
-  }
-
-  @Test
-  @DisplayName("SEQUENCE_B should have correct label")
-  void sequenceBShouldHaveCorrectLabel() {
-    assertThat(SEQUENCE_B.toString()).isEqualTo("sequenceB");
-  }
-
-  @Test
-  @DisplayName("IF_VALID should have correct label")
-  void ifValidShouldHaveCorrectLabel() {
-    assertThat(IF_VALID.toString()).isEqualTo("ifValid");
-  }
-
-  @Test
-  @DisplayName("IF_INVALID should have correct label")
-  void ifInvalidShouldHaveCorrectLabel() {
-    assertThat(IF_INVALID.toString()).isEqualTo("ifInvalid");
-  }
-
-  @Test
-  @DisplayName("OR_ELSE_THROW should have correct label")
-  void orElseThrowShouldHaveCorrectLabel() {
-    assertThat(OR_ELSE_THROW.toString()).isEqualTo("orElseThrow");
-  }
-
-  @Test
-  @DisplayName("DELAY should have correct label")
-  void delayShouldHaveCorrectLabel() {
-    assertThat(DELAY.toString()).isEqualTo("delay");
-  }
-
-  @Test
-  @DisplayName("INVALID should have correct label")
-  void invalidShouldHaveCorrectLabel() {
-    assertThat(INVALID.toString()).isEqualTo("invalid");
+  private static Stream<Arguments> operationLabels() {
+    return Stream.of(
+        Arguments.of(AP, "ap"),
+        Arguments.of(MAP, "map"),
+        Arguments.of(MAP_2, "map2"),
+        Arguments.of(MAP_3, "map3"),
+        Arguments.of(MAP_4, "map4"),
+        Arguments.of(MAP_5, "map5"),
+        Arguments.of(FLAT_MAP, "flatMap"),
+        Arguments.of(FOLD_MAP, "foldMap"),
+        Arguments.of(TRAVERSE, "traverse"),
+        Arguments.of(HANDLE_ERROR_WITH, "handleErrorWith"),
+        Arguments.of(RECOVER_WITH, "recoverWith"),
+        Arguments.of(RECOVER, "recover"),
+        Arguments.of(RAISE_ERROR, "raiseError"),
+        Arguments.of(CONSTRUCTION, "construction"),
+        Arguments.of(LEFT, "left"),
+        Arguments.of(RIGHT, "right"),
+        Arguments.of(FROM_KIND, "fromKind"),
+        Arguments.of(FROM_EITHER, "fromEither"),
+        Arguments.of(FROM_MAYBE, "fromMaybe"),
+        Arguments.of(FROM_OPTIONAL, "fromOptional"),
+        Arguments.of(FROM_LIST, "fromList"),
+        Arguments.of(FROM_OPTIONAL_LIST, "fromOptionalList"),
+        Arguments.of(LIFT_F, "liftF"),
+        Arguments.of(OF, "of"),
+        Arguments.of(ASK, "ask"),
+        Arguments.of(SET, "set"),
+        Arguments.of(MODIFY, "modify"),
+        Arguments.of(INSPECT, "inspect"),
+        Arguments.of(RUN_STATE, "runState"),
+        Arguments.of(STATE_T, "stateT"),
+        Arguments.of(RUN_STATE_T, "runStateT"),
+        Arguments.of(EVAL_STATE_T, "evalStateT"),
+        Arguments.of(EXEC_STATE_T, "execStateT"),
+        Arguments.of(JUST, "just"),
+        Arguments.of(DEFER, "defer"),
+        Arguments.of(SOME, "some"),
+        Arguments.of(NONE, "none"),
+        Arguments.of(READER, "reader"),
+        Arguments.of(RUN_READER, "runReader"),
+        Arguments.of(FOLD, "fold"),
+        Arguments.of(TO_EITHER, "toEither"),
+        Arguments.of(MATCH, "match"),
+        Arguments.of(OR_ELSE, "orElse"),
+        Arguments.of(OR_ELSE_GET, "orElseGet"),
+        Arguments.of(OR_EITHER, "orEither"),
+        Arguments.of(RECOVER_FUNCTION, "recoverFunction"),
+        Arguments.of(VALUE, "value"),
+        Arguments.of(TELL, "tell"),
+        Arguments.of(IF_LEFT, "ifLeft"),
+        Arguments.of(IF_RIGHT, "ifRight"),
+        Arguments.of(SEQUENCE_A, "sequenceA"),
+        Arguments.of(SEQUENCE_B, "sequenceB"),
+        Arguments.of(IF_VALID, "ifValid"),
+        Arguments.of(IF_INVALID, "ifInvalid"),
+        Arguments.of(OR_ELSE_THROW, "orElseThrow"),
+        Arguments.of(DELAY, "delay"),
+        Arguments.of(INVALID, "invalid"),
+        Arguments.of(IF_S, "ifS"),
+        Arguments.of(SELECT, "select"),
+        Arguments.of(WHEN_S, "whenS"),
+        Arguments.of(BRANCH, "branch"),
+        Arguments.of(BIMAP, "bimap"),
+        Arguments.of(FIRST, "first"),
+        Arguments.of(SECOND, "second"),
+        Arguments.of(MAP_LEFT, "mapLeft"),
+        Arguments.of(MAP_RIGHT, "mapRight"),
+        Arguments.of(MAP_FIRST, "mapFirst"),
+        Arguments.of(MAP_SECOND, "mapSecond"),
+        Arguments.of(MAP_THIRD, "mapThird"),
+        Arguments.of(MAP_FOURTH, "mapFourth"),
+        Arguments.of(MAP_FIFTH, "mapFifth"),
+        Arguments.of(MAP_ERROR, "mapError"),
+        Arguments.of(MAP_WRITTEN, "mapWritten"));
   }
 
   @Test
@@ -411,14 +163,5 @@ class OperationTest {
             OR_ELSE_THROW,
             DELAY,
             INVALID);
-  }
-
-  @Test
-  @DisplayName("each operation should have a non-null label")
-  void eachOperationShouldHaveNonNullLabel() {
-    for (var operation : Operation.values()) {
-      assertThat(operation.toString()).isNotNull();
-      assertThat(operation.toString()).isNotEmpty();
-    }
   }
 }

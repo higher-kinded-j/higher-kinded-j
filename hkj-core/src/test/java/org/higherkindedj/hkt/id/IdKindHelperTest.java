@@ -104,29 +104,13 @@ class IdKindHelperTest {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Test widen/narrow performance characteristics")
-    void testPerformanceCharacteristics() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE).skipValidations().withPerformanceTests().test();
-    }
+  @DisplayName("Concurrency Tests")
+  class ConcurrencyTests {
 
     @Test
     @DisplayName("Test concurrent access to widen/narrow operations")
     void testConcurrentAccess() {
       CoreTypeTest.idKindHelper(TEST_INSTANCE).skipValidations().withConcurrencyTests().test();
-    }
-
-    @Test
-    @DisplayName("Test performance and concurrency together")
-    void testPerformanceAndConcurrency() {
-      CoreTypeTest.idKindHelper(TEST_INSTANCE)
-          .skipValidations()
-          .withPerformanceTests()
-          .withConcurrencyTests()
-          .test();
     }
   }
 

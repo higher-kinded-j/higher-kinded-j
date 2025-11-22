@@ -46,6 +46,12 @@ tasks.test {
   useJUnitPlatform()
   finalizedBy(tasks.jacocoTestReport)
  // jvmArgs = listOf("--add-opens", "org.higherkindedj.hkj/org.higherkindedj.internal=ALL-UNNAMED")
+
+  // Note: Parallel execution disabled due to:
+  // - Performance test timing instability
+  // - Thread-safety issues in some test fixtures (Lazy memoization)
+  // - Performance testing should be handled by hkj-benchmarks module
+  // Future: May re-enable with @Execution(CONCURRENT) opt-in per test class
 }
 
 tasks.jacocoTestReport {

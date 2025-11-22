@@ -4,8 +4,10 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.maybe.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
@@ -13,6 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("MaybeMonad Complete Test Suite")
 class MaybeMonadTest extends MaybeTestBase {
@@ -291,17 +296,26 @@ class MaybeMonadTest extends MaybeTestBase {
       assertThatMaybe(narrowToMaybe(flattened)).isJust().hasValue(DEFAULT_JUST_VALUE);
     }
 
-    @Test
-    @DisplayName("flatMap with null parameters validates correctly")
-    void flatMapWithNullParametersValidatesCorrectly() {
-      // Verify null validation for flatMap - covered by testValidationsOnly() but kept explicit
-      assertThatThrownBy(() -> monad.flatMap(null, validKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Function f for MaybeMonad.flatMap cannot be null");
+    private static Stream<Arguments> flatMapNullParameters() {
+      Kind<MaybeKind.Witness, Integer> testValidKind = MAYBE.widen(Maybe.just(42));
+      Function<Integer, Kind<MaybeKind.Witness, String>> testValidFlatMapper =
+          i -> MAYBE.widen(Maybe.just("flat:" + i));
+      return Stream.of(
+          Arguments.of("Function f", testValidKind, null),
+          Arguments.of("Kind", null, testValidFlatMapper));
+    }
 
-      assertThatThrownBy(() -> monad.flatMap(validFlatMapper, null))
+    @ParameterizedTest(name = "flatMap validates {0} parameter is non-null")
+    @MethodSource("flatMapNullParameters")
+    @DisplayName("flatMap validates null parameters")
+    void flatMapWithNullParametersValidatesCorrectly(
+        String expectedMessagePart,
+        Kind<MaybeKind.Witness, Integer> kind,
+        Function<Integer, Kind<MaybeKind.Witness, String>> function) {
+      assertThatThrownBy(() -> monad.flatMap(function, kind))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind for MaybeMonad.flatMap cannot be null");
+          .hasMessageContaining(expectedMessagePart)
+          .hasMessageContaining("MaybeMonad.flatMap");
     }
   }
 }

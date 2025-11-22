@@ -55,12 +55,6 @@ class LazyKindHelperTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("Run complete LazyKindHelper tests with performance")
-    void runCompleteLazyKindHelperTestsWithPerformance() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY).withPerformanceTests().test();
-    }
-
-    @Test
     @DisplayName("Run complete LazyKindHelper tests with concurrency")
     void runCompleteLazyKindHelperTestsWithConcurrency() {
       CoreTypeTest.lazyKindHelper(BASE_LAZY).withConcurrencyTests().test();
@@ -379,19 +373,6 @@ class LazyKindHelperTest extends LazyTestBase {
           .skipValidations()
           .skipIdempotency()
           .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test performance characteristics")
-    void testPerformanceCharacteristics() {
-      CoreTypeTest.lazyKindHelper(BASE_LAZY)
-          .skipRoundTrip()
-          .skipValidations()
-          .skipInvalidType()
-          .skipIdempotency()
-          .skipEdgeCases()
-          .withPerformanceTests()
           .test();
     }
 

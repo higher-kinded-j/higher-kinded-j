@@ -6,11 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("Monoids utility class")
 class MonoidsTest {
@@ -674,6 +678,65 @@ class MonoidsTest {
 
         assertThat(result).isEqualTo(value);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Parameterized Monoid Law Tests")
+  class ParameterizedMonoidLawTests {
+
+    // Parameterized test data for monoids with their test values
+    private static Stream<Arguments> monoidIdentityLawProvider() {
+      return Stream.of(
+          Arguments.of("longAddition", Monoids.longAddition(), 42L),
+          Arguments.of("longMultiplication", Monoids.longMultiplication(), 42L),
+          Arguments.of("doubleAddition", Monoids.doubleAddition(), 42.5),
+          Arguments.of("doubleMultiplication", Monoids.doubleMultiplication(), 42.5),
+          Arguments.of("firstOptional", Monoids.firstOptional(), Optional.of("test")),
+          Arguments.of("lastOptional", Monoids.lastOptional(), Optional.of("test")),
+          Arguments.of("maximum", Monoids.maximum(), Optional.of(42)),
+          Arguments.of("minimum", Monoids.minimum(), Optional.of(42)));
+    }
+
+    @ParameterizedTest(name = "{0} satisfies left identity law")
+    @MethodSource("monoidIdentityLawProvider")
+    @DisplayName("All monoids satisfy left identity law: combine(empty, x) == x")
+    <T> void shouldSatisfyLeftIdentityLaw(String monoidName, Monoid<T> monoid, T testValue) {
+      T result = monoid.combine(monoid.empty(), testValue);
+
+      assertThat(result).isEqualTo(testValue);
+    }
+
+    @ParameterizedTest(name = "{0} satisfies right identity law")
+    @MethodSource("monoidIdentityLawProvider")
+    @DisplayName("All monoids satisfy right identity law: combine(x, empty) == x")
+    <T> void shouldSatisfyRightIdentityLaw(String monoidName, Monoid<T> monoid, T testValue) {
+      T result = monoid.combine(testValue, monoid.empty());
+
+      assertThat(result).isEqualTo(testValue);
+    }
+
+    // Parameterized test data for monoids that have associativity law
+    private static Stream<Arguments> monoidAssociativityLawProvider() {
+      return Stream.of(
+          Arguments.of("longAddition", Monoids.longAddition(), 100L, 200L, 300L, 600L),
+          Arguments.of("longMultiplication", Monoids.longMultiplication(), 2L, 3L, 4L, 24L),
+          Arguments.of("doubleAddition", Monoids.doubleAddition(), 1.5, 2.5, 3.5, 7.5),
+          Arguments.of(
+              "doubleMultiplication", Monoids.doubleMultiplication(), 2.0, 3.0, 4.0, 24.0));
+    }
+
+    @ParameterizedTest(name = "{0} satisfies associativity law")
+    @MethodSource("monoidAssociativityLawProvider")
+    @DisplayName(
+        "All monoids satisfy associativity law: combine(combine(a, b), c) == combine(a, combine(b,"
+            + " c))")
+    <T> void shouldSatisfyAssociativityLaw(
+        String monoidName, Monoid<T> monoid, T a, T b, T c, T expected) {
+      T leftAssoc = monoid.combine(monoid.combine(a, b), c);
+      T rightAssoc = monoid.combine(a, monoid.combine(b, c));
+
+      assertThat(leftAssoc).isEqualTo(rightAssoc).isEqualTo(expected);
     }
   }
 }

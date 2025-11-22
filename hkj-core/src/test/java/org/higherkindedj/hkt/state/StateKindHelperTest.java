@@ -197,14 +197,6 @@ class StateKindHelperTest extends StateTestBase<Integer> {
     }
 
     @Test
-    @DisplayName("Test KindHelper with performance tests")
-    void testKindHelperWithPerformanceTests() {
-      State<Integer, Integer> testState = State.of(s -> new StateTuple<>(s * 2, s + 1));
-
-      CoreTypeTest.stateKindHelper(testState).withPerformanceTests().test();
-    }
-
-    @Test
     @DisplayName("Test KindHelper with selective tests")
     void testKindHelperWithSelectiveTests() {
       State<Integer, String> testState = State.pure("selective");

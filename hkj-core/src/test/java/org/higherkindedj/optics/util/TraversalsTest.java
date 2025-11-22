@@ -1656,6 +1656,7 @@ class TraversalsTest {
 
     @Nested
     @DisplayName("Performance and Efficiency Tests")
+    @org.junit.jupiter.api.Disabled("Performance tests moved to hkj-benchmarks - see issue #206")
     class PerformanceTests {
 
       @Test
