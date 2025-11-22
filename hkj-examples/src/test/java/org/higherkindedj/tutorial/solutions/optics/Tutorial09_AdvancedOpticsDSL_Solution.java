@@ -345,7 +345,7 @@ public class Tutorial09_AdvancedOpticsDSL_Solution {
                 });
 
     // Create the validation interpreter
-    ValidationOpticInterpreter validator = OpticInterpreters.validation();
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
 
     // Validate the program (dry-run)
     List<String> issues = validator.validate(program);

@@ -7,9 +7,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedApplicative;
+import org.higherkindedj.hkt.validated.ValidatedKindHelper;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -83,20 +87,20 @@ public class Tutorial06_ConcreteTypes_Solution {
   }
 
   /**
-   * Exercise 3: Maybe with getOrElse
+   * Exercise 3: Maybe with orElse
    *
    * <p>Maybe provides convenient methods for handling the absent case.
    *
-   * <p>Task: Use getOrElse to provide a default value
+   * <p>Task: Use orElse to provide a default value
    */
   @Test
   void exercise3_maybeWithDefault() {
     Maybe<String> present = Maybe.just("Hello");
     Maybe<String> absent = Maybe.nothing();
 
-    // Solution: Use getOrElse to provide default values
-    String result1 = present.getOrElse("Default");
-    String result2 = absent.getOrElse("Default");
+    // Solution: Use orElse to provide default values
+    String result1 = present.orElse("Default");
+    String result2 = absent.orElse("Default");
 
     assertThat(result1).isEqualTo("Hello");
     assertThat(result2).isEqualTo("Default");
@@ -148,12 +152,16 @@ public class Tutorial06_ConcreteTypes_Solution {
     Validated<String, Integer> validAge = validateAge.apply(25);
     Validated<String, String> validEmail = validateEmail.apply("alice@example.com");
 
-    // Solution: Use map3 to combine all three validations
-    Validated<String, User> validUser = Validated.map3(
-        validName,
-        validAge,
-        validEmail,
-        User::new
+    // Solution: Use ValidatedApplicative to combine all three validations
+    Semigroup<String> stringSemigroup = Semigroups.string(", ");
+    ValidatedApplicative<String> applicative = ValidatedApplicative.instance(stringSemigroup);
+    Validated<String, User> validUser = ValidatedKindHelper.VALIDATED.narrow(
+        applicative.map3(
+            ValidatedKindHelper.VALIDATED.widen(validName),
+            ValidatedKindHelper.VALIDATED.widen(validAge),
+            ValidatedKindHelper.VALIDATED.widen(validEmail),
+            User::new
+        )
     );
 
     assertThat(validUser.isValid()).isTrue();
@@ -164,11 +172,13 @@ public class Tutorial06_ConcreteTypes_Solution {
     Validated<String, String> invalidEmail = validateEmail.apply("not-an-email");
 
     // Solution: Combine invalid validations to see error accumulation
-    Validated<String, User> invalidUser = Validated.map3(
-        invalidName,
-        invalidAge,
-        invalidEmail,
-        User::new
+    Validated<String, User> invalidUser = ValidatedKindHelper.VALIDATED.narrow(
+        applicative.map3(
+            ValidatedKindHelper.VALIDATED.widen(invalidName),
+            ValidatedKindHelper.VALIDATED.widen(invalidAge),
+            ValidatedKindHelper.VALIDATED.widen(invalidEmail),
+            User::new
+        )
     );
 
     assertThat(invalidUser.isInvalid()).isTrue();

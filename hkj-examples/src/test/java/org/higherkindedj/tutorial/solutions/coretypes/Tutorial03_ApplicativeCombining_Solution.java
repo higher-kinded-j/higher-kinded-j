@@ -3,9 +3,15 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedApplicative;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -56,8 +62,11 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> value2 = Either.right(20);
 
-    // SOLUTION: Use map2 to combine the two values
-    Either<String, Integer> result = value1.map2(value2, (a, b) -> a + b);
+    // SOLUTION: Use EitherMonad typeclass to access map2
+    EitherMonad<String> applicative = EitherMonad.instance();
+    Either<String, Integer> result = EITHER.narrow(
+        applicative.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b)
+    );
 
     assertThat(result.getRight()).isEqualTo(30);
   }
@@ -75,8 +84,11 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, Integer> value1 = Either.right(10);
     Either<String, Integer> error = Either.left("Error occurred");
 
-    // SOLUTION: Attempt to combine value1 and error
-    Either<String, Integer> result = value1.map2(error, (a, b) -> a + b);
+    // SOLUTION: Attempt to combine value1 and error using EitherMonad
+    EitherMonad<String> applicative = EitherMonad.instance();
+    Either<String, Integer> result = EITHER.narrow(
+        applicative.map2(EITHER.widen(value1), EITHER.widen(error), (a, b) -> a + b)
+    );
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Error occurred");
@@ -97,8 +109,16 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, Integer> age = Either.right(30);
     Either<String, String> email = Either.right("alice@example.com");
 
-    // SOLUTION: Use map3 to combine the three validated fields
-    Either<String, Person> result = name.map3(age, email, (n, a, e) -> new Person(n, a, e));
+    // SOLUTION: Use EitherMonad typeclass to access map3
+    EitherMonad<String> applicative = EitherMonad.instance();
+    Either<String, Person> result = EITHER.narrow(
+        applicative.map3(
+            EITHER.widen(name),
+            EITHER.widen(age),
+            EITHER.widen(email),
+            (n, a, e) -> new Person(n, a, e)
+        )
+    );
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().name()).isEqualTo("Alice");
@@ -123,9 +143,18 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Validated<String, Integer> age = Validated.invalid("Age must be positive");
     Validated<String, String> email = Validated.invalid("Email is invalid");
 
-    // SOLUTION: Use map3 to combine the validations
+    // SOLUTION: Use ValidatedApplicative typeclass to access map3
     // Validated will accumulate errors instead of short-circuiting
-    Validated<String, FormData> result = name.map3(age, email, (n, a, e) -> new FormData(n, a, e));
+    Semigroup<String> stringSemigroup = Semigroups.string(", ");
+    ValidatedApplicative<String> applicative = ValidatedApplicative.instance(stringSemigroup);
+    Validated<String, FormData> result = VALIDATED.narrow(
+        applicative.map3(
+            VALIDATED.widen(name),
+            VALIDATED.widen(age),
+            VALIDATED.widen(email),
+            (n, a, e) -> new FormData(n, a, e)
+        )
+    );
 
     assertThat(result.isInvalid()).isTrue();
     // Validated accumulates errors - in this case, it will contain one of the errors
@@ -148,9 +177,17 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, Integer> quantity = Either.right(2);
     Either<String, Double> price = Either.right(999.99);
 
-    // SOLUTION: Use map4 to combine all four fields
-    Either<String, Order> result =
-        id.map4(product, quantity, price, (i, p, q, pr) -> new Order(i, p, q, pr));
+    // SOLUTION: Use EitherMonad typeclass to access map4
+    EitherMonad<String> applicative = EitherMonad.instance();
+    Either<String, Order> result = EITHER.narrow(
+        applicative.map4(
+            EITHER.widen(id),
+            EITHER.widen(product),
+            EITHER.widen(quantity),
+            EITHER.widen(price),
+            (i, p, q, pr) -> new Order(i, p, q, pr)
+        )
+    );
 
     assertThat(result.isRight()).isTrue();
     Order order = result.getRight();
@@ -177,9 +214,18 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, String> zip = Either.right("62701");
     Either<String, String> country = Either.right("USA");
 
-    // SOLUTION: Use map5 to combine all five fields
-    Either<String, Address> result =
-        street.map5(city, state, zip, country, (s, c, st, z, co) -> new Address(s, c, st, z, co));
+    // SOLUTION: Use EitherMonad typeclass to access map5
+    EitherMonad<String> applicative = EitherMonad.instance();
+    Either<String, Address> result = EITHER.narrow(
+        applicative.map5(
+            EITHER.widen(street),
+            EITHER.widen(city),
+            EITHER.widen(state),
+            EITHER.widen(zip),
+            EITHER.widen(country),
+            (s, c, st, z, co) -> new Address(s, c, st, z, co)
+        )
+    );
 
     assertThat(result.isRight()).isTrue();
     Address address = result.getRight();

@@ -103,6 +103,17 @@ public class Tutorial01_LensBasics_Solution {
     @GenerateLenses
     record Product(String id, String name, double price) {}
 
+    // Manual lens implementations (annotation processor would generate ProductLenses class)
+    class ProductLenses {
+      public static Lens<Product, String> name() {
+        return Lens.of(Product::name, (p, newName) -> new Product(p.id(), newName, p.price()));
+      }
+
+      public static Lens<Product, Double> price() {
+        return Lens.of(Product::price, (p, newPrice) -> new Product(p.id(), p.name(), newPrice));
+      }
+    }
+
     Product product = new Product("PROD-001", "Laptop", 999.99);
 
     // SOLUTION: Use ProductLenses.name() to access the generated lens

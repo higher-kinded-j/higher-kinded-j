@@ -3,12 +3,14 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -216,13 +218,20 @@ public class Tutorial04_MonadChaining_Solution {
     Either<String, String> userId = Either.right("user1");
 
     // SOLUTION: Use flatMap to get the user ID, then use map2 to combine age and city
+    EitherMonad<String> applicative = EitherMonad.instance();
     Either<String, String> result =
         userId.flatMap(
             id -> {
               Either<String, Integer> age = getUserAge.apply(id);
               Either<String, String> city = getUserCity.apply(id);
               // Use map2 to combine age and city into a description string
-              return age.map2(city, (a, c) -> "Age: " + a + ", City: " + c);
+              return EITHER.narrow(
+                  applicative.map2(
+                      EITHER.widen(age),
+                      EITHER.widen(city),
+                      (a, c) -> "Age: " + a + ", City: " + c
+                  )
+              );
             });
 
     assertThat(result.getRight()).isEqualTo("Age: 30, City: New York");

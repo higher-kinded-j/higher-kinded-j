@@ -254,6 +254,25 @@ public class Tutorial02_LensComposition_Solution {
     @GenerateLenses
     record User(String id, String name, PaymentInfo paymentInfo) {}
 
+    // Manual lens implementations (annotation processor would generate these classes)
+    class AddressLenses {
+      public static Lens<Address, String> city() {
+        return Lens.of(Address::city, (a, newCity) -> new Address(a.street(), newCity));
+      }
+    }
+
+    class PaymentInfoLenses {
+      public static Lens<PaymentInfo, Address> billingAddress() {
+        return Lens.of(PaymentInfo::billingAddress, (p, newAddr) -> new PaymentInfo(p.cardNumber(), newAddr));
+      }
+    }
+
+    class UserLenses {
+      public static Lens<User, PaymentInfo> paymentInfo() {
+        return Lens.of(User::paymentInfo, (u, newPayment) -> new User(u.id(), u.name(), newPayment));
+      }
+    }
+
     User user =
         new User(
             "user123",
