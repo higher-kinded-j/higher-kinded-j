@@ -337,7 +337,8 @@ public class Tutorial09_AdvancedOpticsDSL_Solution {
         OpticPrograms.get(config, envLens)
             .flatMap(
                 env -> {
-                  if (env.equals("production")) {
+                  // Handle null case for validation interpreter (dry-run returns null)
+                  if (env != null && env.equals("production")) {
                     return OpticPrograms.set(config, debugLens, true);
                   } else {
                     return OpticPrograms.pure(config);

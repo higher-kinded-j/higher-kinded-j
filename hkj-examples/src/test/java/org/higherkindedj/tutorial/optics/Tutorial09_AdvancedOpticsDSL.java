@@ -354,7 +354,8 @@ public class Tutorial09_AdvancedOpticsDSL {
         OpticPrograms.get(config, envLens)
             .flatMap(
                 env -> {
-                  if (env.equals("production")) {
+                  // Handle null case for validation interpreter (dry-run returns null)
+                  if (env != null && env.equals("production")) {
                     return OpticPrograms.set(config, debugLens, true);
                   } else {
                     return OpticPrograms.pure(config);
@@ -362,16 +363,17 @@ public class Tutorial09_AdvancedOpticsDSL {
                 });
 
     // TODO: Replace null with the validation interpreter
-    // Hint: OpticInterpreters.validation()
+    // Hint: OpticInterpreters.validating()
     ValidationOpticInterpreter validator = answerRequired();
 
     // Validate the program (dry-run)
     // TODO: Replace null with validator.validate(program)
-    List<String> issues = answerRequired();
+    ValidationOpticInterpreter.ValidationResult result = answerRequired();
 
     // The validator can detect potential issues
     // In this simple case, it validates the structure is correct
-    assertThat(issues).isNotNull();
+    assertThat(result).isNotNull();
+    assertThat(result.isValid()).isTrue();
   }
 
   /**
