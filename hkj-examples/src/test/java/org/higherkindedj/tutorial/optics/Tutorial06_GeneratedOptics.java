@@ -182,7 +182,7 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with generated prism access
     // Hint: ResultPrisms.success().getOptional(result)
-    var successOpt = null;
+    Optional<Success2> successOpt = null;
 
     assertThat(successOpt.isPresent()).isTrue();
     assertThat(successOpt.get().message()).isEqualTo("Operation completed");
@@ -221,7 +221,7 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with generated traversal to access all items
     // Hint: CartTraversals.items()
-    var itemsTraversal = null;
+    Traversal<Cart, Item> itemsTraversal = null;
 
     // Apply 10% discount to all items
     Cart discounted =
@@ -286,7 +286,7 @@ public class Tutorial06_GeneratedOptics {
     // TODO: Replace null with a composition of generated lenses
     // to access the employee's company's city
     // Hint: EmployeeLenses.company().andThen(...).andThen(...)
-    var cityLens = null;
+    Lens<Employee, String> cityLens = null;
 
     assertThat(cityLens.get(emp)).isEqualTo("Springfield");
 
@@ -324,7 +324,7 @@ public class Tutorial06_GeneratedOptics {
 
     // TODO: Replace null with generated map traversal
     // Hint: InventoryTraversals.products()
-    var productsTraversal = null;
+    Traversal<Inventory, Product> productsTraversal = null;
 
     // Increase all prices by 10%
     Inventory updated =
