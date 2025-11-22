@@ -56,36 +56,42 @@ public class Tutorial06_GeneratedOptics {
   static <S, A> Traversal<S, A> listTraversal(
       java.util.function.Function<S, List<A>> getter,
       java.util.function.BiFunction<S, List<A>, S> setter) {
-    return Traversal.of(
-        (applicative, f, s) -> {
+    return new Traversal<S, A>() {
+      @Override
+      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
+          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
+          S s,
+          org.higherkindedj.hkt.Applicative<F> applicative) {
           List<A> list = getter.apply(s);
           var listKind =
               Traversals.traverseList(
                   list,
                   a -> f.apply(a),
                   applicative);
-          return applicative.map(
-              listKind,
-              newList -> setter.apply(s, newList));
-        });
+          return applicative.map(newList -> setter.apply(s, newList), listKind);
+      }
+    };
   }
 
   /** Helper to create a Traversal for Map fields (traverses values) */
   static <S, K, V> Traversal<S, V> mapTraversal(
       java.util.function.Function<S, Map<K, V>> getter,
       java.util.function.BiFunction<S, Map<K, V>, S> setter) {
-    return Traversal.of(
-        (applicative, f, s) -> {
+    return new Traversal<S, A>() {
+      @Override
+      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
+          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
+          S s,
+          org.higherkindedj.hkt.Applicative<F> applicative) {
           Map<K, V> map = getter.apply(s);
           var mapKind =
               Traversals.traverseMap(
                   map,
                   v -> f.apply(v),
                   applicative);
-          return applicative.map(
-              mapKind,
-              newMap -> setter.apply(s, newMap));
-        });
+          return applicative.map(newMap -> setter.apply(s, newMap), mapKind);
+      }
+    };
   }
 
   /**
@@ -104,15 +110,15 @@ public class Tutorial06_GeneratedOptics {
     // Manual implementation (annotation processor would generate this)
     class PersonLenses {
       public static Lens<Person, String> name() {
-        return Lens.of(Person::name, newName -> p -> new Person(newName, p.age(), p.email()));
+        return Lens.of(Person::name, (p, newName) -> new Person(newName, p.age(), p.email()));
       }
 
       public static Lens<Person, Integer> age() {
-        return Lens.of(Person::age, newAge -> p -> new Person(p.name(), newAge, p.email()));
+        return Lens.of(Person::age, (p, newAge) -> new Person(p.name(), newAge, p.email()));
       }
 
       public static Lens<Person, String> email() {
-        return Lens.of(Person::email, newEmail -> p -> new Person(p.name(), p.age(), newEmail));
+        return Lens.of(Person::email, (p, newEmail) -> new Person(p.name(), p.age(), newEmail));
       }
 
       public static Person withEmail(Person p, String newEmail) {
@@ -238,31 +244,31 @@ public class Tutorial06_GeneratedOptics {
     // Manual implementations (annotation processor would generate these)
     class AddressLenses {
       public static Lens<Address, String> street() {
-        return Lens.of(Address::street, newStreet -> a -> new Address(newStreet, a.city()));
+        return Lens.of(Address::street, (a, newStreet) -> new Address(newStreet, a.city()));
       }
 
       public static Lens<Address, String> city() {
-        return Lens.of(Address::city, newCity -> a -> new Address(a.street(), newCity));
+        return Lens.of(Address::city, (a, newCity) -> new Address(a.street(), newCity));
       }
     }
 
     class CompanyLenses {
       public static Lens<Company, String> name() {
-        return Lens.of(Company::name, newName -> c -> new Company(newName, c.address()));
+        return Lens.of(Company::name, (c, newName) -> new Company(newName, c.address()));
       }
 
       public static Lens<Company, Address> address() {
-        return Lens.of(Company::address, newAddress -> c -> new Company(c.name(), newAddress));
+        return Lens.of(Company::address, (c, newAddress) -> new Company(c.name(), newAddress));
       }
     }
 
     class EmployeeLenses {
       public static Lens<Employee, String> name() {
-        return Lens.of(Employee::name, newName -> e -> new Employee(newName, e.company()));
+        return Lens.of(Employee::name, (e, newName) -> new Employee(newName, e.company()));
       }
 
       public static Lens<Employee, Company> company() {
-        return Lens.of(Employee::company, newCompany -> e -> new Employee(e.name(), newCompany));
+        return Lens.of(Employee::company, (e, newCompany) -> new Employee(e.name(), newCompany));
       }
     }
 
@@ -336,19 +342,19 @@ public class Tutorial06_GeneratedOptics {
     // Manual implementation (annotation processor would generate this)
     class UserLenses {
       public static Lens<User, String> id() {
-        return Lens.of(User::id, newId -> u -> new User(newId, u.name(), u.email(), u.active()));
+        return Lens.of(User::id, (u, newId) -> new User(newId, u.name(), u.email(), u.active()));
       }
 
       public static Lens<User, String> name() {
-        return Lens.of(User::name, newName -> u -> new User(u.id(), newName, u.email(), u.active()));
+        return Lens.of(User::name, (u, newName) -> new User(u.id(), newName, u.email(), u.active()));
       }
 
       public static Lens<User, String> email() {
-        return Lens.of(User::email, newEmail -> u -> new User(u.id(), u.name(), newEmail, u.active()));
+        return Lens.of(User::email, (u, newEmail) -> new User(u.id(), u.name(), newEmail, u.active()));
       }
 
       public static Lens<User, Boolean> active() {
-        return Lens.of(User::active, newActive -> u -> new User(u.id(), u.name(), u.email(), newActive));
+        return Lens.of(User::active, (u, newActive) -> new User(u.id(), u.name(), u.email(), newActive));
       }
 
       public static User withName(User u, String newName) {
@@ -390,21 +396,21 @@ public class Tutorial06_GeneratedOptics {
     // Manual implementations (annotation processor would generate these)
     class EmailLenses {
       public static Lens<Email7, String> to() {
-        return Lens.of(Email7::to, newTo -> e -> new Email7(newTo, e.subject()));
+        return Lens.of(Email7::to, (e, newTo) -> new Email7(newTo, e.subject()));
       }
 
       public static Lens<Email7, String> subject() {
-        return Lens.of(Email7::subject, newSubject -> e -> new Email7(e.to(), newSubject));
+        return Lens.of(Email7::subject, (e, newSubject) -> new Email7(e.to(), newSubject));
       }
     }
 
     class SMSLenses {
       public static Lens<SMS7, String> phoneNumber() {
-        return Lens.of(SMS7::phoneNumber, newPhone -> s -> new SMS7(newPhone, s.message()));
+        return Lens.of(SMS7::phoneNumber, (s, newPhone) -> new SMS7(newPhone, s.message()));
       }
 
       public static Lens<SMS7, String> message() {
-        return Lens.of(SMS7::message, newMessage -> s -> new SMS7(s.phoneNumber(), newMessage));
+        return Lens.of(SMS7::message, (s, newMessage) -> new SMS7(s.phoneNumber(), newMessage));
       }
     }
 
@@ -424,15 +430,15 @@ public class Tutorial06_GeneratedOptics {
 
     class NotificationLenses {
       public static Lens<Notification, String> id() {
-        return Lens.of(Notification::id, newId -> n -> new Notification(newId, n.type(), n.sent()));
+        return Lens.of(Notification::id, (n, newId) -> new Notification(newId, n.type(), n.sent()));
       }
 
       public static Lens<Notification, NotificationType7> type() {
-        return Lens.of(Notification::type, newType -> n -> new Notification(n.id(), newType, n.sent()));
+        return Lens.of(Notification::type, (n, newType) -> new Notification(n.id(), newType, n.sent()));
       }
 
       public static Lens<Notification, Boolean> sent() {
-        return Lens.of(Notification::sent, newSent -> n -> new Notification(n.id(), n.type(), newSent));
+        return Lens.of(Notification::sent, (n, newSent) -> new Notification(n.id(), n.type(), newSent));
       }
 
       public static Notification withSent(Notification n, boolean newSent) {

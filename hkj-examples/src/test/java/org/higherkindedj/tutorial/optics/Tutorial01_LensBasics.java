@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -28,11 +29,11 @@ public class Tutorial01_LensBasics {
 
   // Manually created lens for the 'name' field
   static final Lens<Person, String> nameLens =
-      Lens.of(Person::name, newName -> person -> new Person(newName, person.age(), person.email()));
+      Lens.of(Person::name, (person, newName) -> new Person(newName, person.age(), person.email()));
 
   // Manually created lens for the 'age' field
   static final Lens<Person, Integer> ageLens =
-      Lens.of(Person::age, newAge -> person -> new Person(person.name(), newAge, person.email()));
+      Lens.of(Person::age, (person, newAge) -> new Person(person.name(), newAge, person.email()));
 
   /**
    * Exercise 1: Getting a value with a Lens

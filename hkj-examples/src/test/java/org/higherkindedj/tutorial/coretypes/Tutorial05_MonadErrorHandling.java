@@ -182,7 +182,7 @@ public class Tutorial05_MonadErrorHandling {
    * <p>Task: Use Try to safely perform a risky operation
    */
   @Test
-  void exercise7_tryForExceptions() {
+  void exercise7_tryForExceptions() throws Throwable {
     Function<Integer, Integer> riskyDivision =
         n -> {
           if (n == 0) {
