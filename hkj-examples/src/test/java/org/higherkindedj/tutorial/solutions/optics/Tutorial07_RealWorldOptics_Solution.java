@@ -347,17 +347,17 @@ public class Tutorial07_RealWorldOptics_Solution {
     Traversal<Order, Double> pricesTraversal = OrderTraversals.items()
         .andThen(LineItemLenses.price().asTraversal());
 
-    // Calculate total before discount
+    // Calculate total before discount (sum of unit prices)
     List<Double> prices = Traversals.getAll(pricesTraversal, order);
     double total = prices.stream().mapToDouble(p -> p).sum();
-    assertThat(total).isEqualTo(45.0); // 2*10 + 1*25
+    assertThat(total).isEqualTo(35.0); // 10.0 + 25.0 (unit prices only)
 
     // Apply 10% discount to all items (multiply by 0.9)
     Order discounted = Traversals.modify(pricesTraversal, price -> price * 0.9, order);
 
     List<Double> newPrices = Traversals.getAll(pricesTraversal, discounted);
     double newTotal = newPrices.stream().mapToDouble(p -> p).sum();
-    assertThat(newTotal).isCloseTo(40.5, within(0.01)); // 45 * 0.9
+    assertThat(newTotal).isCloseTo(31.5, within(0.01)); // 35.0 * 0.9
 
     // Update order status to shipped
     Lens<Order, OrderStatus3> statusLens = OrderLenses.status();
