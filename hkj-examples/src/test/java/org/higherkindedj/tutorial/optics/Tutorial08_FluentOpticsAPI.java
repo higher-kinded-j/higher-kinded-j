@@ -252,13 +252,13 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace false with OpticOps.exists() to check if any score >= 100
     // Hint: OpticOps.exists(team, scores, score -> score >= 100)
-    boolean hasHighScorers = false;
+    boolean hasHighScorers = answerRequired();
 
     assertThat(hasHighScorers).isTrue();
 
     // TODO: Replace 0 with OpticOps.count() to count total players
     // Hint: OpticOps.count(team, TeamTraversals.players())
-    int playerCount = 0;
+    int playerCount = answerRequired();
 
     assertThat(playerCount).isEqualTo(3);
 

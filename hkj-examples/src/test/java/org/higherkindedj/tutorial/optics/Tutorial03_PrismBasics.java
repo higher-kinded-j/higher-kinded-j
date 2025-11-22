@@ -171,7 +171,7 @@ public class Tutorial03_PrismBasics {
     // Try each prism and calculate the appropriate area
     // Hint: Use if-else with circlePrism.getOptional(shape).isPresent()
     // Or use circlePrism.getOptional(shape).map(...).orElse(value)
-    double area = 0.0;
+    double area = answerRequired();
 
     assertThat(area).isEqualTo(50.0); // 5 * 10
   }
@@ -241,9 +241,9 @@ public class Tutorial03_PrismBasics {
 
     // TODO: Replace false with code that checks if shapes are circles
     // Hint: circlePrism.matches(shape)
-    boolean isCircle1 = false;
-    boolean isCircle2 = false;
-    boolean isCircle3 = false;
+    boolean isCircle1 = answerRequired();
+    boolean isCircle2 = answerRequired();
+    boolean isCircle3 = answerRequired();
 
     assertThat(isCircle1).isTrue();
     assertThat(isCircle2).isFalse();

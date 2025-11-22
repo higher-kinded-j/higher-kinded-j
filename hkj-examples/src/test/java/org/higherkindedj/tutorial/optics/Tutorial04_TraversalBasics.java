@@ -377,7 +377,7 @@ public class Tutorial04_TraversalBasics {
         Traversals.modify(
             playersTraversal,
             p -> {
-              int bonus = 0;
+              int bonus = answerRequired();
               return new Player(p.name(), p.score() + bonus);
             },
             team);
