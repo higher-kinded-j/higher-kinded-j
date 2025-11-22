@@ -1,7 +1,7 @@
 package org.higherkindedj.spring.web.returnvalue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.higherkindedj.hkt.Either;
+import org.higherkindedj.hkt.either.Either;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

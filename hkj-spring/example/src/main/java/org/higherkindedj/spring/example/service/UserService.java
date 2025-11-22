@@ -1,6 +1,6 @@
 package org.higherkindedj.spring.example.service;
 
-import org.higherkindedj.hkt.Either;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.spring.example.domain.DomainError;
 import org.higherkindedj.spring.example.domain.User;
 import org.higherkindedj.spring.example.domain.UserNotFoundError;
