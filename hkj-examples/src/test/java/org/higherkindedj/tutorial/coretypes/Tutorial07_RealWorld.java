@@ -77,18 +77,18 @@ public class Tutorial07_RealWorld {
     // Hint: Use flatMap to chain validations together
     Either<ValidationError, Registration> result =
         validateUsername
-            .apply(null)
+            .apply(answerRequired())
             .flatMap(
                 username ->
                     validateEmail
-                        .apply(null)
+                        .apply(answerRequired())
                         .flatMap(
                             email ->
                                 validatePassword
-                                    .apply(null)
+                                    .apply(answerRequired())
                                     .flatMap(
                                         password ->
-                                            validateAge.apply(null).map(age -> null))));
+                                            validateAge.apply(answerRequired()).map(age -> answerRequired()))));
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight().username()).isEqualTo("alice");
@@ -183,7 +183,7 @@ public class Tutorial07_RealWorld {
                 greeting ->
                     Reader.<Config>ask()
                         .map(
-                            config -> null));
+                            config -> answerRequired()));
 
     Config config = new Config("MyApp", "1.0.0", false);
     String result = getVersionedGreeting.run(config);
@@ -236,7 +236,7 @@ public class Tutorial07_RealWorld {
     assertThat(result.getRight().name()).isEqualTo("Alice");
 
     // TODO: Replace null with code that handles a missing user
-    Maybe<User> maybeMissing = findUser.apply(null);
+    Maybe<User> maybeMissing = findUser.apply(answerRequired());
     Either<String, User> missing =
         maybeMissing.isJust() ? Either.right(maybeMissing.get()) : Either.left("User not found");
 
@@ -324,7 +324,7 @@ public class Tutorial07_RealWorld {
     // TODO: Replace null with code that:
     // 1. Validates the order
     // 2. Maps it through the processOrder function with config
-    Either<String, ProcessedOrder> result = validateOrder.apply(order).map(o -> null);
+    Either<String, ProcessedOrder> result = validateOrder.apply(order).map(o -> answerRequired());
 
     assertThat(result.isRight()).isTrue();
     ProcessedOrder processed = result.getRight();

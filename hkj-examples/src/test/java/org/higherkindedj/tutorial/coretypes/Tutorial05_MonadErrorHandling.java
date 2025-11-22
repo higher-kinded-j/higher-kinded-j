@@ -115,9 +115,9 @@ public class Tutorial05_MonadErrorHandling {
         error.fold(
             err -> {
               if (err.equals("NOT_FOUND")) {
-                return null;
+                return answerRequired();
               } else {
-                return null;
+                return answerRequired();
               }
             },
             value -> value);

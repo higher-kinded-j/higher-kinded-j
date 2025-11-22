@@ -225,7 +225,7 @@ public class Tutorial04_MonadChaining {
               Either<String, Integer> age = getUserAge.apply(id);
               Either<String, String> city = getUserCity.apply(id);
               // Use map2 to combine age and city
-              return null;
+              return answerRequired();
             });
 
     assertThat(result.getRight()).isEqualTo("Age: 30, City: New York");

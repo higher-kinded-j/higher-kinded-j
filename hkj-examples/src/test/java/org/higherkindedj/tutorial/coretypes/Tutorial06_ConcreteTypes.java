@@ -44,7 +44,7 @@ public class Tutorial06_ConcreteTypes {
           // Return Either.left("Too young") if age < 18
           // Return Either.left("Invalid age") if age < 0 or age > 150
           // Otherwise return Either.right(age)
-          return null;
+          return answerRequired();
         };
 
     assertThat(validateAge.apply(25).isRight()).isTrue();
@@ -71,7 +71,7 @@ public class Tutorial06_ConcreteTypes {
           // TODO: Replace null with lookup logic
           // Return Maybe.just("value") if key equals "key1"
           // Return Maybe.nothing() otherwise
-          return null;
+          return answerRequired();
         };
 
     Maybe<String> found = lookup.apply("key1");
@@ -207,7 +207,7 @@ public class Tutorial06_ConcreteTypes {
           // TODO: Replace null with Either-based division
           // Return Left("Division by zero") if b == 0
           // Otherwise return Right(a / b)
-          return null;
+          return answerRequired();
         };
 
     assertThat(safeDivideEither.apply(10).apply(2).getRight()).isEqualTo(5);
@@ -219,7 +219,7 @@ public class Tutorial06_ConcreteTypes {
           // TODO: Replace null with Maybe-based division
           // Return Nothing if b == 0
           // Otherwise return Just(a / b)
-          return null;
+          return answerRequired();
         };
 
     assertThat(safeDivideMaybe.apply(10).apply(2).get()).isEqualTo(5);

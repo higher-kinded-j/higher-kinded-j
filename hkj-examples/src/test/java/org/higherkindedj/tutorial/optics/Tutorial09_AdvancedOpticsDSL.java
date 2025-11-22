@@ -121,7 +121,7 @@ public class Tutorial09_AdvancedOpticsDSL {
     // Hint: OpticPrograms.get(counter, valueLens).flatMap(v -> OpticPrograms.set(...))
     Free<OpticOpKind.Witness, Counter> program =
         OpticPrograms.get(counter, valueLens)
-            .flatMap(currentValue -> null);
+            .flatMap(currentValue -> answerRequired());
 
     Counter result = OpticInterpreters.direct().run(program);
     assertThat(result.value()).isEqualTo(15);
@@ -172,9 +172,9 @@ public class Tutorial09_AdvancedOpticsDSL {
             .flatMap(
                 balance -> {
                   if (balance >= 1000) {
-                    return null;
+                    return answerRequired();
                   } else {
-                    return null;
+                    return answerRequired();
                   }
                 });
 
@@ -248,7 +248,7 @@ public class Tutorial09_AdvancedOpticsDSL {
             .flatMap(
                 u1 ->
                     OpticPrograms.modify(u1, emailLens, String::toLowerCase)
-                        .flatMap(u2 -> null));
+                        .flatMap(u2 -> answerRequired()));
 
     User result = OpticInterpreters.direct().run(program);
     assertThat(result.name()).isEqualTo("Alice");
@@ -441,7 +441,7 @@ public class Tutorial09_AdvancedOpticsDSL {
                       .flatMap(o1 -> OpticPrograms.set(o1, paidLens, true))
                       .flatMap(o2 -> OpticPrograms.set(o2, statusLens, "PROCESSING"))
                       .flatMap(o3 -> OpticPrograms.set(o3, shippedLens, true))
-                      .flatMap(o4 -> null);
+                      .flatMap(o4 -> answerRequired());
                 });
 
     // Execute with logging

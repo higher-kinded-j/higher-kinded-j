@@ -67,7 +67,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with code that attempts to map the error case
     // The map will not be applied since this is a Left
-    Either<String, String> result = error.map(i -> null);
+    Either<String, String> result = error.map(i -> answerRequired());
 
     assertThat(result.isLeft()).isTrue();
     assertThat(result.getLeft()).isEqualTo("Error occurred");
@@ -128,7 +128,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with code that uses functor.map() to transform the value
     // Hint: functor.map(function, kind)
-    Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> null, kind);
+    Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> answerRequired(), kind);
 
     Either<String, String> result = EITHER.narrow(mapped);
     assertThat(result.getRight()).isEqualTo("Value: 100");
