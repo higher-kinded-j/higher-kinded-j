@@ -29,6 +29,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial02_FunctorMapping {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   /**
    * Exercise 1: Basic map on Either
    *
@@ -43,7 +48,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with code that maps the integer to a string
     // Hint: Use either.map(...) with a function that converts Integer to String
-    Either<String, String> result = throw new RuntimeException("Answer required");
+    Either<String, String> result = answerRequired();
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo("42");
@@ -82,7 +87,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with code that doubles each number
     // Hint: Use monad.map(n -> n * 2, numbers)
-    Kind<ListKind.Witness, Integer> doubled = throw new RuntimeException("Answer required");
+    Kind<ListKind.Witness, Integer> doubled = answerRequired();
 
     assertThat(LIST.narrow(doubled)).containsExactly(2, 4, 6, 8, 10);
   }
@@ -103,7 +108,7 @@ public class Tutorial02_FunctorMapping {
     // 1. Multiply by 2 (10 -> 20)
     // 2. Add 5 (20 -> 25)
     // 3. Convert to String (25 -> "25")
-    Either<String, String> result = throw new RuntimeException("Answer required");
+    Either<String, String> result = answerRequired();
 
     assertThat(result.getRight()).isEqualTo("25");
   }
@@ -143,7 +148,7 @@ public class Tutorial02_FunctorMapping {
 
     // TODO: Replace null with a method reference that converts each string to uppercase
     // Hint: monad.map(String::toUpperCase, words)
-    Kind<ListKind.Witness, String> uppercase = throw new RuntimeException("Answer required");
+    Kind<ListKind.Witness, String> uppercase = answerRequired();
 
     assertThat(LIST.narrow(uppercase)).containsExactly("HELLO", "WORLD", "JAVA");
   }

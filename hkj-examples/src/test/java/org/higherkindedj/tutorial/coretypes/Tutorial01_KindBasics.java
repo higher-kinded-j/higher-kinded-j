@@ -28,6 +28,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial01_KindBasics {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   /**
    * Exercise 1: Widening to Kind
    *
@@ -42,7 +47,7 @@ public class Tutorial01_KindBasics {
 
     // TODO: Replace null with code that widens either to Kind
     // Hint: Use the EITHER helper's widen method
-    Kind<EitherKind.Witness<String>, Integer> kind = throw new RuntimeException("Answer required");
+    Kind<EitherKind.Witness<String>, Integer> kind = answerRequired();
 
     // Verify by narrowing back and checking the value
     assertThat(EITHER.narrow(kind).getRight()).isEqualTo(42);
@@ -62,7 +67,7 @@ public class Tutorial01_KindBasics {
 
     // TODO: Replace null with code that narrows kind to Either
     // Hint: Use the EITHER helper's narrow method
-    Either<String, Integer> either = throw new RuntimeException("Answer required");
+    Either<String, Integer> either = answerRequired();
 
     assertThat(either.isRight()).isTrue();
     assertThat(either.getRight()).isEqualTo(100);
@@ -81,11 +86,11 @@ public class Tutorial01_KindBasics {
 
     // TODO: Replace null with code that widens the list to Kind
     // Hint: Use the LIST helper's widen method
-    Kind<ListKind.Witness, String> kind = throw new RuntimeException("Answer required");
+    Kind<ListKind.Witness, String> kind = answerRequired();
 
     // TODO: Replace null with code that narrows kind back to List
     // Hint: Use the LIST helper's narrow method
-    List<String> narrowedList = throw new RuntimeException("Answer required");
+    List<String> narrowedList = answerRequired();
 
     assertThat(narrowedList.size()).isEqualTo(3);
     assertThat(narrowedList).containsExactly("apple", "banana", "cherry");

@@ -42,6 +42,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial09_AdvancedOpticsDSL {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   /**
    * Exercise 1: Building a simple program
    *
@@ -72,7 +77,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with OpticPrograms.get() to create a program that reads the age
     // Hint: OpticPrograms.get(person, ageLens)
-    Free<OpticOpKind.Witness, Integer> getProgram = throw new RuntimeException("Answer required");
+    Free<OpticOpKind.Witness, Integer> getProgram = answerRequired();
 
     // Execute the program
     DirectOpticInterpreter interpreter = OpticInterpreters.direct();
@@ -82,7 +87,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with OpticPrograms.set() to create a program that sets age to 31
     // Hint: OpticPrograms.set(person, ageLens, 31)
-    Free<OpticOpKind.Witness, Person> setProgram = throw new RuntimeException("Answer required");
+    Free<OpticOpKind.Witness, Person> setProgram = answerRequired();
 
     Person updated = interpreter.run(setProgram);
     assertThat(updated.age()).isEqualTo(31);
@@ -296,7 +301,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with the logging interpreter
     // Hint: OpticInterpreters.logging()
-    LoggingOpticInterpreter logger = throw new RuntimeException("Answer required");
+    LoggingOpticInterpreter logger = answerRequired();
 
     Document result = logger.run(program);
 
@@ -305,7 +310,7 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // Check the audit log
     // TODO: Replace null with logger.getLog()
-    List<String> log = throw new RuntimeException("Answer required");
+    List<String> log = answerRequired();
 
     assertThat(log).isNotEmpty();
     // Log should contain operations performed
@@ -358,11 +363,11 @@ public class Tutorial09_AdvancedOpticsDSL {
 
     // TODO: Replace null with the validation interpreter
     // Hint: OpticInterpreters.validation()
-    ValidationOpticInterpreter validator = throw new RuntimeException("Answer required");
+    ValidationOpticInterpreter validator = answerRequired();
 
     // Validate the program (dry-run)
     // TODO: Replace null with validator.validate(program)
-    List<String> issues = throw new RuntimeException("Answer required");
+    List<String> issues = answerRequired();
 
     // The validator can detect potential issues
     // In this simple case, it validates the structure is correct

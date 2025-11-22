@@ -24,6 +24,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial06_ConcreteTypes {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   /**
    * Exercise 1: Either for error handling
    *
@@ -91,8 +96,8 @@ public class Tutorial06_ConcreteTypes {
 
     // TODO: Replace null with code that gets the value or returns "Default"
     // Hint: Use .getOrElse(...)
-    String result1 = throw new RuntimeException("Answer required");
-    String result2 = throw new RuntimeException("Answer required");
+    String result1 = answerRequired();
+    String result2 = answerRequired();
 
     assertThat(result1).isEqualTo("Hello");
     assertThat(result2).isEqualTo("Default");
@@ -115,7 +120,7 @@ public class Tutorial06_ConcreteTypes {
     // 3. Maps to multiply each by 10
     // 4. Collects back to a list
     // Hint: numbers.stream().filter(n -> n % 2 == 0).map(n -> n * 10).collect(Collectors.toList())
-    List<Integer> result = throw new RuntimeException("Answer required");
+    List<Integer> result = answerRequired();
 
     assertThat(result).containsExactly(20, 40, 60, 80, 100);
   }
@@ -147,7 +152,7 @@ public class Tutorial06_ConcreteTypes {
     Validated<String, String> validEmail = validateEmail.apply("alice@example.com");
 
     // TODO: Replace null with code that combines the three validations using map3
-    Validated<String, User> validUser = throw new RuntimeException("Answer required");
+    Validated<String, User> validUser = answerRequired();
 
     assertThat(validUser.isValid()).isTrue();
 
@@ -157,7 +162,7 @@ public class Tutorial06_ConcreteTypes {
     Validated<String, String> invalidEmail = validateEmail.apply("not-an-email");
 
     // TODO: Replace null with code that combines the invalid validations
-    Validated<String, User> invalidUser = throw new RuntimeException("Answer required");
+    Validated<String, User> invalidUser = answerRequired();
 
     assertThat(invalidUser.isInvalid()).isTrue();
     // Validated accumulates errors (implementation-dependent on how Semigroup works)
@@ -177,8 +182,8 @@ public class Tutorial06_ConcreteTypes {
 
     // TODO: Replace null with code that converts Maybe to Either
     // Hint: Use pattern: present.isJust() ? Either.right(present.get()) : Either.left("Not found")
-    Either<String, String> either1 = throw new RuntimeException("Answer required");
-    Either<String, String> either2 = throw new RuntimeException("Answer required");
+    Either<String, String> either1 = answerRequired();
+    Either<String, String> either2 = answerRequired();
 
     assertThat(either1.isRight()).isTrue();
     assertThat(either1.getRight()).isEqualTo("value");

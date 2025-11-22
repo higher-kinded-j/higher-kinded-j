@@ -25,6 +25,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial02_LensComposition {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   @GenerateLenses
   record Address(String street, String city, String zipCode) {}
 
@@ -79,7 +84,7 @@ public class Tutorial02_LensComposition {
 
     // TODO: Replace null with code that composes the two lenses
     // Hint: personToCompany.andThen(companyToName)
-    Lens<Person, String> personToCompanyName = throw new RuntimeException("Answer required");
+    Lens<Person, String> personToCompanyName = answerRequired();
 
     String companyName = personToCompanyName.get(person);
     assertThat(companyName).isEqualTo("Acme Corp");
@@ -104,7 +109,7 @@ public class Tutorial02_LensComposition {
     // TODO: Replace null with composed lenses that go:
     // Person -> Company -> Address -> city
     // Hint: Use PersonLenses.company().andThen(...).andThen(...)
-    Lens<Person, String> personToCity = throw new RuntimeException("Answer required");
+    Lens<Person, String> personToCity = answerRequired();
 
     String city = personToCity.get(person);
     assertThat(city).isEqualTo("Springfield");
@@ -135,7 +140,7 @@ public class Tutorial02_LensComposition {
 
     // TODO: Replace null with code that modifies the street to uppercase
     // Hint: personToStreet.modify(String::toUpperCase, person)
-    Person updated = throw new RuntimeException("Answer required");
+    Person updated = answerRequired();
 
     assertThat(updated.company().address().street()).isEqualTo("123 MAIN ST");
   }
@@ -160,7 +165,7 @@ public class Tutorial02_LensComposition {
     // TODO: Replace null with chained lens updates:
     // 1. Set company name to "MegaCorp"
     // 2. Set city to "Capital City"
-    Person updated = throw new RuntimeException("Answer required");
+    Person updated = answerRequired();
 
     assertThat(updated.company().name()).isEqualTo("MegaCorp");
     assertThat(updated.company().address().city()).isEqualTo("Capital City");
@@ -214,10 +219,10 @@ public class Tutorial02_LensComposition {
     Lens<Config, Integer> configToPort = ConfigLenses.port();
 
     // TODO: Replace null with a composed lens for Application -> Database -> Config -> host
-    Lens<Application, String> appToHost = throw new RuntimeException("Answer required");
+    Lens<Application, String> appToHost = answerRequired();
 
     // TODO: Replace null with a composed lens for Application -> Database -> Config -> port
-    Lens<Application, Integer> appToPort = throw new RuntimeException("Answer required");
+    Lens<Application, Integer> appToPort = answerRequired();
 
     Application app =
         new Application(
@@ -251,7 +256,7 @@ public class Tutorial02_LensComposition {
     // Using helper methods (more discoverable in IDE)
     // TODO: Replace null with the equivalent update using with* helper methods
     // Hint: PersonLenses.withCompany(person, CompanyLenses.with...)
-    Person updated2 = throw new RuntimeException("Answer required");
+    Person updated2 = answerRequired();
 
     assertThat(updated1.company().address().city()).isEqualTo("New City");
     assertThat(updated2.company().address().city()).isEqualTo("New City");
@@ -283,7 +288,7 @@ public class Tutorial02_LensComposition {
 
     // TODO: Replace null with a composed lens that accesses:
     // User -> PaymentInfo -> billingAddress -> city
-    Lens<User, String> billingCityLens = throw new RuntimeException("Answer required");
+    Lens<User, String> billingCityLens = answerRequired();
 
     User updated = billingCityLens.set("Capital City", user);
 

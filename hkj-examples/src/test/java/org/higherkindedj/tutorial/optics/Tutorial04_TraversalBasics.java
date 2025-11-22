@@ -28,6 +28,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial04_TraversalBasics {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   // Manual traversal/lens implementations (annotation processor generates these in real projects)
   // These are generic helpers that work with the record types defined in each test method
 
@@ -86,7 +91,7 @@ public class Tutorial04_TraversalBasics {
     // TODO: Replace null with code that modifies all players to double their scores
     // Hint: Use Traversals.modify(playersTraversal, player -> new Player(...), team)
     // Note: Can also use OpticOps.modifyAll() for a more fluent API (covered in Tutorial 08)
-    Team updated = throw new RuntimeException("Answer required");
+    Team updated = answerRequired();
 
     assertThat(updated.players().get(0).score()).isEqualTo(200);
     assertThat(updated.players().get(1).score()).isEqualTo(180);
@@ -134,7 +139,7 @@ public class Tutorial04_TraversalBasics {
 
     // TODO: Replace null with composed traversals that access all players
     // Hint: LeagueTraversals.teams().andThen(TeamTraversals.players())
-    Traversal<League, Player> allPlayers = throw new RuntimeException("Answer required");
+    Traversal<League, Player> allPlayers = answerRequired();
 
     // Add 10 bonus points to all players
     League updated = Traversals.modify(allPlayers, p -> new Player(p.name(), p.score() + 10), league);
@@ -178,7 +183,7 @@ public class Tutorial04_TraversalBasics {
     // TODO: Replace null with a composition of traversal and lens
     // to focus on just the scores
     // Hint: TeamTraversals.players().andThen(PlayerLenses.score().asTraversal())
-    Traversal<Team, Integer> allScores = throw new RuntimeException("Answer required");
+    Traversal<Team, Integer> allScores = answerRequired();
 
     Team updated = Traversals.modify(allScores, score -> score + 5, team);
 
@@ -218,7 +223,7 @@ public class Tutorial04_TraversalBasics {
 
     // TODO: Replace null with a filtered traversal that only targets players with score > 100
     // Hint: playersTraversal.filtered(p -> p.score() > 100)
-    Traversal<Team, Player> highScorers = throw new RuntimeException("Answer required");
+    Traversal<Team, Player> highScorers = answerRequired();
 
     Team updated =
         Traversals.modify(highScorers, p -> new Player(p.name(), p.score() + 10), team);
@@ -265,7 +270,7 @@ public class Tutorial04_TraversalBasics {
 
     // TODO: Replace null with code that gets all player names
     // Hint: Traversals.getAll(allNames, team)
-    List<String> names = throw new RuntimeException("Answer required");
+    List<String> names = answerRequired();
 
     assertThat(names).containsExactly("Alice", "Bob");
   }

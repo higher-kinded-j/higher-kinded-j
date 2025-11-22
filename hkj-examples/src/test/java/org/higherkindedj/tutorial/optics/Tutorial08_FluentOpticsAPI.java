@@ -35,6 +35,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial08_FluentOpticsAPI {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   // Manual traversal/lens implementations (annotation processor generates these in real projects)
 
   /** Helper to create a Traversal for List fields */
@@ -95,13 +100,13 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.get() to extract the name
     // Hint: OpticOps.get(person, nameLens)
-    String name = throw new RuntimeException("Answer required");
+    String name = answerRequired();
 
     assertThat(name).isEqualTo("Alice");
 
     // TODO: Replace null with OpticOps.set() to update the age to 31
     // Hint: OpticOps.set(person, ageLens, 31)
-    Person updated = throw new RuntimeException("Answer required");
+    Person updated = answerRequired();
 
     assertThat(updated.age()).isEqualTo(31);
     assertThat(updated.name()).isEqualTo("Alice"); // Other fields unchanged
@@ -137,13 +142,13 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.modify() to increment age by 1
     // Hint: OpticOps.modify(person, ageLens, age -> age + 1)
-    Person older = throw new RuntimeException("Answer required");
+    Person older = answerRequired();
 
     assertThat(older.age()).isEqualTo(31);
 
     // TODO: Replace null with OpticOps.modify() to uppercase the name
     // Hint: OpticOps.modify(person, nameLens, String::toUpperCase)
-    Person capitalized = throw new RuntimeException("Answer required");
+    Person capitalized = answerRequired();
 
     assertThat(capitalized.name()).isEqualTo("ALICE");
   }
@@ -190,7 +195,7 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.getAll() to extract all player names
     // Hint: OpticOps.getAll(team, playerNames)
-    List<String> names = throw new RuntimeException("Answer required");
+    List<String> names = answerRequired();
 
     assertThat(names).containsExactly("Alice", "Bob");
 
@@ -198,7 +203,7 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.modifyAll() to give everyone +10 bonus points
     // Hint: OpticOps.modifyAll(team, playersTraversal, p -> new Player(p.name(), p.score() + 10))
-    Team bonusApplied = throw new RuntimeException("Answer required");
+    Team bonusApplied = answerRequired();
 
     assertThat(bonusApplied.players().get(0).score()).isEqualTo(110);
     assertThat(bonusApplied.players().get(1).score()).isEqualTo(100);
@@ -261,7 +266,7 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.find() to find first player with score > 100
     // Hint: OpticOps.find(team, players, p -> p.score() > 100)
-    Optional<Player> topPlayer = throw new RuntimeException("Answer required");
+    Optional<Player> topPlayer = answerRequired();
 
     assertThat(topPlayer).isPresent();
     assertThat(topPlayer.get().name()).isEqualTo("Alice");
@@ -308,7 +313,7 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.modifyEither() to validate and normalize email
     // Hint: OpticOps.modifyEither(user, emailLens, validateEmail)
-    Either<String, User> validResult = throw new RuntimeException("Answer required");
+    Either<String, User> validResult = answerRequired();
 
     assertThat(validResult.isRight()).isTrue();
     assertThat(validResult.getRight().email()).isEqualTo("alice@example.com");
@@ -317,7 +322,7 @@ public class Tutorial08_FluentOpticsAPI {
     User invalidUser = new User("user2", "notanemail");
 
     // TODO: Replace null with OpticOps.modifyEither() on invalid email
-    Either<String, User> invalidResult = throw new RuntimeException("Answer required");
+    Either<String, User> invalidResult = answerRequired();
 
     assertThat(invalidResult.isLeft()).isTrue();
     assertThat(invalidResult.getLeft()).contains("missing @");
@@ -356,7 +361,7 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.modifyMaybe() to validate age
     // Hint: OpticOps.modifyMaybe(person, ageLens, validateAge)
-    Maybe<Person> validResult = throw new RuntimeException("Answer required");
+    Maybe<Person> validResult = answerRequired();
 
     assertThat(validResult.isJust()).isTrue();
 
@@ -364,7 +369,7 @@ public class Tutorial08_FluentOpticsAPI {
     Person invalidPerson = new Person("Bob", 200);
 
     // TODO: Replace null with OpticOps.modifyMaybe() on invalid age
-    Maybe<Person> invalidResult = throw new RuntimeException("Answer required");
+    Maybe<Person> invalidResult = answerRequired();
 
     assertThat(invalidResult.isNothing()).isTrue();
   }
@@ -421,7 +426,7 @@ public class Tutorial08_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.modifyAllValidated() to validate all prices
     // Hint: OpticOps.modifyAllValidated(order, prices, validatePrice)
-    Validated<List<String>, Order> result = throw new RuntimeException("Answer required");
+    Validated<List<String>, Order> result = answerRequired();
 
     // Should be invalid because we have negative and zero prices
     assertThat(result.isInvalid()).isTrue();
@@ -437,7 +442,7 @@ public class Tutorial08_FluentOpticsAPI {
         OrderTraversals.items().andThen(ItemLenses.price().asTraversal());
 
     // TODO: Replace null with OpticOps.modifyAllValidated() on valid order
-    Validated<List<String>, Order> validResult = throw new RuntimeException("Answer required");
+    Validated<List<String>, Order> validResult = answerRequired();
 
     assertThat(validResult.isValid()).isTrue();
   }

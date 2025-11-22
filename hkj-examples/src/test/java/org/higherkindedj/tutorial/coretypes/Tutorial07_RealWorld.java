@@ -23,6 +23,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial07_RealWorld {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   /**
    * Exercise 1: Building a validation pipeline
    *
@@ -139,7 +144,7 @@ public class Tutorial07_RealWorld {
     // 3. Maps to extract the ProcessedData from successful Eithers
     // 4. Collects to a list
     // Hint: rawData.stream().map(processRecord).filter(Either::isRight).map(Either::getRight).collect(Collectors.toList())
-    List<ProcessedData> processed = throw new RuntimeException("Answer required");
+    List<ProcessedData> processed = answerRequired();
 
     assertThat(processed.size()).isEqualTo(3); // user4 should be filtered out
     assertThat(processed.getFirst().grade()).isEqualTo("A");
@@ -265,7 +270,7 @@ public class Tutorial07_RealWorld {
     // 1. Streams over items to process each one (produces Stream<Either<String, String>>)
     // 2. Collects to a list
     // Hint: items.stream().map(processItem).collect(Collectors.toList())
-    List<Either<String, String>> processed = throw new RuntimeException("Answer required");
+    List<Either<String, String>> processed = answerRequired();
 
     List<String> successes =
         processed.stream().filter(Either::isRight).map(Either::getRight).collect(Collectors.toList());

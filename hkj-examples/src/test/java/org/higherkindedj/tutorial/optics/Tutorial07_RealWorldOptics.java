@@ -26,6 +26,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial07_RealWorldOptics {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   // Sealed interfaces must be at class level
   @GeneratePrisms
   sealed interface ApiResponse2 {}
@@ -172,7 +177,7 @@ public class Tutorial07_RealWorldOptics {
 
     // TODO: Replace null with a lens that accesses the email notification preference
     // Hint: Compose lenses through settings -> notifications -> email
-    Lens<UserProfile, Boolean> emailNotifLens = throw new RuntimeException("Answer required");
+    Lens<UserProfile, Boolean> emailNotifLens = answerRequired();
 
     // Enable email notifications
     UserProfile updated = emailNotifLens.set(true, user);
@@ -255,7 +260,7 @@ public class Tutorial07_RealWorldOptics {
 
     // TODO: Replace null with a composed optic that extracts all city names
     // Hint: Compose success prism -> locations traversal -> city lens
-    Traversal<ApiResponse2, String> citiesTraversal = throw new RuntimeException("Answer required");
+    Traversal<ApiResponse2, String> citiesTraversal = answerRequired();
 
     List<String> cities = Traversals.getAll(citiesTraversal, response);
     assertThat(cities).containsExactly("New York", "London");
@@ -342,7 +347,7 @@ public class Tutorial07_RealWorldOptics {
             0.0);
 
     // TODO: Replace null with a traversal that accesses all item prices
-    Traversal<Order, Double> pricesTraversal = throw new RuntimeException("Answer required");
+    Traversal<Order, Double> pricesTraversal = answerRequired();
 
     // Calculate total before discount
     List<Double> prices = Traversals.getAll(pricesTraversal, order);
@@ -350,7 +355,7 @@ public class Tutorial07_RealWorldOptics {
     assertThat(total).isEqualTo(45.0); // 2*10 + 1*25
 
     // TODO: Replace null with code that applies a 10% discount to all items
-    Order discounted = throw new RuntimeException("Answer required");
+    Order discounted = answerRequired();
 
     List<Double> newPrices = Traversals.getAll(pricesTraversal, discounted);
     double newTotal = newPrices.stream().mapToDouble(p -> p).sum();
@@ -445,7 +450,7 @@ public class Tutorial07_RealWorldOptics {
                     List.of(new Address("456 oak ave", "shelbyville", "il", "62702")))));
 
     // TODO: Replace null with a traversal that accesses all customer names
-    Traversal<CustomerDatabase, String> namesTraversal = throw new RuntimeException("Answer required");
+    Traversal<CustomerDatabase, String> namesTraversal = answerRequired();
 
     // Trim and normalize names
     CustomerDatabase normalized =
@@ -543,7 +548,7 @@ public class Tutorial07_RealWorldOptics {
             new CacheConfig("localhost", 6379, 3600));
 
     // TODO: Replace null with a lens to access the database SSL setting
-    Lens<AppConfig, Boolean> dbSslLens = throw new RuntimeException("Answer required");
+    Lens<AppConfig, Boolean> dbSslLens = answerRequired();
 
     // Enable SSL for production
     AppConfig prodConfig =
@@ -562,7 +567,7 @@ public class Tutorial07_RealWorldOptics {
         AppConfigLenses.cache().andThen(CacheConfigLenses.host());
 
     AppConfig updated = dbHostLens.set("prod.example.com", prodConfig);
-    updated = throw new RuntimeException("Answer required");
+    updated = answerRequired();
 
     assertThat(updated.database().host()).isEqualTo("prod.example.com");
     assertThat(updated.cache().host()).isEqualTo("prod.example.com");

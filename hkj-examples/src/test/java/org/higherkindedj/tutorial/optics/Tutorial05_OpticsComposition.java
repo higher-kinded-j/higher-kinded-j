@@ -31,6 +31,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial05_OpticsComposition {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   // Shared sealed interfaces for exercises (must be at class level)
 
   // PaymentMethod for exercises 1-2
@@ -121,7 +126,7 @@ public class Tutorial05_OpticsComposition {
     // TODO: Replace null with composed optic: Lens + Prism
     // This creates a Prism<Order, CreditCard>
     // Hint: orderToPayment.andThen(creditCardPrism)
-    Prism<Order, CreditCard1> orderToCreditCard = throw new RuntimeException("Answer required");
+    Prism<Order, CreditCard1> orderToCreditCard = answerRequired();
 
     Optional<CreditCard1> card = orderToCreditCard.getOptional(order);
     assertThat(card.isPresent()).isTrue();
@@ -162,7 +167,7 @@ public class Tutorial05_OpticsComposition {
     // TODO: Replace null with composed optic: Prism + Lens
     // This creates a Prism<PaymentMethod, String> for the CVV
     // Hint: creditCardPrism.andThen(cvvLens)
-    Prism<PaymentMethod1, String> cvvPrism = throw new RuntimeException("Answer required");
+    Prism<PaymentMethod1, String> cvvPrism = answerRequired();
 
     PaymentMethod1 updated = cvvPrism.modify(cvv -> "999", order.payment());
     assertThat(((CreditCard1) updated).cvv()).isEqualTo("999");
@@ -203,7 +208,7 @@ public class Tutorial05_OpticsComposition {
     // TODO: Replace null with composed optic: Lens + Traversal over list items
     // This creates a Traversal<Order, Item>
     // Hint: Use OrderTraversals.items() which traverses the items
-    Traversal<Order, Item> orderToItems = throw new RuntimeException("Answer required");
+    Traversal<Order, Item> orderToItems = answerRequired();
 
     // Apply 10% discount to all items
     Order updated =
@@ -252,7 +257,7 @@ public class Tutorial05_OpticsComposition {
     // to access the string value inside the JsonObject's data field
     // NOTE: This requires specialized Lens.andThen(Prism) and Prism.andThen(Lens)
     // methods to preserve Prism type, which aren't yet implemented in the API
-    Prism<JsonObject1, String> valueAccess = throw new RuntimeException("Answer required");
+    Prism<JsonObject1, String> valueAccess = answerRequired();
 
     Optional<String> value = valueAccess.getOptional(root);
     assertThat(value.get()).isEqualTo("Hello");
@@ -294,7 +299,7 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Replace null with composed optic: Traversal + Prism
     // to focus only on JsonString values
-    Traversal<JsonArray1, JsonString1> stringValues = throw new RuntimeException("Answer required");
+    Traversal<JsonArray1, JsonString1> stringValues = answerRequired();
 
     List<String> strings =
         Traversals.getAll(stringValues.andThen(Lens.of(JsonString1::value, (js, v) -> new JsonString1(v)).asTraversal()), array);
@@ -350,7 +355,7 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Replace null with a fully composed optic chain:
     // League -> teams (Traversal) -> players (Traversal) -> score (Lens)
-    Traversal<League, Integer> allScores = throw new RuntimeException("Answer required");
+    Traversal<League, Integer> allScores = answerRequired();
 
     List<Integer> scores = Traversals.getAll(allScores, league);
     assertThat(scores).containsExactly(100, 90, 110);
@@ -418,10 +423,10 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Compose these into useful pipelines
     // 1. User -> city
-    Lens<User, String> userToCity = throw new RuntimeException("Answer required");
+    Lens<User, String> userToCity = answerRequired();
 
     // 2. User -> email address (optional)
-    Prism<User, String> userToEmailAddress = throw new RuntimeException("Answer required");
+    Prism<User, String> userToEmailAddress = answerRequired();
 
     assertThat(userToCity.get(user)).isEqualTo("Springfield");
     assertThat(userToEmailAddress.getOptional(user).get()).isEqualTo("alice@example.com");

@@ -26,6 +26,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial03_PrismBasics {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   @GeneratePrisms
   sealed interface Shape {}
 
@@ -89,7 +94,7 @@ public class Tutorial03_PrismBasics {
 
     // TODO: Replace null with code that uses circlePrism.getOptional()
     // to extract the circle
-    Optional<Circle> extracted = throw new RuntimeException("Answer required");
+    Optional<Circle> extracted = answerRequired();
 
     assertThat(extracted.isPresent()).isTrue();
     assertThat(extracted.get().radius()).isEqualTo(5.0);
@@ -115,7 +120,7 @@ public class Tutorial03_PrismBasics {
     // TODO: Replace null with code that uses circlePrism.build()
     // to create a Shape from a Circle
     // Hint: circlePrism.build(circle)
-    Shape shape = throw new RuntimeException("Answer required");
+    Shape shape = answerRequired();
 
     assertThat(shape).isInstanceOf(Circle.class);
     assertThat(((Circle) shape).radius()).isEqualTo(7.5);
@@ -138,7 +143,7 @@ public class Tutorial03_PrismBasics {
     // TODO: Replace null with code that uses circlePrism.modify()
     // to double the circle's radius
     // Hint: circlePrism.modify(c -> new Circle(c.radius() * 2), circle)
-    Shape doubledCircle = throw new RuntimeException("Answer required");
+    Shape doubledCircle = answerRequired();
 
     assertThat(((Circle) doubledCircle).radius()).isEqualTo(10.0);
 
@@ -188,7 +193,7 @@ public class Tutorial03_PrismBasics {
     // 1. Uses the prism to get the JsonString
     // 2. Maps over it to extract the value field
     // Hint: stringPrism.getOptional(stringValue).map(js -> js.value())
-    Optional<String> value = throw new RuntimeException("Answer required");
+    Optional<String> value = answerRequired();
 
     assertThat(value.get()).isEqualTo("Hello");
   }
@@ -211,7 +216,7 @@ public class Tutorial03_PrismBasics {
     // TODO: Replace null with code that uppercases the strings
     // Use stringPrism.modify() to transform matching values
     JsonValue updated1 = stringPrism.modify(js -> new JsonString(js.value().toUpperCase()), string1);
-    JsonValue updated2 = throw new RuntimeException("Answer required");
+    JsonValue updated2 = answerRequired();
     JsonValue updated3 = stringPrism.modify(js -> new JsonString(js.value().toUpperCase()), number);
 
     assertThat(((JsonString) updated1).value()).isEqualTo("HELLO");

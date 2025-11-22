@@ -26,6 +26,11 @@ import org.junit.jupiter.api.Test;
  */
 public class Tutorial05_MonadErrorHandling {
 
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
+
   /**
    * Exercise 1: Raising errors
    *
@@ -39,7 +44,7 @@ public class Tutorial05_MonadErrorHandling {
 
     // TODO: Replace null with code that raises an error "Invalid input"
     // Hint: Use monad.raiseError(...)
-    Kind<EitherKind.Witness<String>, Integer> error = throw new RuntimeException("Answer required");
+    Kind<EitherKind.Witness<String>, Integer> error = answerRequired();
 
     Either<String, Integer> result = EITHER.narrow(error);
     assertThat(result.isLeft()).isTrue();
@@ -69,7 +74,7 @@ public class Tutorial05_MonadErrorHandling {
     // TODO: Replace null with code that handles the error using fold
     // If there's an error (Left), return 0; if success (Right), return the value
     // Hint: failed.fold(error -> 0, value -> value)
-    Integer recovered = throw new RuntimeException("Answer required");
+    Integer recovered = answerRequired();
 
     assertThat(recovered).isEqualTo(0);
   }
@@ -87,7 +92,7 @@ public class Tutorial05_MonadErrorHandling {
 
     // TODO: Replace null with code that recovers with a default value using fold
     // Hint: error.fold(err -> -1, value -> value)
-    Integer recovered = throw new RuntimeException("Answer required");
+    Integer recovered = answerRequired();
 
     assertThat(recovered).isEqualTo(-1);
   }
@@ -148,7 +153,7 @@ public class Tutorial05_MonadErrorHandling {
     // 2. Validates it's positive (will fail for "0")
     // 3. Uses fold to recover from any error with value 1
     // Hint: input.flatMap(parse).flatMap(validatePositive).fold(err -> 1, value -> value)
-    Integer result = throw new RuntimeException("Answer required");
+    Integer result = answerRequired();
 
     assertThat(result).isEqualTo(1);
   }
@@ -168,7 +173,7 @@ public class Tutorial05_MonadErrorHandling {
     // TODO: Replace null with code that uses fold to return fallback on error
     // If primary is Left, use fallback; if primary is Right, use primary's value wrapped in Right
     // Hint: primary.fold(err -> fallback, value -> Either.right(value))
-    Either<String, String> result = throw new RuntimeException("Answer required");
+    Either<String, String> result = answerRequired();
 
     assertThat(result.isRight()).isTrue();
     assertThat(result.getRight()).isEqualTo("Fallback value");
@@ -193,13 +198,13 @@ public class Tutorial05_MonadErrorHandling {
 
     // TODO: Replace null with code that wraps the risky operation in Try
     // Hint: Try.of(() -> riskyDivision.apply(0))
-    Try<Integer> result = throw new RuntimeException("Answer required");
+    Try<Integer> result = answerRequired();
 
     assertThat(result.isFailure()).isTrue();
 
     // TODO: Replace null with code that recovers from the exception
     // Hint: result.recover(ex -> -1)
-    Try<Integer> recovered = throw new RuntimeException("Answer required");
+    Try<Integer> recovered = answerRequired();
 
     assertThat(recovered.isSuccess()).isTrue();
     assertThat(recovered.get()).isEqualTo(-1);
