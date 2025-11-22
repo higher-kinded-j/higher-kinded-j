@@ -326,10 +326,15 @@ MonadTestData.of("Try", TryMonad.INSTANCE, TRY.widen(Try.success(42)),
             Try<A> tryB = TRY.narrow(b);
             if (tryA.isSuccess() != tryB.isSuccess()) return false;
             if (tryA.isSuccess()) {
-                try { return tryA.get().equals(tryB.get()); }
+                try { return java.util.Objects.equals(tryA.get(), tryB.get()); }
                 catch (Throwable e) { return false; }
+            } else {
+                // Both are failures, compare them semantically
+                Throwable causeA = ((Try.Failure<A>) tryA).cause();
+                Throwable causeB = ((Try.Failure<A>) tryB).cause();
+                return causeA.getClass().equals(causeB.getClass())
+                    && java.util.Objects.equals(causeA.getMessage(), causeB.getMessage());
             }
-            return true; // Both failures - compare by type
         }
     })
 ```
