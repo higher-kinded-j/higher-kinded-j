@@ -8,12 +8,16 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.io.IOException;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("TryMonad Complete Test Suite")
 class TryMonadTest extends TryTestBase {
@@ -330,38 +334,50 @@ class TryMonadTest extends TryTestBase {
   @DisplayName("Validation Tests")
   class ValidationTests {
 
-    @Test
-    @DisplayName("flatMap() should throw NPE if function is null")
-    void flatMap_shouldThrowNPEIfFunctionIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.flatMap(null, validKind))
-          .withMessageContaining("Function f for TryMonad.flatMap cannot be null");
+    // Parameterized test data for flatMap null validation
+    private static Stream<Arguments> flatMapNullParameters() {
+      Kind<TryKind.Witness, String> testValidKind = TRY.widen(Try.success("test value"));
+      Function<String, Kind<TryKind.Witness, Integer>> testValidFlatMapper =
+          s -> TRY.widen(Try.success(s.length()));
+      return Stream.of(
+          Arguments.of("Function f", testValidKind, null),
+          Arguments.of("Kind", null, testValidFlatMapper));
     }
 
-    @Test
-    @DisplayName("flatMap() should throw NPE if Kind is null")
-    void flatMap_shouldThrowNPEIfKindIsNull() {
+    @ParameterizedTest(name = "flatMap validates {0} parameter is non-null")
+    @MethodSource("flatMapNullParameters")
+    @DisplayName("flatMap() validates null parameters")
+    void flatMap_shouldValidateNullParameters(
+        String expectedMessagePart,
+        Kind<TryKind.Witness, String> kind,
+        Function<String, Kind<TryKind.Witness, Integer>> function) {
       assertThatNullPointerException()
-          .isThrownBy(() -> monad.flatMap(validFlatMapper, null))
-          .withMessageContaining("Kind for TryMonad.flatMap cannot be null");
+          .isThrownBy(() -> monad.flatMap(function, kind))
+          .withMessageContaining(expectedMessagePart)
+          .withMessageContaining("TryMonad.flatMap");
     }
 
-    @Test
-    @DisplayName("handleErrorWith() should throw NPE if Kind is null")
-    void handleErrorWith_shouldThrowNPEIfKindIsNull() {
-      Function<Throwable, Kind<TryKind.Witness, String>> handler =
+    // Parameterized test data for handleErrorWith null validation
+    private static Stream<Arguments> handleErrorWithNullParameters() {
+      Kind<TryKind.Witness, String> testValidKind = TRY.widen(Try.success("test value"));
+      Function<Throwable, Kind<TryKind.Witness, String>> validHandler =
           t -> TRY.widen(Try.success("recovered"));
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.handleErrorWith(null, handler))
-          .withMessageContaining("Kind for TryMonad.handleErrorWith (source) cannot be null");
+      return Stream.of(
+          Arguments.of("Kind", null, validHandler),
+          Arguments.of("Function handler", testValidKind, null));
     }
 
-    @Test
-    @DisplayName("handleErrorWith() should throw NPE if handler is null")
-    void handleErrorWith_shouldThrowNPEIfHandlerIsNull() {
+    @ParameterizedTest(name = "handleErrorWith validates {0} parameter is non-null")
+    @MethodSource("handleErrorWithNullParameters")
+    @DisplayName("handleErrorWith() validates null parameters")
+    void handleErrorWith_shouldValidateNullParameters(
+        String expectedMessagePart,
+        Kind<TryKind.Witness, String> kind,
+        Function<Throwable, Kind<TryKind.Witness, String>> handler) {
       assertThatNullPointerException()
-          .isThrownBy(() -> monad.handleErrorWith(validKind, null))
-          .withMessageContaining("Function handler for TryMonad.handleErrorWith cannot be null");
+          .isThrownBy(() -> monad.handleErrorWith(kind, handler))
+          .withMessageContaining(expectedMessagePart)
+          .withMessageContaining("TryMonad.handleErrorWith");
     }
   }
 

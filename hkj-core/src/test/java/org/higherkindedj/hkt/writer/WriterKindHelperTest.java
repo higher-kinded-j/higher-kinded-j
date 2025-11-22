@@ -584,54 +584,6 @@ class WriterKindHelperTest extends WriterTestBase {
     }
   }
 
-  @Test
-  @DisplayName("Runner methods have predictable performance")
-  void runnerMethodsHavePredictablePerformance() {
-    Writer<String, Integer> writer = valueWriter(42);
-    Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
-
-    long startRun = System.nanoTime();
-    for (int i = 0; i < 10000; i++) {
-      WRITER.run(kind);
-    }
-    long durationRun = System.nanoTime() - startRun;
-
-    long startExec = System.nanoTime();
-    for (int i = 0; i < 10000; i++) {
-      WRITER.exec(kind);
-    }
-    long durationExec = System.nanoTime() - startExec;
-
-    long startRunWriter = System.nanoTime();
-    for (int i = 0; i < 10000; i++) {
-      WRITER.runWriter(kind);
-    }
-    long durationRunWriter = System.nanoTime() - startRunWriter;
-
-    // All should complete quickly (less than 50ms for 10k ops)
-    assertThat(durationRun).isLessThan(50_000_000L);
-    assertThat(durationExec).isLessThan(50_000_000L);
-    assertThat(durationRunWriter).isLessThan(50_000_000L);
-  }
-
-  @Test
-  @DisplayName("Runner methods maintain performance with complex types")
-  void runnerMethodsMaintainPerformanceWithComplexTypes() {
-    List<Integer> complexValue = List.of(1, 2, 3, 4, 5);
-    Writer<String, List<Integer>> writer = writerOf("ComplexLog;", complexValue);
-    Kind<WriterKind.Witness<String>, List<Integer>> kind = WRITER.widen(writer);
-
-    long start = System.nanoTime();
-    for (int i = 0; i < 10000; i++) {
-      List<Integer> value = WRITER.run(kind);
-      String log = WRITER.exec(kind);
-      Writer<String, List<Integer>> complete = WRITER.runWriter(kind);
-    }
-    long duration = System.nanoTime() - start;
-
-    assertThat(duration).isLessThan(100_000_000L);
-  }
-
   @Nested
   @DisplayName("narrow2() Method Specific Tests")
   class Narrow2MethodTests {

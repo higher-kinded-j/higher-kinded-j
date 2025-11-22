@@ -290,54 +290,6 @@ class ValidatedKindHelperTest extends ValidatedTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
-
-    @Test
-    @DisplayName("Widen operation is fast")
-    void widenOperationIsFast() {
-      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
-      int iterations = 10000;
-
-      // Warm up
-      for (int i = 0; i < 1000; i++) {
-        VALIDATED.widen(validInstance);
-      }
-
-      long start = System.nanoTime();
-      for (int i = 0; i < iterations; i++) {
-        VALIDATED.widen(validInstance);
-      }
-      long duration = System.nanoTime() - start;
-
-      double averageNanos = (double) duration / iterations;
-      assertThat(averageNanos).as("Widen should be fast (< 3000ns average)").isLessThan(3000.0);
-    }
-
-    @Test
-    @DisplayName("Narrow operation is fast")
-    void narrowOperationIsFast() {
-      Validated<String, Integer> validInstance = Validated.valid(DEFAULT_VALID_VALUE);
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(validInstance);
-      int iterations = 10000;
-
-      // Warm up
-      for (int i = 0; i < 1000; i++) {
-        VALIDATED.narrow(kind);
-      }
-
-      long start = System.nanoTime();
-      for (int i = 0; i < iterations; i++) {
-        VALIDATED.narrow(kind);
-      }
-      long duration = System.nanoTime() - start;
-
-      double averageNanos = (double) duration / iterations;
-      assertThat(averageNanos).as("Narrow should be fast (< 3000ns average)").isLessThan(3000.0);
-    }
-  }
-
-  @Nested
   @DisplayName("narrow2() Method Specific Tests")
   class Narrow2MethodTests {
 

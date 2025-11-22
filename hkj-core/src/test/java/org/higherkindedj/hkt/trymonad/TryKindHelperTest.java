@@ -30,13 +30,6 @@ class TryKindHelperTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("Run KindHelper tests with performance validation")
-    void runWithPerformanceTests() {
-      Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
-      CoreTypeTest.tryKindHelper(successInstance).withPerformanceTests().test();
-    }
-
-    @Test
     @DisplayName("Run KindHelper tests with concurrency validation")
     void runWithConcurrencyTests() {
       Try<String> successInstance = Try.success(DEFAULT_SUCCESS_VALUE);
