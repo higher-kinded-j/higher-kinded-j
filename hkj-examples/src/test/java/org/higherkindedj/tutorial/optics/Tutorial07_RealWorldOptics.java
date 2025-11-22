@@ -82,8 +82,8 @@ public class Tutorial07_RealWorldOptics {
                 a -> f.apply(a),
                 applicative);
         return applicative.map(
-            listKind,
-            newList -> setter.apply(s, newList));
+            newList -> setter.apply(s, newList),
+            listKind);
       }
     };
   }
@@ -265,7 +265,7 @@ public class Tutorial07_RealWorldOptics {
         successPrism
             .asTraversal()
             .andThen(locationsTraversal)
-            .andThen(null)
+            .andThen(LocationLenses.coords().asTraversal())
             .andThen(CoordinatesLenses.lat().asTraversal());
 
     ApiResponse2 adjusted = Traversals.modify(latitudesTraversal, lat -> lat + 1.0, response);
@@ -457,7 +457,7 @@ public class Tutorial07_RealWorldOptics {
     // TODO: Replace null with a traversal that accesses all city names in all addresses
     Traversal<CustomerDatabase, String> citiesTraversal =
         CustomerDatabaseTraversals.customers()
-            .andThen(null)
+            .andThen(CustomerTraversals.addresses())
             .andThen(AddressLenses.city().asTraversal());
 
     // Capitalize all cities
@@ -659,7 +659,7 @@ public class Tutorial07_RealWorldOptics {
     // TODO: Replace null with a traversal that gets all purchase amounts
     Traversal<EventStream, Double> purchaseAmounts =
         EventStreamTraversals.events()
-            .andThen(null.asTraversal())
+            .andThen(purchasePrism.asTraversal())
             .andThen(PurchaseLenses.amount().asTraversal());
 
     List<Double> amounts = Traversals.getAll(purchaseAmounts, stream);

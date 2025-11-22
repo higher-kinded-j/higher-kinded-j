@@ -82,7 +82,7 @@ public class Tutorial05_OpticsComposition {
           org.higherkindedj.hkt.Applicative<F> applicative) {
         List<A> list = getter.apply(s);
         var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
-        return applicative.map(listKind, newList -> setter.apply(s, newList));
+        return applicative.map(newList -> setter.apply(s, newList), listKind);
       }
     };
   }

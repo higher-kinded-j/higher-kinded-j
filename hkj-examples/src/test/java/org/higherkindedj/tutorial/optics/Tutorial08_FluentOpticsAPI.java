@@ -54,8 +54,8 @@ public class Tutorial08_FluentOpticsAPI {
                 a -> f.apply(a),
                 applicative);
         return applicative.map(
-            listKind,
-            newList -> setter.apply(s, newList));
+            newList -> setter.apply(s, newList),
+            listKind);
       }
     };
   }
