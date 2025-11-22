@@ -348,11 +348,12 @@ public class Tutorial09_AdvancedOpticsDSL_Solution {
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
 
     // Validate the program (dry-run)
-    List<String> issues = validator.validate(program);
+    ValidationOpticInterpreter.ValidationResult result = validator.validate(program);
 
     // The validator can detect potential issues
     // In this simple case, it validates the structure is correct
-    assertThat(issues).isNotNull();
+    assertThat(result).isNotNull();
+    assertThat(result.isValid()).isTrue();
   }
 
   /**

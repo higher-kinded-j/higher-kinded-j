@@ -12,8 +12,8 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedApplicative;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
+import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -152,9 +152,9 @@ public class Tutorial06_ConcreteTypes_Solution {
     Validated<String, Integer> validAge = validateAge.apply(25);
     Validated<String, String> validEmail = validateEmail.apply("alice@example.com");
 
-    // Solution: Use ValidatedApplicative to combine all three validations
+    // Solution: Use ValidatedMonad to combine all three validations
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedApplicative<String> applicative = ValidatedApplicative.instance(stringSemigroup);
+    ValidatedMonad<String> applicative = ValidatedMonad.instance(stringSemigroup);
     Validated<String, User> validUser = ValidatedKindHelper.VALIDATED.narrow(
         applicative.map3(
             ValidatedKindHelper.VALIDATED.widen(validName),

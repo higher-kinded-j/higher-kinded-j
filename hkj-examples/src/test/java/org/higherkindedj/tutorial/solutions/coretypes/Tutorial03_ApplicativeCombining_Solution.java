@@ -11,7 +11,7 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedApplicative;
+import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -143,10 +143,10 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Validated<String, Integer> age = Validated.invalid("Age must be positive");
     Validated<String, String> email = Validated.invalid("Email is invalid");
 
-    // SOLUTION: Use ValidatedApplicative typeclass to access map3
+    // SOLUTION: Use ValidatedMonad typeclass to access map3
     // Validated will accumulate errors instead of short-circuiting
     Semigroup<String> stringSemigroup = Semigroups.string(", ");
-    ValidatedApplicative<String> applicative = ValidatedApplicative.instance(stringSemigroup);
+    ValidatedMonad<String> applicative = ValidatedMonad.instance(stringSemigroup);
     Validated<String, FormData> result = VALIDATED.narrow(
         applicative.map3(
             VALIDATED.widen(name),
