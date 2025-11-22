@@ -250,8 +250,9 @@ public class Tutorial05_OpticsComposition {
 
     // TODO: Replace null with a chain: Lens + Prism + Lens
     // to access the string value inside the JsonObject's data field
-    Prism<JsonObject1, String> valueAccess =
-        dataLens.andThen(stringPrism).andThen(valueLens);
+    // NOTE: This requires specialized Lens.andThen(Prism) and Prism.andThen(Lens)
+    // methods to preserve Prism type, which aren't yet implemented in the API
+    Prism<JsonObject1, String> valueAccess = null;
 
     Optional<String> value = valueAccess.getOptional(root);
     assertThat(value.get()).isEqualTo("Hello");
