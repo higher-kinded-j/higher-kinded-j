@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0; url=/latest/">
+    <!-- Redirect handled by JavaScript to use stable version -->
     <title>Higher-Kinded-J Documentation</title>
     <style>
         body {
@@ -59,8 +59,8 @@
 <body>
     <div class="container">
         <h1>Higher-Kinded-J Documentation</h1>
-        <p>Redirecting to the latest documentation...</p>
-        <p>If you are not redirected automatically, <a href="/latest/">click here</a>.</p>
+        <p>Redirecting to the stable documentation...</p>
+        <p>If you are not redirected automatically, <a href="/latest/" id="fallback-link">click here</a>.</p>
 
         <div class="version-links" id="version-links">
             <a href="/latest/">Latest (Snapshot)</a>
@@ -68,34 +68,62 @@
     </div>
 
     <script>
-        // Load version information and populate links
+        // Load version information and redirect to stable
         fetch('/versions.json')
             .then(response => response.json())
             .then(data => {
-                const container = document.getElementById('version-links');
-                if (!data || !data.latest) {
-                    console.error('Invalid versions.json format: "latest" property is missing.');
-                    return; // Keep the default link
+                if (!data || !data.stable || !data.versions) {
+                    console.error('Invalid versions.json format: "stable" or "versions" property is missing.');
+                    // Fallback to latest
+                    window.location.href = '/latest/';
+                    return;
                 }
 
+                // Find the stable version's path
+                const stableVersion = data.versions.find(v => v.version === data.stable);
+                if (stableVersion && stableVersion.path) {
+                    // Redirect to stable version
+                    window.location.href = stableVersion.path;
+                } else {
+                    console.error('Stable version not found in versions array.');
+                    // Fallback to latest
+                    window.location.href = '/latest/';
+                }
+
+                // Update fallback link in case redirect doesn't work
+                const fallbackLink = document.getElementById('fallback-link');
+                if (fallbackLink && stableVersion && stableVersion.path) {
+                    fallbackLink.href = stableVersion.path;
+                }
+
+                // Populate version links for display (though user will be redirected)
+                const container = document.getElementById('version-links');
                 const fragment = document.createDocumentFragment();
 
-                // Add latest link
-                const latestLink = document.createElement('a');
-                latestLink.href = data.latest.path;
-                latestLink.textContent = data.latest.label;
-                fragment.appendChild(latestLink);
+                // Add stable link first
+                if (stableVersion) {
+                    const stableLink = document.createElement('a');
+                    stableLink.href = stableVersion.path;
+                    stableLink.textContent = stableVersion.version + ' (Stable)';
+                    fragment.appendChild(stableLink);
+                }
 
-                // Add stable/release links
+                // Add latest link
+                if (data.latest) {
+                    const latestLink = document.createElement('a');
+                    latestLink.href = data.latest.path;
+                    latestLink.textContent = data.latest.label;
+                    fragment.appendChild(latestLink);
+                }
+
+                // Add other release links
                 if (data.versions && Array.isArray(data.versions)) {
                     data.versions.slice(0, 5).forEach(version => {
                         if (!version || !version.path || !version.version) return;
+                        if (version.version === data.stable) return; // Already added above
                         const link = document.createElement('a');
                         link.href = version.path;
                         link.textContent = version.version;
-                        if (version.version === data.stable) {
-                            link.textContent += ' (Stable)';
-                        }
                         fragment.appendChild(link);
                     });
                 }
@@ -105,6 +133,8 @@
             })
             .catch(error => {
                 console.error('Error loading versions:', error);
+                // Fallback to latest if fetch fails
+                window.location.href = '/latest/';
             });
     </script>
 </body>
