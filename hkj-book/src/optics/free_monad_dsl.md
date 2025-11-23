@@ -144,7 +144,7 @@ Let's break down what's happening:
 
 ---
 
-### Multi-Step Programmes: Complex Workflows
+### Multi-Step programs: Complex Workflows
 
 You can chain multiple `flatMap` calls to build sophisticated workflows:
 
@@ -228,7 +228,7 @@ Boolean allPass = OpticInterpreters.direct().run(scoreUpdateProgram);
 // Result: true (Alice: 160, Bob: 180)
 ```
 
-### Querying with Programmes
+### Querying with programs
 
 ```java
 // Program: Find all high scorers
