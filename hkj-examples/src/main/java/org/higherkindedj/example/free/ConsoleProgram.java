@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.free.Free;
@@ -21,6 +22,26 @@ import org.higherkindedj.hkt.free.Free;
  *   <li>Interpret Free programs in different ways (IO, Test)
  *   <li>Compose Free programs
  * </ul>
+ *
+ * <p><b>Note on the IO type:</b> This example defines its own simple {@code IO<A>} record (see
+ * {@link #IO}) rather than using the production {@link org.higherkindedj.hkt.io.IO} from hkj-core.
+ * This is intentional and pedagogical:
+ *
+ * <ul>
+ *   <li>The core {@code IO} is a lazy, deferred computation that only executes when {@code
+ *       unsafeRunSync()} is called
+ *   <li>This example's {@code IO} is just a simple value wrapper - it holds an already-computed
+ *       value
+ *   <li>In the interpreters (see {@link IOInterpreter#run} and {@link TestInterpreter#run}), side
+ *       effects execute <i>immediately</i> during Free monad interpretation, and the {@code IO}
+ *       wrapper just holds the result to satisfy the type requirements of {@code foldMap}
+ *   <li>This keeps the example focused on Free monad mechanics without the added complexity of lazy
+ *       evaluation
+ * </ul>
+ *
+ * <p>In production code, you would typically interpret Free programs into the full {@link
+ * org.higherkindedj.hkt.io.IO} type from hkj-core, which provides proper lazy evaluation,
+ * composition, and error handling.
  */
 public class ConsoleProgram {
 
@@ -81,8 +102,7 @@ public class ConsoleProgram {
   }
 
   /** Simple Functor for ConsoleOp. */
-  public static class ConsoleOpFunctor
-      implements org.higherkindedj.hkt.Functor<ConsoleOpKind.Witness> {
+  public static class ConsoleOpFunctor implements Functor<ConsoleOpKind.Witness> {
     private static final ConsoleOpKindHelper CONSOLE = ConsoleOpKindHelper.CONSOLE;
 
     @Override
@@ -107,19 +127,21 @@ public class ConsoleProgram {
           kind -> {
             ConsoleOp<?> op =
                 ConsoleOpKindHelper.CONSOLE.narrow((Kind<ConsoleOpKind.Witness, Object>) kind);
-            // Execute the instruction and wrap the result in Free.pure
+            // Execute the instruction IMMEDIATELY and wrap the result in Free.pure
+            // NOTE: Side effects happen here during interpretation, not deferred.
+            // This is why we use a simple IO wrapper instead of the lazy core IO type.
             Free<ConsoleOpKind.Witness, ?> freeResult =
                 switch (op) {
                   case ConsoleOp.PrintLine print -> {
-                    System.out.println(print.text());
+                    System.out.println(print.text()); // <-- Side effect executes NOW
                     yield Free.pure(Unit.INSTANCE);
                   }
                   case ConsoleOp.ReadLine read -> {
-                    String line = scanner.nextLine();
+                    String line = scanner.nextLine(); // <-- Side effect executes NOW
                     yield Free.pure(line);
                   }
                 };
-            // Wrap the Free result in the target monad
+            // Wrap the Free result in the target monad (IO just holds the value)
             return IOKindHelper.IO.widen(new IO<>(freeResult));
           };
 
@@ -171,7 +193,25 @@ public class ConsoleProgram {
     }
   }
 
-  // Simple IO type for the interpreter
+  /**
+   * Simple value wrapper used as a target monad for Free monad interpretation.
+   *
+   * <p><b>Important:</b> This is NOT the same as {@link org.higherkindedj.hkt.io.IO} from hkj-core.
+   * This is a simple record that just holds an already-computed value, whereas the core IO type is
+   * a lazy, deferred computation. We use this simple wrapper here because:
+   *
+   * <ul>
+   *   <li>In this example, side effects execute <i>immediately</i> during interpretation (see
+   *       {@link IOInterpreter#run})
+   *   <li>The IO wrapper just holds the result to satisfy the type requirements of {@link
+   *       Free#foldMap}
+   *   <li>This keeps the example focused on Free monad mechanics without the complexity of lazy
+   *       evaluation
+   * </ul>
+   *
+   * <p>In production code, you would typically interpret into the full {@link
+   * org.higherkindedj.hkt.io.IO} type from hkj-core.
+   */
   record IO<A>(A value) {}
 
   interface IOKind<A> extends Kind<IOKind.Witness, A> {
@@ -223,7 +263,15 @@ public class ConsoleProgram {
     }
   }
 
-  // Simple TestResult type for testing
+  /**
+   * Simple value wrapper used as a target monad for testing Free monad programs.
+   *
+   * <p>This demonstrates that Free programs can be interpreted into <i>any</i> monad, not just IO.
+   * By interpreting into this test monad, we can verify program behavior without performing actual
+   * I/O operations. The {@link TestInterpreter} uses this to capture console output and provide
+   * pre-defined input, making it easy to test programs that would otherwise require user
+   * interaction.
+   */
   record TestResult<A>(A value) {}
 
   interface TestResultKind<A> extends Kind<TestResultKind.Witness, A> {
