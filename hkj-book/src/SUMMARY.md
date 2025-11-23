@@ -87,6 +87,10 @@
     - [Lens Extensions](optics/lens_extensions.md)
     - [Traversal Extensions](optics/traversal_extensions.md)
 
+# Integration Guides
+- [Spring Boot Integration](spring/spring_boot_integration.md)
+  - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)
+
 # More Functional Thinking
 - [Blog series](reading.md)
 

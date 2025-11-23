@@ -154,7 +154,92 @@ repositories {
 * **Use the generated Optics:** Import and use the generated optics classes to manipulate your data structures in a clean, functional, and immutable way.
 * **Explore advanced features:** Apply [filtered traversals](https://higher-kinded-j.github.io/optics/filtered_optics.html), [indexed optics](https://higher-kinded-j.github.io/optics/indexed_optics.html), or the [fluent API](https://higher-kinded-j.github.io/optics/fluent_api.html) for more sophisticated data manipulation patterns.
 
-## 
+## Spring Boot Integration
+
+For Spring Boot applications, the **hkj-spring-boot-starter** provides seamless integration of functional programming patterns into your REST APIs and business logic.
+
+### Quick Start
+
+Add the starter dependency:
+
+```gradle
+dependencies {
+    implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
+}
+```
+
+Return functional types from controllers:
+
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    @GetMapping("/{id}")
+    public Either<DomainError, User> getUser(@PathVariable String id) {
+        return userService.findById(id);
+        // Right(user) → HTTP 200 with JSON
+        // Left(UserNotFoundError) → HTTP 404 with error details
+    }
+
+    @PostMapping
+    public Validated<List<ValidationError>, User> createUser(@RequestBody UserRequest request) {
+        return userService.validateAndCreate(request);
+        // Valid(user) → HTTP 200
+        // Invalid(errors) → HTTP 400 with ALL validation errors
+    }
+}
+```
+
+**That's it!** Auto-configuration handles:
+- ✅ Either → HTTP response conversion
+- ✅ Validated → HTTP response with error accumulation
+- ✅ EitherT async operations
+- ✅ JSON serialisation for functional types
+- ✅ Error type → HTTP status code mapping
+
+### Features
+
+**Return Functional Types from Controllers**
+- `Either<Error, Data>` for operations that succeed or fail
+- `Validated<Errors, Data>` for accumulating multiple errors
+- `EitherT<CompletableFuture, Error, Data>` for async operations
+
+**Customisable JSON Serialisation**
+```yaml
+hkj:
+  jackson:
+    either-format: TAGGED     # {"success": true, "value": {...}}
+    validated-format: UNWRAPPED  # Just the value or errors
+```
+
+**Spring Boot Actuator Integration**
+```bash
+curl http://localhost:8080/actuator/hkj
+# {
+#   "metrics": {
+#     "either": {"successRate": 0.857, "errorCount": 25},
+#     "validated": {"validRate": 0.800},
+#     "eitherT": {"successRate": 0.882, "avgDuration": "145ms"}
+#   }
+# }
+```
+
+**Spring Security Integration** (Optional)
+```java
+public class UserDetailsService {
+    public Validated<List<AuthError>, UserDetails> loadUser(String username) {
+        // Accumulate all validation errors (username, account status, etc.)
+    }
+}
+```
+
+For complete documentation, see:
+- [Spring Boot Integration Guide](https://higher-kinded-j.github.io/spring/spring_boot_integration.html)
+- [Migration Guide](https://higher-kinded-j.github.io/spring/migrating_to_functional_errors.html)
+- [Working Example Application](hkj-spring/example/)
+
+##
 
 **Note:** This simulation adds a layer of abstraction and associated boilerplate. Consider the trade-offs for your specific project needs compared to directly using the underlying Java types or other functional libraries for Java.
 

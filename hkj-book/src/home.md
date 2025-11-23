@@ -62,6 +62,48 @@ The fastest way to master Higher-Kinded-J is through our **interactive tutorial 
 
 Perfect for developers who prefer learning by building rather than just reading. [Get started →](tutorials/tutorials_intro.md)
 
+
+## [Spring Boot Integration](spring/spring_boot_integration.md) 🚀
+
+Building enterprise applications with Spring Boot? The **hkj-spring-boot-starter** brings functional programming patterns seamlessly into your REST APIs, eliminating exception-based error handling whilst maintaining Spring's familiar conventions.
+
+**With Spring Boot Integration, you can:**
+
+* **Return Functional Types from Controllers:** Use `Either<Error, Data>`, `Validated<Errors, Data>`, and `EitherT` as return types with automatic HTTP response conversion.
+* **Eliminate Exception Handling Boilerplate:** No more try-catch blocks or `@ExceptionHandler` methods—errors are explicit in your return types.
+* **Compose Operations Naturally:** Chain operations with `map` and `flatMap` whilst preserving type safety and error information.
+* **Accumulate Validation Errors:** Use `Validated` to collect **all** validation errors in a single request, improving user experience.
+* **Handle Async Operations:** Use `EitherT` to compose asynchronous operations with typed errors seamlessly.
+* **Monitor in Production:** Track Either success rates, Validated error distributions, and EitherT async performance with Spring Boot Actuator metrics.
+* **Secure Functionally:** Integrate Spring Security with Either-based authentication and Validated-based authorisation logic.
+* **Zero Configuration Required:** Auto-configuration handles everything—just add the dependency and start coding.
+
+~~~admonish example title="Quick Example"
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    @GetMapping("/{id}")
+    public Either<DomainError, User> getUser(@PathVariable String id) {
+        return userService.findById(id);
+        // Right(user) → HTTP 200 with JSON
+        // Left(UserNotFoundError) → HTTP 404 with error details
+    }
+
+    @PostMapping
+    public Validated<List<ValidationError>, User> createUser(@RequestBody UserRequest request) {
+        return userService.validateAndCreate(request);
+        // Valid(user) → HTTP 200
+        // Invalid(errors) → HTTP 400 with ALL validation errors
+    }
+}
+```
+~~~
+
+**[Get Started with Spring Boot Integration →](spring/spring_boot_integration.md)**
+
+
 ## Getting Started
 
 > [!NOTE]

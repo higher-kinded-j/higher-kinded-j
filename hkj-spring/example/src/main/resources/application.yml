@@ -1,0 +1,97 @@
+spring:
+  application:
+    name: hkj-spring-example
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.higherkindedj: DEBUG
+    org.springframework.web: DEBUG
+
+# Higher-Kinded-J Spring Boot Integration Configuration
+# All properties are optional with sensible defaults
+hkj:
+  # Web/MVC configuration
+  web:
+    # Enable Either return value handler (default: true)
+    either-response-enabled: true
+
+    # Enable Validated return value handler (default: true)
+    validated-response-enabled: true
+
+    # Default HTTP status for errors when type is unknown (default: 400)
+    default-error-status: 400
+
+    # Enable EitherT async support - for future use (default: true)
+    async-either-t-enabled: true
+
+    # Custom error status mappings
+    # Maps error class simple names to HTTP status codes
+    error-status-mappings:
+      UserNotFoundError: 404
+      ValidationError: 400
+      AuthorizationError: 403
+      AuthenticationError: 401
+
+  # Validation configuration
+  validation:
+    # Enable validation support (default: true)
+    enabled: true
+
+    # Accumulate all errors vs fail-fast (default: true)
+    accumulate-errors: true
+
+    # Maximum errors to accumulate, 0 = unlimited (default: 0)
+    max-errors: 0
+
+  # JSON serialization configuration
+  json:
+    # Enable custom Jackson serializers for Either, Validated (default: true)
+    custom-serializers-enabled: true
+
+    # Either JSON format: TAGGED or SIMPLE (default: TAGGED)
+    # TAGGED: {"isRight": true/false, "right/left": value}
+    # SIMPLE: {"value": ...} or {"error": ...}
+    either-format: TAGGED
+
+  # Async configuration (for future EitherT support)
+  async:
+    # Core thread pool size (default: 10)
+    executor-core-pool-size: 10
+
+    # Max thread pool size (default: 20)
+    executor-max-pool-size: 20
+
+    # Queue capacity (default: 100)
+    executor-queue-capacity: 100
+
+    # Thread name prefix (default: "hkj-async-")
+    executor-thread-name-prefix: "hkj-async-"
+
+    # Default timeout in milliseconds (default: 30000)
+    default-timeout-ms: 30000
+
+  # Actuator configuration
+  actuator:
+    # Enable metrics for HKJ handlers (default: true)
+    metrics-enabled: true
+
+# Spring Boot Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose actuator endpoints
+        include: health,metrics,info,hkj
+  endpoint:
+    health:
+      show-details: always
+    # Custom HKJ endpoint (default: enabled)
+    hkj:
+      enabled: true
+  health:
+    # HKJ async executor health indicator (default: enabled)
+    hkj-async:
+      enabled: true
