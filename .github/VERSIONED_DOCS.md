@@ -18,7 +18,7 @@ The documentation is deployed to `higher-kinded-j.github.io` with the following 
 
 ```
 higher-kinded-j.github.io/
-├── index.html              # Root redirect page
+├── index.html              # Root redirect page (redirects to stable version)
 ├── versions.json           # Metadata about all versions
 ├── latest/                 # Snapshot from main branch
 │   ├── index.html
@@ -35,11 +35,12 @@ higher-kinded-j.github.io/
 ### Key Components
 
 1. **Deployment Workflow** (`.github/workflows/deploy-mdbook-versioned.yml`)
-   - Triggers on push to `main` OR when a version tag is pushed
+   - Triggers on push to `main` (for changes to `hkj-book/`, workflow, or scripts) OR when a version tag is pushed
    - Deploys to `/latest/` for main branch commits
    - Deploys to `/vX.Y.Z/` for tagged releases
    - Updates `versions.json` metadata file
    - Preserves previous versions with `keep_files: true`
+   - Updates root `index.html` to redirect to stable version
 
 2. **Version Metadata** (`versions.json`)
    - Tracks all available documentation versions
@@ -63,7 +64,7 @@ higher-kinded-j.github.io/
 ### For End Users
 
 1. **Accessing Documentation**
-   - Visit `https://higher-kinded-j.github.io/` (redirects to latest)
+   - Visit `https://higher-kinded-j.github.io/` (redirects to stable version)
    - Or directly: `https://higher-kinded-j.github.io/latest/`
    - Or specific version: `https://higher-kinded-j.github.io/v0.1.9/`
 
