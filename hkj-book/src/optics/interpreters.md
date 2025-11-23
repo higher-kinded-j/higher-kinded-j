@@ -17,9 +17,9 @@
 
 ## Introduction: The Power of Interpretation
 
-In the [Free Monad DSL](free_monad_dsl.md) guide, we learnt how to build optic operations as programmes—data structures that describe what to do, rather than doing it immediately. But a description alone is useless without execution. That's where **interpreters** come in.
+In the [Free Monad DSL](free_monad_dsl.md) guide, we learnt how to build optic operations as programs—data structures that describe what to do, rather than doing it immediately. But a description alone is useless without execution. That's where **interpreters** come in.
 
-An interpreter takes a programme and executes it in a specific way. By providing different interpreters, you can run the same programme with completely different behaviours:
+An interpreter takes a program and executes it in a specific way. By providing different interpreters, you can run the same program with completely different behaviours:
 
 - **DirectOpticInterpreter**: Executes operations immediately (production use)
 - **LoggingOpticInterpreter**: Records every operation for audit trails
@@ -29,7 +29,7 @@ An interpreter takes a programme and executes it in a specific way. By providing
 This separation of concerns—*what to do* vs *how to do it*—is the essence of the Interpreter pattern and the key to the Free monad's flexibility.
 
 ~~~admonish tip title="The Core Benefit"
-Write your business logic once as a programme. Execute it in multiple ways: validate it in tests, log it in production, mock it during development, and optimise it for performance—all without changing the business logic itself.
+Write your business logic once as a program. Execute it in multiple ways: validate it in tests, log it in production, mock it during development, and optimise it for performance—all without changing the business logic itself.
 ~~~
 
 ---
@@ -41,7 +41,7 @@ Write your business logic once as a programme. Execute it in multiple ways: vali
 The Interpreter pattern, described in the Gang of Four's *Design Patterns*, suggests representing operations as objects in an abstract syntax tree (AST), then traversing that tree to execute them. The Free monad is essentially a functional programming implementation of this pattern.
 
 ```java
-// Our "AST" - a programme built from operations
+// Our "AST" - a program built from operations
 Free<OpticOpKind.Witness, Person> program =
     OpticPrograms.get(person, PersonLenses.age())
         .flatMap(age ->
@@ -80,7 +80,7 @@ public record Person(String name, int age) {}
 
 Person person = new Person("Alice", 25);
 
-// Build a programme
+// Build a program
 Free<OpticOpKind.Witness, Person> program =
     OpticPrograms.modify(person, PersonLenses.age(), age -> age + 1);
 
@@ -142,7 +142,7 @@ public record Account(String accountId, BigDecimal balance) {}
 
 Account account = new Account("ACC001", new BigDecimal("1000.00"));
 
-// Build a programme
+// Build a program
 Free<OpticOpKind.Witness, Account> program =
     OpticPrograms.modify(
         account,
@@ -174,7 +174,7 @@ public record Transaction(
     LocalDateTime timestamp
 ) {}
 
-// Build a transfer programme
+// Build a transfer program
 Free<OpticOpKind.Witness, Transaction> transferProgram(Transaction txn) {
     return OpticPrograms.get(txn, TransactionLenses.amount())
         .flatMap(amount ->
@@ -226,14 +226,14 @@ MODIFY: TransactionLenses.to().andThen(AccountLenses.balance()) from 500.00 to 7
 ```java
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
 
-// Run first programme
+// Run first program
 logger.run(program1);
 List<String> firstLog = logger.getLog();
 
-// Clear for next programme
+// Clear for next program
 logger.clearLog();
 
-// Run second programme
+// Run second program
 logger.run(program2);
 List<String> secondLog = logger.getLog();
 ```
@@ -249,7 +249,7 @@ The logging interpreter does add overhead (string formatting, list management). 
 
 ## Part 4: The Validation Interpreter
 
-The `ValidationOpticInterpreter` performs a "dry-run" of your programme, checking constraints and collecting errors/warnings **without actually executing the operations**. This is perfect for:
+The `ValidationOpticInterpreter` performs a "dry-run" of your program, checking constraints and collecting errors/warnings **without actually executing the operations**. This is perfect for:
 
 - **Pre-flight checks**: Validate before committing
 - **Testing**: Verify logic without side effects
@@ -263,7 +263,7 @@ public record Person(String name, int age) {}
 
 Person person = new Person("Alice", 25);
 
-// Build a programme
+// Build a program
 Free<OpticOpKind.Witness, Person> program =
     OpticPrograms.set(person, PersonLenses.name(), null);  // Oops!
 
@@ -305,7 +305,7 @@ public record UserV2(
     boolean verified
 ) {}
 
-// Migration programme
+// Migration program
 Free<OpticOpKind.Witness, UserV2> migrateUser(UserV1 oldUser) {
     return OpticPrograms.get(oldUser, UserV1Lenses.age())
         .flatMap(age -> {
@@ -389,11 +389,11 @@ public record ValidationResult(
 ```
 
 ~~~admonish tip title="Testing Tip"
-Use the validation interpreter in unit tests to verify programme structure without executing operations:
+Use the validation interpreter in unit tests to verify program structure without executing operations:
 
 ```java
 @Test
-void testProgrammeLogic() {
+void testprogramLogic() {
     Free<OpticOpKind.Witness, Person> program =
         buildComplexProgram(testData);
 
@@ -557,7 +557,7 @@ void testBusinessLogic() {
     // Create mock data
     Person mockPerson = new Person("MockUser", 99);
 
-    // Build programme (business logic)
+    // Build program (business logic)
     Free<OpticOpKind.Witness, Person> program =
         buildComplexBusinessLogic(mockPerson);
 
@@ -574,12 +574,12 @@ void testBusinessLogic() {
 
 ## Part 6: Combining Interpreters
 
-You can run the same programme through multiple interpreters for powerful workflows:
+You can run the same program through multiple interpreters for powerful workflows:
 
 ### Pattern 1: Validate-Then-Execute
 
 ```java
-Free<OpticOpKind.Witness, Order> orderProcessing = buildOrderProgramme(order);
+Free<OpticOpKind.Witness, Order> orderProcessing = buildOrderprogram(order);
 
 // Step 1: Validate
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
@@ -617,13 +617,13 @@ String slowest = times.entrySet().stream()
 
 System.out.println("Slowest operation: " + slowest);
 
-// Step 2: Optimise programme based on profiling
-Free<OpticOpKind.Witness, Dataset> optimised = optimiseProgramme(
+// Step 2: Optimise program based on profiling
+Free<OpticOpKind.Witness, Dataset> optimised = optimiseprogram(
     dataProcessing,
     slowest
 );
 
-// Step 3: Execute optimised programme
+// Step 3: Execute optimised program
 Dataset result = OpticInterpreters.direct().run(optimised);
 ```
 
@@ -634,16 +634,16 @@ Dataset result = OpticInterpreters.direct().run(optimised);
 ```java
 // Development: Mock interpreter
 MockOpticInterpreter<Order> mockInterp = new MockOpticInterpreter<>(mockOrder);
-Order mockResult = mockInterp.run(programme);
+Order mockResult = mockInterp.run(program);
 assert mockResult.status() == OrderStatus.COMPLETED;
 
 // Staging: Validation interpreter
-ValidationResult validation = OpticInterpreters.validating().validate(programme);
+ValidationResult validation = OpticInterpreters.validating().validate(program);
 assert validation.isValid();
 
 // Production: Logging interpreter
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
-Order prodResult = logger.run(programme);
+Order prodResult = logger.run(program);
 logger.getLog().forEach(auditService::record);
 ```
 
@@ -667,13 +667,13 @@ logger.getLog().forEach(auditService::record);
 ### Interpreter Lifecycle
 
 ```java
-// ✅ Good: Reuse interpreter for multiple programmes
+// ✅ Good: Reuse interpreter for multiple programs
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
 
 for (Transaction txn : transactions) {
     Free<OpticOpKind.Witness, Transaction> program = buildTransfer(txn);
     Transaction result = logger.run(program);
-    // Log accumulates across programmes
+    // Log accumulates across programs
 }
 
 List<String> fullAuditTrail = logger.getLog();
@@ -682,7 +682,7 @@ List<String> fullAuditTrail = logger.getLog();
 for (Transaction txn : transactions) {
     LoggingOpticInterpreter logger = OpticInterpreters.logging();  // New each time!
     Transaction result = logger.run(buildTransfer(txn));
-    // Can only see this programme's log
+    // Can only see this program's log
 }
 ```
 
@@ -737,6 +737,6 @@ try {
 
 **Next Steps:**
 
-- [Free Monad DSL for Optics](free_monad_dsl.md) - Building composable programmes
+- [Free Monad DSL for Optics](free_monad_dsl.md) - Building composable programs
 - [Fluent API for Optics](fluent_api.md) - Direct execution patterns
 - [Practical Examples](optics_examples.md) - Real-world applications

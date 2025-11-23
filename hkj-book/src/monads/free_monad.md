@@ -128,7 +128,7 @@ The `Free` functionality is built upon several related components:
 * **Natural Transformations**: Write interpreters as transformations from your instruction set `F` to a target monad `M`.
 * **Stack-Safe Execution**: The `foldMap` method uses Higher-Kinded-J's own `Trampoline` monad internally, demonstrating the library's composability whilst preventing stack overflow.
 * **Multiple Interpreters**: Execute the same program with different interpreters (production vs. testing vs. logging).
-* **Programme Inspection**: Since programs are data, you can analyse, optimise, or transform them before execution.
+* **program Inspection**: Since programs are data, you can analyse, optimise, or transform them before execution.
 
 **Key Methods:**
 - `Free.pure(value)`: Creates a terminal computation holding a final value.
@@ -174,7 +174,7 @@ Free<F, A> lifted = FREE.liftF(fa, functor);
 ```
 
 `FreeFactory` is particularly useful in:
-- Test code where you build many Free programmes
+- Test code where you build many Free programs
 - DSL implementations where type inference is important
 - Any code that chains `map`/`flatMap` operations on `Free.pure()`
 
@@ -328,7 +328,7 @@ Free<ConsoleOpKind.Witness, Unit> calculator =
                 }));
 ```
 
-**Composability**: Notice how we can build `getName` once and reuse it in multiple programmes. This promotes code reuse and testability.
+**Composability**: Notice how we can build `getName` once and reuse it in multiple programs. This promotes code reuse and testability.
 ~~~
 
 ~~~admonish example title="Example 3: IO Interpreter for Real Execution"
@@ -446,9 +446,9 @@ void testGreetingProgram() {
 **Testability**: The same `greetingProgram()` can be tested without any actual console I/O. You control inputs and verify outputs deterministically.
 ~~~
 
-~~~admonish example title="Example 5: Composing Larger Programmes from Smaller Ones"
+~~~admonish example title="Example 5: Composing Larger programs from Smaller Ones"
 
-The real power emerges when building complex programmes from simple, reusable pieces:
+The real power emerges when building complex programs from simple, reusable pieces:
 
 ```java
 // Reusable building blocks
@@ -466,7 +466,7 @@ Free<ConsoleOpKind.Witness, Unit> confirmAction(String action) {
                 : printLine("Cancelled."));
 }
 
-// Composed programme
+// Composed program
 Free<ConsoleOpKind.Witness, Unit> userRegistration() {
     return askQuestion("Enter username:")
         .flatMap(username ->
@@ -495,7 +495,7 @@ Free<ConsoleOpKind.Witness, List<String>> gatherMultipleInputs(int count) {
 }
 ```
 
-**Modularity**: Each function returns a `Free` programme that can be:
+**Modularity**: Each function returns a `Free` program that can be:
 - Tested independently
 - Composed with others
 - Interpreted in different ways
@@ -530,7 +530,7 @@ Free<ConsoleOpKind.Witness, String> simpleReadLine =
     ConsoleOps.readLine();
 ```
 
-**Best Practice**: Create helper methods (like `ConsoleOps.readLine()`) that use `liftF` internally. This provides a clean API for building programmes.
+**Best Practice**: Create helper methods (like `ConsoleOps.readLine()`) that use `liftF` internally. This provides a clean API for building programs.
 ~~~
 
 ## When to Use Free Monad
@@ -548,7 +548,7 @@ Free<ConsoleOpKind.Witness, String> simpleReadLine =
 
 3. **Testability is Critical**: You need to test complex logic without actual side effects. Example: testing database transactions without a database.
 
-4. **Programme Analysis**: You need to inspect, optimise, or transform programmes before execution:
+4. **program Analysis**: You need to inspect, optimise, or transform programs before execution:
    - Query optimisation
    - Batch operations
    - Caching strategies
@@ -563,11 +563,11 @@ Free<ConsoleOpKind.Witness, String> simpleReadLine =
 1. **Simple Effects**: For straightforward side effects, use `IO`, `Reader`, or `State` directly. Free adds unnecessary complexity.
 
 2. **Performance Critical**: Free monads have overhead:
-   - Heap allocation for programme structure
+   - Heap allocation for program structure
    - Interpretation overhead
    - Not suitable for hot paths or tight loops
 
-3. **Single Interpretation**: If you only ever need one way to execute your programme, traditional imperative code or simpler monads are clearer.
+3. **Single Interpretation**: If you only ever need one way to execute your program, traditional imperative code or simpler monads are clearer.
 
 4. **Team Unfamiliarity**: Free monads require understanding of:
    - Algebraic data types
@@ -581,12 +581,12 @@ Free<ConsoleOpKind.Witness, String> simpleReadLine =
 ### Comparison with Alternatives
 
 **Free Monad vs. Direct Effects**:
-- Free: Testable, multiple interpreters, programme inspection
+- Free: Testable, multiple interpreters, program inspection
 - Direct: Simpler, better performance, easier to understand
 
 **Free Monad vs. Tagless Final**:
-- Free: Programmes are data structures, can be inspected
-- Tagless Final: Better performance, less boilerplate, but programmes aren't inspectable
+- Free: programs are data structures, can be inspected
+- Tagless Final: Better performance, less boilerplate, but programs aren't inspectable
 
 **Free Monad vs. Effect Systems (like ZIO/Cats Effect)**:
 - Free: Simpler concept, custom DSLs
@@ -666,7 +666,7 @@ class Coyoneda<F, A> {
 }
 
 // Now you can use any F without writing a Functor instance!
-Free<Coyoneda<DatabaseOp, ?>, Result> programme = ...;
+Free<Coyoneda<DatabaseOp, ?>, Result> program = ...;
 ```
 
 **Benefits**:
@@ -683,7 +683,7 @@ An alternative to Free monads is the **Tagless Final** encoding:
 ```java
 // Free Monad approach
 sealed interface ConsoleOp<A> { ... }
-Free<ConsoleOp, Result> programme = ...;
+Free<ConsoleOp, Result> program = ...;
 
 // Tagless Final approach
 interface Console<F> {
@@ -691,22 +691,22 @@ interface Console<F> {
     Kind<F, String> readLine();
 }
 
-<F> Kind<F, Unit> programme(Console<F> console, Monad<F> monad) {
+<F> Kind<F, Unit> program(Console<F> console, Monad<F> monad) {
     Kind<F, Unit> printName = console.printLine("What is your name?");
     Kind<F, String> readName = monad.flatMap(ignored -> console.readLine(), printName);
     return monad.flatMap(name -> console.printLine("Hello, " + name + "!"), readName);
 }
 
 // Different interpreters
-Kind<IO.Witness, Unit> prod = programme(ioConsole, ioMonad);
-Kind<Test.Witness, Unit> test = programme(testConsole, testMonad);
+Kind<IO.Witness, Unit> prod = program(ioConsole, ioMonad);
+Kind<Test.Witness, Unit> test = program(testConsole, testMonad);
 ```
 
 **Tagless Final vs. Free Monad**:
 
 | Aspect | Free Monad | Tagless Final |
 |--------|------------|---------------|
-| **Programmes** | Data structures | Abstract functions |
+| **programs** | Data structures | Abstract functions |
 | **Inspection** | ✅ Can analyse before execution | ❌ Cannot inspect |
 | **Performance** | Slower (interpretation overhead) | Faster (direct execution) |
 | **Boilerplate** | More (HKT bridges, helpers) | Less (just interfaces) |
@@ -715,29 +715,29 @@ Kind<Test.Witness, Unit> test = programme(testConsole, testMonad);
 
 **When to use Tagless Final**:
 - Performance matters
-- Don't need programme inspection
+- Don't need program inspection
 - Prefer less boilerplate
 
 **When to use Free Monad**:
-- Need to analyse/optimise programmes before execution
-- Want programmes as first-class values
+- Need to analyse/optimise programs before execution
+- Want programs as first-class values
 - Building complex DSLs with transformations
 
 ## Performance Characteristics
 
 Understanding the performance trade-offs of Free monads is crucial for production use:
 
-**Stack Safety**: O(1) stack space regardless of programme depth
+**Stack Safety**: O(1) stack space regardless of program depth
 - Uses Higher-Kinded-J's `Trampoline` monad internally for `foldMap`
 - Demonstrates library composability: Free uses Trampoline for stack safety
 - Verified with 10,000+ sequential operations without stack overflow
 
-**Heap Allocation**: O(n) where n is programme size
+**Heap Allocation**: O(n) where n is program size
 - Each `flatMap` creates a `FlatMapped` node
 - Each `suspend` creates a `Suspend` node
-- **Consideration**: For very large programmes (millions of operations), this could be significant
+- **Consideration**: For very large programs (millions of operations), this could be significant
 
-**Interpretation Time**: O(n) where n is programme size
+**Interpretation Time**: O(n) where n is program size
 - Each operation must be pattern-matched and interpreted
 - Additional indirection compared to direct execution
 - **Rough estimate**: 2-10x slower than direct imperative code (depends on interpreter complexity)
@@ -750,18 +750,18 @@ Understanding the performance trade-offs of Free monads is crucial for productio
    Free<DB, Unit> manyInserts = ...;
 
    // Batch into single multi-row insert
-   interpreter.optimise(programme); // Detects pattern, batches
+   interpreter.optimise(program); // Detects pattern, batches
    ```
 
 2. **Fusion**: Combine consecutive `map` operations
    ```java
-   programme.map(f).map(g).map(h)
-   // Optimiser fuses to: programme.map(f.andThen(g).andThen(h))
+   program.map(f).map(g).map(h)
+   // Optimiser fuses to: program.map(f.andThen(g).andThen(h))
    ```
 
 3. **Short-Circuiting**: Detect early termination
    ```java
-   // If programme returns early, skip remaining operations
+   // If program returns early, skip remaining operations
    ```
 
 4. **Caching**: Memoize pure computations
@@ -770,8 +770,8 @@ Understanding the performance trade-offs of Free monads is crucial for productio
    ```
 
 **Benchmarks** (relative to direct imperative code):
-- Simple programmes (< 100 operations): 2-3x slower
-- Complex programmes (1000+ operations): 3-5x slower
+- Simple programs (< 100 operations): 2-3x slower
+- Complex programs (1000+ operations): 3-5x slower
 - With optimisation: Can approach parity for batch operations
 
 ## Implementation Notes
@@ -871,14 +871,14 @@ sealed interface SortOp<A> {
 }
 
 Free<SortOp, Unit> quickSort(List<Integer> list) {
-    // Build programme as data
+    // Build program as data
     return ...;
 }
 
 // Multiple interpreters
-interpreter1.run(programme); // In-memory sort
-interpreter2.run(programme); // Log operations
-interpreter3.run(programme); // Visualise algorithm
+interpreter1.run(program); // In-memory sort
+interpreter2.run(program); // Log operations
+interpreter3.run(program); // Visualise algorithm
 ```
 
 **Advantage of Free**: The **entire algorithm** is a data structure that can be inspected, optimised, or visualised.
@@ -914,7 +914,7 @@ Free<AppOp, Result> workflow =
         .flatMap(receipt -> saveToDatabase(receipt))
         .flatMap(id -> sendNotification(id));
 
-// One programme, many interpreters
+// One program, many interpreters
 productionInterpreter.run(workflow); // Real execution
 testInterpreter.run(workflow);       // Pure testing
 loggingInterpreter.run(workflow);    // Audit trail
@@ -962,17 +962,17 @@ testInterpreter.run(eventStream);        // Collect for assertions
 
 The Free monad provides a powerful abstraction for building domain-specific languages in Java:
 
-- **Separation of Concerns**: Programme description (data) vs. execution (interpreters)
+- **Separation of Concerns**: program description (data) vs. execution (interpreters)
 - **Testability**: Pure testing without actual side effects
-- **Flexibility**: Multiple interpreters for the same programme
+- **Flexibility**: Multiple interpreters for the same program
 - **Stack Safety**: Handles deep recursion without stack overflow (verified with 10,000+ operations)
-- **Composability**: Build complex programmes from simple building blocks
+- **Composability**: Build complex programs from simple building blocks
 
 **When to use**:
 - Building DSLs
 - Need multiple interpretations
 - Testability is critical
-- Programme analysis/optimisation required
+- program analysis/optimisation required
 
 **When to avoid**:
 - Performance-critical code
@@ -983,4 +983,4 @@ For detailed implementation examples and complete working code, see:
 - [ConsoleProgram.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/free/ConsoleProgram.java) - Complete DSL with multiple interpreters
 - [FreeMonadTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free/FreeMonadTest.java) - Comprehensive test suite including monad laws and stack safety
 
-The Free monad represents a sophisticated approach to building composable, testable, and maintainable programmes in Java. Whilst it requires understanding of advanced functional programming concepts, it pays dividends in large-scale applications where flexibility and testability are paramount.
+The Free monad represents a sophisticated approach to building composable, testable, and maintainable programs in Java. Whilst it requires understanding of advanced functional programming concepts, it pays dividends in large-scale applications where flexibility and testability are paramount.

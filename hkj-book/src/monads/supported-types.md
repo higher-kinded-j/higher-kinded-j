@@ -81,14 +81,14 @@ This is achieved by representing the application of a type constructor `F` to a 
 
 ### 5. `Free<F, A>`
 
-* **Type Definition**: Custom sealed interface ([`Free`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/free/Free.java)) representing programmes as data structures that can be interpreted in different ways. Provides three constructors: `Pure<F,A>` (terminal value), `Suspend<F,A>` (suspended computation), and `FlatMapped<F,X,A>` (monadic sequencing).
+* **Type Definition**: Custom sealed interface ([`Free`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/free/Free.java)) representing programs as data structures that can be interpreted in different ways. Provides three constructors: `Pure<F,A>` (terminal value), `Suspend<F,A>` (suspended computation), and `FlatMapped<F,X,A>` (monadic sequencing).
 * **`FreeKind<F, A>` Interface**: `Free<F,A>` itself implements `FreeKind<F,A>`, and `FreeKind<F,A> extends Kind<FreeKind.Witness<F>, A>`.
 * **Witness Type `F_WITNESS`**: `FreeKind.Witness<F>` (where `F` is the instruction set functor)
 * **`FreeKindHelper`**: `widen` casts `Free` to `Kind`; `narrow` casts `Kind` to `Free`. Provides `pure(value)`, `suspend(computation)`, `liftF(fa, functor)`.
 * **Type Class Instances**:
   * `FreeFunctor<F>` (`Functor<FreeKind.Witness<F>>`)
   * [`FreeMonad<F>`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/free/FreeMonad.java) (`Monad<FreeKind.Witness<F>>`)
-* **Notes**: Enables building domain-specific languages (DSLs) as composable data structures. Programmes are interpreted via `foldMap` with natural transformations, allowing multiple interpreters (IO, Test, Optimisation, etc.). Stack-safe execution using Higher-Kinded-J's `Trampoline` monad internally, demonstrating library composability (verified with 10,000+ operations). Essential for separating programme description from execution, enabling testability and alternative interpretations. Provides `liftF` to lift functor values into Free, `map` and `flatMap` for composition, and `foldMap` for interpretation. Useful for building testable workflows, query languages, and effect systems where the same programme needs different execution strategies.
+* **Notes**: Enables building domain-specific languages (DSLs) as composable data structures. programs are interpreted via `foldMap` with natural transformations, allowing multiple interpreters (IO, Test, Optimisation, etc.). Stack-safe execution using Higher-Kinded-J's `Trampoline` monad internally, demonstrating library composability (verified with 10,000+ operations). Essential for separating program description from execution, enabling testability and alternative interpretations. Provides `liftF` to lift functor values into Free, `map` and `flatMap` for composition, and `foldMap` for interpretation. Useful for building testable workflows, query languages, and effect systems where the same program needs different execution strategies.
 * **Usage**: [How to use the Free Monad](./free_monad.md)
 
 ---
