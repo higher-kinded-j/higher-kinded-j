@@ -97,7 +97,7 @@ public class EitherReturnValueHandler implements HandlerMethodReturnValueHandler
    */
   private void handleError(Object error, HttpServletResponse response) {
     try {
-      int statusCode = determineStatusCode(error);
+      int statusCode = ErrorStatusCodeMapper.determineStatusCode(error, defaultErrorStatus);
       response.setStatus(statusCode);
       response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
@@ -123,29 +123,5 @@ public class EitherReturnValueHandler implements HandlerMethodReturnValueHandler
     } catch (IOException e) {
       throw new RuntimeException("Failed to write success response", e);
     }
-  }
-
-  /**
-   * Determines the appropriate HTTP status code based on the error type. Uses simple heuristics
-   * based on the error class name.
-   *
-   * @param error the error object
-   * @return the HTTP status code
-   */
-  private int determineStatusCode(Object error) {
-    String errorClassName = error.getClass().getSimpleName().toLowerCase();
-
-    if (errorClassName.contains("notfound")) {
-      return HttpStatus.NOT_FOUND.value();
-    } else if (errorClassName.contains("validation") || errorClassName.contains("invalid")) {
-      return HttpStatus.BAD_REQUEST.value();
-    } else if (errorClassName.contains("authorization") || errorClassName.contains("forbidden")) {
-      return HttpStatus.FORBIDDEN.value();
-    } else if (errorClassName.contains("authentication")
-        || errorClassName.contains("unauthorized")) {
-      return HttpStatus.UNAUTHORIZED.value();
-    }
-
-    return defaultErrorStatus;
   }
 }

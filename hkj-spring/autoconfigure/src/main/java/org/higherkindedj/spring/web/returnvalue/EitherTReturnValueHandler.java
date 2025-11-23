@@ -120,7 +120,8 @@ public class EitherTReturnValueHandler implements AsyncHandlerMethodReturnValueH
                 // Either value received - fold to determine response
                 either.fold(
                     error -> {
-                      int statusCode = determineStatusCode(error);
+                      int statusCode =
+                          ErrorStatusCodeMapper.determineStatusCode(error, defaultErrorStatus);
                       Map<String, Object> errorBody = Map.of("success", false, "error", error);
                       deferredResult.setResult(ResponseEntity.status(statusCode).body(errorBody));
                       return null;
@@ -152,34 +153,5 @@ public class EitherTReturnValueHandler implements AsyncHandlerMethodReturnValueH
     // Narrow to CompletableFuture using CompletableFutureKindHelper
     return (CompletableFuture<Either<?, ?>>)
         CompletableFutureKindHelper.FUTURE.narrow((Kind<CompletableFutureKind.Witness, ?>) kind);
-  }
-
-  /**
-   * Determines the HTTP status code based on the error type.
-   *
-   * <p>Uses simple class name matching:
-   *
-   * <ul>
-   *   <li>*NotFound* → 404
-   *   <li>*Validation* → 400
-   *   <li>*Authorization* → 403
-   *   <li>*Authentication* → 401
-   *   <li>default → configured default (usually 400)
-   * </ul>
-   */
-  private int determineStatusCode(Object error) {
-    String errorClassName = error.getClass().getSimpleName();
-
-    if (errorClassName.contains("NotFound")) {
-      return HttpStatus.NOT_FOUND.value();
-    } else if (errorClassName.contains("Validation")) {
-      return HttpStatus.BAD_REQUEST.value();
-    } else if (errorClassName.contains("Authorization")) {
-      return HttpStatus.FORBIDDEN.value();
-    } else if (errorClassName.contains("Authentication")) {
-      return HttpStatus.UNAUTHORIZED.value();
-    } else {
-      return defaultErrorStatus;
-    }
   }
 }
