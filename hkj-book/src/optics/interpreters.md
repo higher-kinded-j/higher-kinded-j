@@ -393,7 +393,7 @@ Use the validation interpreter in unit tests to verify program structure without
 
 ```java
 @Test
-void testprogramLogic() {
+void testProgramLogic() {
     Free<OpticOpKind.Witness, Person> program =
         buildComplexProgram(testData);
 
@@ -579,7 +579,7 @@ You can run the same program through multiple interpreters for powerful workflow
 ### Pattern 1: Validate-Then-Execute
 
 ```java
-Free<OpticOpKind.Witness, Order> orderProcessing = buildOrderprogram(order);
+Free<OpticOpKind.Witness, Order> orderProcessing = buildOrderProgram(order);
 
 // Step 1: Validate
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
@@ -618,7 +618,7 @@ String slowest = times.entrySet().stream()
 System.out.println("Slowest operation: " + slowest);
 
 // Step 2: Optimise program based on profiling
-Free<OpticOpKind.Witness, Dataset> optimised = optimiseprogram(
+Free<OpticOpKind.Witness, Dataset> optimised = optimiseProgram(
     dataProcessing,
     slowest
 );

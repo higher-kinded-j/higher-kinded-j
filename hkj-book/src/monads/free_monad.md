@@ -128,7 +128,7 @@ The `Free` functionality is built upon several related components:
 * **Natural Transformations**: Write interpreters as transformations from your instruction set `F` to a target monad `M`.
 * **Stack-Safe Execution**: The `foldMap` method uses Higher-Kinded-J's own `Trampoline` monad internally, demonstrating the library's composability whilst preventing stack overflow.
 * **Multiple Interpreters**: Execute the same program with different interpreters (production vs. testing vs. logging).
-* **program Inspection**: Since programs are data, you can analyse, optimise, or transform them before execution.
+* **Program Inspection**: Since programs are data, you can analyse, optimise, or transform them before execution.
 
 **Key Methods:**
 - `Free.pure(value)`: Creates a terminal computation holding a final value.
@@ -548,7 +548,7 @@ Free<ConsoleOpKind.Witness, String> simpleReadLine =
 
 3. **Testability is Critical**: You need to test complex logic without actual side effects. Example: testing database transactions without a database.
 
-4. **program Analysis**: You need to inspect, optimise, or transform programs before execution:
+4. **Program Analysis**: You need to inspect, optimise, or transform programs before execution:
    - Query optimisation
    - Batch operations
    - Caching strategies
@@ -962,7 +962,7 @@ testInterpreter.run(eventStream);        // Collect for assertions
 
 The Free monad provides a powerful abstraction for building domain-specific languages in Java:
 
-- **Separation of Concerns**: program description (data) vs. execution (interpreters)
+- **Separation of Concerns**: Program description (data) vs. execution (interpreters)
 - **Testability**: Pure testing without actual side effects
 - **Flexibility**: Multiple interpreters for the same program
 - **Stack Safety**: Handles deep recursion without stack overflow (verified with 10,000+ operations)
@@ -972,7 +972,7 @@ The Free monad provides a powerful abstraction for building domain-specific lang
 - Building DSLs
 - Need multiple interpretations
 - Testability is critical
-- program analysis/optimisation required
+- Program analysis/optimisation required
 
 **When to avoid**:
 - Performance-critical code
