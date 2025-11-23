@@ -152,10 +152,9 @@ jobs:
 
       - name: Create/update root index.html
         run: |
-          # Copy the redirect page to root if it doesn't exist
-          if [ ! -f "gh-pages-repo/index.html" ]; then
-            cp .github/scripts/root-index.html gh-pages-repo/index.html
-          fi
+          # Always copy the redirect page to root to ensure it's up to date
+          cp .github/scripts/root-index.html gh-pages-repo/index.html
+          echo "Root index.html updated"
         shell: bash
 
       - name: Commit and push changes
