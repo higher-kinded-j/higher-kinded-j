@@ -481,12 +481,11 @@ class OpticOpsTest {
   @Test
   void testPrivateConstructor() throws Exception {
     // Test that the private constructor throws UnsupportedOperationException
-    java.lang.reflect.Constructor<OpticOps> constructor = OpticOps.class.getDeclaredConstructor();
+    reflect.Constructor<OpticOps> constructor = OpticOps.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
     Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+        assertThrows(reflect.InvocationTargetException.class, () -> constructor.newInstance());
     assertTrue(exception.getCause() instanceof UnsupportedOperationException);
     assertEquals("Utility class", exception.getCause().getMessage());
   }

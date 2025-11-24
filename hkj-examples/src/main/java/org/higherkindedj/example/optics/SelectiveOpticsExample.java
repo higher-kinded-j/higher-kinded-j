@@ -167,14 +167,14 @@ public class SelectiveOpticsExample {
             new Account("ACC-003", 10000.0, true));
 
     // Simulate expensive operations
-    java.util.function.Function<Account, Kind<IdKind.Witness, Double>> premiumCalculation =
+    Function<Account, Kind<IdKind.Witness, Double>> premiumCalculation =
         account -> {
           System.out.println("  Calculating premium rate for " + account.id());
           // Simulate expensive operation
           return Id.of(account.balance() * 1.10);
         };
 
-    java.util.function.Function<Account, Kind<IdKind.Witness, Double>> standardCalculation =
+    Function<Account, Kind<IdKind.Witness, Double>> standardCalculation =
         account -> {
           System.out.println("  Calculating standard rate for " + account.id());
           // Simulate different expensive operation

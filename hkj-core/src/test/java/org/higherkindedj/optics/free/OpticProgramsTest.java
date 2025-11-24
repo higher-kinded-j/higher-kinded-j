@@ -646,39 +646,35 @@ class OpticProgramsTest {
 
   @Test
   void testOpticProgramsPrivateConstructor() throws Exception {
-    java.lang.reflect.Constructor<OpticPrograms> constructor =
-        OpticPrograms.class.getDeclaredConstructor();
+    reflect.Constructor<OpticPrograms> constructor = OpticPrograms.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
     Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+        assertThrows(reflect.InvocationTargetException.class, () -> constructor.newInstance());
     assertTrue(exception.getCause() instanceof UnsupportedOperationException);
     assertEquals("Utility class", exception.getCause().getMessage());
   }
 
   @Test
   void testOpticInterpretersPrivateConstructor() throws Exception {
-    java.lang.reflect.Constructor<OpticInterpreters> constructor =
+    reflect.Constructor<OpticInterpreters> constructor =
         OpticInterpreters.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
     Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+        assertThrows(reflect.InvocationTargetException.class, () -> constructor.newInstance());
     assertTrue(exception.getCause() instanceof UnsupportedOperationException);
     assertEquals("Utility class", exception.getCause().getMessage());
   }
 
   @Test
   void testOpticOpKindWitnessPrivateConstructor() throws Exception {
-    java.lang.reflect.Constructor<OpticOpKind.Witness> constructor =
+    reflect.Constructor<OpticOpKind.Witness> constructor =
         OpticOpKind.Witness.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
     Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+        assertThrows(reflect.InvocationTargetException.class, () -> constructor.newInstance());
     assertTrue(exception.getCause() instanceof UnsupportedOperationException);
     assertEquals("Witness class", exception.getCause().getMessage());
   }

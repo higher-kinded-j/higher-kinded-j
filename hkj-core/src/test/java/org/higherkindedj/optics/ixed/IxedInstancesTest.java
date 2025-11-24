@@ -582,8 +582,8 @@ class IxedInstancesTest {
       map.put("alice", 100);
 
       // f . g should equal doing g then f
-      java.util.function.Function<Integer, Integer> f = x -> x + 10;
-      java.util.function.Function<Integer, Integer> g = x -> x * 2;
+      function.Function<Integer, Integer> f = x -> x + 10;
+      function.Function<Integer, Integer> g = x -> x * 2;
 
       Map<String, Integer> composed = Traversals.modify(mapIx.ix("alice"), f.compose(g), map);
       Map<String, Integer> sequential =

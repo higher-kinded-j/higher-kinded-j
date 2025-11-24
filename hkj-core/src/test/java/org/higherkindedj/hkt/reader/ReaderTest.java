@@ -1012,7 +1012,7 @@ class ReaderTest extends ReaderTestBase {
     @Test
     @DisplayName("Reader works with complex generic types")
     void readerWorksWithComplexGenericTypes() {
-      record ComplexConfig(java.util.List<String> urls, java.util.Map<String, Integer> settings) {}
+      record ComplexConfig(List<String> urls, java.util.Map<String, Integer> settings) {}
 
       Reader<ComplexConfig, Integer> getUrlCount = Reader.of(cfg -> cfg.urls().size());
 

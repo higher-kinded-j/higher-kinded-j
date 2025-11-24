@@ -408,10 +408,7 @@ public final class ValidationTestBuilder {
    * @return This builder for chaining
    */
   public <F, A, B> ValidationTestBuilder assertAllFunctorOperations(
-      Functor<F> functor,
-      Class<?> contextClass,
-      Kind<F, A> validKind,
-      java.util.function.Function<A, B> validMapper) {
+      Functor<F> functor, Class<?> contextClass, Kind<F, A> validKind, Function<A, B> validMapper) {
 
     assertMapperNull(() -> functor.map(null, validKind), "f", contextClass, Operation.MAP);
     assertKindNull(() -> functor.map(validMapper, null), contextClass, Operation.MAP);

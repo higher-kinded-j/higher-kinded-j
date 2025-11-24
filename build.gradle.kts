@@ -45,6 +45,9 @@ subprojects {
       target("src/**/*.java")
       googleJavaFormat("1.27.0").reflowLongStrings().formatJavadoc(true)
       removeUnusedImports()
+      cleanthat()
+        .sourceCompatibility("24")
+        .addMutator("UnnecessaryFullyQualifiedName")
       trimTrailingWhitespace()
       licenseHeaderFile(rootProject.file("config/spotless/copyright.txt"), "(package|import|public|@)")
     }

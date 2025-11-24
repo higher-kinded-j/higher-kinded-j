@@ -102,5 +102,5 @@ public class StateExample {
 
   record CounterState(int count) {}
 
-  record StackState(java.util.List<Integer> stack) {}
+  record StackState(List<Integer> stack) {}
 }

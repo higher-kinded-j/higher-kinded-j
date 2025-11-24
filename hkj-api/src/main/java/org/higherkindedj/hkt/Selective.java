@@ -235,7 +235,7 @@ public interface Selective<F> extends Applicative<F> {
    * @return A non-null {@link Kind Kind&lt;F, Choice&lt;E, A&gt;&gt;} representing the first
    *     successful alternative, or the last error if all fail.
    */
-  default <E, A> Kind<F, Choice<E, A>> orElse(java.util.List<Kind<F, Choice<E, A>>> alternatives) {
+  default <E, A> Kind<F, Choice<E, A>> orElse(List<Kind<F, Choice<E, A>>> alternatives) {
     requireNonNull(alternatives, "List of alternatives for orElse cannot be null");
     if (alternatives.isEmpty()) {
       throw new IllegalArgumentException("orElse requires at least one alternative");

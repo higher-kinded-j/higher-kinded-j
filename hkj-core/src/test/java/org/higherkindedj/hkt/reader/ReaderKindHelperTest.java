@@ -150,8 +150,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
     @Test
     @DisplayName("Complex environment types work correctly")
     void testComplexEnvironmentTypes() {
-      record ComplexEnv(
-          String name, int value, java.util.List<String> items, java.time.Instant timestamp) {}
+      record ComplexEnv(String name, int value, List<String> items, java.time.Instant timestamp) {}
 
       ComplexEnv complexEnv =
           new ComplexEnv("complex", 42, java.util.List.of("a", "b", "c"), java.time.Instant.now());

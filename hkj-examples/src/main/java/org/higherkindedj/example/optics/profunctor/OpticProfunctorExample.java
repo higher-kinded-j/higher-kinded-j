@@ -163,9 +163,7 @@ public class OpticProfunctorExample {
         new Traversal<PersonDto, String>() {
           @Override
           public <F> Kind<F, PersonDto> modifyF(
-              java.util.function.Function<String, Kind<F, String>> f,
-              PersonDto source,
-              Applicative<F> applicative) {
+              Function<String, Kind<F, String>> f, PersonDto source, Applicative<F> applicative) {
 
             // Convert PersonDto -> Person
             Person person = convertDtoToPerson(source);
