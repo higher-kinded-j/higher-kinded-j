@@ -5,9 +5,7 @@ package org.higherkindedj.tutorial.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -106,11 +104,11 @@ public class Tutorial06_GeneratedOptics {
       public <F> Kind<F, S> modifyF(Function<V, Kind<F, V>> f, S s, Applicative<F> applicative) {
         Map<K, V> map = getter.apply(s);
         // Note: traverseMap doesn't exist in the library, so we'll convert to list
-        var values = new java.util.ArrayList<>(map.values());
-        var valuesKind = Traversals.traverseList(values, v -> f.apply(v), applicative);
+        var values = new ArrayList<>(map.values());
+        var valuesKind = Traversals.traverseList(values, f, applicative);
         return applicative.map(
             newValues -> {
-              var newMap = new java.util.LinkedHashMap<K, V>();
+              var newMap = new LinkedHashMap<K, V>();
               var keyIter = map.keySet().iterator();
               var valueIter = newValues.iterator();
               while (keyIter.hasNext() && valueIter.hasNext()) {

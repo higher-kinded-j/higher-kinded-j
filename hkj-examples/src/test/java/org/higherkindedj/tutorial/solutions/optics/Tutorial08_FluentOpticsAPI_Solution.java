@@ -49,9 +49,7 @@ public class Tutorial08_FluentOpticsAPI_Solution {
       @Override
       public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         List<A> list = getter.apply(s);
-        var listKind =
-            Traversals.traverseList(
-                list, f, applicative);
+        var listKind = Traversals.traverseList(list, f, applicative);
         return applicative.map(newList -> setter.apply(s, newList), listKind);
       }
     };
