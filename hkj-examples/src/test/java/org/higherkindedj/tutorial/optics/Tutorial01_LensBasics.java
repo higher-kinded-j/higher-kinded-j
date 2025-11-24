@@ -29,14 +29,50 @@ public class Tutorial01_LensBasics {
     throw new RuntimeException("Answer required");
   }
 
-  // Simple person record - we'll manually create lenses for this
+  /*
+   * ========================================================================
+   * IMPORTANT: Manual Lens Implementation (For Educational Purposes Only)
+   * ========================================================================
+   *
+   * In this introductory tutorial, we manually create lenses to help you understand the basics.
+   * This is ONLY for learning - in real projects, NEVER write these manually!
+   *
+   * What you should do in real projects:
+   * ────────────────────────────────────────────────────────────────────────
+   * 1. Annotate your records with @GenerateLenses
+   * 2. The annotation processor automatically generates optimized lenses
+   * 3. Use the generated lenses from companion classes (e.g., PersonLenses.name())
+   *
+   * Example of real-world usage:
+   *
+   *   @GenerateLenses
+   *   record Person(String name, int age, String email) {}
+   *
+   *   // The processor generates:
+   *   // - PersonLenses.name()   -> Lens<Person, String>
+   *   // - PersonLenses.age()    -> Lens<Person, Integer>
+   *   // - PersonLenses.email()  -> Lens<Person, String>
+   *
+   *   // Usage:
+   *   Person updated = PersonLenses.age().modify(age -> age + 1, person);
+   *
+   * Why we show manual implementations here:
+   * ────────────────────────────────────────────────────────────────────────
+   * - Understanding how Lenses work "under the hood" makes you a better user
+   * - You'll appreciate what the annotation processor does for you
+   * - Helpful for debugging or when you need custom lenses for special cases
+   *
+   * Note: You'll see generated lenses in action in Exercise 5 and Tutorial 06!
+   */
+
+  // Simple person record - we'll manually create lenses for this (FOR LEARNING ONLY)
   record Person(String name, int age, String email) {}
 
-  // Manually created lens for the 'name' field
+  // Manually created lens for the 'name' field (simulating what @GenerateLenses creates)
   static final Lens<Person, String> nameLens =
       Lens.of(Person::name, (person, newName) -> new Person(newName, person.age(), person.email()));
 
-  // Manually created lens for the 'age' field
+  // Manually created lens for the 'age' field (simulating what @GenerateLenses creates)
   static final Lens<Person, Integer> ageLens =
       Lens.of(Person::age, (person, newAge) -> new Person(person.name(), newAge, person.email()));
 

@@ -1,0 +1,15 @@
+/**
+ * Contains example usage of the Higher-Kinded-J library. This module is not intended for use as a
+ * library dependency.
+ */
+@org.jspecify.annotations.NullMarked
+module org.higherkindedj.tutorial {
+  // Depends on the main library to use its features
+  requires org.higherkindedj.core;
+  requires org.higherkindedj.annotations;
+  requires java.compiler;
+  requires org.junit.jupiter.api;
+  requires org.assertj.core;
+
+// The examples module does not export any packages for other modules to use
+}

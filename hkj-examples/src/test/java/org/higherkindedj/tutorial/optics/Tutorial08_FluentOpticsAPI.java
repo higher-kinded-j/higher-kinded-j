@@ -6,6 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
@@ -43,18 +47,12 @@ public class Tutorial08_FluentOpticsAPI {
 
   /** Helper to create a Traversal for List fields */
   static <S, A> Traversal<S, A> listTraversal(
-      java.util.function.Function<S, List<A>> getter,
-      java.util.function.BiFunction<S, List<A>, S> setter) {
+      Function<S, List<A>> getter, BiFunction<S, List<A>, S> setter) {
     return new Traversal<S, A>() {
       @Override
-      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
-          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
-          S s,
-          org.higherkindedj.hkt.Applicative<F> applicative) {
+      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         List<A> list = getter.apply(s);
-        var listKind =
-            org.higherkindedj.optics.util.Traversals.traverseList(
-                list, a -> f.apply(a), applicative);
+        var listKind = org.higherkindedj.optics.util.Traversals.traverseList(list, f, applicative);
         return applicative.map(newList -> setter.apply(s, newList), listKind);
       }
     };
@@ -292,7 +290,7 @@ public class Tutorial08_FluentOpticsAPI {
     Lens<User, String> emailLens = UserLenses.email();
 
     // Email validator function
-    java.util.function.Function<String, Either<String, String>> validateEmail =
+    Function<String, Either<String, String>> validateEmail =
         email -> {
           if (!email.contains("@")) {
             return Either.left("Invalid email: missing @");
@@ -348,7 +346,7 @@ public class Tutorial08_FluentOpticsAPI {
     Lens<Person, Integer> ageLens = PersonLenses.age();
 
     // Age validator: must be between 0 and 150
-    java.util.function.Function<Integer, Maybe<Integer>> validateAge =
+    Function<Integer, Maybe<Integer>> validateAge =
         age -> (age >= 0 && age <= 150) ? Maybe.just(age) : Maybe.nothing();
 
     // TODO: Replace null with OpticOps.modifyMaybe() to validate age
@@ -409,7 +407,7 @@ public class Tutorial08_FluentOpticsAPI {
         OrderTraversals.items().andThen(ItemLenses.price().asTraversal());
 
     // Price validator: must be positive
-    java.util.function.Function<Double, Validated<String, Double>> validatePrice =
+    Function<Double, Validated<String, Double>> validatePrice =
         price ->
             price > 0
                 ? Validated.valid(price)

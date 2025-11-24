@@ -5,9 +5,11 @@ package org.higherkindedj.tutorial.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -38,6 +40,26 @@ public class Tutorial06_GeneratedOptics {
     throw new RuntimeException("Answer required");
   }
 
+  /*
+   * ========================================================================
+   * NOTE: This Tutorial Focuses on GENERATED Optics (The Right Way!)
+   * ========================================================================
+   *
+   * This tutorial shows you how to use annotation processing to generate optics automatically.
+   * This is the CORRECT approach for production code!
+   *
+   * Key takeaways:
+   * ────────────────────────────────────────────────────────────────────────
+   * - Use @GenerateLenses, @GeneratePrisms, and @GenerateTraversals
+   * - The annotation processor generates all optics at compile time
+   * - Generated optics are type-safe, optimized, and zero-cost abstractions
+   * - No manual optic writing needed!
+   *
+   * The manual helpers below are ONLY used to support exercises where
+   * we demonstrate advanced traversal patterns. In your code, even these
+   * would be generated automatically!
+   */
+
   // Sealed interfaces must be at class level
   @GeneratePrisms
   sealed interface Result2 {}
@@ -53,43 +75,40 @@ public class Tutorial06_GeneratedOptics {
 
   record SMS7(String phoneNumber, String message) implements NotificationType7 {}
 
-  // Manual traversal/lens/prism implementations (annotation processor generates these in real
-  // projects)
+  // Manual helpers for advanced exercises (normally @GenerateTraversals would handle this)
 
-  /** Helper to create a Traversal for List fields */
+  /**
+   * Helper to create a Traversal for List fields (FOR EDUCATIONAL PURPOSES -
+   * use @GenerateTraversals in production)
+   */
   static <S, A> Traversal<S, A> listTraversal(
-      java.util.function.Function<S, List<A>> getter,
-      java.util.function.BiFunction<S, List<A>, S> setter) {
+      Function<S, List<A>> getter, BiFunction<S, List<A>, S> setter) {
     return new Traversal<S, A>() {
       @Override
-      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
-          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
-          S s,
-          org.higherkindedj.hkt.Applicative<F> applicative) {
+      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         List<A> list = getter.apply(s);
-        var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
-        return applicative.map(newList -> setter.apply(s, newList), listKind);
+        Kind<F, List<A>> traversedList = Traversals.traverseList(list, f, applicative);
+        return applicative.map(newList -> setter.apply(s, newList), traversedList);
       }
     };
   }
 
-  /** Helper to create a Traversal for Map fields (traverses values) */
+  /**
+   * Helper to create a Traversal for Map fields (FOR EDUCATIONAL PURPOSES - use @GenerateTraversals
+   * in production)
+   */
   static <S, K, V> Traversal<S, V> mapTraversal(
-      java.util.function.Function<S, Map<K, V>> getter,
-      java.util.function.BiFunction<S, Map<K, V>, S> setter) {
+      Function<S, Map<K, V>> getter, BiFunction<S, Map<K, V>, S> setter) {
     return new Traversal<S, V>() {
       @Override
-      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
-          java.util.function.Function<V, org.higherkindedj.hkt.Kind<F, V>> f,
-          S s,
-          org.higherkindedj.hkt.Applicative<F> applicative) {
+      public <F> Kind<F, S> modifyF(Function<V, Kind<F, V>> f, S s, Applicative<F> applicative) {
         Map<K, V> map = getter.apply(s);
         // Note: traverseMap doesn't exist in the library, so we'll convert to list
-        var values = new java.util.ArrayList<>(map.values());
-        var valuesKind = Traversals.traverseList(values, v -> f.apply(v), applicative);
+        var values = new ArrayList<>(map.values());
+        var valuesKind = Traversals.traverseList(values, f, applicative);
         return applicative.map(
             newValues -> {
-              var newMap = new java.util.LinkedHashMap<K, V>();
+              var newMap = new LinkedHashMap<K, V>();
               var keyIter = map.keySet().iterator();
               var valueIter = newValues.iterator();
               while (keyIter.hasNext() && valueIter.hasNext()) {

@@ -30,6 +30,24 @@ public class Tutorial02_LensComposition {
     throw new RuntimeException("Answer required");
   }
 
+  /*
+   * ========================================================================
+   * IMPORTANT: Manual Lens Implementation (For Educational Purposes Only)
+   * ========================================================================
+   *
+   * In this tutorial, we manually create lenses to demonstrate composition mechanics.
+   * This is ONLY for learning - in real projects, NEVER write these manually!
+   *
+   * What you should do in real projects:
+   * ────────────────────────────────────────────────────────────────────────
+   * 1. Annotate your records with @GenerateLenses
+   * 2. The annotation processor automatically generates all lenses
+   * 3. Use the generated lenses directly (e.g., PersonLenses.company())
+   *
+   * The manual implementations below simulate what @GenerateLenses creates.
+   * Understanding lens composition helps you build powerful nested updates!
+   */
+
   @GenerateLenses
   record Address(String street, String city, String zipCode) {}
 
@@ -39,7 +57,7 @@ public class Tutorial02_LensComposition {
   @GenerateLenses
   record Person(String name, int age, Company company) {}
 
-  // Manual lenses (annotation processor will generate these in real projects)
+  // Manual lenses (simulating what @GenerateLenses creates - FOR LEARNING ONLY)
   static class PersonLenses {
     public static Lens<Person, Company> company() {
       return Lens.of(Person::company, (p, newCompany) -> new Person(p.name(), p.age(), newCompany));

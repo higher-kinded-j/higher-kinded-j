@@ -7,6 +7,10 @@ import static org.assertj.core.api.Assertions.within;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -71,16 +75,12 @@ public class Tutorial07_RealWorldOptics {
 
   /** Helper to create a Traversal for List fields */
   static <S, A> Traversal<S, A> listTraversal(
-      java.util.function.Function<S, List<A>> getter,
-      java.util.function.BiFunction<S, List<A>, S> setter) {
+      Function<S, List<A>> getter, BiFunction<S, List<A>, S> setter) {
     return new Traversal<S, A>() {
       @Override
-      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
-          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
-          S s,
-          org.higherkindedj.hkt.Applicative<F> applicative) {
+      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         List<A> list = getter.apply(s);
-        var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
+        var listKind = Traversals.traverseList(list, f, applicative);
         return applicative.map(newList -> setter.apply(s, newList), listKind);
       }
     };
@@ -293,7 +293,7 @@ public class Tutorial07_RealWorldOptics {
 
     ApiResponse2 adjusted = Traversals.modify(latitudesTraversal, lat -> lat + 1.0, response);
     var successData = (SuccessResponse2) adjusted;
-    assertThat(successData.locations().get(0).coords().lat()).isCloseTo(41.7128, within(0.001));
+    assertThat(successData.locations().getFirst().coords().lat()).isCloseTo(41.7128, within(0.001));
   }
 
   /**
