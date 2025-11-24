@@ -7,6 +7,10 @@ import static org.assertj.core.api.Assertions.within;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -33,6 +37,26 @@ public class Tutorial05_OpticsComposition {
   private static <T> T answerRequired() {
     throw new RuntimeException("Answer required");
   }
+
+  /*
+   * ========================================================================
+   * IMPORTANT: Manual Optics Implementation (For Educational Purposes Only)
+   * ========================================================================
+   *
+   * This tutorial demonstrates composing different optic types (Lens, Prism, Traversal).
+   * We manually implement some optics to show how composition works.
+   * This is ONLY for learning - in real projects, NEVER write these manually!
+   *
+   * What you should do in real projects:
+   * ────────────────────────────────────────────────────────────────────────
+   * 1. Annotate records with @GenerateLenses
+   * 2. Annotate sealed interfaces with @GeneratePrisms
+   * 3. Annotate list fields with @GenerateTraversals
+   * 4. The annotation processor generates everything automatically
+   *
+   * The manual implementations help you understand how different optics
+   * compose together to navigate complex structures.
+   */
 
   // Shared sealed interfaces for exercises (must be at class level)
 
@@ -73,19 +97,22 @@ public class Tutorial05_OpticsComposition {
 
   record Phone1(String number) implements Contact1 {}
 
-  // Helper for creating list traversals
+  /**
+   * Manual helper to create a Traversal for List fields within a structure.
+   *
+   * <p><b>DO NOT use this in production code!</b> Use @GenerateTraversals instead.
+   *
+   * @param getter Function to extract the List<A> field from structure S
+   * @param setter Function to create a new S with an updated List<A>
+   */
   static <S, A> Traversal<S, A> listTraversal(
-      java.util.function.Function<S, List<A>> getter,
-      java.util.function.BiFunction<S, List<A>, S> setter) {
+      Function<S, List<A>> getter, BiFunction<S, List<A>, S> setter) {
     return new Traversal<S, A>() {
       @Override
-      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
-          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
-          S s,
-          org.higherkindedj.hkt.Applicative<F> applicative) {
+      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         List<A> list = getter.apply(s);
-        var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
-        return applicative.map(newList -> setter.apply(s, newList), listKind);
+        Kind<F, List<A>> traversedList = Traversals.traverseList(list, f, applicative);
+        return applicative.map(newList -> setter.apply(s, newList), traversedList);
       }
     };
   }
@@ -102,7 +129,7 @@ public class Tutorial05_OpticsComposition {
     @GenerateLenses
     record Order(String id, PaymentMethod1 payment) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class OrderLenses {
       public static Lens<Order, PaymentMethod1> payment() {
         return Lens.of(Order::payment, (o, newPmt) -> new Order(o.id(), newPmt));
@@ -143,7 +170,7 @@ public class Tutorial05_OpticsComposition {
     @GenerateLenses
     record Order(String id, PaymentMethod1 payment) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class PaymentMethodPrisms {
       public static Prism<PaymentMethod1, CreditCard1> creditCard() {
         return Prism.of(
@@ -187,7 +214,7 @@ public class Tutorial05_OpticsComposition {
     @GenerateTraversals
     record Order(String id, List<Item> items) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class OrderLenses {
       public static Lens<Order, List<Item>> items() {
         return Lens.of(Order::items, (o, newItems) -> new Order(o.id(), newItems));
@@ -224,7 +251,7 @@ public class Tutorial05_OpticsComposition {
    */
   @Test
   void exercise4_complexComposition() {
-    // Manual implementations
+    // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class JsonObjectLenses {
       public static Lens<JsonObject1, JsonValue1> data() {
         return Lens.of(JsonObject1::data, (jo, newData) -> new JsonObject1(jo.name(), newData));
@@ -272,7 +299,7 @@ public class Tutorial05_OpticsComposition {
    */
   @Test
   void exercise5_traversalPlusPrism() {
-    // Manual implementations
+    // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class JsonArrayTraversals {
       public static Traversal<JsonArray1, JsonValue1> values() {
         return listTraversal(JsonArray1::values, (ja, vals) -> new JsonArray1(vals));
@@ -326,7 +353,7 @@ public class Tutorial05_OpticsComposition {
     @GenerateTraversals
     record League(String name, List<Team> teams) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class PlayerLenses {
       public static Lens<Player, Integer> score() {
         return Lens.of(Player::score, (p, newScore) -> new Player(p.name(), newScore));
@@ -380,7 +407,7 @@ public class Tutorial05_OpticsComposition {
     @GenerateLenses
     record User(String name, Address address, Contact1 contact) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what annotation processor generates - FOR LEARNING ONLY)
     class AddressLenses {
       public static Lens<Address, String> city() {
         return Lens.of(Address::city, (a, newCity) -> new Address(a.street(), newCity));

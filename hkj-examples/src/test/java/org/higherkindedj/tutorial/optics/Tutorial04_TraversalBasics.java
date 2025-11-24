@@ -5,6 +5,10 @@ package org.higherkindedj.tutorial.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -32,22 +36,69 @@ public class Tutorial04_TraversalBasics {
     throw new RuntimeException("Answer required");
   }
 
-  // Manual traversal/lens implementations (annotation processor generates these in real projects)
-  // These are generic helpers that work with the record types defined in each test method
+  /*
+   * ========================================================================
+   * IMPORTANT: Manual Optics Implementation (For Educational Purposes Only)
+   * ========================================================================
+   *
+   * In this tutorial, we manually implement optics to help you understand their internal mechanics.
+   * This is ONLY for learning - in real projects, NEVER write these manually!
+   *
+   * What you should do in real projects:
+   * ────────────────────────────────────────────────────────────────────────
+   * 1. Annotate your records with @GenerateLenses and @GenerateTraversals
+   * 2. The annotation processor automatically generates optimized optics
+   * 3. Use the generated optics from companion classes (e.g., TeamLenses, TeamTraversals)
+   *
+   * Example of real-world usage:
+   *
+   *   @GenerateLenses
+   *   @GenerateTraversals
+   *   record Team(String name, List<Player> players) {}
+   *
+   *   // The processor generates:
+   *   // - TeamLenses.name()     -> Lens<Team, String>
+   *   // - TeamLenses.players()  -> Lens<Team, List<Player>>
+   *   // - TeamTraversals.players()  -> Traversal<Team, Player>
+   *
+   * Why we show manual implementations here:
+   * ────────────────────────────────────────────────────────────────────────
+   * - Understanding how Traversals work "under the hood" makes you a better user
+   * - You'll appreciate what the annotation processor does for you
+   * - Helpful for debugging or when you need custom optics for special cases
+   *
+   * The key difference:
+   * ────────────────────────────────────────────────────────────────────────
+   * - Traversals.forList()     : Works directly on a List<A> (list-level operation)
+   * - listTraversal() below    : Extracts a List field from a structure, THEN traverses it
+   * - @GenerateTraversals      : Auto-generates the field extraction + traversal combo
+   */
 
-  /** Helper to create a Traversal for List fields */
+  /**
+   * Manual helper to create a Traversal for List fields within a structure.
+   *
+   * <p>This demonstrates how to bridge structure-level (Team has List<Player>) and element-level
+   * (traverse each Player) operations.
+   *
+   * <p><b>DO NOT use this in production code!</b> Use @GenerateTraversals instead.
+   *
+   * @param getter Function to extract the List<A> field from structure S
+   * @param setter Function to create a new S with an updated List<A>
+   * @param <S> The structure type (e.g., Team)
+   * @param <A> The element type (e.g., Player)
+   * @return A Traversal<S, A> that focuses on each element within the list field
+   */
   static <S, A> Traversal<S, A> listTraversal(
-      java.util.function.Function<S, List<A>> getter,
-      java.util.function.BiFunction<S, List<A>, S> setter) {
+      Function<S, List<A>> getter, BiFunction<S, List<A>, S> setter) {
     return new Traversal<S, A>() {
       @Override
-      public <F> org.higherkindedj.hkt.Kind<F, S> modifyF(
-          java.util.function.Function<A, org.higherkindedj.hkt.Kind<F, A>> f,
-          S s,
-          org.higherkindedj.hkt.Applicative<F> applicative) {
+      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
+        // 1. Extract the list field from the structure
         List<A> list = getter.apply(s);
-        var listKind = Traversals.traverseList(list, a -> f.apply(a), applicative);
-        return applicative.map(newList -> setter.apply(s, newList), listKind);
+        // 2. Traverse the list elements (this uses Traversals.traverseList from hkj-core)
+        Kind<F, List<A>> traversedList = Traversals.traverseList(list, f, applicative);
+        // 3. Map the result back into the structure
+        return applicative.map(newList -> setter.apply(s, newList), traversedList);
       }
     };
   }
@@ -68,9 +119,11 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what @GenerateTraversals would create)
+    // In production, the annotation processor generates this for you automatically
     class TeamTraversals {
       public static Traversal<Team, Player> players() {
+        // This traversal extracts the players field AND traverses each Player element
         return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
       }
     }
@@ -108,7 +161,7 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record League(String name, List<Team> teams) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what @GenerateTraversals would create)
     class TeamTraversals {
       public static Traversal<Team, Player> players() {
         return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
@@ -156,7 +209,7 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what @GenerateLenses and @GenerateTraversals would create)
     class PlayerLenses {
       public static Lens<Player, Integer> score() {
         return Lens.of(Player::score, (p, newScore) -> new Player(p.name(), newScore));
@@ -198,7 +251,7 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what @GenerateTraversals would create)
     class TeamTraversals {
       public static Traversal<Team, Player> players() {
         return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));
@@ -239,7 +292,7 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what @GenerateLenses and @GenerateTraversals would create)
     class PlayerLenses {
       public static Lens<Player, String> name() {
         return Lens.of(Player::name, (p, newName) -> new Player(newName, p.score()));
@@ -284,7 +337,7 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Tournament(List<Team> teams) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what @GenerateLenses and @GenerateTraversals would create)
     class PlayerLenses {
       public static Lens<Player, String> name() {
         return Lens.of(Player::name, (p, newName) -> new Player(newName, p.score()));
@@ -344,7 +397,7 @@ public class Tutorial04_TraversalBasics {
     @GenerateTraversals
     record Team(String name, List<Player> players) {}
 
-    // Manual implementations
+    // Manual implementations (simulating what @GenerateTraversals would create)
     class TeamTraversals {
       public static Traversal<Team, Player> players() {
         return listTraversal(Team::players, (t, ps) -> new Team(t.name(), ps));

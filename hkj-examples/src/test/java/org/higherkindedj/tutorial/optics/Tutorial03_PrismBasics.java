@@ -30,6 +30,41 @@ public class Tutorial03_PrismBasics {
     throw new RuntimeException("Answer required");
   }
 
+  /*
+   * ========================================================================
+   * IMPORTANT: Manual Prism Implementation (For Educational Purposes Only)
+   * ========================================================================
+   *
+   * In this tutorial, we manually create prisms to help you understand sum type optics.
+   * This is ONLY for learning - in real projects, NEVER write these manually!
+   *
+   * What you should do in real projects:
+   * ────────────────────────────────────────────────────────────────────────
+   * 1. Annotate your sealed interfaces with @GeneratePrisms
+   * 2. The annotation processor automatically generates prisms for each case
+   * 3. Use the generated prisms from companion classes (e.g., ShapePrisms.circle())
+   *
+   * Example of real-world usage:
+   *
+   *   @GeneratePrisms
+   *   sealed interface Shape {}
+   *   record Circle(double radius) implements Shape {}
+   *   record Rectangle(double width, double height) implements Shape {}
+   *
+   *   // The processor generates:
+   *   // - ShapePrisms.circle()     -> Prism<Shape, Circle>
+   *   // - ShapePrisms.rectangle()  -> Prism<Shape, Rectangle>
+   *
+   *   // Usage:
+   *   Optional<Circle> maybeCircle = ShapePrisms.circle().getOptional(shape);
+   *
+   * Why we show manual implementations here:
+   * ────────────────────────────────────────────────────────────────────────
+   * - Understanding how Prisms work with pattern matching helps demystify sum types
+   * - You'll appreciate the annotation processor's type-safe case handling
+   * - Helpful for debugging or when you need custom prisms for special cases
+   */
+
   @GeneratePrisms
   sealed interface Shape {}
 
@@ -39,7 +74,7 @@ public class Tutorial03_PrismBasics {
 
   record Triangle(double base, double height) implements Shape {}
 
-  // Manual prism implementations (annotation processor will generate these in real projects)
+  // Manual prism implementations (simulating what @GeneratePrisms creates - FOR LEARNING ONLY)
   static class ShapePrisms {
     public static Prism<Shape, Circle> circle() {
       return Prism.of(s -> s instanceof Circle c ? Optional.of(c) : Optional.empty(), c -> c);
@@ -54,7 +89,7 @@ public class Tutorial03_PrismBasics {
     }
   }
 
-  // JsonValue sealed interface for exercises 5-6
+  // JsonValue sealed interface for exercises 5-6 (also with manual prisms for learning)
   @GeneratePrisms
   sealed interface JsonValue {}
 
@@ -62,6 +97,7 @@ public class Tutorial03_PrismBasics {
 
   record JsonNumber(double value) implements JsonValue {}
 
+  // Manual prism implementations (simulating what @GeneratePrisms creates - FOR LEARNING ONLY)
   static class JsonValuePrisms {
     public static Prism<JsonValue, JsonString> jsonString() {
       return Prism.of(
