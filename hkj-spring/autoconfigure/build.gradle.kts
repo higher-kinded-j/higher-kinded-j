@@ -52,6 +52,7 @@ dependencies {
   testImplementation("org.springframework.security:spring-security-web")
   testImplementation("org.springframework.security:spring-security-config")
   testImplementation("org.springframework.security:spring-security-oauth2-jose")
+  testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
 }
 
 tasks.test {
