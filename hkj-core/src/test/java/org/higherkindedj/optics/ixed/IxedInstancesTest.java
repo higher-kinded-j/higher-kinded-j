@@ -5,6 +5,7 @@ package org.higherkindedj.optics.ixed;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.*;
+import java.util.function.Function;
 import org.higherkindedj.optics.Ixed;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
@@ -582,8 +583,8 @@ class IxedInstancesTest {
       map.put("alice", 100);
 
       // f . g should equal doing g then f
-      function.Function<Integer, Integer> f = x -> x + 10;
-      function.Function<Integer, Integer> g = x -> x * 2;
+      Function<Integer, Integer> f = x -> x + 10;
+      Function<Integer, Integer> g = x -> x * 2;
 
       Map<String, Integer> composed = Traversals.modify(mapIx.ix("alice"), f.compose(g), map);
       Map<String, Integer> sequential =
