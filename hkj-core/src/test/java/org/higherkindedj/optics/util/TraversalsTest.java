@@ -210,7 +210,7 @@ class TraversalsTest {
     void forMap_shouldHandleNullValues() {
       // Note: This test assumes the map implementation allows null values
       final Traversal<Map<String, Integer>, Integer> mapTraversal = Traversals.forMap("nullKey");
-      final Map<String, Integer> source = new java.util.HashMap<>();
+      final Map<String, Integer> source = new HashMap<>();
       source.put("key1", 10);
       source.put("nullKey", null);
 
@@ -1557,7 +1557,7 @@ class TraversalsTest {
               return OptionalKindHelper.OPTIONAL.widen(java.util.Optional.of(i * 10));
             };
 
-        final org.higherkindedj.hkt.Kind<OptionalKind.Witness, List<Integer>> result =
+        final Kind<OptionalKind.Witness, List<Integer>> result =
             Traversals.traverseListUntil(source, i -> i >= 3, f, OptionalSelective.INSTANCE);
 
         // Verify that sequenceStateList correctly managed the state to stop at 3

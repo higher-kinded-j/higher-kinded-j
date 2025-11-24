@@ -498,11 +498,10 @@ public final class OpticOps {
       Traversal<S, A> traversal,
       Function<A, org.higherkindedj.hkt.validated.Validated<E, A>> validator) {
     // Create applicative for Validated with List semigroup for error accumulation
-    org.higherkindedj.hkt.Applicative<
-            org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>>
-        applicative =
-            org.higherkindedj.hkt.validated.ValidatedMonad.instance(
-                org.higherkindedj.hkt.Semigroups.list());
+
+    Applicative<org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>> applicative =
+        org.higherkindedj.hkt.validated.ValidatedMonad.instance(
+            org.higherkindedj.hkt.Semigroups.list());
 
     // Lift the validator to work with List<E> errors
     Function<
@@ -519,8 +518,8 @@ public final class OpticOps {
             };
 
     // Use traversal's modifyF with the applicative
-    org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>, S>
-        resultKind = traversal.modifyF(liftedValidator, source, applicative);
+    Kind<org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>, S> resultKind =
+        traversal.modifyF(liftedValidator, source, applicative);
 
     return org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED.narrow(resultKind);
   }
@@ -566,8 +565,8 @@ public final class OpticOps {
       Traversal<S, A> traversal,
       Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
     // Create applicative for Either (short-circuits on first Left)
-    org.higherkindedj.hkt.Applicative<org.higherkindedj.hkt.either.EitherKind.Witness<E>>
-        applicative = org.higherkindedj.hkt.either.EitherMonad.instance();
+    Applicative<org.higherkindedj.hkt.either.EitherKind.Witness<E>> applicative =
+        org.higherkindedj.hkt.either.EitherMonad.instance();
 
     // Lift the validator to the Kind type
     Function<A, org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.either.EitherKind.Witness<E>, A>>
@@ -575,7 +574,7 @@ public final class OpticOps {
             a -> org.higherkindedj.hkt.either.EitherKindHelper.EITHER.widen(validator.apply(a));
 
     // Use traversal's modifyF with the applicative
-    org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.either.EitherKind.Witness<E>, S> resultKind =
+    Kind<org.higherkindedj.hkt.either.EitherKind.Witness<E>, S> resultKind =
         traversal.modifyF(liftedValidator, source, applicative);
 
     return org.higherkindedj.hkt.either.EitherKindHelper.EITHER.narrow(resultKind);

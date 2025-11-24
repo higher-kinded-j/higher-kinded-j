@@ -189,7 +189,7 @@ public final class KindAssertions {
 
     // We expect the actual code to throw KindUnwrapException when narrowing an invalid Kind
     return assertThatThrownBy(executable)
-        .isInstanceOf(org.higherkindedj.hkt.exception.KindUnwrapException.class)
+        .isInstanceOf(KindUnwrapException.class)
         .hasMessageContaining("Kind instance cannot be narrowed to " + targetType.getSimpleName());
   }
 

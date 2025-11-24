@@ -391,7 +391,7 @@ public class OpticInterpretersExample {
     }
 
     @SuppressWarnings("unchecked")
-    private <S, A> java.util.List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
+    private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
       return op.optic().getAll(op.source());
     }
 
@@ -466,7 +466,7 @@ public class OpticInterpretersExample {
     }
 
     @SuppressWarnings("unchecked")
-    private <S, A> java.util.List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
+    private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
       log.add("MOCK GET_ALL: " + op.optic().getClass().getSimpleName());
       return op.optic().getAll(op.source());
     }

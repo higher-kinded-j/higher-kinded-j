@@ -214,7 +214,7 @@ public class FreeBenchmark {
   public Integer directComposition() {
     int result = 42;
     for (int i = 0; i < chainDepth; i++) {
-      result = result + 1;
+      result += 1;
     }
     return result;
   }

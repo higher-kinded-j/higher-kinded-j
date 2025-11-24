@@ -4,6 +4,8 @@ package org.higherkindedj.optics.fluent;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.optics.Fold;
@@ -481,12 +483,11 @@ class OpticOpsTest {
   @Test
   void testPrivateConstructor() throws Exception {
     // Test that the private constructor throws UnsupportedOperationException
-    java.lang.reflect.Constructor<OpticOps> constructor = OpticOps.class.getDeclaredConstructor();
+    Constructor<OpticOps> constructor = OpticOps.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
     Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
+        assertThrows(InvocationTargetException.class, () -> constructor.newInstance());
     assertTrue(exception.getCause() instanceof UnsupportedOperationException);
     assertEquals("Utility class", exception.getCause().getMessage());
   }

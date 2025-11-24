@@ -4,6 +4,7 @@ package org.higherkindedj.optics.free;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.lang.reflect.*;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.free.Free;
@@ -646,40 +647,32 @@ class OpticProgramsTest {
 
   @Test
   void testOpticProgramsPrivateConstructor() throws Exception {
-    java.lang.reflect.Constructor<OpticPrograms> constructor =
-        OpticPrograms.class.getDeclaredConstructor();
+    Constructor<OpticPrograms> constructor = OpticPrograms.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
-    Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
-    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+    Exception exception = assertThrows(InvocationTargetException.class, constructor::newInstance);
+    assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
     assertEquals("Utility class", exception.getCause().getMessage());
   }
 
   @Test
   void testOpticInterpretersPrivateConstructor() throws Exception {
-    java.lang.reflect.Constructor<OpticInterpreters> constructor =
-        OpticInterpreters.class.getDeclaredConstructor();
+    Constructor<OpticInterpreters> constructor = OpticInterpreters.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
-    Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
-    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+    Exception exception = assertThrows(InvocationTargetException.class, constructor::newInstance);
+    assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
     assertEquals("Utility class", exception.getCause().getMessage());
   }
 
   @Test
   void testOpticOpKindWitnessPrivateConstructor() throws Exception {
-    java.lang.reflect.Constructor<OpticOpKind.Witness> constructor =
+    Constructor<OpticOpKind.Witness> constructor =
         OpticOpKind.Witness.class.getDeclaredConstructor();
     constructor.setAccessible(true);
 
-    Exception exception =
-        assertThrows(
-            java.lang.reflect.InvocationTargetException.class, () -> constructor.newInstance());
-    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+    Exception exception = assertThrows(InvocationTargetException.class, constructor::newInstance);
+    assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
     assertEquals("Witness class", exception.getCause().getMessage());
   }
 }
