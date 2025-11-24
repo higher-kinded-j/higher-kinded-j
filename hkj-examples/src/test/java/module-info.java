@@ -4,15 +4,19 @@
  */
 @org.jspecify.annotations.NullMarked
 module org.higherkindedj.tutorial {
-    requires org.higherkindedj.core;
-    requires org.higherkindedj.annotations;
-    requires java.compiler;
-    requires org.junit.jupiter.api;
-    requires org.assertj.core;
+  requires org.higherkindedj.core;
+  requires org.higherkindedj.annotations;
+  requires java.compiler;
+  requires org.junit.jupiter.api;
+  requires org.assertj.core;
 
-    // Open packages to JUnit for reflection-based test discovery
-    opens org.higherkindedj.tutorial.coretypes to org.junit.platform.commons;
-    opens org.higherkindedj.tutorial.optics to org.junit.platform.commons;
-    opens org.higherkindedj.tutorial.solutions.coretypes to org.junit.platform.commons;
-    opens org.higherkindedj.tutorial.solutions.optics to org.junit.platform.commons;
+  // Open packages to JUnit for reflection-based test discovery
+  opens org.higherkindedj.tutorial.coretypes to
+      org.junit.platform.commons;
+  opens org.higherkindedj.tutorial.optics to
+      org.junit.platform.commons;
+  opens org.higherkindedj.tutorial.solutions.coretypes to
+      org.junit.platform.commons;
+  opens org.higherkindedj.tutorial.solutions.optics to
+      org.junit.platform.commons;
 }
