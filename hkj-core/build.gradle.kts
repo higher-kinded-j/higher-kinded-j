@@ -25,6 +25,7 @@ dependencies {
   testImplementation("org.assertj:assertj-core:3.27.3")
   testImplementation("net.jqwik:jqwik:1.9.2")
   testImplementation("net.jqwik:jqwik-engine:1.9.2")
+  testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
 }
 
 
