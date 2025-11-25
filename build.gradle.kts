@@ -7,7 +7,7 @@ plugins {
 
 // Global properties for all modules
 group = "io.github.higher-kinded-j"
-version = project.findProperty("projectVersion")?.toString() ?: "0.1.6-SNAPSHOT"
+version = project.findProperty("projectVersion")?.toString() ?: "0.2.2-SNAPSHOT"
 
 
 
@@ -28,17 +28,10 @@ subprojects {
 
     repositories {
         mavenCentral()
-    }
-
-
-    version = rootProject.version
-
-    repositories {
-        mavenCentral()
         gradlePluginPortal()
     }
+
     // Apply Spotless configuration to all java sources in subprojects
-    apply(plugin = "com.diffplug.spotless")
     spotless {
         lineEndings = com.diffplug.spotless.LineEnding.UNIX
         java {
