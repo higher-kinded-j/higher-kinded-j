@@ -11,13 +11,15 @@ import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * Validation interpreter for optic programs that checks operations without executing them.
+ * Validation interpreter for optic programs that validates operations during execution.
  *
- * <p>This interpreter performs a dry-run of optic operations, collecting warnings and errors
- * without actually modifying data. This is useful for:
+ * <p>This interpreter executes optic operations while collecting validation warnings and errors.
+ * Note that operations are executed to enable proper flatMap chaining in Free programs, but the
+ * validation results provide insight into potential issues. This is useful for:
  *
  * <ul>
  *   <li>Validating operations before execution
@@ -47,7 +49,10 @@ public final class ValidationOpticInterpreter {
   private final List<String> warnings = new ArrayList<>();
 
   /**
-   * Validates an optic program without executing it.
+   * Validates an optic program by executing it and collecting validation results.
+   *
+   * <p>The program is executed to enable proper flatMap chaining, while validation checks are
+   * performed on SET and MODIFY operations.
    *
    * @param program The Free monad program to validate
    * @param <A> The result type
@@ -58,44 +63,42 @@ public final class ValidationOpticInterpreter {
     errors.clear();
     warnings.clear();
 
-    // Natural transformation from OpticOp to Id monad (validation only)
+    // Natural transformation from OpticOp to Id monad
+    // We must execute operations to get proper results for flatMap chaining,
+    // while also performing validation checks
     Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
         kind -> {
           OpticOp<?, ?> op = OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
 
-          // Validate the operation (customize this based on your needs)
-          switch (op) {
-            case OpticOp.Get<?, ?> ignored -> {
-              // Read operations are generally safe
-            }
-            case OpticOp.Preview<?, ?> ignored -> {
-              // Read operations are generally safe
-            }
-            case OpticOp.GetAll<?, ?> ignored -> {
-              // Read operations are generally safe
-            }
-            case OpticOp.Set<?, ?> set -> validateSet(set);
-            case OpticOp.SetAll<?, ?> setAll -> validateSetAll(setAll);
-            case OpticOp.Modify<?, ?> modify -> validateModify(modify);
-            case OpticOp.ModifyAll<?, ?> ignored -> {
-              // Could validate modifier on sample data
-            }
-            case OpticOp.Exists<?, ?> ignored -> {
-              // Query operations are safe
-            }
-            case OpticOp.All<?, ?> ignored -> {
-              // Query operations are safe
-            }
-            case OpticOp.Count<?, ?> ignored -> {
-              // Query operations are safe
-            }
-          }
+          // Validate and execute each operation
+          // If execution fails, return the source unchanged to allow chaining to continue
+          Object result =
+              switch (op) {
+                case OpticOp.Get<?, ?> get -> executeGet(get);
+                case OpticOp.Preview<?, ?> preview -> executePreview(preview);
+                case OpticOp.GetAll<?, ?> getAll -> executeGetAll(getAll);
+                case OpticOp.Set<?, ?> set -> {
+                  validateSet(set);
+                  yield safeExecuteSet(set);
+                }
+                case OpticOp.SetAll<?, ?> setAll -> {
+                  validateSetAll(setAll);
+                  yield safeExecuteSetAll(setAll);
+                }
+                case OpticOp.Modify<?, ?> modify -> {
+                  validateModify(modify);
+                  yield safeExecuteModify(modify);
+                }
+                case OpticOp.ModifyAll<?, ?> modifyAll -> safeExecuteModifyAll(modifyAll);
+                case OpticOp.Exists<?, ?> exists -> executeExists(exists);
+                case OpticOp.All<?, ?> all -> executeAll(all);
+                case OpticOp.Count<?, ?> count -> executeCount(count);
+              };
 
-          // Return a dummy result (we're not actually executing)
-          return Id.of(Free.pure(null));
+          return Id.of(Free.pure(result));
         };
 
-    // "Execute" the program (but we only validated, didn't modify anything)
+    // Execute the program with validation
     program.foldMap(transform, IdMonad.instance());
 
     return new ValidationResult(
@@ -131,6 +134,68 @@ public final class ValidationOpticInterpreter {
     } catch (Exception e) {
       errors.add("MODIFY operation failed: " + op.optic() + " - " + e.getMessage());
     }
+  }
+
+  // Execute methods - these perform the actual operations to enable proper flatMap chaining
+
+  private <S, A> A executeGet(OpticOp.Get<S, A> op) {
+    return op.optic().get(op.source());
+  }
+
+  private <S, A> java.util.Optional<A> executePreview(OpticOp.Preview<S, A> op) {
+    return op.optic().preview(op.source());
+  }
+
+  private <S, A> java.util.List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
+    return op.optic().getAll(op.source());
+  }
+
+  private <S, A> S safeExecuteSet(OpticOp.Set<S, A> op) {
+    try {
+      return op.optic().set(op.newValue(), op.source());
+    } catch (Exception e) {
+      errors.add("SET operation failed: " + op.optic() + " - " + e.getMessage());
+      return op.source();
+    }
+  }
+
+  private <S, A> S safeExecuteSetAll(OpticOp.SetAll<S, A> op) {
+    try {
+      return Traversals.modify(op.optic(), ignored -> op.newValue(), op.source());
+    } catch (Exception e) {
+      errors.add("SET_ALL operation failed: " + op.optic() + " - " + e.getMessage());
+      return op.source();
+    }
+  }
+
+  private <S, A> S safeExecuteModify(OpticOp.Modify<S, A> op) {
+    try {
+      return op.optic().modify(op.modifier(), op.source());
+    } catch (Exception e) {
+      errors.add("MODIFY operation failed: " + op.optic() + " - " + e.getMessage());
+      return op.source();
+    }
+  }
+
+  private <S, A> S safeExecuteModifyAll(OpticOp.ModifyAll<S, A> op) {
+    try {
+      return Traversals.modify(op.optic(), op.modifier(), op.source());
+    } catch (Exception e) {
+      errors.add("MODIFY_ALL operation failed: " + op.optic() + " - " + e.getMessage());
+      return op.source();
+    }
+  }
+
+  private <S, A> Boolean executeExists(OpticOp.Exists<S, A> op) {
+    return op.optic().exists(op.predicate(), op.source());
+  }
+
+  private <S, A> Boolean executeAll(OpticOp.All<S, A> op) {
+    return op.optic().all(op.predicate(), op.source());
+  }
+
+  private <S, A> Integer executeCount(OpticOp.Count<S, A> op) {
+    return op.optic().length(op.source());
   }
 
   /**
