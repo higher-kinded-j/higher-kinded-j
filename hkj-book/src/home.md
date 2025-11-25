@@ -108,7 +108,7 @@ public class UserController {
 
 > [!NOTE]
 > Before diving in, ensure you have the following:
-> **Java Development Kit (JDK): Version 24** or later. The library makes use of features available in this version.
+> **Java Development Kit (JDK): Version 25** or later. The library makes use of features available in this version.
 
 The project is modular. To use it, add the relevant dependencies to your `build.gradle` or `pom.xml`. The use of an annotation processor helps to automatically generate the required boilerplate for Optics and other patterns.
 

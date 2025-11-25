@@ -83,7 +83,7 @@ If you're struggling with an exercise:
 - **Basic Functional Concepts**: Helpful but not required—we'll introduce them as needed
 
 ### Technical Setup
-- **Java 24 or later**: The library uses modern Java features
+- **Java 25 or later**: The library uses modern Java features
 - **Build Tool**: Gradle or Maven with the Higher-Kinded-J dependencies configured
 - **IDE**: IntelliJ IDEA, Eclipse, or VS Code with Java extensions
 

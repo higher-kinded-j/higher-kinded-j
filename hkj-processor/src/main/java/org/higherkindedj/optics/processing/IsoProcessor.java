@@ -33,7 +33,7 @@ import org.higherkindedj.optics.annotations.GenerateIsos;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateIsos")
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public final class IsoProcessor extends AbstractProcessor {
 
   @Override

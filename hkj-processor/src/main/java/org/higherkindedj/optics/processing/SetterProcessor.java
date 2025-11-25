@@ -25,7 +25,7 @@ import org.higherkindedj.optics.Setter;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateSetters")
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class SetterProcessor extends AbstractProcessor {
 
   @Override

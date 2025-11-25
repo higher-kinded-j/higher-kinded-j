@@ -34,7 +34,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateTraversals")
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class TraversalProcessor extends AbstractProcessor {
 
   private final List<TraversableGenerator> generators = new ArrayList<>();

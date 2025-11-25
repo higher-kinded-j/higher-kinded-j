@@ -22,8 +22,9 @@ subprojects {
 
     // Set Java version for all submodules
     java {
-        sourceCompatibility = JavaVersion.VERSION_24
-        targetCompatibility = JavaVersion.VERSION_24
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(25))
+        }
     }
 
     repositories {

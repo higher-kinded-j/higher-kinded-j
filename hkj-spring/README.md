@@ -297,7 +297,7 @@ class UserControllerTest {
 
 ## Requirements
 
-- Java 24+
+- Java 25+
 - Spring Boot 3.5.7+
 - higher-kinded-j core library
 

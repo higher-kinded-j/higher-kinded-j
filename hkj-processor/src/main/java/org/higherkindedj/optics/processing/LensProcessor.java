@@ -25,7 +25,7 @@ import org.higherkindedj.optics.Lens;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateLenses")
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class LensProcessor extends AbstractProcessor {
 
   @Override

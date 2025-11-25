@@ -28,7 +28,7 @@ import org.higherkindedj.optics.Fold;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateFolds")
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class FoldProcessor extends AbstractProcessor {
 
   @Override
