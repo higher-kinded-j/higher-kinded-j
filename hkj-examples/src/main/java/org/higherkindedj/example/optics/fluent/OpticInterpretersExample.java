@@ -375,27 +375,25 @@ public class OpticInterpretersExample {
       return totalOps;
     }
 
-    @SuppressWarnings("unchecked")
+    // Note: These execute methods don't need @SuppressWarnings("unchecked") because
+    // Java's sealed types + switch expressions correctly infer type parameters.
+
     private <S, A> A executeGet(OpticOp.Get<S, A> op) {
       return op.optic().get(op.source());
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> S executeSet(OpticOp.Set<S, A> op) {
       return op.optic().set(op.newValue(), op.source());
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
       return op.optic().modify(op.modifier(), op.source());
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
       return op.optic().getAll(op.source());
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
       return org.higherkindedj.optics.util.Traversals.modify(
           op.optic(), op.modifier(), op.source());
@@ -441,37 +439,37 @@ public class OpticInterpretersExample {
       return log;
     }
 
+    // Note: executeGet needs @SuppressWarnings for the mockValue cast to A.
+    // Other execute methods don't need it - Java's sealed types + switch expressions
+    // correctly infer type parameters.
+
     @SuppressWarnings("unchecked")
     private <S, A> A executeGet(OpticOp.Get<S, A> op) {
       Object mockValue = mockData.get(op.optic());
       if (mockValue != null) {
         log.add("MOCK GET: " + op.optic().getClass().getSimpleName() + " -> " + mockValue);
-        return (A) mockValue;
+        return (A) mockValue; // This cast requires the suppression
       } else {
         log.add("REAL GET: " + op.optic().getClass().getSimpleName());
         return op.optic().get(op.source());
       }
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> S executeSet(OpticOp.Set<S, A> op) {
       log.add("MOCK SET: " + op.optic().getClass().getSimpleName() + " -> " + op.newValue());
       return op.optic().set(op.newValue(), op.source());
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
       log.add("MOCK MODIFY: " + op.optic().getClass().getSimpleName());
       return op.optic().modify(op.modifier(), op.source());
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
       log.add("MOCK GET_ALL: " + op.optic().getClass().getSimpleName());
       return op.optic().getAll(op.source());
     }
 
-    @SuppressWarnings("unchecked")
     private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
       log.add("MOCK MODIFY_ALL: " + op.optic().getClass().getSimpleName());
       return org.higherkindedj.optics.util.Traversals.modify(

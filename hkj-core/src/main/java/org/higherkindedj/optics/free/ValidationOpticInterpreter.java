@@ -103,7 +103,10 @@ public final class ValidationOpticInterpreter {
         Collections.unmodifiableList(new ArrayList<>(warnings)));
   }
 
-  @SuppressWarnings("unchecked")
+  // Note: These validate methods don't need @SuppressWarnings("unchecked") because
+  // Java's sealed types + switch expressions correctly infer type parameters from
+  // the pattern-matched OpticOp<?, ?> cases.
+
   private <S, A> void validateSet(OpticOp.Set<S, A> op) {
     // Example validation: could check if value is null, out of range, etc.
     if (op.newValue() == null) {
@@ -111,14 +114,12 @@ public final class ValidationOpticInterpreter {
     }
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> void validateSetAll(OpticOp.SetAll<S, A> op) {
     if (op.newValue() == null) {
       warnings.add("SET_ALL operation with null value: " + op.optic());
     }
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> void validateModify(OpticOp.Modify<S, A> op) {
     // Could validate that modifier doesn't return null
     try {
