@@ -1654,7 +1654,6 @@ class TraversalsTest {
       }
     }
 
-
     @Nested
     @DisplayName("Combinator Tests")
     class CombinatorTests {
