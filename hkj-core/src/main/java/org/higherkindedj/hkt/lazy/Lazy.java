@@ -31,8 +31,8 @@ public final class Lazy<A> {
   private static final Class<Lazy> LAZY_CLASS = Lazy.class;
 
   private transient volatile boolean evaluated = false;
-  private @Nullable A value;
-  private @Nullable Throwable exception;
+  private volatile @Nullable A value;
+  private volatile @Nullable Throwable exception;
   private final ThrowableSupplier<? extends A> computation;
 
   private Lazy(ThrowableSupplier<? extends A> computation) {
