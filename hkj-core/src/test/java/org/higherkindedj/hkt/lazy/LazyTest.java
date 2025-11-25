@@ -643,7 +643,15 @@ class LazyTest extends LazyTestBase {
       ExecutorService executor = Executors.newFixedThreadPool(10);
       List<Future<Integer>> futures = new ArrayList<>();
       for (int i = 0; i < 10; i++) {
-        futures.add(executor.submit(() -> lazy.force()));
+        futures.add(
+            executor.submit(
+                () -> {
+                  try {
+                    return lazy.force();
+                  } catch (Throwable t) {
+                    throw new RuntimeException(t);
+                  }
+                }));
       }
 
       // All threads should get the same value
