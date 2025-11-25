@@ -19,12 +19,12 @@ dependencies {
   //annotationProcessor(project(":hkj-processor-plugins"))
 
   // Testing dependencies
-  testImplementation(platform("org.junit:junit-bom:5.13.0"))
+  testImplementation(platform("org.junit:junit-bom:5.14.1"))
   testImplementation("org.junit.jupiter:junit-jupiter")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-  testImplementation("org.assertj:assertj-core:3.27.3")
-  testImplementation("net.jqwik:jqwik:1.9.2")
-  testImplementation("net.jqwik:jqwik-engine:1.9.2")
+  testImplementation("org.assertj:assertj-core:3.27.6")
+  testImplementation("net.jqwik:jqwik:1.9.3")
+  testImplementation("net.jqwik:jqwik-engine:1.9.3")
   testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
 }
 

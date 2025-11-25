@@ -66,52 +66,47 @@ public final class DirectOpticInterpreter {
     return IdKindHelper.ID.narrow(resultKind).value();
   }
 
-  @SuppressWarnings("unchecked")
+  // Note: These execute methods don't need @SuppressWarnings("unchecked") because
+  // Java's sealed types + switch expressions correctly infer type parameters from
+  // the pattern-matched OpticOp<?, ?> cases. The type variables S and A are inferred
+  // from capture variables, and the method bodies contain no explicit casts.
+
   private <S, A> A executeGet(OpticOp.Get<S, A> op) {
     return op.optic().get(op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> java.util.Optional<A> executePreview(OpticOp.Preview<S, A> op) {
     return op.optic().preview(op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> java.util.List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
     return op.optic().getAll(op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeSet(OpticOp.Set<S, A> op) {
     return op.optic().set(op.newValue(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeSetAll(OpticOp.SetAll<S, A> op) {
     return Traversals.modify(op.optic(), ignored -> op.newValue(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
     return op.optic().modify(op.modifier(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
     return Traversals.modify(op.optic(), op.modifier(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> Boolean executeExists(OpticOp.Exists<S, A> op) {
     return op.optic().exists(op.predicate(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> Boolean executeAll(OpticOp.All<S, A> op) {
     return op.optic().all(op.predicate(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> Integer executeCount(OpticOp.Count<S, A> op) {
     return op.optic().length(op.source());
   }

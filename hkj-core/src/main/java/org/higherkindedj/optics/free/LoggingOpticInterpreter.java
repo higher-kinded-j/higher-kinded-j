@@ -84,14 +84,17 @@ public final class LoggingOpticInterpreter {
     return IdKindHelper.ID.narrow(resultKind).value();
   }
 
-  @SuppressWarnings("unchecked")
+  // Note: These execute methods don't need @SuppressWarnings("unchecked") because
+  // Java's sealed types + switch expressions correctly infer type parameters from
+  // the pattern-matched OpticOp<?, ?> cases. The type variables S and A are inferred
+  // from capture variables, and the method bodies contain no explicit casts.
+
   private <S, A> A executeGet(OpticOp.Get<S, A> op) {
     A value = op.optic().get(op.source());
     log.add(String.format("GET: %s -> %s", opticName(op.optic()), value));
     return value;
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> Optional<A> executePreview(OpticOp.Preview<S, A> op) {
     Optional<A> value = op.optic().preview(op.source());
     log.add(
@@ -101,26 +104,22 @@ public final class LoggingOpticInterpreter {
     return value;
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
     List<A> values = op.optic().getAll(op.source());
     log.add(String.format("GET_ALL: %s -> %d items", opticName(op.optic()), values.size()));
     return values;
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeSet(OpticOp.Set<S, A> op) {
     log.add(String.format("SET: %s <- %s", opticName(op.optic()), op.newValue()));
     return op.optic().set(op.newValue(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeSetAll(OpticOp.SetAll<S, A> op) {
     log.add(String.format("SET_ALL: %s <- %s", opticName(op.optic()), op.newValue()));
     return Traversals.modify(op.optic(), ignored -> op.newValue(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
     A oldValue = op.optic().get(op.source());
     A newValue = op.modifier().apply(oldValue);
@@ -128,27 +127,23 @@ public final class LoggingOpticInterpreter {
     return op.optic().set(newValue, op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
     log.add(String.format("MODIFY_ALL: %s", opticName(op.optic())));
     return Traversals.modify(op.optic(), op.modifier(), op.source());
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> Boolean executeExists(OpticOp.Exists<S, A> op) {
     Boolean exists = op.optic().exists(op.predicate(), op.source());
     log.add(String.format("EXISTS: %s -> %s", opticName(op.optic()), exists));
     return exists;
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> Boolean executeAll(OpticOp.All<S, A> op) {
     Boolean all = op.optic().all(op.predicate(), op.source());
     log.add(String.format("ALL: %s -> %s", opticName(op.optic()), all));
     return all;
   }
 
-  @SuppressWarnings("unchecked")
   private <S, A> Integer executeCount(OpticOp.Count<S, A> op) {
     Integer count = op.optic().length(op.source());
     log.add(String.format("COUNT: %s -> %d", opticName(op.optic()), count));
