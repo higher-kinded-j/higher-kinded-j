@@ -1655,48 +1655,6 @@ class TraversalsTest {
     }
 
     @Nested
-    @DisplayName("Performance and Efficiency Tests")
-    @org.junit.jupiter.api.Disabled("Performance tests moved to hkj-benchmarks - see issue #206")
-    class PerformanceTests {
-
-      @Test
-      @DisplayName("should be stack-safe with deep recursion")
-      void shouldBeStackSafe() {
-        final List<State<Integer, Integer>> states = new ArrayList<>();
-        for (int i = 0; i < 5000; i++) {
-          states.add(State.pure(i));
-        }
-
-        final State<Integer, List<Integer>> sequenced = Traversals.sequenceStateList(states);
-        final StateTuple<Integer, List<Integer>> result = sequenced.run(0);
-
-        assertThat(result.value()).hasSize(5000);
-      }
-
-      @Test
-      @DisplayName("should efficiently handle stateful iterations")
-      void shouldHandleStatefulIterationsEfficiently() {
-        // Simulate a counter that tracks how many times state was accessed
-        final List<State<Integer, String>> states = new ArrayList<>();
-        for (int i = 0; i < 1000; i++) {
-          states.add(State.modify((Integer s) -> s + 1).map(u -> "counted"));
-        }
-
-        final long startTime = System.nanoTime();
-        final State<Integer, List<String>> sequenced = invokeSequenceStateList(states);
-        final StateTuple<Integer, List<String>> result = sequenced.run(0);
-        final long endTime = System.nanoTime();
-
-        assertThat(result.state()).isEqualTo(1000);
-        assertThat(result.value()).hasSize(1000);
-
-        // Performance check - should complete in reasonable time (< 100ms)
-        final long durationMs = (endTime - startTime) / 1_000_000;
-        assertThat(durationMs).isLessThan(100);
-      }
-    }
-
-    @Nested
     @DisplayName("Combinator Tests")
     class CombinatorTests {
 
