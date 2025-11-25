@@ -7,10 +7,16 @@ import static org.higherkindedj.hkt.lazy.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -118,9 +124,6 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("force should evaluate deferred supplier only once")
-    @Disabled(
-        "Thread-safety bug: Lazy memoization has race condition. Supplier called 2x in concurrent"
-            + " tests. See GitHub issue #206")
     void forceShouldEvaluateDeferredSupplierOnlyOnce() throws Throwable {
       COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(successSupplier());
@@ -163,9 +166,6 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("force should cache and rethrow runtime exception")
-    @Disabled(
-        "Thread-safety bug: Lazy memoization has race condition. Supplier called 2x in concurrent"
-            + " tests. See GitHub issue #206")
     void forceShouldCacheAndRethrowRuntimeException() {
       COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(runtimeFailSupplier());
@@ -182,9 +182,6 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("force should cache and rethrow checked exception")
-    @Disabled(
-        "Thread-safety bug: Lazy memoization has race condition. Supplier called 2x in concurrent"
-            + " tests. See GitHub issue #206")
     void forceShouldCacheAndRethrowCheckedException() {
       COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(checkedFailSupplier());
@@ -262,9 +259,6 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("map should fail if mapper throws")
-    @Disabled(
-        "Thread-safety bug: Lazy memoization has race condition. Supplier called 2x in concurrent"
-            + " tests. See GitHub issue #206")
     void mapShouldFailIfMapperThrows() {
       COUNTER.set(0);
       RuntimeException mapperEx = new IllegalArgumentException("Mapper failed");
@@ -303,9 +297,6 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("flatMap should sequence lazily")
-    @Disabled(
-        "Thread-safety bug: Lazy memoization has race condition. Supplier called 2x in concurrent"
-            + " tests. See GitHub issue #206")
     void flatMapShouldSequenceLazily() throws Throwable {
       COUNTER.set(0);
       AtomicInteger innerCounter = new AtomicInteger(0);
@@ -633,6 +624,53 @@ class LazyTest extends LazyTestBase {
       // Verify that all threads got the same exception
       for (int i = 0; i < threadCount; i++) {
         assertThat(exceptions[i]).isInstanceOf(IllegalStateException.class).isSameAs(testException);
+      }
+    }
+
+    @Test
+    @DisplayName("ExecutorService concurrent force() calls should evaluate only once")
+    void executorServiceConcurrentForceCallsShouldEvaluateOnlyOnce() throws Exception {
+      AtomicInteger count = new AtomicInteger(0);
+      Lazy<Integer> lazy =
+          Lazy.defer(
+              () -> {
+                Thread.sleep(10); // Small delay to increase contention
+                return count.incrementAndGet();
+              });
+
+      // 10 threads all force() simultaneously
+      ExecutorService executor = Executors.newFixedThreadPool(10);
+      try {
+        List<Future<Integer>> futures = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+          futures.add(
+              executor.submit(
+                  () -> {
+                    try {
+                      return lazy.force();
+                    } catch (Throwable t) {
+                      throw new RuntimeException(t);
+                    }
+                  }));
+        }
+
+        // All threads should get the same value
+        Set<Integer> results =
+            futures.stream()
+                .map(
+                    f -> {
+                      try {
+                        return f.get();
+                      } catch (Exception e) {
+                        throw new RuntimeException(e);
+                      }
+                    })
+                .collect(Collectors.toSet());
+
+        assertThat(results).hasSize(1); // All got same value
+        assertThat(count.get()).isEqualTo(1); // Supplier called once!
+      } finally {
+        executor.shutdown();
       }
     }
   }
