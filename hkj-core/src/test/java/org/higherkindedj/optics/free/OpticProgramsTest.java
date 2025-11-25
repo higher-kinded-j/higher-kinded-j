@@ -466,10 +466,10 @@ class OpticProgramsTest {
     ValidationOpticInterpreter.ValidationResult result =
         validator.validate(OpticPrograms.setAll(team, ages, null));
 
-    // Should warn about null value
-    assertTrue(result.isValid()); // No errors, but...
-    assertTrue(result.hasWarnings()); // ...has warnings
-    assertFalse(result.warnings().isEmpty());
+    // Should warn about null value AND have error because execution fails (null Integer)
+    assertTrue(result.hasWarnings()); // ...has warnings about null
+    assertFalse(result.isValid()); // Has errors because execution fails
+    assertFalse(result.errors().isEmpty());
   }
 
   @Test
@@ -521,6 +521,111 @@ class OpticProgramsTest {
     assertFalse(result.hasWarnings());
     assertTrue(result.warnings().isEmpty());
     assertTrue(result.errors().isEmpty());
+  }
+
+  @Test
+  void testValidationInterpreterChainedOperations() {
+    // This test verifies that chained flatMap operations work correctly.
+    // The validation interpreter must execute operations to provide proper
+    // results for subsequent flatMap calls.
+    Person person = new Person("Alice", 25);
+
+    // Chain multiple operations: set name -> modify age -> modify name
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.set(person, NAME_LENS, "Bob")
+            .flatMap(p -> OpticPrograms.modify(p, AGE_LENS, age -> age + 1))
+            .flatMap(p -> OpticPrograms.modify(p, NAME_LENS, name -> name.toUpperCase()));
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result = validator.validate(program);
+
+    // Should validate successfully with no errors
+    assertTrue(result.isValid(), "Chained operations should validate successfully");
+    assertTrue(result.errors().isEmpty(), "Should have no errors");
+  }
+
+  @Test
+  void testValidationInterpreterChainedOperationsMatchDirectInterpreter() {
+    // Verify that validation interpreter produces the same result as direct interpreter
+    // for chained operations
+    Person person = new Person("Alice", 25);
+
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.set(person, NAME_LENS, "Bob")
+            .flatMap(p -> OpticPrograms.modify(p, AGE_LENS, age -> age + 5))
+            .flatMap(p -> OpticPrograms.set(p, NAME_LENS, "Charlie"));
+
+    // Run with direct interpreter
+    Person directResult = OpticInterpreters.direct().run(program);
+
+    // Validation should succeed
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult validationResult = validator.validate(program);
+
+    assertTrue(validationResult.isValid());
+    assertEquals("Charlie", directResult.name());
+    assertEquals(30, directResult.age());
+  }
+
+  @Test
+  void testValidationInterpreterChainedWithGetOperation() {
+    // Test that GET operations in a chain work correctly
+    Person person = new Person("Alice", 25);
+
+    Free<OpticOpKind.Witness, String> program =
+        OpticPrograms.modify(person, AGE_LENS, age -> age + 1)
+            .flatMap(p -> OpticPrograms.get(p, NAME_LENS));
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result = validator.validate(program);
+
+    assertTrue(result.isValid());
+  }
+
+  @Test
+  void testValidationInterpreterSetWithException() {
+    Person person = new Person("Alice", 25);
+
+    // Create a lens that throws an exception when setting
+    Lens<Person, String> faultyLens =
+        Lens.of(
+            Person::name,
+            (p, name) -> {
+              throw new RuntimeException("Set failed");
+            });
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.set(person, faultyLens, "Bob"));
+
+    // Should have errors due to exception during set
+    assertFalse(result.isValid());
+    assertFalse(result.errors().isEmpty());
+    assertTrue(result.errors().get(0).contains("SET operation failed"));
+  }
+
+  @Test
+  void testValidationInterpreterModifyAllWithException() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+
+    // Create a traversal with a lens that throws during modification
+    Lens<Person, Integer> faultyAgeLens =
+        Lens.of(
+            Person::age,
+            (p, age) -> {
+              throw new RuntimeException("ModifyAll failed");
+            });
+    Traversal<Team, Integer> faultyAges =
+        TEAM_MEMBERS_TRAVERSAL.andThen(faultyAgeLens.asTraversal());
+
+    ValidationOpticInterpreter validator = OpticInterpreters.validating();
+    ValidationOpticInterpreter.ValidationResult result =
+        validator.validate(OpticPrograms.modifyAll(team, faultyAges, age -> age + 1));
+
+    // Should have errors due to exception during modifyAll
+    assertFalse(result.isValid());
+    assertFalse(result.errors().isEmpty());
+    assertTrue(result.errors().get(0).contains("MODIFY_ALL operation failed"));
   }
 
   // ============================================================================
