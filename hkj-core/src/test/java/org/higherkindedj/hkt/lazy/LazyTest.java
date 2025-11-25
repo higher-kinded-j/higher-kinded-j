@@ -641,36 +641,38 @@ class LazyTest extends LazyTestBase {
 
       // 10 threads all force() simultaneously
       ExecutorService executor = Executors.newFixedThreadPool(10);
-      List<Future<Integer>> futures = new ArrayList<>();
-      for (int i = 0; i < 10; i++) {
-        futures.add(
-            executor.submit(
-                () -> {
-                  try {
-                    return lazy.force();
-                  } catch (Throwable t) {
-                    throw new RuntimeException(t);
-                  }
-                }));
-      }
-
-      // All threads should get the same value
-      Set<Integer> results =
-          futures.stream()
-              .map(
-                  f -> {
+      try {
+        List<Future<Integer>> futures = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+          futures.add(
+              executor.submit(
+                  () -> {
                     try {
-                      return f.get();
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
+                      return lazy.force();
+                    } catch (Throwable t) {
+                      throw new RuntimeException(t);
                     }
-                  })
-              .collect(Collectors.toSet());
+                  }));
+        }
 
-      executor.shutdown();
+        // All threads should get the same value
+        Set<Integer> results =
+            futures.stream()
+                .map(
+                    f -> {
+                      try {
+                        return f.get();
+                      } catch (Exception e) {
+                        throw new RuntimeException(e);
+                      }
+                    })
+                .collect(Collectors.toSet());
 
-      assertThat(results).hasSize(1); // All got same value
-      assertThat(count.get()).isEqualTo(1); // Supplier called once!
+        assertThat(results).hasSize(1); // All got same value
+        assertThat(count.get()).isEqualTo(1); // Supplier called once!
+      } finally {
+        executor.shutdown();
+      }
     }
   }
 
