@@ -45,11 +45,6 @@ jmh {
   // profilers = listOf("gc")
 }
 
-// Ensure Java version matches the rest of the project
-java {
-  sourceCompatibility = JavaVersion.VERSION_25
-  targetCompatibility = JavaVersion.VERSION_25
-}
 
 tasks {
   // Create a task to run benchmarks and show results
