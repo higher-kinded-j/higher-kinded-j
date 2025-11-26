@@ -21,6 +21,7 @@ tasks.named("javadoc") {
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
+    failOnNoDiscoveredTests = false
 
     // Exclude tutorial tests from CI builds
     // These are interactive exercises meant for users, not automated testing
