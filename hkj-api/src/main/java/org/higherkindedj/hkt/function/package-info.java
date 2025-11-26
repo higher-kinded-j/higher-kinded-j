@@ -9,5 +9,7 @@
  * and in the {@code org.higherkindedj.hkt.expression.For} comprehension builder, enabling the
  * combination of multiple monadic values.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.function;
+
+import org.jspecify.annotations.NullMarked;

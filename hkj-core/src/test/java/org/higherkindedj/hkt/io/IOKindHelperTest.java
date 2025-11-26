@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.ioKindHelper;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
@@ -451,7 +452,7 @@ class IOKindHelperTest extends IOTestBase {
               IO.delay(() -> "simple_string"),
               IO.delay(() -> DEFAULT_IO_VALUE),
               IO.delay(() -> List.of(1, 2, 3)),
-              IO.delay(() -> java.util.Map.of("key", "value")),
+              IO.delay(() -> Map.of("key", "value")),
               IO.delay(() -> null));
 
       for (IO<Object> instance : complexInstances) {

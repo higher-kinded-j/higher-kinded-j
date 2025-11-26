@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.spi;
 
+import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
+import java.util.List;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -30,6 +32,6 @@ public interface TraversableGenerator {
    */
   CodeBlock generateModifyF(
       RecordComponentElement component,
-      com.palantir.javapoet.ClassName recordClassName,
-      java.util.List<? extends RecordComponentElement> allComponents);
+      ClassName recordClassName,
+      List<? extends RecordComponentElement> allComponents);
 }

@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
@@ -310,8 +311,7 @@ public class BifunctorExample {
     Kind2<Tuple2Kind2.Witness, Integer, String> migratedData =
         bifunctor.bimap(
             id -> Integer.parseInt(id.substring(5)), // Extract number from "USER_123"
-            timestamp ->
-                java.time.Instant.ofEpochMilli(timestamp).toString(), // Convert to ISO string
+            timestamp -> Instant.ofEpochMilli(timestamp).toString(), // Convert to ISO string
             TUPLE2.widen2(legacyData));
 
     System.out.println("Legacy: " + legacyData);

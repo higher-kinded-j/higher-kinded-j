@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.test.patterns;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -187,7 +188,7 @@ public final class KindHelperTestPattern {
 
     assertThat(allTasks)
         .as("All concurrent operations should complete successfully")
-        .succeedsWithin(java.time.Duration.ofSeconds(5));
+        .succeedsWithin(Duration.ofSeconds(5));
   }
 
   // =============================================================================

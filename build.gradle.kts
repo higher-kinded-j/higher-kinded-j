@@ -3,12 +3,32 @@ plugins {
     java
     id("com.vanniktech.maven.publish") version "0.33.0"
     id("com.diffplug.spotless") version "8.1.0"
+    id("org.openrewrite.rewrite") version "7.21.0"
 }
 
 // Global properties for all modules
 group = "io.github.higher-kinded-j"
 version = project.findProperty("projectVersion")?.toString() ?: "0.2.2-SNAPSHOT"
 
+
+// Repositories for root project (required for OpenRewrite dependencies)
+repositories {
+    mavenCentral()
+}
+// OpenRewrite configuration for the root project
+rewrite {
+    activeRecipe("org.openrewrite.java.ShortenFullyQualifiedTypeReferences")
+    failOnDryRunResults = true  // CI enforcement
+
+    // Only parse Java source files, exclude build scripts and other non-Java files
+    exclusion(
+        "**/*.kts",
+        "**/*.kt",
+        "**/*.gradle",
+        "**/build/**",
+        "**/.gradle/**"
+    )
+}
 
 
 // Configure all submodules

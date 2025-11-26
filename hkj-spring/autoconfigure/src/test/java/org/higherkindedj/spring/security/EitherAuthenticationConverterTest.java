@@ -5,6 +5,7 @@ package org.higherkindedj.spring.security;
 import static org.assertj.core.api.Assertions.*;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -133,8 +134,7 @@ class EitherAuthenticationConverterTest {
               .issuedAt(Instant.now())
               .expiresAt(Instant.now().plusSeconds(3600))
               .claim(
-                  "roles",
-                  java.util.Arrays.asList("USER", 123, "ADMIN", null)) // Mixed types including null
+                  "roles", Arrays.asList("USER", 123, "ADMIN", null)) // Mixed types including null
               .build();
 
       AbstractAuthenticationToken token = converter.convert(jwt);

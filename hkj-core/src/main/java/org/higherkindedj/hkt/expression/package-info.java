@@ -6,5 +6,7 @@
  * easier to sequence {@code flatMap}, {@code map}, and filtering operations in a readable, linear
  * style.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.expression;
+
+import org.jspecify.annotations.NullMarked;

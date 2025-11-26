@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
@@ -182,7 +183,7 @@ final class IOSelectiveTestExecutor<A, B>
   @Override
   protected void executeEdgeCaseTests() {
     // Test with null values in Choice
-    IO<Choice<A, B>> choiceWithNull = IO.delay(() -> org.higherkindedj.hkt.Selective.left(null));
+    IO<Choice<A, B>> choiceWithNull = IO.delay(() -> Selective.left(null));
     Kind<IOKind.Witness, Choice<A, B>> choiceKind = IO_OP.widen(choiceWithNull);
     Kind<IOKind.Witness, Function<A, B>> funcKind =
         IO_OP.widen(IO.delay(() -> a -> a == null ? null : selectFunction.apply(a)));

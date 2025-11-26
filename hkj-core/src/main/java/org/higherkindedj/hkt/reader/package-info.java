@@ -5,5 +5,7 @@
  * org.higherkindedj.hkt.reader.ReaderKind}, {@link org.higherkindedj.hkt.reader.ReaderMonad}, and
  * helper utilities.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.reader;
+
+import org.jspecify.annotations.NullMarked;

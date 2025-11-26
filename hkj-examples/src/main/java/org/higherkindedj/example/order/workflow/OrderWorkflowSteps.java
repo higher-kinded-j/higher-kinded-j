@@ -14,6 +14,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.higherkindedj.example.order.error.DomainError;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
@@ -139,7 +140,7 @@ public class OrderWorkflowSteps {
    * @return A CompletableFuture that will complete with the result of the action after the delay.
    */
   private <T> CompletableFuture<T> simulateAsync(
-      java.util.function.Supplier<T> action, long delayMillis, String stepName) {
+      Supplier<T> action, long delayMillis, String stepName) {
     return CompletableFuture.supplyAsync(
         () -> {
           try {

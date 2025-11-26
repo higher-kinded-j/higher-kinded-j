@@ -14,5 +14,7 @@
  * @see org.higherkindedj.hkt.either.Either
  * @see org.higherkindedj.hkt.either.EitherAssert
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.either;
+
+import org.jspecify.annotations.NullMarked;

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.reader;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.reader.ReaderAssert.assertThatReader;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -70,7 +71,7 @@ class ReaderFunctorTest extends ReaderTestBase {
       Kind<ReaderKind.Witness<TestConfig>, Integer> maxConnectionsKind =
           ReaderKindHelper.READER.widen(maxConnectionsReader);
 
-      java.util.function.Function<Integer, String> mapper = i -> "MaxConnections: " + i;
+      Function<Integer, String> mapper = i -> "MaxConnections: " + i;
 
       Kind<ReaderKind.Witness<TestConfig>, String> result = functor.map(mapper, maxConnectionsKind);
 
@@ -101,7 +102,7 @@ class ReaderFunctorTest extends ReaderTestBase {
     @Test
     @DisplayName("map() with identity function returns equivalent Reader")
     void mapWithIdentityFunctionReturnsEquivalentReader() {
-      java.util.function.Function<Integer, Integer> identity = i -> i;
+      Function<Integer, Integer> identity = i -> i;
 
       Kind<ReaderKind.Witness<TestConfig>, Integer> result = functor.map(identity, validKind);
 
@@ -162,7 +163,7 @@ class ReaderFunctorTest extends ReaderTestBase {
     @DisplayName("map() propagates exceptions when run")
     void mapPropagatesExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: map");
-      java.util.function.Function<Integer, String> throwingMapper =
+      Function<Integer, String> throwingMapper =
           i -> {
             throw testException;
           };
@@ -205,7 +206,7 @@ class ReaderFunctorTest extends ReaderTestBase {
     @DisplayName("Composed map() operations propagate exceptions lazily")
     void composedMapOperationsPropagateExceptionsLazily() {
       RuntimeException testException = new RuntimeException("Test exception: composed");
-      java.util.function.Function<String, String> throwingSecondMapper =
+      Function<String, String> throwingSecondMapper =
           s -> {
             throw testException;
           };
@@ -232,7 +233,7 @@ class ReaderFunctorTest extends ReaderTestBase {
     @Test
     @DisplayName("map() handles null results correctly")
     void mapHandlesNullResultsCorrectly() {
-      java.util.function.Function<Integer, String> nullReturningMapper = i -> null;
+      Function<Integer, String> nullReturningMapper = i -> null;
 
       Kind<ReaderKind.Witness<TestConfig>, String> result =
           functor.map(nullReturningMapper, validKind);
@@ -251,8 +252,7 @@ class ReaderFunctorTest extends ReaderTestBase {
       Kind<ReaderKind.Witness<TestConfig>, String> multiAccessKind =
           ReaderKindHelper.READER.widen(multiAccessReader);
 
-      java.util.function.Function<String, Integer> countEquals =
-          s -> (int) s.chars().filter(ch -> ch == '=').count();
+      Function<String, Integer> countEquals = s -> (int) s.chars().filter(ch -> ch == '=').count();
 
       Kind<ReaderKind.Witness<TestConfig>, Integer> result =
           functor.map(countEquals, multiAccessKind);

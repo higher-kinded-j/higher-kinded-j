@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -245,7 +246,7 @@ abstract class IOTestBase extends TypeClassTestBase<IOKind.Witness, Integer, Str
       // Execute both IOs and compare their results using Object.equals()
       Object v1 = IO_OP.narrow(castKind(k1)).unsafeRunSync();
       Object v2 = IO_OP.narrow(castKind(k2)).unsafeRunSync();
-      return java.util.Objects.equals(v1, v2);
+      return Objects.equals(v1, v2);
     };
   }
 

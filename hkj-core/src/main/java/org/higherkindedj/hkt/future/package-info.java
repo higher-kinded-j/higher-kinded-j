@@ -5,5 +5,7 @@
  * org.higherkindedj.hkt.future.CompletableFutureMonad}, and helper utilities for working with
  * {@code CompletableFuture} in an HKT context.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.future;
+
+import org.jspecify.annotations.NullMarked;

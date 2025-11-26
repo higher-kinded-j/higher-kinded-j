@@ -4,7 +4,9 @@ package org.higherkindedj.hkt.constant;
 
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 
+import java.util.Objects;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
@@ -195,13 +197,12 @@ abstract class ConstTestBase
    * @return A BiPredicate that compares Const accumulated values
    */
   @Override
-  protected java.util.function.BiPredicate<
-          Kind<ConstKind.Witness<Integer>, ?>, Kind<ConstKind.Witness<Integer>, ?>>
+  protected BiPredicate<Kind<ConstKind.Witness<Integer>, ?>, Kind<ConstKind.Witness<Integer>, ?>>
       createEqualityChecker() {
     return (k1, k2) -> {
       Const<Integer, ?> const1 = CONST.narrow(k1);
       Const<Integer, ?> const2 = CONST.narrow(k2);
-      return java.util.Objects.equals(const1.value(), const2.value());
+      return Objects.equals(const1.value(), const2.value());
     };
   }
 

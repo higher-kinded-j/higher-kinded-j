@@ -96,5 +96,7 @@
  * @see org.higherkindedj.hkt.either
  * @see org.higherkindedj.hkt.validated
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.optics.extensions;
+
+import org.jspecify.annotations.NullMarked;

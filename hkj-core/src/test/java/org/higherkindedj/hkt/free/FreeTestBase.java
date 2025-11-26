@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.free;
 import static org.higherkindedj.hkt.free.FreeKindHelper.FREE;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
 
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -124,7 +125,7 @@ abstract class FreeTestBase
       Object result1 = runFree((Free<IdentityKind.Witness, Object>) free1);
       Object result2 = runFree((Free<IdentityKind.Witness, Object>) free2);
 
-      return java.util.Objects.equals(result1, result2);
+      return Objects.equals(result1, result2);
     };
   }
 }

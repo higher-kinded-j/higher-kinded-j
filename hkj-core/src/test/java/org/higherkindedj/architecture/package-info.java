@@ -17,5 +17,7 @@
  *
  * <p>These rules help maintain consistency and quality as the codebase grows.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.architecture;
+
+import org.jspecify.annotations.NullMarked;

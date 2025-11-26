@@ -11,5 +11,7 @@
  *       tests
  * </ul>
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.trampoline;
+
+import org.jspecify.annotations.NullMarked;

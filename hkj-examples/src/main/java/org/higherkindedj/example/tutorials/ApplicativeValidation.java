@@ -5,6 +5,7 @@ package org.higherkindedj.example.tutorials;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
@@ -79,7 +80,7 @@ public final class ApplicativeValidation {
   record UserRegistration(String username, String email, int age, String password) {}
 
   /** Validation errors accumulated across multiple fields. */
-  record ValidationErrors(java.util.List<String> errors) {
+  record ValidationErrors(List<String> errors) {
     @Override
     public String toString() {
       return String.join(", ", errors);

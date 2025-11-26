@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.validated;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.function.Predicate;
+
 /**
  * Fluent assertion utilities for {@link Validated} types. Provides a convenient API for testing
  * Validated instances in unit tests.
@@ -130,7 +132,7 @@ public class ValidatedAssert<E, A> {
    * @throws AssertionError if the Validated is Invalid or the predicate fails
    */
   public ValidatedAssert<E, A> hasValueSatisfying(
-      java.util.function.Predicate<A> predicate, String predicateDescription) {
+      Predicate<A> predicate, String predicateDescription) {
     isValid();
     A actual =
         validated.fold(
@@ -155,7 +157,7 @@ public class ValidatedAssert<E, A> {
    * @throws AssertionError if the Validated is Valid or the predicate fails
    */
   public ValidatedAssert<E, A> hasErrorSatisfying(
-      java.util.function.Predicate<E> predicate, String predicateDescription) {
+      Predicate<E> predicate, String predicateDescription) {
     isInvalid();
     E actual =
         validated.fold(

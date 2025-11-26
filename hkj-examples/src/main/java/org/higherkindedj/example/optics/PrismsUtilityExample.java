@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Unit;
@@ -166,7 +167,7 @@ public class PrismsUtilityExample {
         "Extract from null: " + notNullPrism.getOptional(nullValue).orElse("was null"));
 
     // Practical use: Filter null values in a list
-    List<String> mixedList = java.util.Arrays.asList("hello", null, "world", null, "test");
+    List<String> mixedList = Arrays.asList("hello", null, "world", null, "test");
 
     Traversal<List<String>, String> nonNullStrings =
         Traversals.<String>forList().andThen(Prisms.<String>notNull().asTraversal());

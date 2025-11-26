@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.stream;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -207,7 +208,7 @@ class StreamAlternativeTest {
 
       List<Integer> resultList = STREAM.narrow(result).collect(Collectors.toList());
       // Create a fresh stream for comparison since streams can only be consumed once
-      List<Integer> expected = java.util.Arrays.asList(1, 2, 3);
+      List<Integer> expected = Arrays.asList(1, 2, 3);
       assertThat(resultList).isEqualTo(expected);
     }
 
@@ -219,7 +220,7 @@ class StreamAlternativeTest {
 
       List<Integer> resultList = STREAM.narrow(result).collect(Collectors.toList());
       // Create a fresh stream for comparison since streams can only be consumed once
-      List<Integer> expected = java.util.Arrays.asList(1, 2, 3);
+      List<Integer> expected = Arrays.asList(1, 2, 3);
       assertThat(resultList).isEqualTo(expected);
     }
 

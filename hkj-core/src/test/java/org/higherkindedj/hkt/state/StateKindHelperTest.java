@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.state.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.*;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -112,7 +113,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
     @Test
     @DisplayName("modify should wrap State.modify")
     void modifyShouldWrapStateModify() {
-      java.util.function.Function<Integer, Integer> tripler = s -> s * 3;
+      Function<Integer, Integer> tripler = s -> s * 3;
       Kind<StateKind.Witness<Integer>, Unit> kind = STATE.modify(tripler);
       StateTuple<Integer, Unit> result = runState(kind, getInitialState());
 
@@ -122,7 +123,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
     @Test
     @DisplayName("inspect should wrap State.inspect")
     void inspectShouldWrapStateInspect() {
-      java.util.function.Function<Integer, String> describe = s -> "State is " + s;
+      Function<Integer, String> describe = s -> "State is " + s;
       Kind<StateKind.Witness<Integer>, String> kind = STATE.inspect(describe);
       StateTuple<Integer, String> result = runState(kind, getInitialState());
 

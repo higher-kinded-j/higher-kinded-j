@@ -3,6 +3,7 @@
 package org.higherkindedj.optics;
 
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * A type class for structures that support indexed access with insertion and deletion semantics.
@@ -150,7 +151,7 @@ public interface At<S, I, A> {
    * @param source The original structure
    * @return A new structure with the modified value, or unchanged if absent
    */
-  default S modify(I index, java.util.function.Function<A, A> modifier, S source) {
+  default S modify(I index, Function<A, A> modifier, S source) {
     return at(index).modify(opt -> opt.map(modifier), source);
   }
 

@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.either.Either;
@@ -180,7 +182,7 @@ class ValidatedTest extends ValidatedTestBase {
     @DisplayName("Test Functor exception propagation only")
     void testFunctorExceptionPropagationOnly() {
       RuntimeException testException = new RuntimeException("Test exception: functor test");
-      java.util.function.Function<Integer, String> throwingMapper =
+      Function<Integer, String> throwingMapper =
           i -> {
             throw testException;
           };
@@ -239,11 +241,10 @@ class ValidatedTest extends ValidatedTestBase {
     @DisplayName("Test Monad exception propagation only")
     void testMonadExceptionPropagationOnly() {
       RuntimeException testException = new RuntimeException("Test exception: monad test");
-      java.util.function.Function<Integer, Kind<ValidatedKind.Witness<String>, String>>
-          throwingFlatMapper =
-              i -> {
-                throw testException;
-              };
+      Function<Integer, Kind<ValidatedKind.Witness<String>, String>> throwingFlatMapper =
+          i -> {
+            throw testException;
+          };
 
       Kind<ValidatedKind.Witness<String>, Integer> validKindInstance =
           VALIDATED.widen(validInstance);
@@ -455,8 +456,7 @@ class ValidatedTest extends ValidatedTestBase {
     @Test
     @DisplayName("validateThat with supplier evaluates error lazily")
     void validateThatWithSupplierEvaluatesErrorLazily() {
-      java.util.concurrent.atomic.AtomicInteger counter =
-          new java.util.concurrent.atomic.AtomicInteger(0);
+      AtomicInteger counter = new AtomicInteger(0);
 
       Supplier<String> errorSupplier =
           () -> {
@@ -867,13 +867,13 @@ class ValidatedTest extends ValidatedTestBase {
     @Test
     @DisplayName("Validated for parallel validation")
     void validatedForParallelValidation() {
-      java.util.function.Function<String, Validated<String, Unit>> validateLength =
+      Function<String, Validated<String, Unit>> validateLength =
           s -> Validated.validateThat(s.length() >= 3, "Name must be at least 3 characters");
 
-      java.util.function.Function<String, Validated<String, Unit>> validateNotEmpty =
+      Function<String, Validated<String, Unit>> validateNotEmpty =
           s -> Validated.validateThat(!s.isEmpty(), "Name cannot be empty");
 
-      java.util.function.Function<String, Validated<String, Unit>> validateAlpha =
+      Function<String, Validated<String, Unit>> validateAlpha =
           s ->
               Validated.validateThat(
                   s.chars().allMatch(Character::isLetter), "Name must contain only letters");
@@ -917,7 +917,7 @@ class ValidatedTest extends ValidatedTestBase {
     @Test
     @DisplayName("Validated pattern matching with switch expressions")
     void validatedPatternMatchingWithSwitch() {
-      java.util.function.Function<Validated<String, Integer>, String> processValidated =
+      Function<Validated<String, Integer>, String> processValidated =
           validated ->
               switch (validated) {
                 case Invalid<String, Integer>(var error) -> "Error: " + error;

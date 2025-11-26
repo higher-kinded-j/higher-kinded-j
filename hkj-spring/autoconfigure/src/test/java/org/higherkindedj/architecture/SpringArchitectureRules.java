@@ -11,6 +11,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 
 /**
@@ -224,7 +225,7 @@ class SpringArchitectureRules {
         .that()
         .haveSimpleNameEndingWith("AutoConfiguration")
         .should()
-        .beAnnotatedWith(org.springframework.boot.autoconfigure.AutoConfiguration.class)
+        .beAnnotatedWith(AutoConfiguration.class)
         .allowEmptyShould(true)
         .check(classes);
   }

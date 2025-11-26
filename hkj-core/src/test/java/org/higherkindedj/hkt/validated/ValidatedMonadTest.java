@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -237,7 +238,7 @@ class ValidatedMonadTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> nullReturningFn = n -> null;
 
-      org.junit.jupiter.api.Assertions.assertThrows(
+      Assertions.assertThrows(
           KindUnwrapException.class, () -> monad.flatMap(nullReturningFn, kind));
     }
 

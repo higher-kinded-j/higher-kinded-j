@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -187,8 +189,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <A> The focus type.
    * @return A new Setter.
    */
-  static <S, A> Setter<S, A> fromGetSet(
-      Function<S, A> getter, java.util.function.BiFunction<S, A, S> setter) {
+  static <S, A> Setter<S, A> fromGetSet(Function<S, A> getter, BiFunction<S, A, S> setter) {
     return new Setter<>() {
       @Override
       public S modify(Function<A, A> f, S source) {
@@ -217,24 +218,24 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <A> The element type.
    * @return A Setter for list elements.
    */
-  static <A> Setter<java.util.List<A>, A> forList() {
+  static <A> Setter<List<A>, A> forList() {
     return new Setter<>() {
       @Override
-      public java.util.List<A> modify(Function<A, A> f, java.util.List<A> source) {
+      public List<A> modify(Function<A, A> f, List<A> source) {
         return source.stream().map(f).toList();
       }
 
       @Override
-      public <F> Kind<F, java.util.List<A>> modifyF(
-          Function<A, Kind<F, A>> f, java.util.List<A> s, Applicative<F> app) {
+      public <F> Kind<F, List<A>> modifyF(
+          Function<A, Kind<F, A>> f, List<A> s, Applicative<F> app) {
         // Collect all effectful results first
-        java.util.List<Kind<F, A>> effects = new java.util.ArrayList<>(s.size());
+        List<Kind<F, A>> effects = new ArrayList<>(s.size());
         for (A a : s) {
           effects.add(f.apply(a));
         }
 
         // Sequence effects using right-to-left fold with LinkedList for O(1) prepending
-        Kind<F, java.util.LinkedList<A>> acc = app.of(new java.util.LinkedList<>());
+        Kind<F, LinkedList<A>> acc = app.of(new LinkedList<>());
         for (int i = effects.size() - 1; i >= 0; i--) {
           Kind<F, A> fa = effects.get(i);
           acc =
@@ -248,7 +249,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
         }
 
         // Convert LinkedList to immutable List at the end (O(n) total)
-        return app.map(java.util.List::copyOf, acc);
+        return app.map(List::copyOf, acc);
       }
     };
   }
@@ -269,30 +270,30 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <V> The value type.
    * @return A Setter for map values.
    */
-  static <K, V> Setter<java.util.Map<K, V>, V> forMapValues() {
+  static <K, V> Setter<Map<K, V>, V> forMapValues() {
     return new Setter<>() {
       @Override
-      public java.util.Map<K, V> modify(Function<V, V> f, java.util.Map<K, V> source) {
-        java.util.Map<K, V> result = new java.util.HashMap<>();
-        for (java.util.Map.Entry<K, V> entry : source.entrySet()) {
+      public Map<K, V> modify(Function<V, V> f, Map<K, V> source) {
+        Map<K, V> result = new HashMap<>();
+        for (Map.Entry<K, V> entry : source.entrySet()) {
           result.put(entry.getKey(), f.apply(entry.getValue()));
         }
         return result;
       }
 
       @Override
-      public <F> Kind<F, java.util.Map<K, V>> modifyF(
-          Function<V, Kind<F, V>> f, java.util.Map<K, V> s, Applicative<F> app) {
+      public <F> Kind<F, Map<K, V>> modifyF(
+          Function<V, Kind<F, V>> f, Map<K, V> s, Applicative<F> app) {
         // Collect all keys and effectful values
-        java.util.List<K> keys = new java.util.ArrayList<>(s.size());
-        java.util.List<Kind<F, V>> effects = new java.util.ArrayList<>(s.size());
-        for (java.util.Map.Entry<K, V> entry : s.entrySet()) {
+        List<K> keys = new ArrayList<>(s.size());
+        List<Kind<F, V>> effects = new ArrayList<>(s.size());
+        for (Map.Entry<K, V> entry : s.entrySet()) {
           keys.add(entry.getKey());
           effects.add(f.apply(entry.getValue()));
         }
 
         // Sequence effects to get Kind<F, List<V>>
-        Kind<F, java.util.LinkedList<V>> acc = app.of(new java.util.LinkedList<>());
+        Kind<F, LinkedList<V>> acc = app.of(new LinkedList<>());
         for (int i = effects.size() - 1; i >= 0; i--) {
           Kind<F, V> fv = effects.get(i);
           acc =
@@ -308,8 +309,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
         // Convert to Map at the end (O(n) total)
         return app.map(
             values -> {
-              java.util.Map<K, V> resultMap = new java.util.HashMap<>();
-              java.util.Iterator<V> valIter = values.iterator();
+              Map<K, V> resultMap = new HashMap<>();
+              Iterator<V> valIter = values.iterator();
               for (K key : keys) {
                 resultMap.put(key, valIter.next());
               }

@@ -7,5 +7,7 @@
  * @see org.higherkindedj.hkt.stream.StreamKind
  * @see org.higherkindedj.hkt.stream.StreamMonad
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.stream;
+
+import org.jspecify.annotations.NullMarked;

@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
@@ -320,7 +321,7 @@ public final class IndexedTraversals {
    * @return An indexed traversal that focuses based on index condition
    */
   public static <I, A> IndexedTraversal<I, Pair<I, A>, A> filteredByIndex(
-      final java.util.function.Predicate<? super I> indexPredicate) {
+      final Predicate<? super I> indexPredicate) {
     return new IndexedTraversal<>() {
       @Override
       public <F> Kind<F, Pair<I, A>> imodifyF(

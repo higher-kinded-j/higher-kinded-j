@@ -14,5 +14,7 @@
  * org.higherkindedj.hkt.either.EitherKind}, {@link org.higherkindedj.hkt.either.EitherMonad}, and
  * helpers.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.either;
+
+import org.jspecify.annotations.NullMarked;

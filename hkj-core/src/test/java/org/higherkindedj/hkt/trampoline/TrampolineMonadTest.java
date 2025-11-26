@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.trampoline;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.trampoline.TrampolineKindHelper.TRAMPOLINE;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
@@ -173,8 +174,7 @@ class TrampolineMonadTest extends TrampolineTestBase {
     @DisplayName("ap() applies function to value")
     void apAppliesFunctionToValue() {
       Kind<TrampolineKind.Witness, Integer> value = monad.of(42);
-      Kind<TrampolineKind.Witness, java.util.function.Function<Integer, Integer>> func =
-          monad.of(x -> x * 2);
+      Kind<TrampolineKind.Witness, Function<Integer, Integer>> func = monad.of(x -> x * 2);
 
       Kind<TrampolineKind.Witness, Integer> result = monad.ap(func, value);
 
@@ -193,8 +193,7 @@ class TrampolineMonadTest extends TrampolineTestBase {
     @Test
     @DisplayName("ap() with null value throws NullPointerException")
     void apWithNullValueThrows() {
-      Kind<TrampolineKind.Witness, java.util.function.Function<Integer, Integer>> func =
-          monad.of(x -> x * 2);
+      Kind<TrampolineKind.Witness, Function<Integer, Integer>> func = monad.of(x -> x * 2);
 
       assertThatThrownBy(() -> monad.ap(func, null)).isInstanceOf(NullPointerException.class);
     }
@@ -206,8 +205,7 @@ class TrampolineMonadTest extends TrampolineTestBase {
 
       // Chain 1,000 ap operations
       for (int i = 0; i < 1_000; i++) {
-        Kind<TrampolineKind.Witness, java.util.function.Function<Integer, Integer>> func =
-            monad.of(x -> x + 1);
+        Kind<TrampolineKind.Witness, Function<Integer, Integer>> func = monad.of(x -> x + 1);
         value = monad.ap(func, value);
       }
 
@@ -224,8 +222,7 @@ class TrampolineMonadTest extends TrampolineTestBase {
     @DisplayName("Left identity: of(a).flatMap(f) == f(a)")
     void leftIdentity() {
       Integer a = 42;
-      java.util.function.Function<Integer, Kind<TrampolineKind.Witness, Integer>> f =
-          x -> monad.of(x * 2);
+      Function<Integer, Kind<TrampolineKind.Witness, Integer>> f = x -> monad.of(x * 2);
 
       Kind<TrampolineKind.Witness, Integer> left = monad.flatMap(f, monad.of(a));
       Kind<TrampolineKind.Witness, Integer> right = f.apply(a);
@@ -247,10 +244,8 @@ class TrampolineMonadTest extends TrampolineTestBase {
     @DisplayName("Associativity: m.flatMap(f).flatMap(g) == m.flatMap(x -> f(x).flatMap(g))")
     void associativity() {
       Kind<TrampolineKind.Witness, Integer> m = monad.of(42);
-      java.util.function.Function<Integer, Kind<TrampolineKind.Witness, Integer>> f =
-          x -> monad.of(x * 2);
-      java.util.function.Function<Integer, Kind<TrampolineKind.Witness, Integer>> g =
-          x -> monad.of(x + 10);
+      Function<Integer, Kind<TrampolineKind.Witness, Integer>> f = x -> monad.of(x * 2);
+      Function<Integer, Kind<TrampolineKind.Witness, Integer>> g = x -> monad.of(x + 10);
 
       // Left: m.flatMap(f).flatMap(g)
       Kind<TrampolineKind.Witness, Integer> left = monad.flatMap(g, monad.flatMap(f, m));
@@ -318,7 +313,7 @@ class TrampolineMonadTest extends TrampolineTestBase {
     @DisplayName("ap with null values")
     void apWithNullValues() {
       Kind<TrampolineKind.Witness, String> value = monad.of(null);
-      Kind<TrampolineKind.Witness, java.util.function.Function<String, String>> func =
+      Kind<TrampolineKind.Witness, Function<String, String>> func =
           monad.of(x -> x == null ? "was null" : x);
 
       Kind<TrampolineKind.Witness, String> result = monad.ap(func, value);
@@ -352,8 +347,7 @@ class TrampolineMonadTest extends TrampolineTestBase {
     void apUsesFlatMap() {
       // Test that ap works correctly (it uses flatMap under the hood)
       Kind<TrampolineKind.Witness, Integer> value = monad.of(10);
-      Kind<TrampolineKind.Witness, java.util.function.Function<Integer, String>> func =
-          monad.of(x -> "Value: " + x);
+      Kind<TrampolineKind.Witness, Function<Integer, String>> func = monad.of(x -> "Value: " + x);
 
       Kind<TrampolineKind.Witness, String> result = monad.ap(func, value);
 

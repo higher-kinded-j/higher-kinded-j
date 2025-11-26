@@ -6,7 +6,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.writerKindHelper;
 import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Monoid;
@@ -147,7 +150,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @Test
     @DisplayName("Complex log types work correctly")
     void testComplexLogTypes() {
-      record LogEntry(String message, java.time.Instant timestamp) {}
+      record LogEntry(String message, Instant timestamp) {}
 
       Monoid<List<LogEntry>> listMonoid =
           new Monoid<>() {
@@ -158,13 +161,13 @@ class WriterKindHelperTest extends WriterTestBase {
 
             @Override
             public List<LogEntry> combine(List<LogEntry> a, List<LogEntry> b) {
-              var result = new java.util.ArrayList<>(a);
+              var result = new ArrayList<>(a);
               result.addAll(b);
               return result;
             }
           };
 
-      LogEntry entry = new LogEntry("Test", java.time.Instant.now());
+      LogEntry entry = new LogEntry("Test", Instant.now());
       Writer<List<LogEntry>, Integer> complexWriter = new Writer<>(List.of(entry), 42);
 
       writerKindHelper(complexWriter).test();
@@ -184,8 +187,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @DisplayName("Complex value types with nested generics")
     void testComplexValueTypes() {
       Writer<String, List<Integer>> complexValue = valueWriter(List.of(1, 2, 3));
-      Writer<String, java.util.Map<String, Integer>> mapValue =
-          writerOf("Log;", java.util.Map.of("a", 1, "b", 2));
+      Writer<String, Map<String, Integer>> mapValue = writerOf("Log;", Map.of("a", 1, "b", 2));
 
       writerKindHelper(complexValue).test();
       writerKindHelper(mapValue).test();
@@ -243,7 +245,7 @@ class WriterKindHelperTest extends WriterTestBase {
               Writer.<String, Object>value(STRING_MONOID, "simple_string"),
               Writer.<String, Object>value(STRING_MONOID, 42),
               Writer.<String, Object>value(STRING_MONOID, List.of(1, 2, 3)),
-              writerOf("Log;", java.util.Map.of("key", "value")),
+              writerOf("Log;", Map.of("key", "value")),
               tellWriter("Tell message"),
               Writer.<String, Object>value(STRING_MONOID, null),
               writerOf("", "empty log"));
@@ -384,7 +386,7 @@ class WriterKindHelperTest extends WriterTestBase {
 
             @Override
             public List<LogEntry> combine(List<LogEntry> a, List<LogEntry> b) {
-              var result = new java.util.ArrayList<>(a);
+              var result = new ArrayList<>(a);
               result.addAll(b);
               return result;
             }

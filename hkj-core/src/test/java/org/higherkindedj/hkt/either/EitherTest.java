@@ -7,8 +7,7 @@ import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
@@ -1113,10 +1112,9 @@ class EitherTest extends EitherTestBase {
       assertThatEither(summed).isRight().hasRightNonNull().hasRight(6);
 
       // Map transformations
-      Either<String, java.util.Map<String, Integer>> mapEither =
-          Either.right(java.util.Map.of("a", 1, "b", 2));
+      Either<String, Map<String, Integer>> mapEither = Either.right(Map.of("a", 1, "b", 2));
 
-      Either<String, java.util.Set<String>> keySet = mapEither.map(map -> map.keySet());
+      Either<String, Set<String>> keySet = mapEither.map(map -> map.keySet());
       assertThatEither(keySet)
           .isRight()
           .hasRightNonNull()
@@ -1196,8 +1194,7 @@ class EitherTest extends EitherTestBase {
     @DisplayName("Either handles concurrent modifications safely")
     void eitherHandlesConcurrentModificationsSafely() {
       // Either instances should be immutable and thread-safe
-      Either<String, java.util.List<Integer>> listEither =
-          Either.right(new java.util.ArrayList<>(List.of(1, 2, 3)));
+      Either<String, List<Integer>> listEither = Either.right(new ArrayList<>(List.of(1, 2, 3)));
 
       // Even if the contained list is mutable, Either operations should be safe
       Either<String, Integer> sizeEither = listEither.map(List::size);

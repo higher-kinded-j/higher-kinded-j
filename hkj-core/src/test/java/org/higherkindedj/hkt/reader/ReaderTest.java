@@ -9,8 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -1012,17 +1016,14 @@ class ReaderTest extends ReaderTestBase {
     @Test
     @DisplayName("Reader works with complex generic types")
     void readerWorksWithComplexGenericTypes() {
-      record ComplexConfig(List<String> urls, java.util.Map<String, Integer> settings) {}
+      record ComplexConfig(List<String> urls, Map<String, Integer> settings) {}
 
       Reader<ComplexConfig, Integer> getUrlCount = Reader.of(cfg -> cfg.urls().size());
 
-      Reader<ComplexConfig, java.util.Set<String>> getSettingKeys =
-          Reader.of(cfg -> cfg.settings().keySet());
+      Reader<ComplexConfig, Set<String>> getSettingKeys = Reader.of(cfg -> cfg.settings().keySet());
 
       ComplexConfig complex =
-          new ComplexConfig(
-              java.util.List.of("url1", "url2", "url3"),
-              java.util.Map.of("timeout", 5000, "retries", 3));
+          new ComplexConfig(List.of("url1", "url2", "url3"), Map.of("timeout", 5000, "retries", 3));
 
       assertThatReader(getUrlCount).whenRunWith(complex).produces(3);
       assertThatReader(getSettingKeys)
@@ -1114,7 +1115,7 @@ class ReaderTest extends ReaderTestBase {
     @DisplayName("Reader.map propagates exceptions when run")
     void mapPropagatesExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: map");
-      java.util.function.Function<String, Integer> throwingMapper =
+      Function<String, Integer> throwingMapper =
           s -> {
             throw testException;
           };
@@ -1133,7 +1134,7 @@ class ReaderTest extends ReaderTestBase {
     @DisplayName("Reader.flatMap propagates exceptions when run")
     void flatMapPropagatesExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap");
-      java.util.function.Function<String, Reader<TestConfig, Integer>> throwingFlatMapper =
+      Function<String, Reader<TestConfig, Integer>> throwingFlatMapper =
           s -> {
             throw testException;
           };
@@ -1150,13 +1151,13 @@ class ReaderTest extends ReaderTestBase {
     @DisplayName("ReaderFunctor.map with throwing mapper executes lazily")
     void functorMapWithThrowingMapperIsLazy() {
       RuntimeException testException = new RuntimeException("Test exception: functor");
-      java.util.function.Function<String, Integer> throwingMapper =
+      Function<String, Integer> throwingMapper =
           s -> {
             throw testException;
           };
 
       // Using the Functor interface - should not throw yet
-      org.higherkindedj.hkt.Kind<ReaderKind.Witness<TestConfig>, Integer> mapped =
+      Kind<ReaderKind.Witness<TestConfig>, Integer> mapped =
           functor.map(throwingMapper, ReaderKindHelper.READER.widen(getUrlReader));
 
       // No exception yet - operation was lazy

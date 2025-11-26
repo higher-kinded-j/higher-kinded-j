@@ -163,5 +163,7 @@
  * @see org.higherkindedj.hkt.test.api.TypeClassTest
  * @see org.higherkindedj.hkt.test.patterns.TypeClassTestPattern
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.test.api;
+
+import org.jspecify.annotations.NullMarked;

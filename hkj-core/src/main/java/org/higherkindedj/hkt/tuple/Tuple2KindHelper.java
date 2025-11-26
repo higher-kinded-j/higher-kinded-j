@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.tuple;
 
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -63,11 +64,10 @@ public enum Tuple2KindHelper {
   @SuppressWarnings("unchecked")
   public <A, B> Tuple2<A, B> narrow2(@Nullable Kind2<Tuple2Kind2.Witness, A, B> kind) {
     if (kind == null) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
-          "Cannot narrow null Kind2 for Tuple2");
+      throw new KindUnwrapException("Cannot narrow null Kind2 for Tuple2");
     }
     if (!(kind instanceof Tuple2Kind2Holder<?, ?>)) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+      throw new KindUnwrapException(
           "Kind2 instance cannot be narrowed to Tuple2 (received: "
               + kind.getClass().getSimpleName()
               + ")");

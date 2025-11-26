@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.id;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.id.IdAssert.assertThatId;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
@@ -494,8 +495,7 @@ class IdSelectiveTest extends IdTestBase {
     @Test
     @DisplayName("Real-world scenario: optional effect execution")
     void optionalEffectExecution() {
-      java.util.concurrent.atomic.AtomicInteger counter =
-          new java.util.concurrent.atomic.AtomicInteger(0);
+      AtomicInteger counter = new AtomicInteger(0);
 
       var shouldLog = idOf(true);
 

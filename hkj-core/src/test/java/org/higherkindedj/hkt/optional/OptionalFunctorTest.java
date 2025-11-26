@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.optional.OptionalAssert.assertThatOptional;
 
+import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
@@ -299,9 +300,8 @@ class OptionalFunctorTest extends OptionalTestBase {
     @Test
     @DisplayName("map() works with complex nested types")
     void mapWorksWithNestedTypes() {
-      Kind<OptionalKind.Witness, java.util.List<Integer>> listOptional =
-          presentOf(java.util.List.of(1, 2, 3));
-      Function<java.util.List<Integer>, Integer> sizeFunc = java.util.List::size;
+      Kind<OptionalKind.Witness, List<Integer>> listOptional = presentOf(List.of(1, 2, 3));
+      Function<List<Integer>, Integer> sizeFunc = List::size;
 
       Kind<OptionalKind.Witness, Integer> result = functor.map(sizeFunc, listOptional);
 

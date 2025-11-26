@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.io;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.io.IO;
 
 /**
@@ -59,8 +60,8 @@ public final class IOOperationsStage<A> {
    * @return Stage for configuring Selective handlers
    */
   public <B> IOSelectiveStage<A, B> withSelectiveOperations(
-      IO<org.higherkindedj.hkt.Choice<A, B>> choiceLeft,
-      IO<org.higherkindedj.hkt.Choice<A, B>> choiceRight,
+      IO<Choice<A, B>> choiceLeft,
+      IO<Choice<A, B>> choiceRight,
       IO<Boolean> booleanTrue,
       IO<Boolean> booleanFalse) {
     return new IOSelectiveStage<>(

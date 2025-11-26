@@ -6,5 +6,7 @@
  * org.higherkindedj.hkt.MonadError}. It also includes supporting types like {@link
  * org.higherkindedj.hkt.Monoid} and {@link org.higherkindedj.hkt.Traverse}.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt;
+
+import org.jspecify.annotations.NullMarked;

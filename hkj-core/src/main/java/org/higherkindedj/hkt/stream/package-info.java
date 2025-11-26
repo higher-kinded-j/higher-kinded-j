@@ -108,5 +108,7 @@
  * @see org.higherkindedj.hkt.stream.StreamKindHelper
  * @see java.util.stream.Stream
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.stream;
+
+import org.jspecify.annotations.NullMarked;

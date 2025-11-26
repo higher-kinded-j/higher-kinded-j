@@ -8,5 +8,7 @@
  * @see org.higherkindedj.optics.Ixed
  * @see org.higherkindedj.optics.ixed.IxedInstances
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.optics.ixed;
+
+import org.jspecify.annotations.NullMarked;

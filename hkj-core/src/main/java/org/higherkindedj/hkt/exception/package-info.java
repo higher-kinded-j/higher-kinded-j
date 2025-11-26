@@ -3,5 +3,7 @@
  * {@link org.higherkindedj.hkt.exception.KindUnwrapException}, thrown when an HKT wrapper cannot be
  * safely unwrapped to its underlying type.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.exception;
+
+import org.jspecify.annotations.NullMarked;

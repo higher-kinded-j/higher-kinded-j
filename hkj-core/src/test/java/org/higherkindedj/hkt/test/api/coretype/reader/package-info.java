@@ -43,5 +43,7 @@
  *
  * @see org.higherkindedj.hkt.test.api.CoreTypeTest
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.test.api.coretype.reader;
+
+import org.jspecify.annotations.NullMarked;

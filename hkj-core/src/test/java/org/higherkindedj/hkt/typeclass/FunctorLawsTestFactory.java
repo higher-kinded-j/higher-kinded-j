@@ -9,6 +9,8 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Functor;
@@ -103,12 +105,12 @@ class FunctorLawsTestFactory {
         FunctorTestData.of(
             "List",
             ListMonad.INSTANCE,
-            LIST.widen(java.util.List.of(42)),
+            LIST.widen(List.of(42)),
             kind -> LIST.narrow(kind).isEmpty() ? -1 : LIST.narrow(kind).get(0)),
         FunctorTestData.of(
             "Optional",
             OptionalMonad.INSTANCE,
-            OPTIONAL.widen(java.util.Optional.of(42)),
+            OPTIONAL.widen(Optional.of(42)),
             kind -> OPTIONAL.narrow(kind).orElse(-1)));
   }
 

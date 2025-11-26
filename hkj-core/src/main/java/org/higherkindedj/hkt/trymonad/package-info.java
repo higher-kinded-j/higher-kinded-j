@@ -4,5 +4,7 @@
  * org.higherkindedj.hkt.trymonad.Try} type, {@link org.higherkindedj.hkt.trymonad.TryKind}, {@link
  * org.higherkindedj.hkt.trymonad.TryMonad}, and helper utilities.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.trymonad;
+
+import org.jspecify.annotations.NullMarked;

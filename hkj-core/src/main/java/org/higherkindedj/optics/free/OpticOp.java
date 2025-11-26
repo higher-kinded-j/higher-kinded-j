@@ -3,7 +3,9 @@
 package org.higherkindedj.optics.free;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -46,7 +48,7 @@ public sealed interface OpticOp<S, A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Preview<S, A>(S source, Fold<S, A> optic) implements OpticOp<S, java.util.Optional<A>> {}
+  record Preview<S, A>(S source, Fold<S, A> optic) implements OpticOp<S, Optional<A>> {}
 
   /**
    * GetAll operation - reads all values through a Fold or Traversal.
@@ -96,7 +98,7 @@ public sealed interface OpticOp<S, A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Exists<S, A>(S source, Fold<S, A> optic, java.util.function.Predicate<A> predicate)
+  record Exists<S, A>(S source, Fold<S, A> optic, Predicate<A> predicate)
       implements OpticOp<S, Boolean> {}
 
   /**
@@ -105,7 +107,7 @@ public sealed interface OpticOp<S, A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record All<S, A>(S source, Fold<S, A> optic, java.util.function.Predicate<A> predicate)
+  record All<S, A>(S source, Fold<S, A> optic, Predicate<A> predicate)
       implements OpticOp<S, Boolean> {}
 
   /**

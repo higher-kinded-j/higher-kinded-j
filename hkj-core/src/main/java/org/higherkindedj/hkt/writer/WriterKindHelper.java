@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -207,11 +208,10 @@ public enum WriterKindHelper implements WriterConverterOps {
   @SuppressWarnings("unchecked")
   public <W, A> Writer<W, A> narrow2(@Nullable Kind2<WriterKind2.Witness, W, A> kind) {
     if (kind == null) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
-          "Cannot narrow null Kind2 for Writer");
+      throw new KindUnwrapException("Cannot narrow null Kind2 for Writer");
     }
     if (!(kind instanceof WriterKind2Holder<?, ?>)) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+      throw new KindUnwrapException(
           "Kind2 instance cannot be narrowed to Writer (received: "
               + kind.getClass().getSimpleName()
               + ")");

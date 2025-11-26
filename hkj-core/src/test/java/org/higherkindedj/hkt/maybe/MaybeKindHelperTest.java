@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.maybeKindHelper;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -212,7 +213,7 @@ class MaybeKindHelperTest extends MaybeTestBase {
               Maybe.just("simple_string"),
               Maybe.just(42),
               Maybe.just(List.of(1, 2, 3)),
-              Maybe.just(java.util.Map.of("key", "value")),
+              Maybe.just(Map.of("key", "value")),
               Maybe.nothing());
 
       for (Maybe<Object> instance : complexInstances) {

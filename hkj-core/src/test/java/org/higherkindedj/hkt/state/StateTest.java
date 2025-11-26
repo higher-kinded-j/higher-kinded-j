@@ -8,6 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
@@ -140,23 +143,21 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("of() creates State from function with all value types")
     void ofCreatesCorrectInstances() {
       // Standard function
-      java.util.function.Function<Integer, StateTuple<Integer, String>> f =
-          s -> new StateTuple<>("Value:" + s, s + 1);
+      Function<Integer, StateTuple<Integer, String>> f = s -> new StateTuple<>("Value:" + s, s + 1);
       State<Integer, String> state = State.of(f);
       StateTuple<Integer, String> result = state.run(getInitialState());
 
       assertThatStateTuple(result).hasValue("Value:10").hasState(11);
 
       // Function returning null value
-      java.util.function.Function<Integer, StateTuple<Integer, String>> nullFunc =
-          s -> new StateTuple<>(null, s);
+      Function<Integer, StateTuple<Integer, String>> nullFunc = s -> new StateTuple<>(null, s);
       State<Integer, String> nullState = State.of(nullFunc);
       StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
 
       assertThatStateTuple(nullResult).hasNullValue().hasState(getInitialState());
 
       // Complex state transformation
-      java.util.function.Function<Integer, StateTuple<Integer, List<Integer>>> listFunc =
+      Function<Integer, StateTuple<Integer, List<Integer>>> listFunc =
           s -> new StateTuple<>(List.of(s, s * 2), s + 5);
       State<Integer, List<Integer>> listState = State.of(listFunc);
       StateTuple<Integer, List<Integer>> listResult = listState.run(getInitialState());
@@ -244,14 +245,14 @@ class StateTest extends StateTestBase<Integer> {
     @Test
     @DisplayName("modify() applies function to state and returns Unit")
     void modifyTransformsState() {
-      java.util.function.Function<Integer, Integer> doubler = s -> s * 2;
+      Function<Integer, Integer> doubler = s -> s * 2;
       State<Integer, Unit> state = State.modify(doubler);
       StateTuple<Integer, Unit> result = state.run(getInitialState());
 
       assertThatStateTuple(result).hasValue(Unit.INSTANCE).hasState(20);
 
       // Complex modification
-      java.util.function.Function<Integer, Integer> complex = s -> (s + 5) * 3;
+      Function<Integer, Integer> complex = s -> (s + 5) * 3;
       State<Integer, Unit> complexState = State.modify(complex);
       StateTuple<Integer, Unit> complexResult = complexState.run(getInitialState());
 
@@ -269,7 +270,7 @@ class StateTest extends StateTestBase<Integer> {
     @Test
     @DisplayName("inspect() applies function to state, returns result, preserves state")
     void inspectReadsStateWithoutModifying() {
-      java.util.function.Function<Integer, String> checkEven = s -> (s % 2 == 0) ? "Even" : "Odd";
+      Function<Integer, String> checkEven = s -> (s % 2 == 0) ? "Even" : "Odd";
       State<Integer, String> state = State.inspect(checkEven);
 
       StateTuple<Integer, String> result = state.run(getInitialState());
@@ -281,7 +282,7 @@ class StateTest extends StateTestBase<Integer> {
       assertThatStateTuple(resultOdd).hasValue("Odd").hasState(7);
 
       // Null-returning inspection
-      java.util.function.Function<Integer, String> nullReturning = s -> null;
+      Function<Integer, String> nullReturning = s -> null;
       State<Integer, String> nullState = State.inspect(nullReturning);
       StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
 
@@ -374,8 +375,7 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("map() handles exception propagation and chaining")
     void mapHandlesExceptionPropagation() {
       RuntimeException testException = new RuntimeException("Test exception: map test");
-      java.util.function.Function<Integer, String> throwingMapper =
-          TestFunctions.throwingFunction(testException);
+      Function<Integer, String> throwingMapper = TestFunctions.throwingFunction(testException);
 
       assertThatThrownBy(
               () -> {
@@ -396,8 +396,7 @@ class StateTest extends StateTestBase<Integer> {
     @Test
     @DisplayName("map() handles null-returning functions")
     void mapHandlesNullReturningFunctions() {
-      java.util.function.Function<Integer, String> nullReturningMapper =
-          TestFunctions.nullReturningFunction();
+      Function<Integer, String> nullReturningMapper = TestFunctions.nullReturningFunction();
       State<Integer, String> result = incrementState.map(nullReturningMapper);
 
       StateTuple<Integer, String> tuple = result.run(getInitialState());
@@ -417,7 +416,7 @@ class StateTest extends StateTestBase<Integer> {
 
       // Step 2: State that takes the value, multiplies it by 2 for the result,
       // and adds 5 to the state it receives
-      java.util.function.Function<Integer, State<Integer, String>> state2Func =
+      Function<Integer, State<Integer, String>> state2Func =
           val -> State.of(s1 -> new StateTuple<>("Result:" + (val * 2), s1 + 5));
 
       State<Integer, String> composedState = state1.flatMap(state2Func);
@@ -438,7 +437,7 @@ class StateTest extends StateTestBase<Integer> {
     @Test
     @DisplayName("flatMap() throws KindUnwrapException if mapper returns null")
     void flatMapThrowsIfMapperReturnsNull() {
-      java.util.function.Function<Integer, State<Integer, String>> nullReturningMapper = i -> null;
+      Function<Integer, State<Integer, String>> nullReturningMapper = i -> null;
       State<Integer, String> state = incrementState.flatMap(nullReturningMapper);
 
       assertThatThrownBy(() -> state.run(getInitialState()))
@@ -482,7 +481,7 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("flatMap() handles exception propagation")
     void flatMapHandlesExceptionPropagation() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap test");
-      java.util.function.Function<Integer, State<Integer, String>> throwingMapper =
+      Function<Integer, State<Integer, String>> throwingMapper =
           TestFunctions.throwingFunction(testException);
 
       assertThatThrownBy(
@@ -734,12 +733,11 @@ class StateTest extends StateTestBase<Integer> {
       assertThatStateTuple(result).hasValue(3);
 
       // Map transformations
-      State<Integer, java.util.Map<String, Integer>> mapState =
-          State.pure(java.util.Map.of("a", 1, "b", 2));
+      State<Integer, Map<String, Integer>> mapState = State.pure(Map.of("a", 1, "b", 2));
 
-      State<Integer, java.util.Set<String>> keySet = mapState.map(java.util.Map::keySet);
+      State<Integer, Set<String>> keySet = mapState.map(Map::keySet);
 
-      StateTuple<Integer, java.util.Set<String>> keySetResult = keySet.run(0);
+      StateTuple<Integer, Set<String>> keySetResult = keySet.run(0);
       assertThatStateTuple(keySetResult)
           .hasValueSatisfying(keys -> assertThat(keys).containsExactlyInAnyOrder("a", "b"));
     }
@@ -803,7 +801,7 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("State maintains referential transparency")
     void stateMaintainsReferentialTransparency() {
       State<Integer, String> state = State.of(s -> new StateTuple<>("val:" + s, s + 1));
-      java.util.function.Function<Integer, String> transform = i -> "transformed:" + i;
+      Function<Integer, String> transform = i -> "transformed:" + i;
 
       State<Integer, String> result1 =
           state.map(x -> Integer.parseInt(x.substring(4))).map(transform);
@@ -826,7 +824,7 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("map defers exceptions until evaluation")
     void mapDefersExceptions() {
       RuntimeException testException = new RuntimeException("Test exception: map");
-      java.util.function.Function<Integer, String> throwingMapper =
+      Function<Integer, String> throwingMapper =
           i -> {
             throw testException;
           };
@@ -845,7 +843,7 @@ class StateTest extends StateTestBase<Integer> {
     @DisplayName("flatMap defers exceptions until evaluation")
     void flatMapDefersExceptions() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap");
-      java.util.function.Function<Integer, State<Integer, String>> throwingFlatMapper =
+      Function<Integer, State<Integer, String>> throwingFlatMapper =
           i -> {
             throw testException;
           };

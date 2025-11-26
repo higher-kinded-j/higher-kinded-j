@@ -5,7 +5,10 @@ package org.higherkindedj.hkt.stream;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
@@ -128,7 +131,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
     // Eagerly collect values to avoid single-use stream violation
     // Each function needs to iterate over all values, which would fail if we tried to
     // reuse the values stream. We trade laziness for correctness here.
-    java.util.List<A> valuesList = values.collect(java.util.stream.Collectors.toList());
+    List<A> valuesList = values.collect(Collectors.toList());
 
     // Cartesian product: for each function, apply it to each value from the list
     // The functions stream remains lazy
@@ -268,7 +271,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
    */
   @Override
   public <A> Kind<StreamKind.Witness, A> orElse(
-      Kind<StreamKind.Witness, A> sa, java.util.function.Supplier<Kind<StreamKind.Witness, A>> sb) {
+      Kind<StreamKind.Witness, A> sa, Supplier<Kind<StreamKind.Witness, A>> sb) {
 
     Validation.kind().requireNonNull(sa, StreamMonad.class, OR_ELSE, "first stream");
     Validation.function().requireFunction(sb, "sb", StreamMonad.class, OR_ELSE);

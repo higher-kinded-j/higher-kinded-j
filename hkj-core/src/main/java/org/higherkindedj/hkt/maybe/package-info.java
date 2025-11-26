@@ -11,5 +11,7 @@
  * org.higherkindedj.hkt.maybe.MaybeKind}, {@link org.higherkindedj.hkt.maybe.MaybeMonad}, and
  * helpers.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.maybe;
+
+import org.jspecify.annotations.NullMarked;

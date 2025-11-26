@@ -5,6 +5,7 @@ package org.higherkindedj.example.optics;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -313,8 +314,7 @@ public class EventProcessingExample {
     return email.charAt(0) + "***" + email.substring(atIndex);
   }
 
-  private static Prism<UserEvent, UserEvent> filter(
-      java.util.function.Predicate<UserEvent> predicate) {
+  private static Prism<UserEvent, UserEvent> filter(Predicate<UserEvent> predicate) {
     return Prism.of(
         event -> predicate.test(event) ? Optional.of(event) : Optional.empty(), event -> event);
   }

@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
 import java.io.IOException;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -179,7 +180,7 @@ class TryKindHelperTest extends TryTestBase {
     @Test
     @DisplayName("narrow() should throw KindUnwrapException for null Kind")
     void narrow_shouldThrowKindUnwrapExceptionForNullKind() {
-      assertThatExceptionOfType(org.higherkindedj.hkt.exception.KindUnwrapException.class)
+      assertThatExceptionOfType(KindUnwrapException.class)
           .isThrownBy(() -> TRY.narrow(null))
           .withMessageContaining("Cannot narrow null Kind for Try");
     }
@@ -189,7 +190,7 @@ class TryKindHelperTest extends TryTestBase {
     void narrow_shouldThrowKindUnwrapExceptionForInvalidKindType() {
       Kind<TryKind.Witness, String> invalidKind = new InvalidKind<>();
 
-      assertThatExceptionOfType(org.higherkindedj.hkt.exception.KindUnwrapException.class)
+      assertThatExceptionOfType(KindUnwrapException.class)
           .isThrownBy(() -> TRY.narrow(invalidKind))
           .withMessageContaining(
               "Kind instance cannot be narrowed to " + Try.class.getSimpleName());

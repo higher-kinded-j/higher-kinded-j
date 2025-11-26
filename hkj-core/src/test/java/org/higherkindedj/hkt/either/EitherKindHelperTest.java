@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.eitherKindHelper;
 
 import java.util.List;
+import java.util.Map;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
@@ -257,7 +258,7 @@ class EitherKindHelperTest extends EitherTestBase {
               Either.right("simple_string"),
               Either.right(42),
               Either.right(List.of(1, 2, 3)),
-              Either.right(java.util.Map.of("key", "value")),
+              Either.right(Map.of("key", "value")),
               Either.right(ComplexTestError.medium("nested_error", "Nested")),
               Either.left(ComplexTestError.low("left_error", "Error")),
               Either.right(null),

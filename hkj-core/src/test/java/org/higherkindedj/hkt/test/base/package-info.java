@@ -23,5 +23,7 @@
  * @see org.higherkindedj.hkt.test.patterns
  * @see org.higherkindedj.hkt.test.assertions
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.test.base;
+
+import org.jspecify.annotations.NullMarked;
