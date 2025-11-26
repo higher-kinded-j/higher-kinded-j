@@ -7,6 +7,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.higherkindedj.architecture.ArchitectureTestBase.getProductionClasses;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
+import org.higherkindedj.hkt.Kind;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -168,7 +169,7 @@ class DependencyLayerRules {
         .and()
         .areInterfaces()
         .should()
-        .beAssignableTo(org.higherkindedj.hkt.Kind.class)
+        .beAssignableTo(Kind.class)
         .allowEmptyShould(true)
         .check(classes);
   }

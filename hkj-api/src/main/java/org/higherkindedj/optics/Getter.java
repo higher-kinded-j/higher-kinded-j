@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import java.util.Map;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
 
@@ -191,8 +192,8 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <B> The type of the second element.
    * @return A Getter that extracts the first element.
    */
-  static <A, B> Getter<java.util.Map.Entry<A, B>, A> first() {
-    return java.util.Map.Entry::getKey;
+  static <A, B> Getter<Map.Entry<A, B>, A> first() {
+    return Map.Entry::getKey;
   }
 
   /**
@@ -202,7 +203,7 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <B> The type of the second element.
    * @return A Getter that extracts the second element.
    */
-  static <A, B> Getter<java.util.Map.Entry<A, B>, B> second() {
-    return java.util.Map.Entry::getValue;
+  static <A, B> Getter<Map.Entry<A, B>, B> second() {
+    return Map.Entry::getValue;
   }
 }

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
@@ -268,8 +269,8 @@ class OpticProgramsTest {
 
     // Create an actual anonymous Getter to test opticName branch coverage
     // This creates an anonymous inner class with empty getSimpleName()
-    org.higherkindedj.optics.Getter<Person, String> anonymousGetter =
-        new org.higherkindedj.optics.Getter<Person, String>() {
+    Getter<Person, String> anonymousGetter =
+        new Getter<Person, String>() {
           @Override
           public String get(Person source) {
             return source.name();
@@ -346,7 +347,7 @@ class OpticProgramsTest {
     // Test with an anonymous class (getSimpleName() is empty)
     // The class name will be something like "org.package.ClassName$1" with dots
     Object anonymousOptic =
-        new org.higherkindedj.optics.Getter<Person, String>() {
+        new Getter<Person, String>() {
           @Override
           public String get(Person source) {
             return source.name();
@@ -738,8 +739,7 @@ class OpticProgramsTest {
   @Test
   void testGetProgramWithGetter() {
     Person person = new Person("Alice", 25);
-    org.higherkindedj.optics.Getter<Person, String> nameGetter =
-        org.higherkindedj.optics.Getter.of(Person::name);
+    Getter<Person, String> nameGetter = Getter.of(Person::name);
 
     Free<OpticOpKind.Witness, String> program = OpticPrograms.get(person, nameGetter);
     String result = OpticInterpreters.direct().run(program);

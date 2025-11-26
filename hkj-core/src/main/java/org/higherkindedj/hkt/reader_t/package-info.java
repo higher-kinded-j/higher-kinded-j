@@ -4,5 +4,7 @@
  * computations that depend on a shared environment within an outer monadic context. Includes the
  * transformer itself, its Kind representation, and Monad instance.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.reader_t;
+
+import org.jspecify.annotations.NullMarked;

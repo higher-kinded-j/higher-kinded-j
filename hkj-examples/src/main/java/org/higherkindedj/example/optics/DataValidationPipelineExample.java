@@ -4,8 +4,11 @@ package org.higherkindedj.example.optics;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -241,8 +244,8 @@ public class DataValidationPipelineExample {
   // Helper validation methods
 
   private static ValidationResult validateCustomer(RawCustomer customer) {
-    List<String> errors = new java.util.ArrayList<>();
-    List<String> warnings = new java.util.ArrayList<>();
+    List<String> errors = new ArrayList<>();
+    List<String> warnings = new ArrayList<>();
 
     // Validate ID
     if (customer.id() == null || customer.id().trim().isEmpty()) {
@@ -284,12 +287,12 @@ public class DataValidationPipelineExample {
     if (name == null) {
       return "";
     }
-    return java.util.Arrays.stream(name.trim().split("\\s+"))
+    return Arrays.stream(name.trim().split("\\s+"))
         .map(
             word ->
                 word.isEmpty()
                     ? word
                     : word.substring(0, 1).toUpperCase() + word.substring(1).toLowerCase())
-        .collect(java.util.stream.Collectors.joining(" "));
+        .collect(Collectors.joining(" "));
   }
 }

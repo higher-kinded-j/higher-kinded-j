@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
@@ -290,8 +291,7 @@ public class OptionalMonad extends OptionalFunctor
    */
   @Override
   public <A> Kind<OptionalKind.Witness, A> orElse(
-      Kind<OptionalKind.Witness, A> oa,
-      java.util.function.Supplier<Kind<OptionalKind.Witness, A>> ob) {
+      Kind<OptionalKind.Witness, A> oa, Supplier<Kind<OptionalKind.Witness, A>> ob) {
 
     Validation.kind().requireNonNull(oa, OPTIONAL_MONAD_CLASS, OR_ELSE, "first alternative");
     Validation.function().requireFunction(ob, "ob", OPTIONAL_MONAD_CLASS, OR_ELSE);

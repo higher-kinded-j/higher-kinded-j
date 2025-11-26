@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.stream;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -377,8 +378,7 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
     // Collect mapped values first to avoid wildcard capture issues with stream reduce.
     // The function f returns ? extends M, which makes map(f) return Stream<? extends M>.
     // Java's reduce operation requires exact type match, so we collect and fold manually.
-    java.util.List<?> mappedValues =
-        STREAM.narrow(fa).map(f).collect(java.util.stream.Collectors.toList());
+    List<?> mappedValues = STREAM.narrow(fa).map(f).collect(Collectors.toList());
 
     M result = monoid.empty();
     for (Object value : mappedValues) {

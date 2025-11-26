@@ -3,6 +3,7 @@
 package org.higherkindedj.example.optics;
 
 import java.util.*;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.annotations.GenerateGetters;
@@ -192,8 +193,8 @@ public class GetterUsageExample {
     System.out.println("\n=== GETTER USAGE EXAMPLE COMPLETE ===");
   }
 
-  private static org.higherkindedj.hkt.Monoid<Integer> sumMonoid() {
-    return new org.higherkindedj.hkt.Monoid<>() {
+  private static Monoid<Integer> sumMonoid() {
+    return new Monoid<>() {
       @Override
       public Integer empty() {
         return 0;

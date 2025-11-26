@@ -34,5 +34,7 @@
  * BigInteger result = factorial(BigInteger.valueOf(100000), BigInteger.ONE).run();
  * }</pre>
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.trampoline;
+
+import org.jspecify.annotations.NullMarked;

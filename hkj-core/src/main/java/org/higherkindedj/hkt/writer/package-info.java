@@ -5,5 +5,7 @@
  * org.higherkindedj.hkt.writer.WriterKind}, {@link org.higherkindedj.hkt.writer.WriterMonad}, and
  * helper utilities. Requires a {@link org.higherkindedj.hkt.Monoid} for the output type.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.writer;
+
+import org.jspecify.annotations.NullMarked;

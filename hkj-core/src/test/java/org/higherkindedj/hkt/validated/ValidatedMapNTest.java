@@ -6,11 +6,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.List;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.function.Function5;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -115,7 +120,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
 
-      java.util.function.BiFunction<Integer, Integer, String> nullFunction = null;
+      BiFunction<Integer, Integer, String> nullFunction = null;
       assertThatThrownBy(() -> monad.map2(v1, v2, nullFunction))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("combining function")
@@ -223,8 +228,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
 
-      org.higherkindedj.hkt.function.Function3<Integer, Integer, Integer, String> nullFunction =
-          null;
+      Function3<Integer, Integer, Integer, String> nullFunction = null;
       assertThatThrownBy(() -> monad.map3(v1, v2, v3, nullFunction))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
@@ -341,8 +345,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
 
-      org.higherkindedj.hkt.function.Function4<Integer, Integer, Integer, Integer, String>
-          nullFunction = null;
+      Function4<Integer, Integer, Integer, Integer, String> nullFunction = null;
       assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, nullFunction))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
@@ -465,8 +468,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
       Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
 
-      org.higherkindedj.hkt.function.Function5<Integer, Integer, Integer, Integer, Integer, String>
-          nullFunction = null;
+      Function5<Integer, Integer, Integer, Integer, Integer, String> nullFunction = null;
       assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, nullFunction))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
@@ -620,23 +622,22 @@ class ValidatedMapNTest {
     @Test
     @DisplayName("List semigroup accumulates errors into lists")
     void listSemigroupAccumulatesErrorsIntoLists() {
-      Semigroup<java.util.List<String>> listSemigroup = Semigroups.list();
-      ValidatedMonad<java.util.List<String>> listMonad = ValidatedMonad.instance(listSemigroup);
+      Semigroup<List<String>> listSemigroup = Semigroups.list();
+      ValidatedMonad<List<String>> listMonad = ValidatedMonad.instance(listSemigroup);
 
-      Kind<ValidatedKind.Witness<java.util.List<String>>, Integer> v1 =
-          VALIDATED.widen(Validated.invalid(java.util.List.of("error1")));
-      Kind<ValidatedKind.Witness<java.util.List<String>>, Integer> v2 =
-          VALIDATED.widen(Validated.invalid(java.util.List.of("error2")));
+      Kind<ValidatedKind.Witness<List<String>>, Integer> v1 =
+          VALIDATED.widen(Validated.invalid(List.of("error1")));
+      Kind<ValidatedKind.Witness<List<String>>, Integer> v2 =
+          VALIDATED.widen(Validated.invalid(List.of("error2")));
 
-      Kind<ValidatedKind.Witness<java.util.List<String>>, String> result =
+      Kind<ValidatedKind.Witness<List<String>>, String> result =
           listMonad.map2(v1, v2, (a, b) -> "test");
 
-      Validated<java.util.List<String>, String> validated = VALIDATED.narrow(result);
+      Validated<List<String>, String> validated = VALIDATED.narrow(result);
       assertThatValidated(validated)
           .isInvalid()
           .hasErrorSatisfying(
-              errors -> errors.containsAll(java.util.List.of("error1", "error2")),
-              "contains both errors");
+              errors -> errors.containsAll(List.of("error1", "error2")), "contains both errors");
     }
 
     @Test

@@ -5,5 +5,7 @@
  * org.higherkindedj.hkt.state.StateKind}, {@link org.higherkindedj.hkt.state.StateMonad}, and
  * helper utilities.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.state;
+
+import org.jspecify.annotations.NullMarked;

@@ -4,5 +4,7 @@
  * stateful computations within an outer monadic context. Includes the transformer itself, its Kind
  * representation, and Monad instance.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.state_t;
+
+import org.jspecify.annotations.NullMarked;

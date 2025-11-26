@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.either.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
@@ -609,8 +610,7 @@ class EitherSelectiveTest extends EitherTestBase {
     @Test
     @DisplayName("Real-world scenario: optional effect execution")
     void optionalEffectExecution() {
-      java.util.concurrent.atomic.AtomicInteger counter =
-          new java.util.concurrent.atomic.AtomicInteger(0);
+      AtomicInteger counter = new AtomicInteger(0);
 
       Kind<EitherKind.Witness<String>, Boolean> shouldLog = EITHER.widen(Either.right(true));
 

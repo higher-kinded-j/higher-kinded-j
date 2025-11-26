@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.either;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -98,11 +99,10 @@ public enum EitherKindHelper implements EitherConverterOps {
   @SuppressWarnings("unchecked")
   public <L, R> Either<L, R> narrow2(@Nullable Kind2<EitherKind2.Witness, L, R> kind) {
     if (kind == null) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
-          "Cannot narrow null Kind2 for Either");
+      throw new KindUnwrapException("Cannot narrow null Kind2 for Either");
     }
     if (!(kind instanceof Either<?, ?>)) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+      throw new KindUnwrapException(
           "Kind2 instance cannot be narrowed to Either (received: "
               + kind.getClass().getSimpleName()
               + ")");

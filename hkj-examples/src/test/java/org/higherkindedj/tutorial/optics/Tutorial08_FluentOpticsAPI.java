@@ -17,6 +17,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -52,7 +53,7 @@ public class Tutorial08_FluentOpticsAPI {
       @Override
       public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S s, Applicative<F> applicative) {
         List<A> list = getter.apply(s);
-        var listKind = org.higherkindedj.optics.util.Traversals.traverseList(list, f, applicative);
+        var listKind = Traversals.traverseList(list, f, applicative);
         return applicative.map(newList -> setter.apply(s, newList), listKind);
       }
     };

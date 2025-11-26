@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
@@ -205,7 +206,7 @@ public class MaybeMonad extends MaybeFunctor
    */
   @Override
   public <A> Kind<MaybeKind.Witness, A> orElse(
-      Kind<MaybeKind.Witness, A> ma, java.util.function.Supplier<Kind<MaybeKind.Witness, A>> mb) {
+      Kind<MaybeKind.Witness, A> ma, Supplier<Kind<MaybeKind.Witness, A>> mb) {
 
     Validation.kind().requireNonNull(ma, MAYBE_MONAD_CLASS, OR_ELSE, "first alternative");
     Validation.function().requireFunction(mb, "mb", MAYBE_MONAD_CLASS, OR_ELSE);

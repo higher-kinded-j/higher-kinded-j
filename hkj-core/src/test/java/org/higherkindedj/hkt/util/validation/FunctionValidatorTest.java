@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.test.assertions.FunctionAssertions.*;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.function.Function;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -168,7 +169,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should throw KindUnwrapException when result is null")
     void shouldThrowWhenResultIsNull() {
-      org.assertj.core.api.Assertions.assertThatExceptionOfType(KindUnwrapException.class)
+      Assertions.assertThatExceptionOfType(KindUnwrapException.class)
           .isThrownBy(
               () ->
                   Validation.function().requireNonNullResult(null, "f", TestClass.class, FLAT_MAP))
@@ -178,7 +179,7 @@ class FunctionValidatorTest {
     @Test
     @DisplayName("should include target type in error message when provided")
     void shouldIncludeTargetTypeInErrorMessage() {
-      org.assertj.core.api.Assertions.assertThatExceptionOfType(KindUnwrapException.class)
+      Assertions.assertThatExceptionOfType(KindUnwrapException.class)
           .isThrownBy(
               () ->
                   Validation.function()

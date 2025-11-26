@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
+import java.util.Collection;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -193,8 +194,8 @@ public class WriterAssert<W, A> extends AbstractAssert<WriterAssert<W, A>, Write
 
     if (actualLog instanceof String) {
       isEmpty = ((String) actualLog).isEmpty();
-    } else if (actualLog instanceof java.util.Collection) {
-      isEmpty = ((java.util.Collection<?>) actualLog).isEmpty();
+    } else if (actualLog instanceof Collection) {
+      isEmpty = ((Collection<?>) actualLog).isEmpty();
     } else {
       failWithMessage(
           "Cannot verify empty log for type <%s>. Use hasLog() with expected empty value instead.",

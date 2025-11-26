@@ -44,5 +44,7 @@
  *
  * @see org.higherkindedj.hkt.test.api.CoreTypeTest
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.test.api.coretype.lazy;
+
+import org.jspecify.annotations.NullMarked;

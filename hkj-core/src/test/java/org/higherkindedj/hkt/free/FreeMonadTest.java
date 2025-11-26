@@ -5,7 +5,10 @@ package org.higherkindedj.hkt.free;
 import static org.assertj.core.api.Assertions.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
+import org.higherkindedj.hkt.free.test.IdentityKindHelper;
+import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -187,10 +190,7 @@ class FreeMonadTest extends FreeTestBase {
     @DisplayName("liftF creates a suspended computation")
     void liftFCreatesSuspendedComputation() {
       Free<IdentityKind.Witness, Integer> free =
-          Free.liftF(
-              org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY.widen(
-                  new org.higherkindedj.hkt.free.test.Identity<>(42)),
-              org.higherkindedj.hkt.free.test.IdentityMonad.INSTANCE);
+          Free.liftF(IdentityKindHelper.IDENTITY.widen(new Identity<>(42)), IdentityMonad.INSTANCE);
 
       assertThat(free).isInstanceOf(Free.Suspend.class);
 
@@ -252,8 +252,7 @@ class FreeMonadTest extends FreeTestBase {
     @DisplayName("suspend creates a Suspend structure")
     void suspendCreatesSuspendStructure() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> wrapped =
-          org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY.widen(
-              new org.higherkindedj.hkt.free.test.Identity<>(Free.pure(100)));
+          IdentityKindHelper.IDENTITY.widen(new Identity<>(Free.pure(100)));
 
       Free<IdentityKind.Witness, Integer> free = Free.suspend(wrapped);
 
@@ -292,8 +291,8 @@ class FreeMonadTest extends FreeTestBase {
     void nestedSuspendAndFlatMapped() {
       // Create a Suspend containing a FlatMapped Free
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> wrapped =
-          org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY.widen(
-              new org.higherkindedj.hkt.free.test.Identity<>(
+          IdentityKindHelper.IDENTITY.widen(
+              new Identity<>(
                   Free.<IdentityKind.Witness, Integer>pure(5)
                       .flatMap(x -> Free.<IdentityKind.Witness, Integer>pure(x * 2))));
 

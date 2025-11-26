@@ -6,9 +6,13 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.reader.ReaderAssert.assertThatReader;
 import static org.higherkindedj.hkt.test.api.CoreTypeTest.readerKindHelper;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.CoreTypeTest;
+import org.higherkindedj.hkt.test.patterns.KindHelperTestPattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -150,10 +154,9 @@ class ReaderKindHelperTest extends ReaderTestBase {
     @Test
     @DisplayName("Complex environment types work correctly")
     void testComplexEnvironmentTypes() {
-      record ComplexEnv(String name, int value, List<String> items, java.time.Instant timestamp) {}
+      record ComplexEnv(String name, int value, List<String> items, Instant timestamp) {}
 
-      ComplexEnv complexEnv =
-          new ComplexEnv("complex", 42, java.util.List.of("a", "b", "c"), java.time.Instant.now());
+      ComplexEnv complexEnv = new ComplexEnv("complex", 42, List.of("a", "b", "c"), Instant.now());
 
       Reader<ComplexEnv, String> complexReader = Reader.of(ComplexEnv::name);
 
@@ -181,17 +184,14 @@ class ReaderKindHelperTest extends ReaderTestBase {
     @Test
     @DisplayName("Complex result values with nested generics")
     void testComplexResultValues() {
-      Reader<TestConfig, java.util.List<String>> listReader =
-          Reader.constant(java.util.List.of("a", "b", "c"));
-      Reader<TestConfig, java.util.Map<String, Integer>> mapReader =
-          Reader.constant(java.util.Map.of("key", 42));
+      Reader<TestConfig, List<String>> listReader = Reader.constant(List.of("a", "b", "c"));
+      Reader<TestConfig, Map<String, Integer>> mapReader = Reader.constant(Map.of("key", 42));
 
       readerKindHelper(listReader).test();
       readerKindHelper(mapReader).test();
 
-      Kind<ReaderKind.Witness<TestConfig>, java.util.List<String>> widened =
-          READER.widen(listReader);
-      Reader<TestConfig, java.util.List<String>> narrowed = READER.narrow(widened);
+      Kind<ReaderKind.Witness<TestConfig>, List<String>> widened = READER.widen(listReader);
+      Reader<TestConfig, List<String>> narrowed = READER.narrow(widened);
 
       assertThatReader(narrowed)
           .whenRunWith(TEST_CONFIG)
@@ -252,8 +252,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
     @Test
     @DisplayName("Implementation standards validation")
     void testImplementationStandards() {
-      org.higherkindedj.hkt.test.patterns.KindHelperTestPattern.validateImplementationStandards(
-          Reader.class, ReaderKindHelper.class);
+      KindHelperTestPattern.validateImplementationStandards(Reader.class, ReaderKindHelper.class);
     }
 
     @Test
@@ -270,8 +269,8 @@ class ReaderKindHelperTest extends ReaderTestBase {
       // Create readers separately with explicit types to avoid type inference issues
       Reader<TestConfig, Object> simpleString = Reader.constant("simple_string");
       Reader<TestConfig, Object> simpleInt = Reader.constant(42);
-      Reader<TestConfig, Object> simpleList = Reader.constant(java.util.List.of(1, 2, 3));
-      Reader<TestConfig, Object> simpleMap = Reader.constant(java.util.Map.of("key", "value"));
+      Reader<TestConfig, Object> simpleList = Reader.constant(List.of(1, 2, 3));
+      Reader<TestConfig, Object> simpleMap = Reader.constant(Map.of("key", "value"));
       Reader<TestConfig, Object> fromValue = Reader.of(env -> (Object) env.url());
       Reader<TestConfig, Object> fromAsk = Reader.<TestConfig>ask().map(env -> (Object) env);
       Reader<TestConfig, Object> constantNull = Reader.constant(null);
@@ -349,7 +348,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
     @Test
     @DisplayName("reader() factory method works correctly")
     void testReaderFactoryMethod() {
-      java.util.function.Function<TestConfig, String> func = TestConfig::url;
+      Function<TestConfig, String> func = TestConfig::url;
       Kind<ReaderKind.Witness<TestConfig>, String> kind = READER.reader(func);
 
       assertThat(kind).isNotNull();

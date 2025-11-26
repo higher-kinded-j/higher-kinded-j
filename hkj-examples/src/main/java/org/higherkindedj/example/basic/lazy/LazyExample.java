@@ -4,6 +4,8 @@ package org.higherkindedj.example.basic.lazy;
 
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.lazy.Lazy;
@@ -16,8 +18,7 @@ public class LazyExample {
   public static void main(String[] args) {
     // Creating Lazy Instances
     // 1. Deferring a computation (that might throw checked exception)
-    java.util.concurrent.atomic.AtomicInteger counter =
-        new java.util.concurrent.atomic.AtomicInteger(0);
+    AtomicInteger counter = new AtomicInteger(0);
     Kind<LazyKind.Witness, String> deferredLazy =
         LAZY.defer(
             () -> {
@@ -26,7 +27,7 @@ public class LazyExample {
               // Simulate potential failure
               if (System.currentTimeMillis() % 2 == 0) {
                 // Throwing a checked exception is allowed by ThrowableSupplier
-                throw new java.io.IOException("Simulated IO failure");
+                throw new IOException("Simulated IO failure");
               }
               Thread.sleep(50); // Simulate work
               return "Computed Value";

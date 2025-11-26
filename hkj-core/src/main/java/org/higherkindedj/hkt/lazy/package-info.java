@@ -5,5 +5,7 @@
  * org.higherkindedj.hkt.lazy.LazyKind}, {@link org.higherkindedj.hkt.lazy.LazyMonad}, and helper
  * utilities.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.lazy;
+
+import org.jspecify.annotations.NullMarked;

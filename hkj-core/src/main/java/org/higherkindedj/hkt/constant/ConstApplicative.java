@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP_2;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -169,7 +170,7 @@ public final class ConstApplicative<M> implements Applicative<ConstKind.Witness<
   public <A, B, C> Kind<ConstKind.Witness<M>, C> map2(
       Kind<ConstKind.Witness<M>, A> fa,
       Kind<ConstKind.Witness<M>, B> fb,
-      java.util.function.BiFunction<? super A, ? super B, ? extends C> f) {
+      BiFunction<? super A, ? super B, ? extends C> f) {
 
     Validation.kind().requireNonNull(fa, CONST_APPLICATIVE_CLASS, MAP_2, "first");
     Validation.kind().requireNonNull(fb, CONST_APPLICATIVE_CLASS, MAP_2, "second");

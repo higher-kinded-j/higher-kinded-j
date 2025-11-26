@@ -150,7 +150,7 @@ class LazyMonadTest extends LazyTestBase {
     @Test
     @DisplayName("ap() applies effectful function to effectful value")
     void apAppliesEffectfulFunctionToEffectfulValue() throws Throwable {
-      Kind<LazyKind.Witness, java.util.function.Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer("A", () -> i -> "F" + i);
       Kind<LazyKind.Witness, Integer> valKind = countingDefer("B", () -> 20);
 
@@ -342,7 +342,7 @@ class LazyMonadTest extends LazyTestBase {
     @DisplayName("ap() propagates exception from function Lazy")
     void apPropagatesExceptionFromFunctionLazy() {
       RuntimeException funcEx = new RuntimeException("FuncFail");
-      Kind<LazyKind.Witness, java.util.function.Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer(
               "A",
               () -> {
@@ -360,7 +360,7 @@ class LazyMonadTest extends LazyTestBase {
     @DisplayName("ap() propagates exception from value Lazy")
     void apPropagatesExceptionFromValueLazy() {
       RuntimeException valEx = new RuntimeException("ValFail");
-      Kind<LazyKind.Witness, java.util.function.Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer("A", () -> i -> "F" + i);
       Kind<LazyKind.Witness, Integer> valKind =
           countingDefer(
@@ -379,7 +379,7 @@ class LazyMonadTest extends LazyTestBase {
     @DisplayName("ap() propagates exception from function apply")
     void apPropagatesExceptionFromFunctionApply() {
       RuntimeException applyEx = new RuntimeException("ApplyFail");
-      Kind<LazyKind.Witness, java.util.function.Function<Integer, String>> funcKind =
+      Kind<LazyKind.Witness, Function<Integer, String>> funcKind =
           countingDefer(
               "A",
               () ->

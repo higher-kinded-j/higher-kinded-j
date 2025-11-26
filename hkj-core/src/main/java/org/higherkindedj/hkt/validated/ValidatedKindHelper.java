@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.validated;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -112,11 +113,10 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
   @SuppressWarnings("unchecked")
   public <E, A> Validated<E, A> narrow2(@Nullable Kind2<ValidatedKind2.Witness, E, A> kind) {
     if (kind == null) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
-          "Cannot narrow null Kind2 for Validated");
+      throw new KindUnwrapException("Cannot narrow null Kind2 for Validated");
     }
     if (!(kind instanceof Validated<?, ?>)) {
-      throw new org.higherkindedj.hkt.exception.KindUnwrapException(
+      throw new KindUnwrapException(
           "Kind2 instance cannot be narrowed to Validated (received: "
               + kind.getClass().getSimpleName()
               + ")");

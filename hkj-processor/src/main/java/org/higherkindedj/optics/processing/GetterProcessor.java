@@ -7,6 +7,7 @@ import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -157,7 +158,7 @@ public class GetterProcessor extends AbstractProcessor {
     String typeArguments =
         typeParameters.stream()
             .map(p -> p.getSimpleName().toString())
-            .collect(java.util.stream.Collectors.joining(", "));
+            .collect(Collectors.joining(", "));
 
     if (typeArguments.isEmpty()) {
       methodBuilder.addStatement("return $L().get(source)", componentName);

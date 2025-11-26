@@ -4,5 +4,7 @@
  * computational context. Includes {@link org.higherkindedj.hkt.id.Id}, {@link
  * org.higherkindedj.hkt.id.IdKindHelper}, and {@link org.higherkindedj.hkt.id.IdMonad}.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.id;
+
+import org.jspecify.annotations.NullMarked;

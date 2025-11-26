@@ -7,6 +7,7 @@ import static org.higherkindedj.architecture.ArchitectureTestBase.getProductionC
 
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
@@ -180,9 +181,7 @@ class TransformerConsistencyRules {
                 .anyMatch(
                     method ->
                         method.getName().equals(methodName)
-                            && method
-                                .getModifiers()
-                                .contains(com.tngtech.archunit.core.domain.JavaModifier.STATIC));
+                            && method.getModifiers().contains(JavaModifier.STATIC));
 
         if (!hasMethod) {
           events.add(

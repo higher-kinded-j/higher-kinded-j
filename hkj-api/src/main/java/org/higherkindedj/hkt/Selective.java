@@ -5,6 +5,7 @@ package org.higherkindedj.hkt;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 import org.jspecify.annotations.NullMarked;
 
@@ -397,13 +398,13 @@ public interface Selective<F> extends Applicative<F> {
 
     @Override
     public L getLeft() {
-      if (!isLeft) throw new java.util.NoSuchElementException("Not a left value");
+      if (!isLeft) throw new NoSuchElementException("Not a left value");
       return left;
     }
 
     @Override
     public R getRight() {
-      if (isLeft) throw new java.util.NoSuchElementException("Not a right value");
+      if (isLeft) throw new NoSuchElementException("Not a right value");
       return right;
     }
 

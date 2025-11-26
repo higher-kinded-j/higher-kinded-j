@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureKindHelper;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import org.higherkindedj.spring.example.controller.AsyncController;
 import org.higherkindedj.spring.example.domain.DomainError;
 import org.higherkindedj.spring.example.domain.User;
 import org.higherkindedj.spring.example.domain.UserNotFoundError;
@@ -218,34 +219,19 @@ public class AsyncUserService {
    *
    * @return EitherT with health status
    */
-  public EitherT<
-          CompletableFutureKind.Witness,
-          DomainError,
-          org.higherkindedj.spring.example.controller.AsyncController.HealthStatus>
+  public EitherT<CompletableFutureKind.Witness, DomainError, AsyncController.HealthStatus>
       getHealthAsync() {
-    CompletableFuture<
-            Either<
-                DomainError,
-                org.higherkindedj.spring.example.controller.AsyncController.HealthStatus>>
-        futureEither =
-            CompletableFuture.supplyAsync(
-                () -> {
-                  sleep(50);
-                  return Either
-                      .<DomainError,
-                          org.higherkindedj.spring.example.controller.AsyncController.HealthStatus>
-                          right(
-                              new org.higherkindedj.spring.example.controller.AsyncController
-                                  .HealthStatus("healthy", "Async operations are working"));
-                },
-                asyncExecutor);
+    CompletableFuture<Either<DomainError, AsyncController.HealthStatus>> futureEither =
+        CompletableFuture.supplyAsync(
+            () -> {
+              sleep(50);
+              return Either.<DomainError, AsyncController.HealthStatus>right(
+                  new AsyncController.HealthStatus("healthy", "Async operations are working"));
+            },
+            asyncExecutor);
 
-    Kind<
-            CompletableFutureKind.Witness,
-            Either<
-                DomainError,
-                org.higherkindedj.spring.example.controller.AsyncController.HealthStatus>>
-        kind = CompletableFutureKindHelper.FUTURE.widen(futureEither);
+    Kind<CompletableFutureKind.Witness, Either<DomainError, AsyncController.HealthStatus>> kind =
+        CompletableFutureKindHelper.FUTURE.widen(futureEither);
 
     return EitherT.fromKind(kind);
   }

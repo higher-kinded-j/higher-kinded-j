@@ -30,6 +30,7 @@ import org.higherkindedj.optics.free.OpticOpKind;
 import org.higherkindedj.optics.free.OpticOpKindHelper;
 import org.higherkindedj.optics.free.OpticPrograms;
 import org.higherkindedj.optics.free.ValidationOpticInterpreter;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A runnable example demonstrating the power of different optic interpreters. This example shows
@@ -395,8 +396,7 @@ public class OpticInterpretersExample {
     }
 
     private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
-      return org.higherkindedj.optics.util.Traversals.modify(
-          op.optic(), op.modifier(), op.source());
+      return Traversals.modify(op.optic(), op.modifier(), op.source());
     }
   }
 
@@ -472,8 +472,7 @@ public class OpticInterpretersExample {
 
     private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
       log.add("MOCK MODIFY_ALL: " + op.optic().getClass().getSimpleName());
-      return org.higherkindedj.optics.util.Traversals.modify(
-          op.optic(), op.modifier(), op.source());
+      return Traversals.modify(op.optic(), op.modifier(), op.source());
     }
   }
 

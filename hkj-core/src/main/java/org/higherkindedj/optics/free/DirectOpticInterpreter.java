@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.free;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
@@ -75,11 +77,11 @@ public final class DirectOpticInterpreter {
     return op.optic().get(op.source());
   }
 
-  private <S, A> java.util.Optional<A> executePreview(OpticOp.Preview<S, A> op) {
+  private <S, A> Optional<A> executePreview(OpticOp.Preview<S, A> op) {
     return op.optic().preview(op.source());
   }
 
-  private <S, A> java.util.List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
+  private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
     return op.optic().getAll(op.source());
   }
 

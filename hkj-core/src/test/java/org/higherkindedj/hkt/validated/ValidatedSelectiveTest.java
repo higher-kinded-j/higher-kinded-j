@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.validated.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.*;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -696,8 +697,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
     @Test
     @DisplayName("Real-world scenario: optional effect execution with error accumulation")
     void optionalEffectExecutionWithErrorAccumulation() {
-      java.util.concurrent.atomic.AtomicInteger counter =
-          new java.util.concurrent.atomic.AtomicInteger(0);
+      AtomicInteger counter = new AtomicInteger(0);
 
       Kind<ValidatedKind.Witness<String>, Boolean> shouldLog =
           VALIDATED.widen(Validated.valid(true));

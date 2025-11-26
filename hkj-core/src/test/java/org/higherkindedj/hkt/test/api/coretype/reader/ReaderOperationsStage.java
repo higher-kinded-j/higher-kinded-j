@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.test.api.coretype.reader;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.reader.Reader;
 
 /**
@@ -62,8 +63,8 @@ public final class ReaderOperationsStage<R, A> {
    * @return Stage for configuring Selective handlers
    */
   public <B> ReaderSelectiveStage<R, A, B> withSelectiveOperations(
-      Reader<R, org.higherkindedj.hkt.Choice<A, B>> choiceLeft,
-      Reader<R, org.higherkindedj.hkt.Choice<A, B>> choiceRight,
+      Reader<R, Choice<A, B>> choiceLeft,
+      Reader<R, Choice<A, B>> choiceRight,
       Reader<R, Boolean> booleanTrue,
       Reader<R, Boolean> booleanFalse) {
     return new ReaderSelectiveStage<>(

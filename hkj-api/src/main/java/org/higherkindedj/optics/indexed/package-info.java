@@ -65,5 +65,7 @@
  * @see org.higherkindedj.optics.Fold
  * @see org.higherkindedj.optics.Lens
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.optics.indexed;
+
+import org.jspecify.annotations.NullMarked;

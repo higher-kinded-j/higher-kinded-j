@@ -5,6 +5,7 @@ package org.higherkindedj.example.basic.profunctor;
 import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
@@ -179,7 +180,7 @@ public class ProfunctorExample {
         profunctor.dimap(
             // Extract age from birth date
             user -> {
-              long years = java.time.Period.between(user.birthDate(), LocalDate.now()).getYears();
+              long years = Period.between(user.birthDate(), LocalDate.now()).getYears();
               return (double) years;
             },
             // Convert boolean to ValidationResult

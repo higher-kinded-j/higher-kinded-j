@@ -1,2 +1,4 @@
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.typeclass;
+
+import org.jspecify.annotations.NullMarked;

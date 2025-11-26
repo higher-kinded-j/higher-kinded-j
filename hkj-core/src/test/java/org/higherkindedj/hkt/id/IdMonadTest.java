@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.id.IdAssert.assertThatId;
 
 import java.util.function.Function;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
 import org.higherkindedj.hkt.test.validation.TestPatternValidator;
@@ -427,8 +428,7 @@ class IdMonadTest extends IdTestBase {
             throw testException;
           };
 
-      org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> monad.flatMap(throwingFlatMapper, validKind))
+      Assertions.assertThatThrownBy(() -> monad.flatMap(throwingFlatMapper, validKind))
           .isSameAs(testException);
     }
 
@@ -442,8 +442,7 @@ class IdMonadTest extends IdTestBase {
           };
       Kind<IdKind.Witness, Function<Integer, String>> throwingFunctionKind = idOf(throwingFunction);
 
-      org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> monad.ap(throwingFunctionKind, validKind))
+      Assertions.assertThatThrownBy(() -> monad.ap(throwingFunctionKind, validKind))
           .isSameAs(testException);
     }
   }

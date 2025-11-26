@@ -9,6 +9,9 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
@@ -123,7 +126,7 @@ class MonadLawsTestFactory {
                 }
                 if (tryA.isSuccess()) {
                   try {
-                    return java.util.Objects.equals(tryA.get(), tryB.get());
+                    return Objects.equals(tryA.get(), tryB.get());
                   } catch (Throwable e) {
                     return false;
                   }
@@ -131,14 +134,14 @@ class MonadLawsTestFactory {
                   Throwable causeA = ((Try.Failure<A>) tryA).cause();
                   Throwable causeB = ((Try.Failure<A>) tryB).cause();
                   return causeA.getClass().equals(causeB.getClass())
-                      && java.util.Objects.equals(causeA.getMessage(), causeB.getMessage());
+                      && Objects.equals(causeA.getMessage(), causeB.getMessage());
                 }
               }
             }),
         MonadTestData.of(
             "List",
             ListMonad.INSTANCE,
-            LIST.widen(java.util.List.of(42)),
+            LIST.widen(List.of(42)),
             new EqualityChecker<ListKind.Witness>() {
               @Override
               public <A> boolean areEqual(
@@ -149,7 +152,7 @@ class MonadLawsTestFactory {
         MonadTestData.of(
             "Optional",
             OptionalMonad.INSTANCE,
-            OPTIONAL.widen(java.util.Optional.of(42)),
+            OPTIONAL.widen(Optional.of(42)),
             new EqualityChecker<OptionalKind.Witness>() {
               @Override
               public <A> boolean areEqual(

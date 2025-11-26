@@ -9,5 +9,7 @@
  * <p>Includes the {@link org.higherkindedj.hkt.io.IO} type, {@link
  * org.higherkindedj.hkt.io.IOKind}, {@link org.higherkindedj.hkt.io.IOMonad}, and helper utilities.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.io;
+
+import org.jspecify.annotations.NullMarked;

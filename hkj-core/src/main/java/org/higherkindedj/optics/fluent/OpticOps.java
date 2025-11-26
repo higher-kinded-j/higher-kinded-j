@@ -10,10 +10,20 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.constant.Const;
 import org.higherkindedj.hkt.constant.ConstApplicative;
 import org.higherkindedj.hkt.constant.ConstKind;
 import org.higherkindedj.hkt.constant.ConstKindHelper;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.either.EitherKindHelper;
+import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
+import org.higherkindedj.hkt.validated.ValidatedKindHelper;
+import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -408,8 +418,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return Either.right(updated structure) if validation succeeds, Either.left(error) otherwise
    */
-  public static <E, S, A> org.higherkindedj.hkt.either.Either<E, S> modifyEither(
-      S source, Lens<S, A> lens, Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+  public static <E, S, A> Either<E, S> modifyEither(
+      S source, Lens<S, A> lens, Function<A, Either<E, A>> validator) {
     A currentValue = lens.get(source);
     return validator.apply(currentValue).map(validatedValue -> lens.set(validatedValue, source));
   }
@@ -446,8 +456,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return Maybe.just(updated structure) if validation succeeds, Maybe.nothing() otherwise
    */
-  public static <S, A> org.higherkindedj.hkt.maybe.Maybe<S> modifyMaybe(
-      S source, Lens<S, A> lens, Function<A, org.higherkindedj.hkt.maybe.Maybe<A>> validator) {
+  public static <S, A> Maybe<S> modifyMaybe(
+      S source, Lens<S, A> lens, Function<A, Maybe<A>> validator) {
     A currentValue = lens.get(source);
     return validator.apply(currentValue).map(validatedValue -> lens.set(validatedValue, source));
   }
@@ -493,35 +503,27 @@ public final class OpticOps {
    * @return Validated.valid(updated structure) if all validations succeed, Validated.invalid(all
    *     errors) otherwise
    */
-  public static <E, S, A> org.higherkindedj.hkt.validated.Validated<List<E>, S> modifyAllValidated(
-      S source,
-      Traversal<S, A> traversal,
-      Function<A, org.higherkindedj.hkt.validated.Validated<E, A>> validator) {
+  public static <E, S, A> Validated<List<E>, S> modifyAllValidated(
+      S source, Traversal<S, A> traversal, Function<A, Validated<E, A>> validator) {
     // Create applicative for Validated with List semigroup for error accumulation
 
-    Applicative<org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>> applicative =
-        org.higherkindedj.hkt.validated.ValidatedMonad.instance(
-            org.higherkindedj.hkt.Semigroups.list());
+    Applicative<ValidatedKind.Witness<List<E>>> applicative =
+        ValidatedMonad.instance(Semigroups.list());
 
     // Lift the validator to work with List<E> errors
-    Function<
-            A,
-            org.higherkindedj.hkt.Kind<
-                org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>, A>>
-        liftedValidator =
-            a -> {
-              org.higherkindedj.hkt.validated.Validated<E, A> validated = validator.apply(a);
-              // Convert Validated<E, A> to Validated<List<E>, A>
-              org.higherkindedj.hkt.validated.Validated<List<E>, A> result =
-                  validated.bimap(List::of, Function.identity());
-              return org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED.widen(result);
-            };
+    Function<A, Kind<ValidatedKind.Witness<List<E>>, A>> liftedValidator =
+        a -> {
+          Validated<E, A> validated = validator.apply(a);
+          // Convert Validated<E, A> to Validated<List<E>, A>
+          Validated<List<E>, A> result = validated.bimap(List::of, Function.identity());
+          return ValidatedKindHelper.VALIDATED.widen(result);
+        };
 
     // Use traversal's modifyF with the applicative
-    Kind<org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<E>>, S> resultKind =
+    Kind<ValidatedKind.Witness<List<E>>, S> resultKind =
         traversal.modifyF(liftedValidator, source, applicative);
 
-    return org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED.narrow(resultKind);
+    return ValidatedKindHelper.VALIDATED.narrow(resultKind);
   }
 
   /**
@@ -560,24 +562,20 @@ public final class OpticOps {
    * @return Either.right(updated structure) if all validations succeed, Either.left(first error)
    *     otherwise
    */
-  public static <E, S, A> org.higherkindedj.hkt.either.Either<E, S> modifyAllEither(
-      S source,
-      Traversal<S, A> traversal,
-      Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+  public static <E, S, A> Either<E, S> modifyAllEither(
+      S source, Traversal<S, A> traversal, Function<A, Either<E, A>> validator) {
     // Create applicative for Either (short-circuits on first Left)
-    Applicative<org.higherkindedj.hkt.either.EitherKind.Witness<E>> applicative =
-        org.higherkindedj.hkt.either.EitherMonad.instance();
+    Applicative<EitherKind.Witness<E>> applicative = EitherMonad.instance();
 
     // Lift the validator to the Kind type
-    Function<A, org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.either.EitherKind.Witness<E>, A>>
-        liftedValidator =
-            a -> org.higherkindedj.hkt.either.EitherKindHelper.EITHER.widen(validator.apply(a));
+    Function<A, Kind<EitherKind.Witness<E>, A>> liftedValidator =
+        a -> EitherKindHelper.EITHER.widen(validator.apply(a));
 
     // Use traversal's modifyF with the applicative
-    Kind<org.higherkindedj.hkt.either.EitherKind.Witness<E>, S> resultKind =
+    Kind<EitherKind.Witness<E>, S> resultKind =
         traversal.modifyF(liftedValidator, source, applicative);
 
-    return org.higherkindedj.hkt.either.EitherKindHelper.EITHER.narrow(resultKind);
+    return EitherKindHelper.EITHER.narrow(resultKind);
   }
 
   // ============================================================================
@@ -1238,8 +1236,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Either containing the updated structure or an error
      */
-    public <E, A> org.higherkindedj.hkt.either.Either<E, S> throughEither(
-        Lens<S, A> lens, Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+    public <E, A> Either<E, S> throughEither(Lens<S, A> lens, Function<A, Either<E, A>> validator) {
       return modifyEither(source, lens, validator);
     }
 
@@ -1262,8 +1259,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Maybe containing the updated structure or nothing
      */
-    public <A> org.higherkindedj.hkt.maybe.Maybe<S> throughMaybe(
-        Lens<S, A> lens, Function<A, org.higherkindedj.hkt.maybe.Maybe<A>> validator) {
+    public <A> Maybe<S> throughMaybe(Lens<S, A> lens, Function<A, Maybe<A>> validator) {
       return modifyMaybe(source, lens, validator);
     }
 
@@ -1293,9 +1289,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Validated containing the updated structure or accumulated errors
      */
-    public <E, A> org.higherkindedj.hkt.validated.Validated<List<E>, S> allThroughValidated(
-        Traversal<S, A> traversal,
-        Function<A, org.higherkindedj.hkt.validated.Validated<E, A>> validator) {
+    public <E, A> Validated<List<E>, S> allThroughValidated(
+        Traversal<S, A> traversal, Function<A, Validated<E, A>> validator) {
       return modifyAllValidated(source, traversal, validator);
     }
 
@@ -1321,9 +1316,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Either containing the updated structure or first error
      */
-    public <E, A> org.higherkindedj.hkt.either.Either<E, S> allThroughEither(
-        Traversal<S, A> traversal,
-        Function<A, org.higherkindedj.hkt.either.Either<E, A>> validator) {
+    public <E, A> Either<E, S> allThroughEither(
+        Traversal<S, A> traversal, Function<A, Either<E, A>> validator) {
       return modifyAllEither(source, traversal, validator);
     }
   }

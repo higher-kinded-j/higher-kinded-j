@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -192,7 +193,7 @@ abstract class ListTestBase extends TypeClassTestBase<ListKind.Witness, Integer,
    * @return A List Kind containing the range
    */
   protected Kind<ListKind.Witness, Integer> rangeList(int start, int end) {
-    List<Integer> range = new java.util.ArrayList<>();
+    List<Integer> range = new ArrayList<>();
     for (int i = start; i < end; i++) {
       range.add(i);
     }

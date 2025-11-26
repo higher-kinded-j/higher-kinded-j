@@ -2,10 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.indexed;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
 
@@ -204,8 +208,7 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     IndexedTraversal<I, S, A> self = this;
     return new Traversal<>() {
       @Override
-      public <F> Kind<F, S> modifyF(
-          java.util.function.Function<A, Kind<F, A>> f, S source, Applicative<F> app) {
+      public <F> Kind<F, S> modifyF(Function<A, Kind<F, A>> f, S source, Applicative<F> app) {
         return self.imodifyF((i, a) -> f.apply(a), source, app);
       }
     };
@@ -221,13 +224,11 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
     return new IndexedFold<I, S, A>() {
       @Override
       public <M> M ifoldMap(
-          org.higherkindedj.hkt.Monoid<M> monoid,
-          BiFunction<? super I, ? super A, ? extends M> f,
-          S source) {
+          Monoid<M> monoid, BiFunction<? super I, ? super A, ? extends M> f, S source) {
         // We need to traverse all elements and fold them using the monoid.
         // Since we can't reference Id/IdMonad from hkj-core, we define a minimal
         // identity-like applicative inline.
-        final java.util.List<Pair<I, A>> collected = new java.util.ArrayList<>();
+        final List<Pair<I, A>> collected = new ArrayList<>();
 
         // Define a simple identity wrapper that implements Kind
         // This is a local class to avoid circular dependencies
@@ -252,8 +253,7 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
               @Override
               @SuppressWarnings("unchecked")
               public <A1, B1> Kind<IdWrapper, B1> map(
-                  java.util.function.Function<? super A1, ? extends B1> fn,
-                  Kind<IdWrapper, A1> fa) {
+                  Function<? super A1, ? extends B1> fn, Kind<IdWrapper, A1> fa) {
                 IdWrapper wrapper = (IdWrapper) fa;
                 return (Kind<IdWrapper, B1>) new IdWrapper(fn.apply((A1) wrapper.value));
               }
@@ -261,12 +261,10 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
               @Override
               @SuppressWarnings("unchecked")
               public <A1, B1> Kind<IdWrapper, B1> ap(
-                  Kind<IdWrapper, ? extends java.util.function.Function<A1, B1>> ff,
-                  Kind<IdWrapper, A1> fa) {
+                  Kind<IdWrapper, ? extends Function<A1, B1>> ff, Kind<IdWrapper, A1> fa) {
                 IdWrapper wrapperF = (IdWrapper) ff;
                 IdWrapper wrapperA = (IdWrapper) fa;
-                java.util.function.Function<A1, B1> fn =
-                    (java.util.function.Function<A1, B1>) wrapperF.value;
+                Function<A1, B1> fn = (Function<A1, B1>) wrapperF.value;
                 return (Kind<IdWrapper, B1>) new IdWrapper(fn.apply((A1) wrapperA.value));
               }
             };

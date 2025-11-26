@@ -9,5 +9,7 @@
  * org.higherkindedj.hkt.validated.ValidatedKind}, the {@link
  * org.higherkindedj.hkt.validated.ValidatedMonad} instance, and helper utilities.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.validated;
+
+import org.jspecify.annotations.NullMarked;

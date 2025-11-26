@@ -15,5 +15,7 @@
  * The main game loop in {@link org.higherkindedj.example.draughts.Draughts} composes these effects
  * to create the interactive gameplay experience.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.example.draughts;
+
+import org.jspecify.annotations.NullMarked;

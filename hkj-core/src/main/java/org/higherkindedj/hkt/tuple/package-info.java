@@ -7,5 +7,7 @@
  * org.higherkindedj.hkt.tuple.Tuple5}. These are primarily used by the for-comprehension builder in
  * the {@code hkt.expression} package to accumulate results from monadic steps.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.tuple;
+
+import org.jspecify.annotations.NullMarked;

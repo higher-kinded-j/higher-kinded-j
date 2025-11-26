@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -183,7 +184,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
    */
   @Override
   public <A> Kind<ListKind.Witness, A> orElse(
-      Kind<ListKind.Witness, A> la, java.util.function.Supplier<Kind<ListKind.Witness, A>> lb) {
+      Kind<ListKind.Witness, A> la, Supplier<Kind<ListKind.Witness, A>> lb) {
 
     Validation.kind().requireNonNull(la, ListMonad.class, OR_ELSE, "first list");
     Validation.function().requireFunction(lb, "lb", ListMonad.class, OR_ELSE);

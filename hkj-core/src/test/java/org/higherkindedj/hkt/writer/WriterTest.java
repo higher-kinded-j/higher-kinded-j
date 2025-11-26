@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
@@ -591,7 +592,7 @@ class WriterTest extends WriterTestBase {
     @Test
     @DisplayName("Writer works with complex generic types")
     void writerWorksWithComplexGenericTypes() {
-      Writer<String, java.util.List<Integer>> listWriter = valueWriter(java.util.List.of(1, 2, 3));
+      Writer<String, List<Integer>> listWriter = valueWriter(List.of(1, 2, 3));
 
       Writer<String, Integer> sumWriter =
           listWriter.map(list -> list.stream().mapToInt(Integer::intValue).sum());

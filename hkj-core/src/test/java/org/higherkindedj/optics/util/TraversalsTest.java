@@ -1554,7 +1554,7 @@ class TraversalsTest {
         final Function<Integer, Kind<OptionalKind.Witness, Integer>> f =
             i -> {
               processCount.incrementAndGet();
-              return OptionalKindHelper.OPTIONAL.widen(java.util.Optional.of(i * 10));
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(i * 10));
             };
 
         final Kind<OptionalKind.Witness, List<Integer>> result =

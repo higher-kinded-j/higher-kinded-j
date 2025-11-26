@@ -4,10 +4,7 @@ package org.higherkindedj.optics.indexed;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -198,7 +195,7 @@ class IndexedTraversalTest {
     @DisplayName("should filter by specific indices set")
     void filterSpecificIndices() {
       IndexedTraversal<Integer, List<String>, String> ilist = IndexedTraversals.forList();
-      var indices = java.util.Set.of(0, 2, 4);
+      var indices = Set.of(0, 2, 4);
       IndexedTraversal<Integer, List<String>, String> specific =
           ilist.filterIndex(indices::contains);
       List<String> source = List.of("a", "b", "c", "d", "e");

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.writer.WriterAssert.assertThatWriter;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
+import java.util.List;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.api.TypeClassTest;
@@ -394,8 +395,8 @@ class WriterFunctorTest extends WriterTestBase {
     @Test
     @DisplayName("map() works with complex generic types")
     void mapWorksWithComplexGenericTypes() {
-      Kind<WriterKind.Witness<String>, java.util.List<Integer>> listKind =
-          WRITER.widen(writerOf("List;", java.util.List.of(1, 2, 3)));
+      Kind<WriterKind.Witness<String>, List<Integer>> listKind =
+          WRITER.widen(writerOf("List;", List.of(1, 2, 3)));
 
       Kind<WriterKind.Witness<String>, Integer> sumKind =
           functor.map(list -> list.stream().mapToInt(Integer::intValue).sum(), listKind);

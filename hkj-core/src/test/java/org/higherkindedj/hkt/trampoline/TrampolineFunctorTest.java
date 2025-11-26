@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.trampoline;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.trampoline.TrampolineKindHelper.TRAMPOLINE;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -154,8 +155,8 @@ class TrampolineFunctorTest extends TrampolineTestBase {
     @DisplayName("Composition law: map(f . g, fa) == map(f, map(g, fa))")
     void compositionLaw() {
       Kind<TrampolineKind.Witness, Integer> fa = TRAMPOLINE.widen(Trampoline.done(10));
-      java.util.function.Function<Integer, Integer> f = x -> x * 2;
-      java.util.function.Function<Integer, Integer> g = x -> x + 5;
+      Function<Integer, Integer> f = x -> x * 2;
+      Function<Integer, Integer> g = x -> x + 5;
 
       // Left side: map(f . g, fa)
       Kind<TrampolineKind.Witness, Integer> left = functor.map(x -> f.apply(g.apply(x)), fa);

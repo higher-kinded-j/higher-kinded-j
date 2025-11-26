@@ -4,5 +4,7 @@
  * org.higherkindedj.hkt.optional.OptionalMonad} (the Monad instance for Optional), and helper
  * utilities.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.hkt.optional;
+
+import org.jspecify.annotations.NullMarked;

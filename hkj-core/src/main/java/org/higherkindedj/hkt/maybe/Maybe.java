@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.maybe;
 import static org.higherkindedj.hkt.util.validation.Operation.JUST;
 
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -84,7 +85,7 @@ public sealed interface Maybe<T> permits Just, Nothing {
    *     {@code Nothing}. Will not be {@code null}.
    * @throws NullPointerException if {@code optional} is {@code null}.
    */
-  static <T> Maybe<T> fromOptional(java.util.Optional<T> optional) {
+  static <T> Maybe<T> fromOptional(Optional<T> optional) {
     return optional.isPresent() ? just(optional.get()) : nothing();
   }
 

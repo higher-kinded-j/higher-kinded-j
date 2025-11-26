@@ -1,2 +1,4 @@
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.optics.prism;
+
+import org.jspecify.annotations.NullMarked;

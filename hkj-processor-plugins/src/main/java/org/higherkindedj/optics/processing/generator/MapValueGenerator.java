@@ -8,11 +8,13 @@ import com.palantir.javapoet.TypeName;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.util.Traversals;
 
 /**
@@ -51,10 +53,10 @@ public class MapValueGenerator extends BaseTraversableGenerator {
             "final $T<Map.Entry<$T, $T>, $T<F, Map.Entry<$T, $T>>> entryF = \n"
                 + "    entry -> applicative.map(newValue -> $T.entry(entry.getKey(), newValue),"
                 + " f.apply(entry.getValue()))",
-            java.util.function.Function.class,
+            Function.class,
             getKeyTypeName(component),
             getValueTypeName(component),
-            org.higherkindedj.hkt.Kind.class,
+            Kind.class,
             getKeyTypeName(component),
             getValueTypeName(component), // This assumes f: V -> F<V>, so new value is same type.
             Map.class)

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.junit.jupiter.api.DisplayName;
@@ -225,7 +226,7 @@ class MonoidsTest {
 
         Double result = doubleAddition.combine(0.1, 0.2);
 
-        assertThat(result).isCloseTo(0.3, org.assertj.core.api.Assertions.within(0.0001));
+        assertThat(result).isCloseTo(0.3, Assertions.within(0.0001));
       }
 
       @Test

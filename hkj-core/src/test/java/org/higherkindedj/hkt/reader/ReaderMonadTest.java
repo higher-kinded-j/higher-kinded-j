@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.reader.ReaderAssert.assertThatReader;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
@@ -106,9 +108,8 @@ class ReaderMonadTest extends ReaderTestBase {
     @Test
     @DisplayName("flatMap() passes environment correctly")
     void flatMapPassesEnvironmentCorrectly() {
-      java.util.function.Function<Integer, Kind<ReaderKind.Witness<TestConfig>, String>>
-          flatMapper =
-              conns -> READER.widen(Reader.of(config -> config.url() + " [" + conns + "]"));
+      Function<Integer, Kind<ReaderKind.Witness<TestConfig>, String>> flatMapper =
+          conns -> READER.widen(Reader.of(config -> config.url() + " [" + conns + "]"));
 
       Kind<ReaderKind.Witness<TestConfig>, String> result = monad.flatMap(flatMapper, validKind);
 
@@ -121,7 +122,7 @@ class ReaderMonadTest extends ReaderTestBase {
     @Test
     @DisplayName("ap() applies function to value - both from environment")
     void apAppliesFunctionToValue() {
-      Kind<ReaderKind.Witness<TestConfig>, java.util.function.Function<Integer, String>> funcKind =
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           READER.widen(Reader.of(config -> i -> config.url() + ":" + i));
       Kind<ReaderKind.Witness<TestConfig>, Integer> valueKind = validKind;
 
@@ -136,7 +137,7 @@ class ReaderMonadTest extends ReaderTestBase {
     @Test
     @DisplayName("ap() works with constant function and value")
     void apWorksWithConstantFunctionAndValue() {
-      Kind<ReaderKind.Witness<TestConfig>, java.util.function.Function<Integer, String>> funcKind =
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           monad.of(i -> "Num" + i);
       Kind<ReaderKind.Witness<TestConfig>, Integer> valueKind = monad.of(100);
 
@@ -151,7 +152,7 @@ class ReaderMonadTest extends ReaderTestBase {
       Kind<ReaderKind.Witness<TestConfig>, Integer> r1 = validKind;
       Kind<ReaderKind.Witness<TestConfig>, Integer> r2 = validKind2;
 
-      java.util.function.BiFunction<Integer, Integer, String> combiner = (a, b) -> a + "," + b;
+      BiFunction<Integer, Integer, String> combiner = (a, b) -> a + "," + b;
       Kind<ReaderKind.Witness<TestConfig>, String> result = monad.map2(r1, r2, combiner);
 
       assertThat(runReader(result, TEST_CONFIG))
@@ -271,7 +272,7 @@ class ReaderMonadTest extends ReaderTestBase {
     @DisplayName("Exception in function propagates through map")
     void exceptionInFunctionPropagatesThroughMap() {
       RuntimeException testException = new RuntimeException("Test exception: map test");
-      java.util.function.Function<Integer, String> throwingMapper =
+      Function<Integer, String> throwingMapper =
           i -> {
             throw testException;
           };
@@ -286,11 +287,10 @@ class ReaderMonadTest extends ReaderTestBase {
     @DisplayName("Exception in function propagates through flatMap")
     void exceptionInFunctionPropagatesThroughFlatMap() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap test");
-      java.util.function.Function<Integer, Kind<ReaderKind.Witness<TestConfig>, String>>
-          throwingFlatMapper =
-              i -> {
-                throw testException;
-              };
+      Function<Integer, Kind<ReaderKind.Witness<TestConfig>, String>> throwingFlatMapper =
+          i -> {
+            throw testException;
+          };
 
       Kind<ReaderKind.Witness<TestConfig>, String> result =
           monad.flatMap(throwingFlatMapper, validKind);
@@ -303,7 +303,7 @@ class ReaderMonadTest extends ReaderTestBase {
     @DisplayName("Exception in ap function propagates")
     void exceptionInApFunctionPropagates() {
       RuntimeException testException = new RuntimeException("Test exception: ap test");
-      Kind<ReaderKind.Witness<TestConfig>, java.util.function.Function<Integer, String>> funcKind =
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           monad.of(
               i -> {
                 throw testException;
