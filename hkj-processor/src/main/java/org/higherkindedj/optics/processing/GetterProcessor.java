@@ -24,7 +24,7 @@ import org.higherkindedj.optics.Getter;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateGetters")
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class GetterProcessor extends AbstractProcessor {
 
   @Override

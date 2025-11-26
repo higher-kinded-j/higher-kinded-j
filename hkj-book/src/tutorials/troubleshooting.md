@@ -322,7 +322,7 @@ Even though code compiles, IDE shows red underlines.
 ### Tests Pass Locally But Fail in CI
 
 **Common causes**:
-1. **Java Version Mismatch**: Ensure CI uses Java 24+
+1. **Java Version Mismatch**: Ensure CI uses Java 25+
 2. **Annotation Processor Not Running**: CI build must run `clean build`, not just `test`
 3. **Encoding Issues**: Ensure UTF-8 encoding in build configuration
 
@@ -381,17 +381,18 @@ dependencies {
 ```
 
 #### "Execution failed for task ':compileJava'"
-**Fix**: Verify Java 24+ is configured:
+**Fix**: Verify Java 25+ is configured:
 ```bash
-java -version  # Should be 24 or later
+java -version  # Should be 25 or later
 ```
 
 Update `build.gradle`:
 ```gradle
-java {
-    sourceCompatibility = JavaVersion.VERSION_24
-    targetCompatibility = JavaVersion.VERSION_24
-}
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(25))
+        }
+    }
 ```
 
 ---
@@ -405,10 +406,10 @@ java {
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.11.0</version>
+            <version>3.14.1</version>
             <configuration>
-                <source>24</source>
-                <target>24</target>
+                <source>25</source>
+                <target>25</target>
                 <annotationProcessorPaths>
                     <path>
                         <groupId>io.github.higher-kinded-j</groupId>

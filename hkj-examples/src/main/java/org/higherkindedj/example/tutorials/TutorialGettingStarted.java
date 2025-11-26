@@ -29,7 +29,7 @@ import org.higherkindedj.optics.Lens;
  * ✓ Core types working
  * ✓ Optics working
  * ✓ Type classes working
- * ✓ Java 24 features working
+ * ✓ Java 25 features working
  *
  * Setup verification complete! You're ready to start the tutorials.
  * }</pre>
@@ -39,7 +39,7 @@ import org.higherkindedj.optics.Lens;
  * <p>If this example doesn't compile or run:
  *
  * <ol>
- *   <li>Verify Java 24+ is installed: {@code java -version}
+ *   <li>Verify Java 25+ is installed: {@code java -version}
  *   <li>Check {@code build.gradle} includes Higher-Kinded-J dependencies
  *   <li>Run {@code ./gradlew clean build} to trigger annotation processing
  *   <li>Consult the <a
@@ -138,9 +138,9 @@ public final class TutorialGettingStarted {
   }
 
   /**
-   * Verifies that Java 24 features (records, sealed interfaces, pattern matching) are available.
+   * Verifies that Java 25 features (records, sealed interfaces, pattern matching) are available.
    *
-   * <p>Higher-Kinded-J requires Java 24+ to leverage modern language features. This method confirms
+   * <p>Higher-Kinded-J requires Java 25+ to leverage modern language features. This method confirms
    * your JDK version is sufficient.
    */
   private static void verifyJavaFeatures() {
@@ -162,7 +162,7 @@ public final class TutorialGettingStarted {
 
     assert isSuccess : "Pattern matching should work";
 
-    System.out.println("✓ Java 24 features working");
+    System.out.println("✓ Java 25 features working");
   }
 
   /**

@@ -39,7 +39,7 @@ import org.higherkindedj.optics.annotations.GeneratePrisms;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GeneratePrisms")
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PrismProcessor extends AbstractProcessor {
 
   /**

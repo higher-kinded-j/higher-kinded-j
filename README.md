@@ -111,7 +111,7 @@ IndexedTraversal<Integer, List<Player>, Player> playersWithIndex =
 
 ## Requirements
 
-* **Java Development Kit (JDK): Version 24** or later.
+* **Java Development Kit (JDK): Version 25** or later.
 * Gradle (the project includes a Gradle wrapper).
 
 ## How to Use This Library
