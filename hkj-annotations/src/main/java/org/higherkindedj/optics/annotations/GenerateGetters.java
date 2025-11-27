@@ -29,8 +29,8 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
- * <p>By default, the generated class is placed in the same package as the annotated record. Use
- * the {@link #targetPackage()} element to specify a different package for the generated class.
+ * <p>By default, the generated class is placed in the same package as the annotated record. Use the
+ * {@link #targetPackage()} element to specify a different package for the generated class.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
