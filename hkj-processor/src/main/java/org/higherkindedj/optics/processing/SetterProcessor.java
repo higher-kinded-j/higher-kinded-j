@@ -22,6 +22,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Setter;
+import org.higherkindedj.optics.annotations.GenerateSetters;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateSetters")
@@ -49,8 +50,15 @@ public class SetterProcessor extends AbstractProcessor {
 
   private void generateSettersFile(TypeElement recordElement) throws IOException {
     String recordName = recordElement.getSimpleName().toString();
-    String packageName =
+    String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
+
+    // Check for custom target package in annotation
+    GenerateSetters annotation = recordElement.getAnnotation(GenerateSetters.class);
+    String targetPackage = annotation.targetPackage();
+    String packageName =
+        (targetPackage != null && !targetPackage.isEmpty()) ? targetPackage : defaultPackage;
+
     String settersClassName = recordName + "Setters";
 
     final ClassName generatedAnnotation =

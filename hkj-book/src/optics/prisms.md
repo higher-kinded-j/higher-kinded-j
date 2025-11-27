@@ -77,6 +77,18 @@ Just as with lenses, we annotate our `sealed interface` with **`@GeneratePrisms`
 // JsonValuePrisms.jsonObject() -> Prism<JsonValue, JsonObject>
 ```
 
+#### Customising the Generated Package
+
+By default, generated classes are placed in the same package as the annotated type. You can specify a different package using the `targetPackage` attribute:
+
+```java
+// Generated class will be placed in org.example.generated.optics
+@GeneratePrisms(targetPackage = "org.example.generated.optics")
+public sealed interface JsonValue {}
+```
+
+This is useful when you need to avoid name collisions or organise generated code separately.
+
 ### Step 2: The Core Prism Operations
 
 A `Prism` is defined by two unique, failable operations:

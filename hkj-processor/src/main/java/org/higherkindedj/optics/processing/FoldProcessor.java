@@ -25,6 +25,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.annotations.GenerateFolds;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateFolds")
@@ -52,8 +53,15 @@ public class FoldProcessor extends AbstractProcessor {
 
   private void generateFoldsFile(TypeElement recordElement) throws IOException {
     String recordName = recordElement.getSimpleName().toString();
-    String packageName =
+    String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
+
+    // Check for custom target package in annotation
+    GenerateFolds annotation = recordElement.getAnnotation(GenerateFolds.class);
+    String targetPackage = annotation.targetPackage();
+    String packageName =
+        (targetPackage != null && !targetPackage.isEmpty()) ? targetPackage : defaultPackage;
+
     String foldsClassName = recordName + "Folds";
 
     final ClassName generatedAnnotation =

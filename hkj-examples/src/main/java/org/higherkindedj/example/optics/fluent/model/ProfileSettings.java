@@ -5,6 +5,6 @@ package org.higherkindedj.example.optics.fluent.model;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents user profile settings and preferences. */
-@GenerateLenses
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record ProfileSettings(
     boolean emailNotifications, boolean smsNotifications, String preferredLanguage, String theme) {}

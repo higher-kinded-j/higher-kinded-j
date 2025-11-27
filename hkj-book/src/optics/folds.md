@@ -108,6 +108,18 @@ This generates:
 * `OrderFolds.orderId()` → `Fold<Order, String>` (focuses on the order ID)
 * `OrderFolds.customerName()` → `Fold<Order, String>` (focuses on customer name)
 
+#### Customising the Generated Package
+
+By default, generated classes are placed in the same package as the annotated record. You can specify a different package using the `targetPackage` attribute:
+
+```java
+// Generated class will be placed in org.example.generated.optics
+@GenerateFolds(targetPackage = "org.example.generated.optics")
+public record Order(String orderId, List<Product> items, String customerName) {}
+```
+
+This is useful when you need to avoid name collisions or organise generated code separately.
+
 ### Step 2: The Core Fold Operations
 
 A `Fold<S, A>` provides these essential query operations:

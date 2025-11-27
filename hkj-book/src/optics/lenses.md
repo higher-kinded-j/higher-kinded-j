@@ -63,6 +63,21 @@ public record Company(String name, Address address) {}
 public record Employee(String name, Company company) {}
 ```
 
+#### Customising the Generated Package
+
+By default, generated classes are placed in the same package as the annotated record. You can specify a different package using the `targetPackage` attribute to avoid name collisions or to organise generated code separately:
+
+```java
+// Generated class will be placed in org.example.generated.optics
+@GenerateLenses(targetPackage = "org.example.generated.optics")
+public record Address(String street, String city) {}
+```
+
+This is particularly useful when:
+- Multiple records in different packages share the same name
+- You want to keep generated code separate from source code
+- You need to control the visibility of generated classes
+
 ### Step 2: Composing a Deep Lens
 
 With the lenses generated, we can now compose them using the **`andThen`** method. We'll chain the individual lenses together to create a single, new `Lens` that represents the complete path from the top-level object (`Employee`) to the deeply nested field (`street`).

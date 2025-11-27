@@ -7,6 +7,22 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a sealed interface or enum for which a Prisms utility class should be generated. The
+ * generated class will be named by appending "Prisms" to the type's name.
+ *
+ * <p>By default, the generated class is placed in the same package as the annotated type. Use the
+ * {@link #targetPackage()} element to specify a different package for the generated class.
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
-public @interface GeneratePrisms {}
+public @interface GeneratePrisms {
+
+  /**
+   * The package where the generated class should be placed. If empty (the default), the generated
+   * class will be placed in the same package as the annotated type.
+   *
+   * @return the target package name, or empty string to use the source package
+   */
+  String targetPackage() default "";
+}

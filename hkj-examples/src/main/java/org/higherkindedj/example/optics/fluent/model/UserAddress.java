@@ -5,6 +5,6 @@ package org.higherkindedj.example.optics.fluent.model;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents a user's address. */
-@GenerateLenses
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record UserAddress(
     String type, String street, String city, String postCode, String country) {}

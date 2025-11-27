@@ -3,7 +3,7 @@
 package org.higherkindedj.example.optics.fluent;
 
 import org.higherkindedj.example.optics.fluent.model.Player;
-import org.higherkindedj.example.optics.fluent.model.PlayerLenses;
+import org.higherkindedj.example.optics.fluent.generated.PlayerLenses;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
