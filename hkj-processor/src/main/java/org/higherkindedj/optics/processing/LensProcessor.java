@@ -22,6 +22,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateLenses;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateLenses")
@@ -49,8 +50,14 @@ public class LensProcessor extends AbstractProcessor {
 
   private void generateLensesFile(TypeElement recordElement) throws IOException {
     String recordName = recordElement.getSimpleName().toString();
-    String packageName =
+    String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
+
+    // Check for custom target package in annotation
+    GenerateLenses annotation = recordElement.getAnnotation(GenerateLenses.class);
+    String targetPackage = annotation.targetPackage();
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+
     String lensesClassName = recordName + "Lenses";
 
     final ClassName generatedAnnotation =

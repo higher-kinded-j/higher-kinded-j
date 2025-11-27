@@ -6,5 +6,5 @@ import java.math.BigDecimal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents an item in an order. */
-@GenerateLenses
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record OrderItem(String productId, String productName, int quantity, BigDecimal price) {}

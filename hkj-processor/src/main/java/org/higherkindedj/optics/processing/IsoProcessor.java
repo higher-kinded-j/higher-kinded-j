@@ -54,8 +54,13 @@ public final class IsoProcessor extends AbstractProcessor {
     final TypeElement classElement = (TypeElement) method.getEnclosingElement();
     final String methodName = method.getSimpleName().toString();
     final String className = classElement.getSimpleName().toString();
-    final String packageName =
+    final String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(classElement).getQualifiedName().toString();
+
+    // Check for custom target package in annotation
+    final GenerateIsos annotation = method.getAnnotation(GenerateIsos.class);
+    final String targetPackage = annotation.targetPackage();
+    final String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     final DeclaredType isoType = (DeclaredType) method.getReturnType();
     final List<? extends TypeMirror> typeArguments = isoType.getTypeArguments();

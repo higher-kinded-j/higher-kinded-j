@@ -7,7 +7,7 @@ import java.time.Instant;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents a financial transaction between accounts. */
-@GenerateLenses
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record Transaction(
     String txnId,
     Account fromAccount,

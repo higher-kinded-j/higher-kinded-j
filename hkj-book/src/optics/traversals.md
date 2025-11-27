@@ -88,6 +88,18 @@ public record Team(String name, List<Player> players) {}
 public record League(String name, List<Team> teams) {}
 ```
 
+#### Customising the Generated Package
+
+By default, generated classes are placed in the same package as the annotated record. You can specify a different package using the `targetPackage` attribute:
+
+```java
+// Generated class will be placed in org.example.generated.optics
+@GenerateTraversals(targetPackage = "org.example.generated.optics")
+public record Team(String name, List<Player> players) {}
+```
+
+This is useful when you need to avoid name collisions or organise generated code separately.
+
 ### Step 2: Composing a Deep Traversal
 
 Just like other optics, `Traversal`s can be composed with `andThen`. We can chain them together to create a single, deep traversal from the `League` all the way down to each player's `score`.

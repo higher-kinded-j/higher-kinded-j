@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents a product with pricing and promotion details. */
-@GenerateLenses
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record Product(
     String productId,
     String name,

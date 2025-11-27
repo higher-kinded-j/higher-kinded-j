@@ -22,6 +22,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Getter;
+import org.higherkindedj.optics.annotations.GenerateGetters;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateGetters")
@@ -49,8 +50,14 @@ public class GetterProcessor extends AbstractProcessor {
 
   private void generateGettersFile(TypeElement recordElement) throws IOException {
     String recordName = recordElement.getSimpleName().toString();
-    String packageName =
+    String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
+
+    // Check for custom target package in annotation
+    GenerateGetters annotation = recordElement.getAnnotation(GenerateGetters.class);
+    String targetPackage = annotation.targetPackage();
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+
     String gettersClassName = recordName + "Getters";
 
     final ClassName generatedAnnotation =

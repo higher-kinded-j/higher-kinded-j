@@ -77,8 +77,14 @@ public class PrismProcessor extends AbstractProcessor {
    */
   private void generatePrismsFile(TypeElement sumTypeElement) throws IOException {
     String sumTypeName = sumTypeElement.getSimpleName().toString();
-    String packageName =
+    String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(sumTypeElement).getQualifiedName().toString();
+
+    // Check for custom target package in annotation
+    GeneratePrisms annotation = sumTypeElement.getAnnotation(GeneratePrisms.class);
+    String targetPackage = annotation.targetPackage();
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+
     String prismsClassName = sumTypeName + "Prisms";
 
     // Define the ClassName for your custom @Generated annotation

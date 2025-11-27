@@ -7,7 +7,7 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /** Represents an e-commerce order with items and shipping details. */
-@GenerateLenses
-@GenerateTraversals
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
+@GenerateTraversals(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record Order(
     String orderId, OrderStatus status, List<OrderItem> items, ShippingAddress address) {}

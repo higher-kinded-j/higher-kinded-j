@@ -5,5 +5,5 @@ package org.higherkindedj.example.optics.fluent.model;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents a shipping address for an order. */
-@GenerateLenses
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record ShippingAddress(String street, String city, String postCode, String country) {}

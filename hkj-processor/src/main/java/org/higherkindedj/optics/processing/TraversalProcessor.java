@@ -64,8 +64,14 @@ public class TraversalProcessor extends AbstractProcessor {
 
   private void generateTraversalsFile(TypeElement recordElement) throws IOException {
     String recordName = recordElement.getSimpleName().toString();
-    String packageName =
+    String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
+
+    // Check for custom target package in annotation
+    GenerateTraversals annotation = recordElement.getAnnotation(GenerateTraversals.class);
+    String targetPackage = annotation.targetPackage();
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+
     String traversalsClassName = recordName + "Traversals";
 
     // Define the ClassName for your custom @Generated annotation

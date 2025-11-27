@@ -10,7 +10,19 @@ import java.lang.annotation.Target;
 /**
  * Marks a Java record for which a Traversals utility class should be generated. The processor will
  * generate a Traversal for each field that is a known traversable type, such as java.util.List.
+ *
+ * <p>By default, the generated class is placed in the same package as the annotated record. Use the
+ * {@link #targetPackage()} element to specify a different package for the generated class.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
-public @interface GenerateTraversals {}
+public @interface GenerateTraversals {
+
+  /**
+   * The package where the generated class should be placed. If empty (the default), the generated
+   * class will be placed in the same package as the annotated record.
+   *
+   * @return the target package name, or empty string to use the source package
+   */
+  String targetPackage() default "";
+}

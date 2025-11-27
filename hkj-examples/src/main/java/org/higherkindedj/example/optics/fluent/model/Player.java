@@ -5,5 +5,5 @@ package org.higherkindedj.example.optics.fluent.model;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents a player on a team. */
-@GenerateLenses
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record Player(String name, int age, int score) {}

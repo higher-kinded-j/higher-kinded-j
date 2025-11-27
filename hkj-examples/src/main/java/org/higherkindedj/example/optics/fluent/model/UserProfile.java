@@ -7,8 +7,8 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /** Represents a user profile with settings and addresses. */
-@GenerateLenses
-@GenerateTraversals
+@GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
+@GenerateTraversals(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 public record UserProfile(
     String userId,
     String username,

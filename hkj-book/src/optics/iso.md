@@ -79,6 +79,25 @@ public class Converters {
 }
 ```
 
+#### Using `@GenerateIsos` for Method-Based Isos
+
+Whilst most Isos are defined manually, the `@GenerateIsos` annotation can be applied to methods that return Iso instances to generate a companion class with static fields. You can also customise the generated package:
+
+```java
+public class Converters {
+    // Generated class will be placed in org.example.generated.optics
+    @GenerateIsos(targetPackage = "org.example.generated.optics")
+    public static Iso<Point, Tuple2<Integer, Integer>> pointToTuple() {
+        return Iso.of(
+            point -> Tuple.of(point.x(), point.y()),
+            tuple -> new Point(tuple._1(), tuple._2())
+        );
+    }
+}
+```
+
+This is useful when you need to avoid name collisions or organise generated code separately.
+
 ### Step 2: The Core Iso Operations
 
 An `Iso` provides two fundamental, lossless operations:
