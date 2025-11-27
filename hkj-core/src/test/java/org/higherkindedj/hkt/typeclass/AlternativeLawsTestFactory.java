@@ -93,7 +93,8 @@ class AlternativeLawsTestFactory {
         Kind<F, Integer> testValue,
         Kind<F, Integer> testValue2,
         EqualityChecker<F> checker) {
-      return new AlternativeTestData<>(name, alternative, semantics, testValue, testValue2, checker);
+      return new AlternativeTestData<>(
+          name, alternative, semantics, testValue, testValue2, checker);
     }
   }
 
