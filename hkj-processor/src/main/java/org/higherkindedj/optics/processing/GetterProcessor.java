@@ -56,8 +56,7 @@ public class GetterProcessor extends AbstractProcessor {
     // Check for custom target package in annotation
     GenerateGetters annotation = recordElement.getAnnotation(GenerateGetters.class);
     String targetPackage = annotation.targetPackage();
-    String packageName =
-              targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String gettersClassName = recordName + "Getters";
 

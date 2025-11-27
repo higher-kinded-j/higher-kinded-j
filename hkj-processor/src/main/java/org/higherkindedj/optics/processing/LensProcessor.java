@@ -56,8 +56,7 @@ public class LensProcessor extends AbstractProcessor {
     // Check for custom target package in annotation
     GenerateLenses annotation = recordElement.getAnnotation(GenerateLenses.class);
     String targetPackage = annotation.targetPackage();
-    String packageName =
-              targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String lensesClassName = recordName + "Lenses";
 

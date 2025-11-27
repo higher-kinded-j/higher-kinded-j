@@ -60,8 +60,7 @@ public final class IsoProcessor extends AbstractProcessor {
     // Check for custom target package in annotation
     final GenerateIsos annotation = method.getAnnotation(GenerateIsos.class);
     final String targetPackage = annotation.targetPackage();
-    final String packageName =
-              targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    final String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     final DeclaredType isoType = (DeclaredType) method.getReturnType();
     final List<? extends TypeMirror> typeArguments = isoType.getTypeArguments();

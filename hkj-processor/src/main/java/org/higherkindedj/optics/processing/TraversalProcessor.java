@@ -70,8 +70,7 @@ public class TraversalProcessor extends AbstractProcessor {
     // Check for custom target package in annotation
     GenerateTraversals annotation = recordElement.getAnnotation(GenerateTraversals.class);
     String targetPackage = annotation.targetPackage();
-    String packageName =
-              targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String traversalsClassName = recordName + "Traversals";
 

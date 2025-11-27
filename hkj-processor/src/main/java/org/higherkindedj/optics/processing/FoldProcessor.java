@@ -59,8 +59,7 @@ public class FoldProcessor extends AbstractProcessor {
     // Check for custom target package in annotation
     GenerateFolds annotation = recordElement.getAnnotation(GenerateFolds.class);
     String targetPackage = annotation.targetPackage();
-    String packageName =
-        targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String foldsClassName = recordName + "Folds";
 

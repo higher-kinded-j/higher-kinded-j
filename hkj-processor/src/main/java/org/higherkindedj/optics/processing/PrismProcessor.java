@@ -83,8 +83,7 @@ public class PrismProcessor extends AbstractProcessor {
     // Check for custom target package in annotation
     GeneratePrisms annotation = sumTypeElement.getAnnotation(GeneratePrisms.class);
     String targetPackage = annotation.targetPackage();
-    String packageName =
-              targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String prismsClassName = sumTypeName + "Prisms";
 
