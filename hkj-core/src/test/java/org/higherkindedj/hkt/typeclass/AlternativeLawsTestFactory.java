@@ -59,6 +59,21 @@ import org.junit.jupiter.api.TestFactory;
 class AlternativeLawsTestFactory {
 
   /**
+   * Represents the semantics of an Alternative implementation.
+   *
+   * <ul>
+   *   <li>{@link #CHOICE} - First non-empty value wins (Maybe, Optional)
+   *   <li>{@link #CONCATENATION} - Values are combined/concatenated (List)
+   * </ul>
+   */
+  enum AlternativeSemantics {
+    /** Choice semantics: orElse returns the first non-empty value. */
+    CHOICE,
+    /** Concatenation semantics: orElse combines both values. */
+    CONCATENATION
+  }
+
+  /**
    * Test data record containing all information needed to test an Alternative.
    *
    * @param <F> the functor type constructor
@@ -66,6 +81,7 @@ class AlternativeLawsTestFactory {
   record AlternativeTestData<F>(
       String name,
       Alternative<F> alternative,
+      AlternativeSemantics semantics,
       Kind<F, Integer> testValue,
       Kind<F, Integer> testValue2,
       EqualityChecker<F> equalityChecker) {
@@ -73,10 +89,11 @@ class AlternativeLawsTestFactory {
     static <F> AlternativeTestData<F> of(
         String name,
         Alternative<F> alternative,
+        AlternativeSemantics semantics,
         Kind<F, Integer> testValue,
         Kind<F, Integer> testValue2,
         EqualityChecker<F> checker) {
-      return new AlternativeTestData<>(name, alternative, testValue, testValue2, checker);
+      return new AlternativeTestData<>(name, alternative, semantics, testValue, testValue2, checker);
     }
   }
 
@@ -101,6 +118,7 @@ class AlternativeLawsTestFactory {
         AlternativeTestData.of(
             "Maybe",
             MaybeMonad.INSTANCE,
+            AlternativeSemantics.CHOICE,
             MAYBE.widen(Maybe.just(42)),
             MAYBE.widen(Maybe.just(100)),
             new EqualityChecker<MaybeKind.Witness>() {
@@ -113,6 +131,7 @@ class AlternativeLawsTestFactory {
         AlternativeTestData.of(
             "Optional",
             OptionalMonad.INSTANCE,
+            AlternativeSemantics.CHOICE,
             OPTIONAL.widen(Optional.of(42)),
             OPTIONAL.widen(Optional.of(100)),
             new EqualityChecker<OptionalKind.Witness>() {
@@ -125,6 +144,7 @@ class AlternativeLawsTestFactory {
         AlternativeTestData.of(
             "List",
             ListMonad.INSTANCE,
+            AlternativeSemantics.CONCATENATION,
             LIST.widen(List.of(42)),
             LIST.widen(List.of(100)),
             new EqualityChecker<ListKind.Witness>() {
@@ -138,11 +158,10 @@ class AlternativeLawsTestFactory {
 
   /**
    * Provides test data for "choice-based" alternatives (Maybe, Optional) where orElse picks the
-   * first non-empty value. List and Stream use concatenation semantics instead.
+   * first non-empty value. List uses concatenation semantics instead.
    */
   private static Stream<AlternativeTestData<?>> choiceAlternatives() {
-    return allAlternatives()
-        .filter(data -> data.name().equals("Maybe") || data.name().equals("Optional"));
+    return allAlternatives().filter(data -> data.semantics() == AlternativeSemantics.CHOICE);
   }
 
   /**

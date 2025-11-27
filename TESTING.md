@@ -115,7 +115,7 @@ private <F> void testIdentityLaw(FunctorTestData<F> data) {
 - `FunctorLawsTestFactory.java` - 15 dynamic tests across 5 Functor implementations
 - `MonadLawsTestFactory.java` - 20 dynamic tests across 5 Monad implementations
 - `MonadErrorLawsTestFactory.java` - 25 dynamic tests across 5 MonadError implementations
-- `AlternativeLawsTestFactory.java` - 24 dynamic tests across 4 Alternative implementations
+- `AlternativeLawsTestFactory.java` - 15 dynamic tests across 3 Alternative implementations
 - `LensLawsTestFactory.java` - 36 dynamic tests across 9 Lens implementations
 - `PrismLawsTestFactory.java` - 55 dynamic tests across 11 Prism implementations
 
@@ -443,10 +443,11 @@ Stream<DynamicTest> leftIdentityLaw() {
 - Maybe (choice semantics)
 - Optional (choice semantics)
 - List (concatenation semantics)
-- Stream (concatenation semantics)
+
+Note: Stream is excluded because Java Streams can only be consumed once.
 
 **Real example:**
-- `AlternativeLawsTestFactory.java` - 24 dynamic tests across 4 Alternative implementations
+- `AlternativeLawsTestFactory.java` - 15 dynamic tests across 3 Alternative implementations
 
 ## Optics Law Testing
 
