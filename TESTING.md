@@ -114,6 +114,8 @@ private <F> void testIdentityLaw(FunctorTestData<F> data) {
 **Real examples:**
 - `FunctorLawsTestFactory.java` - 15 dynamic tests across 5 Functor implementations
 - `MonadLawsTestFactory.java` - 20 dynamic tests across 5 Monad implementations
+- `MonadErrorLawsTestFactory.java` - 25 dynamic tests across 5 MonadError implementations
+- `AlternativeLawsTestFactory.java` - 15 dynamic tests across 3 Alternative implementations
 - `LensLawsTestFactory.java` - 36 dynamic tests across 9 Lens implementations
 - `PrismLawsTestFactory.java` - 55 dynamic tests across 11 Prism implementations
 
@@ -351,6 +353,101 @@ An Applicative must satisfy:
 - `FunctorLawsTestFactory.java`
 - `MonadLawsTestFactory.java`
 - `ApplicativeLawsParameterizedTest.java`
+
+### MonadError Laws
+
+A MonadError must satisfy:
+1. **Left Zero**: `flatMap(raiseError(e), f) = raiseError(e)` - Error short-circuits flatMap
+2. **Recovery**: `handleErrorWith(raiseError(e), f) = f(e)` - Handler recovers from error
+3. **Success Passthrough**: `handleErrorWith(of(a), f) = of(a)` - Success values pass through unchanged
+
+**Implementation pattern:**
+
+```java
+record MonadErrorTestData<F, E>(
+    String name,
+    MonadError<F, E> monadError,
+    Kind<F, Integer> successValue,
+    E errorValue,
+    EqualityChecker<F> equalityChecker) {}
+
+@TestFactory
+@DisplayName("Left Zero Law: flatMap(raiseError(e), f) = raiseError(e)")
+Stream<DynamicTest> leftZeroLaw() {
+    return allMonadErrors()
+        .map(data -> DynamicTest.dynamicTest(
+            data.name() + " satisfies left zero law",
+            () -> {
+                MonadError<F, E> me = data.monadError();
+                E error = data.errorValue();
+                Function<Integer, Kind<F, String>> f = i -> me.of("result:" + i);
+
+                Kind<F, String> leftSide = me.flatMap(f, me.raiseError(error));
+                Kind<F, String> rightSide = me.raiseError(error);
+
+                assertThat(data.equalityChecker().areEqual(leftSide, rightSide)).isTrue();
+            }));
+}
+```
+
+**Tested implementations:**
+- Maybe (error type: Unit)
+- Optional (error type: Unit)
+- Either (error type: E)
+- Try (error type: Throwable)
+- Validated (error type: E)
+
+**Real example:**
+- `MonadErrorLawsTestFactory.java` - 25 dynamic tests across 5 MonadError implementations
+
+### Alternative Laws
+
+An Alternative must satisfy:
+1. **Left Identity**: `orElse(empty(), () -> fa) = fa` - Empty is left identity
+2. **Right Identity**: `orElse(fa, () -> empty()) = fa` - Empty is right identity
+3. **Associativity**: `orElse(fa, () -> orElse(fb, () -> fc)) = orElse(orElse(fa, () -> fb), () -> fc)`
+
+**Note**: Alternative has two common semantics:
+- **Choice semantics** (Maybe, Optional): First non-empty value wins
+- **Concatenation semantics** (List, Stream): Both values are combined
+
+**Implementation pattern:**
+
+```java
+record AlternativeTestData<F>(
+    String name,
+    Alternative<F> alternative,
+    Kind<F, Integer> testValue,
+    Kind<F, Integer> testValue2,
+    EqualityChecker<F> equalityChecker) {}
+
+@TestFactory
+@DisplayName("Left Identity Law: orElse(empty(), () -> fa) = fa")
+Stream<DynamicTest> leftIdentityLaw() {
+    return allAlternatives()
+        .map(data -> DynamicTest.dynamicTest(
+            data.name() + " satisfies left identity law",
+            () -> {
+                Alternative<F> alt = data.alternative();
+                Kind<F, Integer> fa = data.testValue();
+
+                Kind<F, Integer> leftSide = alt.orElse(alt.empty(), () -> fa);
+                Kind<F, Integer> rightSide = fa;
+
+                assertThat(data.equalityChecker().areEqual(leftSide, rightSide)).isTrue();
+            }));
+}
+```
+
+**Tested implementations:**
+- Maybe (choice semantics)
+- Optional (choice semantics)
+- List (concatenation semantics)
+
+Note: Stream is excluded because Java Streams can only be consumed once.
+
+**Real example:**
+- `AlternativeLawsTestFactory.java` - 15 dynamic tests across 3 Alternative implementations
 
 ## Optics Law Testing
 
