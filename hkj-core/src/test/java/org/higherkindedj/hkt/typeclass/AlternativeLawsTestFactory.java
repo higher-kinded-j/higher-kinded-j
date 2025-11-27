@@ -129,7 +129,8 @@ class AlternativeLawsTestFactory {
             LIST.widen(List.of(100)),
             new EqualityChecker<ListKind.Witness>() {
               @Override
-              public <A> boolean areEqual(Kind<ListKind.Witness, A> a, Kind<ListKind.Witness, A> b) {
+              public <A> boolean areEqual(
+                  Kind<ListKind.Witness, A> a, Kind<ListKind.Witness, A> b) {
                 return LIST.narrow(a).equals(LIST.narrow(b));
               }
             }));
@@ -140,7 +141,8 @@ class AlternativeLawsTestFactory {
    * first non-empty value. List and Stream use concatenation semantics instead.
    */
   private static Stream<AlternativeTestData<?>> choiceAlternatives() {
-    return allAlternatives().filter(data -> data.name().equals("Maybe") || data.name().equals("Optional"));
+    return allAlternatives()
+        .filter(data -> data.name().equals("Maybe") || data.name().equals("Optional"));
   }
 
   /**
@@ -155,8 +157,7 @@ class AlternativeLawsTestFactory {
         .map(
             data ->
                 DynamicTest.dynamicTest(
-                    data.name() + " satisfies left identity law",
-                    () -> testLeftIdentityLaw(data)));
+                    data.name() + " satisfies left identity law", () -> testLeftIdentityLaw(data)));
   }
 
   private <F> void testLeftIdentityLaw(AlternativeTestData<F> data) {
@@ -217,7 +218,8 @@ class AlternativeLawsTestFactory {
    * and Stream use concatenation, which is associative but produces different results.
    */
   @TestFactory
-  @DisplayName("Associativity Law (choice types): orElse(fa, () -> orElse(fb, () -> fc)) = orElse(orElse(fa, () -> fb), () -> fc)")
+  @DisplayName(
+      "Associativity Law (choice types): orElse(fa, () -> orElse(fb, () -> fc)) = orElse(orElse(fa, () -> fb), () -> fc)")
   Stream<DynamicTest> associativityLawChoice() {
     return choiceAlternatives()
         .map(
@@ -242,9 +244,7 @@ class AlternativeLawsTestFactory {
     // Right side: orElse(orElse(fa, () -> fb), () -> fc)
     Kind<F, Integer> rightSide = alt.orElse(alt.orElse(fa, () -> fb), () -> fc);
 
-    assertThat(checker.areEqual(leftSide, rightSide))
-        .as("orElse should be associative")
-        .isTrue();
+    assertThat(checker.areEqual(leftSide, rightSide)).as("orElse should be associative").isTrue();
   }
 
   /**

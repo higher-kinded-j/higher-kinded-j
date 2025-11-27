@@ -16,6 +16,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
@@ -28,7 +29,6 @@ import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.trymonad.TryMonad;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -105,7 +105,8 @@ class MonadErrorLawsTestFactory {
             Unit.INSTANCE,
             new EqualityChecker<MaybeKind.Witness>() {
               @Override
-              public <A> boolean areEqual(Kind<MaybeKind.Witness, A> a, Kind<MaybeKind.Witness, A> b) {
+              public <A> boolean areEqual(
+                  Kind<MaybeKind.Witness, A> a, Kind<MaybeKind.Witness, A> b) {
                 return MAYBE.narrow(a).equals(MAYBE.narrow(b));
               }
             }),
@@ -324,7 +325,8 @@ class MonadErrorLawsTestFactory {
 
     // Create error and recover from it
     Kind<F, Integer> errorKind = monadError.raiseError(error);
-    Kind<F, Integer> recovered = monadError.handleErrorWith(errorKind, e -> monadError.of(recoveryValue));
+    Kind<F, Integer> recovered =
+        monadError.handleErrorWith(errorKind, e -> monadError.of(recoveryValue));
 
     // Verify we got the recovery value
     Kind<F, Integer> expected = monadError.of(recoveryValue);
@@ -346,8 +348,7 @@ class MonadErrorLawsTestFactory {
         .map(
             data ->
                 DynamicTest.dynamicTest(
-                    data.name() + " recoverWith provides fallback",
-                    () -> testRecoverWith(data)));
+                    data.name() + " recoverWith provides fallback", () -> testRecoverWith(data)));
   }
 
   @SuppressWarnings("unchecked")
