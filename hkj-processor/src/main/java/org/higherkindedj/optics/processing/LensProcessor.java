@@ -57,7 +57,7 @@ public class LensProcessor extends AbstractProcessor {
     GenerateLenses annotation = recordElement.getAnnotation(GenerateLenses.class);
     String targetPackage = annotation.targetPackage();
     String packageName =
-        (targetPackage != null && !targetPackage.isEmpty()) ? targetPackage : defaultPackage;
+              targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String lensesClassName = recordName + "Lenses";
 

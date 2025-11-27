@@ -57,7 +57,7 @@ public class GetterProcessor extends AbstractProcessor {
     GenerateGetters annotation = recordElement.getAnnotation(GenerateGetters.class);
     String targetPackage = annotation.targetPackage();
     String packageName =
-        (targetPackage != null && !targetPackage.isEmpty()) ? targetPackage : defaultPackage;
+              targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String gettersClassName = recordName + "Getters";
 

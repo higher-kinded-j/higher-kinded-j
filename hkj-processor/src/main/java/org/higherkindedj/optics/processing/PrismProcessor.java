@@ -84,7 +84,7 @@ public class PrismProcessor extends AbstractProcessor {
     GeneratePrisms annotation = sumTypeElement.getAnnotation(GeneratePrisms.class);
     String targetPackage = annotation.targetPackage();
     String packageName =
-        (targetPackage != null && !targetPackage.isEmpty()) ? targetPackage : defaultPackage;
+              targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String prismsClassName = sumTypeName + "Prisms";
 

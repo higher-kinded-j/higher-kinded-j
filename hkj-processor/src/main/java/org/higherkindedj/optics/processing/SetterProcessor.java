@@ -57,7 +57,7 @@ public class SetterProcessor extends AbstractProcessor {
     GenerateSetters annotation = recordElement.getAnnotation(GenerateSetters.class);
     String targetPackage = annotation.targetPackage();
     String packageName =
-        (targetPackage != null && !targetPackage.isEmpty()) ? targetPackage : defaultPackage;
+              targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String settersClassName = recordName + "Setters";
 

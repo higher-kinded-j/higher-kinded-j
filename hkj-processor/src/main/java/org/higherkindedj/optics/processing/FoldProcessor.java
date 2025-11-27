@@ -60,7 +60,7 @@ public class FoldProcessor extends AbstractProcessor {
     GenerateFolds annotation = recordElement.getAnnotation(GenerateFolds.class);
     String targetPackage = annotation.targetPackage();
     String packageName =
-        (targetPackage != null && !targetPackage.isEmpty()) ? targetPackage : defaultPackage;
+        targetPackage.isEmpty() ? defaultPackage : targetPackage;
 
     String foldsClassName = recordName + "Folds";
 
