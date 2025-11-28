@@ -61,8 +61,7 @@ public class FreeMonad<F> extends FreeFunctor<F> implements Monad<FreeKind.Witne
   public <A, B> Kind<FreeKind.Witness<F>, B> flatMap(
       Function<? super A, ? extends Kind<FreeKind.Witness<F>, B>> f,
       Kind<FreeKind.Witness<F>, A> ma) {
-    Validation.function().requireFlatMapper(f, "f", FREE_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, FREE_MONAD_CLASS, FLAT_MAP);
+    Validation.function().validateFlatMap(f, ma, FREE_MONAD_CLASS);
 
     Free<F, A> freeA = FREE.narrow(ma);
 
@@ -94,8 +93,7 @@ public class FreeMonad<F> extends FreeFunctor<F> implements Monad<FreeKind.Witne
   @Override
   public <A, B> Kind<FreeKind.Witness<F>, B> ap(
       Kind<FreeKind.Witness<F>, ? extends Function<A, B>> ff, Kind<FreeKind.Witness<F>, A> fa) {
-    Validation.kind().requireNonNull(ff, FREE_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, FREE_MONAD_CLASS, AP, "argument");
+    Validation.kind().validateAp(ff, fa, FREE_MONAD_CLASS);
 
     Free<F, ? extends Function<A, B>> freeF = FREE.narrow(ff);
     Free<F, A> freeA = FREE.narrow(fa);

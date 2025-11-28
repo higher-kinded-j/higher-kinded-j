@@ -30,7 +30,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  */
 public class WriterMonad<W> extends WriterApplicative<W> implements Monad<WriterKind.Witness<W>> {
 
-  private static final Class<WriterMonad> WRITER_MAONAD_CLASS = WriterMonad.class;
+  private static final Class<WriterMonad> WRITER_MONAD_CLASS = WriterMonad.class;
 
   /**
    * Constructs a {@code WriterMonad}.
@@ -69,8 +69,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
       Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
       Kind<WriterKind.Witness<W>, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", WRITER_MAONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, WRITER_MAONAD_CLASS, FLAT_MAP);
+    Validation.function().validateFlatMap(f, ma, WRITER_MONAD_CLASS);
 
     Writer<W, A> writerA = WRITER.narrow(ma);
 
@@ -82,7 +81,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
             a -> {
               Kind<WriterKind.Witness<W>, B> kindB = f.apply(a);
               Validation.function()
-                  .requireNonNullResult(kindB, "f", WRITER_MAONAD_CLASS, FLAT_MAP, Kind.class);
+                  .requireNonNullResult(kindB, "f", WRITER_MONAD_CLASS, FLAT_MAP, Kind.class);
               return WRITER.narrow(kindB);
             });
 

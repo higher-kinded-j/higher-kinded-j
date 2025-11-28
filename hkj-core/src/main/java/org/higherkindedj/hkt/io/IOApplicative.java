@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
-import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -76,8 +75,7 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
   public <A, B> Kind<IOKind.Witness, B> ap(
       Kind<IOKind.Witness, ? extends Function<A, B>> ff, Kind<IOKind.Witness, A> fa) {
 
-    Validation.kind().requireNonNull(ff, IO_APPLICATIVE_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, IO_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().validateAp(ff, fa, IO_APPLICATIVE_CLASS);
 
     IO<? extends Function<A, B>> ioF = IO_OP.narrow(ff);
     IO<A> ioA = IO_OP.narrow(fa);

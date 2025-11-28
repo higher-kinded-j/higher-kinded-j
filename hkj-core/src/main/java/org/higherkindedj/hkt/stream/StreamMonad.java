@@ -122,8 +122,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
   public <A, B> Kind<StreamKind.Witness, B> ap(
       Kind<StreamKind.Witness, ? extends Function<A, B>> ff, Kind<StreamKind.Witness, A> fa) {
 
-    Validation.kind().requireNonNull(ff, StreamMonad.class, AP, "function");
-    Validation.kind().requireNonNull(fa, StreamMonad.class, AP, "argument");
+    Validation.kind().validateAp(ff, fa, StreamMonad.class);
 
     Stream<? extends Function<A, B>> functions = STREAM.narrow(ff);
     Stream<A> values = STREAM.narrow(fa);
@@ -205,8 +204,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
       Function<? super A, ? extends Kind<StreamKind.Witness, B>> f,
       Kind<StreamKind.Witness, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", StreamMonad.class, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, StreamMonad.class, FLAT_MAP);
+    Validation.function().validateFlatMap(f, ma, StreamMonad.class);
 
     Stream<A> inputStream = STREAM.narrow(ma);
 

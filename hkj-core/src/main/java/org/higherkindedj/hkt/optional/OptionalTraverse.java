@@ -126,10 +126,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<OptionalKind.Witness, A> ta) {
 
-    Validation.function()
-        .requireApplicative(applicative, "applicative", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
-    Validation.function().requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
-    Validation.kind().requireNonNull(ta, OPTIONAL_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().validateTraverse(applicative, f, ta, OPTIONAL_TRAVERSE_CLASS);
 
     return OPTIONAL
         .narrow(ta)
@@ -178,9 +175,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<OptionalKind.Witness, A> fa) {
 
-    Validation.function().requireMonoid(monoid, "monoid", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.function().requireMapper(f, "f", OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.kind().requireNonNull(fa, OPTIONAL_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().validateFoldMap(monoid, f, fa, OPTIONAL_TRAVERSE_CLASS);
 
     Optional<A> optional = OPTIONAL.narrow(fa);
     // If present, map the value. If empty, return the monoid's empty value.

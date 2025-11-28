@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
-import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -57,8 +56,7 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
   public <A, B> Kind<TryKind.Witness, B> ap(
       Kind<TryKind.Witness, ? extends Function<A, B>> ff, Kind<TryKind.Witness, A> fa) {
 
-    Validation.kind().requireNonNull(ff, TRY_APPLICATIVE_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, TRY_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().validateAp(ff, fa, TRY_APPLICATIVE_CLASS);
 
     Try<? extends Function<A, B>> tryF = TRY.narrow(ff);
     Try<A> tryA = TRY.narrow(fa);

@@ -49,10 +49,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<ValidatedKind.Witness<E>, A> ta) {
 
-    Validation.function()
-        .requireApplicative(applicative, "applicative", VALIDATED_TRAVERSE_CLASS, TRAVERSE);
-    Validation.function().requireMapper(f, "f", VALIDATED_TRAVERSE_CLASS, TRAVERSE);
-    Validation.kind().requireNonNull(ta, VALIDATED_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().validateTraverse(applicative, f, ta, VALIDATED_TRAVERSE_CLASS);
 
     return VALIDATED
         .narrow(ta)
@@ -68,9 +65,7 @@ public final class ValidatedTraverse<E> implements Traverse<ValidatedKind.Witnes
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    Validation.function().requireMonoid(monoid, "monoid", VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.function().requireMapper(f, "f", VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.kind().requireNonNull(fa, VALIDATED_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().validateFoldMap(monoid, f, fa, VALIDATED_TRAVERSE_CLASS);
 
     // If Valid, map the value. If Invalid, return the monoid's empty value.
     return VALIDATED.narrow(fa).fold(error -> monoid.empty(), f);
