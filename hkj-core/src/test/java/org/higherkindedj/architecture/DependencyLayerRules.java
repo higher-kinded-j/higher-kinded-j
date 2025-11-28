@@ -218,11 +218,9 @@ class DependencyLayerRules {
         "is a main EitherT class (EitherT or EitherTMonad)",
         javaClass -> {
           String packageName = javaClass.getPackageName();
-          if (!packageName.contains("hkt.either_t")) {
-            return false;
-          }
           String simpleName = javaClass.getSimpleName();
-          return simpleName.equals("EitherT") || simpleName.equals("EitherTMonad");
+          return packageName.contains("hkt.either_t")
+              && (simpleName.equals("EitherT") || simpleName.equals("EitherTMonad"));
         });
   }
 
@@ -236,11 +234,9 @@ class DependencyLayerRules {
         "is a main MaybeT class (MaybeT or MaybeTMonad)",
         javaClass -> {
           String packageName = javaClass.getPackageName();
-          if (!packageName.contains("hkt.maybe_t")) {
-            return false;
-          }
           String simpleName = javaClass.getSimpleName();
-          return simpleName.equals("MaybeT") || simpleName.equals("MaybeTMonad");
+          return packageName.contains("hkt.maybe_t")
+              && (simpleName.equals("MaybeT") || simpleName.equals("MaybeTMonad"));
         });
   }
 
@@ -263,17 +259,11 @@ class DependencyLayerRules {
         "is an optics class (excluding Traversals)",
         javaClass -> {
           String packageName = javaClass.getPackageName();
-          if (!packageName.contains("optics")) {
-            return false;
-          }
           String simpleName = javaClass.getSimpleName();
-          if (simpleName.contains("Test")) {
-            return false;
-          }
-          if (simpleName.endsWith("package-info")) {
-            return false;
-          }
-          return !simpleName.equals("Traversals");
+          return packageName.contains("optics")
+              && !simpleName.contains("Test")
+              && !simpleName.endsWith("package-info")
+              && !simpleName.equals("Traversals");
         });
   }
 }

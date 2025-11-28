@@ -184,14 +184,10 @@ class TypeClassPatternRules {
           if (javaClass.isInterface() || javaClass.isAnonymousClass()) {
             return false;
           }
-          if (!javaClass.isAssignableTo(Monad.class)) {
-            return false;
-          }
           String simpleName = javaClass.getSimpleName();
-          if (simpleName.endsWith("TMonad")) {
-            return false;
-          }
-          return !PARAMETERIZED_MONADS.contains(simpleName);
+          return javaClass.isAssignableTo(Monad.class)
+              && !simpleName.endsWith("TMonad")
+              && !PARAMETERIZED_MONADS.contains(simpleName);
         });
   }
 
@@ -214,18 +210,11 @@ class TypeClassPatternRules {
           if (javaClass.isInterface() || javaClass.isAnonymousClass()) {
             return false;
           }
-          if (!javaClass.isAssignableTo(Functor.class)) {
-            return false;
-          }
-          // Monads are tested separately
-          if (javaClass.isAssignableTo(Monad.class)) {
-            return false;
-          }
-          // Traverse implementations follow their own patterns
-          if (javaClass.isAssignableTo(Traverse.class)) {
-            return false;
-          }
-          return !PARAMETERIZED_FUNCTORS_APPLICATIVES.contains(javaClass.getSimpleName());
+          // Monads are tested separately; Traverse implementations follow their own patterns
+          return javaClass.isAssignableTo(Functor.class)
+              && !javaClass.isAssignableTo(Monad.class)
+              && !javaClass.isAssignableTo(Traverse.class)
+              && !PARAMETERIZED_FUNCTORS_APPLICATIVES.contains(javaClass.getSimpleName());
         });
   }
 
@@ -252,18 +241,12 @@ class TypeClassPatternRules {
           if (javaClass.isInterface() || javaClass.isAnonymousClass()) {
             return false;
           }
-          if (!javaClass.isAssignableTo(Functor.class)) {
-            return false;
-          }
           // Traverse implementations follow their own patterns
-          if (javaClass.isAssignableTo(Traverse.class)) {
-            return false;
-          }
           String simpleName = javaClass.getSimpleName();
-          if (simpleName.endsWith("TMonad")) {
-            return false;
-          }
-          return !PARAMETERIZED_TYPE_CLASSES.contains(simpleName);
+          return javaClass.isAssignableTo(Functor.class)
+              && !javaClass.isAssignableTo(Traverse.class)
+              && !simpleName.endsWith("TMonad")
+              && !PARAMETERIZED_TYPE_CLASSES.contains(simpleName);
         });
   }
 
