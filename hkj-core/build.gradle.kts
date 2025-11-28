@@ -8,24 +8,20 @@ plugins {
 }
 
 dependencies {
-
-
-//  // API dependencies
-  api("org.jspecify:jspecify:1.0.0")
+  // API dependencies
+  api(libs.jspecify)
   api(project(":hkj-api"))
   api(project(":hkj-annotations"))
 
   annotationProcessor(project(":hkj-processor"))
-  //annotationProcessor(project(":hkj-processor-plugins"))
 
   // Testing dependencies
-  testImplementation(platform("org.junit:junit-bom:5.14.1"))
-  testImplementation("org.junit.jupiter:junit-jupiter")
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-  testImplementation("org.assertj:assertj-core:3.27.6")
-  testImplementation("net.jqwik:jqwik:1.9.3")
-  testImplementation("net.jqwik:jqwik-engine:1.9.3")
-  testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+  testImplementation(platform(libs.junit.bom))
+  testImplementation(libs.junit.jupiter)
+  testRuntimeOnly(libs.junit.platform.launcher)
+  testImplementation(libs.assertj.core)
+  testImplementation(libs.bundles.jqwik)
+  testImplementation(libs.archunit.junit5)
 }
 
 

@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  id("me.champeau.jmh") version "0.7.3"
+  alias(libs.plugins.jmh)
 }
 
 dependencies {
@@ -9,11 +9,11 @@ dependencies {
   implementation(project(":hkj-api"))
 
   // JMH dependencies are provided by the plugin
-  jmhImplementation("org.openjdk.jmh:jmh-core:1.37")
-  jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+  jmhImplementation(libs.jmh.core)
+  jmhAnnotationProcessor(libs.jmh.generator.annprocess)
 
   // Optional: Java Object Layout for allocation analysis
-  jmhImplementation("org.openjdk.jol:jol-core:0.17")
+  jmhImplementation(libs.jol.core)
 }
 
 jmh {

@@ -8,17 +8,16 @@ dependencies {
     implementation(project(":hkj-processor"))
     // Depends on the core library for the types the generators support
     implementation(project(":hkj-core"))
-    implementation("com.palantir.javapoet:javapoet:0.7.0")
-    implementation("com.palantir.javaformat:palantir-java-format:2.69.0")
+    implementation(libs.javapoet)
+    implementation(libs.palantir.java.format)
 
-    testImplementation("com.google.testing.compile:compile-testing:0.21.0")
-    testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation(libs.compile.testing)
+    testImplementation(libs.truth)
 
-
-    testImplementation(platform("org.junit:junit-bom:5.13.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.assertj.core)
 }
 
 tasks.test {

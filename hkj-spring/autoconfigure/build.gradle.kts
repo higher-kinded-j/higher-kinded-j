@@ -8,51 +8,37 @@ dependencies {
   api(project(":hkj-api"))
 
   // Spring Boot auto-configuration
-  implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.7"))
-  implementation("org.springframework.boot:spring-boot-autoconfigure")
-  annotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:3.5.7"))
-  annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
-  annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+  implementation(platform(libs.spring.boot.bom))
+  implementation(libs.spring.boot.autoconfigure)
+  annotationProcessor(platform(libs.spring.boot.bom))
+  annotationProcessor(libs.spring.boot.autoconfigure.processor)
+  annotationProcessor(libs.spring.boot.configuration.processor)
 
   // Spring Web MVC (optional - for web integration)
-  compileOnly("org.springframework:spring-web")
-  compileOnly("org.springframework:spring-webmvc")
-  compileOnly("jakarta.servlet:jakarta.servlet-api")
+  compileOnly(libs.bundles.spring.web)
 
   // Jackson (optional - for JSON serialization)
-  compileOnly("com.fasterxml.jackson.core:jackson-databind")
+  compileOnly(libs.jackson.databind)
 
   // Spring Boot Actuator (optional - for metrics and health indicators)
-  compileOnly("org.springframework.boot:spring-boot-actuator")
-  compileOnly("org.springframework.boot:spring-boot-actuator-autoconfigure")
-  compileOnly("io.micrometer:micrometer-core")
+  compileOnly(libs.bundles.spring.actuator)
 
   // Spring Security (optional - for security integration)
-  compileOnly("org.springframework.security:spring-security-core")
-  compileOnly("org.springframework.security:spring-security-web")
-  compileOnly("org.springframework.security:spring-security-config")
-  compileOnly("org.springframework.security:spring-security-oauth2-jose")
+  compileOnly(libs.bundles.spring.security)
 
   // Testing
-  testImplementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.7"))
-  testImplementation("org.springframework.boot:spring-boot-starter-test")
-  testImplementation(platform("org.junit:junit-bom:5.13.0"))
-  testImplementation("org.junit.jupiter:junit-jupiter")
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testImplementation(platform(libs.spring.boot.bom))
+  testImplementation(libs.spring.boot.starter.test)
+  testImplementation(platform(libs.junit.bom))
+  testImplementation(libs.junit.jupiter)
+  testRuntimeOnly(libs.junit.platform.launcher)
 
   // Test dependencies for optional features
-  testImplementation("org.springframework:spring-web")
-  testImplementation("org.springframework:spring-webmvc")
-  testImplementation("jakarta.servlet:jakarta.servlet-api")
-  testImplementation("com.fasterxml.jackson.core:jackson-databind")
-  testImplementation("org.springframework.boot:spring-boot-actuator")
-  testImplementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
-  testImplementation("io.micrometer:micrometer-core")
-  testImplementation("org.springframework.security:spring-security-core")
-  testImplementation("org.springframework.security:spring-security-web")
-  testImplementation("org.springframework.security:spring-security-config")
-  testImplementation("org.springframework.security:spring-security-oauth2-jose")
-  testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+  testImplementation(libs.bundles.spring.web)
+  testImplementation(libs.jackson.databind)
+  testImplementation(libs.bundles.spring.actuator)
+  testImplementation(libs.bundles.spring.security)
+  testImplementation(libs.archunit.junit5)
 }
 
 tasks.test {
