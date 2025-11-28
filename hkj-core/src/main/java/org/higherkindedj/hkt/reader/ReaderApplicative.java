@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.reader;
 
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
-import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;

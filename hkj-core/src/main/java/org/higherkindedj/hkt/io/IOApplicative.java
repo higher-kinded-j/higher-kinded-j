@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
-import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;

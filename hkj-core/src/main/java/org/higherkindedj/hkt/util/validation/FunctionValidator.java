@@ -325,8 +325,8 @@ public enum FunctionValidator {
   /**
    * Validates all parameters for a foldMap operation in a single call.
    *
-   * <p>This combines monoid, function, and Kind validation, reducing boilerplate in Foldable/Traverse
-   * implementations.
+   * <p>This combines monoid, function, and Kind validation, reducing boilerplate in
+   * Foldable/Traverse implementations.
    *
    * @param monoid the combining Monoid (must be non-null)
    * @param f the transformation function (must be non-null)
@@ -337,10 +337,7 @@ public enum FunctionValidator {
    * @throws NullPointerException if any parameter is null
    */
   public <M, A> void validateFoldMap(
-      Monoid<M> monoid,
-      Function<? super A, ? extends M> f,
-      Kind<?, A> fa,
-      Class<?> contextClass) {
+      Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<?, A> fa, Class<?> contextClass) {
     requireMonoid(monoid, "monoid", contextClass, FOLD_MAP);
     requireMapper(f, "f", contextClass, FOLD_MAP);
     Validation.kind().requireNonNull(fa, contextClass, FOLD_MAP);
@@ -361,9 +358,7 @@ public enum FunctionValidator {
    * @throws NullPointerException if ma or handler is null
    */
   public <F, A, E> void validateHandleErrorWith(
-      Kind<F, A> ma,
-      Function<? super E, ? extends Kind<F, A>> handler,
-      Class<?> contextClass) {
+      Kind<F, A> ma, Function<? super E, ? extends Kind<F, A>> handler, Class<?> contextClass) {
     Validation.kind().requireNonNull(ma, contextClass, HANDLE_ERROR_WITH, "source");
     requireFunction(handler, "handler", contextClass, HANDLE_ERROR_WITH);
   }

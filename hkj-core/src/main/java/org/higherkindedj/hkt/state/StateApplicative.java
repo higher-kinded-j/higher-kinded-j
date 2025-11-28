@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
-import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;

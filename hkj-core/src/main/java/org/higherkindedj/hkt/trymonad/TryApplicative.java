@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
-import static org.higherkindedj.hkt.util.validation.Operation.AP;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
