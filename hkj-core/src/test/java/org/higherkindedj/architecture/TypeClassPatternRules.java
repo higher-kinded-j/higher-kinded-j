@@ -5,14 +5,17 @@ package org.higherkindedj.architecture;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static org.higherkindedj.architecture.ArchitectureTestBase.getProductionClasses;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import java.util.Set;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Traverse;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +34,55 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Type Class Pattern Rules")
 class TypeClassPatternRules {
 
+  private static final Set<String> PARAMETERIZED_MONADS =
+      Set.of("StateMonad", "WriterMonad", "ReaderMonad", "FreeMonad", "EitherMonad");
+
+  private static final Set<String> PARAMETERIZED_FUNCTORS_APPLICATIVES =
+      Set.of(
+          "StateFunctor",
+          "StateApplicative",
+          "WriterFunctor",
+          "WriterApplicative",
+          "ReaderFunctor",
+          "ReaderApplicative",
+          "FreeFunctor",
+          "EitherFunctor",
+          "EitherApplicative",
+          "ValidatedFunctor",
+          "ValidatedApplicative",
+          "ValidatedSelective", // Requires Semigroup parameter
+          "ConstFunctor",
+          "ConstApplicative",
+          // Base Functor/Applicative classes designed to be extended (not used directly)
+          "TryFunctor",
+          "TryApplicative",
+          "OptionalFunctor",
+          "CompletableFutureFunctor",
+          "CompletableFutureApplicative");
+
+  private static final Set<String> PARAMETERIZED_TYPE_CLASSES =
+      Set.of(
+          "StateFunctor",
+          "StateApplicative",
+          "StateMonad",
+          "WriterFunctor",
+          "WriterApplicative",
+          "WriterMonad",
+          "ReaderFunctor",
+          "ReaderApplicative",
+          "ReaderMonad",
+          "FreeFunctor",
+          "FreeMonad",
+          "EitherFunctor",
+          "EitherApplicative",
+          "EitherMonad",
+          "ValidatedFunctor",
+          "ValidatedApplicative",
+          "ValidatedMonad",
+          "ValidatedSelective", // Has Semigroup field for error accumulation
+          "ConstFunctor",
+          "ConstApplicative");
+
   private static JavaClasses productionClasses;
 
   @BeforeAll
@@ -47,17 +99,19 @@ class TypeClassPatternRules {
    *   <li>{@code public static <T> XxxMonad<T> instance()} method
    *   <li>{@code public static final INSTANCE} constant
    * </ul>
+   *
+   * <p>Excludes:
+   *
+   * <ul>
+   *   <li>Transformer monads (EitherTMonad, etc.) - require underlying monad parameter
+   *   <li>Parameterized monads (StateMonad, WriterMonad, etc.) - require type parameters
+   * </ul>
    */
   @Test
   @DisplayName("Monad implementations should have instance() method or INSTANCE constant")
   void monad_implementations_should_have_factory() {
     classes()
-        .that()
-        .implement(Monad.class)
-        .and()
-        .areNotInterfaces()
-        .and()
-        .areNotAnonymousClasses()
+        .that(isNonParameterizedMonadImplementation())
         .should(haveStaticFactoryOrInstance())
         .allowEmptyShould(true)
         .check(productionClasses);
@@ -66,20 +120,18 @@ class TypeClassPatternRules {
   /**
    * Functor implementations should provide a static factory method or constant.
    *
-   * <p>Excludes classes that also implement Monad (they follow Monad patterns).
+   * <p>Excludes:
+   *
+   * <ul>
+   *   <li>Classes that also implement Monad (they follow Monad patterns)
+   *   <li>Parameterized functors (StateFunctor, etc.) - require type parameters
+   * </ul>
    */
   @Test
   @DisplayName("Functor implementations should have instance() method or INSTANCE constant")
   void functor_implementations_should_have_factory() {
     classes()
-        .that()
-        .implement(Functor.class)
-        .and()
-        .areNotInterfaces()
-        .and()
-        .areNotAnonymousClasses()
-        .and()
-        .doNotImplement(Monad.class) // Monads tested separately
+        .that(isNonParameterizedFunctorImplementation())
         .should(haveStaticFactoryOrInstance())
         .allowEmptyShould(true)
         .check(productionClasses);
@@ -94,20 +146,125 @@ class TypeClassPatternRules {
    *   <li>Static final fields (for singleton instances)
    *   <li>No instance fields at all
    * </ul>
+   *
+   * <p>Excludes:
+   *
+   * <ul>
+   *   <li>Transformer monads (EitherTMonad, etc.) - need to store outer monad reference
+   *   <li>Parameterized type classes (StateMonad, etc.) - need constructor parameters
+   * </ul>
    */
   @Test
   @DisplayName("Type class implementations should be stateless (no instance fields)")
   void type_class_implementations_should_be_stateless() {
     classes()
-        .that()
-        .implement(Functor.class)
-        .and()
-        .areNotInterfaces()
-        .and()
-        .areNotAnonymousClasses()
+        .that(isStatelessTypeClassCandidate())
         .should(haveNoNonStaticFields())
         .allowEmptyShould(true)
         .check(productionClasses);
+  }
+
+  /**
+   * Predicate for non-parameterized Monad implementations.
+   *
+   * <p>Matches classes that:
+   *
+   * <ul>
+   *   <li>Implement Monad
+   *   <li>Are not interfaces
+   *   <li>Are not anonymous classes
+   *   <li>Don't end with "TMonad" (transformer monads)
+   *   <li>Are not in the parameterized monads list
+   * </ul>
+   */
+  private static DescribedPredicate<JavaClass> isNonParameterizedMonadImplementation() {
+    return DescribedPredicate.describe(
+        "is a non-parameterized Monad implementation",
+        javaClass -> {
+          if (javaClass.isInterface() || javaClass.isAnonymousClass()) {
+            return false;
+          }
+          if (!javaClass.isAssignableTo(Monad.class)) {
+            return false;
+          }
+          String simpleName = javaClass.getSimpleName();
+          if (simpleName.endsWith("TMonad")) {
+            return false;
+          }
+          return !PARAMETERIZED_MONADS.contains(simpleName);
+        });
+  }
+
+  /**
+   * Predicate for non-parameterized Functor implementations (excluding Monads and Traverse).
+   *
+   * <p>Matches classes that:
+   *
+   * <ul>
+   *   <li>Implement Functor but not Monad or Traverse
+   *   <li>Are not interfaces
+   *   <li>Are not anonymous classes
+   *   <li>Are not in the parameterized functors/applicatives list
+   * </ul>
+   */
+  private static DescribedPredicate<JavaClass> isNonParameterizedFunctorImplementation() {
+    return DescribedPredicate.describe(
+        "is a non-parameterized Functor implementation (excluding Monads and Traverse)",
+        javaClass -> {
+          if (javaClass.isInterface() || javaClass.isAnonymousClass()) {
+            return false;
+          }
+          if (!javaClass.isAssignableTo(Functor.class)) {
+            return false;
+          }
+          // Monads are tested separately
+          if (javaClass.isAssignableTo(Monad.class)) {
+            return false;
+          }
+          // Traverse implementations follow their own patterns
+          if (javaClass.isAssignableTo(Traverse.class)) {
+            return false;
+          }
+          return !PARAMETERIZED_FUNCTORS_APPLICATIVES.contains(javaClass.getSimpleName());
+        });
+  }
+
+  /**
+   * Predicate for type class implementations that should be stateless.
+   *
+   * <p>Matches classes that:
+   *
+   * <ul>
+   *   <li>Implement Functor but not Traverse
+   *   <li>Are not interfaces
+   *   <li>Are not anonymous classes
+   *   <li>Don't end with "TMonad" (transformer monads store outer monad)
+   *   <li>Are not in the parameterized type classes list
+   * </ul>
+   *
+   * <p>Traverse implementations are excluded as they follow their own patterns and have separate
+   * naming convention tests.
+   */
+  private static DescribedPredicate<JavaClass> isStatelessTypeClassCandidate() {
+    return DescribedPredicate.describe(
+        "is a type class implementation that should be stateless",
+        javaClass -> {
+          if (javaClass.isInterface() || javaClass.isAnonymousClass()) {
+            return false;
+          }
+          if (!javaClass.isAssignableTo(Functor.class)) {
+            return false;
+          }
+          // Traverse implementations follow their own patterns
+          if (javaClass.isAssignableTo(Traverse.class)) {
+            return false;
+          }
+          String simpleName = javaClass.getSimpleName();
+          if (simpleName.endsWith("TMonad")) {
+            return false;
+          }
+          return !PARAMETERIZED_TYPE_CLASSES.contains(simpleName);
+        });
   }
 
   /**

@@ -132,18 +132,20 @@ class NoSideEffectsRules {
   }
 
   /**
-   * Pure algebraic data types should not throw RuntimeExceptions.
+   * Pure algebraic data types should not throw arbitrary RuntimeExceptions.
    *
    * <p>Instead of throwing, use Either/Try/Validated for error handling.
+   *
+   * <p>Note: This rule only checks Just, not Nothing. Nothing.get() intentionally throws
+   * NoSuchElementException following Java's standard pattern for absence-of-value (similar to
+   * Optional.get()). This is correct FP behavior where the caller should check isJust() first.
    */
   @Test
-  @DisplayName("Maybe variants should not directly throw RuntimeException")
-  void maybe_variants_should_not_throw_runtime_exception() {
+  @DisplayName("Just should not directly throw RuntimeException")
+  void just_should_not_throw_runtime_exception() {
     noClasses()
         .that()
         .haveSimpleName("Just")
-        .or()
-        .haveSimpleName("Nothing")
         .should()
         .dependOnClassesThat()
         .areAssignableTo(RuntimeException.class)

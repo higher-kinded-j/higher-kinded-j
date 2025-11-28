@@ -66,9 +66,12 @@ class ModuleDependencyRules {
   }
 
   /**
-   * Ensures optics implementation classes don't depend on specific HKT implementations.
+   * Ensures core optics implementation classes don't depend on specific HKT implementations.
    *
-   * <p>Optics should work through the generic Kind interface, not concrete types.
+   * <p>Core optics (Lens, Prism, Traversal, etc.) should work through the generic Kind interface.
+   * However, utility and extension classes in optics.util and optics.extensions are specifically
+   * designed to provide convenient operations for specific HKT types (like EitherTraversals,
+   * MaybeTraversals, etc.) and are excluded from this rule.
    */
   @Test
   @DisplayName("Optics classes should not depend on specific HKT type implementations")
@@ -78,6 +81,13 @@ class ModuleDependencyRules {
         .resideInAPackage("..optics..")
         .and()
         .haveSimpleNameNotEndingWith("Test")
+        // Exclude utility and extension classes that are designed for specific types
+        .and()
+        .resideOutsideOfPackage("..optics.util..")
+        .and()
+        .resideOutsideOfPackage("..optics.extensions..")
+        .and()
+        .resideOutsideOfPackage("..optics.fluent..")
         .should()
         .dependOnClassesThat()
         .resideInAnyPackage(

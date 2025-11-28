@@ -31,8 +31,13 @@ class InheritanceDepthRules {
 
   private static JavaClasses classes;
 
-  /** Maximum allowed inheritance depth for classes (excluding java.lang.Object). */
-  private static final int MAX_CLASS_INHERITANCE_DEPTH = 3;
+  /**
+   * Maximum allowed inheritance depth for classes (excluding java.lang.Object).
+   *
+   * <p>Set to 4 to accommodate the type class hierarchy: Functor -> Applicative -> Monad ->
+   * Selective. For example, IOSelective extends IOMonad extends IOApplicative extends IOFunctor.
+   */
+  private static final int MAX_CLASS_INHERITANCE_DEPTH = 4;
 
   /** Maximum allowed interface implementation depth. */
   private static final int MAX_INTERFACE_DEPTH = 5;
@@ -60,6 +65,8 @@ class InheritanceDepthRules {
         .areNotRecords()
         .and()
         .areNotEnums()
+        .and()
+        .haveSimpleNameNotEndingWith("package-info")
         .should(haveInheritanceDepthAtMost(MAX_CLASS_INHERITANCE_DEPTH))
         .allowEmptyShould(true)
         .check(classes);

@@ -5,6 +5,7 @@ package org.higherkindedj.architecture;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static org.higherkindedj.architecture.ArchitectureTestBase.getProductionClasses;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaModifier;
@@ -39,19 +40,22 @@ class TransformerConsistencyRules {
   }
 
   /**
-   * Transformer monad implementations should have lift method.
+   * Transformer types should have liftF method.
    *
-   * <p>The lift method allows lifting a value from the base monad into the transformer.
+   * <p>The liftF method allows lifting a value from the base monad into the transformer. Note: The
+   * liftF method is on the transformer type (EitherT, MaybeT, etc.), not on the monad instance
+   * (EitherTMonad, etc.). StateT provides liftF through StateTKindHelper.
    */
   @Test
   @DisplayName("Transformer monad classes should have lift method")
   void transformer_monads_should_have_lift_method() {
     classes()
-        .that()
-        .haveSimpleNameEndingWith("TMonad")
+        .that(isTransformerType())
         .and()
         .areNotInterfaces()
-        .should(haveMethodNamed("lift"))
+        .and()
+        .haveSimpleNameNotEndingWith("package-info")
+        .should(haveStaticMethodNamed("liftF"))
         .allowEmptyShould(true)
         .check(classes);
   }
@@ -103,6 +107,7 @@ class TransformerConsistencyRules {
         .areNotInterfaces()
         .should(haveStaticMethodNamed("of"))
         .orShould(haveStaticMethodNamed("lift"))
+        .orShould(haveStaticMethodNamed("create"))
         .allowEmptyShould(true)
         .check(classes);
   }
@@ -139,6 +144,23 @@ class TransformerConsistencyRules {
         .haveOnlyPrivateConstructors()
         .allowEmptyShould(true)
         .check(classes);
+  }
+
+  /**
+   * Custom predicate that matches transformer types (EitherT, MaybeT, OptionalT, ReaderT).
+   *
+   * @return the described predicate
+   */
+  private static DescribedPredicate<JavaClass> isTransformerType() {
+    return DescribedPredicate.describe(
+        "is a transformer type (EitherT, MaybeT, OptionalT, ReaderT)",
+        javaClass -> {
+          String name = javaClass.getSimpleName();
+          return name.equals("EitherT")
+              || name.equals("MaybeT")
+              || name.equals("OptionalT")
+              || name.equals("ReaderT");
+        });
   }
 
   /**

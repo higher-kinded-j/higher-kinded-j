@@ -127,13 +127,19 @@ class PackageStructureRules {
         .check(classes);
   }
 
-  /** EitherT transformer classes should be in either_t package. */
+  /**
+   * EitherT transformer classes should be in either_t package.
+   *
+   * <p>Note: Excludes classes like EitherTraverse/EitherTraversals which are not transformers.
+   */
   @Test
   @DisplayName("EitherT classes should reside in the either_t package")
   void either_t_classes_in_either_t_package() {
     classes()
         .that()
         .haveSimpleNameStartingWith("EitherT")
+        .and()
+        .haveSimpleNameNotContaining("Traverse") // EitherTraverse is not a transformer
         .and()
         .resideInAPackage("..hkt..")
         .should()
@@ -142,13 +148,19 @@ class PackageStructureRules {
         .check(classes);
   }
 
-  /** MaybeT transformer classes should be in maybe_t package. */
+  /**
+   * MaybeT transformer classes should be in maybe_t package.
+   *
+   * <p>Note: Excludes classes like MaybeTraversals which are not transformers.
+   */
   @Test
   @DisplayName("MaybeT classes should reside in the maybe_t package")
   void maybe_t_classes_in_maybe_t_package() {
     classes()
         .that()
         .haveSimpleNameStartingWith("MaybeT")
+        .and()
+        .haveSimpleNameNotContaining("Traverse") // MaybeTraversals is not a transformer
         .and()
         .resideInAPackage("..hkt..")
         .should()
@@ -157,13 +169,19 @@ class PackageStructureRules {
         .check(classes);
   }
 
-  /** StateT transformer classes should be in state_t package. */
+  /**
+   * StateT transformer classes should be in state_t package.
+   *
+   * <p>Note: Excludes classes like StateTupleLensesManual which are not transformers.
+   */
   @Test
   @DisplayName("StateT classes should reside in the state_t package")
   void state_t_classes_in_state_t_package() {
     classes()
         .that()
         .haveSimpleNameStartingWith("StateT")
+        .and()
+        .haveSimpleNameNotContaining("Tuple") // StateTupleLensesManual is not a transformer
         .and()
         .resideInAPackage("..hkt..")
         .should()
@@ -202,13 +220,19 @@ class PackageStructureRules {
         .check(classes);
   }
 
-  /** OptionalT transformer classes should be in optional_t package. */
+  /**
+   * OptionalT transformer classes should be in optional_t package.
+   *
+   * <p>Note: Excludes classes like OptionalTraverse which are not transformers.
+   */
   @Test
   @DisplayName("OptionalT classes should reside in the optional_t package")
   void optional_t_classes_in_optional_t_package() {
     classes()
         .that()
         .haveSimpleNameStartingWith("OptionalT")
+        .and()
+        .haveSimpleNameNotContaining("Traverse") // OptionalTraverse is not a transformer
         .and()
         .resideInAPackage("..hkt..")
         .should()

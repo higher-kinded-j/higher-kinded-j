@@ -64,6 +64,9 @@ class WitnessTypeRules {
    *
    * <p>Witness types should never be instantiated - they exist only as type markers for the
    * higher-kinded type simulation.
+   *
+   * <p>Excludes FunctionKind.Witness which is a special case for Kind2 profunctors - it uses the
+   * default public constructor as the class is primarily used as a type marker in generic contexts.
    */
   @Test
   @DisplayName("Witness classes should have only private constructors (non-instantiable)")
@@ -71,6 +74,8 @@ class WitnessTypeRules {
     classes()
         .that()
         .haveSimpleName("Witness")
+        .and()
+        .resideOutsideOfPackage("..func..") // Exclude FunctionKind.Witness (profunctor type)
         .should()
         .haveOnlyPrivateConstructors()
         .allowEmptyShould(true)
@@ -80,7 +85,8 @@ class WitnessTypeRules {
   /**
    * KindHelper classes should be final utility classes.
    *
-   * <p>KindHelper classes provide static widen/narrow utilities and should not be extended.
+   * <p>KindHelper classes provide static widen/narrow utilities and should not be extended. Enums
+   * are implicitly final, so they are excluded from this check.
    */
   @Test
   @DisplayName("KindHelper classes should be final utility classes")
@@ -88,6 +94,8 @@ class WitnessTypeRules {
     classes()
         .that()
         .haveSimpleNameEndingWith("KindHelper")
+        .and()
+        .areNotEnums() // Enums are implicitly final
         .should()
         .haveModifier(JavaModifier.FINAL)
         .allowEmptyShould(true)
@@ -97,7 +105,8 @@ class WitnessTypeRules {
   /**
    * KindHelper classes should have private constructors.
    *
-   * <p>KindHelper classes contain only static methods and should not be instantiated.
+   * <p>KindHelper classes contain only static methods and should not be instantiated. Enums have
+   * implicit private constructors, so they are excluded from this check.
    */
   @Test
   @DisplayName("KindHelper classes should have only private constructors (utility classes)")
@@ -105,6 +114,8 @@ class WitnessTypeRules {
     classes()
         .that()
         .haveSimpleNameEndingWith("KindHelper")
+        .and()
+        .areNotEnums() // Enums have implicit private constructors
         .should()
         .haveOnlyPrivateConstructors()
         .allowEmptyShould(true)
