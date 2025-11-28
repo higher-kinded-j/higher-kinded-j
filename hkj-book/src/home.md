@@ -110,6 +110,16 @@ public class UserController {
 > Before diving in, ensure you have the following:
 > **Java Development Kit (JDK): Version 25** or later. The library makes use of features available in this version.
 
+~~~admonish tip title="Java 25 Language Features in Examples"
+The example code in `hkj-examples` uses Java 25 language features to reduce boilerplate:
+
+- **Module Import Declarations** ([JEP 511](https://openjdk.org/jeps/511)): Instead of many individual imports, examples use `import module java.base;` and `import module org.higherkindedj.core;` to import all exported packages from a module at once.
+
+- **Instance Main Methods** ([JEP 512](https://openjdk.org/jeps/512)): Examples use `void main()` instead of `public static void main(String[] args)`, allowing direct access to instance methods without self-instantiation.
+
+These features are optional—you can use traditional imports and static main methods in your own code.
+~~~
+
 The project is modular. To use it, add the relevant dependencies to your `build.gradle` or `pom.xml`. The use of an annotation processor helps to automatically generate the required boilerplate for Optics and other patterns.
 
 **For HKTs:**
