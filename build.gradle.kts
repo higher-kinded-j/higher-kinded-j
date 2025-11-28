@@ -1,9 +1,9 @@
 
 plugins {
     java
-    id("com.vanniktech.maven.publish") version "0.33.0"
-    id("com.diffplug.spotless") version "8.1.0"
-    id("org.openrewrite.rewrite") version "7.21.0"
+    alias(libs.plugins.maven.publish)
+    alias(libs.plugins.spotless)
+    alias(libs.plugins.openrewrite)
 }
 
 // Global properties for all modules
@@ -57,7 +57,7 @@ subprojects {
         lineEndings = com.diffplug.spotless.LineEnding.UNIX
         java {
             target("src/**/*.java")
-            googleJavaFormat("1.32.0").formatJavadoc(true)
+            googleJavaFormat(libs.versions.google.java.format.get()).formatJavadoc(true)
             removeUnusedImports()
             trimTrailingWhitespace()
             licenseHeaderFile(rootProject.file("config/spotless/copyright.txt"), "(package|import|public|@)")

@@ -1,0 +1,93 @@
+[versions]
+# Core dependencies
+jspecify = "1.0.0"
+javapoet = "0.7.0"
+autoservice = "1.1.1"
+palantir-java-format = "2.69.0"
+
+# Testing
+junit = "5.13.0"
+assertj = "3.27.3"
+jqwik = "1.9.3"
+archunit = "1.3.0"
+compile-testing = "0.21.0"
+truth = "1.4.4"
+
+# Benchmarking
+jmh = "1.37"
+jol = "0.17"
+
+# Spring
+spring-boot = "3.5.7"
+spring-dependency-management = "1.1.7"
+
+# Code quality
+google-java-format = "1.32.0"
+
+# Plugins
+maven-publish = "0.33.0"
+spotless = "8.1.0"
+openrewrite = "7.21.0"
+jmh-plugin = "0.7.3"
+
+[libraries]
+# Core
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet" }
+autoservice-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoservice" }
+autoservice = { module = "com.google.auto.service:auto-service", version.ref = "autoservice" }
+palantir-java-format = { module = "com.palantir.javaformat:palantir-java-format", version.ref = "palantir-java-format" }
+
+# Testing
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
+jqwik-engine = { module = "net.jqwik:jqwik-engine", version.ref = "jqwik" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+compile-testing = { module = "com.google.testing.compile:compile-testing", version.ref = "compile-testing" }
+truth = { module = "com.google.truth:truth", version.ref = "truth" }
+
+# Benchmarking
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+jol-core = { module = "org.openjdk.jol:jol-core", version.ref = "jol" }
+
+# Spring Boot
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+spring-boot-autoconfigure-processor = { module = "org.springframework.boot:spring-boot-autoconfigure-processor" }
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-actuator = { module = "org.springframework.boot:spring-boot-actuator" }
+spring-boot-actuator-autoconfigure = { module = "org.springframework.boot:spring-boot-actuator-autoconfigure" }
+
+# Spring Framework
+spring-web = { module = "org.springframework:spring-web" }
+spring-webmvc = { module = "org.springframework:spring-webmvc" }
+
+# Spring Security
+spring-security-core = { module = "org.springframework.security:spring-security-core" }
+spring-security-web = { module = "org.springframework.security:spring-security-web" }
+spring-security-config = { module = "org.springframework.security:spring-security-config" }
+spring-security-oauth2-jose = { module = "org.springframework.security:spring-security-oauth2-jose" }
+
+# Jakarta
+jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
+
+# Jackson
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+
+# Micrometer
+micrometer-core = { module = "io.micrometer:micrometer-core" }
+
+[plugins]
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+openrewrite = { id = "org.openrewrite.rewrite", version.ref = "openrewrite" }
+jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }

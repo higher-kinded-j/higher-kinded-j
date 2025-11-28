@@ -8,24 +8,21 @@ dependencies {
     implementation(project(":hkj-annotations"))
     implementation(project(":hkj-api"))
 
-
-
     // The processor's own dependencies, which will not leak into the core module
-    implementation("com.palantir.javapoet:javapoet:0.7.0")
-    implementation("com.google.auto.service:auto-service-annotations:1.1.1")
-    annotationProcessor("com.google.auto.service:auto-service:1.1.1")
+    implementation(libs.javapoet)
+    implementation(libs.autoservice.annotations)
+    annotationProcessor(libs.autoservice)
 
     testImplementation(project(":hkj-processor-plugins"))
 
-    testImplementation("com.google.testing.compile:compile-testing:0.21.0")
-    testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation(libs.compile.testing)
+    testImplementation(libs.truth)
 
-
-    testImplementation(platform("org.junit:junit-bom:5.13.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.assertj:assertj-core:3.27.3")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.assertj.core)
+    testImplementation(libs.archunit.junit5)
 }
 
 tasks.test {
