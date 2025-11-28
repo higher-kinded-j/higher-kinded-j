@@ -1026,8 +1026,8 @@ for (Order order : orders) {
 ## Further Reading
 
 - **Fluent Interfaces**: [Martin Fowler's article](https://martinfowler.com/bliki/FluentInterface.html) on designing fluent APIs
-- **Builder Pattern**: [Effective Java, 3rd Edition](https://www.oracle.com/java/technologies/effective-java.html) by Joshua Bloch
-- **Method Chaining**: [Patterns of Enterprise Application Architecture](https://martinfowler.com/eaaCatalog/)
+- **Readable and Expressive APIs**: [Fluent Interfaces in Java](https://samurai-developer.com/fluent-interfaces/)
+- **Fluent API**: [Practice and Theory](https://blog.sigplan.org/2021/03/02/fluent-api-practice-and-theory/)
 - **Lens Tutorial**: [Haskell lens tutorial](https://hackage.haskell.org/package/lens-tutorial) for deeper theoretical understanding
 
 ---
