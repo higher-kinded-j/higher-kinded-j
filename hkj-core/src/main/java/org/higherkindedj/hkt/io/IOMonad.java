@@ -74,7 +74,7 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
               var kindB = f.apply(a);
               Validation.function()
                   .requireNonNullResult(kindB, "f", IO_MONAD_CLASS, FLAT_MAP, Kind.class);
-              return IO_OP.narrow(f.apply(a));
+              return IO_OP.narrow(kindB);
             });
     return IO_OP.widen(ioB);
   }
