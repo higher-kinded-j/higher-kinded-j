@@ -190,7 +190,7 @@ class DependencyLayerRules {
         .that(isMainEitherTClass())
         .should()
         .dependOnClassesThat()
-        .resideInAPackage("..hkt.either..")
+        .resideInAPackage("org.higherkindedj.hkt.either")
         .allowEmptyShould(true)
         .check(classes);
   }
@@ -203,7 +203,7 @@ class DependencyLayerRules {
         .that(isMainMaybeTClass())
         .should()
         .dependOnClassesThat()
-        .resideInAPackage("..hkt.maybe..")
+        .resideInAPackage("org.higherkindedj.hkt.maybe")
         .allowEmptyShould(true)
         .check(classes);
   }
