@@ -88,8 +88,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
   public <A, B> Kind<WriterKind.Witness<W>, B> ap(
       Kind<WriterKind.Witness<W>, ? extends Function<A, B>> ff, Kind<WriterKind.Witness<W>, A> fa) {
 
-    Validation.kind().requireNonNull(ff, WRITER_APPLICATIVE_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, WRITER_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().validateAp(ff, fa, WRITER_APPLICATIVE_CLASS);
 
     Writer<W, ? extends Function<A, B>> writerF = WRITER.narrow(ff);
     Writer<W, A> writerA = WRITER.narrow(fa);

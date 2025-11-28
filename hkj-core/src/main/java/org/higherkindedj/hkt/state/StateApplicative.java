@@ -58,8 +58,7 @@ public class StateApplicative<S> extends StateFunctor<S>
   public <A, B> Kind<StateKind.Witness<S>, B> ap(
       Kind<StateKind.Witness<S>, ? extends Function<A, B>> ff, Kind<StateKind.Witness<S>, A> fa) {
 
-    Validation.kind().requireNonNull(ff, STATE_APPLICATIVE_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, STATE_APPLICATIVE_CLASS, AP, "argument");
+    Validation.kind().validateAp(ff, fa, STATE_APPLICATIVE_CLASS);
 
     State<S, ? extends Function<A, B>> stateF = STATE.narrow(ff);
     State<S, A> stateA = STATE.narrow(fa);

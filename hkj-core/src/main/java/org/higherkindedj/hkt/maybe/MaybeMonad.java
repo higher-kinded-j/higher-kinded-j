@@ -61,8 +61,7 @@ public class MaybeMonad extends MaybeFunctor
   public <A, B> Kind<MaybeKind.Witness, B> flatMap(
       Function<? super A, ? extends Kind<MaybeKind.Witness, B>> f, Kind<MaybeKind.Witness, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", MAYBE_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, MAYBE_MONAD_CLASS, FLAT_MAP);
+    Validation.function().validateFlatMap(f, ma, MAYBE_MONAD_CLASS);
 
     Maybe<A> maybeA = MAYBE.narrow(ma);
 
@@ -94,8 +93,7 @@ public class MaybeMonad extends MaybeFunctor
   public <A, B> Kind<MaybeKind.Witness, B> ap(
       Kind<MaybeKind.Witness, ? extends Function<A, B>> ff, Kind<MaybeKind.Witness, A> fa) {
 
-    Validation.kind().requireNonNull(ff, MAYBE_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, MAYBE_MONAD_CLASS, AP, "argument");
+    Validation.kind().validateAp(ff, fa, MAYBE_MONAD_CLASS);
 
     Maybe<? extends Function<A, B>> maybeF = MAYBE.narrow(ff);
     Maybe<A> maybeA = MAYBE.narrow(fa);
@@ -136,8 +134,7 @@ public class MaybeMonad extends MaybeFunctor
       Kind<MaybeKind.Witness, A> ma,
       Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler) {
 
-    Validation.kind().requireNonNull(ma, MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    Validation.function().requireFunction(handler, "handler", MAYBE_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.function().validateHandleErrorWith(ma, handler, MAYBE_MONAD_CLASS);
 
     Maybe<A> maybe = MAYBE.narrow(ma);
 

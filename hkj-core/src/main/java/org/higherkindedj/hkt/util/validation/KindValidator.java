@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.util.validation;
 
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -239,6 +241,29 @@ public enum KindValidator {
         descriptor != null ? operation + " (" + descriptor + ")" : operation.toString();
 
     return Objects.requireNonNull(kind, "Kind for " + contextMessage + " cannot be null");
+  }
+
+  // ==================== Bulk Validation Helpers ====================
+  // These methods reduce boilerplate by combining multiple validations into single calls.
+
+  /**
+   * Validates all Kind parameters for an ap (applicative application) operation in a single call.
+   *
+   * <p>This combines validation of both the function Kind and argument Kind, reducing boilerplate
+   * in Applicative implementations.
+   *
+   * @param ff the function Kind (must be non-null)
+   * @param fa the argument Kind (must be non-null)
+   * @param contextClass the class performing the operation (for error messages)
+   * @param <F> the functor type constructor
+   * @param <A> input type
+   * @param <B> output type
+   * @throws NullPointerException if ff or fa is null
+   */
+  public <F, A, B> void validateAp(
+      Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa, Class<?> contextClass) {
+    requireNonNull(ff, contextClass, AP, "function");
+    requireNonNull(fa, contextClass, AP, "argument");
   }
 
   /**

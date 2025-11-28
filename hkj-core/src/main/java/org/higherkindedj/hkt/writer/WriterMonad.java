@@ -69,8 +69,7 @@ public class WriterMonad<W> extends WriterApplicative<W> implements Monad<Writer
       Function<? super A, ? extends Kind<WriterKind.Witness<W>, B>> f,
       Kind<WriterKind.Witness<W>, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", WRITER_MAONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, WRITER_MAONAD_CLASS, FLAT_MAP);
+    Validation.function().validateFlatMap(f, ma, WRITER_MAONAD_CLASS);
 
     Writer<W, A> writerA = WRITER.narrow(ma);
 

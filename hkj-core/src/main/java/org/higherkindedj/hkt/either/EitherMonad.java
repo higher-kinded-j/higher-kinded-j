@@ -76,16 +76,13 @@ public class EitherMonad<L> extends EitherFunctor<L>
   public <A, B> Kind<EitherKind.Witness<L>, B> flatMap(
       Function<? super A, ? extends Kind<EitherKind.Witness<L>, B>> f,
       Kind<EitherKind.Witness<L>, A> ma) {
-    Function<? super A, ? extends Kind<EitherKind.Witness<L>, B>> validatedF =
-        Validation.function().requireFlatMapper(f, "f", EITHER_MONAD_CLASS, FLAT_MAP);
-    Kind<EitherKind.Witness<L>, A> validatedMa =
-        Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, FLAT_MAP);
+    Validation.function().validateFlatMap(f, ma, EITHER_MONAD_CLASS);
 
-    Either<L, A> eitherA = EITHER.narrow(validatedMa);
+    Either<L, A> eitherA = EITHER.narrow(ma);
     Either<L, B> resultEither =
         eitherA.flatMap(
             a -> {
-              Kind<EitherKind.Witness<L>, B> kindB = validatedF.apply(a);
+              Kind<EitherKind.Witness<L>, B> kindB = f.apply(a);
               Validation.function()
                   .requireNonNullResult(kindB, "f", EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);
               return EITHER.narrow(kindB);
@@ -115,14 +112,10 @@ public class EitherMonad<L> extends EitherFunctor<L>
       Kind<EitherKind.Witness<L>, ? extends Function<A, B>> ffKind,
       Kind<EitherKind.Witness<L>, A> faKind) {
 
-    // Enhanced validation with descriptive parameters
-    Kind<EitherKind.Witness<L>, ? extends Function<A, B>> validatedFfKind =
-        Validation.kind().requireNonNull(ffKind, EITHER_MONAD_CLASS, AP, "function");
-    Kind<EitherKind.Witness<L>, A> validatedFaKind =
-        Validation.kind().requireNonNull(faKind, EITHER_MONAD_CLASS, AP, "argument");
+    Validation.kind().validateAp(ffKind, faKind, EITHER_MONAD_CLASS);
 
-    Either<L, ? extends Function<A, B>> eitherF = EITHER.narrow(validatedFfKind);
-    Either<L, A> eitherA = EITHER.narrow(validatedFaKind);
+    Either<L, ? extends Function<A, B>> eitherF = EITHER.narrow(ffKind);
+    Either<L, A> eitherA = EITHER.narrow(faKind);
 
     Either<L, B> resultEither = eitherF.flatMap(eitherA::map);
     return EITHER.widen(resultEither);
@@ -211,14 +204,10 @@ public class EitherMonad<L> extends EitherFunctor<L>
       Kind<EitherKind.Witness<L>, A> ma,
       Function<? super L, ? extends Kind<EitherKind.Witness<L>, A>> handler) {
 
-    Kind<EitherKind.Witness<L>, A> validatedMa =
-        Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    Function<? super L, ? extends Kind<EitherKind.Witness<L>, A>> validatedHandler =
-        Validation.function()
-            .requireFunction(handler, "handler", EITHER_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.function().validateHandleErrorWith(ma, handler, EITHER_MONAD_CLASS);
 
-    Either<L, A> either = EITHER.narrow(validatedMa);
-    return either.fold(validatedHandler, _ -> validatedMa);
+    Either<L, A> either = EITHER.narrow(ma);
+    return either.fold(handler, _ -> ma);
   }
 
   @Override

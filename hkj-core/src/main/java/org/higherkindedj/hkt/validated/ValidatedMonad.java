@@ -93,8 +93,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
       Kind<ValidatedKind.Witness<E>, ? extends Function<A, B>> ff,
       Kind<ValidatedKind.Witness<E>, A> fa) {
 
-    Validation.kind().requireNonNull(ff, VALIDATED_MONAD_CLASS, AP, "function");
-    Validation.kind().requireNonNull(fa, VALIDATED_MONAD_CLASS, AP, "argument");
+    Validation.kind().validateAp(ff, fa, VALIDATED_MONAD_CLASS);
 
     Validated<E, ? extends Function<A, B>> fnValidated = VALIDATED.narrow(ff);
     Validated<E, A> valueValidated = VALIDATED.narrow(fa);
@@ -126,8 +125,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
       Function<? super A, ? extends Kind<ValidatedKind.Witness<E>, B>> f,
       Kind<ValidatedKind.Witness<E>, A> ma) {
 
-    Validation.function().requireFlatMapper(f, "f", VALIDATED_MONAD_CLASS, FLAT_MAP);
-    Validation.kind().requireNonNull(ma, VALIDATED_MONAD_CLASS, FLAT_MAP);
+    Validation.function().validateFlatMap(f, ma, VALIDATED_MONAD_CLASS);
 
     Validated<E, A> validatedValue = VALIDATED.narrow(ma);
     Validated<E, B> result =
@@ -182,9 +180,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
       Kind<ValidatedKind.Witness<E>, A> ma,
       Function<? super E, ? extends Kind<ValidatedKind.Witness<E>, A>> handler) {
 
-    Validation.kind().requireNonNull(ma, VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH, "source");
-    Validation.function()
-        .requireFunction(handler, "handler", VALIDATED_MONAD_CLASS, HANDLE_ERROR_WITH);
+    Validation.function().validateHandleErrorWith(ma, handler, VALIDATED_MONAD_CLASS);
 
     Validated<E, A> validated = VALIDATED.narrow(ma);
 

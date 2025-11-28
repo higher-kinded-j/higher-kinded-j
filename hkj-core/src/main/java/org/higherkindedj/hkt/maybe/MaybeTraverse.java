@@ -39,10 +39,7 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<MaybeKind.Witness, A> ta) {
 
-    Validation.function()
-        .requireApplicative(applicative, "applicative", MAYBE_TRAVERSE_CLASS, TRAVERSE);
-    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, TRAVERSE);
-    Validation.kind().requireNonNull(ta, MAYBE_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().validateTraverse(applicative, f, ta, MAYBE_TRAVERSE_CLASS);
 
     final Maybe<A> maybe = MAYBE.narrow(ta);
 
@@ -59,9 +56,7 @@ public enum MaybeTraverse implements Traverse<MaybeKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<MaybeKind.Witness, A> fa) {
 
-    Validation.function().requireMonoid(monoid, "monoid", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.function().requireMapper(f, "f", MAYBE_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.kind().requireNonNull(fa, MAYBE_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().validateFoldMap(monoid, f, fa, MAYBE_TRAVERSE_CLASS);
 
     final Maybe<A> maybe = MAYBE.narrow(fa);
     // If Just, map the value. If Nothing, return the monoid's empty value.

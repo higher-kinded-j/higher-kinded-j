@@ -266,10 +266,7 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
       Function<? super A, ? extends Kind<G, ? extends B>> f,
       Kind<StreamKind.Witness, A> ta) {
 
-    Validation.function()
-        .requireApplicative(applicative, "applicative", STREAM_TRAVERSE_CLASS, TRAVERSE);
-    Validation.function().requireMapper(f, "f", STREAM_TRAVERSE_CLASS, TRAVERSE);
-    Validation.kind().requireNonNull(ta, STREAM_TRAVERSE_CLASS, TRAVERSE);
+    Validation.function().validateTraverse(applicative, f, ta, STREAM_TRAVERSE_CLASS);
 
     Stream<A> streamA = STREAM.narrow(ta);
 
@@ -371,9 +368,7 @@ public enum StreamTraverse implements Traverse<StreamKind.Witness> {
   public <A, M> M foldMap(
       Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<StreamKind.Witness, A> fa) {
 
-    Validation.function().requireMonoid(monoid, "monoid", STREAM_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.function().requireMapper(f, "f", STREAM_TRAVERSE_CLASS, FOLD_MAP);
-    Validation.kind().requireNonNull(fa, STREAM_TRAVERSE_CLASS, FOLD_MAP);
+    Validation.function().validateFoldMap(monoid, f, fa, STREAM_TRAVERSE_CLASS);
 
     // Collect mapped values first to avoid wildcard capture issues with stream reduce.
     // The function f returns ? extends M, which makes map(f) return Stream<? extends M>.
