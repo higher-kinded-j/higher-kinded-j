@@ -2,18 +2,18 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.list;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/list_monad.html">List Monad</a>} */
 public class ListMonadExample {
-  public static void main(String[] args) {
+
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     ListMonad listMonad = ListMonad.INSTANCE;
 
     // 1. Create a ListKind

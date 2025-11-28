@@ -2,14 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.io;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
-import java.util.Scanner;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/io_monad.html">IO Monad</a>} */
 public class IOExample {
@@ -51,16 +50,16 @@ public class IOExample {
             return "Success!";
           });
 
-  public static void main(String[] args) {
-    IOExample ioExample = new IOExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("\nExecuting IO Example!");
-    ioExample.executingIO();
+    executingIO();
     System.out.println("\nDone!");
     System.out.println("\nComposing with map and flatMap Example!");
-    ioExample.composingWithMapAndFlatMap();
+    composingWithMapAndFlatMap();
     System.out.println("\nDone!");
     System.out.println("\n--- Composition with Utility Methods Example ---");
-    ioExample.utilityMethodsCompositionExample();
+    utilityMethodsCompositionExample();
   }
 
   public void executingIO() {

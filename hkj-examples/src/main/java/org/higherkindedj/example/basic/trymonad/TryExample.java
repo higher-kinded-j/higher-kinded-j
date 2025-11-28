@@ -2,20 +2,20 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trymonad;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.trymonad.Try;
-import org.higherkindedj.hkt.trymonad.TryKind;
-import org.higherkindedj.hkt.trymonad.TryMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/try_monad.html">Try Monad</a>} */
 public class TryExample {
-  public static void main(String[] args) {
-    TryExample example = new TryExample();
-    example.basicExample();
-    example.basicMonadExample();
+
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    basicExample();
+    basicMonadExample();
   }
 
   public void basicExample() {

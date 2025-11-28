@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.tutorials;
 
+import module org.higherkindedj.core;
+
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
@@ -109,9 +111,9 @@ public final class LensDeepUpdate {
   /**
    * Demonstrates lens composition for deep updates.
    *
-   * @param args Command line arguments (unused)
+   * <p>Java 25 instance main method - no static modifier or String[] args required.
    */
-  public static void main(String[] args) {
+  void main() {
     System.out.println("=== Lens Deep Update Examples ===\n");
 
     // Create a user with nested structure

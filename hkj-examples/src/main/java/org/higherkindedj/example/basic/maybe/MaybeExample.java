@@ -2,14 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.maybe;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/maybe_monad.html">Maybe Monad</a>} */
 public class MaybeExample {
@@ -24,18 +23,18 @@ public class MaybeExample {
     return monad.handleErrorWith(mappedKind, (Unit unitVal) -> monad.of(defaultValueOnAbsence));
   }
 
-  public static void main(String[] args) {
-    MaybeExample example = new MaybeExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("\n Map Example");
-    example.mapExample();
+    mapExample();
     System.out.println("\n flatMap Example");
-    example.flatMapExample();
+    flatMapExample();
     System.out.println("\n ap Example");
-    example.apExample();
+    apExample();
     System.out.println("\n handleErrorWith Example");
-    example.handleErrorWithExample();
+    handleErrorWithExample();
     System.out.println("\n Monad Example");
-    example.monadExample();
+    monadExample();
   }
 
   void monadExample() {

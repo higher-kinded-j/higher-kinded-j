@@ -2,12 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.reader;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.reader.ReaderKind;
-import org.higherkindedj.hkt.reader.ReaderMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/reader_monad.html">Reader Monad</a>} */
 public class ReaderExample {
@@ -44,9 +44,9 @@ public class ReaderExample {
       readerMonad.map2(
           getDbUrl, getTimeout, (url, timeout) -> "DB: " + url + " (Timeout: " + timeout + ")");
 
-  public static void main(String... args) {
-    ReaderExample example = new ReaderExample();
-    example.runExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    runExample();
   }
 
   public void runExample() {

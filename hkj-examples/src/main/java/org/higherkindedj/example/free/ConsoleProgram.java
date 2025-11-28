@@ -2,14 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.free;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.free.Free;
 
 /**
  * Example demonstrating the Free monad with a simple Console DSL.
@@ -364,8 +362,8 @@ public class ConsoleProgram {
     }
   }
 
-  /** Main method demonstrating the Free monad. */
-  public static void main(String[] args) {
+  /** Main method demonstrating the Free monad. Java 25 instance main method. */
+  void main() {
     System.out.println("=== Free Monad Console DSL Example ===\n");
 
     // Run the greeting program with test interpreter

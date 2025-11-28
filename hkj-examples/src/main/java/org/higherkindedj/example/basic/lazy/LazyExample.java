@@ -2,20 +2,18 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.lazy;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.lazy.Lazy;
-import org.higherkindedj.hkt.lazy.LazyKind;
-import org.higherkindedj.hkt.lazy.LazyMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/lazy_monad.html">Lazy Monad</a>} */
 public class LazyExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Creating Lazy Instances
     // 1. Deferring a computation (that might throw checked exception)
     AtomicInteger counter = new AtomicInteger(0);

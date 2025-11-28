@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.tutorials;
 
-import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.maybe.Maybe;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.optics.Lens;
 
 /**
@@ -171,9 +171,9 @@ public final class TutorialGettingStarted {
    * <p>Execute this before starting the tutorials to ensure everything is configured correctly. Any
    * assertion failures indicate a setup problem that should be resolved first.
    *
-   * @param args Command line arguments (unused)
+   * <p>Java 25 instance main method - no static modifier or String[] args required.
    */
-  public static void main(String[] args) {
+  void main() {
     System.out.println("Verifying Higher-Kinded-J tutorial setup...\n");
 
     try {

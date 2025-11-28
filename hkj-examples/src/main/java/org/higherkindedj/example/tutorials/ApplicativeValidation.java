@@ -2,17 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.tutorials;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.List;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
-import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherMonad;
-import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 
 /**
  * Demonstrates form validation using Applicative patterns with {@link Either} and {@link
@@ -279,9 +276,9 @@ public final class ApplicativeValidation {
   /**
    * Demonstrates both validation strategies with various scenarios.
    *
-   * @param args Command line arguments (unused)
+   * <p>Java 25 instance main method - no static modifier or String[] args required.
    */
-  public static void main(String[] args) {
+  void main() {
     System.out.println("=== Applicative Validation Examples ===\n");
 
     // Scenario 1: All valid

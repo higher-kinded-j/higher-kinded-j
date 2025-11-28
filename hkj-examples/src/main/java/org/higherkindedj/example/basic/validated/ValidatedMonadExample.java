@@ -2,17 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.validated;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
-import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 
 /**
  * Demonstrates basic usage of {@link ValidatedMonad}, now including MonadError capabilities.
@@ -31,7 +28,8 @@ public class ValidatedMonadExample {
   private static final ValidatedMonad<List<String>> validatedMonad =
       ValidatedMonad.instance(listSemigroup);
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("--- ValidatedMonad Usage Example (with MonadError) ---");
     validatedMonadOperations();
   }

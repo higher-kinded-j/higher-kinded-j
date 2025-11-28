@@ -2,15 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.writer;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
 
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.writer.Writer;
-import org.higherkindedj.hkt.writer.WriterKind;
-import org.higherkindedj.hkt.writer.WriterMonad;
 import org.jspecify.annotations.NonNull;
 
 /** see {<a href="https://higher-kinded-j.github.io/writer_monad.html">Writer Monad</a>} */
@@ -39,8 +38,9 @@ public class WriterExample {
         return WRITER.widen(new Writer<>(logMsg, "Final:" + result));
       };
 
-  public static void main(String[] args) {
-    new WriterExample().runWriterExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    runWriterExample();
   }
 
   public void runWriterExample() {

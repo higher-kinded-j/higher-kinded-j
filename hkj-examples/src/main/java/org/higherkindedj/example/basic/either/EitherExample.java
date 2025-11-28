@@ -2,22 +2,21 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.either;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
-import java.util.NoSuchElementException;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/either_monad.html">Either Monad</a>} */
 public class EitherExample {
-  public static void main(String[] args) {
-    EitherExample example = new EitherExample();
-    example.basicUsage();
-    example.basicFlatMap();
-    example.basicMonadExample();
+
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    basicUsage();
+    basicFlatMap();
+    basicMonadExample();
   }
 
   public void basicUsage() {

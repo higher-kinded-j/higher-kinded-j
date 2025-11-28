@@ -2,14 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.draughts;
 
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.expression.For;
-import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.io.IOKindHelper;
-import org.higherkindedj.hkt.io.IOMonad;
-import org.higherkindedj.hkt.state.StateKindHelper;
 
 public class Draughts {
 
@@ -64,7 +60,8 @@ public class Draughts {
         sequence);
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Get the initial state
     GameState initialState = GameState.initial();
     // Create the full game IO program

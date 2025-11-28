@@ -2,16 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.constant;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
-import org.higherkindedj.hkt.constant.Const;
-import org.higherkindedj.hkt.constant.ConstBifunctor;
-import org.higherkindedj.hkt.constant.ConstKind2;
 
 /**
  * Comprehensive examples demonstrating the Const type and its Bifunctor instance.
@@ -40,7 +37,8 @@ import org.higherkindedj.hkt.constant.ConstKind2;
  */
 public class ConstExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Const Type Examples ===\n");
 
     demonstrateBasicConstCreation();
