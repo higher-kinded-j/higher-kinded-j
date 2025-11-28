@@ -5,6 +5,8 @@ package org.higherkindedj.example.optics;
 import module java.base;
 import module org.higherkindedj.core;
 
+import org.higherkindedj.optics.util.Prisms;
+
 /**
  * A runnable example demonstrating the At type class for indexed CRUD operations on collections.
  *

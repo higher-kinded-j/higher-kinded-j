@@ -25,7 +25,7 @@ public class OptionalTExample {
   /** Java 25 instance main method - no static modifier or String[] args required. */
   void main() {
     createExample();
-    OptionalTAsyncExample.main(new String[0]);
+    new OptionalTAsyncExample().main();
   }
 
   public void createExample() {

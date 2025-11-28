@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.util.Prisms;
 
 /**
  * A comprehensive real-world example demonstrating integrated optics patterns with Higher-Kinded-J
