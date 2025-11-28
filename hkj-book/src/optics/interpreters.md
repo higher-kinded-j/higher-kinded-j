@@ -731,7 +731,6 @@ try {
 - **Natural Transformations**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) by Bartosz Milewski
 - **Free Monad Interpreters**: [Why free monads matter](http://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) by Gabriel Gonzalez
 - **Aspect-Oriented Programming**: [AspectJ in Action](https://www.manning.com/books/aspectj-in-action-second-edition) by Ramnivas Laddad
-- **Cross-Cutting Concerns**: [On the Criteria To Be Used in Decomposing Systems into Modules](https://www.win.tue.nl/~wstomv/edu/2ip30/references/criteria_for_modularization.pdf) by David Parnas
 
 ---
 

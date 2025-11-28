@@ -656,7 +656,6 @@ logger.getLog().forEach(System.out::println);  // Side effect here is fine
 - **Interpreter Pattern**: [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Interpreter_pattern)
 - **Tagless Final vs Free**: [Typed Tagless Final Interpreters](http://okmij.org/ftp/tagless-final/)
 - **Railway-Oriented Programming**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) by Scott Wlaschin
-- **Separation of Concerns**: [On the Criteria To Be Used in Decomposing Systems into Modules](https://www.win.tue.nl/~wstomv/edu/2ip30/references/criteria_for_modularization.pdf) by David Parnas
 
 ---
 
