@@ -6,8 +6,8 @@ autoservice = "1.1.1"
 palantir-java-format = "2.69.0"
 
 # Testing
-junit = "5.13.0"
-assertj = "3.27.3"
+junit = "5.14.1"
+assertj = "3.27.6"
 jqwik = "1.9.3"
 archunit = "1.3.0"
 compile-testing = "0.21.0"
@@ -91,3 +91,9 @@ openrewrite = { id = "org.openrewrite.rewrite", version.ref = "openrewrite" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+
+[bundles]
+jqwik = ["jqwik", "jqwik-engine"]
+spring-web = ["spring-web", "spring-webmvc", "jakarta-servlet-api"]
+spring-actuator = ["spring-boot-actuator", "spring-boot-actuator-autoconfigure", "micrometer-core"]
+spring-security = ["spring-security-core", "spring-security-web", "spring-security-config", "spring-security-oauth2-jose"]
