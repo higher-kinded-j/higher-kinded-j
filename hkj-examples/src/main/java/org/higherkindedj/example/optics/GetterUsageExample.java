@@ -2,11 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.*;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.optics.Fold;
-import org.higherkindedj.optics.Getter;
-import org.higherkindedj.optics.annotations.GenerateGetters;
 
 /**
  * Comprehensive example demonstrating Getter optics for read-only value extraction.
@@ -40,7 +39,8 @@ public class GetterUsageExample {
   @GenerateGetters
   public record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Create sample data
     var ceoAddress = new Address("123 Executive Blvd", "New York", "10001", "USA");
     var ceo = new Person("Jane", "Smith", 45, ceoAddress);

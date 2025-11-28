@@ -2,14 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
-import org.higherkindedj.optics.util.Traversals;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A runnable example demonstrating the partsOf combinator for list-level manipulation of traversal
@@ -39,7 +33,8 @@ public class PartsOfTraversalExample {
   @GenerateTraversals
   public record Project(String name, List<Task> tasks) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== PARTSOF TRAVERSAL EXAMPLE ===");
     System.out.println("Demonstrating list-level operations on traversal focuses\n");
 

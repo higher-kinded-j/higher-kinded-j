@@ -4,10 +4,9 @@ package org.higherkindedj.example.basic.reader_t;
 
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
@@ -59,7 +58,8 @@ public class ReaderTAsyncUnitExample {
     return ReaderT.of(ReaderTAsyncUnitExample::logInitialisationAsync);
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     ExecutorService executor = Executors.newFixedThreadPool(2);
     AppConfig prodConfig =
         new AppConfig(

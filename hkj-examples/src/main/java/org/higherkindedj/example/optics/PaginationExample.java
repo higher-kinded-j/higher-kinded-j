@@ -2,13 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.IntStream;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.util.ListTraversals;
-import org.higherkindedj.optics.util.Traversals;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A real-world example demonstrating limiting traversals for REST API pagination.
@@ -56,7 +51,8 @@ public class PaginationExample {
   // Constants
   private static final int DEFAULT_PAGE_SIZE = 5;
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     List<Product> catalogue = createCatalogue();
 
     System.out.println("=== REST API Pagination with Limiting Traversals ===\n");

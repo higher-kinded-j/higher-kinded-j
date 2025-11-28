@@ -2,12 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.List;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.optics.Fold;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A comprehensive real-world example demonstrating filtered optics for customer analytics.
@@ -57,7 +55,8 @@ public class CustomerAnalyticsExample {
       double averageSpending,
       List<String> highValueCustomers) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Customer Analytics with Filtered Optics ===\n");
 
     List<Customer> customers = createSampleCustomers();

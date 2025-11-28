@@ -2,14 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.Map;
-import java.util.Optional;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
-import org.higherkindedj.optics.util.Traversals;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A runnable example demonstrating configuration management using prisms for type-safe, layered
@@ -57,7 +51,8 @@ public class ConfigurationManagementExample {
   private static final int DEFAULT_TIMEOUT_MS = 5000;
   private static final boolean DEFAULT_DEBUG_MODE = false;
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Configuration Management with Prisms ===\n");
 
     demonstrateBasicAccess();

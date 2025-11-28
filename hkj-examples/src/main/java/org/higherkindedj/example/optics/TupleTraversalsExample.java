@@ -2,11 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.List;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.tuple.Tuple2;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.util.Traversals;
-import org.higherkindedj.optics.util.TupleTraversals;
 
 /**
  * Demonstrates tuple traversals for parallel operations on Tuple2 pairs using {@link
@@ -34,7 +33,8 @@ import org.higherkindedj.optics.util.TupleTraversals;
  */
 public class TupleTraversalsExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== TUPLE TRAVERSALS EXAMPLE ===\n");
 
     demonstrateBasicTupleOperations();

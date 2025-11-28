@@ -4,10 +4,9 @@ package org.higherkindedj.example.optics.profunctor;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
@@ -61,24 +60,23 @@ public class OpticProfunctorExample {
   @GenerateLenses
   public record User(UserId id, UserName name, FormattedDate createdAt) {}
 
-  public static void main(String[] args) {
-    OpticProfunctorExample example = new OpticProfunctorExample();
-
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println(
         "=== Optic Profunctor-Style Example: Adapting Optics to Different Types ===\n");
 
-    example.contramapStyleExample();
-    example.mapStyleExample();
-    example.dimapStyleExample();
-    example.realWorldApiAdapterExample();
-    example.typeWrapperExample();
+    contramapStyleExample();
+    mapStyleExample();
+    dimapStyleExample();
+    realWorldApiAdapterExample();
+    typeWrapperExample();
   }
 
   /**
    * Demonstrates contramap-style adaptation: adapting the source type of an optic. This allows you
    * to use an optic designed for one type with a different source type.
    */
-  public void contramapStyleExample() {
+  private void contramapStyleExample() {
     System.out.println("--- Contramap-Style: Adapting Source Types ---");
 
     // Original lens: Person -> String (first name)
@@ -119,7 +117,7 @@ public class OpticProfunctorExample {
    * Demonstrates map-style adaptation: adapting the target type of an optic. This allows you to
    * transform the result type while keeping the same source.
    */
-  public void mapStyleExample() {
+  private void mapStyleExample() {
     System.out.println("--- Map-Style: Adapting Target Types ---");
 
     // Original lens: Person -> LocalDate (birth date)
@@ -151,7 +149,7 @@ public class OpticProfunctorExample {
    * Demonstrates dimap-style adaptation: adapting both source and target types. This is the most
    * powerful operation, allowing complete type transformations.
    */
-  public void dimapStyleExample() {
+  private void dimapStyleExample() {
     System.out.println("--- Dimap-Style: Adapting Both Source and Target Types ---");
 
     // Original traversal: Person -> String (hobbies)
@@ -203,7 +201,7 @@ public class OpticProfunctorExample {
    * Real-world example: Creating an API adapter that transforms between internal and external data
    * representations using manual adaptation techniques.
    */
-  public void realWorldApiAdapterExample() {
+  private void realWorldApiAdapterExample() {
     System.out.println("--- Real-World API Adapter ---");
 
     // Internal lens for working with Employee objects
@@ -250,7 +248,7 @@ public class OpticProfunctorExample {
    * Demonstrates working with strongly-typed wrapper classes using lens operations. This shows how
    * to work with type-safe wrappers effectively.
    */
-  public void typeWrapperExample() {
+  private void typeWrapperExample() {
     System.out.println("--- Type-Safe Wrapper Adaptation ---");
 
     // Working with UserName wrapper type directly through lens operations

@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.ListTraversals;
 import org.higherkindedj.optics.util.Traversals;
@@ -69,7 +69,8 @@ public class PredicateListTraversalsExample {
     }
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== PREDICATE-BASED LIST TRAVERSALS EXAMPLE ===\n");
 
     demonstrateTakingWhile();

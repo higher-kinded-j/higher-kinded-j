@@ -2,12 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A runnable example demonstrating type-safe state machines using prisms for state transitions.
@@ -59,7 +55,8 @@ public class StateMachineExample {
   private static final Prism<OrderState, Delivered> DELIVERED = OrderStatePrisms.delivered();
   private static final Prism<OrderState, Cancelled> CANCELLED = OrderStatePrisms.cancelled();
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== State Machine with Prisms ===\n");
 
     demonstrateBasicTransitions();

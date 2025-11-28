@@ -2,11 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.foldable;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
@@ -31,7 +31,8 @@ public class FoldableExample {
   // We use ListTraverse as our Foldable instance for List.
   private static final ListTraverse listFoldable = ListTraverse.INSTANCE;
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     List<Integer> numbers = List.of(1, 2, 3, 4, 5);
     Kind<ListKind.Witness, Integer> numbersKind = LIST.widen(numbers);
     System.out.println("Operating on the list: " + numbers);

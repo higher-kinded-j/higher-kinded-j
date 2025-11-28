@@ -6,9 +6,9 @@ import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.maybe_t.MaybeTKindHelper.MAYBE_T;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
@@ -27,9 +27,9 @@ import org.higherkindedj.hkt.optional.OptionalMonad;
  */
 public class MaybeTExample {
 
-  public static void main(String[] args) {
-    MaybeTExample example = new MaybeTExample();
-    example.createExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    createExample();
     MaybeTAsyncExample asyncExample = new MaybeTAsyncExample();
     asyncExample.asyncExample();
   }

@@ -2,12 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.state;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.expression.For;
@@ -91,7 +90,8 @@ public class BankAccountWorkflow {
     return STATE.widen(State.inspect(AccountState::history));
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     AccountState initialState = AccountState.initial(new BigDecimal("100.00"));
 
     var workflow =

@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.extensions;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.optics.extensions.GetterExtensions.*;
 
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.optics.Getter;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -47,7 +49,8 @@ public class GetterExtensionsExample {
   record Config(
       String appName, @Nullable String apiKey, @Nullable Integer port, @Nullable String logLevel) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== GETTER EXTENSIONS EXAMPLE ===\n");
 
     demonstrateBasicNullSafety();

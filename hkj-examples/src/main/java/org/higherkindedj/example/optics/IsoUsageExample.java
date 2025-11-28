@@ -2,13 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple2Lenses;
-import org.higherkindedj.optics.Iso;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.annotations.GenerateIsos;
-import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /**
  * A runnable example demonstrating how to use an Iso (Isomorphism) to perform lossless, two-way
@@ -51,7 +50,8 @@ public class IsoUsageExample {
     System.out.println();
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // 1. Define a point and circle.
     var myPoint = new Point(10, 20);
     var myCircle = new Circle(myPoint, 5);

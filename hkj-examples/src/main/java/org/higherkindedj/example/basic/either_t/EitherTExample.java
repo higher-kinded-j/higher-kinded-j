@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.either_t;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
-import java.util.concurrent.CompletableFuture;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.either.Either;
@@ -127,7 +129,8 @@ public class EitherTExample {
     return ((EitherT<CompletableFutureKind.Witness, DomainError, String>) completionET).value();
   }
 
-  public void asyncWorkflowErrorHandlingExample() {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     String inputData = "Data";
     String badInputData = "";
     String processingFailData = "Data-fail";
@@ -154,10 +157,5 @@ public class EitherTExample {
         runWorkflowAndSignalCompletion(badInputData);
     System.out.println("Failure Result: " + FUTURE.join(resultAsFailure));
     // Expected: Left(DomainError[message=Input empty])
-  }
-
-  public static void main(String[] args) {
-    EitherTExample example = new EitherTExample();
-    example.asyncWorkflowErrorHandlingExample();
   }
 }

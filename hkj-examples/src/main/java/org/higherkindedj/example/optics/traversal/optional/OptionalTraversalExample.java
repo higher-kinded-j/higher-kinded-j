@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.optional;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.Optional;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
@@ -47,7 +49,8 @@ public class OptionalTraversalExample {
     }
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // 1. Setup: We need an Applicative instance for our effect type (Validated).
     // This tells the traversal how to combine results.
     final Semigroup<String> stringSemigroup = (s1, s2) -> s1 + "; " + s2;

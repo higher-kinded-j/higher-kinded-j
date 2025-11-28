@@ -4,8 +4,9 @@ package org.higherkindedj.example.basic.optional;
 
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-import java.util.Optional;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -14,18 +15,18 @@ import org.higherkindedj.hkt.optional.OptionalMonad;
 /** see {<a href="https://higher-kinded-j.github.io/optional_monad.html">Optional Monad</a>} */
 public class OptionalExample {
 
-  public static void main(String[] args) {
-    OptionalExample example = new OptionalExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("\n Map Example");
-    example.mapExample();
+    mapExample();
     System.out.println("\n flatMap Example");
-    example.flatMapExample();
+    flatMapExample();
     System.out.println("\n ap Example");
-    example.apExample();
+    apExample();
     System.out.println("\n handleErrorWith Example");
-    example.handleErrorWithExample();
+    handleErrorWithExample();
     System.out.println("\n Monad Example");
-    example.monadExample();
+    monadExample();
   }
 
   public void mapExample() {

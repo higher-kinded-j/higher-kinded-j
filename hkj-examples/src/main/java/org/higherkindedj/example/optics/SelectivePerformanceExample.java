@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
@@ -28,7 +29,8 @@ public class SelectivePerformanceExample {
 
   private static final AtomicInteger operationCount = new AtomicInteger(0);
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== SELECTIVE PERFORMANCE COMPARISON ===\n");
 
     shortCircuitComparison();

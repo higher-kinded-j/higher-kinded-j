@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.example.optics.fluent.generated.ProfileSettingsLenses;
 import org.higherkindedj.example.optics.fluent.generated.UserAddressLenses;
 import org.higherkindedj.example.optics.fluent.generated.UserProfileLenses;
@@ -13,13 +13,6 @@ import org.higherkindedj.example.optics.fluent.model.ProfileSettings;
 import org.higherkindedj.example.optics.fluent.model.UserAddress;
 import org.higherkindedj.example.optics.fluent.model.UserProfile;
 import org.higherkindedj.hkt.free.Free;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.free.DirectOpticInterpreter;
-import org.higherkindedj.optics.free.LoggingOpticInterpreter;
-import org.higherkindedj.optics.free.OpticInterpreters;
-import org.higherkindedj.optics.free.OpticOpKind;
-import org.higherkindedj.optics.free.OpticPrograms;
-import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 
 /**
  * A runnable example demonstrating the Free Monad DSL for optics. This example shows how to build
@@ -37,7 +30,8 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
  */
 public class FreeMonadOpticDSLExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== FREE MONAD OPTIC DSL EXAMPLE ===\n");
 
     // Create a sample user profile

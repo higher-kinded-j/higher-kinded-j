@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -41,7 +41,8 @@ public class PrismConvenienceMethodsExample {
 
   public record RateLimitError(long retryAfterMs) implements HttpResponse {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Prism Convenience Methods Examples ===\n");
 
     demonstrateMatches();

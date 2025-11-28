@@ -2,10 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
-import java.util.Optional;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.example.optics.fluent.generated.OrderItemLenses;
 import org.higherkindedj.example.optics.fluent.generated.OrderLenses;
 import org.higherkindedj.example.optics.fluent.generated.OrderTraversals;
@@ -16,9 +15,6 @@ import org.higherkindedj.example.optics.fluent.model.OrderStatus;
 import org.higherkindedj.example.optics.fluent.model.ShippingAddress;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.fluent.OpticOps;
 
 /**
  * A runnable example demonstrating the fluent API for optic operations. This example shows both the
@@ -36,7 +32,8 @@ import org.higherkindedj.optics.fluent.OpticOps;
  */
 public class FluentOpticOpsExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== FLUENT OPTIC OPERATIONS EXAMPLE ===\n");
 
     // Create a sample order

@@ -2,13 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -33,10 +33,10 @@ public class GenericExample {
     return functorInstance.map(fn, kindABox);
   }
 
-  public static void main(String[] args) {
-    GenericExample example = new GenericExample();
-    example.genricExample();
-    example.handlingUnwrapExceptions();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    genricExample();
+    handlingUnwrapExceptions();
   }
 
   public void basicUsageExample() {

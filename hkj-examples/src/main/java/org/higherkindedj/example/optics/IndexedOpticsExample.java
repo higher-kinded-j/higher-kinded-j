@@ -2,13 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.time.Instant;
-import java.util.*;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.indexed.IndexedLens;
-import org.higherkindedj.optics.indexed.IndexedTraversal;
-import org.higherkindedj.optics.indexed.Pair;
-import org.higherkindedj.optics.util.IndexedTraversals;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A runnable example demonstrating indexed optics for position-aware operations.
@@ -43,7 +38,8 @@ public class IndexedOpticsExample {
 
   public record Customer(String name, String email) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Indexed Optics Examples ===\n");
 
     demonstrateListIndexing();

@@ -2,15 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.example.order.model.WorkflowModels.*;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import org.higherkindedj.example.order.error.DomainError;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
@@ -87,8 +85,8 @@ public class OrderWorkflowRunner {
     workflowTraverse = new WorkflowTraverse(dependencies, steps, futureMonad, eitherTMonad);
   }
 
-  public static void main(String[] args) {
-
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     Consumer<String> consoleLogger = System.out::println;
     var appDependencies = new Dependencies(consoleLogger);
     var runner = new OrderWorkflowRunner(appDependencies);

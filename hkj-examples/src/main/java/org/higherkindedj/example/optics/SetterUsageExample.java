@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.*;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
@@ -48,7 +49,8 @@ public class SetterUsageExample {
   @GenerateSetters
   public record Inventory(List<Product> products, String warehouseId) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Create sample data
     var settings = new UserSettings("light", true, 14, Map.of("language", "en", "timezone", "UTC"));
     var user = new User("johndoe", "john.doe@example.com", 10, settings);

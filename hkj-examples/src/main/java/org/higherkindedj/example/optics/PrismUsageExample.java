@@ -4,8 +4,9 @@ package org.higherkindedj.example.optics;
 
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.Map;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroups;
@@ -42,7 +43,8 @@ public class PrismUsageExample {
   @GenerateTraversals // Generates JsonObjectTraversals.fields()
   public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
 
     // 2. Create an initial, nested JSON-like structure.
     var data =

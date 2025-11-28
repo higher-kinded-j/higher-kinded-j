@@ -5,11 +5,9 @@ package org.higherkindedj.example.basic.optional_t;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
@@ -24,10 +22,10 @@ import org.higherkindedj.hkt.optional_t.OptionalTMonad;
  * Transformer</a>}
  */
 public class OptionalTExample {
-  public static void main(String[] args) {
-    OptionalTExample example = new OptionalTExample();
-    example.createExample();
-    OptionalTAsyncExample.main(args);
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    createExample();
+    OptionalTAsyncExample.main(new String[0]);
   }
 
   public void createExample() {
@@ -172,7 +170,8 @@ public class OptionalTExample {
       return OPTIONAL_T.narrow(recoveredPrefsOTKind);
     }
 
-    public static void main(String[] args) {
+    /** Java 25 instance main method - no static modifier or String[] args required. */
+    void main() {
       System.out.println("--- Attempting to get preferences for existing user (user1) ---");
       OptionalT<CompletableFutureKind.Witness, UserPreferences> resultUser1OT =
           getFullUserPreferences("user1");

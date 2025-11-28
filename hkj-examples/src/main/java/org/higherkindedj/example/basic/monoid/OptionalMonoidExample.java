@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.monoid;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 
@@ -26,7 +26,8 @@ import org.higherkindedj.hkt.Monoids;
  */
 public class OptionalMonoidExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     demonstrateConfigurationFallback();
     demonstrateFindingBestValue();
     demonstrateCustomComparators();

@@ -2,14 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.lens;
 
-import java.util.List;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.example.order.model.WorkflowContextLenses;
 import org.higherkindedj.example.order.model.WorkflowModels.*;
 import org.higherkindedj.optics.Lens;
 
 public class LensUsageExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Initial state
     OrderData initialData =
         new OrderData("Order-123", "PROD-ABC", 1, "card", "address", "cust1", List.of());

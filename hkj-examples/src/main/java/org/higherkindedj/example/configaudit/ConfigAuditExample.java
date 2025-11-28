@@ -2,16 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.configaudit;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
 
 public class ConfigAuditExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     var configs = createSampleConfigs();
     var firstConfig = configs.get(0);
 

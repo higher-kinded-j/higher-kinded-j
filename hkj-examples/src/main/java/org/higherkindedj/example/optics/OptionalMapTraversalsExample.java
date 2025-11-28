@@ -2,12 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.util.Traversals;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * Demonstrates Optional and Map value traversals for declarative handling of nullable fields and
@@ -71,7 +67,8 @@ public class OptionalMapTraversalsExample {
     }
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== OPTIONAL AND MAP TRAVERSALS EXAMPLE ===\n");
 
     demonstrateOptionalTraversals();

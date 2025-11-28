@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.map;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
-import java.util.Map;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -19,7 +21,8 @@ public class MapValueTraversalExample {
   @GenerateTraversals
   public record FeatureToggles(String environment, Map<String, Boolean> flags) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // 1. Get the generated traversal for the 'flags' field.
     // Note: The generated name is `flagsValues` to indicate we are traversing the values.
     var flagsTraversal = FeatureTogglesTraversals.flags();

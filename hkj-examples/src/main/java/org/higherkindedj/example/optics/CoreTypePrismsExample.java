@@ -2,21 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.List;
-import java.util.Optional;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.util.EitherTraversals;
-import org.higherkindedj.optics.util.MaybeTraversals;
-import org.higherkindedj.optics.util.Prisms;
-import org.higherkindedj.optics.util.Traversals;
-import org.higherkindedj.optics.util.TryTraversals;
-import org.higherkindedj.optics.util.ValidatedTraversals;
 
 /**
  * A comprehensive example demonstrating prisms and traversals for Higher-Kinded-J core types.
@@ -60,7 +52,8 @@ public class CoreTypePrismsExample {
 
   record BusinessError(String code, String message) implements ValidationError {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Core Type Prisms & Traversals Examples ===\n");
 
     demonstrateMaybePrisms();

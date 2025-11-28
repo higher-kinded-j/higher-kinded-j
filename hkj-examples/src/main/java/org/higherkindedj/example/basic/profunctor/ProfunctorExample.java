@@ -4,10 +4,9 @@ package org.higherkindedj.example.basic.profunctor;
 
 import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 
-import java.time.LocalDate;
-import java.time.Period;
-import java.time.format.DateTimeFormatter;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.func.FunctionKind;
 import org.higherkindedj.hkt.func.FunctionProfunctor;
@@ -31,15 +30,14 @@ public class ProfunctorExample {
 
   public record ApiResponse<T>(T data, String status, int code) {}
 
-  public static void main(String[] args) {
-    ProfunctorExample example = new ProfunctorExample();
-
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Profunctor Example: Function Composition and Adaptation ===\n");
 
-    example.basicProfunctorOperations();
-    example.apiAdapterExample();
-    example.validationPipelineExample();
-    example.dataTransformationExample();
+    basicProfunctorOperations();
+    apiAdapterExample();
+    validationPipelineExample();
+    dataTransformationExample();
   }
 
   /** Demonstrates the basic profunctor operations: lmap, rmap, and dimap. */

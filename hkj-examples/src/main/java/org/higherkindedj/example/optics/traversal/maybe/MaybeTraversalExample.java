@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.maybe;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import org.higherkindedj.hkt.Applicative;
@@ -48,7 +51,8 @@ public class MaybeTraversalExample {
     }
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // 1. Setup: We need an Applicative for our effect type (Validated).
     // Define a Semigroup for combining String errors.
     final Semigroup<String> stringSemigroup = Semigroups.string("; ");

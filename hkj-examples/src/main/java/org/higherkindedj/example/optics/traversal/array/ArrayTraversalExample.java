@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.array;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.Arrays;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
@@ -33,7 +35,8 @@ public class ArrayTraversalExample {
     }
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // 1. Setup: Define a Semigroup for combining String errors and get the Applicative.
     final Semigroup<String> stringSemigroup = Semigroups.string("; ");
     Applicative<ValidatedKind.Witness<String>> validatedApplicative =

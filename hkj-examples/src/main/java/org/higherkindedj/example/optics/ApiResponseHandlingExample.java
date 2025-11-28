@@ -2,10 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.List;
-import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A runnable example demonstrating type-safe HTTP API response handling using prisms.
@@ -67,7 +65,8 @@ public class ApiResponseHandlingExample {
   private static final Prism<ApiResponse, ApiNetworkError> NETWORK_ERROR =
       ApiResponsePrisms.apiNetworkError();
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== API Response Handling with Prisms ===\n");
 
     demonstrateBasicResponseChecking();

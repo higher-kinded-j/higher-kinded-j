@@ -4,17 +4,13 @@ package org.higherkindedj.example.optics;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Predicate;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdSelective;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
-import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A runnable example demonstrating how to use and compose Traversals to perform bulk updates on
@@ -33,7 +29,8 @@ public class TraversalUsageExample {
   @GenerateTraversals
   public record League(String name, List<Team> teams) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     var team1 = new Team("Team Alpha", List.of(new Player("Alice", 100), new Player("Bob", 90)));
     var team2 =
         new Team("Team Bravo", List.of(new Player("Charlie", 110), new Player("Diana", 120)));

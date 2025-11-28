@@ -2,13 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.stream.StreamOps.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.stream.StreamKind;
 import org.higherkindedj.hkt.stream.StreamMonad;
@@ -25,26 +24,25 @@ import org.higherkindedj.hkt.tuple.Tuple2;
  */
 public class StreamExample {
 
-  public static void main(String[] args) {
-    StreamExample example = new StreamExample();
-
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Basic Stream Operations ===");
-    example.basicStreamOperations();
+    basicStreamOperations();
 
     System.out.println("\n=== Stream-Specific Operations ===");
-    example.streamSpecificOperations();
+    streamSpecificOperations();
 
     System.out.println("\n=== Laziness and Side Effects ===");
-    example.lazinessDemo();
+    lazinessDemo();
 
     System.out.println("\n=== Combining Streams ===");
-    example.combiningStreams();
+    combiningStreams();
 
     System.out.println("\n=== Generic Functor Example ===");
-    example.genericFunctorExample();
+    genericFunctorExample();
 
     System.out.println("\n=== Important: Single-Use Semantics ===");
-    example.singleUseSemantics();
+    singleUseSemantics();
   }
 
   /** Demonstrates basic Functor and Monad operations with Streams. */

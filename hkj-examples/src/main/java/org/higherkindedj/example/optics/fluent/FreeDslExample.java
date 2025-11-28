@@ -2,15 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.example.optics.fluent.generated.PlayerLenses;
 import org.higherkindedj.example.optics.fluent.model.Player;
 import org.higherkindedj.hkt.free.Free;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.free.LoggingOpticInterpreter;
-import org.higherkindedj.optics.free.OpticInterpreters;
-import org.higherkindedj.optics.free.OpticOpKind;
-import org.higherkindedj.optics.free.OpticPrograms;
-import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 
 /**
  * Demonstrates the Free Monad DSL for optics.
@@ -25,7 +22,8 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
  */
 public final class FreeDslExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     try {
       Player player = new Player("Alice", 17, 85);
 

@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.id;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
@@ -16,11 +18,11 @@ import org.higherkindedj.hkt.state_t.StateTMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/identity.html">Identity Monad</a>} */
 public class IdExample {
-  public static void main(String[] args) {
-    IdExample idExample = new IdExample();
-    idExample.createExample();
-    idExample.monadExample();
-    idExample.transformerExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    createExample();
+    monadExample();
+    transformerExample();
   }
 
   public void createExample() {

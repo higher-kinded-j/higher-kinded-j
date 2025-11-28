@@ -2,14 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.IntStream;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.util.ListTraversals;
-import org.higherkindedj.optics.util.Traversals;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A real-world example demonstrating limiting traversals for batch processing workflows.
@@ -75,7 +69,8 @@ public class BatchProcessingExample {
   // Constants
   private static final int CHUNK_SIZE = 10;
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     List<DataRecord> records = createRecords(35);
 
     System.out.println("=== Batch Processing with Limiting Traversals ===\n");

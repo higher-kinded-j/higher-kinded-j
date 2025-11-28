@@ -2,13 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.example.optics.fluent.generated.CatalogueTraversals;
 import org.higherkindedj.example.optics.fluent.generated.CategoryTraversals;
 import org.higherkindedj.example.optics.fluent.generated.ProductLenses;
@@ -18,14 +14,6 @@ import org.higherkindedj.example.optics.fluent.model.Product;
 import org.higherkindedj.example.optics.fluent.model.ProductStatus;
 import org.higherkindedj.example.optics.fluent.model.Promotion;
 import org.higherkindedj.hkt.free.Free;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.fluent.OpticOps;
-import org.higherkindedj.optics.free.DirectOpticInterpreter;
-import org.higherkindedj.optics.free.LoggingOpticInterpreter;
-import org.higherkindedj.optics.free.OpticInterpreters;
-import org.higherkindedj.optics.free.OpticOpKind;
-import org.higherkindedj.optics.free.OpticPrograms;
-import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 
 /**
  * A runnable example demonstrating advanced fluent optic patterns. This example shows sophisticated
@@ -45,7 +33,8 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
  */
 public class AdvancedFluentPatternsExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== ADVANCED FLUENT PATTERNS EXAMPLE ===\n");
 
     // Create sample catalogue

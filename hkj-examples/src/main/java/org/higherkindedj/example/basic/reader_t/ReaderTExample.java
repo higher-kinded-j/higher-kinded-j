@@ -5,8 +5,9 @@ package org.higherkindedj.example.basic.reader_t;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
-import java.util.Optional;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -18,9 +19,9 @@ import org.higherkindedj.hkt.reader_t.ReaderT;
  */
 public class ReaderTExample {
 
-  public static void main(String[] args) {
-    ReaderTExample example = new ReaderTExample();
-    example.createExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    createExample();
   }
 
   public void createExample() {

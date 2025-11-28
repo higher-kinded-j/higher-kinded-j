@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.alternative;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import org.higherkindedj.hkt.Alternative;
@@ -31,7 +34,8 @@ public class AlternativeConfigExample {
   // Alternative instance for Maybe
   private static final Alternative<MaybeKind.Witness> alt = MaybeMonad.INSTANCE;
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Alternative Type Class Example: Configuration Loading ===\n");
 
     demonstrateBasicOrElse();

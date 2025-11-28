@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.trymonad;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import org.higherkindedj.hkt.Applicative;
@@ -42,7 +45,8 @@ public class TryTraversalExample {
     }
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Define a Semigroup for combining String errors.
     final Semigroup<String> stringSemigroup = Semigroups.string("; ");
     // Create the Applicative instance with the error-combining logic.

@@ -2,14 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.bifunctor;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.either.Either;
@@ -42,7 +42,8 @@ import org.higherkindedj.hkt.writer.WriterKind2;
  */
 public class BifunctorExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Bifunctor Examples ===\n");
 
     demonstrateEitherBifunctor();

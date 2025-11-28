@@ -4,10 +4,9 @@ package org.higherkindedj.example.optics;
 
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.List;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
@@ -16,10 +15,6 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.hkt.validated.ValidatedSelective;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /**
  * A runnable example demonstrating composition of optics (Lens, Prism, and Traversal) to perform a
@@ -75,7 +70,8 @@ public class ValidatedTraversalExample {
     return VALIDATED.narrow(result);
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== OPTIC COMPOSITION VALIDATION EXAMPLE ===");
     System.out.println();
 

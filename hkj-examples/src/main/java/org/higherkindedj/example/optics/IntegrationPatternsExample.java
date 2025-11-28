@@ -2,25 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.optics.extensions.LensExtensions.*;
 import static org.higherkindedj.optics.extensions.PrismExtensions.*;
 import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
-import org.higherkindedj.optics.util.Prisms;
-import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A comprehensive real-world example demonstrating integrated optics patterns with Higher-Kinded-J
@@ -92,7 +84,8 @@ public class IntegrationPatternsExample {
 
   record ValidationFailure(List<String> errors) implements ValidationResult {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Integrated Optics Patterns Example ===\n");
     System.out.println("Complete E-Commerce IPOrder IPProcessing Workflow\n");
     System.out.println("=".repeat(70) + "\n");

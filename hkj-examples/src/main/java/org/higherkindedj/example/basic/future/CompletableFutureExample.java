@@ -2,26 +2,23 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.future;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
 
 /** see {<a href="https://higher-kinded-j.github.io/cf_monad.html">CompletableFuture Monad</a>} */
 public class CompletableFutureExample {
-  public static void main(String[] args) {
-    CompletableFutureExample example = new CompletableFutureExample();
-    example.createExample();
-    example.monadExample();
-    example.errorHandlingExample();
-    example.monadUtilityMethodsExample();
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
+    createExample();
+    monadExample();
+    errorHandlingExample();
+    monadUtilityMethodsExample();
   }
 
   public void errorHandlingExample() {

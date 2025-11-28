@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.state_t;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
-import java.util.Optional;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -18,7 +19,8 @@ import org.higherkindedj.hkt.state_t.StateTMonad;
 
 public class StateTExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     OptionalMonad optionalMonad = OptionalMonad.INSTANCE;
 
     Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =

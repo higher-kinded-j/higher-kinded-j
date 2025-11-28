@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.traversal.list;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.List;
-import java.util.Set;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
@@ -49,7 +50,8 @@ public class ListTraversalExample {
     }
   }
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // 1. Setup: Define a Semigroup for combining errors and get the Applicative.
     final Semigroup<String> stringSemigroup = Semigroups.string("; ");
     Applicative<ValidatedKind.Witness<String>> validatedApplicative =

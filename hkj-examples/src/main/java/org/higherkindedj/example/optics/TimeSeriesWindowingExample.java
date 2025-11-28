@@ -2,14 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.IntStream;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.util.ListTraversals;
-import org.higherkindedj.optics.util.Traversals;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A real-world example demonstrating limiting traversals for time-series data analysis.
@@ -51,7 +45,8 @@ public class TimeSeriesWindowingExample {
 
   public record MovingAverage(LocalDate endDate, int windowSize, double average) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     List<DailyMetric> metrics = generateMetrics(30);
 
     System.out.println("=== Time-Series Windowing with Limiting Traversals ===\n");

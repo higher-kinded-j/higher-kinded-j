@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.annotations.GenerateLenses;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A runnable example demonstrating how to compose Lenses and use generated helper methods to
@@ -23,7 +23,8 @@ public class LensUsageExample {
   @GenerateLenses
   public record Employee(String name, Company company) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // 2. Create an initial, nested immutable object.
     var initialAddress = new Address("123 Fake St", "Anytown");
     var initialCompany = new Company("Initech Inc.", initialAddress);

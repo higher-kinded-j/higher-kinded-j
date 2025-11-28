@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Lens;
@@ -42,7 +42,8 @@ public class PrismsUtilityExample {
 
   record ValidationError(String code, String message) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Prisms Utility Examples ===\n");
 
     demonstrateSome();

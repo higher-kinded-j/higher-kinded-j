@@ -2,13 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.example.optics.fluent.generated.AccountLenses;
 import org.higherkindedj.example.optics.fluent.generated.TransactionLenses;
 import org.higherkindedj.example.optics.fluent.model.Account;
@@ -21,16 +17,6 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.free.DirectOpticInterpreter;
-import org.higherkindedj.optics.free.LoggingOpticInterpreter;
-import org.higherkindedj.optics.free.OpticInterpreters;
-import org.higherkindedj.optics.free.OpticOp;
-import org.higherkindedj.optics.free.OpticOpKind;
-import org.higherkindedj.optics.free.OpticOpKindHelper;
-import org.higherkindedj.optics.free.OpticPrograms;
-import org.higherkindedj.optics.free.ValidationOpticInterpreter;
-import org.higherkindedj.optics.util.Traversals;
 
 /**
  * A runnable example demonstrating the power of different optic interpreters. This example shows
@@ -49,7 +35,8 @@ import org.higherkindedj.optics.util.Traversals;
  */
 public class OpticInterpretersExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== OPTIC INTERPRETERS EXAMPLE ===\n");
 
     // Create sample transaction

@@ -2,16 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
+import module java.base;
+import module org.higherkindedj.core;
 
 /**
  * A runnable example demonstrating ETL data validation and transformation pipelines using prisms.
@@ -58,7 +50,8 @@ public class DataValidationPipelineExample {
   private static final Prism<ValidationResult, Warning> WARNING = ValidationResultPrisms.warning();
   private static final Prism<ValidationResult, Skipped> SKIPPED = ValidationResultPrisms.skipped();
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Data Validation Pipeline with Prisms ===\n");
 
     demonstrateBasicValidation();

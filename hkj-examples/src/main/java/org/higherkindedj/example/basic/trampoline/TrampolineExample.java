@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.basic.trampoline;
 
-import java.math.BigInteger;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.trampoline.Trampoline;
 
 /**
@@ -19,7 +21,8 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
  */
 public class TrampolineExample {
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== Trampoline Examples ===\n");
 
     // Example 1: Stack-safe factorial

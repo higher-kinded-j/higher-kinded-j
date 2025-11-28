@@ -2,12 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.*;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.optics.Fold;
-import org.higherkindedj.optics.annotations.GenerateFolds;
-import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /**
  * Comprehensive example demonstrating Fold optics for read-only querying and data extraction.
@@ -38,7 +37,8 @@ public class FoldUsageExample {
   @GenerateFolds
   public record OrderHistory(List<Order> orders) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Create sample data
     var order1 =
         new Order(

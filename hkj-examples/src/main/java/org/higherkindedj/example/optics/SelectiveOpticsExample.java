@@ -5,9 +5,9 @@ package org.higherkindedj.example.optics;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Semigroups;
@@ -43,7 +43,8 @@ public class SelectiveOpticsExample {
   @GenerateLenses
   public record UserLogin(String name, Email email, int loginAttempts) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     System.out.println("=== SELECTIVE OPTICS EXAMPLES ===\n");
 
     conditionalLensExample();

@@ -5,10 +5,9 @@ package org.higherkindedj.example.basic.reader_t;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import module java.base;
+import module org.higherkindedj.core;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
@@ -86,7 +85,8 @@ public class ReaderTAsyncExample {
 
   // --- Service Logic (depends on AppConfig, returns Future<ServiceData>) ---
 
-  public static void main(String[] args) throws Exception {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() throws Exception {
     ExecutorService executor = Executors.newFixedThreadPool(2);
     AppConfig prodConfig =
         new AppConfig("prod_secret_key_xyz", "https://api.prod.example.com", executor);

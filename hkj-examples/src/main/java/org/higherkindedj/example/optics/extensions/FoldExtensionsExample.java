@@ -2,11 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.extensions;
 
+import module java.base;
+import module org.higherkindedj.core;
+
 import static org.higherkindedj.optics.extensions.FoldExtensions.*;
 
-import java.util.List;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.optics.Fold;
 
 /**
  * Comprehensive example demonstrating {@link org.higherkindedj.optics.extensions.FoldExtensions}
@@ -36,7 +37,8 @@ public class FoldExtensionsExample {
 
   record Store(List<Product> inventory, List<Order> orders, List<Customer> customers) {}
 
-  public static void main(String[] args) {
+  /** Java 25 instance main method - no static modifier or String[] args required. */
+  void main() {
     // Create sample data
     var inventory =
         List.of(
