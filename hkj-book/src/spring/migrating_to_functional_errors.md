@@ -19,9 +19,7 @@ Migrating from exception-based error handling to functional patterns doesn't hav
 
 ---
 
-## Migration Strategy
-
-### Phase 1: New Endpoints (Weeks 1-2)
+## Incremental Migration
 
 Start by using functional types for all **new** endpoints. This allows your team to learn the patterns without touching existing code.
 
@@ -30,14 +28,11 @@ Start by using functional types for all **new** endpoints. This allows your team
 - Leave existing exception-based endpoints unchanged
 - Build confidence with the new patterns
 
-### Phase 2: High-Value Migrations (Weeks 3-4)
 
 Identify endpoints with complex error handling or frequent bugs. These are prime candidates for migration:
 - Endpoints with multiple `@ExceptionHandler` methods
 - Validation-heavy endpoints
 - Async operations with complicated error propagation
-
-### Phase 3: Systematic Migration (Ongoing)
 
 Gradually migrate remaining endpoints as you touch them for other reasons (features, bug fixes, refactoring).
 
@@ -80,7 +75,7 @@ public class UserController {
 }
 ```
 
-**Problems:**
+**Potential Problems:**
 - Error types hidden in implementation
 - Requires reading method bodies to understand possible failures
 - `@ExceptionHandler` catches exceptions from unrelated methods
@@ -125,7 +120,7 @@ public class UserController {
 }
 ```
 
-**Benefits:**
+**Some Benefits:**
 - ✅ Errors explicit in method signature
 - ✅ Compiler enforces error handling at call sites
 - ✅ No `@ExceptionHandler` boilerplate
@@ -397,7 +392,7 @@ public class UserController {
 }
 ```
 
-**Benefits:**
+**Why it helps:**
 - ✅ Returns **all** validation errors at once
 - ✅ Better user experience (fix all issues in one go)
 - ✅ Validation logic is composable and testable
@@ -488,7 +483,7 @@ public class OrderController {
 }
 ```
 
-**Problems:**
+**Potential Problems:**
 - Wrapped exceptions in `CompletionException`
 - Error handling scattered across `.handle()` and `.exceptionally()`
 - Type safety lost
@@ -534,7 +529,7 @@ public class OrderController {
 }
 ```
 
-**Benefits:**
+**Improvements:**
 - ✅ Type-safe error handling in async context
 - ✅ Clean composition with `flatMap`
 - ✅ Automatic short-circuiting on errors
@@ -640,7 +635,7 @@ public Either<DomainError, OrderItem> getOrderItem(
 }
 ```
 
-**Dramatic Improvement:** Nested try-catch pyramid eliminated, replaced with clean functional composition.
+**Major Improvement:** Nested try-catch pyramid eliminated, replaced with clean functional composition.
 
 ---
 
@@ -731,7 +726,7 @@ public class UserService {
 
 ---
 
-## Common Pitfalls and Solutions
+## Potential Pitfalls and Remedies
 
 ### Pitfall 1: Forgetting to Handle Both Cases
 
@@ -801,9 +796,9 @@ public Validated<List<ValidationError>, User> validateUser(UserRequest request) 
 
 ---
 
-## Migration Checklist
+## Checklist
 
-Use this checklist when migrating an endpoint:
+When migrating an endpoint:
 
 - [ ] Define domain error types as sealed interface
 - [ ] Convert service methods to return Either/Validated/EitherT
@@ -817,7 +812,7 @@ Use this checklist when migrating an endpoint:
 
 ---
 
-## Testing Migration
+## Testing
 
 ### Before: Testing Exception-Throwing Code
 
@@ -860,13 +855,11 @@ Functional error handling is typically **as fast or faster** than exception-thro
 - No stack traces
 - Predictable performance
 
-**Recommendation:** Use Either/Validated for expected errors (validation, not-found, etc.). Exceptions are still appropriate for truly exceptional circumstances.
-
 ---
 
-## Summary
+## Summing it all up
 
-Migrating to functional error handling:
+When moving to a functional error handling approach:
 
 ✅ **Start small** - New endpoints or high-value migrations first
 ✅ **Incremental approach** - No need to migrate everything at once

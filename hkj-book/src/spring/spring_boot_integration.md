@@ -964,12 +964,19 @@ The integration focuses on functional validation patterns. For Spring's `@Valid`
 
 The hkj-spring-boot-starter brings functional programming patterns seamlessly into Spring Boot applications:
 
-✅ **Return functional types from controllers** - Either, Validated, EitherT
-✅ **Automatic HTTP response conversion** - No boilerplate required
-✅ **Explicit, type-safe error handling** - Errors in method signatures
-✅ **Composable operations** - Functional composition with map/flatMap
-✅ **Zero configuration** - Auto-configuration handles everything
-✅ **Production-ready** - Actuator metrics, security integration
-✅ **Easy to test** - No exception mocking required
+- ✅ **Return functional types from controllers** - Either, Validated, EitherT
+
+- ✅ **Automatic HTTP response conversion** - No boilerplate required
+
+- ✅ **Explicit, type-safe error handling** - Errors in method signatures
+
+- ✅ **Composable operations** - Functional composition with map/flatMap
+
+- ✅ **Zero configuration** - Auto-configuration handles everything
+
+- ✅ **Production-ready** - Actuator metrics, security integration
+
+- ✅ **Easy to test** - No exception mocking required
+
 
 Get started today by adding the dependency and returning functional types from your controllers. The framework handles the rest!
