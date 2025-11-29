@@ -518,8 +518,7 @@ class IndexedFoldTest {
 
       Kind<OptionalKind.Witness, List<String>> result =
           ifold.imodifyF(
-              (index, value) ->
-                  OptionalKindHelper.OPTIONAL.widen(Optional.of(value.toUpperCase())),
+              (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(value.toUpperCase())),
               source,
               OptionalMonad.INSTANCE);
 
