@@ -9,6 +9,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
@@ -457,6 +461,168 @@ class TraversalTest {
       List<User> modified2 = Traversals.modify(approach2, User::grantBonus, users);
 
       assertThat(modified1).containsExactlyElementsOf(modified2);
+    }
+  }
+
+  @Nested
+  @DisplayName("Selective Operations")
+  class SelectiveOperations {
+
+    private final IdSelective selective = IdSelective.instance();
+    private final Traversal<List<User>, User> listTraversal = listElements();
+
+    @Test
+    @DisplayName("branch should apply different functions based on predicate")
+    void branchAppliesDifferentFunctions() {
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      Kind<IdKind.Witness, List<User>> result =
+          listTraversal.branch(
+              User::active,
+              u ->
+                  IdKindHelper.ID.widen(
+                      Id.of(new User(u.name().toUpperCase(), u.active(), u.score()))),
+              u ->
+                  IdKindHelper.ID.widen(
+                      Id.of(new User(u.name() + "_inactive", u.active(), u.score()))),
+              users,
+              selective);
+
+      List<User> resultList = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultList)
+          .containsExactly(
+              new User("ALICE", true, 100),
+              new User("Bob_inactive", false, 200),
+              new User("CHARLIE", true, 150));
+    }
+
+    @Test
+    @DisplayName("modifyWhen should only modify when predicate is true")
+    void modifyWhenAppliesConditionally() {
+      List<User> users =
+          List.of(
+              new User("Alice", true, 100),
+              new User("Bob", false, 200),
+              new User("Charlie", true, 150));
+
+      Kind<IdKind.Witness, List<User>> result =
+          listTraversal.modifyWhen(
+              User::active, u -> IdKindHelper.ID.widen(Id.of(u.grantBonus())), users, selective);
+
+      List<User> resultList = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultList)
+          .containsExactly(
+              new User("Alice", true, 200), // bonus applied
+              new User("Bob", false, 200), // unchanged
+              new User("Charlie", true, 250)); // bonus applied
+    }
+
+    @Test
+    @DisplayName("modifyWhen should leave all unchanged when no elements match")
+    void modifyWhenNoMatches() {
+      List<User> users = List.of(new User("Alice", false, 100), new User("Bob", false, 200));
+
+      Kind<IdKind.Witness, List<User>> result =
+          listTraversal.modifyWhen(
+              User::active, u -> IdKindHelper.ID.widen(Id.of(u.grantBonus())), users, selective);
+
+      List<User> resultList = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultList).containsExactlyElementsOf(users);
+    }
+
+    @Test
+    @DisplayName("branch with empty list should return empty list")
+    void branchWithEmptyList() {
+      List<User> emptyList = List.of();
+
+      Kind<IdKind.Witness, List<User>> result =
+          listTraversal.branch(
+              User::active,
+              u -> IdKindHelper.ID.widen(Id.of(u.grantBonus())),
+              u -> IdKindHelper.ID.widen(Id.of(u)),
+              emptyList,
+              selective);
+
+      List<User> resultList = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultList).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("andThen(Traversal) Composition")
+  class AndThenTraversalTests {
+
+    @Test
+    @DisplayName("andThen(Traversal) should compose two traversals")
+    void andThenComposesTraversals() {
+      Traversal<List<Order>, Order> ordersTraversal = listElements();
+      Traversal<Order, Item> itemsTraversal =
+          new Traversal<>() {
+            @Override
+            public <F> Kind<F, Order> modifyF(
+                Function<Item, Kind<F, Item>> f, Order source, Applicative<F> applicative) {
+              Kind<F, Kind<ListKind.Witness, Item>> traversed =
+                  ListTraverse.INSTANCE.traverse(
+                      applicative, f, ListKindHelper.LIST.widen(source.items()));
+              return applicative.map(
+                  listKind -> new Order(ListKindHelper.LIST.narrow(listKind)), traversed);
+            }
+          };
+
+      // Compose: List<Order> -> Order -> Item
+      Traversal<List<Order>, Item> allItems = ordersTraversal.andThen(itemsTraversal);
+
+      List<Order> orders =
+          List.of(
+              new Order(List.of(new Item("Apple", 50), new Item("Banana", 30))),
+              new Order(List.of(new Item("Laptop", 1000))));
+
+      // Get all items
+      List<Item> items = Traversals.getAll(allItems, orders);
+      assertThat(items).hasSize(3);
+      assertThat(items).extracting(Item::name).containsExactly("Apple", "Banana", "Laptop");
+
+      // Modify all items
+      List<Order> modified =
+          Traversals.modify(allItems, i -> new Item(i.name().toUpperCase(), i.price()), orders);
+      assertThat(modified.get(0).items()).extracting(Item::name).containsExactly("APPLE", "BANANA");
+      assertThat(modified.get(1).items()).extracting(Item::name).containsExactly("LAPTOP");
+    }
+
+    @Test
+    @DisplayName("andThen(Traversal) with nested empty should preserve structure")
+    void andThenWithEmptyNested() {
+      Traversal<List<Order>, Order> ordersTraversal = listElements();
+      Traversal<Order, Item> itemsTraversal =
+          new Traversal<>() {
+            @Override
+            public <F> Kind<F, Order> modifyF(
+                Function<Item, Kind<F, Item>> f, Order source, Applicative<F> applicative) {
+              Kind<F, Kind<ListKind.Witness, Item>> traversed =
+                  ListTraverse.INSTANCE.traverse(
+                      applicative, f, ListKindHelper.LIST.widen(source.items()));
+              return applicative.map(
+                  listKind -> new Order(ListKindHelper.LIST.narrow(listKind)), traversed);
+            }
+          };
+
+      Traversal<List<Order>, Item> allItems = ordersTraversal.andThen(itemsTraversal);
+
+      List<Order> orders =
+          List.of(new Order(List.of()), new Order(List.of(new Item("Widget", 100))));
+
+      List<Item> items = Traversals.getAll(allItems, orders);
+      assertThat(items).hasSize(1);
+      assertThat(items.get(0).name()).isEqualTo("Widget");
+
+      List<Order> modified =
+          Traversals.modify(allItems, i -> new Item(i.name() + "!", i.price()), orders);
+      assertThat(modified.get(0).items()).isEmpty();
+      assertThat(modified.get(1).items()).extracting(Item::name).containsExactly("Widget!");
     }
   }
 }

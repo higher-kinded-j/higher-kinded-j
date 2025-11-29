@@ -5,7 +5,10 @@ package org.higherkindedj.hkt.typeclass;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Monoid;
@@ -19,6 +22,271 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("Monoids utility class")
 class MonoidsTest {
+
+  @Nested
+  @DisplayName("List monoid")
+  class ListMonoidTests {
+
+    @Test
+    @DisplayName("should have empty list as empty value")
+    void shouldHaveCorrectEmpty() {
+      Monoid<List<String>> listMonoid = Monoids.list();
+
+      assertThat(listMonoid.empty()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should combine two lists by concatenation")
+    void shouldCombineByConcatenation() {
+      Monoid<List<String>> listMonoid = Monoids.list();
+
+      List<String> result = listMonoid.combine(List.of("a", "b"), List.of("c", "d"));
+
+      assertThat(result).containsExactly("a", "b", "c", "d");
+    }
+
+    @Test
+    @DisplayName("should handle empty lists")
+    void shouldHandleEmptyLists() {
+      Monoid<List<String>> listMonoid = Monoids.list();
+
+      List<String> result = listMonoid.combine(List.of(), List.of("a"));
+
+      assertThat(result).containsExactly("a");
+    }
+
+    @Test
+    @DisplayName("should satisfy identity laws")
+    void shouldSatisfyIdentityLaws() {
+      Monoid<List<Integer>> listMonoid = Monoids.list();
+      List<Integer> value = List.of(1, 2, 3);
+
+      assertThat(listMonoid.combine(listMonoid.empty(), value)).isEqualTo(value);
+      assertThat(listMonoid.combine(value, listMonoid.empty())).isEqualTo(value);
+    }
+  }
+
+  @Nested
+  @DisplayName("Set monoid")
+  class SetMonoidTests {
+
+    @Test
+    @DisplayName("should have empty set as empty value")
+    void shouldHaveCorrectEmpty() {
+      Monoid<Set<String>> setMonoid = Monoids.set();
+
+      assertThat(setMonoid.empty()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should combine two sets by union")
+    void shouldCombineByUnion() {
+      Monoid<Set<String>> setMonoid = Monoids.set();
+
+      Set<String> result = setMonoid.combine(Set.of("a", "b"), Set.of("c", "d"));
+
+      assertThat(result).containsExactlyInAnyOrder("a", "b", "c", "d");
+    }
+
+    @Test
+    @DisplayName("should handle overlapping sets")
+    void shouldHandleOverlappingSets() {
+      Monoid<Set<String>> setMonoid = Monoids.set();
+
+      Set<String> result = setMonoid.combine(Set.of("a", "b"), Set.of("b", "c"));
+
+      assertThat(result).containsExactlyInAnyOrder("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("should satisfy identity laws")
+    void shouldSatisfyIdentityLaws() {
+      Monoid<Set<Integer>> setMonoid = Monoids.set();
+      Set<Integer> value = new HashSet<>(Set.of(1, 2, 3));
+
+      assertThat(setMonoid.combine(setMonoid.empty(), value)).isEqualTo(value);
+      assertThat(setMonoid.combine(value, setMonoid.empty())).isEqualTo(value);
+    }
+  }
+
+  @Nested
+  @DisplayName("String monoid")
+  class StringMonoidTests {
+
+    @Test
+    @DisplayName("should have empty string as empty value")
+    void shouldHaveCorrectEmpty() {
+      Monoid<String> stringMonoid = Monoids.string();
+
+      assertThat(stringMonoid.empty()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should combine two strings by concatenation")
+    void shouldCombineByConcatenation() {
+      Monoid<String> stringMonoid = Monoids.string();
+
+      String result = stringMonoid.combine("Hello", " World");
+
+      assertThat(result).isEqualTo("Hello World");
+    }
+
+    @Test
+    @DisplayName("should satisfy identity laws")
+    void shouldSatisfyIdentityLaws() {
+      Monoid<String> stringMonoid = Monoids.string();
+      String value = "test";
+
+      assertThat(stringMonoid.combine(stringMonoid.empty(), value)).isEqualTo(value);
+      assertThat(stringMonoid.combine(value, stringMonoid.empty())).isEqualTo(value);
+    }
+  }
+
+  @Nested
+  @DisplayName("Integer monoids")
+  class IntegerMonoidTests {
+
+    @Nested
+    @DisplayName("integerAddition")
+    class IntegerAdditionTests {
+
+      @Test
+      @DisplayName("should have 0 as empty value")
+      void shouldHaveCorrectEmpty() {
+        Monoid<Integer> intAddition = Monoids.integerAddition();
+
+        assertThat(intAddition.empty()).isEqualTo(0);
+      }
+
+      @Test
+      @DisplayName("should combine two integers by addition")
+      void shouldCombineByAddition() {
+        Monoid<Integer> intAddition = Monoids.integerAddition();
+
+        Integer result = intAddition.combine(10, 20);
+
+        assertThat(result).isEqualTo(30);
+      }
+
+      @Test
+      @DisplayName("should satisfy identity laws")
+      void shouldSatisfyIdentityLaws() {
+        Monoid<Integer> intAddition = Monoids.integerAddition();
+        Integer value = 42;
+
+        assertThat(intAddition.combine(intAddition.empty(), value)).isEqualTo(value);
+        assertThat(intAddition.combine(value, intAddition.empty())).isEqualTo(value);
+      }
+    }
+
+    @Nested
+    @DisplayName("integerMultiplication")
+    class IntegerMultiplicationTests {
+
+      @Test
+      @DisplayName("should have 1 as empty value")
+      void shouldHaveCorrectEmpty() {
+        Monoid<Integer> intMultiplication = Monoids.integerMultiplication();
+
+        assertThat(intMultiplication.empty()).isEqualTo(1);
+      }
+
+      @Test
+      @DisplayName("should combine two integers by multiplication")
+      void shouldCombineByMultiplication() {
+        Monoid<Integer> intMultiplication = Monoids.integerMultiplication();
+
+        Integer result = intMultiplication.combine(10, 20);
+
+        assertThat(result).isEqualTo(200);
+      }
+
+      @Test
+      @DisplayName("should satisfy identity laws")
+      void shouldSatisfyIdentityLaws() {
+        Monoid<Integer> intMultiplication = Monoids.integerMultiplication();
+        Integer value = 42;
+
+        assertThat(intMultiplication.combine(intMultiplication.empty(), value)).isEqualTo(value);
+        assertThat(intMultiplication.combine(value, intMultiplication.empty())).isEqualTo(value);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("Boolean monoids")
+  class BooleanMonoidTests {
+
+    @Nested
+    @DisplayName("booleanAnd")
+    class BooleanAndTests {
+
+      @Test
+      @DisplayName("should have true as empty value")
+      void shouldHaveCorrectEmpty() {
+        Monoid<Boolean> boolAnd = Monoids.booleanAnd();
+
+        assertThat(boolAnd.empty()).isTrue();
+      }
+
+      @Test
+      @DisplayName("should combine by logical AND")
+      void shouldCombineByAnd() {
+        Monoid<Boolean> boolAnd = Monoids.booleanAnd();
+
+        assertThat(boolAnd.combine(true, true)).isTrue();
+        assertThat(boolAnd.combine(true, false)).isFalse();
+        assertThat(boolAnd.combine(false, true)).isFalse();
+        assertThat(boolAnd.combine(false, false)).isFalse();
+      }
+
+      @Test
+      @DisplayName("should satisfy identity laws")
+      void shouldSatisfyIdentityLaws() {
+        Monoid<Boolean> boolAnd = Monoids.booleanAnd();
+
+        assertThat(boolAnd.combine(boolAnd.empty(), true)).isTrue();
+        assertThat(boolAnd.combine(true, boolAnd.empty())).isTrue();
+        assertThat(boolAnd.combine(boolAnd.empty(), false)).isFalse();
+        assertThat(boolAnd.combine(false, boolAnd.empty())).isFalse();
+      }
+    }
+
+    @Nested
+    @DisplayName("booleanOr")
+    class BooleanOrTests {
+
+      @Test
+      @DisplayName("should have false as empty value")
+      void shouldHaveCorrectEmpty() {
+        Monoid<Boolean> boolOr = Monoids.booleanOr();
+
+        assertThat(boolOr.empty()).isFalse();
+      }
+
+      @Test
+      @DisplayName("should combine by logical OR")
+      void shouldCombineByOr() {
+        Monoid<Boolean> boolOr = Monoids.booleanOr();
+
+        assertThat(boolOr.combine(true, true)).isTrue();
+        assertThat(boolOr.combine(true, false)).isTrue();
+        assertThat(boolOr.combine(false, true)).isTrue();
+        assertThat(boolOr.combine(false, false)).isFalse();
+      }
+
+      @Test
+      @DisplayName("should satisfy identity laws")
+      void shouldSatisfyIdentityLaws() {
+        Monoid<Boolean> boolOr = Monoids.booleanOr();
+
+        assertThat(boolOr.combine(boolOr.empty(), true)).isTrue();
+        assertThat(boolOr.combine(true, boolOr.empty())).isTrue();
+        assertThat(boolOr.combine(boolOr.empty(), false)).isFalse();
+        assertThat(boolOr.combine(false, boolOr.empty())).isFalse();
+      }
+    }
+  }
 
   @Nested
   @DisplayName("Long monoids")

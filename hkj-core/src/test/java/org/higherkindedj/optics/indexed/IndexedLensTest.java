@@ -230,6 +230,58 @@ class IndexedLensTest {
       assertThat(indexedNameLens.get(user)).isEqualTo("Alice");
       assertThat(indexedNameLens.set("Bob", user).name()).isEqualTo("Bob");
     }
+
+    @Test
+    @DisplayName("modifyF should delegate to underlying lens")
+    void modifyFDelegatesToUnderlyingLens() {
+      Lens<User, Integer> regularAgeLens = Lens.of(User::age, User::withAge);
+      IndexedLens<String, User, Integer> indexedAgeLens =
+          IndexedLens.from("userAge", regularAgeLens);
+
+      User user = new User("Alice", 30, "alice@example.com");
+
+      // Use modifyF with Optional
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> incrementIfValid =
+          age -> {
+            if (age < 100) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, User> result =
+          indexedAgeLens.modifyF(incrementIfValid, user, OptionalMonad.INSTANCE);
+
+      Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get().age()).isEqualTo(31);
+    }
+
+    @Test
+    @DisplayName("modifyF should propagate failure from underlying lens")
+    void modifyFPropagatesFailure() {
+      Lens<User, Integer> regularAgeLens = Lens.of(User::age, User::withAge);
+      IndexedLens<String, User, Integer> indexedAgeLens =
+          IndexedLens.from("userAge", regularAgeLens);
+
+      User user = new User("Alice", 150, "alice@example.com");
+
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> failOnOldAge =
+          age -> {
+            if (age < 100) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, User> result =
+          indexedAgeLens.modifyF(failOnOldAge, user, OptionalMonad.INSTANCE);
+
+      Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isEmpty();
+    }
   }
 
   @Nested
@@ -304,6 +356,56 @@ class IndexedLensTest {
   }
 
   @Nested
+  @DisplayName("modifyF() - Effectful modification without index")
+  class ModifyFTests {
+
+    @Test
+    @DisplayName("should modify with effectful function ignoring index")
+    void modifyFOnOfLens() {
+      IndexedLens<String, User, Integer> ageLens = IndexedLens.of("age", User::age, User::withAge);
+      User user = new User("Alice", 30, "alice@example.com");
+
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> incrementIfValid =
+          age -> {
+            if (age < 100) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, User> result =
+          ageLens.modifyF(incrementIfValid, user, OptionalMonad.INSTANCE);
+
+      Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get().age()).isEqualTo(31);
+    }
+
+    @Test
+    @DisplayName("modifyF should propagate failure")
+    void modifyFPropagatesFailure() {
+      IndexedLens<String, User, Integer> ageLens = IndexedLens.of("age", User::age, User::withAge);
+      User user = new User("Alice", 150, "alice@example.com");
+
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> failOnOldAge =
+          age -> {
+            if (age < 100) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, User> result =
+          ageLens.modifyF(failOnOldAge, user, OptionalMonad.INSTANCE);
+
+      Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("asLens() - Conversion to regular lens")
   class AsLensTests {
 
@@ -320,6 +422,57 @@ class IndexedLensTest {
 
       User updated = regularLens.modify(age -> age * 2, user);
       assertThat(updated.age()).isEqualTo(60);
+    }
+
+    @Test
+    @DisplayName("asLens modifyF should delegate to indexed lens modifyF")
+    void asLensModifyF() {
+      IndexedLens<String, User, Integer> indexedAgeLens =
+          IndexedLens.of("age", User::age, User::withAge);
+      Lens<User, Integer> regularLens = indexedAgeLens.asLens();
+
+      User user = new User("Alice", 30, "alice@example.com");
+
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> incrementIfValid =
+          age -> {
+            if (age < 100) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, User> result =
+          regularLens.modifyF(incrementIfValid, user, OptionalMonad.INSTANCE);
+
+      Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get().age()).isEqualTo(31);
+    }
+
+    @Test
+    @DisplayName("asLens modifyF should propagate failure")
+    void asLensModifyFPropagatesFailure() {
+      IndexedLens<String, User, Integer> indexedAgeLens =
+          IndexedLens.of("age", User::age, User::withAge);
+      Lens<User, Integer> regularLens = indexedAgeLens.asLens();
+
+      User user = new User("Alice", 150, "alice@example.com");
+
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> failOnOldAge =
+          age -> {
+            if (age < 100) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, User> result =
+          regularLens.modifyF(failOnOldAge, user, OptionalMonad.INSTANCE);
+
+      Optional<User> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isEmpty();
     }
   }
 

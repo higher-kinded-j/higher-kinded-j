@@ -7,7 +7,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.optional.OptionalKindHelper;
+import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.util.IndexedTraversals;
 import org.junit.jupiter.api.DisplayName;
@@ -353,6 +357,99 @@ class IndexedFoldTest {
   }
 
   @Nested
+  @DisplayName("filtered() - Value-based filtering")
+  class FilteredTests {
+
+    @Test
+    @DisplayName("should filter by value predicate preserving indices")
+    void filterByValue() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      IndexedFold<Integer, List<Integer>, Integer> bigOnes = ifold.filtered(v -> v > 10);
+      List<Integer> source = List.of(5, 15, 8, 25, 3);
+
+      List<Pair<Integer, Integer>> indexed = bigOnes.toIndexedList(source);
+
+      assertThat(indexed).containsExactly(new Pair<>(1, 15), new Pair<>(3, 25));
+    }
+
+    @Test
+    @DisplayName("should return empty when no values match predicate")
+    void noMatches() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      IndexedFold<Integer, List<Integer>, Integer> huge = ifold.filtered(v -> v > 1000);
+      List<Integer> source = List.of(5, 15, 25);
+
+      List<Pair<Integer, Integer>> indexed = huge.toIndexedList(source);
+
+      assertThat(indexed).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should handle empty source")
+    void emptySource() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      IndexedFold<Integer, List<Integer>, Integer> filtered = ifold.filtered(v -> true);
+      List<Integer> source = List.of();
+
+      List<Pair<Integer, Integer>> indexed = filtered.toIndexedList(source);
+
+      assertThat(indexed).isEmpty();
+    }
+
+    @Test
+    @DisplayName("filtered should preserve correct indices")
+    void preserveIndices() {
+      IndexedFold<Integer, List<String>, String> ifold = listFold();
+      IndexedFold<Integer, List<String>, String> longStrings = ifold.filtered(s -> s.length() > 3);
+      List<String> source = List.of("ab", "abcd", "xy", "longstring", "z");
+
+      List<Pair<Integer, String>> indexed = longStrings.toIndexedList(source);
+
+      assertThat(indexed).containsExactly(new Pair<>(1, "abcd"), new Pair<>(3, "longstring"));
+    }
+
+    @Test
+    @DisplayName("filtered should work with ifoldMap")
+    void filteredIfoldMap() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      IndexedFold<Integer, List<Integer>, Integer> evens = ifold.filtered(v -> v % 2 == 0);
+      List<Integer> source = List.of(1, 2, 3, 4, 5, 6);
+
+      Monoid<Integer> sumMonoid =
+          new Monoid<>() {
+            @Override
+            public Integer empty() {
+              return 0;
+            }
+
+            @Override
+            public Integer combine(Integer a, Integer b) {
+              return a + b;
+            }
+          };
+
+      // Sum even values weighted by their original index
+      int result = evens.ifoldMap(sumMonoid, (i, v) -> v * i, source);
+
+      // 2*1 + 4*3 + 6*5 = 2 + 12 + 30 = 44
+      assertThat(result).isEqualTo(44);
+    }
+
+    @Test
+    @DisplayName("filtered can be chained")
+    void chainedFiltered() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      IndexedFold<Integer, List<Integer>, Integer> filtered =
+          ifold.filtered(v -> v > 10).filtered(v -> v < 30);
+      List<Integer> source = List.of(5, 15, 25, 35, 20);
+
+      List<Pair<Integer, Integer>> indexed = filtered.toIndexedList(source);
+
+      assertThat(indexed).containsExactly(new Pair<>(1, 15), new Pair<>(2, 25), new Pair<>(4, 20));
+    }
+  }
+
+  @Nested
   @DisplayName("asFold() - Conversion to regular fold")
   class AsFoldTests {
 
@@ -383,6 +480,105 @@ class IndexedFoldTest {
               source);
 
       assertThat(totalPrice).isEqualTo(450);
+    }
+  }
+
+  @Nested
+  @DisplayName("imodifyF() - Effectful modification")
+  class IModifyFTests {
+
+    /**
+     * Creates a direct IndexedFold implementation to test the default imodifyF() method. This
+     * ensures we test the effectMonoid (IndexedFold$1) created in the default imodifyF
+     * implementation.
+     */
+    private <A> IndexedFold<Integer, List<A>, A> directListFold() {
+      return new IndexedFold<>() {
+        @Override
+        public <M> M ifoldMap(
+            Monoid<M> monoid,
+            java.util.function.BiFunction<? super Integer, ? super A, ? extends M> f,
+            List<A> source) {
+          M result = monoid.empty();
+          for (int i = 0; i < source.size(); i++) {
+            result = monoid.combine(result, f.apply(i, source.get(i)));
+          }
+          return result;
+        }
+      };
+    }
+
+    @Test
+    @DisplayName("should use default imodifyF with direct IndexedFold implementation")
+    void imodifyFWithDirectImplementation() {
+      // This test specifically exercises the default imodifyF() implementation
+      // which creates the effectMonoid (IndexedFold$1)
+      IndexedFold<Integer, List<String>, String> ifold = directListFold();
+      List<String> source = List.of("a", "b", "c");
+
+      Kind<OptionalKind.Witness, List<String>> result =
+          ifold.imodifyF(
+              (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(value.toUpperCase())),
+              source,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<String>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent();
+      // For a Fold, imodifyF returns the original source (since folds can't modify)
+      assertThat(unwrapped.get()).isEqualTo(source);
+    }
+
+    @Test
+    @DisplayName("should apply effectful function with index to each element")
+    void imodifyFWithOptionalApplicative() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      List<Integer> source = List.of(10, 20, 30);
+
+      // Apply an effectful function that doubles the value
+      Kind<OptionalKind.Witness, List<Integer>> result =
+          ifold.imodifyF(
+              (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(value * 2)),
+              source,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<Integer>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent();
+      // For a Fold, imodifyF returns the original source (since folds can't modify)
+      assertThat(unwrapped.get()).isEqualTo(source);
+    }
+
+    @Test
+    @DisplayName("should handle empty list")
+    void imodifyFEmptyList() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      List<Integer> source = List.of();
+
+      Kind<OptionalKind.Witness, List<Integer>> result =
+          ifold.imodifyF(
+              (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(value * 2)),
+              source,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<Integer>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent();
+      assertThat(unwrapped.get()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should combine effects from multiple elements")
+    void imodifyFCombinesEffects() {
+      IndexedFold<Integer, List<Integer>, Integer> ifold = listFold();
+      List<Integer> source = List.of(1, 2, 3, 4);
+
+      Kind<OptionalKind.Witness, List<Integer>> result =
+          ifold.imodifyF(
+              (index, value) -> OptionalKindHelper.OPTIONAL.widen(Optional.of(index + value)),
+              source,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<Integer>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent();
+      assertThat(unwrapped.get()).isEqualTo(source);
     }
   }
 }

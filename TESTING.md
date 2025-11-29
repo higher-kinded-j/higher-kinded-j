@@ -11,7 +11,8 @@ This document provides comprehensive guidance on testing patterns and best pract
 5. [Optics Law Testing](#optics-law-testing)
 6. [Testing Patterns by Concept](#testing-patterns-by-concept)
 7. [Best Practices](#best-practices)
-8. [Running Tests](#running-tests)
+8. [Interface Default Method Coverage](#interface-default-method-coverage)
+9. [Running Tests](#running-tests)
 
 ## Testing Philosophy
 
@@ -760,6 +761,71 @@ void mapCatchesExceptions() {
         .isInstanceOf(NullPointerException.class);
 }
 ```
+
+## Interface Default Method Coverage
+
+The `hkj-api` module defines interfaces with default method implementations (e.g., `Monad.flatMap2()`, `Applicative.map2()`, `Lens.modify()`). These default methods are tested through their implementing classes in `hkj-core`.
+
+### Cross-Module JaCoCo Coverage
+
+JaCoCo is configured in `hkj-core` to measure coverage of both:
+- **hkj-core classes**: The implementing classes
+- **hkj-api classes**: The interface default methods
+
+This ensures that default method implementations are properly tested through concrete implementations.
+
+### Detecting Unreachable Default Methods
+
+Some default methods may be overridden by **all** implementing classes for performance reasons. These methods are unreachable through the default implementation and should be excluded from coverage metrics.
+
+The `DefaultMethodCoverageRules` ArchUnit test helps identify such methods:
+
+```bash
+./gradlew :hkj-core:test --tests "org.higherkindedj.architecture.DefaultMethodCoverageRules"
+```
+
+This test will print a report of any default methods that are overridden by all implementations:
+
+```
+=== Unreachable Default Methods Report ===
+The following default methods are overridden by ALL implementations.
+Consider adding them to JaCoCo exclusions in hkj-core/build.gradle.kts:
+
+Interface: Applicative
+  - map(Function,Kind)
+===========================================
+```
+
+### Adding JaCoCo Exclusions
+
+When the ArchUnit test identifies unreachable default methods, add them to the JaCoCo exclusion list in `hkj-core/build.gradle.kts`:
+
+```kotlin
+// hkj-api classes (interface default methods we want to cover)
+apiProject.sourceSets.main.get().output.classesDirs.map { dir ->
+    fileTree(dir).apply {
+        exclude(
+            // Exclude default methods that are overridden by ALL implementations
+            // (and thus unreachable through hkj-core tests)
+            // Example: "**/Applicative.class"
+        )
+    }
+}
+```
+
+### Workflow
+
+1. **Run tests with coverage**: `./gradlew :hkj-core:test :hkj-core:jacocoTestReport`
+2. **Check coverage report**: `hkj-core/build/reports/jacoco/test/html/index.html`
+3. **Review hkj-api coverage**: Navigate to `org.higherkindedj.hkt` packages
+4. **If coverage is unexpectedly low**: Run `DefaultMethodCoverageRules` test to check for unreachable methods
+5. **Add exclusions**: Update `build.gradle.kts` with any identified unreachable methods
+
+### Best Practices for Default Methods
+
+1. **Prefer delegation over override**: Only override default methods when there's a clear performance benefit
+2. **Test default methods explicitly**: Even if a method has a default implementation, write tests that exercise it through at least one implementing class
+3. **Document overrides**: When overriding a default method, add a comment explaining why (e.g., performance optimization)
 
 ## Running Tests
 
