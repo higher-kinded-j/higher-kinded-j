@@ -487,6 +487,48 @@ class IndexedFoldTest {
   @DisplayName("imodifyF() - Effectful modification")
   class IModifyFTests {
 
+    /**
+     * Creates a direct IndexedFold implementation to test the default imodifyF() method. This
+     * ensures we test the effectMonoid (IndexedFold$1) created in the default imodifyF
+     * implementation.
+     */
+    private <A> IndexedFold<Integer, List<A>, A> directListFold() {
+      return new IndexedFold<>() {
+        @Override
+        public <M> M ifoldMap(
+            Monoid<M> monoid,
+            java.util.function.BiFunction<? super Integer, ? super A, ? extends M> f,
+            List<A> source) {
+          M result = monoid.empty();
+          for (int i = 0; i < source.size(); i++) {
+            result = monoid.combine(result, f.apply(i, source.get(i)));
+          }
+          return result;
+        }
+      };
+    }
+
+    @Test
+    @DisplayName("should use default imodifyF with direct IndexedFold implementation")
+    void imodifyFWithDirectImplementation() {
+      // This test specifically exercises the default imodifyF() implementation
+      // which creates the effectMonoid (IndexedFold$1)
+      IndexedFold<Integer, List<String>, String> ifold = directListFold();
+      List<String> source = List.of("a", "b", "c");
+
+      Kind<OptionalKind.Witness, List<String>> result =
+          ifold.imodifyF(
+              (index, value) ->
+                  OptionalKindHelper.OPTIONAL.widen(Optional.of(value.toUpperCase())),
+              source,
+              OptionalMonad.INSTANCE);
+
+      Optional<List<String>> unwrapped = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(unwrapped).isPresent();
+      // For a Fold, imodifyF returns the original source (since folds can't modify)
+      assertThat(unwrapped.get()).isEqualTo(source);
+    }
+
     @Test
     @DisplayName("should apply effectful function with index to each element")
     void imodifyFWithOptionalApplicative() {

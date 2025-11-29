@@ -467,6 +467,38 @@ class SetterTest {
       assertThat(optResult).isPresent();
       assertThat(optResult.get().person().age()).isEqualTo(31);
     }
+
+    @Test
+    @DisplayName("composed Setter modifyF should propagate failure through composition")
+    void composedModifyFPropagatesFailure() {
+      Setter<Employee, Person> personSetter =
+          Setter.fromGetSet(
+              Employee::person, (e, p) -> new Employee(p, e.address(), e.department()));
+
+      Setter<Person, Integer> ageSetter =
+          Setter.fromGetSet(Person::age, (p, age) -> new Person(p.name(), age));
+
+      Setter<Employee, Integer> employeeAgeSetter = personSetter.andThen(ageSetter);
+
+      // Employee with age >= 100 will cause failure
+      Employee employee =
+          new Employee(new Person("Old", 150), new Address("123 Main St", "NYC"), "Engineering");
+
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> incrementIfValid =
+          age -> {
+            if (age < 100) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(age + 1));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, Employee> result =
+          employeeAgeSetter.modifyF(incrementIfValid, employee, OptionalMonad.INSTANCE);
+
+      Optional<Employee> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isEmpty();
+    }
   }
 
   @Nested
