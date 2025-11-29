@@ -392,7 +392,7 @@ public class UserController {
 }
 ```
 
-**Wht it helps:**
+**Why it helps:**
 - ✅ Returns **all** validation errors at once
 - ✅ Better user experience (fix all issues in one go)
 - ✅ Validation logic is composable and testable
