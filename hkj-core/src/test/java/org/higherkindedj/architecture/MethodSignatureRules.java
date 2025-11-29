@@ -39,6 +39,8 @@ class MethodSignatureRules {
    *
    * <p>The widen() method converts a concrete type to its Kind representation. This is a core part
    * of the HKT simulation pattern.
+   *
+   * <p>Note: Kind2-based helpers (like Tuple2KindHelper) use widen2/narrow2 instead.
    */
   @Test
   @DisplayName("KindHelper classes should have widen() method")
@@ -46,6 +48,8 @@ class MethodSignatureRules {
     classes()
         .that()
         .haveSimpleNameEndingWith("KindHelper")
+        .and()
+        .haveSimpleNameNotContaining("Tuple2") // Tuple2KindHelper uses widen2/narrow2 for Kind2
         .should(haveMethodNamed("widen"))
         .allowEmptyShould(true)
         .check(classes);
@@ -56,6 +60,8 @@ class MethodSignatureRules {
    *
    * <p>The narrow() method converts a Kind back to its concrete type. This is a core part of the
    * HKT simulation pattern.
+   *
+   * <p>Note: Kind2-based helpers (like Tuple2KindHelper) use widen2/narrow2 instead.
    */
   @Test
   @DisplayName("KindHelper classes should have narrow() method")
@@ -63,6 +69,8 @@ class MethodSignatureRules {
     classes()
         .that()
         .haveSimpleNameEndingWith("KindHelper")
+        .and()
+        .haveSimpleNameNotContaining("Tuple2") // Tuple2KindHelper uses widen2/narrow2 for Kind2
         .should(haveMethodNamed("narrow"))
         .allowEmptyShould(true)
         .check(classes);

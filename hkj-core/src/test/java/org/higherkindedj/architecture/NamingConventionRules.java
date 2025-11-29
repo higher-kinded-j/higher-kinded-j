@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Traverse;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,9 @@ class NamingConventionRules {
    * Functor implementations must be named with "Functor" suffix.
    *
    * <p>Examples: MaybeFunctor, EitherFunctor, TryFunctor
+   *
+   * <p>Note: Traverse implementations (which extend Functor) follow "Traverse" naming. Applicative
+   * implementations are also excluded as they follow their own naming pattern.
    */
   @Test
   @DisplayName("Functor implementations should be named <Type>Functor")
@@ -51,6 +55,8 @@ class NamingConventionRules {
         .areNotInterfaces()
         .and()
         .doNotImplement(Applicative.class) // Exclude Applicatives which also implement Functor
+        .and()
+        .doNotImplement(Traverse.class) // Traverse implementations use Traverse suffix
         .should()
         .haveSimpleNameEndingWith("Functor")
         .allowEmptyShould(true)
@@ -61,6 +67,9 @@ class NamingConventionRules {
    * Monad implementations must be named with "Monad" suffix.
    *
    * <p>Examples: MaybeMonad, EitherMonad, ListMonad
+   *
+   * <p>Note: Selective implementations (which extend Monad) follow the "Selective" naming
+   * convention.
    */
   @Test
   @DisplayName("Monad implementations should be named <Type>Monad")
@@ -70,6 +79,8 @@ class NamingConventionRules {
         .implement(Monad.class)
         .and()
         .areNotInterfaces()
+        .and()
+        .doNotImplement(Selective.class) // Selective implementations use Selective suffix
         .should()
         .haveSimpleNameEndingWith("Monad")
         .allowEmptyShould(true)
@@ -82,7 +93,8 @@ class NamingConventionRules {
    * <p>Examples: MaybeApplicative, EitherApplicative
    *
    * <p>Note: Classes that implement Monad (which extends Applicative) are excluded as they follow
-   * the Monad naming convention.
+   * the Monad naming convention. Selective implementations are also excluded. Anonymous and inner
+   * classes are also excluded.
    */
   @Test
   @DisplayName("Applicative implementations should be named <Type>Applicative")
@@ -93,7 +105,13 @@ class NamingConventionRules {
         .and()
         .areNotInterfaces()
         .and()
+        .areNotAnonymousClasses()
+        .and()
+        .areNotMemberClasses() // Exclude inner classes
+        .and()
         .doNotImplement(Monad.class) // Monads are named with Monad suffix
+        .and()
+        .doNotImplement(Selective.class) // Selective implementations use Selective suffix
         .should()
         .haveSimpleNameEndingWith("Applicative")
         .allowEmptyShould(true)
@@ -160,9 +178,10 @@ class NamingConventionRules {
   }
 
   /**
-   * Classes with "Kind" in name (but not KindHelper) should end with "Kind".
+   * Classes with "Kind" in name (but not KindHelper) should end with "Kind" or "Kind2".
    *
-   * <p>These are the Kind interface implementations for each type.
+   * <p>These are the Kind interface implementations for each type. Kind2 is used for types with two
+   * type parameters (like Either&lt;L, R&gt;, Tuple2&lt;A, B&gt;).
    */
   @Test
   @DisplayName("Kind interfaces should be named <Type>Kind")
@@ -176,6 +195,8 @@ class NamingConventionRules {
         .haveSimpleNameNotContaining("KindHelper")
         .should()
         .haveSimpleNameEndingWith("Kind")
+        .orShould()
+        .haveSimpleNameEndingWith("Kind2") // Kind2 for types with two type parameters
         .orShould()
         .haveSimpleName("Kind") // The base Kind interface itself
         .allowEmptyShould(true)

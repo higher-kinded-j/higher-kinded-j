@@ -135,7 +135,9 @@ class RecordPreferenceRules {
   /**
    * Tuple types should be records.
    *
-   * <p>Tuple2, Tuple3, etc. are pure data carriers and should be records.
+   * <p>Tuple2, Tuple3, etc. are pure data carriers and should be records. Excludes helper classes
+   * (Tuple2KindHelper, Tuple2Bifunctor), generated lens classes (Tuple2Lenses), and internal holder
+   * records which are utility classes, not tuple data types. Also excludes inner/member classes.
    */
   @Test
   @DisplayName("Tuple types should be records")
@@ -147,6 +149,20 @@ class RecordPreferenceRules {
         .resideInAPackage("..hkt.tuple..")
         .and()
         .areNotInterfaces()
+        .and()
+        .areNotEnums() // Exclude Tuple2KindHelper enum
+        .and()
+        .areNotMemberClasses() // Exclude inner classes like Tuple2Kind2Holder
+        .and()
+        .haveSimpleNameNotContaining("KindHelper")
+        .and()
+        .haveSimpleNameNotContaining("Bifunctor")
+        .and()
+        .haveSimpleNameNotContaining("Kind2") // Exclude marker interfaces and holder classes
+        .and()
+        .haveSimpleNameNotContaining("Holder") // Exclude internal holder classes
+        .and()
+        .haveSimpleNameNotContaining("Lenses") // Exclude generated lens utility classes
         .should()
         .beRecords()
         .allowEmptyShould(true)
