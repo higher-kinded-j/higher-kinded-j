@@ -75,7 +75,7 @@ tasks.jacocoTestReport {
               exclude(
                   // Exclude default methods that are overridden by ALL implementations
                   // (and thus unreachable through hkj-core tests)
-                  // Add entries here as identified by DefaultMethodCoverageArchTest
+                  // Add entries here as identified by DefaultMethodCoverageRules
               )
             }
           }

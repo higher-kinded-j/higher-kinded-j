@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.architecture;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.architecture.ArchitectureTestBase.getProductionClasses;
 
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -51,6 +52,72 @@ class DefaultMethodCoverageRules {
   @Test
   @DisplayName("Report default methods overridden by all implementations")
   void report_unreachable_default_methods() {
+    Map<String, Set<String>> unreachableMethodsByInterface = detectUnreachableDefaultMethods();
+
+    // Report findings (informational - does not fail the test)
+    if (!unreachableMethodsByInterface.isEmpty()) {
+      StringBuilder report = new StringBuilder();
+      report.append("\n\n=== Unreachable Default Methods Report ===\n");
+      report.append("The following default methods are overridden by ALL implementations.\n");
+      report.append("Consider adding them to JaCoCo exclusions in hkj-core/build.gradle.kts:\n\n");
+
+      for (var entry : unreachableMethodsByInterface.entrySet()) {
+        report.append("Interface: ").append(entry.getKey()).append("\n");
+        for (String method : entry.getValue()) {
+          report.append("  - ").append(method).append("\n");
+        }
+      }
+      report.append("\n===========================================\n");
+
+      // Print as info (test passes but reports findings)
+      System.out.println(report);
+    }
+  }
+
+  /**
+   * Verifies that the known unreachable default methods match the actually detected ones.
+   *
+   * <p>This test ensures the JaCoCo exclusion list stays in sync with the codebase. If a default
+   * method becomes reachable (no longer overridden by all implementations) or a new unreachable
+   * method is discovered, this test will fail and indicate what needs to be updated.
+   */
+  @Test
+  @DisplayName("Known unreachable default methods match detected ones")
+  void known_unreachable_methods_are_documented() {
+    // Currently known unreachable default methods (add entries as discovered)
+    // Format: "InterfaceName.methodSignature"
+    Set<String> knownUnreachable =
+        Set.of(
+            // Example entries (uncomment and add real ones as discovered):
+            // "Applicative.map(Function,Kind)"  // Overridden by all Applicative implementations
+            );
+
+    // Detect actually unreachable methods
+    Map<String, Set<String>> detected = detectUnreachableDefaultMethods();
+
+    // Flatten detected methods to "InterfaceName.methodSignature" format for comparison
+    Set<String> detectedFlat = new HashSet<>();
+    for (var entry : detected.entrySet()) {
+      for (String method : entry.getValue()) {
+        detectedFlat.add(entry.getKey() + "." + method);
+      }
+    }
+
+    // Verify the sets match - this ensures JaCoCo exclusions stay in sync
+    assertThat(detectedFlat)
+        .as(
+            "Detected unreachable default methods should match known list. "
+                + "If this fails, update knownUnreachable set or JaCoCo exclusions in build.gradle.kts")
+        .isEqualTo(knownUnreachable);
+  }
+
+  /**
+   * Detects default methods that are overridden by ALL implementations and thus unreachable through
+   * the default implementation.
+   *
+   * @return Map of interface simple name to set of unreachable method signatures
+   */
+  private Map<String, Set<String>> detectUnreachableDefaultMethods() {
     // Find all interfaces with default methods in the API packages
     List<JavaClass> apiInterfaces =
         productionClasses.stream()
@@ -100,51 +167,7 @@ class DefaultMethodCoverageRules {
       }
     }
 
-    // Report findings (informational - does not fail the test)
-    if (!unreachableMethodsByInterface.isEmpty()) {
-      StringBuilder report = new StringBuilder();
-      report.append("\n\n=== Unreachable Default Methods Report ===\n");
-      report.append("The following default methods are overridden by ALL implementations.\n");
-      report.append("Consider adding them to JaCoCo exclusions in hkj-core/build.gradle.kts:\n\n");
-
-      for (var entry : unreachableMethodsByInterface.entrySet()) {
-        report.append("Interface: ").append(entry.getKey()).append("\n");
-        for (String method : entry.getValue()) {
-          report.append("  - ").append(method).append("\n");
-        }
-      }
-      report.append("\n===========================================\n");
-
-      // Print as info (test passes but reports findings)
-      System.out.println(report);
-    }
-  }
-
-  /**
-   * Verifies that known unreachable default methods are documented.
-   *
-   * <p>This test maintains a list of default methods that are intentionally overridden by all
-   * implementations. If a method is removed from this list but is still unreachable, the test will
-   * fail to ensure the JaCoCo exclusions stay in sync.
-   */
-  @Test
-  @DisplayName("Document known unreachable default methods for JaCoCo exclusions")
-  void known_unreachable_methods_are_documented() {
-    // Currently known unreachable default methods (add entries as discovered)
-    // Format: "InterfaceName.methodName"
-    Set<String> knownUnreachable =
-        Set.of(
-            // Example entries (uncomment and add real ones as discovered):
-            // "Applicative.map",  // Overridden by all Applicative implementations for efficiency
-            );
-
-    // This test documents known exclusions - if the set is empty, that's fine
-    // The companion test above will report any newly discovered unreachable methods
-    if (!knownUnreachable.isEmpty()) {
-      System.out.println(
-          "\nDocumented unreachable default methods (excluded from JaCoCo coverage):");
-      knownUnreachable.forEach(m -> System.out.println("  - " + m));
-    }
+    return unreachableMethodsByInterface;
   }
 
   private boolean hasDefaultMethods(JavaClass javaClass) {
