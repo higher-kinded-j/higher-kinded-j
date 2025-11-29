@@ -861,13 +861,13 @@ Functional error handling is typically **as fast or faster** than exception-thro
 
 When moving to a functional error handling approach:
 
-✅ **Start small** - New endpoints or high-value migrations first
-✅ **Incremental approach** - No need to migrate everything at once
-✅ **Backwards compatible** - Support legacy and functional endpoints simultaneously
-✅ **Better type safety** - Errors explicit in signatures
-✅ **Easier testing** - No exception mocking required
-✅ **Cleaner code** - Functional composition replaces nested try-catch
-✅ **Better UX** - Validated accumulates all errors
+- ✅ **Start small** - New endpoints or high-value migrations first
+- ✅ **Incremental approach** - No need to migrate everything at once
+- ✅ **Backwards compatible** - Support legacy and functional endpoints simultaneously
+- ✅ **Better type safety** - Errors explicit in signatures
+- ✅ **Easier testing** - No exception mocking required
+- ✅ **Cleaner code** - Functional composition replaces nested try-catch
+- ✅ **Better UX** - Validated accumulates all errors
 
 The migration is straightforward and the benefits are immediate. Start with one endpoint and experience the difference!
 
