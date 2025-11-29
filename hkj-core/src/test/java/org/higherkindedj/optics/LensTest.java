@@ -8,10 +8,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.higherkindedj.hkt.optional.OptionalMonad;
-import org.higherkindedj.optics.util.Traversals; // Assuming you have this utility class
+import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -163,6 +168,116 @@ class LensTest {
       Profile updatedNumberProfile =
           Traversals.modify(profileToStringTraversal, String::toUpperCase, numberProfile);
       assertThat(updatedNumberProfile.data()).isEqualTo(new JsonNumber(123));
+    }
+  }
+
+  @Nested
+  @DisplayName("asFold Operation")
+  class AsFoldOperation {
+
+    @Test
+    @DisplayName("asFold should provide a working Fold view")
+    void asFold() {
+      Fold<Street, String> fold = streetNameLens.asFold();
+      Monoid<String> stringMonoid = Monoids.string();
+
+      Street street = new Street("Oak Street");
+      String result = fold.foldMap(stringMonoid, s -> s, street);
+      assertThat(result).isEqualTo("Oak Street");
+    }
+
+    @Test
+    @DisplayName("asFold should work with sum monoid")
+    void asFoldWithSum() {
+      Lens<Street, String> lens = streetNameLens;
+      Fold<Street, String> fold = lens.asFold();
+      Monoid<Integer> sumMonoid = Monoids.integerAddition();
+
+      Street street = new Street("Hello");
+      Integer result = fold.foldMap(sumMonoid, String::length, street);
+      assertThat(result).isEqualTo(5);
+    }
+  }
+
+  @Nested
+  @DisplayName("Selective Operations")
+  class SelectiveOperations {
+
+    private final IdSelective selective = IdSelective.instance();
+    private final Lens<Street, String> lens = Lens.of(Street::name, (s, n) -> new Street(n));
+
+    @Test
+    @DisplayName("setIf should set value when predicate is true")
+    void setIfTrue() {
+      Street street = new Street("Main St");
+
+      Kind<IdKind.Witness, Street> result =
+          lens.setIf(s -> s.contains("@"), "newemail@test.com", street, selective);
+
+      Street resultStreet = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultStreet.name()).isEqualTo("newemail@test.com");
+    }
+
+    @Test
+    @DisplayName("setIf should not set value when predicate is false")
+    void setIfFalse() {
+      Street street = new Street("Main St");
+
+      Kind<IdKind.Witness, Street> result =
+          lens.setIf(s -> s.isEmpty(), "New Street", street, selective);
+
+      Street resultStreet = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultStreet.name()).isEqualTo("Main St");
+    }
+
+    @Test
+    @DisplayName("modifyWhen should modify when predicate is true")
+    void modifyWhenTrue() {
+      Street street = new Street("abc");
+
+      Kind<IdKind.Witness, Street> result =
+          lens.modifyWhen(s -> s.length() < 10, String::toUpperCase, street, selective);
+
+      Street resultStreet = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultStreet.name()).isEqualTo("ABC");
+    }
+
+    @Test
+    @DisplayName("modifyWhen should not modify when predicate is false")
+    void modifyWhenFalse() {
+      Street street = new Street("This is a very long street name");
+
+      Kind<IdKind.Witness, Street> result =
+          lens.modifyWhen(s -> s.length() < 10, String::toUpperCase, street, selective);
+
+      Street resultStreet = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultStreet.name()).isEqualTo("This is a very long street name");
+    }
+
+    @Test
+    @DisplayName("modifyBranch should use thenModifier when predicate is true")
+    void modifyBranchTrue() {
+      Street street = new Street("short");
+
+      Kind<IdKind.Witness, Street> result =
+          lens.modifyBranch(
+              s -> s.length() < 10, String::toUpperCase, s -> s + " (long)", street, selective);
+
+      Street resultStreet = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultStreet.name()).isEqualTo("SHORT");
+    }
+
+    @Test
+    @DisplayName("modifyBranch should use elseModifier when predicate is false")
+    void modifyBranchFalse() {
+      Street street = new Street("This is a long name");
+
+      Kind<IdKind.Witness, Street> result =
+          lens.modifyBranch(
+              s -> s.length() < 10, String::toUpperCase, s -> s + " (long)", street, selective);
+
+      Street resultStreet = IdKindHelper.ID.narrow(result).value();
+      assertThat(resultStreet.name()).isEqualTo("This is a long name (long)");
     }
   }
 }

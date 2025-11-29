@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ValidatedKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.validated</a> &gt; <span class="el_source">ValidatedKindHelper.java</span></div><h1>ValidatedKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.validated;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Enum implementing {@link ValidatedConverterOps} for widen/narrow operations, and providing
+ * additional factory instance methods (valid, invalid) for {@link Validated} types.
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code VALIDATED}. For example: {@code
+ * ValidatedKindHelper.VALIDATED.widen(myValidatedValue);} Or, with static import: {@code import
+ * static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED; VALIDATED.widen(...);}
+ */
+<span class="fc" id="L19">public enum ValidatedKindHelper implements ValidatedConverterOps {</span>
+<span class="fc" id="L20">  VALIDATED;</span>
+
+<span class="fc" id="L22">  private static final Class&lt;Validated&gt; VALIDATED_CLASS = Validated.class;</span>
+
+  /**
+   * Widens a {@link Validated} to its {@link Kind} representation. Implements {@link
+   * ValidatedConverterOps#widen}.
+   *
+   * &lt;p&gt;The {@code @SuppressWarnings(&quot;unchecked&quot;)} is necessary because Java's type system doesn't
+   * fully capture that {@code Validated&lt;E, A&gt;} is inherently a {@code
+   * Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt;} in this HKT emulation. This cast is fundamental to the HKT
+   * pattern for {@code Validated} in this library.
+   *
+   * &lt;p&gt;Note: Unlike other KindHelpers, Validated doesn't use a holder because Valid and Invalid
+   * already implement ValidatedKind directly.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;E, A&gt; Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt; widen(Validated&lt;E, A&gt; validated) {
+<span class="fc" id="L39">    Validation.kind().requireForWiden(validated, VALIDATED_CLASS);</span>
+<span class="fc" id="L40">    return (Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt;) validated;</span>
+  }
+
+  /**
+   * Narrows a {@link Kind} representation to a {@link Validated}. Implements {@link
+   * ValidatedConverterOps#narrow}.
+   *
+   * &lt;p&gt;The {@code @SuppressWarnings(&quot;unchecked&quot;)} is for the explicit cast from a Kind back to a
+   * more specific {@code Validated&lt;E, A&gt;}. This uses type checking to ensure the Kind instance is
+   * indeed of the correct underlying Validated type.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;E, A&gt; Validated&lt;E, A&gt; narrow(@Nullable Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt; kind) {
+<span class="fc" id="L54">    return Validation.kind().narrowWithTypeCheck(kind, VALIDATED_CLASS);</span>
+  }
+
+  /**
+   * Creates a {@code Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt;} representing a {@code Valid(value)}. This
+   * is a convenience factory method specific to this helper enum.
+   *
+   * @param value The valid value. Must not be null.
+   * @param &lt;E&gt; The error type (associated with the Witness).
+   * @param &lt;A&gt; The value type.
+   * @return A {@code Kind} representing a valid instance.
+   * @throws NullPointerException if {@code value} is null.
+   */
+  public &lt;E, A&gt; Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt; valid(A value) {
+<span class="fc" id="L68">    return this.widen(Validated.valid(value));</span>
+  }
+
+  /**
+   * Creates a {@code Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt;} representing an {@code Invalid(error)}.
+   * This is a convenience factory method specific to this helper enum.
+   *
+   * @param error The error value. Must not be null.
+   * @param &lt;E&gt; The error type.
+   * @param &lt;A&gt; The value type (associated with the Witness).
+   * @return A {@code Kind} representing an invalid instance.
+   * @throws NullPointerException if {@code error} is null.
+   */
+  public &lt;E, A&gt; Kind&lt;ValidatedKind.Witness&lt;E&gt;, A&gt; invalid(E error) {
+<span class="fc" id="L82">    return this.widen(Validated.invalid(error));</span>
+  }
+
+  /**
+   * Widens a {@link Validated} to its {@link Kind2} representation. Implements {@link
+   * ValidatedConverterOps#widen2}.
+   *
+   * &lt;p&gt;The {@code @SuppressWarnings(&quot;unchecked&quot;)} is necessary because Java's type system doesn't
+   * fully capture that {@code Validated&lt;E, A&gt;} is inherently a {@code Kind2&lt;ValidatedKind2.Witness,
+   * E, A&gt;} in this HKT emulation. This cast is fundamental to the HKT pattern for {@code Validated}
+   * in this library.
+   *
+   * &lt;p&gt;Note: Like the Kind version, Validated doesn't use a holder because Valid and Invalid
+   * already implement ValidatedKind2 directly.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;E, A&gt; Kind2&lt;ValidatedKind2.Witness, E, A&gt; widen2(Validated&lt;E, A&gt; validated) {
+<span class="fc" id="L100">    Validation.kind().requireForWiden(validated, VALIDATED_CLASS);</span>
+<span class="fc" id="L101">    return (Kind2&lt;ValidatedKind2.Witness, E, A&gt;) validated;</span>
+  }
+
+  /**
+   * Narrows a {@link Kind2} representation to a {@link Validated}. Implements {@link
+   * ValidatedConverterOps#narrow2}.
+   *
+   * &lt;p&gt;The {@code @SuppressWarnings(&quot;unchecked&quot;)} is for the explicit cast from a Kind2 back to a
+   * more specific {@code Validated&lt;E, A&gt;}. This uses type checking to ensure the Kind2 instance is
+   * indeed of the correct underlying Validated type.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;E, A&gt; Validated&lt;E, A&gt; narrow2(@Nullable Kind2&lt;ValidatedKind2.Witness, E, A&gt; kind) {
+<span class="fc bfc" id="L115" title="All 2 branches covered.">    if (kind == null) {</span>
+<span class="fc" id="L116">      throw new KindUnwrapException(&quot;Cannot narrow null Kind2 for Validated&quot;);</span>
+    }
+<span class="fc bfc" id="L118" title="All 2 branches covered.">    if (!(kind instanceof Validated&lt;?, ?&gt;)) {</span>
+<span class="fc" id="L119">      throw new KindUnwrapException(</span>
+          &quot;Kind2 instance cannot be narrowed to Validated (received: &quot;
+<span class="fc" id="L121">              + kind.getClass().getSimpleName()</span>
+              + &quot;)&quot;);
+    }
+<span class="fc" id="L124">    return (Validated&lt;E, A&gt;) kind;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

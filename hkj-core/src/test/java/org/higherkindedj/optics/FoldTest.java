@@ -7,7 +7,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.optional.OptionalKindHelper;
+import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -277,6 +281,103 @@ class FoldTest {
 
       int totalPrice = customerItemsFold.foldMap(SUM_MONOID, Item::price, customer);
       assertThat(totalPrice).isEqualTo(375); // 100 + 50 + 150 + 75
+    }
+  }
+
+  @Nested
+  @DisplayName("Effectful Operations (modifyF)")
+  class EffectfulOperations {
+
+    @Test
+    @DisplayName("modifyF should sequence effects and return original structure")
+    void modifyFSequencesEffects() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      Order order =
+          new Order(
+              List.of(new Item("Apple", 100), new Item("Banana", 50), new Item("Cherry", 150)));
+
+      // Apply an effectful function to each item
+      Function<Item, Kind<OptionalKind.Witness, Item>> effectfulTransform =
+          item -> OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
+
+      Kind<OptionalKind.Witness, Order> result =
+          itemsFold.modifyF(effectfulTransform, order, OptionalMonad.INSTANCE);
+
+      Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      // Fold returns original structure (read-only)
+      assertThat(optResult.get()).isEqualTo(order);
+    }
+
+    @Test
+    @DisplayName("modifyF should fail if any effect fails")
+    void modifyFFailsOnAnyFailure() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      Order order =
+          new Order(
+              List.of(new Item("Apple", 100), new Item("Banana", 50), new Item("Cherry", 150)));
+
+      // Fail if item price is less than 75
+      Function<Item, Kind<OptionalKind.Witness, Item>> failOnCheapItems =
+          item -> {
+            if (item.price() >= 75) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, Order> result =
+          itemsFold.modifyF(failOnCheapItems, order, OptionalMonad.INSTANCE);
+
+      Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isEmpty();
+    }
+
+    @Test
+    @DisplayName("modifyF on empty fold should return original structure wrapped in effect")
+    void modifyFEmptyFold() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+      Order emptyOrder = new Order(List.of());
+
+      Function<Item, Kind<OptionalKind.Witness, Item>> effectfulTransform =
+          item -> OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
+
+      Kind<OptionalKind.Witness, Order> result =
+          itemsFold.modifyF(effectfulTransform, emptyOrder, OptionalMonad.INSTANCE);
+
+      Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get()).isEqualTo(emptyOrder);
+    }
+
+    @Test
+    @DisplayName("modifyF should combine multiple effects")
+    void modifyFCombinesMultipleEffects() {
+      Fold<Order, Item> itemsFold = Fold.of(Order::items);
+
+      Order order =
+          new Order(
+              List.of(new Item("Apple", 100), new Item("Banana", 200), new Item("Cherry", 300)));
+
+      // All items pass validation
+      Function<Item, Kind<OptionalKind.Witness, Item>> validatePrice =
+          item -> {
+            if (item.price() > 0) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(item));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, Order> result =
+          itemsFold.modifyF(validatePrice, order, OptionalMonad.INSTANCE);
+
+      Optional<Order> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get()).isEqualTo(order);
     }
   }
 

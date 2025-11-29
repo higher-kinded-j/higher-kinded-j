@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Tuple3.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.tuple</a> &gt; <span class="el_source">Tuple3.java</span></div><h1>Tuple3.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.tuple;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.higherkindedj.optics.annotations.GenerateLenses;
+
+/**
+ * An immutable tuple containing three elements of potentially different types.
+ *
+ * &lt;p&gt;As a {@link java.lang.Record}, it automatically provides a canonical constructor, accessors
+ * ({@code _1()}, {@code _2()}, {@code _3()}), and implementations for {@code equals()}, {@code
+ * hashCode()}, and {@code toString()}.
+ *
+ * &lt;p&gt;This type supports independent transformation of all three elements via {@link #map(Function,
+ * Function, Function)}, {@link #mapFirst(Function)}, {@link #mapSecond(Function)}, and {@link
+ * #mapThird(Function)}.
+ *
+ * @param &lt;A&gt; The type of the first element.
+ * @param &lt;B&gt; The type of the second element.
+ * @param &lt;C&gt; The type of the third element.
+ * @param _1 The first element of the tuple.
+ * @param _2 The second element of the tuple.
+ * @param _3 The third element of the tuple.
+ */
+@GenerateLenses
+<span class="fc" id="L30">public record Tuple3&lt;A, B, C&gt;(A _1, B _2, C _3) implements Tuple {</span>
+
+<span class="fc" id="L32">  private static final Class&lt;Tuple3&gt; TUPLE3_CLASS = Tuple3.class;</span>
+
+  /**
+   * Transforms all three elements of this tuple using the provided mapping functions, producing a
+   * new tuple with potentially different types for all elements.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Tuple3&lt;String, Integer, Boolean&gt; tuple = new Tuple3&lt;&gt;(&quot;Alice&quot;, 30, true);
+   * Tuple3&lt;Integer, String, String&gt; result = tuple.map(
+   *     String::length,           // &quot;Alice&quot; -&gt; 5
+   *     age -&gt; age + &quot; years&quot;,    // 30 -&gt; &quot;30 years&quot;
+   *     active -&gt; active ? &quot;yes&quot; : &quot;no&quot;  // true -&gt; &quot;yes&quot;
+   * );
+   * // result = new Tuple3&lt;&gt;(5, &quot;30 years&quot;, &quot;yes&quot;)
+   * }&lt;/pre&gt;
+   *
+   * @param firstMapper The non-null function to apply to the first element.
+   * @param secondMapper The non-null function to apply to the second element.
+   * @param thirdMapper The non-null function to apply to the third element.
+   * @param &lt;A2&gt; The type of the first element in the resulting tuple.
+   * @param &lt;B2&gt; The type of the second element in the resulting tuple.
+   * @param &lt;C2&gt; The type of the third element in the resulting tuple.
+   * @return A new {@code Tuple3&lt;A2, B2, C2&gt;} with all elements transformed.
+   * @throws NullPointerException if any mapper is null.
+   */
+  public &lt;A2, B2, C2&gt; Tuple3&lt;A2, B2, C2&gt; map(
+      Function&lt;? super A, ? extends A2&gt; firstMapper,
+      Function&lt;? super B, ? extends B2&gt; secondMapper,
+      Function&lt;? super C, ? extends C2&gt; thirdMapper) {
+<span class="fc" id="L63">    Validation.function().requireMapper(firstMapper, &quot;firstMapper&quot;, TUPLE3_CLASS, MAP);</span>
+<span class="fc" id="L64">    Validation.function().requireMapper(secondMapper, &quot;secondMapper&quot;, TUPLE3_CLASS, MAP);</span>
+<span class="fc" id="L65">    Validation.function().requireMapper(thirdMapper, &quot;thirdMapper&quot;, TUPLE3_CLASS, MAP);</span>
+
+<span class="fc" id="L67">    return new Tuple3&lt;&gt;(firstMapper.apply(_1), secondMapper.apply(_2), thirdMapper.apply(_3));</span>
+  }
+
+  /**
+   * Transforms only the first element of this tuple.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Tuple3&lt;String, Integer, Boolean&gt; tuple = new Tuple3&lt;&gt;(&quot;Alice&quot;, 30, true);
+   * Tuple3&lt;Integer, Integer, Boolean&gt; result = tuple.mapFirst(String::length);
+   * // result = new Tuple3&lt;&gt;(5, 30, true)
+   * }&lt;/pre&gt;
+   *
+   * @param firstMapper The non-null function to apply to the first element.
+   * @param &lt;A2&gt; The type of the first element in the resulting tuple.
+   * @return A new {@code Tuple3&lt;A2, B, C&gt;} with the first element transformed.
+   * @throws NullPointerException if {@code firstMapper} is null.
+   */
+  public &lt;A2&gt; Tuple3&lt;A2, B, C&gt; mapFirst(Function&lt;? super A, ? extends A2&gt; firstMapper) {
+<span class="fc" id="L87">    Validation.function().requireMapper(firstMapper, &quot;firstMapper&quot;, TUPLE3_CLASS, MAP_FIRST);</span>
+<span class="fc" id="L88">    return new Tuple3&lt;&gt;(firstMapper.apply(_1), _2, _3);</span>
+  }
+
+  /**
+   * Transforms only the second element of this tuple.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Tuple3&lt;String, Integer, Boolean&gt; tuple = new Tuple3&lt;&gt;(&quot;Alice&quot;, 30, true);
+   * Tuple3&lt;String, String, Boolean&gt; result = tuple.mapSecond(age -&gt; age + &quot; years&quot;);
+   * // result = new Tuple3&lt;&gt;(&quot;Alice&quot;, &quot;30 years&quot;, true)
+   * }&lt;/pre&gt;
+   *
+   * @param secondMapper The non-null function to apply to the second element.
+   * @param &lt;B2&gt; The type of the second element in the resulting tuple.
+   * @return A new {@code Tuple3&lt;A, B2, C&gt;} with the second element transformed.
+   * @throws NullPointerException if {@code secondMapper} is null.
+   */
+  public &lt;B2&gt; Tuple3&lt;A, B2, C&gt; mapSecond(Function&lt;? super B, ? extends B2&gt; secondMapper) {
+<span class="fc" id="L108">    Validation.function().requireMapper(secondMapper, &quot;secondMapper&quot;, TUPLE3_CLASS, MAP_SECOND);</span>
+<span class="fc" id="L109">    return new Tuple3&lt;&gt;(_1, secondMapper.apply(_2), _3);</span>
+  }
+
+  /**
+   * Transforms only the third element of this tuple.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Tuple3&lt;String, Integer, Boolean&gt; tuple = new Tuple3&lt;&gt;(&quot;Alice&quot;, 30, true);
+   * Tuple3&lt;String, Integer, String&gt; result = tuple.mapThird(active -&gt; active ? &quot;yes&quot; : &quot;no&quot;);
+   * // result = new Tuple3&lt;&gt;(&quot;Alice&quot;, 30, &quot;yes&quot;)
+   * }&lt;/pre&gt;
+   *
+   * @param thirdMapper The non-null function to apply to the third element.
+   * @param &lt;C2&gt; The type of the third element in the resulting tuple.
+   * @return A new {@code Tuple3&lt;A, B, C2&gt;} with the third element transformed.
+   * @throws NullPointerException if {@code thirdMapper} is null.
+   */
+  public &lt;C2&gt; Tuple3&lt;A, B, C2&gt; mapThird(Function&lt;? super C, ? extends C2&gt; thirdMapper) {
+<span class="fc" id="L129">    Validation.function().requireMapper(thirdMapper, &quot;thirdMapper&quot;, TUPLE3_CLASS, MAP_THIRD);</span>
+<span class="fc" id="L130">    return new Tuple3&lt;&gt;(_1, _2, thirdMapper.apply(_3));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

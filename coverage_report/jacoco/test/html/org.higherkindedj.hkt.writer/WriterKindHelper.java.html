@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WriterKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.writer</a> &gt; <span class="el_source">WriterKindHelper.java</span></div><h1>WriterKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.writer;
+
+import static org.higherkindedj.hkt.util.validation.Operation.TELL;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Enum implementing {@link WriterConverterOps} for widen/narrow operations, and providing
+ * additional factory and utility instance methods for {@link Writer} types.
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code WRITER}. For example: {@code
+ * WriterKindHelper.WRITER.widen(Writer.tell(&quot;log&quot;));}
+ */
+<span class="fc" id="L22">public enum WriterKindHelper implements WriterConverterOps {</span>
+<span class="fc" id="L23">  WRITER;</span>
+
+<span class="fc" id="L25">  private static final Class&lt;Writer&gt; WRITER_CLASS = Writer.class;</span>
+
+  /**
+   * Internal record implementing {@link WriterKind WriterKind&amp;lt;W, A&amp;gt;} to hold the concrete
+   * {@link Writer Writer&amp;lt;W, A&amp;gt;} instance. Changed to package-private for potential test
+   * access.
+   *
+   * @param &lt;W&gt; The log type.
+   * @param &lt;A&gt; The value type.
+   * @param writer The non-null {@link Writer Writer&amp;lt;W, A&amp;gt;} instance.
+   */
+  record WriterHolder&lt;W, A&gt;(Writer&lt;W, A&gt; writer) implements WriterKind&lt;W, A&gt; {
+    WriterHolder {
+      Validation.kind().requireForWiden(writer, WRITER_CLASS);
+    }
+  }
+
+  /**
+   * Internal record implementing {@link WriterKind2 WriterKind2&amp;lt;W, A&amp;gt;} to hold the concrete
+   * {@link Writer Writer&amp;lt;W, A&amp;gt;} instance for bifunctor operations.
+   *
+   * @param &lt;W&gt; The log type.
+   * @param &lt;A&gt; The value type.
+   * @param writer The non-null {@link Writer Writer&amp;lt;W, A&amp;gt;} instance.
+   */
+  record WriterKind2Holder&lt;W, A&gt;(Writer&lt;W, A&gt; writer) implements WriterKind2&lt;W, A&gt; {
+    WriterKind2Holder {
+      Validation.kind().requireForWiden(writer, WRITER_CLASS);
+    }
+  }
+
+  /**
+   * Widens a concrete {@link Writer Writer&amp;lt;W, A&amp;gt;} instance into its higher-kinded
+   * representation, {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;}.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param writer The concrete {@link Writer Writer&amp;lt;W, A&amp;gt;} instance to widen. Must be
+   *     non-null.
+   * @return A non-null {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} representing the wrapped {@code
+   *     Writer}.
+   * @throws NullPointerException if {@code writer} is null.
+   */
+  @Override
+  public &lt;W, A&gt; Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; widen(Writer&lt;W, A&gt; writer) {
+<span class="fc" id="L70">    return new WriterHolder&lt;&gt;(writer);</span>
+  }
+
+  /**
+   * Narrows a {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} back to its concrete {@link Writer
+   * Writer&amp;lt;W, A&amp;gt;} type.
+   *
+   * &lt;p&gt;This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param kind The {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} instance to narrow. May be {@code null}.
+   * @return The unwrapped, non-null {@link Writer Writer&amp;lt;W, A&amp;gt;} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is null
+   *     or not an instance of {@code WriterHolder}. The {@code WriterHolder} guarantees its
+   *     internal {@code writer} is non-null.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;W, A&gt; Writer&lt;W, A&gt; narrow(@Nullable Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; kind) {
+<span class="fc" id="L91">    return Validation.kind()</span>
+<span class="fc" id="L92">        .narrowWithPattern(</span>
+            kind,
+            WRITER_CLASS,
+            WriterHolder.class,
+<span class="fc" id="L96">            holder -&gt; ((WriterHolder&lt;W, A&gt;) holder).writer());</span>
+  }
+
+  /**
+   * Creates a {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} with an empty log (based on the provided
+   * {@link Monoid}) and the given value.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must be non-null.
+   * @param value The computed value. Can be {@code @Nullable}.
+   * @return A {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} representing the value with an empty log.
+   *     Never null.
+   */
+  public &lt;W, A&gt; Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; value(Monoid&lt;W&gt; monoidW, @Nullable A value) {
+<span class="fc" id="L111">    return this.widen(Writer.value(monoidW, value));</span>
+  }
+
+  /**
+   * Creates a {@code Kind&lt;WriterKind.Witness&lt;W&gt;, Unit&gt;} that logs a message and has a {@link
+   * Unit#INSTANCE} value.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param log The log message to accumulate. Must not be null.
+   * @return A {@code Kind&lt;WriterKind.Witness&lt;W&gt;, Unit&gt;} representing only the log action. Never
+   *     null.
+   * @throws NullPointerException if {@code log} is null (delegated to Writer.tell).
+   */
+  public &lt;W&gt; Kind&lt;WriterKind.Witness&lt;W&gt;, Unit&gt; tell(W log) {
+<span class="fc" id="L125">    Validation.coreType().requireValue(log, WRITER_CLASS, TELL);</span>
+<span class="fc" id="L126">    return this.widen(Writer.tell(log));</span>
+  }
+
+  /**
+   * Runs the {@link Writer} computation held within the {@link Kind} wrapper, returning the
+   * complete {@link Writer Writer&amp;lt;W, A&amp;gt;} record which contains both the log and the value.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param kind The {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} holding the {@code Writer} computation.
+   *     Must be non-null.
+   * @return The {@link Writer Writer&amp;lt;W, A&amp;gt;} record containing the final value and log. Never
+   *     null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is
+   *     invalid.
+   */
+  public &lt;W, A&gt; Writer&lt;W, A&gt; runWriter(Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; kind) {
+<span class="fc" id="L143">    return this.narrow(kind);</span>
+  }
+
+  /**
+   * Runs the {@link Writer} computation held within the {@link Kind} wrapper, returning only the
+   * computed value {@code A} and discarding the log.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output (discarded).
+   * @param &lt;A&gt; The type of the computed value.
+   * @param kind The {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} holding the {@code Writer} computation.
+   *     Must be non-null.
+   * @return The computed value {@code A}. Can be null if the Writer wrapped a null value.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is
+   *     invalid.
+   */
+  public &lt;W, A&gt; @Nullable A run(Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; kind) {
+<span class="fc" id="L159">    return this.narrow(kind).run();</span>
+  }
+
+  /**
+   * Runs the {@link Writer} computation held within the {@link Kind} wrapper, returning only the
+   * accumulated log {@code W} and discarding the value.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param &lt;A&gt; The type of the computed value (discarded).
+   * @param kind The {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} holding the {@code Writer} computation.
+   *     Must be non-null.
+   * @return The accumulated log {@code W}. Never null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is
+   *     invalid.
+   */
+  public &lt;W, A&gt; W exec(Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; kind) {
+<span class="fc" id="L175">    return this.narrow(kind).exec();</span>
+  }
+
+  /**
+   * Widens a concrete {@link Writer Writer&amp;lt;W, A&amp;gt;} instance into its Kind2 representation,
+   * {@code Kind2&lt;WriterKind2.Witness, W, A&gt;}. Implements {@link WriterConverterOps#widen2}.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param writer The concrete {@link Writer Writer&amp;lt;W, A&amp;gt;} instance to widen. Must be
+   *     non-null.
+   * @return A {@code Kind2&lt;WriterKind2.Witness, W, A&gt;} representing the wrapped {@code Writer}.
+   *     Never null.
+   * @throws NullPointerException if {@code writer} is {@code null}.
+   */
+  @Override
+  public &lt;W, A&gt; Kind2&lt;WriterKind2.Witness, W, A&gt; widen2(Writer&lt;W, A&gt; writer) {
+<span class="fc" id="L192">    return new WriterKind2Holder&lt;&gt;(writer);</span>
+  }
+
+  /**
+   * Narrows a {@code Kind2&lt;WriterKind2.Witness, W, A&gt;} back to its concrete {@link Writer
+   * Writer&amp;lt;W, A&amp;gt;} type. Implements {@link WriterConverterOps#narrow2}.
+   *
+   * @param &lt;W&gt; The type of the accumulated log/output.
+   * @param &lt;A&gt; The type of the computed value.
+   * @param kind The {@code Kind2&lt;WriterKind2.Witness, W, A&gt;} instance to narrow. May be {@code
+   *     null}.
+   * @return The underlying {@code Writer&lt;W, A&gt;} instance. Never null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null} or not a representation of a {@code Writer&lt;W,A&gt;}.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;W, A&gt; Writer&lt;W, A&gt; narrow2(@Nullable Kind2&lt;WriterKind2.Witness, W, A&gt; kind) {
+<span class="fc bfc" id="L210" title="All 2 branches covered.">    if (kind == null) {</span>
+<span class="fc" id="L211">      throw new KindUnwrapException(&quot;Cannot narrow null Kind2 for Writer&quot;);</span>
+    }
+<span class="fc bfc" id="L213" title="All 2 branches covered.">    if (!(kind instanceof WriterKind2Holder&lt;?, ?&gt;)) {</span>
+<span class="fc" id="L214">      throw new KindUnwrapException(</span>
+          &quot;Kind2 instance cannot be narrowed to Writer (received: &quot;
+<span class="fc" id="L216">              + kind.getClass().getSimpleName()</span>
+              + &quot;)&quot;);
+    }
+    // Safe cast due to type erasure and holder validation
+<span class="fc" id="L220">    return ((WriterKind2Holder&lt;W, A&gt;) kind).writer();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

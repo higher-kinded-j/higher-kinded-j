@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -179,7 +180,7 @@ class MonadErrorLawsTestFactory {
   /** Creates a Semigroup for List<String> that concatenates lists. */
   private static Semigroup<List<String>> listSemigroup() {
     return (a, b) -> {
-      List<String> result = new java.util.ArrayList<>(a);
+      List<String> result = new ArrayList<>(a);
       result.addAll(b);
       return result;
     };

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FreeFunctor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.free</a> &gt; <span class="el_source">FreeFunctor.java</span></div><h1>FreeFunctor.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.free;
+
+import static org.higherkindedj.hkt.free.FreeKindHelper.FREE;
+import static org.higherkindedj.hkt.util.validation.Operation.MAP;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Implements the {@link Functor} type class for {@link FreeKind}.
+ *
+ * &lt;p&gt;This allows {@code Free} to be used in contexts that expect a {@link Functor} instance,
+ * providing a way to apply a function to the value that will eventually be computed by the Free
+ * monad.
+ *
+ * @param &lt;F&gt; The functor type over which Free is constructed
+ * @see Functor
+ * @see FreeKind
+ */
+public class FreeFunctor&lt;F&gt; implements Functor&lt;FreeKind.Witness&lt;F&gt;&gt; {
+
+<span class="fc" id="L27">  private static final Class&lt;FreeFunctor&gt; FREE_FUNCTOR_CLASS = FreeFunctor.class;</span>
+
+  /**
+   * Creates a new FreeFunctor instance. Note: Unlike some other functors in this codebase, Free
+   * requires a type parameter F, so we cannot use a singleton instance.
+   */
+<span class="fc" id="L33">  protected FreeFunctor() {}</span>
+
+  /**
+   * Applies a function to the eventual result of a Free computation.
+   *
+   * &lt;p&gt;This operation is stack-safe and does not execute the Free program.
+   *
+   * @param &lt;A&gt; The type of the value in the input Free
+   * @param &lt;B&gt; The type of the value in the resulting Free
+   * @param f The function to apply to the value. Must not be null.
+   * @param fa The input FreeKind. Must not be null.
+   * @return A new FreeKind with the function applied
+   * @throws NullPointerException if f or fa is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;FreeKind.Witness&lt;F&gt;, B&gt; map(
+      Function&lt;? super A, ? extends @Nullable B&gt; f, Kind&lt;FreeKind.Witness&lt;F&gt;, A&gt; fa) {
+<span class="fc" id="L51">    Validation.function().requireMapper(f, &quot;f&quot;, FREE_FUNCTOR_CLASS, MAP);</span>
+<span class="fc" id="L52">    Validation.kind().requireNonNull(fa, FREE_FUNCTOR_CLASS, MAP);</span>
+
+<span class="fc" id="L54">    Free&lt;F, A&gt; freeA = FREE.narrow(fa);</span>
+<span class="fc" id="L55">    Free&lt;F, B&gt; resultFree = freeA.map(f);</span>
+<span class="fc" id="L56">    return FREE.widen(resultFree);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

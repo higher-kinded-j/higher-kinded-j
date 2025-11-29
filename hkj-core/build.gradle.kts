@@ -25,15 +25,6 @@ dependencies {
 }
 
 
-tasks.jacocoTestReport {
-  dependsOn(tasks.test)
-  reports {
-    xml.required.set(true)
-    html.required.set(true)
-  }
-  // Jacoco configuration remains specific to this module's source code
-}
-
 tasks.javadoc {
   source = sourceSets.main.get().allJava
   exclude("org/higherkindedj/example/**")
@@ -60,21 +51,44 @@ tasks.jacocoTestReport {
     csv.required.set(false)
   }
 
-  val mainSourceSet = sourceSets.main.get()
-  val compiledClasses = mainSourceSet.output.classesDirs
+  // Include both hkj-core and hkj-api classes for coverage measurement
+  val coreSourceSet = sourceSets.main.get()
+  val apiProject = project(":hkj-api")
+
+  // Combine class directories from both modules
   classDirectories.setFrom(
       files(
-          compiledClasses.map { dir ->
+          // hkj-core classes (with existing exclusions)
+          coreSourceSet.output.classesDirs.map { dir ->
             fileTree(dir).apply {
               exclude(
                   "**/StateTupleLenses.class", // Exclude the example package
                   "**/*Kind.class",
                   "**/FunctionKind.Witness.class",
                   "**/*Holder*.class"
-                  )
+              )
             }
-          }))
-  sourceDirectories.setFrom(files(mainSourceSet.allSource.srcDirs))
+          },
+          // hkj-api classes (interface default methods we want to cover)
+          apiProject.sourceSets.main.get().output.classesDirs.map { dir ->
+            fileTree(dir).apply {
+              exclude(
+                  // Exclude default methods that are overridden by ALL implementations
+                  // (and thus unreachable through hkj-core tests)
+                  // Add entries here as identified by DefaultMethodCoverageArchTest
+              )
+            }
+          }
+      )
+  )
+
+  // Combine source directories from both modules for accurate source linking
+  sourceDirectories.setFrom(
+      files(
+          coreSourceSet.allSource.srcDirs,
+          apiProject.sourceSets.main.get().allSource.srcDirs
+      )
+  )
 }
 
 

@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Monoids.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt</a> &gt; <span class="el_source">Monoids.java</span></div><h1>Monoids.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * A utility interface providing static factory methods for common {@link Monoid} instances.
+ *
+ * &lt;p&gt;A Monoid extends {@link Semigroup} with an identity element (`empty`), making it useful for
+ * fold operations on potentially empty collections.
+ */
+public interface Monoids {
+
+  /**
+   * Returns a {@code Monoid} for {@link List}, where the combination is list concatenation and the
+   * identity element is an empty list.
+   */
+  static &lt;A&gt; Monoid&lt;List&lt;A&gt;&gt; list() {
+<span class="fc" id="L26">    return new Monoid&lt;List&lt;A&gt;&gt;() {</span>
+      @Override
+      public List&lt;A&gt; empty() {
+<span class="fc" id="L29">        return Collections.emptyList();</span>
+      }
+
+      @Override
+      public List&lt;A&gt; combine(List&lt;A&gt; list1, List&lt;A&gt; list2) {
+<span class="fc" id="L34">        List&lt;A&gt; combined = new ArrayList&lt;&gt;(list1);</span>
+<span class="fc" id="L35">        combined.addAll(list2);</span>
+<span class="fc" id="L36">        return combined;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Set}, where the combination is set union and the identity
+   * element is an empty set.
+   */
+  static &lt;A&gt; Monoid&lt;Set&lt;A&gt;&gt; set() {
+<span class="fc" id="L46">    return new Monoid&lt;Set&lt;A&gt;&gt;() {</span>
+      @Override
+      public Set&lt;A&gt; empty() {
+<span class="fc" id="L49">        return Collections.emptySet();</span>
+      }
+
+      @Override
+      public Set&lt;A&gt; combine(Set&lt;A&gt; set1, Set&lt;A&gt; set2) {
+<span class="fc" id="L54">        Set&lt;A&gt; combined = new HashSet&lt;&gt;(set1);</span>
+<span class="fc" id="L55">        combined.addAll(set2);</span>
+<span class="fc" id="L56">        return combined;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link String}, where the combination is concatenation and the
+   * identity element is an empty string.
+   */
+  static Monoid&lt;String&gt; string() {
+<span class="fc" id="L66">    return new Monoid&lt;String&gt;() {</span>
+      @Override
+      public String empty() {
+<span class="fc" id="L69">        return &quot;&quot;;</span>
+      }
+
+      @Override
+      public String combine(String s1, String s2) {
+<span class="fc" id="L74">        return s1 + s2;</span>
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for integer addition. Combination is `+`, identity is `0`. */
+  static Monoid&lt;Integer&gt; integerAddition() {
+<span class="fc" id="L81">    return new Monoid&lt;Integer&gt;() {</span>
+      @Override
+      public Integer empty() {
+<span class="fc" id="L84">        return 0;</span>
+      }
+
+      @Override
+      public Integer combine(Integer i1, Integer i2) {
+<span class="fc" id="L89">        return i1 + i2;</span>
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for integer multiplication. Combination is `*`, identity is `1`. */
+  static Monoid&lt;Integer&gt; integerMultiplication() {
+<span class="fc" id="L96">    return new Monoid&lt;Integer&gt;() {</span>
+      @Override
+      public Integer empty() {
+<span class="fc" id="L99">        return 1;</span>
+      }
+
+      @Override
+      public Integer combine(Integer i1, Integer i2) {
+<span class="fc" id="L104">        return i1 * i2;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for boolean conjunction ({@code &amp;&amp;}). Combination is {@code &amp;&amp;},
+   * identity is {@code true}.
+   */
+  static Monoid&lt;Boolean&gt; booleanAnd() {
+<span class="fc" id="L114">    return new Monoid&lt;Boolean&gt;() {</span>
+      @Override
+      public Boolean empty() {
+<span class="fc" id="L117">        return true;</span>
+      }
+
+      @Override
+      public Boolean combine(Boolean b1, Boolean b2) {
+<span class="fc bfc" id="L122" title="All 4 branches covered.">        return b1 &amp;&amp; b2;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for boolean disjunction (`||`). Combination is `||`, identity is
+   * `false`.
+   */
+  static Monoid&lt;Boolean&gt; booleanOr() {
+<span class="fc" id="L132">    return new Monoid&lt;Boolean&gt;() {</span>
+      @Override
+      public Boolean empty() {
+<span class="fc" id="L135">        return false;</span>
+      }
+
+      @Override
+      public Boolean combine(Boolean b1, Boolean b2) {
+<span class="fc bfc" id="L140" title="All 4 branches covered.">        return b1 || b2;</span>
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for long addition. Combination is `+`, identity is `0L`. */
+  static Monoid&lt;Long&gt; longAddition() {
+<span class="fc" id="L147">    return new Monoid&lt;Long&gt;() {</span>
+      @Override
+      public Long empty() {
+<span class="fc" id="L150">        return 0L;</span>
+      }
+
+      @Override
+      public Long combine(Long l1, Long l2) {
+<span class="fc" id="L155">        return l1 + l2;</span>
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for long multiplication. Combination is `*`, identity is `1L`. */
+  static Monoid&lt;Long&gt; longMultiplication() {
+<span class="fc" id="L162">    return new Monoid&lt;Long&gt;() {</span>
+      @Override
+      public Long empty() {
+<span class="fc" id="L165">        return 1L;</span>
+      }
+
+      @Override
+      public Long combine(Long l1, Long l2) {
+<span class="fc" id="L170">        return l1 * l2;</span>
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for double addition. Combination is `+`, identity is `0.0`. */
+  static Monoid&lt;Double&gt; doubleAddition() {
+<span class="fc" id="L177">    return new Monoid&lt;Double&gt;() {</span>
+      @Override
+      public Double empty() {
+<span class="fc" id="L180">        return 0.0;</span>
+      }
+
+      @Override
+      public Double combine(Double d1, Double d2) {
+<span class="fc" id="L185">        return d1 + d2;</span>
+      }
+    };
+  }
+
+  /** Returns a {@code Monoid} for double multiplication. Combination is `*`, identity is `1.0`. */
+  static Monoid&lt;Double&gt; doubleMultiplication() {
+<span class="fc" id="L192">    return new Monoid&lt;Double&gt;() {</span>
+      @Override
+      public Double empty() {
+<span class="fc" id="L195">        return 1.0;</span>
+      }
+
+      @Override
+      public Double combine(Double d1, Double d2) {
+<span class="fc" id="L200">        return d1 * d2;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that selects the first non-empty optional.
+   *
+   * &lt;p&gt;The combination takes the first optional if it is present, otherwise the second. The
+   * identity is {@code Optional.empty()}.
+   *
+   * @param &lt;A&gt; The type contained in the optional.
+   * @return A non-null {@code Monoid} for first-wins optional combination.
+   */
+  static &lt;A&gt; Monoid&lt;Optional&lt;A&gt;&gt; firstOptional() {
+<span class="fc" id="L215">    return new Monoid&lt;Optional&lt;A&gt;&gt;() {</span>
+      @Override
+      public Optional&lt;A&gt; empty() {
+<span class="fc" id="L218">        return Optional.empty();</span>
+      }
+
+      @Override
+      public Optional&lt;A&gt; combine(Optional&lt;A&gt; opt1, Optional&lt;A&gt; opt2) {
+<span class="fc bfc" id="L223" title="All 2 branches covered.">        return opt1.isPresent() ? opt1 : opt2;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that selects the last non-empty optional.
+   *
+   * &lt;p&gt;The combination takes the second optional if it is present, otherwise the first. The
+   * identity is {@code Optional.empty()}.
+   *
+   * @param &lt;A&gt; The type contained in the optional.
+   * @return A non-null {@code Monoid} for last-wins optional combination.
+   */
+  static &lt;A&gt; Monoid&lt;Optional&lt;A&gt;&gt; lastOptional() {
+<span class="fc" id="L238">    return new Monoid&lt;Optional&lt;A&gt;&gt;() {</span>
+      @Override
+      public Optional&lt;A&gt; empty() {
+<span class="fc" id="L241">        return Optional.empty();</span>
+      }
+
+      @Override
+      public Optional&lt;A&gt; combine(Optional&lt;A&gt; opt1, Optional&lt;A&gt; opt2) {
+<span class="fc bfc" id="L246" title="All 2 branches covered.">        return opt2.isPresent() ? opt2 : opt1;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the maximum value according to the
+   * given comparator.
+   *
+   * &lt;p&gt;The combination returns whichever optional contains the greater value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param &lt;A&gt; The type contained in the optional.
+   * @param comparator The comparator to use for determining the maximum value.
+   * @return A non-null {@code Monoid} for maximum optional combination.
+   */
+  static &lt;A&gt; Monoid&lt;Optional&lt;A&gt;&gt; maximum(final Comparator&lt;A&gt; comparator) {
+<span class="fc" id="L263">    return new Monoid&lt;Optional&lt;A&gt;&gt;() {</span>
+      @Override
+      public Optional&lt;A&gt; empty() {
+<span class="fc" id="L266">        return Optional.empty();</span>
+      }
+
+      @Override
+      public Optional&lt;A&gt; combine(Optional&lt;A&gt; opt1, Optional&lt;A&gt; opt2) {
+<span class="fc bfc" id="L271" title="All 4 branches covered.">        if (opt1.isPresent() &amp;&amp; opt2.isPresent()) {</span>
+<span class="fc bfc" id="L272" title="All 2 branches covered.">          return comparator.compare(opt1.get(), opt2.get()) &gt;= 0 ? opt1 : opt2;</span>
+        }
+<span class="fc bfc" id="L274" title="All 2 branches covered.">        return opt1.isPresent() ? opt1 : opt2;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the maximum value for comparable
+   * types.
+   *
+   * &lt;p&gt;The combination returns whichever optional contains the greater value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param &lt;A&gt; The comparable type contained in the optional.
+   * @return A non-null {@code Monoid} for maximum optional combination.
+   */
+  static &lt;A extends Comparable&lt;? super A&gt;&gt; Monoid&lt;Optional&lt;A&gt;&gt; maximum() {
+<span class="fc" id="L290">    return maximum(Comparator.&lt;A&gt;naturalOrder());</span>
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the minimum value according to the
+   * given comparator.
+   *
+   * &lt;p&gt;The combination returns whichever optional contains the lesser value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param &lt;A&gt; The type contained in the optional.
+   * @param comparator The comparator to use for determining the minimum value.
+   * @return A non-null {@code Monoid} for minimum optional combination.
+   */
+  static &lt;A&gt; Monoid&lt;Optional&lt;A&gt;&gt; minimum(final Comparator&lt;A&gt; comparator) {
+<span class="fc" id="L305">    return new Monoid&lt;Optional&lt;A&gt;&gt;() {</span>
+      @Override
+      public Optional&lt;A&gt; empty() {
+<span class="fc" id="L308">        return Optional.empty();</span>
+      }
+
+      @Override
+      public Optional&lt;A&gt; combine(Optional&lt;A&gt; opt1, Optional&lt;A&gt; opt2) {
+<span class="fc bfc" id="L313" title="All 4 branches covered.">        if (opt1.isPresent() &amp;&amp; opt2.isPresent()) {</span>
+<span class="fc bfc" id="L314" title="All 2 branches covered.">          return comparator.compare(opt1.get(), opt2.get()) &lt;= 0 ? opt1 : opt2;</span>
+        }
+<span class="fc bfc" id="L316" title="All 2 branches covered.">        return opt1.isPresent() ? opt1 : opt2;</span>
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link Optional} that returns the minimum value for comparable
+   * types.
+   *
+   * &lt;p&gt;The combination returns whichever optional contains the lesser value, or the non-empty one
+   * if only one is present. The identity is {@code Optional.empty()}.
+   *
+   * @param &lt;A&gt; The comparable type contained in the optional.
+   * @return A non-null {@code Monoid} for minimum optional combination.
+   */
+  static &lt;A extends Comparable&lt;? super A&gt;&gt; Monoid&lt;Optional&lt;A&gt;&gt; minimum() {
+<span class="fc" id="L332">    return minimum(Comparator.&lt;A&gt;naturalOrder());</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

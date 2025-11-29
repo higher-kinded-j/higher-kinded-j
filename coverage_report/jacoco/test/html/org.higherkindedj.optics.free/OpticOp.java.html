@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OpticOp.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.free</a> &gt; <span class="el_source">OpticOp.java</span></div><h1>OpticOp.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.free;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.Getter;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * Instruction set for optic operations in the Free monad DSL.
+ *
+ * &lt;p&gt;Each sealed subtype represents a single optic operation that can be composed into larger
+ * programs using the Free monad. Operations are described as data and can be interpreted in
+ * different ways.
+ *
+ * &lt;p&gt;This enables:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Building complex optic workflows as data structures
+ *   &lt;li&gt;Multiple interpreters (direct execution, logging, validation, optimization)
+ *   &lt;li&gt;Program inspection and transformation before execution
+ *   &lt;li&gt;Transactional semantics (validate then commit)
+ * &lt;/ul&gt;
+ *
+ * @param &lt;S&gt; The source structure type
+ * @param &lt;A&gt; The result type of the operation
+ */
+@NullMarked
+public sealed interface OpticOp&lt;S, A&gt; {
+
+  /**
+   * Get operation - reads a single value through a Getter or Lens.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L43">  record Get&lt;S, A&gt;(S source, Getter&lt;S, A&gt; optic) implements OpticOp&lt;S, A&gt; {}</span>
+
+  /**
+   * Preview operation - reads an optional value through a Fold (first element).
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L51">  record Preview&lt;S, A&gt;(S source, Fold&lt;S, A&gt; optic) implements OpticOp&lt;S, Optional&lt;A&gt;&gt; {}</span>
+
+  /**
+   * GetAll operation - reads all values through a Fold or Traversal.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L59">  record GetAll&lt;S, A&gt;(S source, Fold&lt;S, A&gt; optic) implements OpticOp&lt;S, List&lt;A&gt;&gt; {}</span>
+
+  /**
+   * Set operation - writes a value through a Lens.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L67">  record Set&lt;S, A&gt;(S source, Lens&lt;S, A&gt; optic, A newValue) implements OpticOp&lt;S, S&gt; {}</span>
+
+  /**
+   * SetAll operation - writes the same value to all focuses of a Traversal.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L75">  record SetAll&lt;S, A&gt;(S source, Traversal&lt;S, A&gt; optic, A newValue) implements OpticOp&lt;S, S&gt; {}</span>
+
+  /**
+   * Modify operation - transforms a value through a Lens.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L83">  record Modify&lt;S, A&gt;(S source, Lens&lt;S, A&gt; optic, Function&lt;A, A&gt; modifier)</span>
+      implements OpticOp&lt;S, S&gt; {}
+
+  /**
+   * ModifyAll operation - transforms all values through a Traversal.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L92">  record ModifyAll&lt;S, A&gt;(S source, Traversal&lt;S, A&gt; optic, Function&lt;A, A&gt; modifier)</span>
+      implements OpticOp&lt;S, S&gt; {}
+
+  /**
+   * Query operation - checks if any focused element matches a predicate.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L101">  record Exists&lt;S, A&gt;(S source, Fold&lt;S, A&gt; optic, Predicate&lt;A&gt; predicate)</span>
+      implements OpticOp&lt;S, Boolean&gt; {}
+
+  /**
+   * Query operation - checks if all focused elements match a predicate.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L110">  record All&lt;S, A&gt;(S source, Fold&lt;S, A&gt; optic, Predicate&lt;A&gt; predicate)</span>
+      implements OpticOp&lt;S, Boolean&gt; {}
+
+  /**
+   * Query operation - counts the number of focused elements.
+   *
+   * @param &lt;S&gt; The source type
+   * @param &lt;A&gt; The value type
+   */
+<span class="fc" id="L119">  record Count&lt;S, A&gt;(S source, Fold&lt;S, A&gt; optic) implements OpticOp&lt;S, Integer&gt; {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,59 @@ class SetterTest {
 
       String setResult = idSetter.set("world", "hello");
       assertThat(setResult).isEqualTo("world");
+    }
+
+    @Test
+    @DisplayName("of() modifyF should throw UnsupportedOperationException")
+    void ofSetterModifyFThrowsException() {
+      Setter<Person, String> nameSetter =
+          Setter.of(f -> person -> new Person(f.apply(person.name()), person.age()));
+
+      Person person = new Person("john", 30);
+
+      Function<String, Kind<OptionalKind.Witness, String>> toUpper =
+          s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
+
+      assertThatThrownBy(() -> nameSetter.modifyF(toUpper, person, OptionalMonad.INSTANCE))
+          .isInstanceOf(UnsupportedOperationException.class)
+          .hasMessageContaining("modifyF is not supported for Setters created via of()");
+    }
+
+    @Test
+    @DisplayName("identity() modifyF should apply effectful function directly")
+    void identitySetterModifyF() {
+      Setter<String, String> idSetter = Setter.identity();
+
+      Function<String, Kind<OptionalKind.Witness, String>> toUpper =
+          s -> OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
+
+      Kind<OptionalKind.Witness, String> result =
+          idSetter.modifyF(toUpper, "hello", OptionalMonad.INSTANCE);
+
+      Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get()).isEqualTo("HELLO");
+    }
+
+    @Test
+    @DisplayName("identity() modifyF should propagate failure")
+    void identitySetterModifyFPropagatesFailure() {
+      Setter<String, String> idSetter = Setter.identity();
+
+      Function<String, Kind<OptionalKind.Witness, String>> failIfShort =
+          s -> {
+            if (s.length() > 10) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(s.toUpperCase()));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, String> result =
+          idSetter.modifyF(failIfShort, "hello", OptionalMonad.INSTANCE);
+
+      Optional<String> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isEmpty();
     }
   }
 
@@ -310,6 +364,76 @@ class SetterTest {
 
       Optional<List<Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isEmpty();
+    }
+
+    @Test
+    @DisplayName("modifyF with forMapValues() should sequence effects")
+    void modifyFMapValuesSequencesEffects() {
+      Setter<Map<String, Integer>, Integer> mapSetter = Setter.forMapValues();
+
+      Map<String, Integer> scores = Map.of("Alice", 85, "Bob", 90, "Charlie", 78);
+
+      // Add bonus if score is above 70
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> addBonusIfPassing =
+          score -> {
+            if (score > 70) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(score + 10));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, Map<String, Integer>> result =
+          mapSetter.modifyF(addBonusIfPassing, scores, OptionalMonad.INSTANCE);
+
+      Optional<Map<String, Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get())
+          .containsEntry("Alice", 95)
+          .containsEntry("Bob", 100)
+          .containsEntry("Charlie", 88);
+    }
+
+    @Test
+    @DisplayName("modifyF with forMapValues() should fail when any value fails")
+    void modifyFMapValuesFailsOnFailure() {
+      Setter<Map<String, Integer>, Integer> mapSetter = Setter.forMapValues();
+
+      Map<String, Integer> scores = Map.of("Alice", 85, "Bob", 50, "Charlie", 78);
+
+      // Add bonus only if score is above 70
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> addBonusIfPassing =
+          score -> {
+            if (score > 70) {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.of(score + 10));
+            } else {
+              return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
+            }
+          };
+
+      Kind<OptionalKind.Witness, Map<String, Integer>> result =
+          mapSetter.modifyF(addBonusIfPassing, scores, OptionalMonad.INSTANCE);
+
+      Optional<Map<String, Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isEmpty();
+    }
+
+    @Test
+    @DisplayName("modifyF with forMapValues() should handle empty map")
+    void modifyFMapValuesEmptyMap() {
+      Setter<Map<String, Integer>, Integer> mapSetter = Setter.forMapValues();
+
+      Map<String, Integer> empty = Map.of();
+
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> double_ =
+          n -> OptionalKindHelper.OPTIONAL.widen(Optional.of(n * 2));
+
+      Kind<OptionalKind.Witness, Map<String, Integer>> result =
+          mapSetter.modifyF(double_, empty, OptionalMonad.INSTANCE);
+
+      Optional<Map<String, Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
+      assertThat(optResult).isPresent();
+      assertThat(optResult.get()).isEmpty();
     }
 
     @Test

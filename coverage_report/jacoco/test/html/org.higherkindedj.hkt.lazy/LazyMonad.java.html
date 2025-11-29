@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LazyMonad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.lazy</a> &gt; <span class="el_source">LazyMonad.java</span></div><h1>LazyMonad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.lazy;
+
+import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Implements the {@link Monad}, {@link Applicative}, and {@link Functor} interfaces for the {@link
+ * Lazy} type, using {@link LazyKind.Witness} as its higher-kinded type witness.
+ *
+ * &lt;p&gt;This class provides the standard monadic operations (map, flatMap, of/pure, ap) for {@link
+ * Lazy} computations, allowing them to be used in generic functional programming contexts that
+ * operate over HKTs. This class is a stateless singleton, accessible via {@link #INSTANCE}.
+ *
+ * @see Lazy
+ * @see LazyKind
+ * @see LazyKind.Witness
+ * @see LazyKindHelper
+ */
+public class LazyMonad
+    implements Monad&lt;LazyKind.Witness&gt;, Applicative&lt;LazyKind.Witness&gt;, Functor&lt;LazyKind.Witness&gt; {
+
+<span class="fc" id="L32">  private static final Class&lt;LazyMonad&gt; LAZY_MONAD_CLASS = LazyMonad.class;</span>
+
+  /** Singleton instance of {@code LazyMonad}. */
+<span class="fc" id="L35">  public static final LazyMonad INSTANCE = new LazyMonad();</span>
+
+  /** Private constructor to enforce the singleton pattern. */
+  private LazyMonad() {
+    // Private constructor
+  }
+
+  /**
+   * Applies a function to the result of a Lazy computation, creating a new Lazy computation that
+   * will apply the function when forced.
+   *
+   * &lt;p&gt;This operation maintains lazy evaluation - the function is not applied until the resulting
+   * Lazy is forced with {@code force()}.
+   *
+   * @param &lt;A&gt; The type of the result of the input Lazy computation.
+   * @param &lt;B&gt; The type of the result after applying the function.
+   * @param f The function to apply to the Lazy result. Must not be null.
+   * @param fa The {@code Kind&lt;LazyKind.Witness, A&gt;} to transform. Must not be null.
+   * @return A new {@code Kind&lt;LazyKind.Witness, B&gt;} containing the transformed computation. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;LazyKind.Witness, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;LazyKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L62">    Validation.function().requireMapper(f, &quot;f&quot;, LAZY_MONAD_CLASS, MAP);</span>
+<span class="fc" id="L63">    Validation.kind().requireNonNull(fa, LAZY_MONAD_CLASS, MAP);</span>
+
+<span class="fc" id="L65">    Lazy&lt;A&gt; lazyA = LAZY.narrow(fa);</span>
+<span class="fc" id="L66">    Lazy&lt;B&gt; lazyB = lazyA.map(f);</span>
+<span class="fc" id="L67">    return LAZY.widen(lazyB);</span>
+  }
+
+  /**
+   * Lifts a value into a {@code Kind&lt;LazyKind.Witness, A&gt;}. For {@link Lazy}, this creates an
+   * already evaluated {@code Lazy} instance.
+   *
+   * @param &lt;A&gt; The type of the value.
+   * @param value The value to lift. Can be {@code null}.
+   * @return A {@code Kind&lt;LazyKind.Witness, A&gt;} containing the value. Never null.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;LazyKind.Witness, A&gt; of(@Nullable A value) {
+    // 'of'/'pure' creates a Lazy that is already evaluated
+<span class="fc" id="L81">    return LAZY.widen(Lazy.now(value));</span>
+  }
+
+  /**
+   * Applies a function wrapped in a {@code Kind&lt;LazyKind.Witness, Function&lt;A, B&gt;&gt;} to a value
+   * wrapped in a {@code Kind&lt;LazyKind.Witness, A&gt;}.
+   *
+   * &lt;p&gt;When the resulting Lazy is forced, it forces both the function Lazy and the argument Lazy,
+   * then applies the function to the value.
+   *
+   * @param &lt;A&gt; The input type of the function.
+   * @param &lt;B&gt; The output type of the function.
+   * @param ff The {@code Kind&lt;LazyKind.Witness, Function&lt;A, B&gt;&gt;} containing the function. Must not
+   *     be null.
+   * @param fa The {@code Kind&lt;LazyKind.Witness, A&gt;} containing the value. Must not be null.
+   * @return A new {@code Kind&lt;LazyKind.Witness, B&gt;} containing the result. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;LazyKind.Witness, B&gt; ap(
+      Kind&lt;LazyKind.Witness, ? extends Function&lt;A, B&gt;&gt; ff, Kind&lt;LazyKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L105">    Validation.kind().validateAp(ff, fa, LAZY_MONAD_CLASS);</span>
+
+<span class="fc" id="L107">    Lazy&lt;? extends Function&lt;A, B&gt;&gt; lazyF = LAZY.narrow(ff);</span>
+<span class="fc" id="L108">    Lazy&lt;A&gt; lazyA = LAZY.narrow(fa);</span>
+
+    // Defer the application: force F, force A, then apply
+<span class="fc" id="L111">    Lazy&lt;B&gt; lazyB = Lazy.defer(() -&gt; lazyF.force().apply(lazyA.force()));</span>
+<span class="fc" id="L112">    return LAZY.widen(lazyB);</span>
+  }
+
+  /**
+   * Sequentially composes two Lazy computations, where the second computation (produced by function
+   * {@code f}) depends on the result of the first computation ({@code ma}).
+   *
+   * &lt;p&gt;When the resulting Lazy is forced, it forces the first Lazy to get a value, applies the
+   * function {@code f} to get a new Lazy, then forces that new Lazy to get the final result.
+   *
+   * @param &lt;A&gt; The type of the result of the first computation {@code ma}.
+   * @param &lt;B&gt; The type of the result of the second computation returned by function {@code f}.
+   * @param f A function that takes the result of the first computation and returns a new {@code
+   *     Kind&lt;LazyKind.Witness, B&gt;}. Must not be null.
+   * @param ma The first Lazy computation as a {@code Kind&lt;LazyKind.Witness, A&gt;}. Must not be null.
+   * @return A new {@code Kind&lt;LazyKind.Witness, B&gt;} representing the composed computation. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the {@code Kind}
+   *     returned by {@code f} cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;LazyKind.Witness, B&gt; flatMap(
+      Function&lt;? super A, ? extends Kind&lt;LazyKind.Witness, B&gt;&gt; f, Kind&lt;LazyKind.Witness, A&gt; ma) {
+
+<span class="fc" id="L137">    Validation.function().validateFlatMap(f, ma, LAZY_MONAD_CLASS);</span>
+
+<span class="fc" id="L139">    Lazy&lt;A&gt; lazyA = LAZY.narrow(ma);</span>
+    // Adapt the function for Lazy's flatMap
+<span class="fc" id="L141">    Lazy&lt;B&gt; lazyB =</span>
+<span class="fc" id="L142">        lazyA.flatMap(</span>
+            a -&gt; {
+<span class="fc" id="L144">              Kind&lt;LazyKind.Witness, B&gt; kindB = f.apply(a);</span>
+<span class="fc" id="L145">              Validation.function()</span>
+<span class="fc" id="L146">                  .requireNonNullResult(kindB, &quot;f&quot;, LAZY_MONAD_CLASS, FLAT_MAP, Kind.class);</span>
+<span class="fc" id="L147">              return LAZY.narrow(kindB);</span>
+            });
+<span class="fc" id="L149">    return LAZY.widen(lazyB);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

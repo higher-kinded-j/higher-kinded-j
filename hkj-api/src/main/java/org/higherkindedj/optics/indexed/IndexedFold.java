@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.optics.Fold;
 import org.jspecify.annotations.NullMarked;
 
@@ -74,21 +75,23 @@ public interface IndexedFold<I, S, A> extends IndexedOptic<I, S, A> {
   @Override
   default <F> Kind<F, S> imodifyF(BiFunction<I, A, Kind<F, A>> f, S source, Applicative<F> app) {
     // For IndexedFold, we traverse and apply effects but don't modify the structure
-    Monoid<Kind<F, Void>> effectMonoid =
+    // Note: We use Unit.INSTANCE instead of null to avoid issues with Applicatives
+    // where of(null) produces an empty/failure result (e.g., OptionalMonad).
+    Monoid<Kind<F, Unit>> effectMonoid =
         new Monoid<>() {
           @Override
-          public Kind<F, Void> empty() {
-            return app.of(null);
+          public Kind<F, Unit> empty() {
+            return app.of(Unit.INSTANCE);
           }
 
           @Override
-          public Kind<F, Void> combine(Kind<F, Void> a, Kind<F, Void> b) {
-            return app.map2(a, b, (v1, v2) -> null);
+          public Kind<F, Unit> combine(Kind<F, Unit> a, Kind<F, Unit> b) {
+            return app.map2(a, b, (v1, v2) -> Unit.INSTANCE);
           }
         };
 
-    Kind<F, Void> effects =
-        ifoldMap(effectMonoid, (i, a) -> app.map(ignored -> null, f.apply(i, a)), source);
+    Kind<F, Unit> effects =
+        ifoldMap(effectMonoid, (i, a) -> app.map(ignored -> Unit.INSTANCE, f.apply(i, a)), source);
 
     return app.map(ignored -> source, effects);
   }
