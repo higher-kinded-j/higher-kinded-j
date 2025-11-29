@@ -812,7 +812,7 @@ When migrating an endpoint:
 
 ---
 
-## Testing 
+## Testing
 
 ### Before: Testing Exception-Throwing Code
 
