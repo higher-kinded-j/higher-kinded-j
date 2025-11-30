@@ -126,10 +126,9 @@ public class CollectionRecipes {
     Lens<Player, Integer> scoreLens =
         Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
 
-    // Compose lenses and traversals directly (Traversal.andThen(Lens) returns Traversal)
+    // Compose lenses and traversals directly
     Traversal<League, Integer> allScores =
         teamsLens
-            .asTraversal()
             .andThen(Traversals.<Team>forList())
             .andThen(playersLens)
             .andThen(Traversals.<Player>forList())
