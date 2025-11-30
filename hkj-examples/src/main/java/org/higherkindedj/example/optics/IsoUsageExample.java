@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import org.higherkindedj.example.optics.iso.CircleLenses;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple2Lenses;
@@ -16,10 +17,10 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
  */
 public class IsoUsageExample {
 
-  @GenerateLenses
+  @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.iso")
   public record Point(int x, int y) {}
 
-  @GenerateLenses
+  @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.iso")
   public record Circle(Point centre, int radius) {}
 
   public static class Converters {

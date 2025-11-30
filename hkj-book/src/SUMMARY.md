@@ -67,6 +67,8 @@
   - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)
   - [Isomorphisms](optics/iso.md)
   - [Traversals](optics/traversals.md)
+  - [Composition Rules](optics/composition_rules.md)
+  - [Optics Cookbook](optics/cookbook.md)
   - [Folds](optics/folds.md)
   - [Filtered Optics](optics/filtered_optics.md)
   - [Indexed Optics](optics/indexed_optics.md)

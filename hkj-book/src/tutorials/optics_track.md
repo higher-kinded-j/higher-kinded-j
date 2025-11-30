@@ -1,6 +1,6 @@
 # Optics Tutorial Track
 
-**Duration**: ~90 minutes | **Tutorials**: 9 | **Exercises**: 58
+**Duration**: ~100 minutes | **Tutorials**: 10 | **Exercises**: 68
 
 ## What You'll Master
 
@@ -79,8 +79,8 @@ var newUser = userToStreetName.set("New St", user);
 
 ---
 
-### Tutorial 03: Prism Basics (~8 minutes)
-**File**: `Tutorial03_PrismBasics.java` | **Exercises**: 7
+### Tutorial 03: Prism Basics (~10 minutes)
+**File**: `Tutorial03_PrismBasics.java` | **Exercises**: 9
 
 Learn to work with sum types (sealed interfaces) safely using Prisms.
 
@@ -88,6 +88,8 @@ Learn to work with sum types (sealed interfaces) safely using Prisms.
 - The three core operations: `getOptional`, `build`, `modify`
 - Pattern matching on sealed interfaces
 - Using `@GeneratePrisms` for automatic generation
+- Using `matches()` for type checking and `doesNotMatch()` for exclusion filtering
+- The `nearly` prism for predicate-based matching
 - Prism composition
 
 **Key insight**: Prisms are like type-safe `instanceof` checks with built-in modification capability.
@@ -136,21 +138,24 @@ League updated = Traversals.modify(allScores, score -> score + 10, league);
 Learn the rules and patterns for composing different optic types.
 
 **What you'll learn**:
-- Lens + Prism → Optic (not Prism!)
+- Lens + Lens → Lens (both always succeed)
+- Lens + Prism → Traversal (might fail, so result is more general)
+- Prism + Lens → Traversal (might fail, so result is more general)
 - Lens + Traversal → Traversal
-- Traversal + Lens → Traversal
-- When the result type "downgrades" to a more general optic
+- Prism + Prism → Prism
+- When the result type "generalises" based on composition
 
 **Key insight**: Composition follows intuitive rules. If any step might fail or have multiple targets, the result reflects that uncertainty.
 
 **Composition Rules**:
-| First  | Second    | Result    |
-|--------|-----------|-----------|
-| Lens   | Lens      | Lens      |
-| Lens   | Prism     | Optic     |
-| Lens   | Traversal | Traversal |
-| Prism  | Prism     | Prism     |
-| Traversal | Lens   | Traversal |
+| First     | Second    | Result    |
+|-----------|-----------|-----------|
+| Lens      | Lens      | Lens      |
+| Lens      | Prism     | Traversal |
+| Prism     | Lens      | Traversal |
+| Lens      | Traversal | Traversal |
+| Prism     | Prism     | Prism     |
+| Traversal | Lens      | Traversal |
 
 **Real-world application**: Complex domain model navigation, API response processing, configuration validation.
 
@@ -276,6 +281,39 @@ ValidationResult validation = OpticInterpreters.validating().validate(program);
 
 ---
 
+### Tutorial 10: Advanced Prism Patterns (~10 minutes)
+**File**: `Tutorial10_AdvancedPrismPatterns.java` | **Exercises**: 8
+
+Master advanced prism techniques including predicate-based matching and cross-optic composition.
+
+**What you'll learn**:
+- The `nearly` prism for predicate-based matching (complement to `only`)
+- Using `doesNotMatch` for exclusion filtering
+- Lens + Prism = Traversal composition pattern
+- Prism + Lens = Traversal composition pattern
+- Chaining compositions with `lens.asTraversal()`
+
+**Key insight**: Cross-optic composition lets you navigate complex data structures that mix product types, sum types, and optional values.
+
+**Composition patterns**:
+```java
+// Navigate through optional field
+Lens<Config, Optional<Database>> dbLens = ...;
+Prism<Optional<Database>, Database> somePrism = Prisms.some();
+Traversal<Config, Database> dbTraversal = dbLens.andThen(somePrism);
+
+// Access field within sum type variant
+Prism<Response, Success> successPrism = ...;
+Lens<Success, Data> dataLens = ...;
+Traversal<Response, Data> dataTraversal = successPrism.andThen(dataLens);
+```
+
+**Real-world application**: API response processing, configuration with optional sections, validation pipelines.
+
+**Links to documentation**: [Advanced Prism Patterns](../optics/advanced_prism_patterns.md) | [Composing Optics](../optics/composing_optics.md)
+
+---
+
 ## Learning Map
 
 ```
@@ -314,6 +352,10 @@ Tutorial 08: Fluent API
 Tutorial 09: Free Monad DSL
     ↓
     └─ Build composable programs
+       ↓
+Tutorial 10: Advanced Prism Patterns
+    ↓
+    └─ nearly, doesNotMatch, cross-optic composition
 ```
 
 ## Optics Cheat Sheet
@@ -389,7 +431,7 @@ Optional<Shipped> shipped = shippedPrism.getOptional(orderStatus);
 ### 4. Wrong Traversal Type After Composition
 **Problem**: Expecting a Lens after composing Lens + Prism.
 
-**Solution**: Consult the composition table. Lens + Prism = Optic (the general base type).
+**Solution**: Consult the composition table. Lens + Prism = Traversal. When composing through a Prism that might fail, the result becomes a Traversal.
 
 ### 5. Null Checks in Validation Interpreter
 **Problem**: NPE when using Free Monad DSL with validation interpreter.

@@ -9,7 +9,7 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.at.AtInstances;
-import org.higherkindedj.optics.prism.Prisms;
+import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 
 /**
