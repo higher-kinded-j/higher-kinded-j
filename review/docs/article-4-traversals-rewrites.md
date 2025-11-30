@@ -20,7 +20,7 @@ new Binary(
 )
 ```
 
-This tree has six nodes: three `Binary` expressions, two `Variable` nodes, and two `Literal` nodes (counting the nested structure). If we want to find all variables, we can't just look at the top level; we need to descend into every branch.
+This tree has seven nodes: three `Binary` expressions, two `Variable` nodes, and two `Literal` nodes. If we want to find all variables, we can't just look at the top level; we need to descend into every branch.
 
 The traditional approach uses the Visitor pattern:
 
@@ -86,18 +86,18 @@ public final class ExprTraversal {
     public static Traversal<Expr, Expr> children() {
         return new Traversal<>() {
             @Override
-            public <F> Function<Expr, Kind<F, Expr>> modifyF(
-                    Applicative<F> F,
+            public <F> Kind<F, Expr> modifyF(
                     Function<Expr, Kind<F, Expr>> f,
-                    Expr expr) {
-                return switch (expr) {
-                    case Literal _ -> F.pure(expr);
-                    case Variable _ -> F.pure(expr);
+                    Expr source,
+                    Applicative<F> applicative) {
+                return switch (source) {
+                    case Literal _ -> applicative.of(source);
+                    case Variable _ -> applicative.of(source);
                     case Binary(var l, var op, var r) ->
-                        F.map2(f.apply(l), f.apply(r),
+                        applicative.map2(f.apply(l), f.apply(r),
                             (newL, newR) -> new Binary(newL, op, newR));
                     case Conditional(var c, var t, var e) ->
-                        F.map3(f.apply(c), f.apply(t), f.apply(e),
+                        applicative.map3(f.apply(c), f.apply(t), f.apply(e),
                             (newC, newT, newE) -> new Conditional(newC, newT, newE));
                 };
             }
@@ -108,20 +108,16 @@ public final class ExprTraversal {
 
 This is effect-polymorphic: the same traversal works with any `Applicative` functor. We can use it for pure transformations, error-accumulating validation, or stateful operations.
 
-For simpler use cases, we provide a pure `modify` method:
+For simpler use cases, Higher-Kinded-J provides the `Traversals.modify` utility:
 
 ```java
-public Expr modify(Function<Expr, Expr> f, Expr expr) {
-    return switch (expr) {
-        case Literal _ -> expr;
-        case Variable _ -> expr;
-        case Binary(var l, var op, var r) ->
-            new Binary(f.apply(l), op, f.apply(r));
-        case Conditional(var c, var t, var e) ->
-            new Conditional(f.apply(c), f.apply(t), f.apply(e));
-    };
-}
+import org.higherkindedj.optics.util.Traversals;
+
+// Apply a pure transformation to all children
+Expr result = Traversals.modify(children(), f, expr);
 ```
+
+This handles the `Id` effect internally, giving you a clean API for pure transformations.
 
 ### Deep Traversal: Visiting All Descendants
 
@@ -133,8 +129,9 @@ The `children()` traversal only visits immediate children. For full tree travers
  * Each node is transformed after its children.
  */
 public static Expr transformBottomUp(Expr expr, Function<Expr, Expr> f) {
-    // First transform all children
-    Expr transformed = children().modify(
+    // First transform all children recursively
+    Expr transformed = Traversals.modify(
+        children(),
         child -> transformBottomUp(child, f),
         expr
     );
@@ -149,8 +146,9 @@ public static Expr transformBottomUp(Expr expr, Function<Expr, Expr> f) {
 public static Expr transformTopDown(Expr expr, Function<Expr, Expr> f) {
     // First transform this node
     Expr transformed = f.apply(expr);
-    // Then transform all children
-    return children().modify(
+    // Then transform all children recursively
+    return Traversals.modify(
+        children(),
         child -> transformTopDown(child, f),
         transformed
     );
