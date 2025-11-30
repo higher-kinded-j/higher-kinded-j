@@ -85,7 +85,8 @@ public final class EffectPolymorphicDemo {
   }
 
   private static Set<String> collectVariables(Expr expr) {
-    // Define a collector that adds variable names to a Set
+    // Define a collector that adds variable names to a Set.
+    // State.modify returns Unit, so we use _ to indicate the unused parameter.
     Function<Expr, State<Set<String>, Expr>> collector =
         e ->
             e instanceof Variable(var name)
@@ -93,7 +94,7 @@ public final class EffectPolymorphicDemo {
                         vars ->
                             Stream.concat(vars.stream(), Stream.of(name))
                                 .collect(Collectors.toUnmodifiableSet()))
-                    .map(v -> e)
+                    .map(_ -> e) // _ indicates Unit is unused
                 : State.pure(e);
 
     // Use a recursive approach to visit all nodes
@@ -149,19 +150,23 @@ public final class EffectPolymorphicDemo {
             children, e -> e instanceof Literal(Integer i) ? new Literal(i * 10) : e, expr);
     System.out.println("   With Identity (pure): " + modified.format());
 
-    // State-based transformation using modifyF with Higher-Kinded-J State
+    // State-based transformation using modifyF with Higher-Kinded-J State.
+    // This demonstrates effect polymorphism: the same traversal structure works
+    // with different computational effects.
     StateMonad<Integer> stateMonad = new StateMonad<>();
 
     Kind<StateKind.Witness<Integer>, Expr> stateKind =
         children.modifyF(
             e -> {
               if (e instanceof Literal(Integer i)) {
-                // Count and transform using Higher-Kinded-J State
+                // Count and transform using Higher-Kinded-J State.
+                // State.modify returns Unit, so we use _ to indicate the unused parameter.
                 State<Integer, Expr> countAndTransform =
-                    State.<Integer>modify(count -> count + 1).map(v -> new Literal(i * 10));
+                    State.<Integer>modify(count -> count + 1).map(_ -> new Literal(i * 10));
                 return STATE.widen(countAndTransform);
               }
-              return STATE.widen(State.pure(e));
+              // Use STATE.pure() directly - it returns Kind, avoiding manual widen()
+              return STATE.pure(e);
             },
             expr,
             stateMonad);
