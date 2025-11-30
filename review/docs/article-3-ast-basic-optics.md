@@ -566,4 +566,32 @@ We'll also tackle dead code elimination and common subexpression elimination, tr
 
 ---
 
+## Further Reading
+
+### Algebraic Data Types in Java
+
+- **Brian Goetz, ["Towards Better Serialization"](https://openjdk.org/projects/amber/design-notes/towards-better-serialization)** — Explores how records and sealed types create ADTs, with implications for pattern matching.
+
+- **Gavin King, ["Algebraic Data Types in Ceylon and Java"](https://ceylon-lang.org/blog/2015/12/07/algebraic-data-types/)** — A comparative look at ADTs across JVM languages, illuminating what Java 25 now provides natively.
+
+### Expression Languages and AST Design
+
+- **Terence Parr, *Language Implementation Patterns*** (Pragmatic Bookshelf, 2010) — The definitive guide to building interpreters and compilers, covering AST design patterns we use here.
+
+- **Robert Nystrom, [*Crafting Interpreters*](https://craftinginterpreters.com/)** — A freely available, beautifully written guide to interpreter construction. The "tree-walk interpreter" chapters parallel our approach.
+
+### DOP and the Expression Problem
+
+- **Philip Wadler, ["The Expression Problem"](http://homepages.inf.ed.ac.uk/wadler/papers/expression/expression.txt)** (1998) — The classic formulation of the tension between adding new data types versus new operations. DOP with optics offers one resolution.
+
+- The expression problem asks: can you add both new variants *and* new operations without modifying existing code? Sealed interfaces make adding operations easy (just write a function); optics make the operations themselves composable and reusable.
+
+### Higher-Kinded-J
+
+- **[Prism Documentation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/optics/Prism.java)** — API reference for working with sum types.
+
+- **[@GeneratePrisms Annotation](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-processor-plugins)** — How the annotation processor generates prisms for sealed interfaces.
+
+---
+
 *Next: [Article 4: Tree Traversals and Pattern Rewrites](article-4-traversals-rewrites.md)*
