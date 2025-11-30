@@ -57,8 +57,8 @@ public class CollectionRecipes {
     Lens<Player, Integer> scoreLens =
         Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
 
-    // Compose to get all scores (use asTraversal since Traversal.andThen(Lens) returns Optic)
-    Traversal<List<Player>, Integer> allScores = allPlayers.andThen(scoreLens.asTraversal());
+    // Compose to get all scores
+    Traversal<List<Player>, Integer> allScores = allPlayers.andThen(scoreLens);
 
     // Add 10 bonus points to all players
     List<Player> updated = Traversals.modify(allScores, score -> score + 10, players);
@@ -88,12 +88,12 @@ public class CollectionRecipes {
     Lens<Player, Integer> scoreLens =
         Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
 
-    // Get all names (use asTraversal since Traversal.andThen(Lens) returns Optic)
-    List<String> names = Traversals.getAll(allPlayers.andThen(nameLens.asTraversal()), players);
+    // Get all names
+    List<String> names = Traversals.getAll(allPlayers.andThen(nameLens), players);
     System.out.println("All names: " + names);
 
     // Get all scores
-    List<Integer> scores = Traversals.getAll(allPlayers.andThen(scoreLens.asTraversal()), players);
+    List<Integer> scores = Traversals.getAll(allPlayers.andThen(scoreLens), players);
     System.out.println("All scores: " + scores);
 
     // Calculate average
@@ -126,14 +126,14 @@ public class CollectionRecipes {
     Lens<Player, Integer> scoreLens =
         Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
 
-    // Convert lenses to traversals first, then compose (Traversal.andThen(Traversal) = Traversal)
+    // Compose lenses and traversals directly (Traversal.andThen(Lens) returns Traversal)
     Traversal<League, Integer> allScores =
         teamsLens
             .asTraversal()
             .andThen(Traversals.<Team>forList())
-            .andThen(playersLens.asTraversal())
+            .andThen(playersLens)
             .andThen(Traversals.<Player>forList())
-            .andThen(scoreLens.asTraversal());
+            .andThen(scoreLens);
 
     // Get all scores across all teams
     List<Integer> scores = Traversals.getAll(allScores, league);
@@ -165,8 +165,8 @@ public class CollectionRecipes {
     Lens<Player, Integer> scoreLens =
         Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
 
-    // Only boost active players (use asTraversal since Traversal.andThen(Lens) returns Optic)
-    Traversal<List<Player>, Integer> allScores = allPlayers.andThen(scoreLens.asTraversal());
+    // Only boost active players
+    Traversal<List<Player>, Integer> allScores = allPlayers.andThen(scoreLens);
 
     // Using modify with conditional logic
     List<Player> updated =
