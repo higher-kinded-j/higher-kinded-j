@@ -34,17 +34,15 @@ Our design goals are:
 
 This third goal is where optics become essential. An expression tree is a recursive structure where any node might contain arbitrarily nested sub-expressions. Transforming such trees manually (with pattern matching and reconstruction) quickly becomes unwieldy. Optics provide a disciplined approach.
 
-### The Data-Oriented Approach
+### Building on Data-Oriented Foundations
 
-Java 25 fully embraces *data-oriented programming* (DOP), a paradigm where:
+Article 1 introduced Java 25's data-oriented programming features. As Brian Goetz articulates in *Data-Oriented Programming in Java*, the core insight is that "data is just data": immutable, transparent, and separate from behaviour. Records, sealed interfaces, and pattern matching embody this philosophy beautifully.
 
-1. **Data is modelled as immutable values**: Records give us transparent, immutable data carriers
-2. **Data is separate from behaviour**: Functions operate on data, rather than methods hiding inside objects
-3. **Polymorphism uses pattern matching**: Instead of virtual dispatch, we match on the shape of data
+Eric Normand's work on data-oriented programming (from the Clojure tradition) takes this further: behaviour should be implemented as pure functions over immutable data, with polymorphism achieved through pattern matching rather than method dispatch. Java 25 now supports this style naturally.
 
-This differs fundamentally from traditional object-oriented design. In OOP, you might create an `Expr` base class with an abstract `evaluate()` method, forcing each subclass to implement its own behaviour. In DOP, `Expr` is pure data (a sealed hierarchy of records) and `evaluate()` is a standalone function that pattern-matches over all variants.
+Yet there's a tension that pure DOP doesn't fully address. When behaviour is separate from data, *where do structural operations live*? Functions that transform nested trees must understand the shape of every node. In Normand's terms, we've separated "what the data is" from "what we do with it", but tree transformations blur this boundary: they're operations intimately tied to structure.
 
-The benefit? Adding new operations requires no modification to existing types. Want to add constant folding? Write a function. Pretty-printing? Another function. No Visitor pattern, no interface pollution.
+This is precisely where optics prove their worth. They're not behaviour embedded in data (that would violate DOP principles). They're *reified access paths*: first-class values representing the structure of your types. The structure of a record implies its lenses; the variants of a sealed interface imply its prisms. Optics make this correspondence explicit and composable.
 
 ---
 
@@ -61,7 +59,7 @@ public sealed interface Expr {
     record Literal(Object value) implements Expr {}
     record Variable(String name) implements Expr {}
     record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
-    record Conditional(Expr cond, Expr then_, Expr else_) implements Expr {}
+    record Conditional(Expr cond, Expr thenBranch, Expr elseBranch) implements Expr {}
 }
 
 public enum BinaryOp {
@@ -107,43 +105,13 @@ Records give us:
 
 The combination of sealed interfaces and records creates what functional programmers call an *algebraic data type* (ADT): a sum of products that's both type-safe and pattern-matchable.
 
-### Sidebar: What About the Visitor Pattern?
+### The Visitor Pattern: A DOP Perspective
 
-Traditional OOP handles AST operations with the Visitor pattern. Here's what constant folding would look like:
+The traditional Visitor pattern embeds traversal logic into your data types via `accept()` methods. This violates a core DOP principle: data should be transparent and behaviour-free. As Goetz notes, the Visitor pattern exists largely because Java lacked pattern matching; it's a workaround, not a solution.
 
-```java
-// The Visitor approach (traditional OOP)
-interface ExprVisitor<T> {
-    T visitLiteral(Literal expr);
-    T visitVariable(Variable expr);
-    T visitBinary(Binary expr);
-    T visitConditional(Conditional expr);
-}
-
-abstract class Expr {
-    abstract <T> T accept(ExprVisitor<T> visitor);
-}
-
-class Binary extends Expr {
-    @Override <T> T accept(ExprVisitor<T> visitor) {
-        return visitor.visitBinary(this);
-    }
-}
-
-class ConstantFoldingVisitor implements ExprVisitor<Expr> {
-    @Override public Expr visitBinary(Binary expr) {
-        Expr left = expr.left().accept(this);
-        Expr right = expr.right().accept(this);
-        // ... folding logic
-    }
-    // ... other visit methods
-}
-```
-
-Compare this with the data-oriented approach using pattern matching:
+With sealed interfaces and pattern matching, we can write operations as standalone functions:
 
 ```java
-// The DOP approach (modern Java)
 Expr foldConstants(Expr expr) {
     return switch (expr) {
         case Binary(Literal(var l), var op, Literal(var r)) ->
@@ -157,20 +125,15 @@ Expr foldConstants(Expr expr) {
 }
 ```
 
-The DOP version is:
-- **Shorter**: No interface/abstract class boilerplate
-- **Clearer**: Logic is in one place, not scattered across visitor methods
-- **Safer**: Exhaustiveness is compiler-checked, not convention-enforced
+No interfaces to implement, no `accept()` methods polluting our data types, and the compiler verifies exhaustiveness. This is DOP in action: pure data, external functions, pattern-matched polymorphism.
 
-This is why Java's evolution toward DOP matters: it eliminates accidental complexity.
+Yet notice the manual reconstruction in the `Binary` and `Conditional` cases. This recursive boilerplate appears in *every* tree transformation. DOP gives us elegant reading; the reconstruction cascade remains.
 
 ---
 
 ## Generating Optics for the AST
 
-Pattern matching handles reading beautifully. But what about *writing*? When we need to transform nodes deep within an expression tree, while preserving immutability, pattern matching alone forces us into manual reconstruction cascades.
-
-This is where higher-kinded-j's optics shine. With two annotations, we generate a complete toolkit for navigating and transforming our AST:
+This reconstruction problem is precisely what optics solve. With two annotations, Higher-Kinded-J generates a complete toolkit for navigating and transforming our AST:
 
 ```java
 @GeneratePrisms  // Generates prisms for each sealed variant
@@ -178,7 +141,7 @@ public sealed interface Expr {
     @GenerateLenses record Literal(Object value) implements Expr {}
     @GenerateLenses record Variable(String name) implements Expr {}
     @GenerateLenses record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
-    @GenerateLenses record Conditional(Expr cond, Expr then_, Expr else_) implements Expr {}
+    @GenerateLenses record Conditional(Expr cond, Expr thenBranch, Expr elseBranch) implements Expr {}
 }
 ```
 
@@ -222,9 +185,9 @@ Each lens lets us:
 - Set a field, producing a new node
 - Modify a field with a function
 
-### The Power of Composition
+### Composition: Where Optics Earn Their Keep
 
-The real magic happens when we compose these optics:
+The payoff comes when we compose these optics:
 
 ```java
 // Focus on the left operand's value (if it's a literal)
@@ -575,19 +538,15 @@ We've built a solid foundation for expression language development using Java 25
 - **Pattern matching** enables elegant, exhaustive case analysis
 - **Optics** (via Higher-Kinded-J) add composable, bidirectional transformations
 
-### The Higher-Kinded-J Advantage for DOP
+### Optics and the DOP Philosophy
 
-What makes this article's approach particularly elegant is how Higher-Kinded-J complements Java's native DOP features. While Java 25 excels at *reading* data through pattern matching, Higher-Kinded-J fills the gap for *writing*: transforming deeply nested immutable structures without manual reconstruction cascades.
+There's a deeper point here worth pausing on. Critics of pure data-oriented programming sometimes observe that while DOP excels at *describing* data, it offers less guidance on *transforming* it. Pattern matching destructures beautifully but reconstructs tediously. The purity of "data separate from behaviour" runs into friction when behaviour must intimately understand data's shape.
 
-The `@GenerateLenses` and `@GeneratePrisms` annotations we used are more than convenience. They represent a fundamental insight: the structure of your data types *implies* a navigation API. Sealed interfaces naturally give rise to prisms (one for each variant), while records naturally give rise to lenses (one for each component). Higher-Kinded-J makes this correspondence explicit and automatic.
+Optics resolve this tension elegantly. They're not methods on your data types (that would embed behaviour). They're not external functions that pattern-match (that leads to reconstruction cascades). They're something new: *structural correspondences* reified as values.
 
-This is particularly powerful for AST manipulation. Consider what we achieved:
+The `@GenerateLenses` and `@GeneratePrisms` annotations embody this insight. The structure of a record *implies* its lenses; the variants of a sealed interface *imply* its prisms. Higher-Kinded-J makes these implications explicit and composable. You're not adding behaviour to data; you're deriving navigation from structure.
 
-1. **Type-safe variant access**: `ExprPrisms.binary()` safely focuses on `Binary` nodes, returning `Optional` rather than risking `ClassCastException`
-2. **Composable paths**: `BinaryLenses.left().andThen(ExprPrisms.literal())` builds a path through the tree that works for both reading and writing
-3. **Declarative transformations**: Instead of writing recursive switch statements for each operation, we compose reusable optic paths
-
-The result is code that reads like a description of *what* you want to access, not *how* to access it. This declarative style meshes naturally with DOP's emphasis on data as values.
+This is why optics feel natural alongside DOP rather than against it. Both emphasise that structure should be transparent and operations should compose. Optics simply extend these principles from reading to writing.
 
 ---
 

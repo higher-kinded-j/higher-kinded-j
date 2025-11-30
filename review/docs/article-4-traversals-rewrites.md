@@ -22,42 +22,9 @@ new Binary(
 
 This tree has seven nodes: three `Binary` expressions, two `Variable` nodes, and two `Literal` nodes. If we want to find all variables, we can't just look at the top level; we need to descend into every branch.
 
-The traditional approach uses the Visitor pattern:
+As we discussed in Article 3, the traditional Visitor pattern requires substantial boilerplate: an interface, accept methods in each node, and a visitor implementation for every operation. Even with Java 25's pattern matching, we still face the reconstruction cascade for transformations.
 
-```java
-class VariableCollector implements ExprVisitor<List<String>> {
-    @Override
-    public List<String> visitLiteral(Literal lit) {
-        return List.of();
-    }
-
-    @Override
-    public List<String> visitVariable(Variable var) {
-        return List.of(var.name());
-    }
-
-    @Override
-    public List<String> visitBinary(Binary bin) {
-        var left = bin.left().accept(this);
-        var right = bin.right().accept(this);
-        return Stream.concat(left.stream(), right.stream()).toList();
-    }
-
-    @Override
-    public List<String> visitConditional(Conditional cond) {
-        var c = cond.cond().accept(this);
-        var t = cond.then_().accept(this);
-        var e = cond.else_().accept(this);
-        return Stream.of(c, t, e)
-            .flatMap(List::stream)
-            .toList();
-    }
-}
-```
-
-That's 25 lines just to collect variable names. And we'd need a similar visitor for every operation: counting nodes, finding literals, transforming expressions. The boilerplate compounds.
-
-Optics offer a better way: define the traversal once, then use it for any operation.
+Traversals offer something better: define the traversal structure once, then use it for any operation.
 
 ---
 
