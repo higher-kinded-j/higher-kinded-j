@@ -93,9 +93,9 @@ System.out.println(result);  // Person("Alice", 26)
 
 ### When to Use
 
-✅ **Production execution**: When you just want to run the operations
-✅ **Simple workflows**: When audit trails or validation aren't needed
-✅ **Performance-critical paths**: Minimal overhead
+**Production execution**: When you just want to run the operations
+**Simple workflows**: When audit trails or validation aren't needed
+**Performance-critical paths**: Minimal overhead
 
 ### Characteristics
 
@@ -667,7 +667,7 @@ logger.getLog().forEach(auditService::record);
 ### Interpreter Lifecycle
 
 ```java
-// ✅ Good: Reuse interpreter for multiple programs
+// Good: Reuse interpreter for multiple programs
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
 
 for (Transaction txn : transactions) {
@@ -678,7 +678,7 @@ for (Transaction txn : transactions) {
 
 List<String> fullAuditTrail = logger.getLog();
 
-// ❌ Bad: Creating new interpreter each time loses history
+// Bad: Creating new interpreter each time loses history
 for (Transaction txn : transactions) {
     LoggingOpticInterpreter logger = OpticInterpreters.logging();  // New each time!
     Transaction result = logger.run(buildTransfer(txn));

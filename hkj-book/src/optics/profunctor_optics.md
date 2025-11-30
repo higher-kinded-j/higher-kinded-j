@@ -165,7 +165,7 @@ Traversal<ApiUserDto, String> apiRolesTraversal =
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 
 ```java
@@ -190,7 +190,7 @@ Traversal<String, LocalDate> fragileParser =
     .contramap(complexString -> extractDatePart(complexString)); // Might throw!
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 // Create adapters once, reuse everywhere

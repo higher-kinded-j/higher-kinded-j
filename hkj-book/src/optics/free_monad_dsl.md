@@ -539,7 +539,7 @@ Free<OpticOpKind.Witness, Tuple2<Team, ProcessingStats>> processTeamWithStats(
 
 ### When to Use Free Monad DSL
 
-✅ **Use Free Monad DSL when you need:**
+**Use Free Monad DSL when you need:**
 
 - Audit trails and logging
 - Validation before execution
@@ -550,7 +550,7 @@ Free<OpticOpKind.Witness, Tuple2<Team, ProcessingStats>> processTeamWithStats(
 
 ### When to Use Direct Execution
 
-✅ **Use Direct Execution ([Fluent API](fluent_api.md)) when:**
+**Use Direct Execution ([Fluent API](fluent_api.md)) when:**
 
 - Simple, straightforward operations
 - No need for introspection
@@ -601,7 +601,7 @@ Person mockResult = mock.run(program);
 
 ## Common Pitfalls
 
-### ❌ Don't: Forget that programs are immutable
+### Don't: Forget that programs are immutable
 
 ```java
 // Wrong - trying to "modify" a program
@@ -611,7 +611,7 @@ program.flatMap(age -> ...);  // This returns a NEW program!
 // The original program is unchanged
 ```
 
-### ✅ Do: Assign the result of `flatMap`
+### Do: Assign the result of `flatMap`
 
 ```java
 // Correct - capture the new program
@@ -622,7 +622,7 @@ Free<OpticOpKind.Witness, Person> program =
 
 ---
 
-### ❌ Don't: Mix side effects in program construction
+### Don't: Mix side effects in program construction
 
 ```java
 // Wrong - side effect during construction
@@ -634,7 +634,7 @@ Free<OpticOpKind.Witness, Person> program =
         });
 ```
 
-### ✅ Do: Keep program construction pure
+### Do: Keep program construction pure
 
 ```java
 // Correct - side effects only in interpreters

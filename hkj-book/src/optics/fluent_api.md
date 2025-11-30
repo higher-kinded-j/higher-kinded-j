@@ -305,21 +305,21 @@ This section demonstrates **Phase 2** of the optics core types integration, whic
 
 ### Think of Validation-Aware Modifications Like...
 
-- **A quality control checkpoint** 🔍 - Every modification must pass validation before being applied
-- **Airport security screening** 🛂 - Some checks stop at the first issue (fast-track), others collect all problems (thorough inspection)
-- **Form validation on a website** 📋 - You can show either the first error or all errors at once
-- **Code review process** ✅ - Accumulate all feedback rather than stopping at the first comment
+- **A quality control checkpoint** - Every modification must pass validation before being applied
+- **Airport security screening** - Some checks stop at the first issue (fast-track), others collect all problems (thorough inspection)
+- **Form validation on a website** - You can show either the first error or all errors at once
+- **Code review process** - Accumulate all feedback rather than stopping at the first comment
 
 ### The Challenge: Validation During Updates
 
 Traditional optic operations assume modifications always succeed. But in real applications, updates often need validation:
 
 ```java
-// ❌ Problem: No validation during modification
+// Problem: No validation during modification
 Person updated = OpticOps.modify(person, PersonLenses.age(), age -> age + 1);
 // What if the new age is invalid? No way to handle errors!
 
-// ❌ Problem: Manual validation is verbose and error-prone
+// Problem: Manual validation is verbose and error-prone
 int currentAge = OpticOps.get(person, PersonLenses.age());
 if (currentAge + 1 >= 0 && currentAge + 1 <= 120) {
     person = OpticOps.set(person, PersonLenses.age(), currentAge + 1);
@@ -596,48 +596,48 @@ validateImport(importBatch).fold(
 
 #### Use `modifyEither` When:
 
-✅ **Sequential workflows** where you want to stop at the first error
+**Sequential workflows** where you want to stop at the first error
 ```java
 // Login validation - stop at first failure
 OpticOps.modifyEither(credentials, CredentialsLenses.username(), this::validateUsername)
     .flatMap(c -> OpticOps.modifyEither(c, CredentialsLenses.password(), this::checkPassword))
 ```
 
-✅ **Single-field validation** with detailed error messages
+**Single-field validation** with detailed error messages
 
-✅ **Early exit is beneficial** (no point continuing if a critical field is invalid)
+**Early exit is beneficial** (no point continuing if a critical field is invalid)
 
 #### Use `modifyMaybe` When:
 
-✅ **Optional enrichment** where failure is acceptable
+**Optional enrichment** where failure is acceptable
 ```java
 // Try to geocode address, but it's okay if it fails
 OpticOps.modifyMaybe(order, OrderLenses.address(), addr -> geocodeAddress(addr))
 ```
 
-✅ **Error details aren't needed** (just success/failure)
+**Error details aren't needed** (just success/failure)
 
-✅ **Silent failures are acceptable**
+**Silent failures are acceptable**
 
 #### Use `modifyAllValidated` When:
 
-✅ **Form validation** where users need to see all errors at once
+**Form validation** where users need to see all errors at once
 ```java
 // Show all validation errors on a registration form
 OpticOps.modifyAllValidated(form, formFieldsTraversal, this::validateField)
 ```
 
-✅ **Comprehensive feedback is important**
+**Comprehensive feedback is important**
 
-✅ **User experience matters** (fixing all errors in one go)
+**User experience matters** (fixing all errors in one go)
 
 #### Use `modifyAllEither` When:
 
-✅ **Performance is critical** and you have many fields to validate
+**Performance is critical** and you have many fields to validate
 
-✅ **First error is sufficient** for debugging or logging
+**First error is sufficient** for debugging or logging
 
-✅ **Resource-intensive validation** where stopping early saves time
+**Resource-intensive validation** where stopping early saves time
 
 ### Comparison with Traditional `modifyF`
 
@@ -823,23 +823,23 @@ CompletableFuture<Team> updatePlayerScoresAsync(
 
 ### Use Static Methods When:
 
-✅ **Performing simple, one-off operations**
+**Performing simple, one-off operations**
 ```java
 // Clear and concise
 String name = OpticOps.get(person, PersonLenses.name());
 ```
 
-✅ **Chaining is not needed**
+**Chaining is not needed**
 ```java
 // Direct transformation
 Person older = OpticOps.modify(person, PersonLenses.age(), a -> a + 1);
 ```
 
-✅ **Performance is critical** (slightly less object allocation)
+**Performance is critical** (slightly less object allocation)
 
 ### Use Fluent Builders When:
 
-✅ **Building complex workflows**
+**Building complex workflows**
 ```java
 import static java.util.stream.Collectors.toList;
 
@@ -852,11 +852,11 @@ return OpticOps.getting(order)
     .collect(toList());
 ```
 
-✅ **IDE autocomplete is important** (great for discovery)
+**IDE autocomplete is important** (great for discovery)
 
-✅ **Code reviews matter** (explicit intent)
+**Code reviews matter** (explicit intent)
 
-✅ **Teaching or documentation** (self-explanatory)
+**Teaching or documentation** (self-explanatory)
 
 ---
 
@@ -929,7 +929,7 @@ Team updateTopPerformers(Team team, int threshold) {
 Both styles benefit from composing optics once and reusing them:
 
 ```java
-// ✅ Good: Compose once, use many times
+// Good: Compose once, use many times
 Lens<Order, BigDecimal> orderToTotalPrice =
     OrderTraversals.items()
         .andThen(OrderItemLenses.price().asTraversal())
@@ -939,7 +939,7 @@ orders.stream()
     .map(order -> OpticOps.getAll(order, orderToTotalPrice))
     .collect(toList());
 
-// ❌ Avoid: Recomposing in loop
+// Avoid: Recomposing in loop
 orders.stream()
     .map(order -> OpticOps.getAll(
         order,
@@ -983,7 +983,7 @@ Person updated = maybePerson
 
 ## Common Pitfalls
 
-### ❌ Don't: Call `get` then `set`
+### Don't: Call `get` then `set`
 
 ```java
 // Inefficient - two traversals
@@ -991,14 +991,14 @@ int age = OpticOps.get(person, PersonLenses.age());
 Person updated = OpticOps.set(person, PersonLenses.age(), age + 1);
 ```
 
-### ✅ Do: Use `modify`
+### Do: Use `modify`
 
 ```java
 // Efficient - single traversal
 Person updated = OpticOps.modify(person, PersonLenses.age(), a -> a + 1);
 ```
 
-### ❌ Don't: Recompose optics unnecessarily
+### Don't: Recompose optics unnecessarily
 
 ```java
 // Bad - composing in a loop
@@ -1009,7 +1009,7 @@ for (Order order : orders) {
 }
 ```
 
-### ✅ Do: Compose once, reuse
+### Do: Compose once, reuse
 
 ```java
 // Good - compose outside loop

@@ -528,7 +528,7 @@ List<String> odd = IndexedTraversals.getAll(oddPositions, values);
 
 ### Common Pitfalls
 
-#### ❌ Don't Do This:
+#### Don't Do This:
 
 ```java
 // Inefficient: Recreating indexed traversals in loops
@@ -556,7 +556,7 @@ List<Pair<Integer, String>> pairs = IndexedTraversals.toIndexedList(evenOnly, li
 // Indices are [0, 2, 4], NOT [0, 1, 2] - original positions preserved!
 ```
 
-#### ✅ Do This Instead:
+#### Do This Instead:
 
 ```java
 // Efficient: Create indexed traversal once, reuse many times

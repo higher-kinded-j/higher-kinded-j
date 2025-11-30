@@ -26,7 +26,7 @@ Other examples of using Optics can be found here.
 
 ---
 
-## 🎯 The Challenge: A Conditional Config Audit
+## The Challenge: A Conditional Config Audit
 
 Imagine you're responsible for auditing application configurations. Your task is:
 
@@ -52,31 +52,31 @@ Doing this imperatively is a recipe for complexity. Let's build it with optics i
 
 ---
 
-## 🛠️ The Four Tools for the Job
+## The Four Tools for the Job
 
 Our solution will compose the four primary optic types, each solving a specific part of the problem.
 
-### 1. **Lens**: The Magnifying Glass 🔎
+### 1. **Lens**: The Magnifying Glass
 
 A `Lens` provides focused access to a field within a product type (like a Java `record`). We'll use lenses to look inside our configuration objects.
 
 * `AppConfigLenses.settings()`: Zooms from an `AppConfig` to its `List<Setting>`.
 * `SettingLenses.value()`: Zooms from a `Setting` to its `SettingValue`.
 
-### 2. **Iso**: The Universal Translator 🔄
+### 2. **Iso**: The Universal Translator
 
 An `Iso` (Isomorphism) defines a lossless, two-way conversion between two types. It's perfect for handling different representations of the same data.
 
 * `DeploymentTarget <-> String`: We model our deployment target as a structured record but recognise it's isomorphic to a raw string like `"gcp|live"`. An `Iso` lets us switch between these representations.
 * `String <-> byte[]`: Base64 is just an encoded representation of a byte array. An `Iso` is the perfect tool for handling this encoding and decoding.
 
-### 3. **Prism**: The Safe Filter 🔬
+### 3. **Prism**: The Safe Filter
 
 A `Prism` provides focused access to a specific case within a sum type (like a `sealed interface`). It lets us safely attempt to "zoom in" on one variant, failing gracefully if the data is of a different kind.
 
 * `SettingValuePrisms.encryptedValue()`: This is our key filter. It will look at a `SettingValue` and only succeed if it's the `EncryptedValue` variant.
 
-### 4. **Traversal**: The Bulk Operator 🗺️
+### 4. **Traversal**: The Bulk Operator
 
 A `Traversal` lets us operate on zero or more targets within a larger structure. It's the ideal optic for working with collections.
 
@@ -127,7 +127,7 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 ```java
 
@@ -141,7 +141,7 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 
@@ -196,7 +196,7 @@ public class AuditPerformance { // For frequent auditing, create optics once and
 }
 ```
 
-## ✨ Composing the Solution
+## Composing the Solution
 
 Here's how we chain these optics together. To create the most robust and general-purpose optic (a `Traversal`), we convert each part of our chain into a `Traversal` using `.asTraversal()` before composing it. This ensures type-safety and clarity throughout the process.
 
@@ -234,7 +234,7 @@ When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, 
 
 ---
 
-## 🚀 Why This is a Powerful Approach
+## Why This is a Powerful Approach
 
 * **Declarative & Readable**: The optic chain describes *what* data to get, not *how* to loop and check for it. The logic reads like a path, making it self-documenting.
 * **Composable & Reusable**: Every optic, and every composition, is a reusable component. We could reuse `gcpLiveOnlyPrism` for other tasks, or swap out the final `base64` Iso to perform a different transformation.
@@ -244,7 +244,7 @@ When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, 
 
 ---
 
-## 🧠 Taking It Further
+## Taking It Further
 
 This example is just the beginning. Here are some ideas for extending this solution into a real-world application:
 

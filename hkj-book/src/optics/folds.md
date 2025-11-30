@@ -26,7 +26,7 @@ But what if you need to perform read-only operations? What if you want to query,
 
 ## The Scenario: Analysing E-Commerce Orders
 
-A **`Fold`** is a read-only optic designed specifically for querying and data extraction. Think of it as a **database query tool** 🔍 or a **telescope** 🔭 that lets you peer into your data structures, extract information, and aggregate results—all without the ability to modify anything.
+A **`Fold`** is a read-only optic designed specifically for querying and data extraction. Think of it as a **database query tool** or a **telescope** that lets you peer into your data structures, extract information, and aggregate results—all without the ability to modify anything.
 
 Consider an e-commerce system where you need to analyse orders:
 
@@ -74,8 +74,8 @@ Before we dive deeper, it's crucial to understand how `Fold` relates to `Travers
 | Aspect | Traversal | Fold |
 |--------|-----------|------|
 | **Purpose** | Read and modify collections | Read-only queries |
-| **Can modify?** | ✅ Yes (`set`, `modify`) | ❌ No |
-| **Query operations** | ✅ Yes (via `getAll`, but not primary purpose) | ✅ Yes (designed for this) |
+| **Can modify?** | Yes (`set`, `modify`) | No |
+| **Query operations** | Yes (via `getAll`, but not primary purpose) | Yes (designed for this) |
 | **Intent clarity** | "I might modify this" | "I'm only reading this" |
 | **Conversion** | Can be converted to Fold via `asFold()` | Cannot be converted to Traversal |
 | **Use cases** | Bulk updates, validation with modifications | Queries, searches, aggregations |
@@ -321,10 +321,10 @@ Maybe<List<Product>> noProducts = getAllMaybe(itemsFold, emptyOrder);
 
 | Scenario | Use `getAll()` | Use `getAllMaybe()` |
 |----------|----------------|---------------------|
-| You need the list regardless of emptiness | ✅ Returns `List<A>` (possibly empty) | ❌ Overkill |
-| You want to treat empty results as a failure case | ❌ Must check `isEmpty()` manually | ✅ Returns `Nothing` for empty results |
-| You're chaining functional operations with Maybe | ❌ Requires conversion | ✅ Directly composable |
-| Performance-critical batch processing | ✅ Direct list access | ❌ Extra Maybe wrapping |
+| You need the list regardless of emptiness | Returns `List<A>` (possibly empty) | Overkill |
+| You want to treat empty results as a failure case | Must check `isEmpty()` manually | Returns `Nothing` for empty results |
+| You're chaining functional operations with Maybe | Requires conversion | Directly composable |
+| Performance-critical batch processing | Direct list access | Extra Maybe wrapping |
 
 #### Real-World Scenario: Product Search with Maybe
 
@@ -394,10 +394,10 @@ Understanding when to use each type helps you make informed decisions:
 |--------|---------------|------------|
 | **Purpose** | Standard Java optional values | Functional optional values with HKT support |
 | **Package** | `java.util.Optional` | `org.higherkindedj.hkt.maybe.Maybe` |
-| **HKT Support** | ❌ No | ✅ Yes (integrates with `Kind<F, A>`) |
+| **HKT Support** | No | Yes (integrates with `Kind<F, A>`) |
 | **Monadic Operations** | Limited (`map`, `flatMap`, `filter`) | Full (`map`, `flatMap`, `filter`, `fold`, `getOrElse`, etc.) |
-| **Java Interop** | ✅ Native support | ❌ Requires conversion |
-| **Functional Composition** | Basic | ✅ Excellent (works with Applicative, Monad, etc.) |
+| **Java Interop** | Native support | Requires conversion |
+| **Functional Composition** | Basic | Excellent (works with Applicative, Monad, etc.) |
 | **Pattern Matching** | `ifPresent()`, `orElse()` | `isJust()`, `isNothing()`, `fold()` |
 | **Use Cases** | Standard Java APIs, interop | Functional pipelines, HKT abstractions |
 | **Conversion** | `Maybe.fromOptional(opt)` | `maybe.toOptional()` |
@@ -794,7 +794,7 @@ String customerName = order.customerName();
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 ```java
 // Inefficient: Creating folds repeatedly in loops
@@ -819,7 +819,7 @@ Fold<Order, Product> fold = traversal.asFold();
 List<Product> products = fold.getAll(order); // Just use Traversals.getAll() directly!
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 // Efficient: Create fold once, reuse many times

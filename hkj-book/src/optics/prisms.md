@@ -198,7 +198,7 @@ return switch (jsonValue) {
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 
 ```java
@@ -222,7 +222,7 @@ var name2 = JsonValuePrisms.jsonString().getOptional(value2);
 var name3 = JsonValuePrisms.jsonString().getOptional(value3);
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 
 ```java
@@ -624,13 +624,13 @@ Instead of manually calling `getOptional().map(f).map(build)`, use `modify()`:
 ```java
 Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
 
-// ✅ Clean modification
+// Clean modification
 JsonValue uppercased = stringPrism.modify(
     str -> new JsonString(str.value().toUpperCase()),
     jsonValue
 );
 
-// ❌ Verbose alternative
+// Verbose alternative
 JsonValue verboseResult = stringPrism.getOptional(jsonValue)
     .map(str -> new JsonString(str.value().toUpperCase()))
     .map(stringPrism::build)

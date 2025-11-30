@@ -441,7 +441,7 @@ List<Integer> values = map.values().stream()
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 ```java
 // Inefficient: Creating traversals in loops
@@ -460,7 +460,7 @@ Tuple2<Integer, String> mixed = new Tuple2<>(42, "hello");
 // TupleTraversals.both() won't work here—types must match!
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 // Efficient: Create traversal once, apply to entire structure

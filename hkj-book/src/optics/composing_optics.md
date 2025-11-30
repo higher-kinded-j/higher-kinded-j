@@ -210,7 +210,7 @@ Map<String, Long> permissionCounts = forms.stream()
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 
 ```java
@@ -234,7 +234,7 @@ var inlineResult = FormLenses.principal().asTraversal()
 Traversal<Form, String> badTraversal = /* any string traversal */;
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 
 ```java
@@ -694,13 +694,13 @@ Either<String, Form> result = modifyAllEither(
 
 | Aspect | Traditional `modifyF` | Validation-Aware Methods |
 |--------|----------------------|--------------------------|
-| **Applicative Setup** | ✅ Required (explicit) | ❌ Not required (automatic) |
-| **Type Complexity** | ⚠️ High (`Kind`, `Witness`) | ✅ Low (direct types) |
-| **Error Accumulation** | ✅ Yes (via Applicative) | ✅ Yes (`modifyAllValidated`) |
-| **Short-Circuiting** | ⚠️ Manual (via Either Applicative) | ✅ Built-in (`modifyAllEither`) |
-| **Learning Curve** | ⚠️ Steep (HKT knowledge) | ✅ Gentle (familiar types) |
-| **Flexibility** | ✅ Maximum (any Applicative) | ⚠️ Focused (common patterns) |
-| **Boilerplate** | ⚠️ More (setup code) | ✅ Less (direct API) |
+| **Applicative Setup** | Required (explicit) | Not required (automatic) |
+| **Type Complexity** | High (`Kind`, `Witness`) | Low (direct types) |
+| **Error Accumulation** | Yes (via Applicative) | Yes (`modifyAllValidated`) |
+| **Short-Circuiting** | Manual (via Either Applicative) | Built-in (`modifyAllEither`) |
+| **Learning Curve** | Steep (HKT knowledge) | Gentle (familiar types) |
+| **Flexibility** | Maximum (any Applicative) | Focused (common patterns) |
+| **Boilerplate** | More (setup code) | Less (direct API) |
 | **Use Case** | Generic effectful operations | Validation-specific scenarios |
 
 ### When to Use Each Approach

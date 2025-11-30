@@ -204,7 +204,7 @@ Lens<Employee, String> fullAddressLens = Lens.of(
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 
 ```java
@@ -222,7 +222,7 @@ var updatedCompany = CompanyLenses.withName(tempCompany, "New Company");
 var finalEmployee = EmployeeLenses.withCompany(employee, updatedCompany);
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 
 ```java

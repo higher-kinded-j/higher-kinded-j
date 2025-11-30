@@ -1,5 +1,5 @@
 # Summary
-[Introduction to Higher-Kinded-J](home.md) 
+[Introduction to Higher-Kinded-J](home.md)
 
 # Getting Started
 - [HKT Introduction](hkts/hkt_introduction.md)
@@ -60,34 +60,45 @@
   - [Solutions Guide](tutorials/solutions_guide.md)
   - [Troubleshooting](tutorials/troubleshooting.md)
 
-# Optics
-- [Optics Introduction](optics/optics_intro.md)
+# Optics I: Fundamentals
+- [Introduction](optics/ch1_intro.md)
+  - [What Are Optics?](optics/optics_intro.md)
   - [Lenses](optics/lenses.md)
   - [Prisms](optics/prisms.md)
-  - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)
   - [Isomorphisms](optics/iso.md)
-  - [Traversals](optics/traversals.md)
   - [Composition Rules](optics/composition_rules.md)
-  - [Optics Cookbook](optics/cookbook.md)
+
+# Optics II: Collections
+- [Introduction](optics/ch2_intro.md)
+  - [Traversals](optics/traversals.md)
   - [Folds](optics/folds.md)
-  - [Filtered Optics](optics/filtered_optics.md)
-  - [Indexed Optics](optics/indexed_optics.md)
-  - [Limiting Traversals](optics/limiting_traversals.md)
   - [Getters](optics/getters.md)
   - [Setters](optics/setters.md)
-  - [At Type Class](optics/at.md)
-  - [Ixed Type Class](optics/ixed.md)
+  - [Common Data Structures](optics/common_data_structure_traversals.md)
+  - [Limiting Traversals](optics/limiting_traversals.md)
+
+# Optics III: Precision and Filtering
+- [Introduction](optics/ch3_intro.md)
+  - [Filtered Optics](optics/filtered_optics.md)
+  - [Indexed Optics](optics/indexed_optics.md)
+  - [String Traversals](optics/string_traversals.md)
+  - [Indexed Access](optics/indexed_access.md)
+  - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)
   - [Profunctor Optics](optics/profunctor_optics.md)
-  - [Combining Optics - Validation](optics/composing_optics.md)
-  - [Fluent API for Optics](optics/fluent_api.md)
+
+# Optics IV: Java-Friendly APIs
+- [Introduction](optics/ch4_intro.md)
+  - [Fluent API](optics/fluent_api.md)
   - [Free Monad DSL](optics/free_monad_dsl.md)
-  - [Optic Interpreters](optics/interpreters.md)
-  - [Practical Examples](optics/optics_examples.md)
-  - [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md)
-  - [Working with Core Types and Optics](optics/core_type_integration.md)
-    - [Core Type Prisms](optics/core_type_prisms.md)
-    - [Lens Extensions](optics/lens_extensions.md)
-    - [Traversal Extensions](optics/traversal_extensions.md)
+  - [Interpreters](optics/interpreters.md)
+
+# Optics V: Integration and Recipes
+- [Introduction](optics/ch5_intro.md)
+  - [Composing Optics](optics/composing_optics.md)
+  - [Core Type Integration](optics/core_type_integration.md)
+  - [Optics Extensions](optics/optics_extensions.md)
+  - [Cookbook](optics/cookbook.md)
+  - [Auditing Complex Data](optics/auditing_complex_data_example.md)
 
 # Integration Guides
 - [Spring Boot Integration](spring/spring_boot_integration.md)

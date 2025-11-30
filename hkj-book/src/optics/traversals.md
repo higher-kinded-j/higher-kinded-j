@@ -23,7 +23,7 @@ So far, our journey through optics has shown us how to handle singular focus:
 
 But what about operating on *many* items at once? How do we apply a single change to every element in a nested list? For this, we need the most general and powerful optic in our toolkit: the **Traversal**.
 
-## The Scenario: Updating an Entire League 🗺️
+## The Scenario: Updating an Entire League
 
 A `Traversal` is a functional "search-and-replace." It gives you a single tool to focus on zero or more items within a larger structure, allowing you to `get`, `set`, or `modify` all of them in one go.
 
@@ -194,7 +194,7 @@ for (Team team : league.teams()) {
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 
 ```java
@@ -213,7 +213,7 @@ League emptyLeague = new League("Empty", List.of());
 List<Integer> scores = Traversals.getAll(leagueToAllPlayerScores, emptyLeague); // Returns empty list
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 
 ```java
@@ -370,7 +370,7 @@ Traversal<Catalogue, Double> allPrices = CatalogueTraversals.categories()
     .andThen(CategoryTraversals.products())
     .andThen(ProductLenses.price().asTraversal());
 
-// ❌ This sorts nothing - each price is transformed in isolation
+// This sorts nothing - each price is transformed in isolation
 Catalogue result = Traversals.modify(allPrices, price -> price, catalogue);
 // Prices remain in original order!
 ```
@@ -492,9 +492,9 @@ This graceful degradation makes `partsOf` safe to use even when you're not certa
 
 The `partsOf` combinator produces a lawful `Lens` when the list sizes match:
 
-* **Get-Set Law**: `set(get(s), s) = s` ✓
-* **Set-Get Law**: `get(set(a, s)) = a` ✓ (when `a.size() = targets`)
-* **Set-Set Law**: `set(b, set(a, s)) = set(b, s)` ✓
+* **Get-Set Law**: `set(get(s), s) = s`
+* **Set-Get Law**: `get(set(a, s)) = a` (when `a.size() = targets`)
+* **Set-Set Law**: `set(b, set(a, s)) = set(b, s)`
 
 When sizes don't match, the laws still hold for the elements that *are* provided.
 
@@ -555,7 +555,7 @@ public class CatalogueOptics {
 
 ### Common Pitfalls with partsOf
 
-#### ❌ Don't Do This:
+#### Don't Do This:
 
 ```java
 // Expecting distinct to reduce structure size
@@ -575,7 +575,7 @@ List<Double> prices = lens.get(products);
 prices.forEach(p -> System.out.println(p)); // Just use Traversals.getAll()!
 ```
 
-#### ✅ Do This Instead:
+#### Do This Instead:
 
 ```java
 // Understand that structure is preserved, only values redistribute

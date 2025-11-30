@@ -58,11 +58,11 @@ A `Setter` makes these modifications type-safe, composable, and expressive.
 
 ## Think of Setters Like...
 
-* **A functional modifier** ✏️: Transforming values without reading
-* **A write-only lens** 🎯: Focusing on modification only
-* **A batch transformer** 🔄: Applying changes to multiple elements
-* **A data normalisation tool** 📐: Standardising formats across structures
-* **A pipeline stage** ⚙️: Composable modification steps
+* **A functional modifier**: Transforming values without reading
+* **A write-only lens**: Focusing on modification only
+* **A batch transformer**: Applying changes to multiple elements
+* **A data normalisation tool**: Standardising formats across structures
+* **A pipeline stage**: Composable modification steps
 
 ---
 
@@ -71,8 +71,8 @@ A `Setter` makes these modifications type-safe, composable, and expressive.
 | Aspect | Setter | Lens | Traversal |
 |--------|--------|------|-----------|
 | **Focus** | One or more elements | Exactly one element | Zero or more elements |
-| **Can read?** | ❌ No (typically) | ✅ Yes | ✅ Yes |
-| **Can modify?** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Can read?** | No (typically) | Yes | Yes |
+| **Can modify?** | Yes | Yes | Yes |
 | **Core operations** | `modify`, `set` | `get`, `set`, `modify` | `modifyF`, `getAll` |
 | **Use case** | Write-only pipelines | Read-write field access | Collection traversals |
 | **Intent** | "Transform these values" | "Get or set this field" | "Update all these elements" |
@@ -518,7 +518,7 @@ List<User> darkModeUsers = usersSetter.modify(
 
 ## Common Pitfalls
 
-### ❌ Don't Use `Setter.of()` for Effectful Operations
+### Don't Use `Setter.of()` for Effectful Operations
 
 ```java
 // Warning: Setter.of() doesn't support modifyF properly
@@ -529,7 +529,7 @@ Setter<Person, String> nameSetter = Setter.of(
 nameSetter.modifyF(validateFn, person, applicative);
 ```
 
-### ✅ Use `fromGetSet()` for Effectful Support
+### Use `fromGetSet()` for Effectful Support
 
 ```java
 // Correct: fromGetSet supports modifyF
@@ -541,14 +541,14 @@ Setter<Person, String> nameSetter = Setter.fromGetSet(
 nameSetter.modifyF(validateFn, person, applicative);
 ```
 
-### ❌ Don't Forget Immutability
+### Don't Forget Immutability
 
 ```java
 // Wrong: Modifying in place (if mutable)
 setter.modify(obj -> { obj.setValue(newValue); return obj; }, source);
 ```
 
-### ✅ Always Return New Instances
+### Always Return New Instances
 
 ```java
 // Correct: Return new immutable instance
