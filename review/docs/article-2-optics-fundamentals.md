@@ -427,21 +427,9 @@ A monoid is simply: (1) a way to combine two values, and (2) an "empty" starting
 
 ## Composition Patterns
 
-Understanding how optics compose is essential for effective use. Here's the composition table:
+Article 1 introduced the composition table showing how optics combine. The key insight bears repeating: composing with something "weaker" (that might not find anything, or might find many things) yields a `Traversal`.
 
-| First | Second | Result |
-|-------|--------|--------|
-| Lens | Lens | Lens |
-| Lens | Prism | Traversal |
-| Lens | Traversal | Traversal |
-| Prism | Lens | Traversal |
-| Prism | Prism | Prism |
-| Prism | Traversal | Traversal |
-| Traversal | Lens | Traversal |
-| Traversal | Prism | Traversal |
-| Traversal | Traversal | Traversal |
-
-The pattern: composing with something "weaker" (that might not find anything, or might find many things) yields a `Traversal`. In higher-kinded-j, we use `asTraversal()` to convert lenses and prisms before composing them with `andThen()`.
+In Higher-Kinded-J, we use `asTraversal()` to convert lenses and prisms before composing them with `andThen()`. This uniform API means you don't need to remember special composition methods for each combination.
 
 **Why Traversal?** You might wonder why `Prism + Lens` doesn't yield some special "zero-or-one" type. In practice, a `Traversal` that focuses on at most one element works identically, and the simpler type hierarchy means fewer concepts to learn. The `Traversals.getAll()` method returns a list that will have 0, 1, or many elements depending on the composed optics.
 
