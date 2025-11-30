@@ -143,7 +143,7 @@ Learn the rules and patterns for composing different optic types.
 - Prism + Lens → Traversal (might fail, so result is more general)
 - Lens + Traversal → Traversal
 - Prism + Prism → Prism
-- When the result type "generalizes" based on composition
+- When the result type "generalises" based on composition
 
 **Key insight**: Composition follows intuitive rules. If any step might fail or have multiple targets, the result reflects that uncertainty.
 
