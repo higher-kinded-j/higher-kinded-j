@@ -12,7 +12,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Optic;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -27,10 +26,20 @@ import org.junit.jupiter.api.Test;
  * <p>The true power of optics comes from composing different types together. You can chain Lenses,
  * Prisms, and Traversals to navigate complex data structures.
  *
- * <p>Key Concepts: - Lens + Lens = Lens (guaranteed path to guaranteed path) - Lens + Prism = Prism
- * (guaranteed path to optional branch) - Lens + Traversal = Traversal (guaranteed path to many
- * elements) - Prism + Lens = Prism (optional branch to guaranteed field) - Traversal + Traversal =
- * Traversal (many to many) - All optics can be converted to Traversal for maximum composability
+ * <p>Key Concepts:
+ *
+ * <ul>
+ *   <li>Lens + Lens = Lens (guaranteed path to guaranteed path)
+ *   <li>Lens + Prism = Traversal (guaranteed path to optional branch - zero or one focus)
+ *   <li>Lens + Traversal = Traversal (guaranteed path to many elements)
+ *   <li>Prism + Lens = Traversal (optional branch to guaranteed field - zero or one focus)
+ *   <li>Prism + Prism = Prism (optional to optional)
+ *   <li>Traversal + Traversal = Traversal (many to many)
+ *   <li>All optics can be converted to Traversal for maximum composability
+ * </ul>
+ *
+ * <p><strong>Important:</strong> When composing a Lens with a Prism (or vice versa), the result is
+ * a Traversal because the Prism might not match, resulting in zero-or-one focus.
  */
 public class Tutorial05_OpticsComposition_Solution {
 
@@ -87,11 +96,12 @@ public class Tutorial05_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 1: Lens + Prism composition
+   * Exercise 1: Lens + Prism composition = Traversal
    *
-   * <p>Access an optional field through a guaranteed path.
+   * <p>Access an optional field through a guaranteed path. Because the Prism might not match, the
+   * result is a Traversal with zero-or-one focus.
    *
-   * <p>Task: Navigate to a specific variant's field
+   * <p>Task: Navigate to a specific variant's field using Lens.andThen(Prism)
    */
   @Test
   void exercise1_lensPlusPrism() {
@@ -113,29 +123,31 @@ public class Tutorial05_OpticsComposition_Solution {
     }
 
     Order order = new Order("ORD-001", new CreditCard1("1234-5678", "123"));
+    Order cashOrder = new Order("ORD-002", new Cash1());
 
     Lens<Order, PaymentMethod1> orderToPayment = OrderLenses.payment();
     Prism<PaymentMethod1, CreditCard1> creditCardPrism = PaymentMethodPrisms.creditCard();
 
-    // SOLUTION: Compose Lens + Prism to create Optic<Order, Order, CreditCard1, CreditCard1>
-    // Note: Lens + Prism composition returns Optic, not Prism
-    Optic<Order, Order, CreditCard1, CreditCard1> orderToCreditCard =
-        orderToPayment.andThen(creditCardPrism);
+    // SOLUTION: Compose Lens + Prism = Traversal
+    Traversal<Order, CreditCard1> orderToCreditCard = orderToPayment.andThen(creditCardPrism);
 
-    // To use prism operations, we need to cast or use the optic directly
-    // For this exercise, we'll work around by using the composed operations directly
-    Optional<CreditCard1> card =
-        orderToPayment.get(order) instanceof CreditCard1 cc ? Optional.of(cc) : Optional.empty();
-    assertThat(card.isPresent()).isTrue();
-    assertThat(card.get().number()).isEqualTo("1234-5678");
+    // Use Traversals.getAll to extract the credit card (returns list with 0 or 1 element)
+    List<CreditCard1> cards = Traversals.getAll(orderToCreditCard, order);
+    assertThat(cards).hasSize(1);
+    assertThat(cards.get(0).number()).isEqualTo("1234-5678");
+
+    // For cash orders, the traversal finds no credit cards
+    List<CreditCard1> noCards = Traversals.getAll(orderToCreditCard, cashOrder);
+    assertThat(noCards).isEmpty();
   }
 
   /**
-   * Exercise 2: Prism + Lens composition
+   * Exercise 2: Prism + Lens composition = Traversal
    *
-   * <p>Access a field within a specific variant.
+   * <p>Access a field within a specific variant. Because the Prism might not match, the result is a
+   * Traversal with zero-or-one focus.
    *
-   * <p>Task: Update just the CVV of a credit card payment
+   * <p>Task: Update just the CVV of a credit card payment using Prism.andThen(Lens)
    */
   @Test
   void exercise2_prismPlusLens() {
@@ -156,24 +168,22 @@ public class Tutorial05_OpticsComposition_Solution {
       }
     }
 
-    Order order = new Order("ORD-001", new CreditCard1("1234-5678", "123"));
+    PaymentMethod1 creditCard = new CreditCard1("1234-5678", "123");
+    PaymentMethod1 cash = new Cash1();
 
     Prism<PaymentMethod1, CreditCard1> creditCardPrism = PaymentMethodPrisms.creditCard();
     Lens<CreditCard1, String> cvvLens = CreditCardLenses.cvv();
 
-    // SOLUTION: Compose Prism + Lens to create Optic<PaymentMethod1, PaymentMethod1, String,
-    // String>
-    // Note: Prism + Lens composition returns Optic, not Prism
-    Optic<PaymentMethod1, PaymentMethod1, String, String> cvvOptic =
-        creditCardPrism.andThen(cvvLens);
+    // SOLUTION: Compose Prism + Lens = Traversal
+    Traversal<PaymentMethod1, String> cvvTraversal = creditCardPrism.andThen(cvvLens);
 
-    // Work around by composing manually
-    PaymentMethod1 updated =
-        creditCardPrism
-            .getOptional(order.payment())
-            .map(cc -> (PaymentMethod1) new CreditCard1(cc.number(), "999"))
-            .orElse(order.payment());
+    // Modify the CVV using Traversals.modify
+    PaymentMethod1 updated = Traversals.modify(cvvTraversal, cvv -> "999", creditCard);
     assertThat(((CreditCard1) updated).cvv()).isEqualTo("999");
+
+    // Modifying cash payment does nothing (traversal doesn't match)
+    PaymentMethod1 unchangedCash = Traversals.modify(cvvTraversal, cvv -> "999", cash);
+    assertThat(unchangedCash).isSameAs(cash);
   }
 
   /**
@@ -219,9 +229,10 @@ public class Tutorial05_OpticsComposition_Solution {
   }
 
   /**
-   * Exercise 4: Complex composition (Lens + Prism + Lens)
+   * Exercise 4: Complex composition (Lens + Prism + Lens) = Traversal
    *
-   * <p>Navigate through multiple levels with different optic types.
+   * <p>Navigate through multiple levels with different optic types. The Prism in the middle means
+   * the overall result is a Traversal.
    *
    * <p>Task: Access a field deep within an optional branch
    */
@@ -247,31 +258,33 @@ public class Tutorial05_OpticsComposition_Solution {
       }
     }
 
-    JsonObject1 root = new JsonObject1("root", new JsonString1("Hello"));
+    JsonObject1 stringRoot = new JsonObject1("root", new JsonString1("Hello"));
+    JsonObject1 numberRoot = new JsonObject1("root", new JsonNumber1(42.0));
 
     Lens<JsonObject1, JsonValue1> dataLens = JsonObjectLenses.data();
     Prism<JsonValue1, JsonString1> stringPrism = JsonValuePrisms.jsonString();
     Lens<JsonString1, String> valueLens = JsonStringLenses.value();
 
-    // SOLUTION: Chain Lens + Prism + Lens to access the string value
-    // Note: Lens + Prism composition returns Optic, not Prism
-    Optic<JsonObject1, JsonObject1, String, String> valueAccess =
-        dataLens.andThen(stringPrism).andThen(valueLens);
+    // SOLUTION: Chain Lens + Prism + Lens = Traversal
+    // Note: After Lens.andThen(Prism) returns Traversal, we need .asTraversal() on the Lens
+    Traversal<JsonObject1, String> valueAccess =
+        dataLens.andThen(stringPrism).andThen(valueLens.asTraversal());
 
-    // Work around by manually composing
-    Optional<String> value = stringPrism.getOptional(dataLens.get(root)).map(valueLens::get);
-    assertThat(value.get()).isEqualTo("Hello");
+    // Use Traversals.getAll to get the value (returns list with 0 or 1 element)
+    List<String> values = Traversals.getAll(valueAccess, stringRoot);
+    assertThat(values).containsExactly("Hello");
 
-    JsonObject1 updated =
-        stringPrism
-            .getOptional(dataLens.get(root))
-            .map(
-                js ->
-                    dataLens.set(
-                        stringPrism.build(valueLens.set(valueLens.get(js).toUpperCase(), js)),
-                        root))
-            .orElse(root);
+    // When the prism doesn't match, getAll returns empty list
+    List<String> noValues = Traversals.getAll(valueAccess, numberRoot);
+    assertThat(noValues).isEmpty();
+
+    // Modify works on matching structures
+    JsonObject1 updated = Traversals.modify(valueAccess, String::toUpperCase, stringRoot);
     assertThat(((JsonString1) updated.data()).value()).isEqualTo("HELLO");
+
+    // Modify leaves non-matching structures unchanged
+    JsonObject1 unchanged = Traversals.modify(valueAccess, String::toUpperCase, numberRoot);
+    assertThat(unchanged.data()).isInstanceOf(JsonNumber1.class);
   }
 
   /**
@@ -427,6 +440,9 @@ public class Tutorial05_OpticsComposition_Solution {
         new User(
             "Alice", new Address("123 Main St", "Springfield"), new Email1("alice@example.com"));
 
+    User phoneUser =
+        new User("Bob", new Address("456 Oak Ave", "Shelbyville"), new Phone1("555-1234"));
+
     // Define reusable optic components
     Lens<User, Address> userToAddress = UserLenses.address();
     Lens<Address, String> addressToCity = AddressLenses.city();
@@ -435,28 +451,39 @@ public class Tutorial05_OpticsComposition_Solution {
     Lens<Email1, String> emailToAddress = EmailLenses.address();
 
     // SOLUTION: Compose these into useful pipelines
-    // 1. User -> city
+    // 1. User -> city (Lens + Lens = Lens)
     Lens<User, String> userToCity = userToAddress.andThen(addressToCity);
 
-    // 2. User -> email address (optional)
-    // Note: Lens + Prism + Lens composition returns Optic, not Prism
-    Optic<User, User, String, String> userToEmailAddress =
-        userToContact.andThen(emailPrism).andThen(emailToAddress);
+    // 2. User -> email address (Lens + Prism + Lens = Traversal)
+    // Note: After Lens.andThen(Prism) returns Traversal, we need .asTraversal() on the Lens
+    Traversal<User, String> userToEmailAddress =
+        userToContact.andThen(emailPrism).andThen(emailToAddress.asTraversal());
 
     assertThat(userToCity.get(user)).isEqualTo("Springfield");
-    // Work around by manually composing
-    Optional<String> emailAddr =
-        emailPrism.getOptional(userToContact.get(user)).map(emailToAddress::get);
-    assertThat(emailAddr.get()).isEqualTo("alice@example.com");
+
+    // Use Traversals.getAll for the email traversal
+    List<String> emails = Traversals.getAll(userToEmailAddress, user);
+    assertThat(emails).containsExactly("alice@example.com");
+
+    // Phone users have no email
+    List<String> noEmails = Traversals.getAll(userToEmailAddress, phoneUser);
+    assertThat(noEmails).isEmpty();
   }
 
   /**
    * Congratulations! You've completed Tutorial 05: Optics Composition
    *
-   * <p>You now understand: ✓ How to compose Lens + Prism for optional access ✓ How to compose Lens
-   * + Traversal for bulk operations ✓ How to chain complex compositions ✓ How different optic types
-   * combine (Lens+Prism=Prism, etc.) ✓ How to build reusable optic pipelines ✓ How to navigate
-   * deeply nested structures with type safety
+   * <p>You now understand:
+   *
+   * <ul>
+   *   <li>How Lens + Lens = Lens (guaranteed paths compose to guaranteed path)
+   *   <li>How Lens + Prism = Traversal (adding optionality gives zero-or-one focus)
+   *   <li>How Prism + Lens = Traversal (same reasoning - Prism adds optionality)
+   *   <li>How to compose Lens + Traversal for bulk operations
+   *   <li>How to chain complex compositions
+   *   <li>How to build reusable optic pipelines
+   *   <li>How to navigate deeply nested structures with type safety
+   * </ul>
    *
    * <p>Next: Tutorial 06 - Generated Optics
    */

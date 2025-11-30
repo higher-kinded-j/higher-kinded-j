@@ -9,7 +9,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.prism.Prisms;
+import org.higherkindedj.optics.util.Prisms;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;

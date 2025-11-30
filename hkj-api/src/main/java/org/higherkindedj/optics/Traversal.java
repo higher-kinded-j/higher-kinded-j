@@ -77,6 +77,67 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
+   * Composes this {@code Traversal<S, A>} with a {@code Lens<A, B>} to create a new {@code
+   * Traversal<S, B>}.
+   *
+   * <p>This allows you to focus through multiple elements (via the Traversal) and then zoom into a
+   * specific field of each element (via the Lens).
+   *
+   * <p>Example: If you have a traversal for all users in a list and a lens for the "email" field,
+   * composing them gives you a traversal for all email addresses.
+   *
+   * @param lens The {@link Lens} to compose with.
+   * @param <B> The type of the final focused parts.
+   * @return A new, composed {@link Traversal}.
+   */
+  default <B> Traversal<S, B> andThen(final Lens<A, B> lens) {
+    Traversal<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        // For each A in the traversal, use the lens to modify B
+        return self.modifyF(
+            a -> {
+              B b = lens.get(a);
+              Kind<F, B> modifiedB = f.apply(b);
+              return app.map(newB -> lens.set(newB, a), modifiedB);
+            },
+            source,
+            app);
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Traversal<S, A>} with a {@code Prism<A, B>} to create a new {@code
+   * Traversal<S, B>}.
+   *
+   * <p>This allows you to focus through multiple elements (via the Traversal) and then optionally
+   * zoom into each element (via the Prism). Elements where the prism doesn't match are left
+   * unchanged.
+   *
+   * <p>Example: If you have a traversal for all JSON values and a prism for string values,
+   * composing them gives you a traversal for all string values in the JSON.
+   *
+   * @param prism The {@link Prism} to compose with.
+   * @param <B> The type of the final focused parts.
+   * @return A new, composed {@link Traversal}.
+   */
+  default <B> Traversal<S, B> andThen(final Prism<A, B> prism) {
+    Traversal<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        // For each A in the traversal, use the prism to optionally modify B
+        return self.modifyF(
+            a -> prism.getOptional(a).map(b -> app.map(prism::build, f.apply(b))).orElse(app.of(a)),
+            source,
+            app);
+      }
+    };
+  }
+
+  /**
    * Branch between two modification strategies based on a predicate. Both branches are visible
    * upfront, allowing selective implementations to potentially execute them in parallel.
    *

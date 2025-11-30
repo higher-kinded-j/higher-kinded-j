@@ -34,7 +34,6 @@ module org.higherkindedj.core {
   exports org.higherkindedj.optics.extensions;
   exports org.higherkindedj.optics.at;
   exports org.higherkindedj.optics.ixed;
-  exports org.higherkindedj.optics.prism;
   exports org.higherkindedj.optics.free;
   exports org.higherkindedj.optics.fluent;
 }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -51,6 +52,38 @@ public final class Prisms {
    */
   public static <A> Prism<Optional<A>, A> some() {
     return Prism.of(Function.identity(), Optional::of);
+  }
+
+  /**
+   * Creates a prism for {@link Optional} that focuses on the empty case.
+   *
+   * <p>This prism matches when the {@code Optional} is empty. It is the complement to {@link
+   * #some()}. Building always returns an empty {@code Optional}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<Optional<String>, Unit> nonePrism = Prisms.none();
+   *
+   * Optional<String> empty = Optional.empty();
+   * Optional<Unit> result = nonePrism.getOptional(empty);  // Optional.of(Unit.INSTANCE)
+   *
+   * Optional<String> present = Optional.of("hello");
+   * Optional<Unit> noMatch = nonePrism.getOptional(present);  // Optional.empty()
+   *
+   * Optional<String> built = nonePrism.build(Unit.INSTANCE);  // Optional.empty()
+   * }</pre>
+   *
+   * <p>This is less commonly used than {@link #some()}, but can be useful for checking absence or
+   * for pattern matching scenarios.
+   *
+   * @param <A> The type that would be contained in the Optional (phantom type in empty case).
+   * @return A prism focusing on the empty case of an {@code Optional}.
+   */
+  public static <A> Prism<Optional<A>, Unit> none() {
+    return Prism.of(
+        opt -> opt.isEmpty() ? Optional.of(Unit.INSTANCE) : Optional.empty(),
+        _unit -> Optional.empty());
   }
 
   /**
@@ -307,6 +340,44 @@ public final class Prisms {
     return Prism.of(
         actual -> Objects.equals(actual, expected) ? Optional.of(Unit.INSTANCE) : Optional.empty(),
         unit -> expected);
+  }
+
+  /**
+   * Creates a prism that matches values satisfying a predicate.
+   *
+   * <p>This prism is useful for matching categories of values rather than exact values. When
+   * building, it returns the provided default value. This is the predicate-based complement to
+   * {@link #only(Object)}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Match any non-empty string
+   * Prism<String, Unit> nonEmptyPrism = Prisms.nearly("default", s -> !s.isEmpty());
+   *
+   * Optional<Unit> result1 = nonEmptyPrism.getOptional("hello");  // Optional.of(Unit.INSTANCE)
+   * Optional<Unit> result2 = nonEmptyPrism.getOptional("");       // Optional.empty()
+   * String built = nonEmptyPrism.build(Unit.INSTANCE);            // "default"
+   *
+   * // Match positive numbers
+   * Prism<Integer, Unit> positivePrism = Prisms.nearly(1, n -> n > 0);
+   *
+   * // Match valid email addresses (simplified)
+   * Prism<String, Unit> emailPrism = Prisms.nearly(
+   *     "user@example.com",
+   *     s -> s.contains("@") && s.contains(".")
+   * );
+   * }</pre>
+   *
+   * @param defaultValue The value to return when building.
+   * @param predicate The condition values must satisfy to match.
+   * @param <A> The type of the value.
+   * @return A prism that matches values satisfying the predicate.
+   */
+  public static <A> Prism<A, Unit> nearly(A defaultValue, Predicate<A> predicate) {
+    return Prism.of(
+        actual -> predicate.test(actual) ? Optional.of(Unit.INSTANCE) : Optional.empty(),
+        unit -> defaultValue);
   }
 
   /**

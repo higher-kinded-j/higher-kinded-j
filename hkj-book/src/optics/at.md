@@ -225,7 +225,7 @@ Config withoutDebug = debugSettingLens.set(Optional.empty(), withDebug);
 When you need to access the actual value (not the `Optional` wrapper), compose with `Prisms.some()`:
 
 ```java
-import org.higherkindedj.optics.prism.Prisms;
+import org.higherkindedj.optics.util.Prisms;
 
 Lens<Config, Optional<String>> debugLens =
     settingsLens.andThen(mapAt.at("debug"));
@@ -548,7 +548,7 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.at.AtInstances;
-import org.higherkindedj.optics.prism.Prisms;
+import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 
 public class AtUsageExample {

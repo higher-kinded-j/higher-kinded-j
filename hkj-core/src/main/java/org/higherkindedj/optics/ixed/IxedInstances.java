@@ -13,7 +13,7 @@ import org.higherkindedj.optics.Ixed;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.at.AtInstances;
-import org.higherkindedj.optics.prism.Prisms;
+import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
