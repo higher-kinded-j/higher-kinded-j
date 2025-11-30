@@ -175,7 +175,7 @@ public record Pipeline(
 
 **Purpose**: Place Higher-Kinded-J in context, acknowledge alternatives.
 
-#### 6.1 Other Approaches
+#### 6.1 Other Approaches in Java
 - **Record patterns + with expressions (JEP 468)**: Simpler for shallow updates
 - **Immutables/AutoValue**: Builder-based approaches
 - **Lombok's @With**: Annotation-driven but limited composition
@@ -183,8 +183,9 @@ public record Pipeline(
 **Honest comparison**: "For single-level updates, JEP 468's `with` expression will be simpler. Optics earn their keep at depth three and beyond."
 
 #### 6.2 The Functional Programming Tradition
-- Haskell's lens ecosystem
-- Scala's Monocle
+- Haskell's lens ecosystem (Kmett's lens: the gold standard)
+- Scala's Monocle (mature, well-documented)
+- Kotlin's Arrow Optics
 - How Higher-Kinded-J brings this to Java idiomatically
 
 #### 6.3 What's Missing (Future Directions)
@@ -196,24 +197,119 @@ public record Pipeline(
 
 ---
 
-### 7. Philosophical Conclusion (400-500 words)
+### 7. Higher-Kinded-J: Position and Ambition (600-700 words)
 
-**Purpose**: Tie back to the DOP narrative, leave readers with something to think about.
+**Purpose**: Honest assessment of where the library stands and where it's heading.
 
-#### 7.1 Completing the DOP Picture
+#### 7.1 Current Capabilities
+
+**Optics coverage**:
+- Lens, Prism, Optional, Traversal (full implementation)
+- Affine (partial)
+- Composition across all optic types
+- Annotation-driven generation
+
+**Effect system**:
+- Full monad hierarchy (Functor, Applicative, Monad)
+- Validated for error accumulation
+- Either for fail-fast
+- State for stateful computation
+- IO for effect tracking
+
+**How it compares** (honest assessment):
+| Feature | Haskell lens | Monocle (Scala) | Arrow (Kotlin) | Higher-Kinded-J |
+|---------|-------------|-----------------|----------------|-----------------|
+| Optic types | Complete | Complete | Complete | Core types |
+| Type safety | Native HKT | Native HKT | Native HKT | Simulated HKT |
+| IDE support | Excellent | Good | Good | Growing |
+| Documentation | Extensive | Good | Good | Developing |
+| Java integration | N/A | Interop | Interop | Native |
+
+**Key differentiator**: Native Java, designed for DOP patterns, no language boundary.
+
+#### 7.2 The Ambition
+
+**Vision statement** (understated):
+- "To become the natural choice for optics in Java's data-oriented ecosystem"
+- Not competing with Haskell or Scala on their turf
+- Filling the gap in Java's functional programming story
+
+**What "best for Java DOP" means**:
+- Seamless integration with records and sealed types
+- Annotation processing that feels native
+- Effect abstractions that complement, not fight, Java's type system
+- Documentation that speaks to Java developers
+
+#### 7.3 Learning Resources
+
+**Signpost to documentation**:
+- Full API documentation at [higher-kinded-j.github.io](https://higher-kinded-j.github.io/)
+- Interactive tutorials for hands-on learning
+- Extensive example projects covering real-world patterns
+- Cookbook-style guides for common tasks
+
+**Example mention**: "The configuration management example from Section 5 is explored in depth in the online tutorials, with runnable code you can modify."
+
+#### 7.4 Community and Contribution
+
+**Invitation** (genuine, not marketing):
+- "Higher-Kinded-J is a young project. It needs contributors."
+- Areas where help is welcome:
+  - Additional optic types (Iso, Getter, Fold)
+  - IDE plugins for optic composition
+  - Documentation and tutorials
+  - Real-world usage feedback
+  - Performance optimisation
+
+**How to get involved**:
+- GitHub repository for code contributions
+- Issue tracker for bug reports and feature requests
+- Discussions for questions and ideas
+
+**Tone**: "If you've found these patterns useful, consider helping make them accessible to more Java developers."
+
+---
+
+### 8. Philosophical Conclusion (500-600 words)
+
+**Purpose**: Tie back to the DOP narrative, leave readers with something to think about. Space for genuine reflection.
+
+#### 8.1 Completing the DOP Picture
 - Java 25 gave us the data modelling
 - Pattern matching gave us reading
 - Optics (via Higher-Kinded-J) complete writing
 - Effect polymorphism unifies it all
 
-#### 7.2 The Composability Principle
+#### 8.2 The Composability Principle
 - Small, focused abstractions
 - Composition over configuration
 - Types as documentation
 
 **Quote opportunity**: Something from Normand about "building with small pieces" or Hickey on simplicity.
 
-#### 7.3 Final Reflection
+#### 8.3 The Future: Higher-Kinded Types in Java?
+
+**Reference**: Brian Goetz's "Growing the Java Language" talk (https://www.youtube.com/watch?v=Gz7Or9C0TpM)
+
+**The possibility**:
+- Java has evolved remarkably: generics, lambdas, records, sealed types, pattern matching
+- Each addition seemed impossible until it arrived
+- Higher-kinded types remain on the theoretical horizon
+
+**Goetz's philosophy** (paraphrase):
+- "Java evolves by finding the right Java-shaped solution"
+- Not copying Haskell or Scala, but learning from them
+- The question isn't "will Java get HKT?" but "what would HKT look like in Java?"
+
+**Higher-Kinded-J's role**:
+- Demonstrates the patterns are useful in Java today
+- Provides a proving ground for idioms
+- If HKT comes to Java, the patterns we've explored will transfer
+- If it doesn't, the library continues to fill the gap
+
+**Tone**: Neither predicting nor advocating, simply noting the possibility.
+
+#### 8.4 Final Reflection
 Not a sales pitch but a genuine reflection:
 - "We've shown one path through the territory"
 - "Your domain will suggest its own patterns"
@@ -223,17 +319,19 @@ Not a sales pitch but a genuine reflection:
 
 ---
 
-### 8. Further Reading (comprehensive for the series)
+### 9. Further Reading (comprehensive for the series)
 
 #### Data-Oriented Programming
 - Goetz & Kiehl book (when published)
 - Goetz's InfoQ articles and talks
+- Goetz's "Growing the Java Language" (https://www.youtube.com/watch?v=Gz7Or9C0TpM)
 - Normand's *Grokking Simplicity*
 - Hickey's talks on simplicity and values
 
 #### Optics Deep Dive
 - Kmett's lens library (Haskell)
-- Monocle (Scala)
+- Monocle (Scala) - https://www.optics.dev/Monocle/
+- Arrow Optics (Kotlin) - https://arrow-kt.io/learn/immutable-data/intro/
 - Academic papers (profunctor optics, etc.)
 
 #### Effect Systems
@@ -242,7 +340,9 @@ Not a sales pitch but a genuine reflection:
 - Odersky on effects in Scala 3
 
 #### Higher-Kinded-J
-- Full documentation index
+- **Documentation and tutorials**: https://higher-kinded-j.github.io/
+- Interactive examples (runnable in browser)
+- API reference
 - Example projects
 - Contributing guide
 
@@ -262,7 +362,7 @@ Not a sales pitch but a genuine reflection:
 - Diagrams (textual) for pipeline visualisation
 
 ### Length
-- Target: 3500-4500 words (longer than others, as it synthesises)
+- Target: 4000-4500 words (longer than others, allowing space for reflection)
 
 ### Cross-References
 - Reference earlier articles frequently ("As we saw in Article 3...")
@@ -298,29 +398,30 @@ Runnable demo showing the pipeline in action.
 | 4 | Traversals | "The scaling mechanism" |
 | 5 | Effect polymorphism | "The unifying principle" |
 
+## Key External References for Article 6
+
+| Reference | Where Used | Purpose |
+|-----------|------------|---------|
+| Goetz "Growing the Java Language" | Section 8.3 | HKT future possibility |
+| Monocle (Scala) | Section 6.2, 7.1 | Comparative positioning |
+| Arrow Optics (Kotlin) | Section 6.2, 7.1 | Comparative positioning |
+| higher-kinded-j.github.io | Section 7.3, 9 | Documentation signpost |
+
 ---
 
 ## Questions for Discussion Before Writing
 
-1. **Should we include a parser?** The series hasn't covered parsing. We could:
-   - Skip it (pipeline starts at AST)
-   - Include a simple recursive descent parser
-   - Reference external parsing tools
+1. **Should we include a parser?** The series hasn't covered parsing.
+   - ✓ **Decision**: Include a simple parser but link to further resources for those wanting more depth.
 
-2. **How much new code?** Article 6 is retrospective. Should it:
-   - Primarily reference existing code
-   - Include substantial new examples
-   - Focus on prose and synthesis
+2. **How much new code?** Article 6 is retrospective.
+   - ✓ **Decision**: Check with author before adding possible new examples. Primarily reference existing code.
 
 3. **Real-world example depth?** For section 5:
-   - Brief sketches of multiple domains
-   - One deep-dive into a single domain
-   - Mix of both
+   - ✓ **Decision**: Provide options for the author to choose from (brief sketches vs deep-dive vs mix).
 
-4. **Length vs. focus?** Risk of being too long. Consider:
-   - Keeping it tight (3000 words)
-   - Allowing more space for reflection (4500 words)
-   - Splitting into 6a (retrospective) and 6b (real-world)
+4. **Length vs. focus?** Risk of being too long.
+   - ✓ **Decision**: Allow more space for reflection (4500 words). The final article warrants breathing room.
 
 ---
 
@@ -340,10 +441,12 @@ Runnable demo showing the pipeline in action.
 2. Write sections 1-2 (journey recap + pipeline)
 3. Write section 3 (design patterns)
 4. Write sections 4-5 (performance + real-world)
-5. Write sections 6-7 (landscape + conclusion)
-6. Add Further Reading and final polish
-7. Create supporting code (Pipeline.java, demo)
-8. Review pass for consistency with earlier articles
+5. Write section 6 (broader landscape)
+6. Write section 7 (Higher-Kinded-J position and ambition)
+7. Write section 8 (philosophical conclusion + HKT future)
+8. Add Further Reading and final polish
+9. Create supporting code (Pipeline.java, simple parser, demo)
+10. Review pass for consistency with earlier articles
 
 ---
 
