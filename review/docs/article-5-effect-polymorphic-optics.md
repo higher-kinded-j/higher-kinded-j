@@ -6,13 +6,13 @@ In Article 4, we built traversals that visit every node in our expression tree. 
 
 Real compilers and interpreters need more. Type checking should report *all* errors, not just the first one. Interpretation must track variable bindings as it descends through the tree. Logging might help debug complex transformations. These are *effects*, and they change everything about how we structure our code.
 
-This is where Higher-Kinded-J reveals its full potential. The same traversals we wrote in Article 4 will work unchanged with effectful operations. We simply swap the effect type.
+This is where Higher-Kinded-J reveals its full potential. The same traversals we wrote in Article 4 will work unchanged with effectful operations. We simply swap the effect type. It's rather like discovering your trusty Swiss Army knife also works underwater.
 
 ---
 
 ## The Problem with Effects
 
-Consider type checking. A naive approach fails on the first error:
+Consider type checking. A naïve approach fails on the first error:
 
 ```java
 public Type typeCheck(Expr expr, Environment env) throws TypeError {
@@ -34,9 +34,9 @@ public Type typeCheck(Expr expr, Environment env) throws TypeError {
 }
 ```
 
-The problem: if `left` has an error, we never check `right`. Users see one error, fix it, recompile, see another error, and repeat. This frustrating cycle is avoidable.
+The problem: if `left` has an error, we never check `right`. Users see one error, fix it, recompile, see another error, and repeat. Anyone who's wrestled with a particularly unhelpful C++ template error message knows this frustrating cycle. It's the compiler equivalent of a helpful colleague who points out problems one at a time, making you walk back to their desk after each fix. Avoidable, and rather annoying.
 
-We want *error accumulation*: collect all type errors in a single pass, then report them together. But this requires threading an error collection through every recursive call. The code becomes cluttered with accumulator parameters.
+We want *error accumulation*: collect all type errors in a single pass, then report them together. But this requires threading an error collection through every recursive call. The code becomes cluttered with accumulator parameters, and suddenly your elegant pattern-matched type checker looks like it's been attacked by a bureaucrat with a clipboard.
 
 Similarly, interpretation needs environment threading:
 
@@ -62,7 +62,7 @@ public Object interpret(Expr expr, Environment env) {
 }
 ```
 
-This looks clean, but what if we add `let` bindings that extend the environment? Or mutable references? The environment threading becomes explicit and error-prone.
+This looks clean, but what if we add `let` bindings that extend the environment? Or mutable references? The environment threading becomes explicit and error-prone. Pass the wrong environment to a recursive call, and you've got a subtle bug that only manifests in deeply nested expressions—the kind that makes you question your career choices at 4pm on a Friday.
 
 ---
 
@@ -74,14 +74,16 @@ In Higher-Kinded-J, this abstraction is the `Kind<F, A>` type: a value of type `
 
 | Effect Type | `Kind<F, A>` represents | Behaviour |
 |-------------|------------------------|-----------|
-| `Identity` | Just `A` | Pure computation, no effects |
-| `Optional` | `A` or nothing | Computation that might fail |
+| `Id` | Just `A` | Pure computation, no effects |
+| `Maybe` | `A` or nothing | Computation that might fail silently |
 | `Either<E, ?>` | `A` or error `E` | Fail-fast error handling |
 | `Validated<E, ?>` | `A` or accumulated errors | Error accumulation |
 | `State<S, ?>` | `A` with state `S` | Stateful computation |
 | `IO` | Deferred `A` | Side effects |
 
-The key insight: if we write our traversals to work with any `Kind<F, A>`, we get all these behaviours for free.
+The key insight: if we write our traversals to work with any `Kind<F, A>`, we get all these behaviours for free. Write once, run with any effect. It's polymorphism, but for computational context rather than data types.
+
+For Java developers used to thinking in terms of `Optional<T>` or `CompletableFuture<T>`, this is the next level: abstracting over *which* wrapper type you're using, not just what's inside it. It's the difference between knowing how to drive a car and understanding how internal combustion works—both useful, but the latter opens up rather more possibilities.
 
 ---
 
@@ -112,7 +114,7 @@ The `Applicative<F>` parameter provides two essential operations:
 1. **`of(a)`**: Wrap a pure value in the effect (also called `pure`)
 2. **`map2(fa, fb, combine)`**: Combine two effectful values
 
-With just these two operations, we can sequence independent computations while accumulating their effects. For dependent computations (where the result of one affects what we do next), we need `Monad` and its `flatMap`.
+With just these two operations, we can sequence independent computations whilst accumulating their effects. For dependent computations (where the result of one affects what we do next), we need `Monad` and its `flatMap`.
 
 ### Example: Pure Transformation
 
@@ -135,7 +137,7 @@ Expr result = Traversals.modify(children, e -> {
 
 ### Example: Stateful Transformation
 
-Using Higher-Kinded-J's `State` monad, transformations can track state:
+Using Higher-Kinded-J's `State` monad, transformations can track state. Here's where it gets interesting:
 
 ```java
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
@@ -152,11 +154,13 @@ StateMonad<Integer> stateMonad = new StateMonad<>();
 Kind<StateKind.Witness<Integer>, Expr> stateKind = children.modifyF(
     e -> {
         if (e instanceof Literal(Integer i)) {
+            // State.modify returns Unit, so we use _ to indicate the unused parameter
             State<Integer, Expr> countAndTransform =
-                State.<Integer>modify(count -> count + 1).map(v -> new Literal(i * 10));
+                State.<Integer>modify(count -> count + 1).map(_ -> new Literal(i * 10));
             return STATE.widen(countAndTransform);
         }
-        return STATE.widen(State.pure(e));
+        // Use STATE.pure() directly - it returns Kind, avoiding manual widen()
+        return STATE.pure(e);
     },
     expr,
     stateMonad);
@@ -166,11 +170,15 @@ System.out.printf("Transformed: %s, count = %d%n",
     stateResult.value().format(), stateResult.state());
 ```
 
+Notice the `_` in `.map(_ -> new Literal(i * 10))`. Since `State.modify` returns `Unit` (it modifies state but produces no meaningful value), we use Java's unnamed variable pattern to indicate we're deliberately ignoring it. It's a small touch, but it signals intent clearly to anyone reading the code—including your future self at 3am debugging a production issue.
+
+Also note `STATE.pure(e)` instead of `STATE.widen(State.pure(e))`. The `StateKindHelper` provides convenience methods that return `Kind` directly, saving you from the ceremony of manual widening. It's the little things that make a library pleasant to use.
+
 ---
 
 ## Type Checking with Validated
 
-`Validated<E, A>` is the key to error accumulation. Unlike `Either`, which short-circuits on the first error, `Validated` collects all errors before failing.
+`Validated<E, A>` is the key to error accumulation. Unlike `Either`, which short-circuits on the first error, `Validated` collects all errors before failing. It's the difference between a helpful colleague who points out all the issues in your code review versus one who stops at the first problem and makes you resubmit. We've all worked with both types.
 
 ### The Validated Type
 
@@ -181,9 +189,9 @@ public sealed interface Validated<E, A> {
 }
 ```
 
-The crucial difference from `Either`: `Validated` forms an `Applicative` but *not* a `Monad`. This isn't a limitation; it's the feature. Without `flatMap`, independent validations run in parallel (logically), accumulating all their errors.
+The crucial difference from `Either`: `Validated` forms an `Applicative` but *not* a `Monad`. This isn't a limitation; it's the feature. Without `flatMap`, independent validations run in parallel (logically), accumulating all their errors. You can't accidentally short-circuit because there's no way to express sequential dependency.
 
-### Building a Type Checker
+### Building a Type Checker with ValidatedMonad
 
 First, define our type and error types:
 
@@ -212,17 +220,24 @@ public record TypeError(String message) {
 }
 ```
 
-Now the type checker. We use Java 21+ pattern matching on `Valid`/`Invalid` to accumulate errors:
+Now the type checker. This is where Higher-Kinded-J really shines. We use `ValidatedMonad` with its `map2` and `map3` methods to combine multiple validations whilst accumulating all errors:
 
 ```java
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.validated.Invalid;
-import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
+import org.higherkindedj.hkt.validated.ValidatedMonad;
 
 public final class ExprTypeChecker {
 
     private static final Semigroup<List<TypeError>> ERROR_SEMIGROUP = TypeError.semigroup();
+
+    /** ValidatedMonad instance for applicative-style error accumulation. */
+    private static final ValidatedMonad<List<TypeError>> VALIDATED_MONAD =
+        ValidatedMonad.instance(ERROR_SEMIGROUP);
 
     public static Validated<List<TypeError>, Type> typeCheck(Expr expr, TypeEnv env) {
         return switch (expr) {
@@ -256,18 +271,18 @@ public final class ExprTypeChecker {
         Validated<List<TypeError>, Type> leftResult = typeCheck(left, env);
         Validated<List<TypeError>, Type> rightResult = typeCheck(right, env);
 
-        // Use Java 21+ pattern matching on Valid/Invalid to accumulate errors
-        return switch (leftResult) {
-            case Valid(var lt) -> switch (rightResult) {
-                case Valid(var rt) -> checkBinaryTypes(op, lt, rt);
-                case Invalid(var errors) -> Validated.invalid(errors);
-            };
-            case Invalid(var leftErrors) -> switch (rightResult) {
-                case Valid(_) -> Validated.invalid(leftErrors);
-                case Invalid(var rightErrors) ->
-                    Validated.invalid(ERROR_SEMIGROUP.combine(leftErrors, rightErrors));
-            };
-        };
+        // Use Higher-Kinded-J's ValidatedMonad.map2 for applicative-style error accumulation.
+        // map2 combines two Validated values: if both are Valid, it applies the combining
+        // function; if either (or both) are Invalid, it accumulates all errors using the
+        // semigroup. We then flatMap to handle the type constraint validation.
+        Kind<ValidatedKind.Witness<List<TypeError>>, Validated<List<TypeError>, Type>> combined =
+            VALIDATED_MONAD.map2(
+                VALIDATED.widen(leftResult),
+                VALIDATED.widen(rightResult),
+                (lt, rt) -> checkBinaryTypes(op, lt, rt));
+
+        // Flatten the nested Validated: if sub-expression checking succeeded, return the type check
+        return VALIDATED.narrow(combined).flatMap(innerResult -> innerResult);
     }
 
     private static Validated<List<TypeError>, Type> typeCheckConditional(
@@ -276,81 +291,54 @@ public final class ExprTypeChecker {
         Validated<List<TypeError>, Type> thenResult = typeCheck(then_, env);
         Validated<List<TypeError>, Type> elseResult = typeCheck(else_, env);
 
-        // Accumulate all sub-expression errors
-        List<TypeError> subExprErrors = collectErrors(condResult, thenResult, elseResult);
-        if (!subExprErrors.isEmpty()) {
-            return Validated.invalid(subExprErrors);
-        }
+        // Use Higher-Kinded-J's ValidatedMonad.map3 for applicative-style error accumulation.
+        // This elegantly handles three sub-expressions: if any have errors, all errors are
+        // accumulated. Only when all three are Valid do we proceed to check the constraints.
+        Kind<ValidatedKind.Witness<List<TypeError>>, Validated<List<TypeError>, Type>> combined =
+            VALIDATED_MONAD.map3(
+                VALIDATED.widen(condResult),
+                VALIDATED.widen(thenResult),
+                VALIDATED.widen(elseResult),
+                ExprTypeChecker::checkConditionalTypes);
 
-        // All sub-expressions valid - extract types and check constraints
-        Type ct = ((Valid<List<TypeError>, Type>) condResult).value();
-        Type tt = ((Valid<List<TypeError>, Type>) thenResult).value();
-        Type et = ((Valid<List<TypeError>, Type>) elseResult).value();
-        return checkConditionalTypes(ct, tt, et);
+        return VALIDATED.narrow(combined).flatMap(innerResult -> innerResult);
     }
 
-    @SafeVarargs
-    private static List<TypeError> collectErrors(Validated<List<TypeError>, Type>... results) {
-        List<TypeError> errors = List.of();
-        for (var result : results) {
-            if (result instanceof Invalid(var errs)) {
-                errors = ERROR_SEMIGROUP.combine(errors, errs);
-            }
-        }
-        return errors;
-    }
-
-    private static Validated<List<TypeError>, Type> checkBinaryTypes(
-            BinaryOp op, Type left, Type right) {
-        return switch (op) {
-            case ADD, SUB, MUL, DIV -> (left == Type.INT && right == Type.INT)
-                ? Validated.valid(Type.INT)
-                : Validated.invalid(TypeError.single(
-                    "Arithmetic operator '%s' requires INT operands, got %s and %s"
-                        .formatted(op.symbol(), left, right)));
-            case AND, OR -> (left == Type.BOOL && right == Type.BOOL)
-                ? Validated.valid(Type.BOOL)
-                : Validated.invalid(TypeError.single(
-                    "Logical operator '%s' requires BOOL operands, got %s and %s"
-                        .formatted(op.symbol(), left, right)));
-            case EQ, NE -> (left == right)
-                ? Validated.valid(Type.BOOL)
-                : Validated.invalid(TypeError.single(
-                    "Equality operator '%s' requires matching types, got %s and %s"
-                        .formatted(op.symbol(), left, right)));
-            case LT, LE, GT, GE -> (left == Type.INT && right == Type.INT)
-                ? Validated.valid(Type.BOOL)
-                : Validated.invalid(TypeError.single(
-                    "Comparison operator '%s' requires INT operands, got %s and %s"
-                        .formatted(op.symbol(), left, right)));
-        };
-    }
-
-    private static Validated<List<TypeError>, Type> checkConditionalTypes(
-            Type cond, Type then_, Type else_) {
-        List<TypeError> errors = List.of();
-
-        if (cond != Type.BOOL) {
-            errors = ERROR_SEMIGROUP.combine(errors,
-                TypeError.single("Conditional requires BOOL condition, got %s".formatted(cond)));
-        }
-
-        if (then_ != else_) {
-            errors = ERROR_SEMIGROUP.combine(errors,
-                TypeError.single("Conditional branches must have same type, got %s and %s"
-                    .formatted(then_, else_)));
-        }
-
-        return errors.isEmpty() ? Validated.valid(then_) : Validated.invalid(errors);
-    }
+    // ... checkBinaryTypes and checkConditionalTypes methods
 }
 ```
+
+### The Elegance of map2 and map3
+
+Look at what `map2` and `map3` buy us. Without them, we'd write tedious nested pattern matching:
+
+```java
+// The manual approach - what ValidatedMonad.map2 does for us automatically
+return switch (leftResult) {
+    case Valid(var lt) -> switch (rightResult) {
+        case Valid(var rt) -> checkBinaryTypes(op, lt, rt);
+        case Invalid(var errors) -> Validated.invalid(errors);
+    };
+    case Invalid(var leftErrors) -> switch (rightResult) {
+        case Valid(_) -> Validated.invalid(leftErrors);
+        case Invalid(var rightErrors) ->
+            Validated.invalid(ERROR_SEMIGROUP.combine(leftErrors, rightErrors));
+    };
+};
+```
+
+That's four cases for two operands. For three operands (like a conditional), you'd have eight cases. For four operands, sixteen. The combinatorial explosion is rather unfriendly to maintainers.
+
+Higher-Kinded-J's `map2` and `map3` abstract this pattern entirely. They handle the error accumulation logic once, correctly, and you simply provide the combining function. It's the kind of abstraction that makes you wonder how you ever lived without it—like discovering that `Stream.map()` exists after years of writing explicit loops.
 
 ### Running the Type Checker
 
 ```java
-// Build an expression: (1 + true) - type error in left operand
-Expr expr = new Binary(new Literal(1), BinaryOp.ADD, new Literal(true));
+// Build an expression with multiple errors: (1 + true) * (false && 42)
+Expr leftError = new Binary(new Literal(1), BinaryOp.ADD, new Literal(true));
+Expr rightError = new Binary(new Literal(false), BinaryOp.AND, new Literal(42));
+Expr expr = new Binary(leftError, BinaryOp.MUL, rightError);
+
 Validated<List<TypeError>, Type> result = ExprTypeChecker.typeCheck(expr, TypeEnv.empty());
 
 switch (result) {
@@ -368,15 +356,16 @@ Output:
 ```
 Type errors:
   - Arithmetic operator '+' requires INT operands, got INT and BOOL
+  - Logical operator '&&' requires BOOL operands, got BOOL and INT
 ```
 
-Both errors are reported in a single pass. This is the power of `Validated` with `Applicative`.
+Both errors are reported in a single pass. The user can fix them both at once, rather than playing whack-a-mole with sequential error messages. This is the power of `Validated` with `Applicative`—and `ValidatedMonad.map2` makes it trivially easy to use.
 
 ---
 
 ## Interpretation with State
 
-For interpretation, we need to thread an environment through the computation. The `State` monad captures this pattern.
+For interpretation, we need to thread an environment through the computation. The `State` monad captures this pattern elegantly.
 
 ### Higher-Kinded-J's State Type
 
@@ -395,7 +384,7 @@ state.map(f)                // Transform the result
 state.run(initialState)     // Run and get StateTuple<S, A>
 ```
 
-The result of `run()` is a `StateTuple<S, A>` with `value()` for the result and `state()` for the final state.
+The result of `run()` is a `StateTuple<S, A>` with `value()` for the result and `state()` for the final state. It's a pair, but with named accessors because Java developers deserve nice things too.
 
 ### Building an Interpreter
 
@@ -467,26 +456,26 @@ Environment env = Environment.of("x", 10);
 Object result = ExprInterpreter.eval(expr, env);
 // result = 22
 
-// Or using State directly:
+// Or using State directly for more control:
 StateTuple<Environment, Object> tuple = ExprInterpreter.interpret(expr).run(env);
 Object value = tuple.value();      // 22
 Environment finalEnv = tuple.state();  // unchanged environment
 ```
 
-The environment is threaded implicitly through `flatMap`. We never pass it explicitly after the initial `eval` call.
+The environment is threaded implicitly through `flatMap`. We never pass it explicitly after the initial `eval` call. The State monad handles all the plumbing, and we focus on the logic. It's rather liberating.
 
 ---
 
 ## Combining Validated and State
 
-Our type checker uses `Validated` for error accumulation, while our interpreter uses `State` for environment threading. Each effect serves a distinct purpose:
+Our type checker uses `Validated` for error accumulation, whilst our interpreter uses `State` for environment threading. Each effect serves a distinct purpose:
 
 - **Validated**: Independent sub-expression checks that accumulate all errors
 - **State**: Sequential interpretation where results flow through `flatMap`
 
 This separation is intentional. Type checking sub-expressions is *independent*—the type of the left operand doesn't determine whether we check the right. Interpretation is *sequential*—we must evaluate the condition before choosing a branch.
 
-Higher-Kinded-J's design makes this distinction explicit through its type class hierarchy: `Validated` is an `Applicative` (for independent combination), while `State` is a `Monad` (for sequential dependency).
+Higher-Kinded-J's design makes this distinction explicit through its type class hierarchy: `Validated` is an `Applicative` (for independent combination), whilst `State` is a `Monad` (for sequential dependency). Choosing the right abstraction isn't just academic; it affects whether errors accumulate or short-circuit. Get it wrong, and your users will notice.
 
 ---
 
@@ -520,12 +509,12 @@ public static Traversal<Expr, Expr> children() {
 This same traversal works with:
 
 1. **Identity**: Pure transformations (our Article 4 optimiser)
-2. **Optional**: Transformations that might fail
+2. **Maybe**: Transformations that might fail silently
 3. **Validated**: Transformations that accumulate errors
 4. **State**: Transformations that need context
 5. **IO**: Transformations with side effects
 
-We wrote the traversal once. Higher-Kinded-J's abstraction gives us all these behaviours.
+We wrote the traversal once. Higher-Kinded-J's abstraction gives us all these behaviours. The `Applicative<F>` parameter is the magic switch that determines which effect system we're using. It's polymorphism at the effect level, and it's remarkably powerful.
 
 ### Example: Collecting Variables with State
 
@@ -538,13 +527,14 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.state.StateTuple;
 
-// Define a collector that adds variable names to an immutable Set
+// Define a collector that adds variable names to an immutable Set.
+// State.modify returns Unit, so we use _ to indicate the unused parameter.
 Function<Expr, State<Set<String>, Expr>> collector = e ->
     e instanceof Variable(var name)
         ? State.<Set<String>>modify(vars ->
               Stream.concat(vars.stream(), Stream.of(name))
                   .collect(Collectors.toUnmodifiableSet()))
-            .map(v -> e)
+            .map(_ -> e)  // _ indicates Unit is unused
         : State.pure(e);
 
 // Use a recursive approach to visit all nodes
@@ -573,21 +563,24 @@ Set<String> variables = result.state();
 
 ---
 
-## Summary
-
-This article explored effect-polymorphic optics, where the same structural code works with different computational effects:
-
-1. **Effect polymorphism**: Abstract over computational context with `Kind<F, A>`
-2. **Applicative and Monad**: The type classes that enable effect composition
-3. **Validated**: Accumulate all errors instead of failing fast
-4. **State**: Thread context through computations implicitly
-5. **modifyF**: The bridge between optics and effects
-
-### Higher-Kinded-J: Unlocking Java's Functional Potential
+## Modern Java and Higher-Kinded-J: The Complete Picture
 
 This article demonstrates something remarkable: Java can express the same effect-polymorphic patterns found in Haskell and Scala. Higher-Kinded-J makes this possible through a carefully designed encoding of higher-kinded types using witness types and defunctionalisation.
 
-What sets Higher-Kinded-J apart is not just that it provides these abstractions, but *how* it provides them:
+### Why This Matters for Data-Oriented Programming
+
+Modern Java (21+) has embraced data-oriented programming:
+
+- **Records** give us immutable data carriers
+- **Sealed interfaces** enable exhaustive sum types
+- **Pattern matching** makes destructuring elegant
+- **Switch expressions** replace verbose visitor patterns
+
+Higher-Kinded-J adds the missing piece: *effect-polymorphic operations* over these data structures. You can define a transformation once and run it with different effect systems—pure, stateful, error-accumulating, or asynchronous—without changing the core logic.
+
+This is the "special sauce" that takes Java's data-oriented features to the next level. Records and sealed interfaces define your data. Pattern matching reads it. Optics write it. And Higher-Kinded-J lets you do all of this with effects cleanly abstracted away. It's data-oriented programming with superpowers.
+
+### What Sets Higher-Kinded-J Apart
 
 1. **Genuine abstraction, not simulation**: The `Kind<F, A>` encoding isn't a workaround; it's a principled approach that preserves the full power of higher-kinded polymorphism. When you write `modifyF`, you're writing truly generic code that works with any effect, not code that pattern-matches on a fixed set of cases.
 
@@ -597,7 +590,22 @@ What sets Higher-Kinded-J apart is not just that it provides these abstractions,
 
 4. **Java remains Java**: Despite these powerful abstractions, the code remains idiomatic Java. Records, sealed interfaces, pattern matching, and switch expressions all work naturally with Higher-Kinded-J's types. You're not fighting the language; you're extending its reach.
 
-The expression language we've built across these articles now has type checking that reports all errors, interpretation that threads state cleanly, and optimisation that composes declaratively. All of this runs on the same traversal infrastructure, demonstrating that effect polymorphism isn't academic abstraction; it's practical engineering.
+The expression language we've built across these articles now has type checking that reports all errors, interpretation that threads state cleanly, and optimisation that composes declaratively. All of this runs on the same traversal infrastructure, demonstrating that effect polymorphism isn't academic abstraction—it's practical engineering that makes real code better.
+
+---
+
+## Summary
+
+This article explored effect-polymorphic optics, where the same structural code works with different computational effects:
+
+1. **Effect polymorphism**: Abstract over computational context with `Kind<F, A>`
+2. **Applicative and Monad**: The type classes that enable effect composition
+3. **Validated**: Accumulate all errors instead of failing fast
+4. **State**: Thread context through computations implicitly
+5. **modifyF**: The bridge between optics and effects
+6. **ValidatedMonad.map2/map3**: The idiomatic way to combine validations in Higher-Kinded-J
+
+The key takeaway: Higher-Kinded-J's abstractions aren't just theoretically elegant—they eliminate boilerplate, prevent bugs, and make your code more expressive. The `map2` and `map3` methods alone save you from writing dozens of lines of error-prone pattern matching. That's the kind of practical benefit that justifies learning any new abstraction.
 
 ---
 
@@ -605,17 +613,15 @@ The expression language we've built across these articles now has type checking 
 
 We've built a substantial expression language: AST definition, optics generation, tree traversals, optimisation passes, type checking, and interpretation. The foundation is solid, but there's more to explore.
 
-In Article 6, we'll tackle parsing and complete the picture:
+In Article 6, we'll step back and reflect on what we've built:
 
-- **Parser combinators**: Build a parser using Higher-Kinded-J's applicative style
-- **Error recovery**: Parse malformed input while collecting syntax errors
-- **Source locations**: Thread position information through the entire pipeline
-- **End-to-end demonstration**: From source text to evaluated result
+- **The complete pipeline**: From source text through parsing, type checking, optimisation, and evaluation
+- **Design patterns**: Common patterns for effect-polymorphic code
+- **Performance considerations**: When to use optics and when simpler approaches suffice
+- **Real-world applications**: Applying these techniques beyond expression languages
 
-Higher-Kinded-J's applicative functors prove invaluable for parsing. Parser combinators are inherently applicative: they combine independent parsers for different parts of the input. We'll see how the same `map2` and `map3` operations we used for type checking apply directly to parsing, creating a unified approach to combining computations.
-
-We'll also explore how Higher-Kinded-J's `Alternative` type class enables choice and repetition in parsers, completing the toolkit for building practical expression parsers without external dependencies.
+Higher-Kinded-J has shown us that Java can be a first-class functional programming language without abandoning its object-oriented roots. The combination of modern Java's data-oriented features with Higher-Kinded-J's effect abstractions creates a powerful toolkit for building robust, maintainable software. It's rather exciting, actually.
 
 ---
 
-*Next: [Article 6: Parser Combinators and the Complete Pipeline](article-6-parser-combinators.md)*
+*Next: [Article 6: Retrospective and Real-World Applications](article-6-retrospective.md)*

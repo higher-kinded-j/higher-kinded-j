@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.article5.typecheck;
 
-import java.util.Arrays;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+
 import java.util.List;
 import org.higherkindedj.article4.ast.BinaryOp;
 import org.higherkindedj.article4.ast.Expr;
@@ -10,10 +11,13 @@ import org.higherkindedj.article4.ast.Expr.Binary;
 import org.higherkindedj.article4.ast.Expr.Conditional;
 import org.higherkindedj.article4.ast.Expr.Literal;
 import org.higherkindedj.article4.ast.Expr.Variable;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.validated.Invalid;
 import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
+import org.higherkindedj.hkt.validated.ValidatedMonad;
 
 /**
  * Type checker for the expression language using Higher-Kinded-J's Validated for error
@@ -25,13 +29,20 @@ import org.higherkindedj.hkt.validated.Validated;
  *
  * <p>Key insight: type checking sub-expressions is INDEPENDENT. The type of the left operand
  * doesn't affect whether we should check the right operand. This makes {@code Validated} (which is
- * Applicative) perfect for the job. We use pattern matching on Valid/Invalid for clean error
- * accumulation.
+ * Applicative) perfect for the job.
+ *
+ * <p>We use Higher-Kinded-J's {@link ValidatedMonad} with its {@code map2} and {@code map3} methods
+ * to combine multiple validations while accumulating all errors. This is the idiomatic way to use
+ * Applicative-style error accumulation in Higher-Kinded-J.
  */
 public final class ExprTypeChecker {
 
   /** Semigroup for accumulating type errors. */
   private static final Semigroup<List<TypeError>> ERROR_SEMIGROUP = TypeError.semigroup();
+
+  /** ValidatedMonad instance for applicative-style error accumulation. */
+  private static final ValidatedMonad<List<TypeError>> VALIDATED_MONAD =
+      ValidatedMonad.instance(ERROR_SEMIGROUP);
 
   private ExprTypeChecker() {}
 
@@ -77,21 +88,23 @@ public final class ExprTypeChecker {
     Validated<List<TypeError>, Type> leftResult = typeCheck(left, env);
     Validated<List<TypeError>, Type> rightResult = typeCheck(right, env);
 
-    // Use Java 21+ pattern matching on Validated's Valid/Invalid subtypes
-    // This accumulates errors from both sub-expressions before checking type compatibility
-    return switch (leftResult) {
-      case Valid(var lt) ->
-          switch (rightResult) {
-            case Valid(var rt) -> checkBinaryTypes(op, lt, rt);
-            case Invalid(var errors) -> Validated.invalid(errors);
-          };
-      case Invalid(var leftErrors) ->
-          switch (rightResult) {
-            case Valid(_) -> Validated.invalid(leftErrors);
-            case Invalid(var rightErrors) ->
-                Validated.invalid(ERROR_SEMIGROUP.combine(leftErrors, rightErrors));
-          };
-    };
+    // Use Higher-Kinded-J's ValidatedMonad.map2 for applicative-style error accumulation.
+    // This is the idiomatic approach: map2 automatically accumulates errors from both
+    // operands before attempting to check type compatibility. If either (or both) operands
+    // have type errors, all errors are collected. Only when both are Valid do we proceed
+    // to check the operator's type constraints.
+    //
+    // map2 combines two Validated values: if both are Valid, it applies the combining function;
+    // if either (or both) are Invalid, it accumulates all errors using the semigroup.
+    // We then flatMap to handle the type constraint validation.
+    Kind<ValidatedKind.Witness<List<TypeError>>, Validated<List<TypeError>, Type>> combined =
+        VALIDATED_MONAD.map2(
+            VALIDATED.widen(leftResult),
+            VALIDATED.widen(rightResult),
+            (lt, rt) -> checkBinaryTypes(op, lt, rt));
+
+    // Flatten the nested Validated: if sub-expression checking succeeded, return the type check
+    return VALIDATED.narrow(combined).flatMap(innerResult -> innerResult);
   }
 
   private static Validated<List<TypeError>, Type> typeCheckConditional(
@@ -100,27 +113,21 @@ public final class ExprTypeChecker {
     Validated<List<TypeError>, Type> thenResult = typeCheck(then_, env);
     Validated<List<TypeError>, Type> elseResult = typeCheck(else_, env);
 
-    // Accumulate all sub-expression errors using pattern matching
-    List<TypeError> subExprErrors = collectErrors(condResult, thenResult, elseResult);
+    // Use Higher-Kinded-J's ValidatedMonad.map3 for applicative-style error accumulation.
+    // This elegantly handles three sub-expressions: if any have errors, all errors are
+    // accumulated. Only when all three are Valid do we proceed to check the constraints.
+    //
+    // This eliminates the need for unsafe casts and manual error collection - map3 does
+    // all the heavy lifting through the Applicative abstraction.
+    Kind<ValidatedKind.Witness<List<TypeError>>, Validated<List<TypeError>, Type>> combined =
+        VALIDATED_MONAD.map3(
+            VALIDATED.widen(condResult),
+            VALIDATED.widen(thenResult),
+            VALIDATED.widen(elseResult),
+            ExprTypeChecker::checkConditionalTypes);
 
-    if (!subExprErrors.isEmpty()) {
-      return Validated.invalid(subExprErrors);
-    }
-
-    // All sub-expressions valid - extract types and check constraints
-    Type ct = ((Valid<List<TypeError>, Type>) condResult).value();
-    Type tt = ((Valid<List<TypeError>, Type>) thenResult).value();
-    Type et = ((Valid<List<TypeError>, Type>) elseResult).value();
-
-    return checkConditionalTypes(ct, tt, et);
-  }
-
-  @SafeVarargs
-  private static List<TypeError> collectErrors(Validated<List<TypeError>, Type>... results) {
-    return Arrays.stream(results)
-        .filter(Validated::isInvalid)
-        .map(Validated::getError)
-        .reduce(List.of(), ERROR_SEMIGROUP::combine);
+    // Flatten: if sub-expression checking succeeded, return the constraint check result
+    return VALIDATED.narrow(combined).flatMap(innerResult -> innerResult);
   }
 
   private static Validated<List<TypeError>, Type> checkBinaryTypes(
