@@ -9,7 +9,7 @@ This module provides Spring Boot 3.5.7 integration for higher-kinded-j, enabling
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.higher-kinded-j:hkj-spring-starter:VERSION")
+    implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:VERSION")
 }
 ```
 
