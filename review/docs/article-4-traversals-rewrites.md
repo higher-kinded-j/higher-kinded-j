@@ -560,4 +560,32 @@ We'll see how Higher-Kinded-J's `Validated` type differs from `Either` (accumula
 
 ---
 
+## Further Reading
+
+### Tree Traversals and Recursion Schemes
+
+- **Patrick Thomson, ["An Introduction to Recursion Schemes"](https://blog.sumtypeofway.com/posts/introduction-to-recursion-schemes.html)** — A gentle introduction to the theory behind generic tree traversal patterns like catamorphisms and anamorphisms.
+
+- **Jeremy Gibbons & Bruno Oliveira, ["The Essence of the Iterator Pattern"](https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf)** (JFP, 2009) — The seminal paper showing how `Applicative` (which Higher-Kinded-J provides) enables effect-polymorphic traversals.
+
+### Compiler Optimisation
+
+- **Andrew Appel, *Modern Compiler Implementation in ML*** — Classic text covering constant folding, dead code elimination, and the other optimisations we've implemented. Available in Java and C editions.
+
+- **Keith Cooper & Linda Torczon, *Engineering a Compiler*** (2nd ed.) — Comprehensive coverage of program analysis and transformation passes.
+
+### Term Rewriting
+
+- **Franz Baader & Tobias Nipkow, *Term Rewriting and All That*** — For readers interested in the theoretical foundations of pattern-based rewriting systems.
+
+- The optimisation passes in this article are simple term rewrites. Industrial strength rewriting (like in GHC's rule system) adds phases, termination proofs, and confluent rule ordering.
+
+### Higher-Kinded-J
+
+- **[Traversal Documentation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/optics/Traversal.java)** — API reference for working with multi-focus optics.
+
+- **[Traversals Utility Class](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/optics/util/Traversals.java)** — Helper methods for `getAll`, `modify`, and fold operations.
+
+---
+
 *Next: [Article 5: Effect-Polymorphic Optics](article-5-effect-polymorphic-optics.md)*
