@@ -131,6 +131,175 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
+   * Composes this {@code Prism<S, A>} with an {@code Iso<A, B>} to produce a new {@code Prism<S,
+   * B>}.
+   *
+   * <p>This is possible because composing a partial focus with a lossless, two-way conversion
+   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * conveniently typed as a {@link Prism}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Domain model
+   * sealed interface JsonValue permits JsonString, JsonNumber {}
+   * record JsonString(String value) implements JsonValue {}
+   * record JsonNumber(double value) implements JsonValue {}
+   *
+   * // Prism from JsonValue to JsonString
+   * Prism<JsonValue, JsonString> jsonStringPrism = Prism.of(
+   *     jv -> jv instanceof JsonString js ? Optional.of(js) : Optional.empty(),
+   *     js -> js
+   * );
+   *
+   * // Iso from JsonString to String
+   * Iso<JsonString, String> jsonStringIso = Iso.of(
+   *     JsonString::value,
+   *     JsonString::new
+   * );
+   *
+   * // Compose: Prism + Iso = Prism
+   * Prism<JsonValue, String> stringValuePrism = jsonStringPrism.andThen(jsonStringIso);
+   * }</pre>
+   *
+   * @param iso The {@link Iso} to compose with.
+   * @param <B> The type of the final focused part.
+   * @return A new {@link Prism} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Prism<S, B> andThen(final Iso<A, B> iso) {
+    Prism<S, A> self = this;
+    return Prism.of(s -> self.getOptional(s).map(iso::get), b -> self.build(iso.reverseGet(b)));
+  }
+
+  /**
+   * Composes this {@code Prism<S, A>} with a {@code Lens<A, B>} to create a {@code Traversal<S,
+   * B>}.
+   *
+   * <p>The composition follows the standard optic composition rule: Prism >>> Lens = Traversal. The
+   * result is a Traversal because the Prism may not match, resulting in zero-or-one focus.
+   *
+   * <p>This composition is useful when navigating from sum types into their components:
+   *
+   * <ul>
+   *   <li>A sealed interface case that contains a record field
+   *   <li>An Either that contains a structured value
+   *   <li>Any "is-a" followed by "has-a" relationship
+   * </ul>
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Domain model using sealed interfaces
+   * sealed interface ApiResponse permits Success, Failure {}
+   * record Success(ResponseData data, String timestamp) implements ApiResponse {}
+   * record Failure(String error, int code) implements ApiResponse {}
+   * record ResponseData(String message, int count) {}
+   *
+   * // Optics
+   * Prism<ApiResponse, Success> successPrism = Prism.of(
+   *     resp -> resp instanceof Success s ? Optional.of(s) : Optional.empty(),
+   *     s -> s
+   * );
+   * Lens<Success, ResponseData> dataLens = Lens.of(
+   *     Success::data,
+   *     (success, data) -> new Success(data, success.timestamp())
+   * );
+   * Lens<ResponseData, String> messageLens = Lens.of(
+   *     ResponseData::message,
+   *     (data, msg) -> new ResponseData(msg, data.count())
+   * );
+   *
+   * // Compose: Prism >>> Lens = Traversal
+   * Traversal<ApiResponse, ResponseData> dataTraversal = successPrism.andThen(dataLens);
+   *
+   * // Use the traversal
+   * ApiResponse success = new Success(new ResponseData("OK", 1), "2024-01-01");
+   * List<ResponseData> data = Traversals.getAll(dataTraversal, success);
+   * // Returns [ResponseData[message=OK, count=1]]
+   *
+   * ApiResponse failure = new Failure("Not Found", 404);
+   * List<ResponseData> empty = Traversals.getAll(dataTraversal, failure);
+   * // Returns []
+   *
+   * // Chain further to reach the message
+   * Traversal<ApiResponse, String> messageTraversal = dataTraversal.andThen(messageLens.asTraversal());
+   * }</pre>
+   *
+   * @param lens The {@link Lens} to compose with.
+   * @param <B> The type of the final focused part.
+   * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Traversal<S, B> andThen(final Lens<A, B> lens) {
+    Prism<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        return self.getOptional(source)
+            .map(a -> app.map(newB -> self.build(lens.set(newB, a)), f.apply(lens.get(a))))
+            .orElse(app.of(source));
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Prism<S, A>} with a {@code Traversal<A, B>} to create a {@code
+   * Traversal<S, B>}.
+   *
+   * <p>The composition follows the standard optic composition rule: Prism >>> Traversal =
+   * Traversal. The result is a Traversal because both the Prism may not match and the Traversal may
+   * focus on zero or more elements.
+   *
+   * <p>This composition is useful when navigating into collections within sum type variants:
+   *
+   * <ul>
+   *   <li>A sum type variant that contains a list
+   *   <li>An optional case with multiple nested values
+   *   <li>Any "is-a" followed by "has-many" relationship
+   * </ul>
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Domain model
+   * sealed interface Container permits Full, Empty {}
+   * record Full(List<Item> items) implements Container {}
+   * record Empty() implements Container {}
+   * record Item(String name) {}
+   *
+   * // Optics
+   * Prism<Container, Full> fullPrism = Prism.of(
+   *     c -> c instanceof Full f ? Optional.of(f) : Optional.empty(),
+   *     f -> f
+   * );
+   * Traversal<List<Item>, Item> allItems = Traversals.forList();
+   * Lens<Full, List<Item>> itemsLens = Lens.of(Full::items, (f, items) -> new Full(items));
+   *
+   * // Compose: Prism >>> Lens >>> Traversal chain
+   * Traversal<Container, Item> containerItems =
+   *     fullPrism.andThen(itemsLens).andThen(allItems);
+   *
+   * // Direct: Prism >>> Traversal
+   * Traversal<Full, Item> fullToItems = itemsLens.andThen(allItems);
+   * Traversal<Container, Item> allContainerItems = fullPrism.andThen(fullToItems);
+   * }</pre>
+   *
+   * @param traversal The {@link Traversal} to compose with.
+   * @param <B> The type of the final focused parts.
+   * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Traversal<S, B> andThen(final Traversal<A, B> traversal) {
+    Prism<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        return self.getOptional(source)
+            .map(a -> app.map(self::build, traversal.modifyF(f, a, app)))
+            .orElse(app.of(source));
+      }
+    };
+  }
+
+  /**
    * Checks if this prism matches the given structure.
    *
    * <p>This is useful for type checking without extraction, providing a cleaner alternative to
@@ -152,6 +321,36 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    */
   default boolean matches(S source) {
     return getOptional(source).isPresent();
+  }
+
+  /**
+   * Checks if this prism does NOT match the given structure.
+   *
+   * <p>This is the logical negation of {@link #matches(Object)}, provided for readability when
+   * checking for non-matches.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+   * JsonValue value = new JsonNumber(42);
+   *
+   * if (stringPrism.doesNotMatch(value)) {
+   *   // Handle non-string case
+   *   log.warn("Expected string but got: {}", value.getClass().getSimpleName());
+   * }
+   *
+   * // Useful in stream filtering
+   * List<JsonValue> nonStrings = values.stream()
+   *     .filter(stringPrism::doesNotMatch)
+   *     .toList();
+   * }</pre>
+   *
+   * @param source The source structure to test.
+   * @return {@code true} if the prism does NOT match, {@code false} if it matches.
+   */
+  default boolean doesNotMatch(S source) {
+    return !matches(source);
   }
 
   /**

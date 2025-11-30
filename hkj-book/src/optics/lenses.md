@@ -166,6 +166,21 @@ Employee moved = streetLens.set("New Office Street", employee);
 Employee uppercased = streetLens.modify(String::toUpperCase, employee);
 ```
 
+~~~admonish tip title="Cross-Optic Composition"
+Lenses can also compose with other optic types. When you compose a `Lens` with a `Prism`, you get a `Traversal`:
+
+```java
+// Lens >>> Prism = Traversal
+record User(Optional<Settings> settings) {}
+Lens<User, Optional<Settings>> settingsLens = UserLenses.settings();
+Prism<Optional<Settings>, Settings> somePrism = Prisms.some();
+
+Traversal<User, Settings> userSettings = settingsLens.andThen(somePrism);
+```
+
+See [Composition Rules](composition_rules.md) for the complete reference on how different optics compose.
+~~~
+
 ### Use Manual Lens Creation When:
 
 * **Computed properties** - The lens represents derived data

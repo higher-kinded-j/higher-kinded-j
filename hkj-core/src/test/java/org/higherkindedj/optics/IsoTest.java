@@ -266,6 +266,40 @@ class IsoTest {
       UserId updated = composed.set(new Wrapper(100L), userId);
       assertThat(updated.value()).isEqualTo(100L);
     }
+
+    @Test
+    @DisplayName("andThen(Prism) should compose Iso with Prism to produce Prism")
+    void isoAndThenPrism() {
+      // Prism for positive longs
+      Prism<Long, Long> positivePrism =
+          Prism.of(n -> n > 0 ? Optional.of(n) : Optional.empty(), n -> n);
+
+      // Compose: Iso >>> Prism = Prism
+      Prism<UserId, Long> composed = userIdIso.andThen(positivePrism);
+
+      // Test matching case
+      UserId positiveId = new UserId(42L);
+      assertThat(composed.getOptional(positiveId)).isPresent().contains(42L);
+
+      // Test non-matching case
+      UserId negativeId = new UserId(-5L);
+      assertThat(composed.getOptional(negativeId)).isEmpty();
+
+      UserId zeroId = new UserId(0L);
+      assertThat(composed.getOptional(zeroId)).isEmpty();
+
+      // Test build
+      UserId built = composed.build(100L);
+      assertThat(built.value()).isEqualTo(100L);
+
+      // Test modify
+      UserId modified = composed.modify(v -> v * 2, positiveId);
+      assertThat(modified.value()).isEqualTo(84L);
+
+      // Test modify on non-matching returns original
+      UserId notModified = composed.modify(v -> v * 2, negativeId);
+      assertThat(notModified.value()).isEqualTo(-5L);
+    }
   }
 
   @Nested

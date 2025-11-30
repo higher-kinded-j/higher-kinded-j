@@ -31,12 +31,12 @@ public class PrismConvenienceMethodsExample {
   @GeneratePrisms
   public sealed interface HttpResponse {}
 
-  @GenerateLenses
+  @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.convenience")
   public record Success(String data, int statusCode) implements HttpResponse {}
 
   public record ValidationError(List<String> errors, String field) implements HttpResponse {}
 
-  @GenerateLenses
+  @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.convenience")
   public record ServerError(String message, String traceId) implements HttpResponse {}
 
   public record RateLimitError(long retryAfterMs) implements HttpResponse {}

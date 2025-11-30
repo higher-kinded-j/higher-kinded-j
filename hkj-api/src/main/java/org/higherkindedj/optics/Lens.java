@@ -152,6 +152,165 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
+   * Composes this {@code Lens<S, A>} with an {@code Iso<A, B>} to produce a new {@code Lens<S, B>}.
+   *
+   * <p>This is possible because composing a one-way focus with a lossless, two-way conversion
+   * results in a new one-way focus. This specialized overload ensures the result is correctly and
+   * conveniently typed as a {@link Lens}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Domain model
+   * record User(String name, EmailAddress email) {}
+   * record EmailAddress(String value) {}
+   *
+   * // Lens from User to EmailAddress
+   * Lens<User, EmailAddress> emailLens = Lens.of(
+   *     User::email,
+   *     (user, email) -> new User(user.name(), email)
+   * );
+   *
+   * // Iso from EmailAddress to String
+   * Iso<EmailAddress, String> emailIso = Iso.of(
+   *     EmailAddress::value,
+   *     EmailAddress::new
+   * );
+   *
+   * // Compose: Lens + Iso = Lens
+   * Lens<User, String> userEmailStringLens = emailLens.andThen(emailIso);
+   * }</pre>
+   *
+   * @param iso The {@link Iso} to compose with.
+   * @param <B> The type of the final focused part.
+   * @return A new {@link Lens} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Lens<S, B> andThen(final Iso<A, B> iso) {
+    Lens<S, A> self = this;
+    return Lens.of(s -> iso.get(self.get(s)), (s, b) -> self.set(iso.reverseGet(b), s));
+  }
+
+  /**
+   * Composes this {@code Lens<S, A>} with a {@code Prism<A, B>} to create a {@code Traversal<S,
+   * B>}.
+   *
+   * <p>The composition follows the standard optic composition rule: Lens >>> Prism = Traversal. The
+   * result is a Traversal because the Prism may not match, resulting in zero-or-one focus.
+   *
+   * <p>This composition is useful when navigating into optional parts of a structure:
+   *
+   * <ul>
+   *   <li>A record field that contains a sum type (sealed interface)
+   *   <li>A nullable field wrapped in Optional
+   *   <li>Any "has-a" followed by "is-a" relationship
+   * </ul>
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Domain model
+   * record Config(Optional<DatabaseConfig> database) {}
+   * record DatabaseConfig(String url, int port) {}
+   *
+   * // Optics
+   * Lens<Config, Optional<DatabaseConfig>> databaseLens = Lens.of(
+   *     Config::database,
+   *     (config, db) -> new Config(db)
+   * );
+   * Prism<Optional<DatabaseConfig>, DatabaseConfig> somePrism = Prisms.some();
+   * Lens<DatabaseConfig, String> urlLens = Lens.of(
+   *     DatabaseConfig::url,
+   *     (db, url) -> new DatabaseConfig(url, db.port())
+   * );
+   *
+   * // Compose: Lens >>> Prism = Traversal
+   * Traversal<Config, DatabaseConfig> dbTraversal = databaseLens.andThen(somePrism);
+   *
+   * // Use the traversal
+   * Config config = new Config(Optional.of(new DatabaseConfig("localhost", 5432)));
+   * List<DatabaseConfig> dbs = Traversals.getAll(dbTraversal, config);
+   * // Returns [DatabaseConfig[url=localhost, port=5432]]
+   *
+   * Config emptyConfig = new Config(Optional.empty());
+   * List<DatabaseConfig> empty = Traversals.getAll(dbTraversal, emptyConfig);
+   * // Returns []
+   *
+   * // Can chain further with another lens
+   * Traversal<Config, String> urlTraversal = dbTraversal.andThen(urlLens.asTraversal());
+   * }</pre>
+   *
+   * @param prism The {@link Prism} to compose with.
+   * @param <B> The type of the final focused part.
+   * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Traversal<S, B> andThen(final Prism<A, B> prism) {
+    Lens<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        A a = self.get(source);
+        return prism
+            .getOptional(a)
+            .map(b -> app.map(newB -> self.set(prism.build(newB), source), f.apply(b)))
+            .orElse(app.of(source));
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Lens<S, A>} with a {@code Traversal<A, B>} to create a {@code Traversal<S,
+   * B>}.
+   *
+   * <p>The composition follows the standard optic composition rule: Lens >>> Traversal = Traversal.
+   * The result is a Traversal because the inner Traversal may focus on zero or more elements.
+   *
+   * <p>This composition is useful when navigating into collections or multiple targets:
+   *
+   * <ul>
+   *   <li>A record field that contains a list
+   *   <li>A field containing multiple optional values
+   *   <li>Any "has-a" followed by "has-many" relationship
+   * </ul>
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Domain model
+   * record Team(String name, List<Player> players) {}
+   * record Player(String name, int score) {}
+   *
+   * // Optics
+   * Lens<Team, List<Player>> playersLens = Lens.of(
+   *     Team::players,
+   *     (team, players) -> new Team(team.name(), players)
+   * );
+   * Traversal<List<Player>, Player> allPlayers = Traversals.forList();
+   *
+   * // Compose: Lens >>> Traversal = Traversal
+   * Traversal<Team, Player> teamPlayersTraversal = playersLens.andThen(allPlayers);
+   *
+   * // Use the traversal
+   * Team team = new Team("Red", List.of(new Player("Alice", 100), new Player("Bob", 85)));
+   * List<Player> players = Traversals.getAll(teamPlayersTraversal, team);  // [Alice, Bob]
+   * }</pre>
+   *
+   * @param traversal The {@link Traversal} to compose with.
+   * @param <B> The type of the final focused parts.
+   * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Traversal<S, B> andThen(final Traversal<A, B> traversal) {
+    Lens<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        A a = self.get(source);
+        Kind<F, A> modifiedA = traversal.modifyF(f, a, app);
+        return app.map(newA -> self.set(newA, source), modifiedA);
+      }
+    };
+  }
+
+  /**
    * Creates a {@code Lens} from its two fundamental operations: a getter and a setter.
    *
    * @param getter A function to extract the part {@code A} from the structure {@code S}.

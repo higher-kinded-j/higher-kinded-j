@@ -77,6 +77,31 @@ class TraversalTest {
   }
 
   @Test
+  @DisplayName("andThen(Lens) direct - should compose Traversal with Lens directly")
+  void andThen_withLensDirect() {
+    Traversal<List<Street>, Street> listStreetTraversal = listElements();
+    Lens<Street, String> streetNameLens = Lens.of(Street::name, (s, n) -> new Street(n));
+
+    // Direct composition: Traversal >>> Lens = Traversal
+    Traversal<List<Street>, String> composed = listStreetTraversal.andThen(streetNameLens);
+
+    List<Street> source = List.of(new Street("Elm"), new Street("Oak"), new Street("Pine"));
+    List<String> names = Traversals.getAll(composed, source);
+    assertThat(names).containsExactly("Elm", "Oak", "Pine");
+
+    List<Street> modified = Traversals.modify(composed, String::toUpperCase, source);
+    assertThat(modified).extracting(Street::name).containsExactly("ELM", "OAK", "PINE");
+
+    // Test with empty list
+    List<Street> emptySource = List.of();
+    List<String> emptyNames = Traversals.getAll(composed, emptySource);
+    assertThat(emptyNames).isEmpty();
+
+    List<Street> emptyModified = Traversals.modify(composed, String::toUpperCase, emptySource);
+    assertThat(emptyModified).isEmpty();
+  }
+
+  @Test
   @DisplayName("andThen(Prism) should compose Traversal and Prism")
   void andThen_withPrism() {
     Traversal<List<Json>, Json> listJsonTraversal = listElements();
@@ -97,6 +122,44 @@ class TraversalTest {
     List<Json> modified = Traversals.modify(composed, String::toUpperCase, source);
     assertThat(modified)
         .containsExactly(new JsonString("HELLO"), new JsonNumber(1), new JsonString("WORLD"));
+  }
+
+  @Test
+  @DisplayName("andThen(Prism) direct - should compose Traversal with Prism directly")
+  void andThen_withPrismDirect() {
+    Traversal<List<Json>, Json> listJsonTraversal = listElements();
+    Prism<Json, String> jsonStringPrism =
+        Prism.of(
+            json -> json instanceof JsonString s ? Optional.of(s.value()) : Optional.empty(),
+            JsonString::new);
+
+    // Direct composition: Traversal >>> Prism = Traversal
+    Traversal<List<Json>, String> composed = listJsonTraversal.andThen(jsonStringPrism);
+
+    List<Json> source =
+        List.of(new JsonString("hello"), new JsonNumber(42), new JsonString("world"));
+
+    // getAll should only return matching prism values
+    List<String> strings = Traversals.getAll(composed, source);
+    assertThat(strings).containsExactly("hello", "world");
+
+    // modify should only modify matching prism values, leave others unchanged
+    List<Json> modified = Traversals.modify(composed, String::toUpperCase, source);
+    assertThat(modified)
+        .containsExactly(new JsonString("HELLO"), new JsonNumber(42), new JsonString("WORLD"));
+
+    // Test with all non-matching
+    List<Json> allNumbers = List.of(new JsonNumber(1), new JsonNumber(2));
+    List<String> noStrings = Traversals.getAll(composed, allNumbers);
+    assertThat(noStrings).isEmpty();
+
+    List<Json> numbersUnchanged = Traversals.modify(composed, String::toUpperCase, allNumbers);
+    assertThat(numbersUnchanged).containsExactly(new JsonNumber(1), new JsonNumber(2));
+
+    // Test with empty list
+    List<Json> emptySource = List.of();
+    List<String> emptyStrings = Traversals.getAll(composed, emptySource);
+    assertThat(emptyStrings).isEmpty();
   }
 
   @Nested

@@ -113,25 +113,36 @@ JsonValue result3 = jsonStringPrism.build(new JsonString("world"));
 
 ### Step 3: Composing Prisms for Deep Access
 
-The true power is composing `Prism`s with other optics. When a composition might fail (any time a `Prism` is involved), the result is a `Traversal`. To ensure type-safety during composition, we convert each optic in the chain to a `Traversal` using `.asTraversal()`.
+The true power is composing `Prism`s with other optics. When a composition might fail (any time a `Prism` is involved), the result is a `Traversal`.
+
+~~~admonish tip title="Direct Composition Methods"
+higher-kinded-j provides direct composition methods that automatically return the correct type:
+- `Lens.andThen(Prism)` returns `Traversal`
+- `Prism.andThen(Lens)` returns `Traversal`
+- `Prism.andThen(Prism)` returns `Prism`
+
+See [Composition Rules](composition_rules.md) for the complete reference.
+~~~
 
 ```java
-
 // Create all the optics we need
 Prism<JsonValue, JsonObject> jsonObjectPrism = JsonValuePrisms.jsonObject();
 Prism<JsonValue, JsonString> jsonStringPrism = JsonValuePrisms.jsonString();
 Lens<JsonObject, Map<String, JsonValue>> fieldsLens = JsonObjectLenses.fields();
+Lens<JsonString, String> valueLens = JsonStringLenses.value();
 
+// Direct composition: Prism >>> Lens = Traversal
+Traversal<JsonValue, String> jsonStringValue =
+    jsonStringPrism.andThen(valueLens);
 
 // The composed optic: safely navigate from JsonObject -> userLogin field -> name field -> string value
 Traversal<JsonObject, String> userNameTraversal =
     fieldsLens.asTraversal()                      // JsonObject -> Map<String, JsonValue>
-        .andThen(mapValue("userLogin"))                // -> JsonValue (if "userLogin" key exists)
+        .andThen(Traversals.forMap("userLogin"))  // -> JsonValue (if "userLogin" key exists)
         .andThen(jsonObjectPrism.asTraversal())   // -> JsonObject (if it's an object)
         .andThen(fieldsLens.asTraversal())        // -> Map<String, JsonValue>
-         .andThen(Traversals.forMap("name"))     // -> JsonValue (if "name" key exists)
-        .andThen(jsonStringPrism.asTraversal())   // -> JsonString (if it's a string)
-        .andThen(JsonStringLenses.value().asTraversal()); // -> String
+        .andThen(Traversals.forMap("name"))       // -> JsonValue (if "name" key exists)
+        .andThen(jsonStringValue);                // -> String (if it's a string)
 ```
 
 This composed `Traversal` now represents a safe, deep path that will only succeed if every step in the chain matches.

@@ -146,7 +146,7 @@ class LensTest {
     }
 
     @Test
-    @DisplayName("andThen(Prism) should compose Lens and Prism")
+    @DisplayName("andThen(Prism) should compose Lens and Prism into Traversal")
     void andThenPrism() {
       Lens<Profile, Json> profileJsonLens = Lens.of(Profile::data, (p, j) -> new Profile(j));
       Prism<Json, String> jsonStringPrism =
@@ -154,9 +154,9 @@ class LensTest {
               json -> json instanceof JsonString s ? Optional.of(s.value()) : Optional.empty(),
               JsonString::new);
 
-      // FIX: Convert both the Lens and the Prism to Traversals
+      // Direct composition: Lens >>> Prism = Traversal
       Traversal<Profile, String> profileToStringTraversal =
-          profileJsonLens.asTraversal().andThen(jsonStringPrism.asTraversal());
+          profileJsonLens.andThen(jsonStringPrism);
 
       Profile stringProfile = new Profile(new JsonString("some data"));
       Profile numberProfile = new Profile(new JsonNumber(123));
@@ -168,6 +168,64 @@ class LensTest {
       Profile updatedNumberProfile =
           Traversals.modify(profileToStringTraversal, String::toUpperCase, numberProfile);
       assertThat(updatedNumberProfile.data()).isEqualTo(new JsonNumber(123));
+    }
+
+    @Test
+    @DisplayName("andThen(Iso) should compose Lens with Iso to produce Lens")
+    void andThenIso() {
+      record NameWrapper(String value) {}
+
+      Iso<String, NameWrapper> wrapperIso = Iso.of(NameWrapper::new, NameWrapper::value);
+
+      // Compose: Lens >>> Iso = Lens
+      Lens<Street, NameWrapper> composed = streetNameLens.andThen(wrapperIso);
+
+      Street street = new Street("Main St");
+
+      // Test get
+      NameWrapper wrapper = composed.get(street);
+      assertThat(wrapper.value()).isEqualTo("Main St");
+
+      // Test set
+      Street updated = composed.set(new NameWrapper("Broadway"), street);
+      assertThat(updated.name()).isEqualTo("Broadway");
+
+      // Test modify
+      Street modified = composed.modify(w -> new NameWrapper(w.value().toUpperCase()), street);
+      assertThat(modified.name()).isEqualTo("MAIN ST");
+    }
+
+    @Test
+    @DisplayName("andThen(Traversal) should compose Lens with Traversal directly")
+    void andThenTraversalDirect() {
+      record Team(String name, List<String> members) {}
+
+      Lens<Team, List<String>> membersLens =
+          Lens.of(Team::members, (team, members) -> new Team(team.name(), members));
+
+      Traversal<List<String>, String> listTraversal = Traversals.forList();
+
+      // Direct composition: Lens >>> Traversal = Traversal
+      Traversal<Team, String> teamMembersTraversal = membersLens.andThen(listTraversal);
+
+      Team team = new Team("Red", List.of("Alice", "Bob", "Charlie"));
+
+      // Test getAll
+      List<String> members = Traversals.getAll(teamMembersTraversal, team);
+      assertThat(members).containsExactly("Alice", "Bob", "Charlie");
+
+      // Test modify
+      Team modified = Traversals.modify(teamMembersTraversal, String::toUpperCase, team);
+      assertThat(modified.members()).containsExactly("ALICE", "BOB", "CHARLIE");
+      assertThat(modified.name()).isEqualTo("Red");
+
+      // Test with empty list
+      Team emptyTeam = new Team("Empty", List.of());
+      List<String> emptyMembers = Traversals.getAll(teamMembersTraversal, emptyTeam);
+      assertThat(emptyMembers).isEmpty();
+
+      Team modifiedEmpty = Traversals.modify(teamMembersTraversal, String::toUpperCase, emptyTeam);
+      assertThat(modifiedEmpty.members()).isEmpty();
     }
   }
 

@@ -4,7 +4,9 @@ package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.junit.jupiter.api.Test;
@@ -284,12 +286,70 @@ public class Tutorial03_PrismBasics {
   }
 
   /**
+   * Exercise 8: Using doesNotMatch for exclusion filtering
+   *
+   * <p>The doesNotMatch method is the logical negation of matches(). It's useful for filtering out
+   * values that don't match a prism.
+   *
+   * <p>Task: Filter a list to get all non-circle shapes
+   */
+  @Test
+  void exercise8_usingDoesNotMatch() {
+    Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
+
+    List<Shape> shapes =
+        List.of(
+            new Circle(5.0),
+            new Rectangle(10.0, 20.0),
+            new Circle(3.0),
+            new Triangle(6.0, 8.0),
+            new Rectangle(2.0, 4.0));
+
+    // TODO: Replace null with code that filters to get non-circle shapes
+    // Hint: shapes.stream().filter(circlePrism::doesNotMatch).collect(...)
+    List<Shape> nonCircles = answerRequired();
+
+    assertThat(nonCircles).hasSize(3);
+    assertThat(nonCircles).noneMatch(s -> s instanceof Circle);
+    assertThat(nonCircles).allMatch(s -> s instanceof Rectangle || s instanceof Triangle);
+  }
+
+  /**
+   * Exercise 9: Using the nearly prism for predicate-based matching
+   *
+   * <p>The nearly prism matches values that satisfy a predicate. Unlike 'only' which matches exact
+   * values, 'nearly' matches categories of values.
+   *
+   * <p>Task: Create a prism that matches positive numbers and use it to filter a list
+   */
+  @Test
+  void exercise9_usingNearlyPrism() {
+    // TODO: Replace null with a nearly prism that matches positive integers
+    // Hint: Prisms.nearly(defaultValue, predicate)
+    // The default value is used when building - use 1 as the default
+    Prism<Integer, Unit> positivePrism = answerRequired();
+
+    List<Integer> numbers = List.of(-5, 0, 3, -2, 7, 10, -1);
+
+    // TODO: Replace null with code that filters to get only positive numbers
+    // Hint: numbers.stream().filter(positivePrism::matches).collect(...)
+    List<Integer> positives = answerRequired();
+
+    assertThat(positives).containsExactly(3, 7, 10);
+
+    // Verify the build method returns the default value
+    Integer builtValue = positivePrism.build(Unit.INSTANCE);
+    assertThat(builtValue).isEqualTo(1);
+  }
+
+  /**
    * Congratulations! You've completed Tutorial 03: Prism Basics
    *
    * <p>You now understand: ✓ How to use getOptional to safely extract values ✓ How to use build to
    * construct sum type values ✓ How to use modify to conditionally update values ✓ How to pattern
    * match with multiple prisms ✓ How to compose prisms with lenses ✓ How to use matches for type
-   * checking ✓ When to use prisms (sum types, sealed interfaces)
+   * checking ✓ How to use doesNotMatch for exclusion filtering ✓ How to use nearly for
+   * predicate-based matching ✓ When to use prisms (sum types, sealed interfaces)
    *
    * <p>Next: Tutorial 04 - Traversal Basics
    */

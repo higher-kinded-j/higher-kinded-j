@@ -1,5 +1,10 @@
 plugins {
+    application
+}
 
+// Allow running any example via: ./gradlew :hkj-examples:run -PmainClass=<fully.qualified.ClassName>
+application {
+    mainClass.set(project.findProperty("mainClass")?.toString() ?: "org.higherkindedj.example.tutorials.TutorialGettingStarted")
 }
 
 dependencies {

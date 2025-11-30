@@ -5,14 +5,19 @@ package org.higherkindedj.optics.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.at.AtInstances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -58,6 +63,85 @@ class PrismsTest {
     @DisplayName("should not match empty Optional")
     void shouldNotMatchEmpty() {
       assertThat(prism.matches(Optional.empty())).isFalse();
+    }
+
+    @Test
+    @DisplayName("should satisfy Prism laws - review (getOptional . build = Some)")
+    void prismReviewLaw() {
+      String value = "test";
+
+      Optional<String> result = prism.getOptional(prism.build(value));
+
+      assertThat(result).hasValue(value);
+    }
+
+    @Test
+    @DisplayName(
+        "should satisfy Prism laws - preview (getOptional.flatMap(build) = identity when present)")
+    void prismPreviewLaw() {
+      Optional<String> source = Optional.of("hello");
+
+      Optional<Optional<String>> rebuilt = prism.getOptional(source).map(prism::build);
+
+      assertThat(rebuilt).hasValue(source);
+    }
+
+    @Test
+    @DisplayName("asTraversal() should convert to working Traversal")
+    void asTraversalConversion() {
+      Traversal<Optional<String>, String> traversal = prism.asTraversal();
+
+      Optional<String> source = Optional.of("hello");
+      Optional<String> result = Traversals.modify(traversal, String::toUpperCase, source);
+
+      assertThat(result).hasValue("HELLO");
+    }
+
+    @Test
+    @DisplayName("asTraversal() should be no-op when Optional is empty")
+    void asTraversalNoOpWhenEmpty() {
+      Traversal<Optional<String>, String> traversal = prism.asTraversal();
+
+      Optional<String> source = Optional.empty();
+      Optional<String> result = Traversals.modify(traversal, String::toUpperCase, source);
+
+      assertThat(result).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("none() - Optional Empty Prism")
+  class NonePrism {
+    private final Prism<Optional<String>, Unit> prism = Prisms.none();
+
+    @Test
+    @DisplayName("should match when Optional is empty")
+    void shouldMatchWhenEmpty() {
+      Optional<String> empty = Optional.empty();
+      Optional<Unit> result = prism.getOptional(empty);
+      assertThat(result).isPresent().contains(Unit.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("should not match when Optional is present")
+    void shouldNotMatchWhenPresent() {
+      Optional<String> present = Optional.of("hello");
+      Optional<Unit> result = prism.getOptional(present);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should build empty Optional")
+    void shouldBuild() {
+      Optional<String> result = prism.build(Unit.INSTANCE);
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should satisfy prism laws - review")
+    void shouldSatisfyReviewLaw() {
+      Optional<Unit> result = prism.getOptional(prism.build(Unit.INSTANCE));
+      assertThat(result).hasValue(Unit.INSTANCE);
     }
   }
 
@@ -184,6 +268,83 @@ class PrismsTest {
     void matchesShouldWork() {
       assertThat(prism.matches("hello")).isTrue();
       assertThat(prism.matches("world")).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("nearly() - Predicate-based Prism")
+  class NearlyPrism {
+    private final Prism<String, Unit> nonEmptyPrism = Prisms.nearly("default", s -> !s.isEmpty());
+
+    @Test
+    @DisplayName("should match when predicate is true")
+    void shouldMatchWhenPredicateTrue() {
+      Optional<Unit> result = nonEmptyPrism.getOptional("hello");
+      assertThat(result).isPresent().contains(Unit.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("should not match when predicate is false")
+    void shouldNotMatchWhenPredicateFalse() {
+      Optional<Unit> result = nonEmptyPrism.getOptional("");
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should build default value")
+    void shouldBuildDefaultValue() {
+      String result = nonEmptyPrism.build(Unit.INSTANCE);
+      assertThat(result).isEqualTo("default");
+    }
+
+    @Test
+    @DisplayName("matches should return true when predicate is satisfied")
+    void matchesShouldReturnTrueWhenPredicateSatisfied() {
+      assertThat(nonEmptyPrism.matches("hello")).isTrue();
+    }
+
+    @Test
+    @DisplayName("matches should return false when predicate is not satisfied")
+    void matchesShouldReturnFalseWhenPredicateNotSatisfied() {
+      assertThat(nonEmptyPrism.matches("")).isFalse();
+    }
+
+    @Test
+    @DisplayName("should work with numeric predicates")
+    void shouldWorkWithNumericPredicates() {
+      Prism<Integer, Unit> positivePrism = Prisms.nearly(1, n -> n > 0);
+
+      assertThat(positivePrism.getOptional(42)).isPresent().contains(Unit.INSTANCE);
+      assertThat(positivePrism.getOptional(0)).isEmpty();
+      assertThat(positivePrism.getOptional(-5)).isEmpty();
+      assertThat(positivePrism.build(Unit.INSTANCE)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("should compose with other prisms")
+    void shouldComposeWithOtherPrisms() {
+      Prism<Optional<String>, String> somePrism = Prisms.some();
+      Prism<String, Unit> nonEmpty = Prisms.nearly("default", s -> !s.isEmpty());
+
+      Prism<Optional<String>, Unit> someNonEmpty = somePrism.andThen(nonEmpty);
+
+      assertThat(someNonEmpty.getOptional(Optional.of("hello")))
+          .isPresent()
+          .contains(Unit.INSTANCE);
+      assertThat(someNonEmpty.getOptional(Optional.of(""))).isEmpty();
+      assertThat(someNonEmpty.getOptional(Optional.empty())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should work with complex predicates")
+    void shouldWorkWithComplexPredicates() {
+      Prism<String, Unit> emailPrism =
+          Prisms.nearly("user@example.com", s -> s.contains("@") && s.contains("."));
+
+      assertThat(emailPrism.getOptional("test@domain.com")).isPresent().contains(Unit.INSTANCE);
+      assertThat(emailPrism.getOptional("invalid")).isEmpty();
+      assertThat(emailPrism.getOptional("no-at.com")).isEmpty();
+      assertThat(emailPrism.build(Unit.INSTANCE)).isEqualTo("user@example.com");
     }
   }
 
@@ -711,6 +872,96 @@ class PrismsTest {
       List<String> result = headPrism.modify(String::toUpperCase, list);
       // Note: build creates singleton list
       assertThat(result).containsExactly("HELLO");
+    }
+
+    @Test
+    @DisplayName("should compose with At lens for deep access")
+    void composeWithAtLens() {
+      record User(String name, Map<String, Integer> scores) {}
+
+      Lens<User, Map<String, Integer>> scoresLens =
+          Lens.of(User::scores, (u, s) -> new User(u.name(), s));
+
+      var mapAt = AtInstances.<String, Integer>mapAt();
+      Prism<Optional<Integer>, Integer> intSomePrism = Prisms.some();
+
+      // Compose: User -> Map -> Optional<Integer> -> Integer
+      Lens<User, Optional<Integer>> mathScoreLens = scoresLens.andThen(mapAt.at("math"));
+      Traversal<User, Integer> mathScoreTraversal =
+          mathScoreLens.asTraversal().andThen(intSomePrism.asTraversal());
+
+      User user = new User("Alice", new HashMap<>(Map.of("math", 95, "english", 88)));
+
+      // Get all values (should be single element)
+      List<Integer> scores = Traversals.getAll(mathScoreTraversal, user);
+      assertThat(scores).containsExactly(95);
+
+      // Modify value
+      User updatedUser = Traversals.modify(mathScoreTraversal, x -> x + 5, user);
+      assertThat(updatedUser.scores()).containsEntry("math", 100);
+    }
+
+    @Test
+    @DisplayName("should handle missing key gracefully when composed with At")
+    void composeWithAtMissingKey() {
+      record User(Map<String, Integer> scores) {}
+
+      Lens<User, Map<String, Integer>> scoresLens = Lens.of(User::scores, (u, s) -> new User(s));
+
+      var mapAt = AtInstances.<String, Integer>mapAt();
+      Prism<Optional<Integer>, Integer> intSomePrism = Prisms.some();
+
+      Lens<User, Optional<Integer>> historyScoreLens = scoresLens.andThen(mapAt.at("history"));
+      Traversal<User, Integer> historyScoreTraversal =
+          historyScoreLens.asTraversal().andThen(intSomePrism.asTraversal());
+
+      User user = new User(new HashMap<>(Map.of("math", 95)));
+
+      // Should return empty list when key is missing
+      List<Integer> scores = Traversals.getAll(historyScoreTraversal, user);
+      assertThat(scores).isEmpty();
+
+      // Modify should be no-op when missing
+      User updatedUser = Traversals.modify(historyScoreTraversal, x -> x + 5, user);
+      assertThat(updatedUser.scores()).containsExactlyEntriesOf(user.scores());
+    }
+
+    @Test
+    @DisplayName("should enable insert through composed lens")
+    void insertThroughComposedLens() {
+      record Config(Map<String, String> settings) {}
+
+      Lens<Config, Map<String, String>> settingsLens =
+          Lens.of(Config::settings, (c, s) -> new Config(s));
+
+      var mapAt = AtInstances.<String, String>mapAt();
+
+      Config config = new Config(new HashMap<>());
+
+      // Insert a new setting
+      Lens<Config, Optional<String>> debugLens = settingsLens.andThen(mapAt.at("debug"));
+      Config updated = debugLens.set(Optional.of("true"), config);
+
+      assertThat(updated.settings()).containsEntry("debug", "true");
+    }
+
+    @Test
+    @DisplayName("should enable delete through composed lens")
+    void deleteThroughComposedLens() {
+      record Config(Map<String, String> settings) {}
+
+      Lens<Config, Map<String, String>> settingsLens =
+          Lens.of(Config::settings, (c, s) -> new Config(s));
+
+      var mapAt = AtInstances.<String, String>mapAt();
+
+      Config config = new Config(new HashMap<>(Map.of("debug", "true", "verbose", "false")));
+
+      // Delete a setting
+      Lens<Config, Optional<String>> debugLens = settingsLens.andThen(mapAt.at("debug"));
+      Config updated = debugLens.set(Optional.empty(), config);
+
+      assertThat(updated.settings()).doesNotContainKey("debug").containsEntry("verbose", "false");
     }
   }
 }

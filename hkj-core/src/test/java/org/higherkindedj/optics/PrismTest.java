@@ -165,9 +165,8 @@ class PrismTest {
               json -> (json instanceof JsonString s) ? s.value() : "",
               (json, newValue) -> new JsonString(newValue));
 
-      // FIX: Start with .asTraversal() and convert the lens to a traversal
-      Traversal<Result, String> composed =
-          successPrism.asTraversal().andThen(jsonStringLens.asTraversal());
+      // Direct composition: Prism >>> Lens = Traversal
+      Traversal<Result, String> composed = successPrism.andThen(jsonStringLens);
 
       Result source = new Success(new JsonString("hello"));
       Result modified = Traversals.modify(composed, String::toUpperCase, source);
@@ -208,6 +207,37 @@ class PrismTest {
     void matches_shouldReturnFalseOnMismatch() {
       Json json = new JsonNumber(42);
       assertThat(jsonStringPrism.matches(json)).isFalse();
+    }
+
+    @Test
+    @DisplayName("doesNotMatch should return true when prism does not match")
+    void doesNotMatch_shouldReturnTrueOnMismatch() {
+      Json json = new JsonNumber(42);
+      assertThat(jsonStringPrism.doesNotMatch(json)).isTrue();
+    }
+
+    @Test
+    @DisplayName("doesNotMatch should return false when prism matches")
+    void doesNotMatch_shouldReturnFalseOnMatch() {
+      Json json = new JsonString("hello");
+      assertThat(jsonStringPrism.doesNotMatch(json)).isFalse();
+    }
+
+    @Test
+    @DisplayName("doesNotMatch should be the negation of matches")
+    void doesNotMatch_shouldBeNegationOfMatches() {
+      List<Json> testCases =
+          List.of(
+              new JsonString("hello"),
+              new JsonString(""),
+              new JsonNumber(42),
+              new JsonNumber(0),
+              new JsonNumber(-1));
+
+      for (Json testCase : testCases) {
+        assertThat(jsonStringPrism.doesNotMatch(testCase))
+            .isEqualTo(!jsonStringPrism.matches(testCase));
+      }
     }
 
     @Test
@@ -349,6 +379,99 @@ class PrismTest {
 
       Json result = combined.build("test");
       assertThat(result).isEqualTo(new JsonString("test"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Extended Composition Methods")
+  class ExtendedComposition {
+
+    // Types for andThenTraversal test
+    record Container(List<String> items) {}
+
+    sealed interface Value permits StringValue, ContainerValue {}
+
+    record StringValue(String s) implements Value {}
+
+    record ContainerValue(Container container) implements Value {}
+
+    @Test
+    @DisplayName("andThen(Iso) should compose Prism with Iso to produce Prism")
+    void andThenIso() {
+      record StringWrapper(String value) {}
+
+      Iso<String, StringWrapper> wrapperIso = Iso.of(StringWrapper::new, StringWrapper::value);
+
+      // Compose: Prism >>> Iso = Prism
+      Prism<Json, StringWrapper> composed = jsonStringPrism.andThen(wrapperIso);
+
+      // Test matching case
+      Json stringJson = new JsonString("hello");
+      Optional<StringWrapper> result = composed.getOptional(stringJson);
+      assertThat(result).isPresent();
+      assertThat(result.get().value()).isEqualTo("hello");
+
+      // Test non-matching case
+      Json numberJson = new JsonNumber(42);
+      assertThat(composed.getOptional(numberJson)).isEmpty();
+
+      // Test build
+      Json built = composed.build(new StringWrapper("world"));
+      assertThat(built).isEqualTo(new JsonString("world"));
+
+      // Test modify
+      Json modified = composed.modify(w -> new StringWrapper(w.value().toUpperCase()), stringJson);
+      assertThat(modified).isEqualTo(new JsonString("HELLO"));
+
+      // Test modify on non-matching returns original
+      Json notModified =
+          composed.modify(w -> new StringWrapper(w.value().toUpperCase()), numberJson);
+      assertThat(notModified).isSameAs(numberJson);
+    }
+
+    @Test
+    @DisplayName("andThen(Traversal) should compose Prism with Traversal to produce Traversal")
+    void andThenTraversal() {
+      Prism<Value, Container> containerPrism =
+          Prism.of(
+              v -> v instanceof ContainerValue cv ? Optional.of(cv.container()) : Optional.empty(),
+              ContainerValue::new);
+
+      Traversal<Container, String> itemsTraversal =
+          new Traversal<>() {
+            @Override
+            public <F> Kind<F, Container> modifyF(
+                Function<String, Kind<F, String>> f, Container source, Applicative<F> app) {
+              Kind<F, Kind<ListKind.Witness, String>> traversed =
+                  ListTraverse.INSTANCE.traverse(app, f, ListKindHelper.LIST.widen(source.items()));
+              return app.map(
+                  listKind -> new Container(ListKindHelper.LIST.narrow(listKind)), traversed);
+            }
+          };
+
+      // Compose: Prism >>> Traversal = Traversal
+      Traversal<Value, String> composed = containerPrism.andThen(itemsTraversal);
+
+      // Test with matching prism
+      Value containerValue = new ContainerValue(new Container(List.of("a", "b", "c")));
+      List<String> items = Traversals.getAll(composed, containerValue);
+      assertThat(items).containsExactly("a", "b", "c");
+
+      Value modified = Traversals.modify(composed, String::toUpperCase, containerValue);
+      assertThat(modified).isEqualTo(new ContainerValue(new Container(List.of("A", "B", "C"))));
+
+      // Test with non-matching prism
+      Value stringValue = new StringValue("hello");
+      List<String> emptyItems = Traversals.getAll(composed, stringValue);
+      assertThat(emptyItems).isEmpty();
+
+      Value notModified = Traversals.modify(composed, String::toUpperCase, stringValue);
+      assertThat(notModified).isSameAs(stringValue);
+
+      // Test with empty container
+      Value emptyContainer = new ContainerValue(new Container(List.of()));
+      List<String> noItems = Traversals.getAll(composed, emptyContainer);
+      assertThat(noItems).isEmpty();
     }
   }
 }

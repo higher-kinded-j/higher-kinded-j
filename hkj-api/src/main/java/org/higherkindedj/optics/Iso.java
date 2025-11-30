@@ -73,6 +73,39 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
+   * Composes this {@code Iso<S, A>} with a {@code Prism<A, B>} to produce a new {@code Prism<S,
+   * B>}.
+   *
+   * <p>This is possible because composing a lossless, two-way conversion with a partial focus
+   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * conveniently typed as a {@link Prism}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Iso from UserId wrapper to raw long
+   * Iso<UserId, Long> userIdIso = Iso.of(UserId::value, UserId::new);
+   *
+   * // Prism for positive longs
+   * Prism<Long, Long> positivePrism = Prism.of(
+   *     n -> n > 0 ? Optional.of(n) : Optional.empty(),
+   *     n -> n
+   * );
+   *
+   * // Compose: Iso + Prism = Prism
+   * Prism<UserId, Long> positiveUserIdPrism = userIdIso.andThen(positivePrism);
+   * }</pre>
+   *
+   * @param other The {@link Prism} to compose with.
+   * @param <B> The final target type of the new {@link Prism}.
+   * @return A new {@link Prism} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Prism<S, B> andThen(Prism<A, B> other) {
+    Iso<S, A> self = this;
+    return Prism.of(s -> other.getOptional(self.get(s)), b -> self.reverseGet(other.build(b)));
+  }
+
+  /**
    * Creates a new {@code Iso} that performs the conversion in the opposite direction.
    *
    * @return A new {@code Iso<A, S>}.
