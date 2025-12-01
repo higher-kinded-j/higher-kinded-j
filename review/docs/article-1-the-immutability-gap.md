@@ -495,25 +495,25 @@ By the end of this series, you'll never want to update nested data manually agai
 
 ### Data-Oriented Programming in Java
 
-- **Brian Goetz & Chris Kiehl, *Data-Oriented Programming in Java*** (Manning, forthcoming) — The definitive guide to DOP in modern Java, from the language architect who designed records and pattern matching.
+- **Brian Goetz & Chris Kiehl, *Data-Oriented Programming in Java*** (Manning, forthcoming): The definitive guide to DOP in modern Java, from the language architect who designed records and pattern matching.
 
-- **Brian Goetz, ["Data-Oriented Programming in Java"](https://www.infoq.com/articles/data-oriented-programming-java/)** (InfoQ, 2022) — Goetz's foundational article explaining the philosophy behind Java's DOP features.
+- **Brian Goetz, ["Data-Oriented Programming in Java"](https://www.infoq.com/articles/data-oriented-programming-java/)** (InfoQ, 2022): Goetz's foundational article explaining the philosophy behind Java's DOP features.
 
-- **[JEP 395: Records](https://openjdk.org/jeps/395)**, **[JEP 409: Sealed Classes](https://openjdk.org/jeps/409)**, **[JEP 441: Pattern Matching for switch](https://openjdk.org/jeps/441)** — The JDK Enhancement Proposals that brought DOP to Java, essential for understanding the design rationale.
+- **[JEP 395: Records](https://openjdk.org/jeps/395)**, **[JEP 409: Sealed Classes](https://openjdk.org/jeps/409)**, **[JEP 441: Pattern Matching for switch](https://openjdk.org/jeps/441)**: The JDK Enhancement Proposals that brought DOP to Java, essential for understanding the design rationale.
 
-- **[JEP 468: Derived Record Creation (Preview)](https://openjdk.org/jeps/468)** — The forthcoming `with` expression for records, addressing single-level updates (though not nested ones).
+- **[JEP 468: Derived Record Creation (Preview)](https://openjdk.org/jeps/468)**: The forthcoming `with` expression for records, addressing single-level updates (though not nested ones).
 
 ### The Broader DOP Philosophy
 
-- **Eric Normand, *Grokking Simplicity*** (Manning, 2021) — An accessible introduction to functional thinking and data-oriented design from the Clojure perspective.
+- **Eric Normand, *Grokking Simplicity*** (Manning, 2021): An accessible introduction to functional thinking and data-oriented design from the Clojure perspective.
 
-- **Rich Hickey, ["The Value of Values"](https://www.infoq.com/presentations/Value-Values/)** (Strange Loop, 2012) — The influential talk that shaped modern thinking about immutable data, from Clojure's creator.
+- **Rich Hickey, ["The Value of Values"](https://www.infoq.com/presentations/Value-Values/)** (Strange Loop, 2012): The influential talk that shaped modern thinking about immutable data, from Clojure's creator.
 
 ### Higher-Kinded-J
 
-- **[Higher-Kinded-J GitHub Repository](https://github.com/higher-kinded-j/higher-kinded-j)** — Source code, documentation, and examples.
+- **[Higher-Kinded-J GitHub Repository](https://github.com/higher-kinded-j/higher-kinded-j)**: Source code, documentation, and examples.
 
-- **[Optics Module Documentation](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics)** — API reference for lenses, prisms, and traversals.
+- **[Optics Module Documentation](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/optics)**: API reference for lenses, prisms, and traversals.
 
 ---
 
