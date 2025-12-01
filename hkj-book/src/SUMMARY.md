@@ -2,7 +2,8 @@
 [Introduction to Higher-Kinded-J](home.md)
 
 # Getting Started
-- [HKT Introduction](hkts/hkt_introduction.md)
+- [Introduction](hkts/ch_intro.md)
+  - [HKT Introduction](hkts/hkt_introduction.md)
   - [Concepts](hkts/core-concepts.md)
   - [Usage Guide](hkts/usage-guide.md)
   - [Basic HKT Examples](hkts/hkt_basic_examples.md)
@@ -10,7 +11,8 @@
   - [Extending](hkts/extending-simulation.md)
 
 # Type Classes
-- [Functional Api](functional/functional_api.md)
+- [Introduction](functional/ch_intro.md)
+  - [Functional Api](functional/functional_api.md)
   - [Functor](functional/functor.md)
   - [Applicative](functional/applicative.md)
   - [Alternative](functional/alternative.md)
@@ -24,7 +26,8 @@
   - [Bifunctor](functional/bifunctor.md)
   - [For Comprehension](functional/for_comprehension.md)
 # Monads in Practice
-- [Supported Types](monads/supported-types.md)
+- [Introduction](monads/ch_intro.md)
+  - [Supported Types](monads/supported-types.md)
   - [CompletableFuture](monads/cf_monad.md)
   - [Either](monads/either_monad.md)
   - [Identity](monads/identity.md)
@@ -43,7 +46,8 @@
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 # Advanced Topics
-- [Monad Transformers](transformers/transformers.md)
+- [Introduction](transformers/ch_intro.md)
+  - [Monad Transformers](transformers/transformers.md)
   - [EitherT](transformers/eithert_transformer.md)
   - [OptionalT](transformers/optionalt_transformer.md)
   - [MaybeT](transformers/maybet_transformer.md)
@@ -54,7 +58,8 @@
   - [Draughts Game](hkts/draughts.md)
 
 # Hands-On Learning
-- [Interactive Tutorials](tutorials/tutorials_intro.md)
+- [Introduction](tutorials/ch_intro.md)
+  - [Interactive Tutorials](tutorials/tutorials_intro.md)
   - [Core Types Track](tutorials/coretypes_track.md)
   - [Optics Track](tutorials/optics_track.md)
   - [Solutions Guide](tutorials/solutions_guide.md)
@@ -101,7 +106,8 @@
   - [Auditing Complex Data](optics/auditing_complex_data_example.md)
 
 # Integration Guides
-- [Spring Boot Integration](spring/spring_boot_integration.md)
+- [Introduction](spring/ch_intro.md)
+  - [Spring Boot Integration](spring/spring_boot_integration.md)
   - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)
 
 # More Functional Thinking
