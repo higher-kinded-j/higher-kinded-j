@@ -176,7 +176,9 @@ Config withoutDebug = debugSettingLens.set(Optional.empty(), withDebug);
 ### Creating Ixed Instances
 
 ```java
+import org.higherkindedj.optics.At;
 import org.higherkindedj.optics.Ixed;
+import org.higherkindedj.optics.at.AtInstances;
 import org.higherkindedj.optics.ixed.IxedInstances;
 
 // Ixed instance for Map<String, Integer>
@@ -186,6 +188,7 @@ Ixed<Map<String, Integer>, String, Integer> mapIx = IxedInstances.mapIx();
 Ixed<List<String>, Integer, String> listIx = IxedInstances.listIx();
 
 // Create Ixed from any At instance
+At<Map<String, String>, String, String> customAt = AtInstances.mapAt();
 Ixed<Map<String, String>, String, String> customIx = IxedInstances.fromAt(customAt);
 ```
 
