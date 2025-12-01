@@ -17,7 +17,7 @@
 
 ## Purpose
 
-State is everywhere in programming—counters increment, configurations update, game characters level up. Yet managing state functionally, without mutation, often feels like fighting the paradigm. The State monad resolves this tension elegantly.
+State is everywhere in programming: counters increment, configurations update, game characters level up. Yet managing state functionally, without mutation, often feels like fighting the paradigm. The State monad resolves this tension elegantly.
 
 In many applications, we need to manage computations that involve **state** that changes over time.
 

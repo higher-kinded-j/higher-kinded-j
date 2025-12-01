@@ -22,7 +22,7 @@ A complete working example is available in the [hkj-spring example module](https
 
 Building REST APIs with Spring Boot is straightforward, but error handling often becomes a source of complexity and inconsistency. Traditional exception-based approaches scatter error handling logic across `@ExceptionHandler` methods, lose type safety, and make it difficult to reason about what errors a given endpoint can produce.
 
-The **hkj-spring-boot-starter** solves these problems by bringing functional programming patterns seamlessly into Spring applications. Return `Either<Error, Data>`, `Validated<Errors, Data>`, or `EitherT` from your controllers, and the framework automatically handles the rest—converting functional types to appropriate HTTP responses whilst preserving type safety and composability.
+The **hkj-spring-boot-starter** solves these problems by bringing functional programming patterns seamlessly into Spring applications. Return `Either<Error, Data>`, `Validated<Errors, Data>`, or `EitherT` from your controllers, and the framework automatically handles the rest: converting functional types to appropriate HTTP responses whilst preserving type safety and composability.
 
 **The key insight:** Errors become explicit in your method signatures, not hidden in implementation details or exception hierarchies.
 
@@ -140,7 +140,7 @@ public Either<DomainError, List<Order>> getUserOrders(@PathVariable String id) {
 - ✅ Compiler ensures error handling at call sites
 - ✅ Functional composition with `map`, `flatMap`, `fold`
 - ✅ Automatic HTTP response conversion
-- ✅ Easy to test—no exception catching required
+- ✅ Easy to test: no exception catching required
 
 ---
 

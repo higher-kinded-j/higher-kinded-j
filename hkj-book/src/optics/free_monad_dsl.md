@@ -17,7 +17,7 @@
 
 ## Introduction: Beyond Immediate Execution
 
-When you use optics directly, they execute immediately. You read a value, transform a field, update a structure—all happens right away. This direct execution is perfect for simple cases, but what if you need more?
+When you use optics directly, they execute immediately. You read a value, transform a field, update a structure; all happens right away. This direct execution is perfect for simple cases, but what if you need more?
 
 Consider these real-world requirements:
 
@@ -30,7 +30,7 @@ Consider these real-world requirements:
 This is where the Free monad DSL comes in. It lets you **describe** a sequence of optic operations as data, then **interpret** that description in different ways.
 
 ~~~admonish tip title="The Core Insight"
-A Free monad program is like a recipe. Writing the recipe doesn't cook the meal—it just describes what to do. You can review the recipe, validate it, translate it, or follow it to cook. The Free monad DSL gives you that same power with optic operations.
+A Free monad program is like a recipe. Writing the recipe doesn't cook the meal; it just describes what to do. You can review the recipe, validate it, translate it, or follow it to cook. The Free monad DSL gives you that same power with optic operations.
 ~~~
 
 ---

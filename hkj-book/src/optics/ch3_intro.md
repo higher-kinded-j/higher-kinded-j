@@ -2,13 +2,13 @@
 
 > *"I believe the angle and direction of the lines are full of secret meaning."*
 >
-> — J.G. Ballard, *Crash*
+> – J.G. Ballard, *Crash*
 
 ---
 
 Sometimes you don't want *all* the elements. Sometimes you want the expensive ones. Or the ones at specific indices. Or the ones that match a condition known only at runtime.
 
-Optics handle this through filtering and indexing—techniques that narrow focus to exactly the subset you need. A filtered Traversal only operates on elements matching a predicate. An indexed Traversal carries position information alongside each element. Together, they provide surgical precision that would otherwise require verbose, error-prone manual iteration.
+Optics handle this through filtering and indexing: techniques that narrow focus to exactly the subset you need. A filtered Traversal only operates on elements matching a predicate. An indexed Traversal carries position information alongside each element. Together, they provide surgical precision that would otherwise require verbose, error-prone manual iteration.
 
 The At and Ixed type classes extend this precision to maps and indexed collections, offering principled ways to access, insert, or remove elements at specific keys. If you've ever written `map.get(key)` followed by null checks and conditional puts, you'll appreciate what these abstractions provide.
 
@@ -65,12 +65,12 @@ When position matters:
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Filtered Optics** — Predicate-based targeting within traversals
-- **Indexed Optics** — Position-aware operations on collections
-- **String Traversals** — Character-level operations on text
-- **At and Ixed** — Type classes for indexed access patterns
-- **Advanced Prism Patterns** — `nearly`, `doesNotMatch`, and complex matching
-- **Profunctor Optics** — Type adaptation with contramap, map, and dimap
+- **Filtered Optics** – Predicate-based targeting within traversals
+- **Indexed Optics** – Position-aware operations on collections
+- **String Traversals** – Character-level operations on text
+- **At and Ixed** – Type classes for indexed access patterns
+- **Advanced Prism Patterns** – `nearly`, `doesNotMatch`, and complex matching
+- **Profunctor Optics** – Type adaptation with contramap, map, and dimap
 ~~~
 
 ---

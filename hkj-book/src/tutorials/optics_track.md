@@ -29,7 +29,7 @@ This track teaches you practical techniques for working with complex domain mode
 ### Tutorial 01: Lens Basics (~8 minutes)
 **File**: `Tutorial01_LensBasics.java` | **Exercises**: 7
 
-Learn immutable field access and modification with Lenses—the foundation of the optics library.
+Learn immutable field access and modification with Lenses, the foundation of the optics library.
 
 **What you'll learn**:
 - The three core operations: `get`, `set`, `modify`

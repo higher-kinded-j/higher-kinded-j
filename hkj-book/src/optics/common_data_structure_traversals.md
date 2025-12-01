@@ -17,7 +17,7 @@
 [TupleTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TupleTraversalsExample.java)
 ~~~
 
-So far, we've explored traversals for collections—lists, sets, and arrays. But Java applications work with many other data structures that benefit from traversal operations: Optional values that might be empty, Map collections where we need to transform values whilst preserving keys, and Tuple pairs that represent related data.
+So far, we've explored traversals for collections: lists, sets, and arrays. But Java applications work with many other data structures that benefit from traversal operations: Optional values that might be empty, Map collections where we need to transform values whilst preserving keys, and Tuple pairs that represent related data.
 
 These structures share a common need: **apply a transformation uniformly across their contents whilst maintaining structural integrity**. Higher-kinded-j's traversal combinators make this declarative, composable, and type-safe.
 
@@ -28,9 +28,9 @@ These structures share a common need: **apply a transformation uniformly across 
 * **Java Stream's `Optional.map()`**: Like `optional.map(transform)` but composable with other optics
 * **Scala's for-comprehensions**: Similar to `for { x <- option } yield transform(x)`, but integrated into optic pipelines
 * **Database UPDATE statements**: Like `UPDATE config SET value = transform(value)`, preserving structure
-* **Functional map operations**: Like `fmap` in Haskell—lifting pure functions into wrapped contexts
+* **Functional map operations**: Like `fmap` in Haskell, lifting pure functions into wrapped contexts
 
-The key insight: these aren't special cases—they're **traversals with specific cardinality**:
+The key insight: these aren't special cases; they're **traversals with specific cardinality**:
 - `Optional<A>`: 0 or 1 element (affine traversal)
 - `Map<K, V>`: 0 to N values, preserving keys
 - `Tuple2<A, A>`: Exactly 2 elements (when same type)
@@ -83,7 +83,7 @@ This pattern doesn't compose with other optics and mixes traversal logic with tr
 
 ### The Solution: `forOptional()` Traversal
 
-The `forOptional()` method creates an **affine traversal**—focusing on 0 or 1 element.
+The `forOptional()` method creates an **affine traversal**, focusing on 0 or 1 element.
 
 ```java
 import org.higherkindedj.optics.util.Traversals;
@@ -457,7 +457,7 @@ String result = optional.map(s -> s.toUpperCase()).orElse("default");
 
 // Type confusion: Trying to use both() with different types
 Tuple2<Integer, String> mixed = new Tuple2<>(42, "hello");
-// TupleTraversals.both() won't work here—types must match!
+// TupleTraversals.both() won't work here; types must match!
 ```
 
 ### Do This Instead:
@@ -590,7 +590,7 @@ These tools transform how you work with wrapped and paired values:
 - Direct map value transformations
 - Unified tuple operations
 
-By incorporating structure traversals into your optics toolkit, you gain the ability to express complex transformations declaratively, compose them seamlessly with other optics, and maintain type safety throughout—all whilst preserving the immutability and referential transparency that make functional programming powerful.
+By incorporating structure traversals into your optics toolkit, you gain the ability to express complex transformations declaratively, compose them seamlessly with other optics, and maintain type safety throughout, all whilst preserving the immutability and referential transparency that make functional programming powerful.
 
 ---
 

@@ -24,7 +24,7 @@
 [PredicateListTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PredicateListTraversalsExample.java)
 ~~~
 
-In our journey through optics, we've seen how **Traversal** handles bulk operations on all elements of a collection, and how **filtered optics** let us focus on elements matching a predicate. But what about focusing on elements by *position*—the first few items, the last few, or a specific slice?
+In our journey through optics, we've seen how **Traversal** handles bulk operations on all elements of a collection, and how **filtered optics** let us focus on elements matching a predicate. But what about focusing on elements by *position*: the first few items, the last few, or a specific slice?
 
 Traditionally, working with list portions requires breaking out of your optic composition to use streams or manual index manipulation. **Limiting traversals** solve this elegantly by making positional focus a first-class part of your optic composition.
 
@@ -87,8 +87,8 @@ This approach forces you to abandon the declarative power of optics, manually ma
 ## Think of Limiting Traversals Like...
 
 * **Java Stream's `limit()` and `skip()`**: Like `stream.limit(n)` and `stream.skip(n)`, but composable with immutable data transformations and integrated into optic pipelines
-* **SQL's LIMIT and OFFSET clauses**: Like database pagination (`LIMIT 10 OFFSET 20`), but for in-memory immutable structures—enabling declarative pagination logic
-* **Spring Batch chunk processing**: Similar to Spring Batch's chunk-oriented processing—divide a list into manageable segments for targeted transformation whilst preserving the complete dataset
+* **SQL's LIMIT and OFFSET clauses**: Like database pagination (`LIMIT 10 OFFSET 20`), but for in-memory immutable structures, enabling declarative pagination logic
+* **Spring Batch chunk processing**: Similar to Spring Batch's chunk-oriented processing: divide a list into manageable segments for targeted transformation whilst preserving the complete dataset
 * **ArrayList.subList() but better**: Like `List.subList(from, to)`, but instead of a mutable view, you get an immutable optic that composes with lenses, prisms, and filtered traversals
 
 The key insight: positional focus becomes part of your optic's *identity*, not an external slicing operation applied afterwards.
@@ -113,7 +113,7 @@ Each serves different needs, and they can be combined with other optics for powe
 
 ## A Step-by-Step Walkthrough
 
-### Step 1: Basic Usage — `taking(int n)`
+### Step 1: Basic Usage – `taking(int n)`
 
 The most intuitive method: focus on at most the first `n` elements.
 
@@ -143,7 +143,7 @@ List<Product> firstThree = Traversals.getAll(first3, products);
 
 **Critical Semantic**: During **modification**, non-focused elements are *preserved unchanged* in the structure. During **queries** (like `getAll`), they are *excluded* from the results. This preserves the overall structure whilst focusing operations on the subset you care about.
 
-### Step 2: Skipping Elements — `dropping(int n)`
+### Step 2: Skipping Elements – `dropping(int n)`
 
 Focus on all elements *after* skipping the first `n`:
 
@@ -158,9 +158,9 @@ List<Product> skipped = Traversals.getAll(afterFirst2, products);
 // Returns: [Gizmo, Doohickey, Thingamajig]
 ```
 
-### Step 3: Focusing on the End — `takingLast(int n)`
+### Step 3: Focusing on the End – `takingLast(int n)`
 
-Focus on the last `n` elements—perfect for "most recent" scenarios:
+Focus on the last `n` elements, perfect for "most recent" scenarios:
 
 ```java
 // Focus on last 2 products
@@ -173,7 +173,7 @@ List<Product> lastTwo = Traversals.getAll(last2, products);
 // Returns: [Doohickey, Thingamajig]
 ```
 
-### Step 4: Excluding from the End — `droppingLast(int n)`
+### Step 4: Excluding from the End – `droppingLast(int n)`
 
 Focus on all elements *except* the last `n`:
 
@@ -188,7 +188,7 @@ List<Product> allButLastTwo = Traversals.getAll(exceptLast2, products);
 // Returns: [Widget, Gadget, Gizmo]
 ```
 
-### Step 5: Precise Slicing — `slicing(int from, int to)`
+### Step 5: Precise Slicing – `slicing(int from, int to)`
 
 Focus on elements within a half-open range `[from, to)`, exactly like `List.subList()`:
 
@@ -207,7 +207,7 @@ List<Product> sliced = Traversals.getAll(slice, products);
 
 ## Predicate-Based Focusing: Beyond Fixed Indices
 
-Whilst index-based limiting is powerful, many real-world scenarios require **conditional focusing**—stopping when a condition is met rather than at a fixed position. `ListTraversals` provides three predicate-based methods that complement the fixed-index approaches:
+Whilst index-based limiting is powerful, many real-world scenarios require **conditional focusing**: stopping when a condition is met rather than at a fixed position. `ListTraversals` provides three predicate-based methods that complement the fixed-index approaches:
 
 | Method | Description | Use Case |
 |--------|-------------|----------|
@@ -215,11 +215,11 @@ Whilst index-based limiting is powerful, many real-world scenarios require **con
 | **`droppingWhile(Predicate)`** | Skip prefix whilst predicate holds | Ignoring header/preamble sections |
 | **`element(int)`** | Focus on single element at index (0-1 cardinality) | Safe indexed access without exceptions |
 
-These methods enable **runtime-determined focusing**—the number of elements in focus depends on the data itself, not a predetermined count.
+These methods enable **runtime-determined focusing**: the number of elements in focus depends on the data itself, not a predetermined count.
 
 ### Step 6: Conditional Prefix with `takingWhile(Predicate)`
 
-The `takingWhile()` method focuses on the **longest prefix** of elements satisfying a predicate. Once an element fails the test, traversal stops—even if later elements would pass.
+The `takingWhile()` method focuses on the **longest prefix** of elements satisfying a predicate. Once an element fails the test, traversal stops, even if later elements would pass.
 
 ```java
 // Focus on products whilst price < 20
@@ -269,7 +269,7 @@ List<Transaction> processed = Traversals.modify(
 
 ### Step 7: Skipping Prefix with `droppingWhile(Predicate)`
 
-The `droppingWhile()` method is the complement to `takingWhile()`—it **skips the prefix** whilst the predicate holds, then focuses on all remaining elements.
+The `droppingWhile()` method is the complement to `takingWhile()`: it **skips the prefix** whilst the predicate holds, then focuses on all remaining elements.
 
 ```java
 // Skip low-stock products, focus on well-stocked ones
@@ -421,7 +421,7 @@ This philosophy ensures **no runtime exceptions** from index bounds, making limi
 
 The real power emerges when you compose limiting traversals with other optics:
 
-### With Lenses — Deep Updates
+### With Lenses – Deep Updates
 
 ```java
 Traversal<List<Product>, Product> first5 = ListTraversals.taking(5);
@@ -435,7 +435,7 @@ Traversal<List<Product>, Double> first5Prices =
 List<Product> result = Traversals.modify(first5Prices, price -> price * 1.1, products);
 ```
 
-### With Filtered Traversals — Conditional Slicing
+### With Filtered Traversals – Conditional Slicing
 
 ```java
 // First 10 products that are also low stock
@@ -450,7 +450,7 @@ List<Product> restocked = Traversals.modify(
 );
 ```
 
-### With Nested Structures — Batch Processing
+### With Nested Structures – Batch Processing
 
 ```java
 // Focus on first 50 orders
@@ -578,7 +578,7 @@ Optional<Product> fifth = IxedInstances.listIxed().ix(4).getOptional(products);
 
 Limiting traversals are optimised for efficiency:
 
-* **Single pass**: No intermediate list creation—slicing happens during traversal
+* **Single pass**: No intermediate list creation; slicing happens during traversal
 * **Structural sharing**: Unchanged portions of the list are reused, not copied
 * **Lazy bounds checking**: Index calculations are minimal and performed once
 * **No boxing overhead**: Direct list operations without stream intermediaries
@@ -740,7 +740,7 @@ taking :: Int -> Traversal' [a] a
 dropping :: Int -> Traversal' [a] a
 ```
 
-These create traversals that focus on the first/remaining elements—exactly what our `ListTraversals.taking()` and `dropping()` do.
+These create traversals that focus on the first/remaining elements, exactly what our `ListTraversals.taking()` and `dropping()` do.
 
 ### Scala's Monocle Library
 
@@ -794,12 +794,12 @@ These tools transform how you work with list portions in immutable data structur
 By incorporating limiting traversals into your toolkit, you gain:
 
 * **Expressiveness**: Say "first 10 products" once, compose with other optics
-* **Safety**: No `IndexOutOfBoundsException`—graceful edge case handling
+* **Safety**: No `IndexOutOfBoundsException`; graceful edge case handling
 * **Composability**: Chain with lenses, prisms, filtered traversals seamlessly
 * **Immutability**: Structure preserved, only focused elements transformed
 * **Clarity**: Business logic separate from index arithmetic
 
-Limiting traversals represent the natural evolution of optics for list manipulation—where Stream's `limit()` and `skip()` meet the composable, type-safe world of functional optics, all whilst maintaining full referential transparency and structural preservation.
+Limiting traversals represent the natural evolution of optics for list manipulation: where Stream's `limit()` and `skip()` meet the composable, type-safe world of functional optics, all whilst maintaining full referential transparency and structural preservation.
 
 ---
 

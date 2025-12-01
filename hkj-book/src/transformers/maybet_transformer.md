@@ -285,7 +285,7 @@ unified monadic interface, abstracting away the manual checks and propagation of
 
 ## MaybeT vs OptionalT: When to Use Which?
 
-Both `MaybeT` and `OptionalT` serve similar purposes—combining optionality with other monadic effects. Here's when to choose each:
+Both `MaybeT` and `OptionalT` serve similar purposes: combining optionality with other monadic effects. Here's when to choose each:
 
 ### Use **MaybeT** when:
 - You're working within the higher-kinded-j ecosystem and want consistency with the `Maybe` type

@@ -31,7 +31,7 @@ Demystify the `Kind<F, A>` wrapper that makes Higher-Kinded Types possible in Ja
 - How to narrow `Kind<F, A>` back to concrete types
 - What "witness types" are and how they work
 
-**Key insight**: `Kind<F, A>` is just a type-level trick. The actual data never changes—we're just changing how the type system sees it.
+**Key insight**: `Kind<F, A>` is just a type-level trick. The actual data never changes; we're just changing how the type system sees it.
 
 **Links to documentation**: [HKT Introduction](../hkts/hkt_introduction.md) | [Core Concepts](../hkts/core-concepts.md)
 
@@ -59,7 +59,7 @@ Learn to transform values inside containers uniformly, regardless of the contain
 ### Tutorial 03: Applicative Combining (~10 minutes)
 **File**: `Tutorial03_ApplicativeCombining.java` | **Exercises**: 7
 
-Learn to combine multiple independent computations—perfect for validating forms where each field is checked separately.
+Learn to combine multiple independent computations, perfect for validating forms where each field is checked separately.
 
 **What you'll learn**:
 - Lifting plain values into context with `of` (pure)

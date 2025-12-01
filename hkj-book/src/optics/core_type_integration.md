@@ -2,7 +2,7 @@
 
 ![Diagram illustrating optics integration with functional core types like Maybe, Either, and Validated](../images/optics.jpg)
 
-As you've learnt from the previous chapters, optics provide a powerful way to focus on and modify immutable data structures. But what happens when the data you're working with is wrapped in Higher-Kinded-J's core types—`Maybe`, `Either`, `Validated`, or `Try`?
+As you've learnt from the previous chapters, optics provide a powerful way to focus on and modify immutable data structures. But what happens when the data you're working with is wrapped in Higher-Kinded-J's core types (`Maybe`, `Either`, `Validated`, or `Try`)?
 
 Traditional optics work brilliantly with straightforward, deterministic data. However, real-world applications rarely deal with such certainty. Fields might be `null`, operations might fail, validation might produce errors, and database calls might throw exceptions. Handling these scenarios whilst maintaining clean, composable optics code requires a bridge between these two powerful abstractions.
 
@@ -77,7 +77,7 @@ Clean separation of concerns:
 
 Higher-Kinded-J provides two integrated solutions for working with core types and optics:
 
-### 1. Core Type Prisms — Pattern Matching on Functional Types
+### 1. Core Type Prisms – Pattern Matching on Functional Types
 
 Extract values from `Maybe`, `Either`, `Validated`, and `Try` using prisms, just as you would with sealed interfaces.
 
@@ -94,7 +94,7 @@ Optional<Order> order = successPrism.getOptional(tryOrder);
 
 **Best for:** Safe extraction and pattern matching on core types, composing with other optics.
 
-### 2. Optics Extensions — Safety Rails for Lens and Traversal
+### 2. Optics Extensions – Safety Rails for Lens and Traversal
 
 Augment lenses and traversals with built-in null safety, validation, and exception handling.
 
@@ -334,10 +334,10 @@ dbResults.stream()
 ## Example Code
 
 ~~~admonish example title="Runnable Examples"
-- [CoreTypePrismsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/CoreTypePrismsExample.java) — API response processing
-- [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java) — User profile validation
-- [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java) — Bulk order processing
-- [IntegrationPatternsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IntegrationPatternsExample.java) — Complete e-commerce workflow
+- [CoreTypePrismsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/CoreTypePrismsExample.java) – API response processing
+- [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java) – User profile validation
+- [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java) – Bulk order processing
+- [IntegrationPatternsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IntegrationPatternsExample.java) – Complete e-commerce workflow
 ~~~
 
 ---
@@ -389,15 +389,15 @@ Maybe<String> backToMaybe = value
 
 Core Type Integration provides:
 
-**Safe Extraction** — Extract values from `Maybe`, `Either`, `Validated`, and `Try` without null checks or verbose pattern matching
+**Safe Extraction** – Extract values from `Maybe`, `Either`, `Validated`, and `Try` without null checks or verbose pattern matching
 
-**Pattern Matching** — Use `matches()` to check cases, `getOptional()` to extract values
+**Pattern Matching** – Use `matches()` to check cases, `getOptional()` to extract values
 
-**Composability** — Combine with lenses and traversals for deep navigation
+**Composability** – Combine with lenses and traversals for deep navigation
 
-**Collection Processing** — Filter, extract, and count different cases in collections
+**Collection Processing** – Filter, extract, and count different cases in collections
 
-**Type Safety** — The compiler ensures you handle all cases correctly
+**Type Safety** – The compiler ensures you handle all cases correctly
 
 ---
 

@@ -18,7 +18,7 @@
 
 Traditional optics work brilliantly with clean, valid data. Real-world applications, however, deal with nullable fields, validation requirements, and operations that might throw exceptions. **Optics Extensions** bridge this gap by integrating lenses and traversals with Higher-Kinded-J's core types.
 
-Think of optics extensions as **safety rails**—they catch null values, validate modifications, and handle exceptions whilst maintaining the elegance of functional composition.
+Think of optics extensions as **safety rails**: they catch null values, validate modifications, and handle exceptions whilst maintaining the elegance of functional composition.
 
 ---
 
@@ -36,7 +36,7 @@ These extension methods are also available through the [Fluent API](fluent_api.m
 
 ### Safe Access Methods
 
-#### `getMaybe` — Null-Safe Field Access
+#### `getMaybe` – Null-Safe Field Access
 
 Returns `Maybe.just(value)` if the field is non-null, `Maybe.nothing()` otherwise.
 
@@ -53,7 +53,7 @@ Maybe<String> noBio = getMaybe(bioLens, withoutBio);  // Maybe.nothing()
 String displayBio = bio.orElse("No bio provided");
 ```
 
-#### `getEither` — Access with Default Error
+#### `getEither` – Access with Default Error
 
 Returns `Either.right(value)` if non-null, `Either.left(error)` if null.
 
@@ -69,7 +69,7 @@ String message = age.fold(
 );
 ```
 
-#### `getValidated` — Access with Validation Error
+#### `getValidated` – Access with Validation Error
 
 Like `getEither`, but returns `Validated` for consistency with validation workflows.
 
@@ -82,7 +82,7 @@ Validated<String, String> email = getValidated(emailLens, "Email is required", p
 
 ### Modification Methods
 
-#### `modifyMaybe` — Optional Modifications
+#### `modifyMaybe` – Optional Modifications
 
 Apply a modification that might not succeed. Returns `Maybe.just(updated)` if successful, `Maybe.nothing()` if it fails.
 
@@ -97,7 +97,7 @@ Maybe<UserProfile> updated = modifyMaybe(
 // Maybe.just(UserProfile with name "ALICE") or Maybe.nothing()
 ```
 
-#### `modifyEither` — Fail-Fast Validation
+#### `modifyEither` – Fail-Fast Validation
 
 Apply a modification with validation. Returns `Either.right(updated)` if valid, `Either.left(error)` if invalid.
 
@@ -115,7 +115,7 @@ Either<String, UserProfile> updated = modifyEither(
 );
 ```
 
-#### `modifyTry` — Exception-Safe Modifications
+#### `modifyTry` – Exception-Safe Modifications
 
 Apply a modification that might throw exceptions. Returns `Try.success(updated)` or `Try.failure(exception)`.
 
@@ -134,7 +134,7 @@ updated.match(
 );
 ```
 
-#### `setIfValid` — Conditional Updates
+#### `setIfValid` – Conditional Updates
 
 Set a new value **only if it passes validation**. Unlike `modifyEither`, you provide the new value directly.
 
@@ -184,7 +184,7 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 ### Extraction Methods
 
-#### `getAllMaybe` — Extract All Values
+#### `getAllMaybe` – Extract All Values
 
 Returns `Maybe.just(values)` if any elements exist, `Maybe.nothing()` for empty collections.
 
@@ -199,7 +199,7 @@ Maybe<List<BigDecimal>> prices = getAllMaybe(allPrices, items);
 
 ### Bulk Modification Methods
 
-#### `modifyAllMaybe` — All-or-Nothing Modifications
+#### `modifyAllMaybe` – All-or-Nothing Modifications
 
 Returns `Maybe.just(updated)` if **all** modifications succeed, `Maybe.nothing()` if **any** fail. Atomic operation.
 
@@ -215,10 +215,10 @@ Maybe<List<OrderItem>> updated = modifyAllMaybe(
 ```
 
 ~~~admonish tip title="When to Use modifyAllMaybe"
-Use for **atomic updates** where all modifications must succeed or none should apply—for example, applying currency conversion where partial conversion would leave data inconsistent.
+Use for **atomic updates** where all modifications must succeed or none should apply, for example, applying currency conversion where partial conversion would leave data inconsistent.
 ~~~
 
-#### `modifyAllEither` — Fail-Fast Validation
+#### `modifyAllEither` – Fail-Fast Validation
 
 Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. **Stops at first error**.
 
@@ -237,10 +237,10 @@ Either<String, List<OrderItem>> result = modifyAllEither(
 ```
 
 ~~~admonish tip title="When to Use modifyAllEither"
-Use for **fail-fast validation** where you want to stop immediately at the first error—for example, API request validation where you reject immediately if any field is invalid.
+Use for **fail-fast validation** where you want to stop immediately at the first error, for example, API request validation where you reject immediately if any field is invalid.
 ~~~
 
-#### `modifyAllValidated` — Error Accumulation
+#### `modifyAllValidated` – Error Accumulation
 
 Returns `Validated.valid(updated)` if **all** validations pass, `Validated.invalid(allErrors)` if **any** fail. **Collects all errors**.
 
@@ -267,10 +267,10 @@ result.match(
 ```
 
 ~~~admonish tip title="When to Use modifyAllValidated"
-Use for **error accumulation** where you want to collect all errors—for example, form validation where users need to see all problems at once rather than one at a time.
+Use for **error accumulation** where you want to collect all errors, for example, form validation where users need to see all problems at once rather than one at a time.
 ~~~
 
-#### `modifyWherePossible` — Selective Modification
+#### `modifyWherePossible` – Selective Modification
 
 Modifies elements where the function returns `Maybe.just(value)`, leaves others unchanged. Best-effort operation that always succeeds.
 
@@ -290,12 +290,12 @@ List<OrderItem> updated = modifyWherePossible(
 ```
 
 ~~~admonish tip title="When to Use modifyWherePossible"
-Use for **selective updates** where only some elements should be modified—for example, status transitions that only affect items in a certain state.
+Use for **selective updates** where only some elements should be modified, for example, status transitions that only affect items in a certain state.
 ~~~
 
 ### Analysis Methods
 
-#### `countValid` — Count Passing Validation
+#### `countValid` – Count Passing Validation
 
 Count how many elements pass validation without modifying anything.
 
@@ -311,7 +311,7 @@ int validCount = countValid(
 System.out.println("Valid items: " + validCount + " out of " + items.size());
 ```
 
-#### `collectErrors` — Gather Validation Failures
+#### `collectErrors` – Gather Validation Failures
 
 Collect all validation errors without modifying anything. Returns empty list if all valid.
 

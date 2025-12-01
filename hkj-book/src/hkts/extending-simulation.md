@@ -9,7 +9,7 @@ There are two main scenarios:
 1. **Adapting External Types**: For types you don't own (e.g., JDK classes like `java.util.Set`, `java.util.Map`, or classes from other libraries).
 2. **Integrating Custom Library Types**: For types defined within your own project or a library you control, where you can modify the type itself.
 
-> **Note:** Within Higher-Kinded-J, core library types like `IO`, `Maybe`, and `Either` follow Scenario 2—they directly implement their respective Kind interfaces (`IOKind`, `MaybeKind`, `EitherKind`). This provides zero runtime overhead for widen/narrow operations.
+> **Note:** Within Higher-Kinded-J, core library types like `IO`, `Maybe`, and `Either` follow Scenario 2: they directly implement their respective Kind interfaces (`IOKind`, `MaybeKind`, `EitherKind`). This provides zero runtime overhead for widen/narrow operations.
 
 The core pattern involves creating:
 

@@ -19,7 +19,7 @@
 [PrismsUtilityExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PrismsUtilityExample.java)
 ~~~
 
-The previous guide demonstrated how a **`Lens`** gives us a powerful, composable way to work with "has-a" relationships—a field that is guaranteed to exist within a record.
+The previous guide demonstrated how a **`Lens`** gives us a powerful, composable way to work with "has-a" relationships: a field that is guaranteed to exist within a record.
 
 But what happens when the data doesn't have a guaranteed structure? What if a value can be one of *several different types*? This is the domain of "is-a" relationships, or **sum types**, commonly modeled in Java using `sealed interface` or `enum`.
 
@@ -906,7 +906,7 @@ boolean hasList = headPrism.matches(names);
 ```
 
 ~~~admonish warning title="List Prism Limitations"
-The `listHead()` and `listLast()` prisms have limited `build()` operations—they create singleton lists. The `listAt(int)` prism throws `UnsupportedOperationException` on `build()` since there's no meaningful way to construct a complete list from a single indexed element.
+The `listHead()` and `listLast()` prisms have limited `build()` operations: they create singleton lists. The `listAt(int)` prism throws `UnsupportedOperationException` on `build()` since there's no meaningful way to construct a complete list from a single indexed element.
 
 **Use these prisms for:**
 - Safe element extraction
@@ -943,7 +943,7 @@ Optional<String> host = Traversals.getAll(databaseHost, config)
 ```
 
 ~~~admonish tip title="Performance Considerations"
-Utility prisms are lightweight and stateless—they're safe to create on-demand or cache as constants:
+Utility prisms are lightweight and stateless; they're safe to create on-demand or cache as constants:
 
 ```java
 public class AppPrisms {

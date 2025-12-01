@@ -17,7 +17,7 @@ This glossary provides clear, practical explanations of functional programming a
 
 **Definition:** A type parameter is contravariant when it appears in an "input" or "consumer" position. If `A` is a subtype of `B`, then `F<B>` can be treated as a subtype of `F<A>` when accepting values (note the direction reversal!).
 
-**Java Analogy:** Think of `? super T` in Java generics—this is contravariant. Also, function parameters are contravariant.
+**Java Analogy:** Think of `? super T` in Java generics: this is contravariant. Also, function parameters are contravariant.
 
 **Example:**
 ```java
@@ -54,7 +54,7 @@ Kind2<FunctionKind.Witness, Integer, Integer> intLength =
 
 **Definition:** A type parameter is covariant when it appears in an "output" or "producer" position. If `A` is a subtype of `B`, then `F<A>` can be treated as a subtype of `F<B>` when reading values.
 
-**Java Analogy:** Think of `? extends T` in Java generics—this is covariant.
+**Java Analogy:** Think of `? extends T` in Java generics: this is covariant.
 
 **Example:**
 ```java
@@ -83,7 +83,7 @@ Kind<ListKind.Witness, String> strings = functor.map(Object::toString, ints);
 
 **Definition:** A type parameter is invariant when it appears in both input and output positions, or when the type doesn't allow any subtype substitution.
 
-**Java Analogy:** Most mutable collections in Java are invariant—`List<Integer>` is not a subtype of `List<Number>`.
+**Java Analogy:** Most mutable collections in Java are invariant: `List<Integer>` is not a subtype of `List<Number>`.
 
 **Example:**
 ```java
@@ -97,7 +97,7 @@ List<Number> nums = ints; // ❌ Compilation error!
 
 // In Higher-Kinded-J: MonadError's error type is typically invariant
 MonadError<EitherKind.Witness<String>, String> monadError = EitherMonadError.instance();
-// The String error type is fixed—you can't substitute it with Object or CharSequence
+// The String error type is fixed; you can't substitute it with Object or CharSequence
 ```
 
 **Think Of It As:** "Locked to exactly this type" - no flexibility in either direction.
@@ -273,7 +273,7 @@ MonadError<EitherKind.Witness<String>, String> eitherMonad = EitherMonadError.in
 
 ### Phantom Type
 
-**Definition:** A type parameter that appears in a type signature but has no corresponding runtime representation—it exists purely for compile-time type safety and doesn't store any actual data of that type.
+**Definition:** A type parameter that appears in a type signature but has no corresponding runtime representation. It exists purely for compile-time type safety and doesn't store any actual data of that type.
 
 **Key Characteristics:**
 - Present in the type signature for type-level information

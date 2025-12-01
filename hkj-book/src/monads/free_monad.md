@@ -108,9 +108,9 @@ Free<Command, Result> workflow =
 The `Free` functionality is built upon several related components:
 
 1. **`Free<F, A>`**: The core sealed interface representing a program. It has three constructors:
-   * `Pure<F, A>`: Represents a terminal value—the final result.
-   * `Suspend<F, A>`: Represents a suspended computation—an instruction `Kind<F, Free<F, A>>` to be interpreted later.
-   * `FlatMapped<F, X, A>`: Represents monadic sequencing—chains computations together in a stack-safe manner.
+   * `Pure<F, A>`: Represents a terminal value: the final result.
+   * `Suspend<F, A>`: Represents a suspended computation: an instruction `Kind<F, Free<F, A>>` to be interpreted later.
+   * `FlatMapped<F, X, A>`: Represents monadic sequencing: chains computations together in a stack-safe manner.
 
 2. **`FreeKind<F, A>`**: The HKT marker interface (`Kind<FreeKind.Witness<F>, A>`) for `Free`. This allows `Free` to be treated as a generic type constructor in type classes. The witness type is `FreeKind.Witness<F>`, where `F` is the instruction set functor.
 
@@ -377,9 +377,9 @@ interpreter.run(greetingProgram());
 // Actual console interaction happens here!
 ```
 
-**Natural Transformation**: The `transform` function is a natural transformation—it converts each `ConsoleOp` instruction into an `IO` operation whilst preserving structure.
+**Natural Transformation**: The `transform` function is a natural transformation; it converts each `ConsoleOp` instruction into an `IO` operation whilst preserving structure.
 
-**Critical Detail**: Notice we wrap instruction results in `Free.pure()`. This is essential—the natural transformation receives `Kind<F, Free<F, A>>` and must return `Kind<M, Free<F, A>>`, not just the raw result.
+**Critical Detail**: Notice we wrap instruction results in `Free.pure()`. This is essential: the natural transformation receives `Kind<F, Free<F, A>>` and must return `Kind<M, Free<F, A>>`, not just the raw result.
 ~~~
 
 ~~~admonish example title="Example 4: Test Interpreter for Pure Testing"
@@ -829,7 +829,7 @@ private static <F, M, A> Trampoline<Kind<M, A>> interpretFree(
 
 1. **Trampoline Integration**: Uses `Trampoline.done()` for terminal cases and `Trampoline.defer()` for recursive cases, ensuring stack safety.
 
-2. **Library Composability**: Demonstrates that Higher-Kinded-J's abstractions are practical—Free monad uses Trampoline internally.
+2. **Library Composability**: Demonstrates that Higher-Kinded-J's abstractions are practical; Free monad uses Trampoline internally.
 
 3. **Pattern Matching**: Uses sealed interface with switch expressions for type-safe case handling.
 

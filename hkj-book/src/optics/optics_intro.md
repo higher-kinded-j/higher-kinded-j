@@ -50,7 +50,7 @@ Think of an optic as a *zoom lens* for your data. It's a first-class object that
 Every optic provides two basic capabilities:
 
 1. **`get`**: Focus on a structure `S` and retrieve a part `A`.
-2. **`set`**: Focus on a structure `S`, provide a new part `A`, and receive a new `S` with the part updated. This is always an immutable operation —> a new copy of `S` is returned.
+2. **`set`**: Focus on a structure `S`, provide a new part `A`, and receive a new `S` with the part updated. This is always an immutable operation: a new copy of `S` is returned.
 
 The real power comes from their **composability**. You can chain optics together to peer deeply into nested structures and perform targeted updates with ease.
 
@@ -135,7 +135,7 @@ DomainErrorPrisms.shippingError()
 
 ### 4. Traversal: For "Has-Many" Relationships
 
-A **Traversal** is an optic that can focus on multiple targets at once—typically all the items within a collection inside a larger structure.
+A **Traversal** is an optic that can focus on multiple targets at once, typically all the items within a collection inside a larger structure.
 
 * **Problem it solves**: Applying an operation to every element in a `List`, `Set`, or other collection that is a field within an object.
 * **Example**: To validate a list of promo codes in an order with `Validated`:
@@ -158,7 +158,7 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
 
 A **Fold** is a read-only optic designed specifically for querying and extracting data without modification. Think of it as a `Traversal` that has given up the ability to modify in exchange for a clearer expression of intent and additional query-focused operations.
 
-* **Problem it solves**: Extracting information from complex data structures—finding items, checking conditions, aggregating values, or collecting data without modifying the original structure.
+* **Problem it solves**: Extracting information from complex data structures: finding items, checking conditions, aggregating values, or collecting data without modifying the original structure.
 * **Generated Code**: Annotating a record with `@GenerateFolds` produces a companion class (e.g., `OrderFolds`) with a `Fold` for each field.
 * **Example (Querying Product Catalogue)**:
 
@@ -189,7 +189,7 @@ A **Fold** is a read-only optic designed specifically for querying and extractin
   * `isEmpty(source)`: Check if there are zero focused values
   * `length(source)`: Count the number of focused values
 
-**Why Fold is Important**: While `Traversal` can do everything `Fold` can do, using `Fold` makes your code's intent crystal clear—"I'm only reading this data, not modifying it." This is valuable for code reviewers, for preventing accidental mutations, and for expressing domain logic where queries should be separated from commands ([CQRS pattern](https://martinfowler.com/bliki/CQRS.html)).
+**Why Fold is Important**: While `Traversal` can do everything `Fold` can do, using `Fold` makes your code's intent crystal clear: "I'm only reading this data, not modifying it." This is valuable for code reviewers, for preventing accidental mutations, and for expressing domain logic where queries should be separated from commands ([CQRS pattern](https://martinfowler.com/bliki/CQRS.html)).
 
 ## Advanced Capabilities: Profunctor Adaptations
 

@@ -19,7 +19,7 @@ Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (H
 As we've already discussed, Java's type system lacks native support for Higher-Kinded Types. We can easily parametrise a type by another type (like `List<String>`), but we cannot easily parametrise a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
 
 ~~~ admonish warning
-You'll often see Higher-Kinded Types represented with an underscore, such as `F<_>` (e.g., `List<_>`, `Optional<_>`). This notation, borrowed from languages like Scala, represents a "type constructor"—a type that is waiting for a type parameter. It's important to note that this underscore is a conceptual placeholder and is not the same as Java's `?` wildcard, which is used for instantiated types. Our library provides a way to simulate this `F<_>` concept in Java.
+You'll often see Higher-Kinded Types represented with an underscore, such as `F<_>` (e.g., `List<_>`, `Optional<_>`). This notation, borrowed from languages like Scala, represents a "type constructor": a type that is waiting for a type parameter. It's important to note that this underscore is a conceptual placeholder and is not the same as Java's `?` wildcard, which is used for instantiated types. Our library provides a way to simulate this `F<_>` concept in Java.
 
 ~~~
 

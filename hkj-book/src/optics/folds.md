@@ -26,7 +26,7 @@ But what if you need to perform read-only operations? What if you want to query,
 
 ## The Scenario: Analysing E-Commerce Orders
 
-A **`Fold`** is a read-only optic designed specifically for querying and data extraction. Think of it as a **database query tool** or a **telescope** that lets you peer into your data structures, extract information, and aggregate results—all without the ability to modify anything.
+A **`Fold`** is a read-only optic designed specifically for querying and data extraction. Think of it as a **database query tool** or a **telescope** that lets you peer into your data structures, extract information, and aggregate results: all without the ability to modify anything.
 
 Consider an e-commerce system where you need to analyse orders:
 
@@ -222,7 +222,7 @@ Standard Fold operations use `Optional<A>` for operations that might not find a 
 * Provides better composition with validation and error handling types
 * Offers a more principled functional API
 
-Think of `Maybe` as `Optional`'s more functional cousin—they both represent "a value or nothing", but `Maybe` plays more nicely with the rest of the functional toolkit.
+Think of `Maybe` as `Optional`'s more functional cousin; they both represent "a value or nothing", but `Maybe` plays more nicely with the rest of the functional toolkit.
 
 #### Think of Maybe-Based Extensions Like...
 
@@ -964,7 +964,7 @@ public class OrderAnalytics {
 
 ### Quick Summary
 
-If you're just getting started, here's what you need to know: A `Fold<S, A>` is closely related to the `Foldable` type class from functional programming. While `Foldable<F>` works with any container type `F` (like `List`, `Optional`, `Tree`), a `Fold<S, A>` lets you treat any structure `S` as if it were a foldable container of `A` values—even when `S` isn't actually a collection.
+If you're just getting started, here's what you need to know: A `Fold<S, A>` is closely related to the `Foldable` type class from functional programming. While `Foldable<F>` works with any container type `F` (like `List`, `Optional`, `Tree`), a `Fold<S, A>` lets you treat any structure `S` as if it were a foldable container of `A` values: even when `S` isn't actually a collection.
 
 **Key Connection**: Both use `foldMap` to aggregate values using monoids. The `Fold` optic brings this powerful abstraction to arbitrary data structures, not just collections.
 

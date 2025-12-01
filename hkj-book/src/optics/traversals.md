@@ -349,7 +349,7 @@ CompletableFuture<League> enrichedLeague = CF.narrow(
 [PartsOfTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PartsOfTraversalExample.java)
 ~~~
 
-So far, we've seen how traversals excel at applying the *same* operation to every focused element individually. But what if you need to perform operations that consider *all* focuses as a group? Sorting, reversing, or removing duplicates are inherently list-level operations—they require knowledge of the entire collection, not just individual elements.
+So far, we've seen how traversals excel at applying the *same* operation to every focused element individually. But what if you need to perform operations that consider *all* focuses as a group? Sorting, reversing, or removing duplicates are inherently list-level operations: they require knowledge of the entire collection, not just individual elements.
 
 This is where `partsOf` becomes invaluable. It bridges the gap between element-wise traversal operations and collection-level algorithms.
 
@@ -402,7 +402,7 @@ Collections.sort(sortedPrices);
 Catalogue sortedCatalogue = pricesLens.set(sortedPrices, catalogue);
 ```
 
-**The Magic**: The sorted prices are distributed back to the *original positions* in the structure. The first product gets the lowest price, the second product gets the second-lowest, and so on—regardless of which category they belong to.
+**The Magic**: The sorted prices are distributed back to the *original positions* in the structure. The first product gets the lowest price, the second product gets the second-lowest, and so on, regardless of which category they belong to.
 
 ### Convenience Methods
 

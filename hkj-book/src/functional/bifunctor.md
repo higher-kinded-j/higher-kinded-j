@@ -66,7 +66,7 @@ Understanding the distinction between **sum types** and **product types** is cru
 
 ### Sum Types (Exclusive OR) 🔀
 
-A **sum type** represents a choice between alternatives—you have *either* one value *or* another, but never both. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Either<A, B>` has `n + m` possible values (hence "sum").
+A **sum type** represents a choice between alternatives: you have *either* one value *or* another, but never both. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Either<A, B>` has `n + m` possible values (hence "sum").
 
 Examples in higher-kinded-j:
 * **`Either<L, R>`**: Holds *either* a `Left` value (conventionally an error) *or* a `Right` value (conventionally a success)
@@ -76,7 +76,7 @@ When you use `bimap` on a sum type, only *one* of the two functions will actuall
 
 ### Product Types (Both AND) 🔗
 
-A **product type** contains multiple values simultaneously—you have *both* the first value *and* the second value. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Tuple2<A, B>` has `n × m` possible values (hence "product").
+A **product type** contains multiple values simultaneously: you have *both* the first value *and* the second value. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Tuple2<A, B>` has `n × m` possible values (hence "product").
 
 Examples in higher-kinded-j:
 * **`Tuple2<A, B>`**: Holds *both* a first value *and* a second value
@@ -170,7 +170,7 @@ System.out.println(EITHER.narrow2(both));
 // Output: Right(Value: 100)
 ```
 
-**Note:** With `Either`, only one function in `bimap` executes because `Either` is a *sum type*—you have either Left *or* Right, never both.
+**Note:** With `Either`, only one function in `bimap` executes because `Either` is a *sum type*: you have either Left *or* Right, never both.
 
 ---
 
@@ -214,7 +214,7 @@ System.out.println(TUPLE2.narrow2(formatted));
 // Output: Tuple2(Name: Alice, Age: 30)
 ```
 
-**Note:** With `Tuple2`, both functions in `bimap` execute because `Tuple2` is a *product type*—both values are always present.
+**Note:** With `Tuple2`, both functions in `bimap` execute because `Tuple2` is a *product type*: both values are always present.
 
 ---
 
