@@ -525,7 +525,7 @@ for (int i = 0; i < Math.min(10, products.size()); i++) {
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 ```java
 // Inefficient: Recreating traversals in loops
@@ -550,7 +550,7 @@ Traversal<List<Product>, Product> atIndex5 = ListTraversals.slicing(5, 6);
 // Consider using Ixed type class for single-element access instead
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 // Efficient: Create traversal once, vary parameters
@@ -659,7 +659,7 @@ public class PaginationExample {
         Traversal<List<Product>, Product> featured = ListTraversals.taking(3);
         List<Product> featuredProducts = Traversals.getAll(featured, catalogue);
         featuredProducts.forEach(p ->
-            System.out.printf("  ⭐ %s - £%.2f%n", p.name(), p.price()));
+            System.out.printf("  %s - £%.2f%n", p.name(), p.price()));
 
         // --- Scenario 3: Apply Discount to Featured ---
         System.out.println("\n--- Scenario 3: 10% Discount on Featured ---");
@@ -704,9 +704,9 @@ Page 2: [Monitor, Webcam, Headset]
 Page 3: [USB Hub, Desk Lamp]
 
 --- Scenario 2: Featured Products (First 3) ---
-  ⭐ Laptop - £999.99
-  ⭐ Mouse - £29.99
-  ⭐ Keyboard - £79.99
+  Laptop - £999.99
+  Mouse - £29.99
+  Keyboard - £79.99
 
 --- Scenario 3: 10% Discount on Featured ---
 After discount on first 3:

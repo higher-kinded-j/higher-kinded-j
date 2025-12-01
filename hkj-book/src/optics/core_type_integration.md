@@ -8,11 +8,13 @@ Traditional optics work brilliantly with straightforward, deterministic data. Ho
 
 This is where **Core Type Integration** comes in.
 
+---
+
 ## The Challenge
 
 Consider a typical scenario: updating a user profile where some fields are optional, validation might fail, and the database operation might throw an exception.
 
-~~~admonish failure title="❌ The Traditional Approach"
+~~~admonish failure title="The Traditional Approach"
 ```java
 public User updateUserProfile(User user, String newEmail) {
     // Null checking
@@ -41,7 +43,7 @@ public User updateUserProfile(User user, String newEmail) {
 This code is a mess of concerns: null handling, validation logic, exception management, and the actual update logic are all tangled together.
 ~~~
 
-~~~admonish success title="✅ The Functional Approach"
+~~~admonish success title="The Functional Approach"
 ```java
 public Either<String, User> updateUserProfile(User user, String newEmail) {
     Lens<User, Profile> profileLens = UserLenses.profile();
@@ -69,15 +71,13 @@ Clean separation of concerns:
 - Business logic stays pure and testable
 ~~~
 
-## Three Complementary Approaches
+---
 
-Higher-Kinded-J provides three integrated solutions for working with core types and optics:
+## Two Complementary Approaches
 
-~~~admonish note title="💡 Using with the Fluent API"
-All the extension methods shown here can also be accessed through Higher-Kinded-J's [Fluent API](fluent_api.md), which provides a more Java-friendly syntax for optic operations. The examples below use static imports for conciseness, but you can also use `OpticOps` methods for a more discoverable API.
-~~~
+Higher-Kinded-J provides two integrated solutions for working with core types and optics:
 
-### 1. **Core Type Prisms** 🔬 — Pattern Matching on Functional Types
+### 1. Core Type Prisms — Pattern Matching on Functional Types
 
 Extract values from `Maybe`, `Either`, `Validated`, and `Try` using prisms, just as you would with sealed interfaces.
 
@@ -94,11 +94,9 @@ Optional<Order> order = successPrism.getOptional(tryOrder);
 
 **Best for:** Safe extraction and pattern matching on core types, composing with other optics.
 
-[Learn more →](core_type_prisms.md)
+### 2. Optics Extensions — Safety Rails for Lens and Traversal
 
-### 2. **Lens Extensions** 🛡️ — Safety Rails for Lens Operations
-
-Augment lenses with built-in null safety, validation, and exception handling.
+Augment lenses and traversals with built-in null safety, validation, and exception handling.
 
 ```java
 Lens<User, String> emailLens = UserLenses.email();
@@ -113,151 +111,253 @@ Either<String, User> updated = modifyEither(
     user
 );
 
-// Exception-safe database operation
-Try<User> saved = modifyTry(
-    emailLens,
-    email -> Try.of(() -> updateInDatabase(email)),
-    user
-);
-```
-
-**Best for:** Individual field operations with validation, null-safe access, exception handling.
-
-[Learn more →](lens_extensions.md)
-
-### 3. **Traversal Extensions** 🗺️ — Bulk Operations with Error Handling
-
-Process collections using traversals whilst accumulating errors or failing fast.
-
-```java
-Traversal<List<Order>, BigDecimal> allPrices =
-    Traversals.forList().andThen(OrderLenses.price().asTraversal());
-
-// Validate all prices (accumulate errors)
+// Bulk validation with error accumulation
 Validated<List<String>, List<Order>> result = modifyAllValidated(
     allPrices,
     price -> validatePrice(price),
     orders
 );
-
-// Or fail fast at first error
-Either<String, List<Order>> fastResult = modifyAllEither(
-    allPrices,
-    price -> validatePrice(price),
-    orders
-);
 ```
 
-**Best for:** Bulk validation, batch processing, error accumulation vs fail-fast strategies.
+**Best for:** Individual field operations with validation, bulk operations, exception handling.
 
-[Learn more →](traversal_extensions.md)
+[Learn more about Optics Extensions →](optics_extensions.md)
+
+---
+
+## Core Type Prisms in Detail
+
+Prisms focus on **one case** of a sum type. They're perfect for safely extracting values from `Maybe`, `Either`, `Validated`, and `Try` without verbose pattern matching or null checks.
+
+### Maybe Prisms
+
+```java
+// Extract value from Just, returns empty Optional for Nothing
+Prism<Maybe<A>, A> justPrism = Prisms.just();
+
+Maybe<String> present = Maybe.just("Hello");
+Maybe<String> absent = Maybe.nothing();
+
+Optional<String> value = justPrism.getOptional(present);  // Optional["Hello"]
+Optional<String> empty = justPrism.getOptional(absent);   // Optional.empty()
+
+// Construct Maybe.just() from a value
+Maybe<String> built = justPrism.build("World");  // Maybe.just("World")
+
+// Check if it's a Just
+boolean isJust = justPrism.matches(present);  // true
+```
+
+### Either Prisms
+
+```java
+// Extract from Left and Right cases
+Prism<Either<L, R>, L> leftPrism = Prisms.left();
+Prism<Either<L, R>, R> rightPrism = Prisms.right();
+
+Either<String, Integer> success = Either.right(42);
+Either<String, Integer> failure = Either.left("Error");
+
+// Extract success value
+Optional<Integer> value = rightPrism.getOptional(success);   // Optional[42]
+Optional<Integer> noValue = rightPrism.getOptional(failure); // Optional.empty()
+
+// Extract error value
+Optional<String> error = leftPrism.getOptional(failure);     // Optional["Error"]
+
+// Construct Either values
+Either<String, Integer> newSuccess = rightPrism.build(100);  // Either.right(100)
+```
+
+### Validated Prisms
+
+```java
+// Extract from Valid and Invalid cases
+Prism<Validated<E, A>, A> validPrism = Prisms.valid();
+Prism<Validated<E, A>, E> invalidPrism = Prisms.invalid();
+
+Validated<String, Integer> valid = Validated.valid(30);
+Validated<String, Integer> invalid = Validated.invalid("Age must be positive");
+
+// Extract valid value
+Optional<Integer> age = validPrism.getOptional(valid);       // Optional[30]
+
+// Extract validation error
+Optional<String> error = invalidPrism.getOptional(invalid);  // Optional["Age must be positive"]
+```
+
+### Try Prisms
+
+```java
+// Extract from Success and Failure cases
+Prism<Try<A>, A> successPrism = Prisms.success();
+Prism<Try<A>, Throwable> failurePrism = Prisms.failure();
+
+Try<Integer> success = Try.success(42);
+Try<Integer> failure = Try.failure(new RuntimeException("Database error"));
+
+// Extract success value
+Optional<Integer> value = successPrism.getOptional(success);    // Optional[42]
+
+// Extract exception
+Optional<Throwable> ex = failurePrism.getOptional(failure);     // Optional[RuntimeException]
+```
+
+---
+
+## Core Type Traversals
+
+Whilst prisms *extract* values, traversals *modify* values inside core types:
+
+### Maybe Traversals
+
+```java
+import org.higherkindedj.optics.util.MaybeTraversals;
+
+Traversal<Maybe<String>, String> justTraversal = MaybeTraversals.just();
+
+// Modify value inside Just
+Maybe<String> original = Maybe.just("hello");
+Maybe<String> modified = Traversals.modify(justTraversal, String::toUpperCase, original);
+// Result: Maybe.just("HELLO")
+
+// No effect on Nothing
+Maybe<String> nothing = Maybe.nothing();
+Maybe<String> unchanged = Traversals.modify(justTraversal, String::toUpperCase, nothing);
+// Result: Maybe.nothing()
+```
+
+### Either Traversals
+
+```java
+import org.higherkindedj.optics.util.EitherTraversals;
+
+Traversal<Either<String, Integer>, Integer> rightTraversal = EitherTraversals.right();
+Traversal<Either<String, Integer>, String> leftTraversal = EitherTraversals.left();
+
+// Modify Right value
+Either<String, Integer> success = Either.right(100);
+Either<String, Integer> doubled = Traversals.modify(rightTraversal, n -> n * 2, success);
+// Result: Either.right(200)
+
+// Error enrichment with Left traversal
+Either<String, Integer> error = Either.left("Connection failed");
+Either<String, Integer> enriched = Traversals.modify(
+    leftTraversal,
+    msg -> "[ERROR] " + msg,
+    error
+);
+// Result: Either.left("[ERROR] Connection failed")
+```
+
+~~~admonish tip title="Error Enrichment"
+The `EitherTraversals.left()` traversal is excellent for adding context to error messages without unwrapping the Either.
+~~~
+
+---
+
+## Composition: The Real Power
+
+Prisms compose seamlessly with lenses and other optics to navigate deeply nested structures:
+
+```java
+@GenerateLenses
+record ApiResponse(int statusCode, Maybe<Order> data, List<String> warnings) {}
+
+@GenerateLenses
+record Order(String orderId, Customer customer, List<OrderItem> items) {}
+
+@GenerateLenses
+record Customer(String customerId, String name, String email) {}
+
+// Full composition: ApiResponse -> Maybe<Order> -> Order -> Customer -> email
+Lens<ApiResponse, Maybe<Order>> dataLens = ApiResponseLenses.data();
+Traversal<Maybe<Order>, Order> orderTraversal = MaybeTraversals.just();
+Lens<Order, Customer> customerLens = OrderLenses.customer();
+Lens<Customer, String> emailLens = CustomerLenses.email();
+
+Traversal<ApiResponse, String> emailPath = dataLens
+    .andThen(orderTraversal)
+    .andThen(customerLens.asTraversal())
+    .andThen(emailLens.asTraversal());
+
+List<String> emails = Traversals.toListOf(emailPath, response);
+// Result: ["customer@example.com"] or [] if no order data
+```
+
+---
+
+## Processing Collections of Core Types
+
+Prisms excel at filtering and extracting from collections:
+
+```java
+List<Try<User>> dbResults = loadUsersFromDatabase(userIds);
+
+Prism<Try<User>, User> successPrism = Prisms.success();
+Prism<Try<User>, Throwable> failurePrism = Prisms.failure();
+
+// Get all successfully loaded users
+List<User> users = dbResults.stream()
+    .flatMap(result -> successPrism.getOptional(result).stream())
+    .toList();
+
+// Count successes
+long successCount = dbResults.stream()
+    .filter(successPrism::matches)
+    .count();
+
+// Log all errors
+dbResults.stream()
+    .flatMap(result -> failurePrism.getOptional(result).stream())
+    .forEach(error -> logger.error("Database error: {}", error.getMessage()));
+```
+
+---
 
 ## When to Use Each Approach
 
-### Use **Core Type Prisms** when:
-- ✅ Extracting values from `Maybe`, `Either`, `Validated`, or `Try`
-- ✅ Pattern matching on functional types without `instanceof`
-- ✅ Composing core types with other optics for deep navigation
-- ✅ Safely handling optional API responses or database results
+### Use Core Type Prisms when:
+- Extracting values from `Maybe`, `Either`, `Validated`, or `Try`
+- Pattern matching on functional types without `instanceof`
+- Composing core types with other optics for deep navigation
+- Processing collections of core type values
 
-### Use **Lens Extensions** when:
-- ✅ Accessing potentially null fields
-- ✅ Validating single field updates
-- ✅ Performing operations that might throw exceptions
-- ✅ Implementing form validation with immediate feedback
+### Use Optics Extensions when:
+- Accessing potentially null fields
+- Validating single field or bulk updates
+- Performing operations that might throw exceptions
+- Choosing between fail-fast and error accumulation strategies
 
-### Use **Traversal Extensions** when:
-- ✅ Validating collections of data
-- ✅ Batch processing with error accumulation
-- ✅ Applying bulk updates with validation
-- ✅ Counting valid items or collecting errors
+---
 
-## The Power of Composition
+## Example Code
 
-The real magic happens when you combine these approaches:
-
-```java
-// Complete order processing pipeline
-Order order = ...;
-
-// 1. Extract customer using prism (Maybe)
-Prism<Maybe<Customer>, Customer> justPrism = Prisms.just();
-Maybe<Customer> maybeCustomer = order.getCustomer();
-
-// 2. Validate customer email using lens extension
-Lens<Customer, String> emailLens = CustomerLenses.email();
-Either<String, Customer> validatedCustomer =
-    maybeCustomer.map(customer ->
-        modifyEither(emailLens, email -> validateEmail(email), customer)
-    ).orElse(Either.left("No customer"));
-
-// 3. Validate all order items using traversal extension
-Traversal<List<OrderItem>, BigDecimal> allPrices =
-    Traversals.forList().andThen(OrderItemLenses.price().asTraversal());
-
-Validated<List<String>, List<OrderItem>> validatedItems =
-    modifyAllValidated(
-        allPrices,
-        price -> validatePrice(price),
-        order.getItems()
-    );
-
-// Combine results...
-```
-
-## Real-World Examples
-
-All three approaches are demonstrated with comprehensive, runnable examples:
-
-~~~admonish example title="Example Code"
+~~~admonish example title="Runnable Examples"
 - [CoreTypePrismsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/CoreTypePrismsExample.java) — API response processing
 - [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java) — User profile validation
 - [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java) — Bulk order processing
 - [IntegrationPatternsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IntegrationPatternsExample.java) — Complete e-commerce workflow
 ~~~
 
-## Key Benefits
-
-### 🎯 **Separation of Concerns**
-Business logic, validation, and error handling remain cleanly separated. Optics define the structure, core types handle the effects.
-
-### 🔄 **Composability**
-All three approaches compose seamlessly with each other and with standard optics operations.
-
-### 📊 **Error Accumulation**
-Choose between fail-fast (stop at first error) or error accumulation (collect all errors) based on your requirements.
-
-### 🛡️ **Type Safety**
-The compiler ensures you handle all cases. No silent failures, no unexpected nulls.
-
-### 📖 **Readability**
-Code reads like the business logic it implements, without defensive programming clutter.
-
-## Understanding the Core Types
-
-Before diving into the integration patterns, ensure you're familiar with Higher-Kinded-J's core types:
-
-- [**Maybe**](../monads/maybe_monad.md) — Represents optional values (similar to `Optional`)
-- [**Either**](../monads/either_monad.md) — Represents a value that can be one of two types (success or error)
-- [**Validated**](../monads/validated_monad.md) — Like `Either`, but accumulates errors
-- [**Try**](../monads/try_monad.md) — Represents a computation that may throw an exception
+---
 
 ## Common Pitfalls
 
-~~~admonish warning title="⚠️ Don't Mix Effect Types Carelessly"
-Whilst all three core type families work with optics, mixing them inappropriately can lead to confusing code:
+~~~admonish warning title="Don't Mix Effect Types Carelessly"
+Whilst all core type families work with optics, mixing them inappropriately can lead to confusing code:
 
 ```java
-// ❌ Confusing: Mixing Maybe and Either unnecessarily
+// Confusing: Mixing Maybe and Either unnecessarily
 Maybe<Either<String, User>> confusing = ...;
 
-// ✅ Better: Choose one based on your needs
+// Better: Choose one based on your needs
 Either<String, User> clear = ...; // If you have an error message
 Maybe<User> simple = ...;          // If it's just presence/absence
 ```
 ~~~
 
-~~~admonish tip title="💡 Start with Either"
+~~~admonish tip title="Start with Either"
 When in doubt, start with `Either`. It's the most versatile:
 - Carries error information (unlike `Maybe`)
 - Fails fast (unlike `Validated`)
@@ -266,16 +366,39 @@ When in doubt, start with `Either`. It's the most versatile:
 You can always switch to `Validated` for error accumulation or `Try` for exception handling when needed.
 ~~~
 
-## Next Steps
+~~~admonish warning title="Prisms Return Optional"
+Remember that `prism.getOptional()` returns Java's `Optional`, not `Maybe`:
 
-Now that you understand the three complementary approaches, dive into each one:
+```java
+Prism<Maybe<String>, String> justPrism = Prisms.just();
+Maybe<String> maybeValue = Maybe.just("Hello");
 
-1. **[Core Type Prisms](core_type_prisms.md)** — Start here to learn safe extraction
-2. **[Lens Extensions](lens_extensions.md)** — Master validated field operations
-3. **[Traversal Extensions](traversal_extensions.md)** — Handle bulk operations
+// Returns Optional, not Maybe
+Optional<String> value = justPrism.getOptional(maybeValue);
 
-Each guide includes detailed examples, best practices, and common patterns you'll use every day.
+// Convert back to Maybe if needed
+Maybe<String> backToMaybe = value
+    .map(Maybe::just)
+    .orElse(Maybe.nothing());
+```
+~~~
 
 ---
 
-**Next:** [Core Type Prisms: Safe Extraction](core_type_prisms.md)
+## Summary
+
+Core Type Integration provides:
+
+**Safe Extraction** — Extract values from `Maybe`, `Either`, `Validated`, and `Try` without null checks or verbose pattern matching
+
+**Pattern Matching** — Use `matches()` to check cases, `getOptional()` to extract values
+
+**Composability** — Combine with lenses and traversals for deep navigation
+
+**Collection Processing** — Filter, extract, and count different cases in collections
+
+**Type Safety** — The compiler ensures you handle all cases correctly
+
+---
+
+**Next:** [Optics Extensions](optics_extensions.md)

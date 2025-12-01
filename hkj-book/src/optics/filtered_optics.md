@@ -292,10 +292,10 @@ A crucial aspect of filtered optics is understanding what happens to non-matchin
 
 | Operation | Non-Matching Elements |
 |-----------|----------------------|
-| **`modify`** / **`modifyF`** | **Preserved unchanged** in the structure |
-| **`getAll`** | **Excluded** from results |
-| **`foldMap`** / **`exists`** / **`all`** | **Excluded** from aggregation |
-| **`length`** | **Not counted** |
+| **`modify`** / **`modifyF`** | Preserved unchanged in the structure |
+| **`getAll`** | Excluded from results |
+| **`foldMap`** / **`exists`** / **`all`** | Excluded from aggregation |
+| **`length`** | Not counted |
 
 **Visual Example:**
 
@@ -379,7 +379,7 @@ for (User user : users) {
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 ```java
 // Inefficient: Recreating filtered traversals in loops
@@ -403,7 +403,7 @@ Fold<User, Boolean> isActiveFold = UserLenses.active().asFold();
 boolean active = isActiveFold.getAll(user).get(0); // Just use user.active()!
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 // Efficient: Create filtered optic once, reuse many times

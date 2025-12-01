@@ -405,7 +405,7 @@ while (matcher.find()) {
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 ```java
 // Inefficient: Creating traversals in loops
@@ -426,7 +426,7 @@ String result = Traversals.modify(chars.filtered(c -> c != 'a'), c -> c, "banana
 // Filtered traversals preserve structure!
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 // Efficient: Create traversal once, reuse

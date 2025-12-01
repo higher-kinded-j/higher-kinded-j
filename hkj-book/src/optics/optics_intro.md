@@ -41,11 +41,11 @@ Think of an optic as a *zoom lens* for your data. It's a first-class object that
 
 ## Think of Optics Like...
 
-* **Lens**: A magnifying glass that focuses on one specific part 🔎
-* **Prism**: A tool that splits light, but only works with certain types of light 🔬
-* **Iso**: A universal translator between equivalent languages 🔄
-* **Traversal**: A spotlight that can illuminate many targets at once 🗺️
-* **Fold**: A read-only query tool that extracts and aggregates data 📊
+* **Lens**: A magnifying glass that focuses on one specific part
+* **Prism**: A tool that splits light, but only works with certain types of light
+* **Iso**: A universal translator between equivalent languages
+* **Traversal**: A spotlight that can illuminate many targets at once
+* **Fold**: A read-only query tool that extracts and aggregates data
 
 Every optic provides two basic capabilities:
 
@@ -58,7 +58,7 @@ The real power comes from their **composability**. You can chain optics together
 
 The `higher-kinded-j` library provides the foundation for a rich optics library, primarily focused on three main types. Each is designed to solve a specific kind of data access problem.
 
-### 1. Lens: For "Has-A" Relationships 🔎
+### 1. Lens: For "Has-A" Relationships
 
 A **Lens** is the most common optic. It focuses on a single, required piece of data within a larger "product type" (a `record` or class with fields). It's for data that is guaranteed to exist.
 
@@ -93,7 +93,7 @@ User userWithNewName = UserLenses.name().set("Bob", userLogin);
 User userWithNewName = UserLenses.withName(userLogin, "Bob");
 ```
 
-### 2. Iso: For "Is-Equivalent-To" Relationships 🔄
+### 2. Iso: For "Is-Equivalent-To" Relationships
 
 An **Iso** (Isomorphism) is a special, reversible optic. It represents a lossless, two-way conversion between two types that hold the exact same information. Think of it as a type-safe, composable adapter.
 
@@ -118,7 +118,7 @@ An **Iso** (Isomorphism) is a special, reversible optic. It represents a lossles
 
   This `Iso` can now be composed with other optics to, for example, create a `Lens` that goes from a `Point` directly to its first element inside a `Tuple` representation.
 
-### 3. Prism: For "Is-A" Relationships 🔬
+### 3. Prism: For "Is-A" Relationships
 
 A **Prism** is like a Lens, but for "sum types" (`sealed interface` or `enum`). It focuses on a single, *possible case* of a type. A Prism's `get` operation can fail (it returns an `Optional`), because the data might not be the case you're looking for. Think of it as a type-safe, functional `instanceof` and cast.
 
@@ -133,7 +133,7 @@ DomainErrorPrisms.shippingError()
    .ifPresent(this::handleRecovery); // Perform action only if it's the right type
 ```
 
-### 4. Traversal: For "Has-Many" Relationships 🗺️
+### 4. Traversal: For "Has-Many" Relationships
 
 A **Traversal** is an optic that can focus on multiple targets at once—typically all the items within a collection inside a larger structure.
 
@@ -154,7 +154,7 @@ A **Traversal** is an optic that can focus on multiple targets at once—typical
   );
   ```
 
-### 5. Fold: For "Has-Many" Queries 📊
+### 5. Fold: For "Has-Many" Queries
 
 A **Fold** is a read-only optic designed specifically for querying and extracting data without modification. Think of it as a `Traversal` that has given up the ability to modify in exchange for a clearer expression of intent and additional query-focused operations.
 
@@ -231,7 +231,7 @@ This brings us to the unique advantages `higher-kinded-j` offers for optics in J
 
 ## Common Pitfalls
 
-**❌ Don't do this:**
+**Don't do this:**
 
 java
 
@@ -241,7 +241,7 @@ var street = employeeToStreet.get(employee);
 var newEmployee = employeeToStreet.set(street.toUpperCase(), employee);
 ```
 
-**✅ Do this instead:**
+**Do this instead:**
 
 java
 

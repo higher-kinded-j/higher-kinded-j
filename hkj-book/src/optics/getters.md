@@ -54,11 +54,11 @@ A `Getter` makes these extractions type-safe, composable, and expressive.
 
 ## Think of Getters Like...
 
-* **A functional accessor** 📖: Extracting a specific value from a container
-* **A read-only lens** 🔍: Focusing on one element without modification capability
-* **A computed property** 🧮: Deriving values on-the-fly without storage
-* **A data pipeline stage** 🔗: Composable extraction steps
-* **A pure function in optic form** λ: Wrapping functions for composition
+* **A functional accessor**: Extracting a specific value from a container
+* **A read-only lens**: Focusing on one element without modification capability
+* **A computed property**: Deriving values on-the-fly without storage
+* **A data pipeline stage**: Composable extraction steps
+* **A pure function in optic form**: Wrapping functions for composition
 
 ---
 
@@ -67,7 +67,7 @@ A `Getter` makes these extractions type-safe, composable, and expressive.
 | Aspect | Getter | Lens | Fold |
 |--------|--------|------|------|
 | **Focus** | Exactly one element | Exactly one element | Zero or more elements |
-| **Can modify?** | ❌ No | ✅ Yes | ❌ No |
+| **Can modify?** | No | Yes | No |
 | **Core operation** | `get(source)` | `get(source)`, `set(value, source)` | `foldMap(monoid, fn, source)` |
 | **Use case** | Computed/derived values | Field access with updates | Queries over collections |
 | **Intent** | "Extract this single value" | "Get or set this field" | "Query all these values" |
@@ -353,10 +353,10 @@ Understanding when to use each approach:
 
 | Approach | Null Safety | Composability | Verbosity | Use Case |
 |----------|-------------|---------------|-----------|----------|
-| **Direct field access** | ❌ NPE risk | ❌ No | ✅ Minimal | Known non-null values |
-| **Manual null checks** | ✅ Safe | ❌ No | ❌ Very verbose | Simple cases |
-| **Optional chaining** | ✅ Safe | ⚠️ Limited | ⚠️ Moderate | Java interop |
-| **getMaybe** | ✅ Safe | ✅ Excellent | ✅ Concise | Functional pipelines |
+| **Direct field access** | NPE risk | No | Minimal | Known non-null values |
+| **Manual null checks** | Safe | No | Very verbose | Simple cases |
+| **Optional chaining** | Safe | Limited | Moderate | Java interop |
+| **getMaybe** | Safe | Excellent | Concise | Functional pipelines |
 
 **Example Comparison:**
 
@@ -737,7 +737,7 @@ String name = userName.get(response);
 
 ## Common Pitfalls
 
-### ❌ Don't Use Getter When You Need to Modify
+### Don't Use Getter When You Need to Modify
 
 ```java
 // Wrong: Getter can't modify
@@ -745,7 +745,7 @@ Getter<Person, String> nameGetter = Getter.of(Person::firstName);
 // nameGetter.set("Jane", person); // Compilation error - no set method!
 ```
 
-### ✅ Use Lens When Modification Is Required
+### Use Lens When Modification Is Required
 
 ```java
 // Correct: Use Lens for read-write access
@@ -755,7 +755,7 @@ Lens<Person, String> nameLens = Lens.of(Person::firstName, (p, n) ->
 Person updated = nameLens.set("Jane", person);
 ```
 
-### ❌ Don't Overlook Null Safety
+### Don't Overlook Null Safety
 
 ```java
 // Risky: Getter doesn't handle null values specially
@@ -763,7 +763,7 @@ Getter<NullableRecord, String> getter = Getter.of(NullableRecord::value);
 String result = getter.get(new NullableRecord(null)); // Returns null
 ```
 
-### ✅ Handle Nulls Explicitly
+### Handle Nulls Explicitly
 
 ```java
 // Safe: Handle nulls in the getter function

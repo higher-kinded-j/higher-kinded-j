@@ -1,8 +1,9 @@
 # Summary
-[Introduction to Higher-Kinded-J](home.md) 
+[Introduction to Higher-Kinded-J](home.md)
 
 # Getting Started
-- [HKT Introduction](hkts/hkt_introduction.md)
+- [Introduction](hkts/ch_intro.md)
+  - [HKT Introduction](hkts/hkt_introduction.md)
   - [Concepts](hkts/core-concepts.md)
   - [Usage Guide](hkts/usage-guide.md)
   - [Basic HKT Examples](hkts/hkt_basic_examples.md)
@@ -10,7 +11,8 @@
   - [Extending](hkts/extending-simulation.md)
 
 # Type Classes
-- [Functional Api](functional/functional_api.md)
+- [Introduction](functional/ch_intro.md)
+  - [Functional Api](functional/functional_api.md)
   - [Functor](functional/functor.md)
   - [Applicative](functional/applicative.md)
   - [Alternative](functional/alternative.md)
@@ -24,7 +26,8 @@
   - [Bifunctor](functional/bifunctor.md)
   - [For Comprehension](functional/for_comprehension.md)
 # Monads in Practice
-- [Supported Types](monads/supported-types.md)
+- [Introduction](monads/ch_intro.md)
+  - [Supported Types](monads/supported-types.md)
   - [CompletableFuture](monads/cf_monad.md)
   - [Either](monads/either_monad.md)
   - [Identity](monads/identity.md)
@@ -43,7 +46,8 @@
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
 # Advanced Topics
-- [Monad Transformers](transformers/transformers.md)
+- [Introduction](transformers/ch_intro.md)
+  - [Monad Transformers](transformers/transformers.md)
   - [EitherT](transformers/eithert_transformer.md)
   - [OptionalT](transformers/optionalt_transformer.md)
   - [MaybeT](transformers/maybet_transformer.md)
@@ -54,43 +58,56 @@
   - [Draughts Game](hkts/draughts.md)
 
 # Hands-On Learning
-- [Interactive Tutorials](tutorials/tutorials_intro.md)
+- [Introduction](tutorials/ch_intro.md)
+  - [Interactive Tutorials](tutorials/tutorials_intro.md)
   - [Core Types Track](tutorials/coretypes_track.md)
   - [Optics Track](tutorials/optics_track.md)
   - [Solutions Guide](tutorials/solutions_guide.md)
   - [Troubleshooting](tutorials/troubleshooting.md)
 
-# Optics
-- [Optics Introduction](optics/optics_intro.md)
+# Optics I: Fundamentals
+- [Introduction](optics/ch1_intro.md)
+  - [What Are Optics?](optics/optics_intro.md)
   - [Lenses](optics/lenses.md)
   - [Prisms](optics/prisms.md)
-  - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)
   - [Isomorphisms](optics/iso.md)
-  - [Traversals](optics/traversals.md)
   - [Composition Rules](optics/composition_rules.md)
-  - [Optics Cookbook](optics/cookbook.md)
+
+# Optics II: Collections
+- [Introduction](optics/ch2_intro.md)
+  - [Traversals](optics/traversals.md)
   - [Folds](optics/folds.md)
-  - [Filtered Optics](optics/filtered_optics.md)
-  - [Indexed Optics](optics/indexed_optics.md)
-  - [Limiting Traversals](optics/limiting_traversals.md)
   - [Getters](optics/getters.md)
   - [Setters](optics/setters.md)
-  - [At Type Class](optics/at.md)
-  - [Ixed Type Class](optics/ixed.md)
+  - [Common Data Structures](optics/common_data_structure_traversals.md)
+  - [Limiting Traversals](optics/limiting_traversals.md)
+
+# Optics III: Precision and Filtering
+- [Introduction](optics/ch3_intro.md)
+  - [Filtered Optics](optics/filtered_optics.md)
+  - [Indexed Optics](optics/indexed_optics.md)
+  - [String Traversals](optics/string_traversals.md)
+  - [Indexed Access](optics/indexed_access.md)
+  - [Advanced Prism Patterns](optics/advanced_prism_patterns.md)
   - [Profunctor Optics](optics/profunctor_optics.md)
-  - [Combining Optics - Validation](optics/composing_optics.md)
-  - [Fluent API for Optics](optics/fluent_api.md)
+
+# Optics IV: Java-Friendly APIs
+- [Introduction](optics/ch4_intro.md)
+  - [Fluent API](optics/fluent_api.md)
   - [Free Monad DSL](optics/free_monad_dsl.md)
-  - [Optic Interpreters](optics/interpreters.md)
-  - [Practical Examples](optics/optics_examples.md)
-  - [Auditing Complex Data - The Power of Optics](optics/auditing_complex_data_example.md)
-  - [Working with Core Types and Optics](optics/core_type_integration.md)
-    - [Core Type Prisms](optics/core_type_prisms.md)
-    - [Lens Extensions](optics/lens_extensions.md)
-    - [Traversal Extensions](optics/traversal_extensions.md)
+  - [Interpreters](optics/interpreters.md)
+
+# Optics V: Integration and Recipes
+- [Introduction](optics/ch5_intro.md)
+  - [Composing Optics](optics/composing_optics.md)
+  - [Core Type Integration](optics/core_type_integration.md)
+  - [Optics Extensions](optics/optics_extensions.md)
+  - [Cookbook](optics/cookbook.md)
+  - [Auditing Complex Data](optics/auditing_complex_data_example.md)
 
 # Integration Guides
-- [Spring Boot Integration](spring/spring_boot_integration.md)
+- [Introduction](spring/ch_intro.md)
+  - [Spring Boot Integration](spring/spring_boot_integration.md)
   - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)
 
 # More Functional Thinking

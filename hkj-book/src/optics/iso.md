@@ -23,7 +23,7 @@ This leaves one final, fundamental question: what if you have two data types tha
 
 ## The Scenario: Translating Between Equivalent Types
 
-An **`Iso`** (Isomorphism) is a "two-way street." It's an optic that represents a perfectly reversible, lossless conversion between two equivalent types. Think of it as a **universal translator** 🔄 or a type-safe adapter that you can compose with other optics.
+An **`Iso`** (Isomorphism) is a "two-way street." It's an optic that represents a perfectly reversible, lossless conversion between two equivalent types. Think of it as a **universal translator** or a type-safe adapter that you can compose with other optics.
 
 An `Iso` is the right tool when you need to:
 
@@ -204,7 +204,7 @@ public Optional<Point> parsePoint(String input) {
 
 ## Common Pitfalls
 
-### ❌ Don't Do This:
+### Don't Do This:
 
 ```java
 // Lossy conversion - not a true isomorphism
@@ -225,7 +225,7 @@ var iso2 = Iso.of(Point::x, x -> new Point(x, 0));
 var iso3 = Iso.of(Point::x, x -> new Point(x, 0));
 ```
 
-### ✅ Do This Instead:
+### Do This Instead:
 
 ```java
 // True isomorphism - perfect round-trip
