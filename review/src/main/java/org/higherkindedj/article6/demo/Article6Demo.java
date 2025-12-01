@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.article6.demo;
 
+import java.util.Map;
 import org.higherkindedj.article5.interpret.Environment;
 import org.higherkindedj.article5.typecheck.Type;
 import org.higherkindedj.article5.typecheck.TypeEnv;
@@ -29,7 +30,8 @@ public final class Article6Demo {
     System.out.println("=== Article 6: Complete Pipeline Demo ===\n");
 
     // Set up environments
-    TypeEnv typeEnv = TypeEnv.of("x", Type.INT, "y", Type.INT, "flag", Type.BOOL);
+    TypeEnv typeEnv =
+        TypeEnv.of(Map.of("x", Type.INT, "y", Type.INT, "flag", Type.BOOL));
     Environment runtimeEnv = Environment.of("x", 10, "y", 5, "flag", true);
 
     // Create the standard pipeline
