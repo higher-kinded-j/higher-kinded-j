@@ -628,31 +628,31 @@ Higher-Kinded-J has shown us that Java can be a first-class functional programmi
 
 ### Effect Systems and Functional Programming
 
-- **Philip Wadler, ["Monads for functional programming"](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf)** (1992) — The foundational paper explaining how monads structure effectful computation. Still remarkably accessible.
+- **Philip Wadler, ["Monads for functional programming"](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf)** (1992): The foundational paper explaining how monads structure effectful computation. Still remarkably accessible.
 
-- **Conor McBride & Ross Paterson, ["Applicative programming with effects"](https://www.staff.city.ac.uk/~ross/papers/Applicative.html)** (JFP, 2008) — The paper that introduced `Applicative` as distinct from `Monad`, directly relevant to understanding why `Validated` accumulates errors.
+- **Conor McBride & Ross Paterson, ["Applicative programming with effects"](https://www.staff.city.ac.uk/~ross/papers/Applicative.html)** (JFP, 2008): The paper that introduced `Applicative` as distinct from `Monad`, directly relevant to understanding why `Validated` accumulates errors.
 
-- **John A. De Goes, ["A Beginner's Guide to Free Monads"](https://www.tweag.io/blog/2018-02-05-free-monads/)** — If you're curious about the Free monad mentioned in this article, this is a clear introduction.
+- **John A. De Goes, ["A Beginner's Guide to Free Monads"](https://www.tweag.io/blog/2018-02-05-free-monads/)**: If you're curious about the Free monad mentioned in this article, this is a clear introduction.
 
 ### Error Handling Patterns
 
-- **Scott Wlaschin, ["Railway Oriented Programming"](https://fsharpforfunandprofit.com/rop/)** — A visual explanation of error handling with types like `Either` and `Validated`, from the F# community.
+- **Scott Wlaschin, ["Railway Oriented Programming"](https://fsharpforfunandprofit.com/rop/)**: A visual explanation of error handling with types like `Either` and `Validated`, from the F# community.
 
-- **Cats Documentation, [Validated](https://typelevel.org/cats/datatypes/validated.html)** — The Scala Cats library's `Validated` type, which inspired Higher-Kinded-J's implementation.
+- **Cats Documentation, [Validated](https://typelevel.org/cats/datatypes/validated.html)**: The Scala Cats library's `Validated` type, which inspired Higher-Kinded-J's implementation.
 
 ### Higher-Kinded Types in Java
 
 - The `Kind<F, A>` encoding used by Higher-Kinded-J is sometimes called "defunctionalised higher-kinded types". It's a practical technique that brings parametric polymorphism over type constructors to languages that don't natively support it.
 
-- **[Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)** (Yallop & White) — The academic paper describing the technique, adapted here for Java.
+- **[Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)** (Yallop & White): The academic paper describing the technique, adapted here for Java.
 
 ### Higher-Kinded-J
 
-- **[Validated Type](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)** — API reference for error-accumulating validation.
+- **[Validated Type](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/validated/Validated.java)**: API reference for error-accumulating validation.
 
-- **[State Monad](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/State.java)** — API reference for stateful computation.
+- **[State Monad](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/state/State.java)**: API reference for stateful computation.
 
-- **[Applicative Type Class](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/typeclass/applicative/Applicative.java)** — The foundation for `map2`, `map3`, and effect-polymorphic traversals.
+- **[Applicative Type Class](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/typeclass/applicative/Applicative.java)**: The foundation for `map2`, `map3`, and effect-polymorphic traversals.
 
 ---
 

@@ -587,25 +587,25 @@ In Article 3, we'll apply these fundamentals to build the expression language AS
 
 ### Optics Theory and History
 
-- **Edward Kmett, [lens library](https://hackage.haskell.org/package/lens)** — The Haskell library that established modern optics. Dense but comprehensive; the README alone is an education.
+- **Edward Kmett, [lens library](https://hackage.haskell.org/package/lens)**: The Haskell library that established modern optics. Dense but comprehensive; the README alone is an education.
 
-- **Julien Truffaut, [Monocle](https://www.optics.dev/Monocle/)** — Scala's premier optics library, with excellent documentation that bridges theory and practice.
+- **Julien Truffaut, [Monocle](https://www.optics.dev/Monocle/)**: Scala's premier optics library, with excellent documentation that bridges theory and practice.
 
-- **Simon Peyton Jones, ["Lenses: Compositional Data Access and Manipulation"](https://www.youtube.com/watch?v=k-QwBL9Dia0)** (Skills Matter, 2013) — An accessible introduction to lens theory from one of functional programming's luminaries.
+- **Simon Peyton Jones, ["Lenses: Compositional Data Access and Manipulation"](https://www.youtube.com/watch?v=k-QwBL9Dia0)** (Skills Matter, 2013): An accessible introduction to lens theory from one of functional programming's luminaries.
 
 ### Critical Perspectives
 
-- **Alexis King, ["Optics are monoids"](https://www.tweag.io/blog/2022-05-05-optics-are-monoids/)** (Tweag, 2022) — A deeper look at the mathematical structure underlying optics, useful for understanding why composition "just works".
+- **Alexis King, ["Optics are monoids"](https://www.tweag.io/blog/2022-05-05-optics-are-monoids/)** (Tweag, 2022): A deeper look at the mathematical structure underlying optics, useful for understanding why composition "just works".
 
 - The optics learning curve is real. Some practitioners argue that pattern matching (as Java 25 provides) handles 80% of cases more readably. Optics shine for the remaining 20%: deep updates, reusable paths, and effect-polymorphic traversals.
 
 ### Higher-Kinded-J
 
-- **[Higher-Kinded-J GitHub Repository](https://github.com/higher-kinded-j/higher-kinded-j)** — Source code, documentation, and examples.
+- **[Higher-Kinded-J GitHub Repository](https://github.com/higher-kinded-j/higher-kinded-j)**: Source code, documentation, and examples.
 
-- **[Annotation Processor Guide](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-processor)** — How `@GenerateLenses` and `@GeneratePrisms` work under the hood.
+- **[Annotation Processor Guide](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-processor)**: How `@GenerateLenses` and `@GeneratePrisms` work under the hood.
 
-- **[Type-Class Instances](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/typeclass)** — The `Functor`, `Applicative`, and `Monad` abstractions that power effect-polymorphic operations.
+- **[Type-Class Instances](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-core/src/main/java/org/higherkindedj/typeclass)**: The `Functor`, `Applicative`, and `Monad` abstractions that power effect-polymorphic operations.
 
 ---
 
