@@ -323,11 +323,27 @@ Honest assessment requires acknowledging gaps:
 
 ## Higher-Kinded-J: Where We Stand
 
-Higher-Kinded-J is a young project. Being honest about its current state helps set appropriate expectations.
+Higher-Kinded-J is a young project, but its optics implementation is more comprehensive than you might expect.
 
 ### Current Capabilities
 
-The optics implementation covers the core types: Lens, Prism, Optional, and Traversal with full composition support. Annotation-driven generation via `@GenerateLenses` and `@GeneratePrisms` eliminates most boilerplate.
+The optics implementation covers **nine optic types** with full composition support:
+
+| Optic | Description | Status |
+|-------|-------------|--------|
+| **Iso** | Bidirectional lossless transformations | Complete |
+| **Lens** | Focus on single field in product type | Complete |
+| **Prism** | Focus on variant in sum type | Complete |
+| **Traversal** | Focus on multiple elements | Complete |
+| **Getter** | Read-only single value access | Complete |
+| **Setter** | Write-only modification | Complete |
+| **Fold** | Read-only aggregation with filtering | Complete |
+| **At** | Indexed CRUD with insert/delete | Complete |
+| **Ixed** | Safe indexed access to existing elements | Complete |
+
+Plus indexed variants (IndexedLens, IndexedTraversal, IndexedFold) for operations that need to track position.
+
+Annotation-driven generation via `@GenerateLenses`, `@GeneratePrisms`, `@GenerateGetters`, `@GenerateFolds`, `@GenerateSetters`, and `@GenerateIsos` eliminates most boilerplate.
 
 The effect system provides a complete monad hierarchy: Functor, Applicative, Monad. Key types include `Validated` for error accumulation, `Either` for fail-fast errors, `State` for stateful computation, and `IO` for effect tracking.
 
@@ -335,13 +351,21 @@ Compared to established libraries:
 
 | Feature | Haskell lens | Monocle (Scala) | Arrow (Kotlin) | Higher-Kinded-J |
 |---------|-------------|-----------------|----------------|-----------------|
-| Optic types | Complete | Complete | Complete | Core types |
+| Core optics | Complete | Complete | Complete | Complete |
+| Optional/Affine | ✓ | ✓ | ✓ | Missing |
+| Indexed optics | ✓ | ✓ | ✓ | ✓ |
+| At/Ixed | ✓ | ✓ | ✓ | ✓ |
 | Type safety | Native HKT | Native HKT | Native HKT | Simulated HKT |
 | IDE support | Excellent | Good | Good | Growing |
-| Documentation | Extensive | Good | Good | Developing |
 | Java integration | N/A | Interop | Interop | Native |
 
 The key differentiator is native Java integration. Higher-Kinded-J is designed for Java's type system and idioms. There's no language boundary to cross, no interop overhead, and no need to convince your team to adopt a different language.
+
+### What's Missing
+
+The main gap is the **Optional** optic (also called **Affine** in profunctor optics). This represents focus on 0 or 1 elements, positioned between Lens (exactly 1) and Traversal (0 to many). Currently you'd use Prism or Traversal where Monocle/Arrow would use Optional, but an explicit type would provide better composition precision.
+
+Profunctor optics (the cutting-edge unified encoding) remain on the roadmap.
 
 ### The Ambition
 
@@ -370,11 +394,11 @@ Higher-Kinded-J needs contributors. If you've found these patterns useful, consi
 
 Areas where help is particularly welcome:
 
-- Additional optic types (Iso, Getter, Fold)
-- IDE plugins for optic composition
-- Documentation and tutorials
-- Real-world usage feedback
-- Performance optimisation
+- The Optional/Affine optic type for precise 0-or-1 focus semantics
+- Profunctor-based optics for unified composition
+- IDE plugins for optic composition visualisation
+- Documentation, tutorials, and real-world examples
+- Performance profiling and optimisation
 
 The GitHub repository welcomes contributions, the issue tracker is open for bug reports and feature requests, and discussions provide a forum for questions and ideas.
 

@@ -219,13 +219,17 @@ public record Pipeline(
 **How it compares** (honest assessment):
 | Feature | Haskell lens | Monocle (Scala) | Arrow (Kotlin) | Higher-Kinded-J |
 |---------|-------------|-----------------|----------------|-----------------|
-| Optic types | Complete | Complete | Complete | Core types |
+| Core optics | Complete | Complete | Complete | Complete (9 types) |
+| Optional/Affine | ✓ | ✓ | ✓ | Missing |
+| Indexed optics | ✓ | ✓ | ✓ | ✓ |
+| At/Ixed | ✓ | ✓ | ✓ | ✓ |
 | Type safety | Native HKT | Native HKT | Native HKT | Simulated HKT |
 | IDE support | Excellent | Good | Good | Growing |
-| Documentation | Extensive | Good | Good | Developing |
 | Java integration | N/A | Interop | Interop | Native |
 
 **Key differentiator**: Native Java, designed for DOP patterns, no language boundary.
+
+**Note**: Higher-Kinded-J has Iso, Lens, Prism, Traversal, Getter, Setter, Fold, At, Ixed plus indexed variants. The main missing piece is the Optional/Affine optic (0-or-1 focus).
 
 #### 7.2 The Ambition
 
