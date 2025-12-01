@@ -125,7 +125,7 @@ Validated<List<String>, List<Order>> result = modifyAllValidated(
 
 ---
 
-## Core Type Prisms
+## Core Type Prisms in Detail
 
 Prisms focus on **one case** of a sum type. They're perfect for safely extracting values from `Maybe`, `Either`, `Validated`, and `Try` without verbose pattern matching or null checks.
 
