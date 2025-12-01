@@ -12,7 +12,7 @@
 [ProfunctorExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/profunctor/ProfunctorExample.java)
 ```
 
-So far, we've explored type classes that work with single type parameters—`Functor`, `Applicative`, and `Monad` all operate on types like `F<A>`. But what about types that take *two* parameters, like `Function<A, B>` or `Either<L, R>`? This is where **Profunctors** come in.
+So far, we've explored type classes that work with single type parameters: `Functor`, `Applicative`, and `Monad` all operate on types like `F<A>`. But what about types that take *two* parameters, like `Function<A, B>` or `Either<L, R>`? This is where **Profunctors** come in.
 
 A **Profunctor** is a powerful abstraction for working with types that are **contravariant** in their first type parameter and **covariant** in their second. Think of it as a generalisation of how functions work: you can pre-process the input (contravariant) and post-process the output (covariant).
 
@@ -204,7 +204,7 @@ For a `Profunctor` to be lawful, it must satisfy two key properties:
 1. **Identity**: `dimap(identity, identity, p) == p`
 1. **Composition**: `dimap(f1 ∘ f2, g1 ∘ g2, p) == dimap(f2, g1, dimap(f1, g2, p))`
 
-These laws ensure that profunctor operations are predictable and composable—you can build complex transformations by combining simpler ones without unexpected behaviour.
+These laws ensure that profunctor operations are predictable and composable; you can build complex transformations by combining simpler ones without unexpected behaviour.
 
 ---
 

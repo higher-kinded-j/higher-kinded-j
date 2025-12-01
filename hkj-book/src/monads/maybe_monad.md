@@ -15,7 +15,7 @@
 
 ## Purpose
 
-How do you handle optional values in Java without falling into the null pointer trap? The `Maybe<T>` type in Higher-Kinded-J provides an elegant solution—representing a value that might be present (`Just<T>`) or absent (`Nothing<T>`), with one crucial guarantee: a `Just<T>` will never hold null.
+How do you handle optional values in Java without falling into the null pointer trap? The `Maybe<T>` type in Higher-Kinded-J provides an elegant solution: representing a value that might be present (`Just<T>`) or absent (`Nothing<T>`), with one crucial guarantee: a `Just<T>` will never hold null.
 
 The `Maybe<T>` type is conceptually similar to `java.util.Optional<T>` but with a key distinction: a `Just<T>` is guaranteed to hold a **non-null** value. This strictness helps prevent `NullPointerExceptions` when a value is asserted to be present. `Maybe.fromNullable(T value)` or `MaybeMonad.of(T value)` should be used if the input value could be null, as these will correctly produce a `Nothing` in such cases.
 
@@ -72,7 +72,7 @@ For working with Java's standard `Optional` type in the HKT system, see [Optiona
 **`MaybeKindHelper` (for HKT wrapping):**
 ~~~admonish  title="_MaybeKindHelper.widen(Maybe<A> maybe)_"
 
-Converts a `Maybe<A>` to `Kind<MaybeKind.Witness, A>`. Since `Just` and `Nothing` directly implement `MaybeKind`, this performs a null check and type-safe cast (zero overhead—no wrapper object allocation).
+Converts a `Maybe<A>` to `Kind<MaybeKind.Witness, A>`. Since `Just` and `Nothing` directly implement `MaybeKind`, this performs a null check and type-safe cast (zero overhead, no wrapper object allocation).
   ```java
   Kind<MaybeKind.Witness, String> kindJust = MAYBE.widen(Maybe.just("Wrapped"));
   Kind<MaybeKind.Witness,Integer> kindNothing = MAYBE.widen(Maybe.nothing());

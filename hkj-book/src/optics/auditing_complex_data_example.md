@@ -11,7 +11,7 @@
 - When optic composition provides superior solutions to imperative approaches
 ~~~
 
-In modern software, we often work with complex, nested data structures. Performing a seemingly simple task—like "find and decode all production database passwords"—can lead to messy, error-prone code with nested loops, `if` statements, and manual type casting.
+In modern software, we often work with complex, nested data structures. Performing a seemingly simple task, like "find and decode all production database passwords", can lead to messy, error-prone code with nested loops, `if` statements, and manual type casting.
 
 This tutorial demonstrates how to solve a sophisticated, real-world problem elegantly using the full power of **higher-kinded-j optics**. We'll build a single, declarative, type-safe optic that performs a deep, conditional data transformation.
 
@@ -300,7 +300,7 @@ AppConfig updatedConfig = Traversals.modify(finalAuditor, reEncryptFunction, ori
 
 ### 3. **Profunctor Adaptations for Legacy Systems**
 
-Suppose your audit service expects a different data format—perhaps it works with `ConfigDto` objects instead of `AppConfig`. Rather than rewriting your carefully crafted optic, you can adapt it using profunctor operations:
+Suppose your audit service expects a different data format: perhaps it works with `ConfigDto` objects instead of `AppConfig`. Rather than rewriting your carefully crafted optic, you can adapt it using profunctor operations:
 
 
 ```java
@@ -314,7 +314,7 @@ Traversal<ConfigDto, AuditRecord> fullyAdaptedAuditor = finalAuditor.dimap(
 );
 ```
 
-This profunctor capability means your core business logic (the auditing path) remains unchanged whilst adapting to different system interfaces—a powerful example of the [Profunctor Optics](profunctor_optics.md) capabilities.
+This profunctor capability means your core business logic (the auditing path) remains unchanged whilst adapting to different system interfaces: a powerful example of the [Profunctor Optics](profunctor_optics.md) capabilities.
 
 ### 4. **More Complex Filters**
 

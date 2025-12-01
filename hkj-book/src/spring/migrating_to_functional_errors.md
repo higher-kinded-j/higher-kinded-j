@@ -124,7 +124,7 @@ public class UserController {
 - ✅ Errors explicit in method signature
 - ✅ Compiler enforces error handling at call sites
 - ✅ No `@ExceptionHandler` boilerplate
-- ✅ Easy to test—no exception mocking
+- ✅ Easy to test: no exception mocking
 
 ### Migration Steps
 

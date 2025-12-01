@@ -41,12 +41,12 @@ This is where **At** and **Ixed** fill crucial gaps:
 ~~~admonish tip title="When to Use Which"
 Use **At** when you need to add new entries or remove existing ones.
 
-Use **Ixed** when you want safe read/update that never accidentally modifies structure—operations become no-ops for missing indices.
+Use **Ixed** when you want safe read/update that never accidentally modifies structure: operations become no-ops for missing indices.
 ~~~
 
 ---
 
-## Part 1: At — Full CRUD Operations
+## Part 1: At – Full CRUD Operations
 
 ### Creating At Instances
 
@@ -171,7 +171,7 @@ Config withoutDebug = debugSettingLens.set(Optional.empty(), withDebug);
 
 ---
 
-## Part 2: Ixed — Safe Partial Access
+## Part 2: Ixed – Safe Partial Access
 
 ### Creating Ixed Instances
 
@@ -227,7 +227,7 @@ Map<String, Integer> samePorts = IxedInstances.update(mapIx, "ftp", 21, ports);
 ~~~admonish warning title="Key Difference"
 **At** will insert new entries with `insertOrUpdate`.
 
-**Ixed** will silently do nothing for missing keys—it never changes the structure's shape.
+**Ixed** will silently do nothing for missing keys; it never changes the structure's shape.
 ~~~
 
 ### Safe List Access

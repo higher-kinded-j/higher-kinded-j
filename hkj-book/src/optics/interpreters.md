@@ -17,7 +17,7 @@
 
 ## Introduction: The Power of Interpretation
 
-In the [Free Monad DSL](free_monad_dsl.md) guide, we learnt how to build optic operations as programs—data structures that describe what to do, rather than doing it immediately. But a description alone is useless without execution. That's where **interpreters** come in.
+In the [Free Monad DSL](free_monad_dsl.md) guide, we learnt how to build optic operations as programs: data structures that describe what to do, rather than doing it immediately. But a description alone is useless without execution. That's where **interpreters** come in.
 
 An interpreter takes a program and executes it in a specific way. By providing different interpreters, you can run the same program with completely different behaviours:
 
@@ -26,10 +26,10 @@ An interpreter takes a program and executes it in a specific way. By providing d
 - **ValidationOpticInterpreter**: Checks constraints without modifying data
 - **Custom interpreters**: Performance profiling, testing, mocking, and more
 
-This separation of concerns—*what to do* vs *how to do it*—is the essence of the Interpreter pattern and the key to the Free monad's flexibility.
+This separation of concerns, *what to do* vs *how to do it*, is the essence of the Interpreter pattern and the key to the Free monad's flexibility.
 
 ~~~admonish tip title="The Core Benefit"
-Write your business logic once as a program. Execute it in multiple ways: validate it in tests, log it in production, mock it during development, and optimise it for performance—all without changing the business logic itself.
+Write your business logic once as a program. Execute it in multiple ways: validate it in tests, log it in production, mock it during development, and optimise it for performance, all without changing the business logic itself.
 ~~~
 
 ---
@@ -70,7 +70,7 @@ Different situations require different execution strategies:
 
 ## Part 2: The Direct Interpreter
 
-The `DirectOpticInterpreter` is the simplest interpreter—it executes optic operations immediately, exactly as you'd expect.
+The `DirectOpticInterpreter` is the simplest interpreter: it executes optic operations immediately, exactly as you'd expect.
 
 ### Basic Usage
 

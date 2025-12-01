@@ -19,7 +19,7 @@
 
 In the previous guide, we explored **`Getter`** for composable read-only access. Now we turn to its dual: **`Setter`**, a write-only optic that modifies data without necessarily reading it first.
 
-A **`Setter`** is an optic that focuses on transforming elements within a structure. Unlike a `Lens`, which provides both getting and setting, a `Setter` concentrates solely on modification—making it ideal for batch updates, data normalisation, and transformation pipelines where read access isn't required.
+A **`Setter`** is an optic that focuses on transforming elements within a structure. Unlike a `Lens`, which provides both getting and setting, a `Setter` concentrates solely on modification, making it ideal for batch updates, data normalisation, and transformation pipelines where read access isn't required.
 
 ---
 

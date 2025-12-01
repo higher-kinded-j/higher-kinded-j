@@ -20,7 +20,7 @@
 [IndexedOpticsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IndexedOpticsExample.java)
 ~~~
 
-In our journey through optics, we've mastered how to focus on parts of immutable data structures—whether it's a single field with **Lens**, an optional value with **Prism**, or multiple elements with **Traversal**. But sometimes, knowing *where* you are is just as important as knowing *what* you're looking at.
+In our journey through optics, we've mastered how to focus on parts of immutable data structures, whether it's a single field with **Lens**, an optional value with **Prism**, or multiple elements with **Traversal**. But sometimes, knowing *where* you are is just as important as knowing *what* you're looking at.
 
 Consider these scenarios:
 - **Numbering items** in a packing list: "Item 1: Laptop, Item 2: Mouse..."
@@ -1122,7 +1122,7 @@ In Haskell:
 itraversed :: IndexedTraversal Int ([] a) a
 ```
 
-This creates an indexed traversal over lists where the index is an integer—exactly what our `IndexedTraversals.forList()` provides.
+This creates an indexed traversal over lists where the index is an integer: exactly what our `IndexedTraversals.forList()` provides.
 
 **Key differences:**
 - Higher-kinded-j uses explicit `Applicative` instances rather than implicit type class resolution
@@ -1164,7 +1164,7 @@ By incorporating indexed optics into your toolkit, you gain:
 * **Audit trails**: Record which fields changed, not just values
 * **Performance**: Minimal overhead, lazy index computation
 
-Indexed optics represent the fusion of position awareness with functional composition—enabling you to write code that is simultaneously more declarative, more powerful, and more maintainable than traditional index-tracking approaches.
+Indexed optics represent the fusion of position awareness with functional composition: enabling you to write code that is simultaneously more declarative, more powerful, and more maintainable than traditional index-tracking approaches.
 
 ---
 

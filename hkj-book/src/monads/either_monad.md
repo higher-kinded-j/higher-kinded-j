@@ -25,7 +25,7 @@ Unlike throwing exceptions, `Either` makes the possibility of failure explicit i
 
 We can think of `Either` as an extension of `Maybe`. The `Right` is equivalent to `Maybe.Just`, and the `Left` is the equivalent of `Maybe.Nothing` **but now we can allow it to carry a value.**
 
-The implementation in this library is a `sealed interface Either<L, R>` with two `record` implementations: `Left<L, R>` and `Right<L, R>`. Both `Left` and `Right` directly implement `EitherKind<L, R>` (and `EitherKind2<L, R>` for bifunctor operations), which extend `Kind<EitherKind.Witness<L>, R>`. This means widen/narrow operations have zero runtime overhead—no wrapper object allocation needed.
+The implementation in this library is a `sealed interface Either<L, R>` with two `record` implementations: `Left<L, R>` and `Right<L, R>`. Both `Left` and `Right` directly implement `EitherKind<L, R>` (and `EitherKind2<L, R>` for bifunctor operations), which extend `Kind<EitherKind.Witness<L>, R>`. This means widen/narrow operations have zero runtime overhead (no wrapper object allocation needed).
 
 ## Structure
 

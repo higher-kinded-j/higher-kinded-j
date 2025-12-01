@@ -79,8 +79,8 @@ public interface Monad<M> extends Applicative<M> {
 
 The key difference is simple but profound:
 
-* **`Applicative`** is for combining **independent** computations. The shape and structure of all the computations are known upfront. This is why it can accumulate errors from multiple validations—it runs all of them.
-* **`Monad`** is for sequencing **dependent** computations. The computation in the second step cannot be known until the first step has completed. This is why it short-circuits on failure—if the first step fails, there is no value to feed into the second step.
+* **`Applicative`** is for combining **independent** computations. The shape and structure of all the computations are known upfront. This is why it can accumulate errors from multiple validations, as it runs all of them.
+* **`Monad`** is for sequencing **dependent** computations. The computation in the second step cannot be known until the first step has completed. This is why it short-circuits on failure: if the first step fails, there is no value to feed into the second step.
 
 ---
 

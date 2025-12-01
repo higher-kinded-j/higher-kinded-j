@@ -31,7 +31,7 @@ Kind<MaybeKind.Witness, Integer> result = maybeMonad.flatMap(a ->
 maybeA);
 ```
 
-This code works, but the logic is buried inside nested lambdas. The intent—to simply get values from `maybeA`, `maybeB`, and `maybeC` and add them—is obscured. This is often called the "pyramid of doom."
+This code works, but the logic is buried inside nested lambdas. The intent (to simply get values from `maybeA`, `maybeB`, and `maybeC` and add them) is obscured. This is often called the "pyramid of doom."
 
 ## _For_ A Fluent, Sequential Builder
 

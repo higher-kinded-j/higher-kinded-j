@@ -84,7 +84,7 @@ String dateString = birthDateStringLens.get(person); // "1985-12-25"
 
 ### 3. **`dimap`**: Adapting Both Source and Target Types
 
-The `dimap` operation is the most powerful—it adapts both the source and target types simultaneously. This is perfect for converting between completely different data representations.
+The `dimap` operation is the most powerful: it adapts both the source and target types simultaneously. This is perfect for converting between completely different data representations.
 
 **Use Case**: You have optics designed for internal `Person` objects but need to work with external `PersonDto` objects that use different field structures.
 

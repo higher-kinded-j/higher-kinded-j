@@ -72,7 +72,7 @@ Convert your standard Java object (e.g., a `List<Integer>`, an `Optional<String>
 * Helper enums provide convenience factory methods that also return `Kind` instances, e.g., `MAYBE.just("value")`, `TRY.failure(ex)`, `IO_OP.delay(() -> ...)`, `LAZY.defer(() -> ...)`. Remember to import thes statically from the XxxKindHelper classes.
 * **Note on Widening**:
   * For JDK types (like `List`, `Optional`), `widen` typically creates an internal `Holder` object that wraps the JDK type and implements the necessary `XxxKind` interface.
-  * For library-defined types (`Id`, `IO`, `Maybe`, `Either`, `Validated`, Transformers like `EitherT`) that directly implement their `XxxKind` interface (which in turn extends `Kind`), the `widen` method on the helper enum performs a null check and then a direct (and safe) cast to the `Kind` type. This provides zero runtime overhead—no wrapper object allocation needed.
+  * For library-defined types (`Id`, `IO`, `Maybe`, `Either`, `Validated`, Transformers like `EitherT`) that directly implement their `XxxKind` interface (which in turn extends `Kind`), the `widen` method on the helper enum performs a null check and then a direct (and safe) cast to the `Kind` type. This provides zero runtime overhead: no wrapper object allocation needed.
 ~~~
 
 ~~~admonish title="Step 4: Apply Type Class Methods"

@@ -2,11 +2,11 @@
 
 > *"If thought corrupts language, language can also corrupt thought."*
 >
-> — George Orwell, *Politics and the English Language*
+> – George Orwell, *Politics and the English Language*
 
 ---
 
-Exception-based error handling corrupts thought. When a method signature says `User getUser(String id)`, it lies by omission. The user might not exist. The database might be down. The ID might be malformed. None of this appears in the signature. The exceptions—when they come—arrive as surprises, handled in catch blocks scattered across the codebase, their semantics unclear, their taxonomy baroque.
+Exception-based error handling corrupts thought. When a method signature says `User getUser(String id)`, it lies by omission. The user might not exist. The database might be down. The ID might be malformed. None of this appears in the signature. The exceptions, when they come, arrive as surprises, handled in catch blocks scattered across the codebase, their semantics unclear, their taxonomy baroque.
 
 Functional error handling clarifies thought. When a method returns `Either<DomainError, User>`, the signature tells the truth. Failure is possible. The error type is explicit. Callers must acknowledge this reality; the compiler ensures it. The code becomes honest.
 
@@ -62,8 +62,8 @@ The integration is non-invasive. Existing exception-based endpoints continue to 
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Spring Boot Integration** — Using Either, Validated, and EitherT in controllers
-- **Migration Guide** — Moving from exceptions to functional error handling
+- **Spring Boot Integration** – Using Either, Validated, and EitherT in controllers
+- **Migration Guide** – Moving from exceptions to functional error handling
 ~~~
 
 ---

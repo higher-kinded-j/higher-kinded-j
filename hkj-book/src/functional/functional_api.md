@@ -1,6 +1,6 @@
 # Core API Interfaces: The Building Blocks
 
-The `hkj-api` module contains the heart of the `higher-kinded-j` library—a set of interfaces that define the core functional programming abstractions. These are the building blocks you will use to write powerful, generic, and type-safe code.
+The `hkj-api` module contains the heart of the `higher-kinded-j` library: a set of interfaces that define the core functional programming abstractions. These are the building blocks you will use to write powerful, generic, and type-safe code.
 
 This document provides a high-level overview of the most important interfaces, which are often referred to as **type classes**.
 

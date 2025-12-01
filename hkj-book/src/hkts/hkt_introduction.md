@@ -169,7 +169,7 @@ With HKTs (The Abstract Way): You write one generic set of instructions.
 addInsuranceToContainer(Container<T> container, ...)
 ```
 
-A higher-kinded type is the concept of being able to write code that refers to `Container<T>` — an abstraction over the container or "context" that holds the data.
+A higher-kinded type is the concept of being able to write code that refers to `Container<T>`: an abstraction over the container or "context" that holds the data.
 
 
 Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunctionalisation. It allows you to define and use common functional abstractions like `Functor`, `Applicative`, and `Monad` (including `MonadError`) in a way that works *generically* across different simulated type constructors.

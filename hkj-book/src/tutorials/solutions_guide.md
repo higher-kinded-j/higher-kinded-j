@@ -14,7 +14,7 @@ The solution files exist to help you learn, not to short-circuit the learning pr
 ### ❌ Poor Reasons to Check Solutions
 
 1. **Immediately When Confused**: Give yourself time to think through the problem
-2. **To Save Time**: The struggle is where learning happens—shortcuts lead to shallow understanding
+2. **To Save Time**: The struggle is where learning happens; shortcuts lead to shallow understanding
 3. **Copy-Pasting for Green Tests**: You'll pass the tutorial but won't retain the knowledge
 4. **Because It's Available**: Resist the temptation!
 
@@ -338,7 +338,7 @@ If you've read the solution but still don't understand:
 
 ## Remember
 
-> The solution is not the destination—understanding is.
+> The solution is not the destination; understanding is.
 
 A copied solution gets you a green test today but leaves you unprepared for tomorrow's challenges. The effort you put into solving exercises yourself directly translates to your ability to apply these patterns in production code.
 

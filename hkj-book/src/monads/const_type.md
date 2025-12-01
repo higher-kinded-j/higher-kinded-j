@@ -13,7 +13,7 @@
 [ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
 ~~~
 
-The `Const` type is a constant functor that holds a value of type `C` whilst treating `A` as a **phantom type parameter**—a type that exists only in the type signature but has no runtime representation. This seemingly simple property unlocks powerful patterns for accumulating values, implementing efficient folds, and building compositional getters in the style of van Laarhoven lenses.
+The `Const` type is a constant functor that holds a value of type `C` whilst treating `A` as a **phantom type parameter**: a type that exists only in the type signature but has no runtime representation. This seemingly simple property unlocks powerful patterns for accumulating values, implementing efficient folds, and building compositional getters in the style of van Laarhoven lenses.
 
 ~~~admonish note
 New to phantom types? See the [Glossary](../glossary.md#phantom-type) for a detailed explanation with Java-focused examples, or continue reading for practical demonstrations.
@@ -23,7 +23,7 @@ New to phantom types? See the [Glossary](../glossary.md#phantom-type) for a deta
 
 ## What is Const?
 
-A `Const<C, A>` is a container that holds a single value of type `C`. The type parameter `A` is phantom—it influences the type signature for composition and type safety but doesn't correspond to any stored data. This asymmetry is the key to Const's utility.
+A `Const<C, A>` is a container that holds a single value of type `C`. The type parameter `A` is phantom: it influences the type signature for composition and type safety but doesn't correspond to any stored data. This asymmetry is the key to Const's utility.
 
 ```java
 // Create a Const holding a String, with Integer as the phantom type

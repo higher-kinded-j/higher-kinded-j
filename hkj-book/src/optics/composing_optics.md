@@ -16,7 +16,7 @@
 [ValidatedTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java)
 ~~~
 
-In the previous guides, we explored each core optic—`Lens`, `Prism`, `Iso` and `Traversal`—as individual tools. We've seen how they provide focused, reusable, and composable access to immutable data.
+In the previous guides, we explored each core optic (`Lens`, `Prism`, `Iso` and `Traversal`) as individual tools. We've seen how they provide focused, reusable, and composable access to immutable data.
 
 Now, it's time to put it all together.
 

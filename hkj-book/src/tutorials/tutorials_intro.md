@@ -1,6 +1,6 @@
 # Interactive Tutorials: Learn Higher-Kinded-J by Building
 
-The best way to understand Higher-Kinded Types and Optics isn't just reading about them—it's writing code, running tests, and seeing the patterns come alive in your IDE.
+The best way to understand Higher-Kinded Types and Optics isn't just reading about them: it's writing code, running tests, and seeing the patterns come alive in your IDE.
 
 ## What Makes These Tutorials Different?
 
@@ -60,7 +60,7 @@ Your job is to replace `answerRequired()` with working code. The test will fail 
 3. **Run** the test (Ctrl+Shift+F10 in IntelliJ, Cmd+Shift+T in Eclipse)
 4. **Observe** the result:
    - ✅ **Green**: Correct! Move to the next exercise
-   - ❌ **Red**: Read the error message carefully—it contains clues
+   - ❌ **Red**: Read the error message carefully; it contains clues
 5. **Iterate** until you understand the pattern
 
 ### Getting Unstuck
@@ -80,7 +80,7 @@ If you're struggling with an exercise:
 ### Required Knowledge
 - **Java Fundamentals**: Records, generics, lambda expressions, method references
 - **IDE Proficiency**: Running tests, navigating code, using auto-completion
-- **Basic Functional Concepts**: Helpful but not required—we'll introduce them as needed
+- **Basic Functional Concepts**: Helpful but not required; we'll introduce them as needed
 
 ### Technical Setup
 - **Java 25 or later**: The library uses modern Java features
@@ -143,7 +143,7 @@ By the end of these tutorials, you'll have hands-on experience building:
 
 3. **Run Tests Frequently**: Don't write all exercises at once. Get one green, then move to the next.
 
-4. **Experiment Fearlessly**: Try different approaches. Tests provide a safety net—you can't break anything.
+4. **Experiment Fearlessly**: Try different approaches. Tests provide a safety net; you can't break anything.
 
 5. **Don't Rush**: Understanding matters more than speed. Take breaks if you're stuck.
 

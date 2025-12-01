@@ -15,7 +15,7 @@
 [StringTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/StringTraversalsExample.java)
 ~~~
 
-Working with text in Java often feels like choosing between extremes: verbose manual string manipulation with `substring()` and `indexOf()`, or cryptic regular expressions that become unmaintainable. String traversals offer a middle path—declarative, composable, and type-safe.
+Working with text in Java often feels like choosing between extremes: verbose manual string manipulation with `substring()` and `indexOf()`, or cryptic regular expressions that become unmaintainable. String traversals offer a middle path: declarative, composable, and type-safe.
 
 Consider these common scenarios from enterprise Java applications:
 
@@ -231,7 +231,7 @@ public class EmailNormaliser {
 
 The power emerges when combining string traversals with other optics:
 
-### With Filtered Traversals — Pattern Matching
+### With Filtered Traversals – Pattern Matching
 
 ```java
 // Find and transform lines starting with a prefix
@@ -245,7 +245,7 @@ String withoutComments = Traversals.modify(
 );
 ```
 
-### With Nested Structures — Bulk Text Processing
+### With Nested Structures – Bulk Text Processing
 
 ```java
 @GenerateLenses
@@ -264,7 +264,7 @@ Document formatted = Traversals.modify(
 );
 ```
 
-### With Effectful Operations — Validation
+### With Effectful Operations – Validation
 
 ```java
 import org.higherkindedj.hkt.optional.OptionalMonad;

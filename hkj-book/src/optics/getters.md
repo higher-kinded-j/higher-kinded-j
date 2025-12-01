@@ -20,7 +20,7 @@
 
 In previous guides, we explored **`Fold`** for querying zero or more elements from a structure. But what if you need to extract exactly one value? What if you want a composable accessor for a single, guaranteed-to-exist value? This is where **`Getter`** excels.
 
-A **`Getter`** is the simplest read-only optic—it extracts precisely one value from a source. Think of it as a **function wrapped in optic form**, enabling composition with other optics whilst maintaining read-only semantics.
+A **`Getter`** is the simplest read-only optic: it extracts precisely one value from a source. Think of it as a **function wrapped in optic form**, enabling composition with other optics whilst maintaining read-only semantics.
 
 ---
 
@@ -137,7 +137,7 @@ Getter<String, Integer> stringLength = Getter.to(String::length);
 
 #### **`get(source)`**: Extract the Focused Value
 
-The fundamental operation—returns exactly one value:
+The fundamental operation: returns exactly one value:
 
 ```java
 Person person = new Person("Jane", "Smith", 45, address);
@@ -188,7 +188,7 @@ int length = ceoNameLength.get(company);
 
 ### Step 4: Getter as a Fold
 
-Since `Getter` extends `Fold`, you inherit all query operations—but they operate on exactly one element:
+Since `Getter` extends `Fold`, you inherit all query operations, but they operate on exactly one element:
 
 ```java
 Getter<Person, Integer> ageGetter = Getter.of(Person::age);
@@ -782,7 +782,7 @@ Getters are **extremely lightweight**:
 * **Inline-friendly**: JIT can optimise away the abstraction
 * **Lazy evaluation**: Values computed only when `get()` is called
 
-**Best Practice**: Use Getters freely—they add minimal runtime cost whilst providing excellent composability and type safety.
+**Best Practice**: Use Getters freely; they add minimal runtime cost whilst providing excellent composability and type safety.
 
 ```java
 // Efficient: Computed on demand

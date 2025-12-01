@@ -17,7 +17,7 @@
 [FilteredTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/FilteredTraversalExample.java)
 ~~~
 
-In our journey through optics, we've seen how **Traversal** handles bulk operations on collections and how **Fold** provides read-only queries. But what happens when you need to operate on only *some* elements—those that satisfy a specific condition?
+In our journey through optics, we've seen how **Traversal** handles bulk operations on collections and how **Fold** provides read-only queries. But what happens when you need to operate on only *some* elements, those that satisfy a specific condition?
 
 Traditionally, filtering requires breaking out of your optic composition to use streams or loops, mixing the *what* (your transformation logic) with the *how* (iteration and filtering). **Filtered optics** solve this elegantly by making filtering a first-class part of your optic composition.
 
@@ -104,7 +104,7 @@ Each serves different needs, and they can be combined for powerful compositions.
 
 ## A Step-by-Step Walkthrough
 
-### Step 1: Instance Method — `filtered(Predicate)`
+### Step 1: Instance Method – `filtered(Predicate)`
 
 The most intuitive approach: call `filtered()` on any `Traversal` or `Fold` to create a new optic that only focuses on matching elements.
 
@@ -188,7 +188,7 @@ Traversal<List<User>, User> premiumUsers =
         .filtered(user -> user.tier() == PREMIUM || user.tier() == ENTERPRISE);
 ```
 
-### Step 4: Static Combinator — `Traversals.filtered()`
+### Step 4: Static Combinator – `Traversals.filtered()`
 
 The static method creates an **affine traversal** (0 or 1 focus) that can be composed anywhere in a chain:
 
@@ -213,7 +213,7 @@ Traversal<List<User>, String> activeUserNames =
 - **Static combinator**: When you want a reusable filter that can be inserted into different compositions
 - **Instance method**: When filtering is a natural part of a specific traversal's behaviour
 
-Both approaches are semantically equivalent—choose based on readability and reusability:
+Both approaches are semantically equivalent; choose based on readability and reusability:
 
 ```java
 // These are equivalent:
@@ -221,7 +221,7 @@ Traversal<List<User>, User> approach1 = Traversals.<User>forList().filtered(User
 Traversal<List<User>, User> approach2 = Traversals.<User>forList().andThen(Traversals.filtered(User::active));
 ```
 
-### Step 5: Advanced Filtering — `filterBy(Fold, Predicate)`
+### Step 5: Advanced Filtering – `filterBy(Fold, Predicate)`
 
 Sometimes you need to filter based on *nested* properties or aggregated queries. The `filterBy` method accepts a `Fold` that queries each element, including only those where at least one queried value matches the predicate.
 
@@ -649,7 +649,7 @@ In Haskell:
 filtered :: (a -> Bool) -> Traversal' a a
 ```
 
-This creates a traversal that focuses on the value only if it satisfies the predicate—exactly what our `Traversals.filtered(Predicate)` does.
+This creates a traversal that focuses on the value only if it satisfies the predicate, exactly what our `Traversals.filtered(Predicate)` does.
 
 **Key differences:**
 - Higher-kinded-j uses explicit `Applicative` instances rather than implicit type class resolution
@@ -688,7 +688,7 @@ By incorporating filtered optics into your toolkit, you gain:
 * **Immutability**: Structure preserved, only targets modified
 * **Performance**: Single-pass, lazy evaluation, no intermediate collections
 
-Filtered optics represent the pinnacle of declarative data manipulation in Java—where the *what* (your business logic) is cleanly separated from the *how* (iteration, filtering, reconstruction), all whilst maintaining full type safety and referential transparency.
+Filtered optics represent the pinnacle of declarative data manipulation in Java: the *what* (your business logic) is cleanly separated from the *how* (iteration, filtering, reconstruction), all whilst maintaining full type safety and referential transparency.
 
 ---
 

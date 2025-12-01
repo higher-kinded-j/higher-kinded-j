@@ -402,7 +402,7 @@ result.fold(
 
 #### Optional Validation with `modifyMaybe`
 
-Useful when validation failure shouldn't produce error messages—either it works or it doesn't.
+Useful when validation failure shouldn't produce error messages: either it works or it doesn't.
 
 ```java
 // Trim and validate bio (silent failure if too long)
