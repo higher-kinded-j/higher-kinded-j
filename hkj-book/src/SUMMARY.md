@@ -70,6 +70,7 @@
   - [What Are Optics?](optics/optics_intro.md)
   - [Lenses](optics/lenses.md)
   - [Prisms](optics/prisms.md)
+  - [Affines](optics/affine.md)
   - [Isomorphisms](optics/iso.md)
   - [Composition Rules](optics/composition_rules.md)
 

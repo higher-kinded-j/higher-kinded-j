@@ -24,16 +24,20 @@ Iso ─────────────────────────�
  │       │                                    │
  │       └──────────────────────┐             │
  │                              │             │
- └──> Prism ──> Affine* ────> Fold            │
+ └──> Prism ──> Affine ─────> Fold            │
           │         │                         │
           │         └──────────────┐          │
           │                        v          │
           └──────────────────> Traversal ─────┘
                                     │
                                     └──> Setter
-
-* Affine (0-1 targets) is represented as Traversal in this library
 ```
+
+**What is Affine?** An Affine optic focuses on **zero or one** element within a structure. It combines the partial access of a Prism with the update capability of a Lens. Common use cases include:
+
+- Accessing `Optional<T>` fields in records
+- Working with nullable properties
+- Navigating through optional intermediate structures
 
 **Key insight**: When composing two different optic types, the result is always the **least general common ancestor** that can represent both operations.
 
@@ -46,20 +50,28 @@ Iso ─────────────────────────�
 | **Iso** | >>> | Iso | = | **Iso** | Both directions preserved |
 | **Iso** | >>> | Lens | = | **Lens** | Lens is more restrictive |
 | **Iso** | >>> | Prism | = | **Prism** | Prism is more restrictive |
+| **Iso** | >>> | Affine | = | **Affine** | Affine is more restrictive |
 | **Iso** | >>> | Traversal | = | **Traversal** | Traversal is most general |
 | **Lens** | >>> | Lens | = | **Lens** | Same type |
-| **Lens** | >>> | Prism | = | **Traversal** | May not match (0-1 targets) |
+| **Lens** | >>> | Prism | = | **Affine** | May not match (0-1 targets) |
+| **Lens** | >>> | Affine | = | **Affine** | Affine preserves partiality |
 | **Lens** | >>> | Traversal | = | **Traversal** | Traversal is more general |
 | **Lens** | >>> | Iso | = | **Lens** | Iso subsumes Lens |
 | **Prism** | >>> | Prism | = | **Prism** | Same type |
-| **Prism** | >>> | Lens | = | **Traversal** | May not match + field access |
+| **Prism** | >>> | Lens | = | **Affine** | May not match + field access |
+| **Prism** | >>> | Affine | = | **Affine** | Affine preserves partiality |
 | **Prism** | >>> | Traversal | = | **Traversal** | Traversal is more general |
 | **Prism** | >>> | Iso | = | **Prism** | Iso subsumes Prism |
+| **Affine** | >>> | Affine | = | **Affine** | Same type |
+| **Affine** | >>> | Lens | = | **Affine** | Affine preserves partiality |
+| **Affine** | >>> | Prism | = | **Affine** | Both may not match |
+| **Affine** | >>> | Traversal | = | **Traversal** | Traversal is more general |
+| **Affine** | >>> | Iso | = | **Affine** | Iso subsumes Affine |
 | **Traversal** | >>> | any | = | **Traversal** | Traversal is already general |
 
 ---
 
-## Why Lens >>> Prism = Traversal
+## Why Lens >>> Prism = Affine
 
 This is perhaps the most important composition rule to understand.
 
@@ -71,7 +83,7 @@ When you compose them:
 - The Lens always gets you to `A`
 - The Prism may or may not get you from `A` to `B`
 
-Result: **zero-or-one** focuses, which is a `Traversal` (specifically an "affine" traversal).
+Result: **zero-or-one** focuses, which is an **Affine** optic.
 
 ### Example
 
@@ -87,25 +99,29 @@ Lens<Config, Optional<DatabaseSettings>> databaseLens =
 // The Prism may or may not extract the DatabaseSettings
 Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-// Composition: Lens >>> Prism = Traversal
-Traversal<Config, DatabaseSettings> databaseTraversal =
+// Composition: Lens >>> Prism = Affine
+Affine<Config, DatabaseSettings> databaseAffine =
     databaseLens.andThen(somePrism);
 
 // Usage
 Config config1 = new Config(Optional.of(new DatabaseSettings("localhost", 5432)));
-List<DatabaseSettings> result1 = Traversals.getAll(databaseTraversal, config1);
-// result1 = [DatabaseSettings[host=localhost, port=5432]]
+Optional<DatabaseSettings> result1 = databaseAffine.getOptional(config1);
+// result1 = Optional[DatabaseSettings[host=localhost, port=5432]]
 
 Config config2 = new Config(Optional.empty());
-List<DatabaseSettings> result2 = Traversals.getAll(databaseTraversal, config2);
-// result2 = [] (empty - the prism didn't match)
+Optional<DatabaseSettings> result2 = databaseAffine.getOptional(config2);
+// result2 = Optional.empty() (the prism didn't match)
+
+// Setting always succeeds
+Config updated = databaseAffine.set(new DatabaseSettings("newhost", 3306), config2);
+// updated = Config[database=Optional[DatabaseSettings[host=newhost, port=3306]]]
 ```
 
 ---
 
-## Why Prism >>> Lens = Traversal
+## Why Prism >>> Lens = Affine
 
-Similarly, composing a Prism first and then a Lens also yields a Traversal.
+Similarly, composing a Prism first and then a Lens also yields an Affine.
 
 ### The Intuition
 
@@ -131,23 +147,23 @@ Prism<Shape, Circle> circlePrism = Prism.of(
 Lens<Circle, Double> radiusLens =
     Lens.of(Circle::radius, (c, r) -> new Circle(r, c.colour()));
 
-// Composition: Prism >>> Lens = Traversal
-Traversal<Shape, Double> circleRadiusTraversal = circlePrism.andThen(radiusLens);
+// Composition: Prism >>> Lens = Affine
+Affine<Shape, Double> circleRadiusAffine = circlePrism.andThen(radiusLens);
 
 // Usage
 Shape circle = new Circle(5.0, "red");
-List<Double> radii = Traversals.getAll(circleRadiusTraversal, circle);
-// radii = [5.0]
+Optional<Double> radius = circleRadiusAffine.getOptional(circle);
+// radius = Optional[5.0]
 
 Shape rectangle = new Rectangle(10.0, 20.0, "blue");
-List<Double> empty = Traversals.getAll(circleRadiusTraversal, rectangle);
-// empty = [] (prism didn't match)
+Optional<Double> empty = circleRadiusAffine.getOptional(rectangle);
+// empty = Optional.empty() (prism didn't match)
 
 // Modification only affects circles
-Shape modified = Traversals.modify(circleRadiusTraversal, r -> r * 2, circle);
+Shape modified = circleRadiusAffine.modify(r -> r * 2, circle);
 // modified = Circle[radius=10.0, colour=red]
 
-Shape unchanged = Traversals.modify(circleRadiusTraversal, r -> r * 2, rectangle);
+Shape unchanged = circleRadiusAffine.modify(r -> r * 2, rectangle);
 // unchanged = Rectangle[width=10.0, height=20.0, colour=blue] (unchanged)
 ```
 
@@ -163,14 +179,20 @@ higher-kinded-j provides direct `andThen` methods that automatically return the 
 // Lens >>> Lens = Lens
 Lens<A, C> result = lensAB.andThen(lensBC);
 
-// Lens >>> Prism = Traversal
-Traversal<A, C> result = lensAB.andThen(prismBC);
+// Lens >>> Prism = Affine
+Affine<A, C> result = lensAB.andThen(prismBC);
 
 // Prism >>> Prism = Prism
 Prism<A, C> result = prismAB.andThen(prismBC);
 
-// Prism >>> Lens = Traversal
-Traversal<A, C> result = prismAB.andThen(lensBC);
+// Prism >>> Lens = Affine
+Affine<A, C> result = prismAB.andThen(lensBC);
+
+// Affine >>> Affine = Affine
+Affine<A, C> result = affineAB.andThen(affineBC);
+
+// Affine >>> Lens = Affine
+Affine<A, C> result = affineAB.andThen(lensBC);
 
 // Traversal >>> Traversal = Traversal
 Traversal<A, C> result = traversalAB.andThen(traversalBC);
@@ -280,9 +302,12 @@ Traversal<List<Order>, Order> activeOrders =
 | Composition | Result | Use Case |
 |-------------|--------|----------|
 | Lens >>> Lens | Lens | Nested product types (records) |
-| Lens >>> Prism | Traversal | Product containing sum type |
-| Prism >>> Lens | Traversal | Sum type containing product |
+| Lens >>> Prism | Affine | Product containing sum type |
+| Prism >>> Lens | Affine | Sum type containing product |
 | Prism >>> Prism | Prism | Nested sum types |
+| Affine >>> Affine | Affine | Chained optional access |
+| Affine >>> Lens | Affine | Optional then field access |
+| Affine >>> Prism | Affine | Optional then variant match |
 | Any >>> Traversal | Traversal | Collection access |
 | Iso >>> Any | Same as second | Type conversion first |
 

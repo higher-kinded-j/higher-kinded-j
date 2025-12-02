@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OptionalSelective.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.optional</a> &gt; <span class="el_source">OptionalSelective.java</span></div><h1>OptionalSelective.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.optional;
+
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.Optional;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Choice;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Implements the {@link Selective} type class for {@link java.util.Optional}. This provides
+ * selective applicative operations that allow conditional execution based on the result of previous
+ * computations.
+ *
+ * &lt;p&gt;The Selective interface sits between {@link org.higherkindedj.hkt.Applicative} and {@link
+ * org.higherkindedj.hkt.Monad} in terms of power. For Optional, selective operations handle the
+ * present and empty cases appropriately:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Present values: Operations are applied
+ *   &lt;li&gt;Empty values: Propagated unchanged (short-circuit)
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Unit Usage:&lt;/b&gt; The {@link #whenS(Kind, Kind)} method uses {@link Unit} to distinguish
+ * between two different &quot;empty-like&quot; states:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code Optional.empty()}: No condition to evaluate (input was empty)
+ *   &lt;li&gt;{@code Optional.of(Unit.INSTANCE)}: Condition evaluated to false, operation skipped
+ * &lt;/ul&gt;
+ *
+ * This distinction is semantically important and improves code clarity. Previously, both cases
+ * returned {@code Optional.empty()}, making them indistinguishable.
+ *
+ * &lt;p&gt;Key operations:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link #select(Kind, Kind)}: Conditionally applies an effectful function based on a Choice.
+ *   &lt;li&gt;{@link #branch(Kind, Kind, Kind)}: Provides two-way conditional choice with different
+ *       handlers.
+ *   &lt;li&gt;{@link #whenS(Kind, Kind)}: Conditionally executes a Unit-returning effect based on a
+ *       boolean.
+ *   &lt;li&gt;{@link #ifS(Kind, Kind, Kind)}: Ternary conditional for selective functors.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;This class is a singleton, accessible via {@link #INSTANCE}.
+ *
+ * @see Optional
+ * @see OptionalMonad
+ * @see Selective
+ * @see Choice
+ * @see Unit
+ */
+public final class OptionalSelective extends OptionalMonad
+    implements Selective&lt;OptionalKind.Witness&gt; {
+
+  /** Singleton instance of {@code OptionalSelective}. */
+<span class="fc" id="L64">  public static final OptionalSelective INSTANCE = new OptionalSelective();</span>
+
+<span class="fc" id="L66">  private static final Class&lt;OptionalSelective&gt; OPTIONAL_SELECTIVE_CLASS = OptionalSelective.class;</span>
+
+  /** Private constructor to enforce the singleton pattern. */
+  private OptionalSelective() {
+    super();
+  }
+
+  /**
+   * The core selective operation for Optional. Given an effectful choice {@code fab} and an
+   * effectful function {@code ff}, applies the function only if the choice is a {@code Left}.
+   *
+   * &lt;p&gt;Behavior:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;If {@code fab} is {@code Optional.empty()}: Returns {@code Optional.empty()}, {@code ff}
+   *       is not evaluated.
+   *   &lt;li&gt;If {@code fab} is {@code Optional.of(Choice.Right(b))}: Returns {@code Optional.of(b)},
+   *       {@code ff} is not evaluated.
+   *   &lt;li&gt;If {@code fab} is {@code Optional.of(Choice.Left(a))} and {@code ff} is {@code
+   *       Optional.of(function)}: Returns {@code Optional.of(function.apply(a))}.
+   *   &lt;li&gt;If {@code fab} is {@code Optional.of(Choice.Left(a))} and {@code ff} is {@code
+   *       Optional.empty()}: Returns {@code Optional.empty()}.
+   * &lt;/ul&gt;
+   *
+   * @param fab A {@link Kind} representing {@code Optional&lt;Choice&lt;A, B&gt;&gt;}. Must not be null.
+   * @param ff A {@link Kind} representing {@code Optional&lt;Function&lt;A, B&gt;&gt;}. Must not be null.
+   * @param &lt;A&gt; The input type of the function (the type inside {@code Left} of the Choice).
+   * @param &lt;B&gt; The output type and the type inside {@code Right} of the Choice.
+   * @return A {@link Kind} representing {@code Optional&lt;B&gt;}. Never null.
+   * @throws NullPointerException if {@code fab} or {@code ff} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fab} or {@code ff} cannot
+   *     be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;OptionalKind.Witness, B&gt; select(
+      Kind&lt;OptionalKind.Witness, Choice&lt;A, B&gt;&gt; fab, Kind&lt;OptionalKind.Witness, Function&lt;A, B&gt;&gt; ff) {
+
+<span class="fc" id="L103">    Validation.kind().requireNonNull(fab, OPTIONAL_SELECTIVE_CLASS, SELECT, &quot;choice&quot;);</span>
+<span class="fc" id="L104">    Validation.kind().requireNonNull(ff, OPTIONAL_SELECTIVE_CLASS, SELECT, &quot;function&quot;);</span>
+
+<span class="fc" id="L106">    Optional&lt;Choice&lt;A, B&gt;&gt; optionalChoice = OPTIONAL.narrow(fab);</span>
+
+    // Short-circuit if empty
+<span class="fc bfc" id="L109" title="All 2 branches covered.">    if (optionalChoice.isEmpty()) {</span>
+<span class="fc" id="L110">      return OPTIONAL.widen(Optional.empty());</span>
+    }
+
+<span class="fc" id="L113">    Choice&lt;A, B&gt; choice = optionalChoice.get();</span>
+
+    // If choice is Right(b), we already have our value
+<span class="fc bfc" id="L116" title="All 2 branches covered.">    if (choice.isRight()) {</span>
+<span class="fc" id="L117">      return OPTIONAL.widen(Optional.of(choice.getRight()));</span>
+    }
+
+    // Choice is Left(a), so we need to apply the function
+<span class="fc" id="L121">    Optional&lt;Function&lt;A, B&gt;&gt; optionalFunction = OPTIONAL.narrow(ff);</span>
+
+<span class="fc bfc" id="L123" title="All 2 branches covered.">    if (optionalFunction.isEmpty()) {</span>
+<span class="fc" id="L124">      return OPTIONAL.widen(Optional.empty());</span>
+    }
+
+    // Apply the function to the value
+<span class="fc" id="L128">    A value = choice.getLeft();</span>
+<span class="fc" id="L129">    Function&lt;A, B&gt; function = optionalFunction.get();</span>
+<span class="fc" id="L130">    B result = function.apply(value);</span>
+
+<span class="fc" id="L132">    return OPTIONAL.widen(Optional.ofNullable(result));</span>
+  }
+
+  /**
+   * Optimised implementation of {@code branch} for Optional. Provides a two-way conditional choice,
+   * applying the appropriate handler based on whether the Choice is Left or Right.
+   *
+   * @param fab A {@link Kind} representing {@code Optional&lt;Choice&lt;A, B&gt;&gt;}. Must not be null.
+   * @param fl A {@link Kind} representing {@code Optional&lt;Function&lt;A, C&gt;&gt;} for the Left case. Must
+   *     not be null.
+   * @param fr A {@link Kind} representing {@code Optional&lt;Function&lt;B, C&gt;&gt;} for the Right case. Must
+   *     not be null.
+   * @param &lt;A&gt; The type inside {@code Left} of the Choice.
+   * @param &lt;B&gt; The type inside {@code Right} of the Choice.
+   * @param &lt;C&gt; The result type.
+   * @return A {@link Kind} representing {@code Optional&lt;C&gt;}. Never null.
+   */
+  @Override
+  public &lt;A, B, C&gt; Kind&lt;OptionalKind.Witness, C&gt; branch(
+      Kind&lt;OptionalKind.Witness, Choice&lt;A, B&gt;&gt; fab,
+      Kind&lt;OptionalKind.Witness, Function&lt;A, C&gt;&gt; fl,
+      Kind&lt;OptionalKind.Witness, Function&lt;B, C&gt;&gt; fr) {
+
+<span class="fc" id="L155">    Validation.kind().requireNonNull(fab, OPTIONAL_SELECTIVE_CLASS, BRANCH, &quot;choice&quot;);</span>
+<span class="fc" id="L156">    Validation.kind().requireNonNull(fl, OPTIONAL_SELECTIVE_CLASS, BRANCH, &quot;leftHandler&quot;);</span>
+<span class="fc" id="L157">    Validation.kind().requireNonNull(fr, OPTIONAL_SELECTIVE_CLASS, BRANCH, &quot;rightHandler&quot;);</span>
+
+<span class="fc" id="L159">    Optional&lt;Choice&lt;A, B&gt;&gt; optionalChoice = OPTIONAL.narrow(fab);</span>
+
+    // Short-circuit on empty
+<span class="fc bfc" id="L162" title="All 2 branches covered.">    if (optionalChoice.isEmpty()) {</span>
+<span class="fc" id="L163">      return OPTIONAL.widen(Optional.empty());</span>
+    }
+
+<span class="fc" id="L166">    Choice&lt;A, B&gt; choice = optionalChoice.get();</span>
+
+<span class="fc bfc" id="L168" title="All 2 branches covered.">    if (choice.isLeft()) {</span>
+      // Use left handler
+<span class="fc" id="L170">      Optional&lt;Function&lt;A, C&gt;&gt; leftFunction = OPTIONAL.narrow(fl);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">      if (leftFunction.isEmpty()) {</span>
+<span class="fc" id="L172">        return OPTIONAL.widen(Optional.empty());</span>
+      }
+<span class="fc" id="L174">      C result = leftFunction.get().apply(choice.getLeft());</span>
+<span class="fc" id="L175">      return OPTIONAL.widen(Optional.ofNullable(result));</span>
+    } else {
+      // Use right handler
+<span class="fc" id="L178">      Optional&lt;Function&lt;B, C&gt;&gt; rightFunction = OPTIONAL.narrow(fr);</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">      if (rightFunction.isEmpty()) {</span>
+<span class="fc" id="L180">        return OPTIONAL.widen(Optional.empty());</span>
+      }
+<span class="fc" id="L182">      C result = rightFunction.get().apply(choice.getRight());</span>
+<span class="fc" id="L183">      return OPTIONAL.widen(Optional.ofNullable(result));</span>
+    }
+  }
+
+  /**
+   * Optimised implementation of {@code whenS} for Optional. Conditionally executes a Unit-returning
+   * effect based on a boolean condition.
+   *
+   * &lt;p&gt;This method now uses {@link Unit} to clearly distinguish between different states:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;{@code Optional.empty()} in condition: Returns {@code Optional.empty()} (no condition to
+   *       evaluate)
+   *   &lt;li&gt;{@code Optional.of(true)}: Executes effect and returns its result
+   *   &lt;li&gt;{@code Optional.of(false)}: Returns {@code Optional.of(Unit.INSTANCE)} (condition
+   *       evaluated, operation skipped)
+   * &lt;/ul&gt;
+   *
+   * &lt;p&gt;This distinction is important:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;{@code Optional.empty()}: &quot;No information available&quot; (condition itself is absent)
+   *   &lt;li&gt;{@code Optional.of(Unit.INSTANCE)}: &quot;Operation completed with no interesting result&quot;
+   *       (condition was false)
+   * &lt;/ul&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;
+   *
+   * &lt;pre&gt;{@code
+   * // Condition is present and true - effect executes
+   * Optional&lt;Boolean&gt; shouldLog = Optional.of(true);
+   * Optional&lt;Unit&gt; logEffect = Optional.of(Unit.INSTANCE);
+   * Optional&lt;Unit&gt; result1 = OPTIONAL.narrow(optionalSelective.whenS(
+   *     OPTIONAL.widen(shouldLog),
+   *     OPTIONAL.widen(logEffect)
+   * ));
+   * // result1 = Optional.of(Unit.INSTANCE) - effect executed
+   *
+   * // Condition is present and false - effect skipped
+   * Optional&lt;Boolean&gt; shouldNotLog = Optional.of(false);
+   * Optional&lt;Unit&gt; result2 = OPTIONAL.narrow(optionalSelective.whenS(
+   *     OPTIONAL.widen(shouldNotLog),
+   *     OPTIONAL.widen(logEffect)
+   * ));
+   * // result2 = Optional.of(Unit.INSTANCE) - condition evaluated, effect skipped
+   *
+   * // Condition is absent - no evaluation possible
+   * Optional&lt;Boolean&gt; noCondition = Optional.empty();
+   * Optional&lt;Unit&gt; result3 = OPTIONAL.narrow(optionalSelective.whenS(
+   *     OPTIONAL.widen(noCondition),
+   *     OPTIONAL.widen(logEffect)
+   * ));
+   * // result3 = Optional.empty() - no condition to evaluate
+   * }&lt;/pre&gt;
+   *
+   * @param fcond A {@link Kind} representing {@code Optional&lt;Boolean&gt;}. Must not be null.
+   * @param fa A {@link Kind} representing {@code Optional&lt;Unit&gt;} to execute if condition is true.
+   *     Must not be null.
+   * @return A {@link Kind} representing {@code Optional&lt;Unit&gt;}. Never null.
+   */
+  @Override
+  public Kind&lt;OptionalKind.Witness, Unit&gt; whenS(
+      Kind&lt;OptionalKind.Witness, Boolean&gt; fcond, Kind&lt;OptionalKind.Witness, Unit&gt; fa) {
+
+<span class="fc" id="L247">    Validation.kind().requireNonNull(fcond, OPTIONAL_SELECTIVE_CLASS, WHEN_S, &quot;condition&quot;);</span>
+<span class="fc" id="L248">    Validation.kind().requireNonNull(fa, OPTIONAL_SELECTIVE_CLASS, WHEN_S, &quot;effect&quot;);</span>
+
+<span class="fc" id="L250">    Optional&lt;Boolean&gt; condOptional = OPTIONAL.narrow(fcond);</span>
+
+    // Short-circuit on empty - no condition to evaluate
+<span class="fc bfc" id="L253" title="All 2 branches covered.">    if (condOptional.isEmpty()) {</span>
+<span class="fc" id="L254">      return OPTIONAL.widen(Optional.empty());</span>
+    }
+
+<span class="fc" id="L257">    boolean condition = condOptional.get();</span>
+
+<span class="fc bfc" id="L259" title="All 2 branches covered.">    if (condition) {</span>
+      // Execute and return the effect
+<span class="fc" id="L261">      return fa;</span>
+    } else {
+      // Condition is false, return Optional.of(Unit.INSTANCE)
+      // This is NOT empty - it represents &quot;operation completed, effect skipped&quot;
+<span class="fc" id="L265">      return OPTIONAL.widen(Optional.of(Unit.INSTANCE));</span>
+    }
+  }
+
+  /**
+   * Optimised implementation of {@code ifS} for Optional. A ternary conditional operator for
+   * selective functors.
+   *
+   * @param fcond A {@link Kind} representing {@code Optional&lt;Boolean&gt;}. Must not be null.
+   * @param fthen A {@link Kind} representing {@code Optional&lt;A&gt;} for the true branch. Must not be
+   *     null.
+   * @param felse A {@link Kind} representing {@code Optional&lt;A&gt;} for the false branch. Must not be
+   *     null.
+   * @param &lt;A&gt; The type of the result.
+   * @return A {@link Kind} representing {@code Optional&lt;A&gt;}. Never null.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;OptionalKind.Witness, A&gt; ifS(
+      Kind&lt;OptionalKind.Witness, Boolean&gt; fcond,
+      Kind&lt;OptionalKind.Witness, A&gt; fthen,
+      Kind&lt;OptionalKind.Witness, A&gt; felse) {
+
+<span class="fc" id="L287">    Validation.kind().requireNonNull(fcond, OPTIONAL_SELECTIVE_CLASS, IF_S, &quot;condition&quot;);</span>
+<span class="fc" id="L288">    Validation.kind().requireNonNull(fthen, OPTIONAL_SELECTIVE_CLASS, IF_S, &quot;thenBranch&quot;);</span>
+<span class="fc" id="L289">    Validation.kind().requireNonNull(felse, OPTIONAL_SELECTIVE_CLASS, IF_S, &quot;elseBranch&quot;);</span>
+
+<span class="fc" id="L291">    Optional&lt;Boolean&gt; condOptional = OPTIONAL.narrow(fcond);</span>
+
+    // Short-circuit on empty
+<span class="fc bfc" id="L294" title="All 2 branches covered.">    if (condOptional.isEmpty()) {</span>
+<span class="fc" id="L295">      return OPTIONAL.widen(Optional.empty());</span>
+    }
+
+<span class="fc" id="L298">    boolean condition = condOptional.get();</span>
+
+    // Return the appropriate branch
+<span class="fc bfc" id="L301" title="All 2 branches covered.">    return condition ? fthen : felse;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ListTraverse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.list</a> &gt; <span class="el_source">ListTraverse.java</span></div><h1>ListTraverse.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.list;
+
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Foldable;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * Implements the {@link Traverse} and {@link Foldable} typeclasses for {@link java.util.List},
+ * using {@link ListKind.Witness} as the higher-kinded type witness.
+ */
+<span class="fc" id="L24">@NullMarked</span>
+public enum ListTraverse implements Traverse&lt;ListKind.Witness&gt; {
+  /**
+   * Singleton instance of {@code ListTraverse}. This instance can be used to access {@code
+   * Traverse} and {@code Foldable} operations for lists.
+   */
+<span class="fc" id="L30">  INSTANCE;</span>
+
+<span class="fc" id="L32">  private static Class&lt;ListTraverse&gt; LIST_TRAVERSE_CLASS = ListTraverse.class;</span>
+
+  /**
+   * Maps a function over a list in a higher-kinded context. This operation is inherited from {@link
+   * Functor} via {@link Traverse}.
+   *
+   * @param &lt;A&gt; The type of elements in the input list.
+   * @param &lt;B&gt; The type of elements in the output list after applying the function.
+   * @param f The non-null function to apply to each element of the list.
+   * @param fa The non-null {@code Kind&lt;ListKind.Witness, A&gt;} representing the input list.
+   * @return A new non-null {@code Kind&lt;ListKind.Witness, B&gt;} containing a list with the results of
+   *     applying the function {@code f}.
+   * @throws NullPointerException if f or fa is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;ListKind.Witness, B&gt; map(
+      Function&lt;? super A, ? extends B&gt; f, Kind&lt;ListKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L51">    Validation.function().requireMapper(f, &quot;f&quot;, LIST_TRAVERSE_CLASS, MAP);</span>
+<span class="fc" id="L52">    Validation.kind().requireNonNull(fa, LIST_TRAVERSE_CLASS, MAP);</span>
+
+<span class="fc" id="L54">    return ListFunctor.INSTANCE.map(f, fa);</span>
+  }
+
+  /**
+   * Traverses a list from left to right, applying an effectful function {@code f} to each element
+   * and collecting the results within the context of the {@link Applicative} {@code G}.
+   *
+   * &lt;p&gt;&lt;b&gt;Stack Safety Considerations:&lt;/b&gt;
+   *
+   * &lt;p&gt;This implementation uses an iterative loop with {@code applicative.map2()}, which is
+   * generally stack-safe for most standard {@code Applicative} instances (e.g., {@code Optional},
+   * {@code Either}, {@code Validated}, {@code List}, {@code Id}). However, stack safety ultimately
+   * depends on the {@code Applicative} instance provided:
+   *
+   * &lt;ul&gt;
+   *   &lt;li&gt;&lt;b&gt;Stack-Safe Applicatives:&lt;/b&gt; If {@code map2} is implemented iteratively or uses
+   *       trampolining internally (as in {@code Id}, {@code Optional}, {@code Either}), this
+   *       traversal is stack-safe for arbitrarily large lists.
+   *   &lt;li&gt;&lt;b&gt;Potentially Unsafe Applicatives:&lt;/b&gt; If {@code map2} is implemented in terms of {@code
+   *       flatMap} without stack-safety measures, traversing very large lists (&gt;10,000 elements)
+   *       may cause {@code StackOverflowError}. In such cases, use {@link
+   *       org.higherkindedj.hkt.trampoline.TrampolineUtils#traverseListStackSafe} instead.
+   * &lt;/ul&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Performance Note:&lt;/b&gt; This implementation creates a new {@code LinkedList} on each
+   * iteration to ensure correct behavior for all {@code Applicative} types, including those that
+   * create multiple branches (like {@code List}). For large lists, consider using more efficient
+   * data structures or the stack-safe alternative in {@code TrampolineUtils}.
+   *
+   * @param &lt;G&gt; The higher-kinded type witness for the {@link Applicative} context.
+   * @param &lt;A&gt; The type of elements in the input list {@code ta}.
+   * @param &lt;B&gt; The type of elements in the resulting list, wrapped within the context {@code G}.
+   * @param applicative The non-null {@link Applicative} instance for the context {@code G}.
+   * @param f A non-null function from {@code A} to {@code Kind&lt;G, ? extends B&gt;}, producing an
+   *     effectful value for each element.
+   * @param ta The non-null {@code Kind&lt;ListKind.Witness, A&gt;} (a list of {@code A}s) to traverse.
+   * @return A {@code Kind&lt;G, Kind&lt;ListKind.Witness, B&gt;&gt;}. This represents the list of results (each
+   *     of type {@code B}), with the entire resulting list structure itself wrapped in the
+   *     applicative context {@code G}. Never null.
+   * @throws NullPointerException if applicative, f, or ta is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ta cannot be unwrapped.
+   */
+  @Override
+  public &lt;G, A, B&gt; Kind&lt;G, Kind&lt;ListKind.Witness, B&gt;&gt; traverse(
+      Applicative&lt;G&gt; applicative,
+      Function&lt;? super A, ? extends Kind&lt;G, ? extends B&gt;&gt; f,
+      Kind&lt;ListKind.Witness, A&gt; ta) {
+
+<span class="fc" id="L102">    Validation.function().validateTraverse(applicative, f, ta, LIST_TRAVERSE_CLASS);</span>
+
+<span class="fc" id="L104">    List&lt;A&gt; listA = LIST.narrow(ta);</span>
+<span class="fc" id="L105">    Kind&lt;G, LinkedList&lt;B&gt;&gt; result = applicative.of(new LinkedList&lt;&gt;());</span>
+
+<span class="fc bfc" id="L107" title="All 2 branches covered.">    for (A a : listA) {</span>
+<span class="fc" id="L108">      Kind&lt;G, ? extends B&gt; effectOfB = f.apply(a);</span>
+<span class="fc" id="L109">      result =</span>
+<span class="fc" id="L110">          applicative.map2(</span>
+              result,
+              effectOfB,
+              (listB, b) -&gt; {
+                // Create new list to ensure correctness for multi-branch Applicatives (e.g., List)
+<span class="fc" id="L115">                LinkedList&lt;B&gt; newList = new LinkedList&lt;&gt;(listB);</span>
+<span class="fc" id="L116">                newList.add((B) b);</span>
+<span class="fc" id="L117">                return newList;</span>
+              });
+<span class="fc" id="L119">    }</span>
+
+<span class="fc" id="L121">    return applicative.map(LIST::widen, result);</span>
+  }
+
+  /**
+   * Maps each element of the list to a {@link Monoid} {@code M} and combines the results.
+   *
+   * @param &lt;A&gt; The type of elements in the list.
+   * @param &lt;M&gt; The Monoidal type to which elements are mapped and combined.
+   * @param monoid The {@code Monoid} used to combine the results. Must not be null.
+   * @param f A function to map each element of type {@code A} to the Monoidal type {@code M}. Must
+   *     not be null.
+   * @param fa The {@code Kind&lt;ListKind.Witness, A&gt;} representing the list to fold. Must not be
+   *     null.
+   * @return The aggregated result of type {@code M}. Never null.
+   * @throws NullPointerException if monoid, f, or fa is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if fa cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, M&gt; M foldMap(
+      Monoid&lt;M&gt; monoid, Function&lt;? super A, ? extends M&gt; f, Kind&lt;ListKind.Witness, A&gt; fa) {
+
+<span class="fc" id="L142">    Validation.function().validateFoldMap(monoid, f, fa, LIST_TRAVERSE_CLASS);</span>
+
+<span class="fc" id="L144">    M accumulator = monoid.empty();</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">    for (A a : LIST.narrow(fa)) {</span>
+<span class="fc" id="L146">      accumulator = monoid.combine(accumulator, f.apply(a));</span>
+<span class="fc" id="L147">    }</span>
+<span class="fc" id="L148">    return accumulator;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

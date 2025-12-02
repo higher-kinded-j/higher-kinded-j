@@ -113,13 +113,14 @@ JsonValue result3 = jsonStringPrism.build(new JsonString("world"));
 
 ### Step 3: Composing Prisms for Deep Access
 
-The true power is composing `Prism`s with other optics. When a composition might fail (any time a `Prism` is involved), the result is a `Traversal`.
+The true power is composing `Prism`s with other optics. When a composition might fail (any time a `Prism` is involved), the result is an `Affine` (or `Traversal` when combining with traversals).
 
 ~~~admonish tip title="Direct Composition Methods"
 higher-kinded-j provides direct composition methods that automatically return the correct type:
-- `Lens.andThen(Prism)` returns `Traversal`
-- `Prism.andThen(Lens)` returns `Traversal`
+- `Lens.andThen(Prism)` returns `Affine`
+- `Prism.andThen(Lens)` returns `Affine`
 - `Prism.andThen(Prism)` returns `Prism`
+- `Affine.andThen(Affine)` returns `Affine`
 
 See [Composition Rules](composition_rules.md) for the complete reference.
 ~~~
@@ -995,4 +996,4 @@ For deeper understanding of prisms and optics theory:
 ---
 
 **Previous:** [Lenses: Working with Product Types](lenses.md)
-**Next:** [Advanced Prism Patterns](advanced_prism_patterns.md) | [Isomorphisms: Data Equivalence](iso.md)
+**Next:** [Affines: Working with Optional Fields](affine.md) | [Advanced Prism Patterns](advanced_prism_patterns.md)

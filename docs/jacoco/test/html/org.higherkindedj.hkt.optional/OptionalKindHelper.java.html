@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OptionalKindHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.optional</a> &gt; <span class="el_source">OptionalKindHelper.java</span></div><h1>OptionalKindHelper.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.optional;
+
+import java.util.Optional;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Enum implementing {@link OptionalConverterOps} for widen/narrow operations for {@link
+ * java.util.Optional} types.
+ *
+ * &lt;p&gt;Access these operations via the singleton {@code OPTIONAL}. For example: {@code
+ * OptionalKindHelper.OPTIONAL.widen(Optional.of(&quot;value&quot;));} Or, with static import: {@code import
+ * static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL; OPTIONAL.widen(...);}
+ */
+<span class="fc" id="L18">public enum OptionalKindHelper implements OptionalConverterOps {</span>
+<span class="fc" id="L19">  OPTIONAL;</span>
+
+<span class="fc" id="L21">  private static final Class&lt;Optional&gt; OPTIONAL_CLASS = Optional.class;</span>
+
+  /**
+   * Internal record implementing the {@link OptionalKind} interface.
+   *
+   * @param &lt;A&gt; The type of the value potentially held by the {@code Optional}.
+   * @param optional The concrete {@link Optional} instance. Must not be {@code null} itself.
+   */
+  record OptionalHolder&lt;A&gt;(Optional&lt;A&gt; optional) implements OptionalKind&lt;A&gt; {
+    /**
+     * Constructs an {@code OptionalHolder}.
+     *
+     * @param optional The {@link Optional} to hold. Must not be null.
+     * @throws NullPointerException if the provided {@code optional} instance is null.
+     */
+    OptionalHolder {
+      Validation.kind().requireForWiden(optional, OPTIONAL_CLASS);
+    }
+  }
+
+  /**
+   * Widens a concrete {@link Optional}{@code &lt;A&gt;} instance into its higher-kinded representation,
+   * {@code Kind&lt;OptionalKind.Witness, A&gt;}. Implements {@link OptionalConverterOps#widen}.
+   *
+   * @param &lt;A&gt; The type of the value potentially held by the {@code Optional}.
+   * @param optional The concrete {@link Optional}{@code &lt;A&gt;} instance to widen. Must not be {@code
+   *     null} (though it can be {@code Optional.empty()}).
+   * @return A non-null {@link Kind&lt;OptionalKind.Witness,A&gt;} representing the wrapped {@code
+   *     Optional}.
+   * @throws NullPointerException if {@code optional} is {@code null}.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;OptionalKind.Witness, A&gt; widen(Optional&lt;A&gt; optional) {
+<span class="fc" id="L54">    return new OptionalHolder&lt;&gt;(optional);</span>
+  }
+
+  /**
+   * Narrows a {@code Kind&lt;OptionalKind.Witness, A&gt;} back to its concrete {@link Optional}{@code&lt;A&gt;}
+   * type. Implements {@link OptionalConverterOps#narrow}.
+   *
+   * &lt;p&gt;This implementation uses a holder-based approach with modern switch expressions for
+   * consistent pattern matching.
+   *
+   * @param &lt;A&gt; The type of the value potentially held by the {@code Optional}.
+   * @param kind The {@code Kind&lt;OptionalKind.Witness, A&gt;} instance to narrow. May be {@code null}.
+   * @return The underlying, non-null {@link Optional}{@code &lt;A&gt;} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
+   *     null} or not an instance of {@code OptionalHolder}.
+   */
+  @Override
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public &lt;A&gt; Optional&lt;A&gt; narrow(@Nullable Kind&lt;OptionalKind.Witness, A&gt; kind) {
+<span class="fc" id="L73">    return Validation.kind()</span>
+<span class="fc" id="L74">        .narrowWithPattern(</span>
+            kind,
+            OPTIONAL_CLASS,
+            OptionalHolder.class,
+<span class="fc" id="L78">            holder -&gt; ((OptionalHolder&lt;A&gt;) holder).optional());</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

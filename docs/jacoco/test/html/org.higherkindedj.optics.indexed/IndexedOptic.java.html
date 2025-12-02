@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IndexedOptic.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.indexed</a> &gt; <span class="el_source">IndexedOptic.java</span></div><h1>IndexedOptic.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.indexed;
+
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.optics.Optic;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * An abstract representation of an indexed optic that provides access to both the index and value
+ * during modifications. This is the base interface for all indexed optics (IndexedLens,
+ * IndexedTraversal, IndexedFold).
+ *
+ * &lt;p&gt;Indexed optics are crucial for position-aware operations where you need to know the location
+ * of each element being processed. Common use cases include:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Position-aware transformations (e.g., numbering items)
+ *   &lt;li&gt;Debugging and tracking which elements are modified
+ *   &lt;li&gt;Conditional logic based on position
+ *   &lt;li&gt;Maintaining element provenance
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;The index type {@code I} can be any type appropriate for the structure:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code Integer} for lists/arrays
+ *   &lt;li&gt;{@code K} for {@code Map&lt;K, V&gt;}
+ *   &lt;li&gt;{@code String} for named fields
+ *   &lt;li&gt;{@code Tuple2&lt;I, J&gt;} for composed indexed optics
+ * &lt;/ul&gt;
+ *
+ * @param &lt;I&gt; The index type
+ * @param &lt;S&gt; The source/target structure type
+ * @param &lt;A&gt; The focused element type
+ */
+@NullMarked
+public interface IndexedOptic&lt;I, S, A&gt; {
+
+  /**
+   * The fundamental operation of any indexed optic. It applies a function to the focused parts,
+   * providing both the index and value, and returns the updated structure wrapped in an Applicative
+   * context.
+   *
+   * &lt;p&gt;This operation enables position-aware transformations where the modification function can
+   * use the index to determine how to transform each element.
+   *
+   * @param f The function to apply to each focused part, receiving both index and value
+   * @param source The source structure
+   * @param app The Applicative instance for the context 'F'
+   * @param &lt;F&gt; The witness type for the Applicative context
+   * @return The updated structure 'S' wrapped in the context 'F'
+   */
+  &lt;F&gt; Kind&lt;F, S&gt; imodifyF(BiFunction&lt;I, A, Kind&lt;F, A&gt;&gt; f, S source, Applicative&lt;F&gt; app);
+
+  /**
+   * Converts this indexed optic to a regular (non-indexed) optic by discarding the index
+   * information.
+   *
+   * &lt;p&gt;This is useful when you want to use an indexed optic in a context that expects a regular
+   * optic, or when the index information is not needed for a particular operation.
+   *
+   * @return A regular {@link Optic} that ignores index information
+   */
+  default Optic&lt;S, S, A, A&gt; unindexed() {
+<span class="fc" id="L69">    IndexedOptic&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L70">    return new Optic&lt;&gt;() {</span>
+      @Override
+      public &lt;F&gt; Kind&lt;F, S&gt; modifyF(Function&lt;A, Kind&lt;F, A&gt;&gt; f, S s, Applicative&lt;F&gt; app) {
+<span class="fc" id="L73">        return self.imodifyF((i, a) -&gt; f.apply(a), s, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Composes this indexed optic with another indexed optic to create a new indexed optic with
+   * paired indices.
+   *
+   * &lt;p&gt;When composing two indexed optics, the resulting optic tracks both indices using a {@link
+   * Pair}. This allows you to maintain full provenance information through the composition.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;Map&lt;String, User&gt;&gt;, Map&lt;String, User&gt;&gt; listTraversal = ...;
+   * IndexedTraversal&lt;String, Map&lt;String, User&gt;, User&gt; mapTraversal = ...;
+   *
+   * IndexedTraversal&lt;Pair&lt;Integer, String&gt;, List&lt;Map&lt;String, User&gt;&gt;, User&gt; composed =
+   *     listTraversal.iandThen(mapTraversal);
+   *
+   * // Access both indices during modification
+   * composed.imodifyF((indices, user) -&gt; {
+   *     int listIndex = indices.first();
+   *     String mapKey = indices.second();
+   *     // ... position-aware transformation
+   * }, source, app);
+   * }&lt;/pre&gt;
+   *
+   * @param other The indexed optic to compose with
+   * @param &lt;J&gt; The index type of the other optic
+   * @param &lt;B&gt; The focus type of the other optic
+   * @return A new indexed optic with paired indices
+   */
+  default &lt;J, B&gt; IndexedOptic&lt;Pair&lt;I, J&gt;, S, B&gt; iandThen(IndexedOptic&lt;J, A, B&gt; other) {
+<span class="fc" id="L108">    IndexedOptic&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L109">    return new IndexedOptic&lt;&gt;() {</span>
+      @Override
+      public &lt;F&gt; Kind&lt;F, S&gt; imodifyF(
+          BiFunction&lt;Pair&lt;I, J&gt;, B, Kind&lt;F, B&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc" id="L113">        return self.imodifyF(</span>
+<span class="fc" id="L114">            (i, a) -&gt; other.imodifyF((j, b) -&gt; f.apply(new Pair&lt;&gt;(i, j), b), a, app), source, app);</span>
+      }
+    };
+  }
+
+  /**
+   * Composes this indexed optic with a regular (non-indexed) optic, preserving the index from this
+   * optic.
+   *
+   * &lt;p&gt;This is useful when you want to focus deeper into a structure but only need the index from
+   * the outer level.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * IndexedTraversal&lt;Integer, List&lt;User&gt;, User&gt; users = ...;
+   * Traversal&lt;User, String&gt; email = ...;
+   *
+   * IndexedTraversal&lt;Integer, List&lt;User&gt;, String&gt; userEmails = users.andThen(email);
+   * // Index represents user position in list, not email position
+   * }&lt;/pre&gt;
+   *
+   * @param other The regular optic to compose with
+   * @param &lt;B&gt; The focus type of the other optic
+   * @return A new indexed optic that preserves this optic's index
+   */
+  default &lt;B&gt; IndexedOptic&lt;I, S, B&gt; andThen(Optic&lt;A, A, B, B&gt; other) {
+<span class="fc" id="L141">    IndexedOptic&lt;I, S, A&gt; self = this;</span>
+<span class="fc" id="L142">    return new IndexedOptic&lt;&gt;() {</span>
+      @Override
+      public &lt;F&gt; Kind&lt;F, S&gt; imodifyF(BiFunction&lt;I, B, Kind&lt;F, B&gt;&gt; f, S source, Applicative&lt;F&gt; app) {
+<span class="fc" id="L145">        return self.imodifyF((i, a) -&gt; other.modifyF(b -&gt; f.apply(i, b), a, app), source, app);</span>
+      }
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

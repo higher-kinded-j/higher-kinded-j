@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WriterApplicative.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.writer</a> &gt; <span class="el_source">WriterApplicative.java</span></div><h1>WriterApplicative.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.writer;
+
+import static org.higherkindedj.hkt.util.validation.Operation.AP;
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Implements the {@link Applicative} interface for the {@link Writer} type. This provides the
+ * ability to lift values into the {@link Writer} context ({@code of}) and to apply a {@code Writer}
+ * holding a function to a {@code Writer} holding a value ({@code ap}).
+ *
+ * &lt;p&gt;A {@link Monoid} for the log type {@code W} is required to combine logs during the {@code ap}
+ * operation.
+ *
+ * @param &lt;W&gt; The fixed log type of the {@link Writer}, which must have a {@link Monoid}.
+ * @see Writer
+ * @see WriterKind
+ * @see WriterKind.Witness
+ * @see Applicative
+ * @see WriterFunctor
+ * @see Monoid
+ * @see WriterKindHelper
+ */
+public class WriterApplicative&lt;W&gt; extends WriterFunctor&lt;W&gt;
+    implements Applicative&lt;WriterKind.Witness&lt;W&gt;&gt; {
+
+<span class="fc" id="L36">  private static Class&lt;WriterApplicative&gt; WRITER_APPLICATIVE_CLASS = WriterApplicative.class;</span>
+
+  protected final Monoid&lt;W&gt; monoidW;
+
+  /**
+   * Constructs a {@code WriterApplicative}.
+   *
+   * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must not be null. This
+   *     is used for combining logs in operations like {@code ap}.
+   * @throws NullPointerException if {@code monoidW} is null.
+   */
+<span class="fc" id="L47">  public WriterApplicative(Monoid&lt;W&gt; monoidW) {</span>
+<span class="fc" id="L48">    Validation.function().requireMonoid(monoidW, &quot;monoidW&quot;, WRITER_APPLICATIVE_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L49">    this.monoidW = monoidW;</span>
+<span class="fc" id="L50">  }</span>
+
+  /**
+   * Lifts a pure value {@code value} into the {@link Writer} context. The resulting {@code
+   * Writer&lt;W, A&gt;} will have an empty log (as defined by the {@link Monoid} for {@code W}) and the
+   * provided {@code value}.
+   *
+   * @param value The value to lift into the {@code Writer} context. Can be {@code null}.
+   * @param &lt;A&gt; The type of the lifted value.
+   * @return A {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;} representing a {@code Writer&lt;W, A&gt;} with an
+   *     empty log and the given {@code value}. Never null.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; of(@Nullable A value) {
+<span class="fc" id="L64">    return WRITER.value(monoidW, value);</span>
+  }
+
+  /**
+   * Applies a function contained within a {@code Kind&lt;WriterKind.Witness&lt;W&gt;, Function&lt;A, B&gt;&gt;} to a
+   * value contained within a {@code Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt;}.
+   *
+   * &lt;p&gt;The logs from both underlying {@code Writer} instances are combined using the {@link Monoid}
+   * for {@code W}. The function from the first writer is applied to the value from the second
+   * writer.
+   *
+   * @param ff The higher-kinded representation of a {@code Writer&lt;W, Function&lt;A, B&gt;&gt;}. Must not be
+   *     null.
+   * @param fa The higher-kinded representation of a {@code Writer&lt;W, A&gt;}. Must not be null.
+   * @param &lt;A&gt; The type of the value to which the function is applied.
+   * @param &lt;B&gt; The result type of the function application.
+   * @return A new {@code Kind&lt;WriterKind.Witness&lt;W&gt;, B&gt;} representing the {@code Writer&lt;W, B&gt;} that
+   *     results from applying the function and combining logs. Never null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function extracted
+   *     from {@code ff} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
+   *     be unwrapped to valid {@code Writer} representations.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;WriterKind.Witness&lt;W&gt;, B&gt; ap(
+      Kind&lt;WriterKind.Witness&lt;W&gt;, ? extends Function&lt;A, B&gt;&gt; ff, Kind&lt;WriterKind.Witness&lt;W&gt;, A&gt; fa) {
+
+<span class="fc" id="L91">    Validation.kind().validateAp(ff, fa, WRITER_APPLICATIVE_CLASS);</span>
+
+<span class="fc" id="L93">    Writer&lt;W, ? extends Function&lt;A, B&gt;&gt; writerF = WRITER.narrow(ff);</span>
+<span class="fc" id="L94">    Writer&lt;W, A&gt; writerA = WRITER.narrow(fa);</span>
+
+<span class="fc" id="L96">    W combinedLog = monoidW.combine(writerF.log(), writerA.log());</span>
+
+<span class="fc" id="L98">    Function&lt;A, B&gt; func = writerF.value();</span>
+<span class="fc" id="L99">    A val = writerA.value();</span>
+
+<span class="fc" id="L101">    Validation.function().requireFunction(func, &quot;function&quot;, WRITER_APPLICATIVE_CLASS, AP);</span>
+<span class="fc" id="L102">    B resultValue = func.apply(val);</span>
+
+<span class="fc" id="L104">    return WRITER.widen(new Writer&lt;&gt;(combinedLog, resultValue));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

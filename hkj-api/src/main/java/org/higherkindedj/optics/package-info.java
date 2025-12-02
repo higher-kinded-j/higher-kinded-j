@@ -1,6 +1,6 @@
 /**
- * This package provides a collection of functional optics (Lens, Prism, Traversal, and more) for
- * the higher-kinded-j library. Optics are powerful, composable tools for inspecting and
+ * This package provides a collection of functional optics (Lens, Prism, Affine, Traversal, and
+ * more) for the higher-kinded-j library. Optics are powerful, composable tools for inspecting and
  * manipulating complex, immutable data structures in a purely functional way.
  *
  * <h2>Core Concepts</h2>
@@ -17,6 +17,9 @@
  *   <li>{@link org.higherkindedj.optics.Prism}: For focusing on a single variant within a sum type
  *       (e.g., a sealed interface). A Prism can be seen as a "partial" Lens—it allows you to get an
  *       optional value (only if the variant matches) and to construct the whole from a part.
+ *   <li>{@link org.higherkindedj.optics.Affine}: For focusing on zero or one element within a
+ *       structure. An Affine combines the partial access of a Prism with the update capability of a
+ *       Lens, making it ideal for optional fields in records or nullable properties.
  *   <li>{@link org.higherkindedj.optics.Traversal}: For focusing on multiple values within a
  *       structure (e.g., all elements in a {@code List}). A Traversal allows you to modify all
  *       focused elements at once.

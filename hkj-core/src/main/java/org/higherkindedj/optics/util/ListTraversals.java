@@ -311,7 +311,7 @@ public final class ListTraversals {
         final int effectiveFrom = Math.max(0, Math.min(from, size));
         final int effectiveTo = Math.max(effectiveFrom, Math.min(to, size));
 
-        if (effectiveFrom >= effectiveTo || source.isEmpty()) {
+        if (effectiveFrom >= effectiveTo) {
           return applicative.of(source);
         }
 

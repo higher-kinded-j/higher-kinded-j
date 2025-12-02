@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EitherMonad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.either</a> &gt; <span class="el_source">EitherMonad.java</span></div><h1>EitherMonad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.either;
+
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.function.Function4;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Implements {@link MonadError} for {@link Either}, with a fixed &quot;Left&quot; type {@code L} serving as
+ * the error type {@code E}. All operations are right-biased, meaning they operate on the {@link
+ * Either.Right} value and pass {@link Either.Left} values through.
+ *
+ * @param &lt;L&gt; The fixed type for the &quot;Left&quot; value, representing the error type for {@link
+ *     MonadError}.
+ * @see Either
+ * @see EitherKind
+ * @see EitherKind.Witness
+ * @see MonadError
+ * @see EitherFunctor
+ * @see EitherKindHelper
+ */
+public class EitherMonad&lt;L&gt; extends EitherFunctor&lt;L&gt;
+    implements MonadError&lt;EitherKind.Witness&lt;L&gt;, L&gt; {
+
+<span class="fc" id="L33">  private static final EitherMonad&lt;?&gt; INSTANCE = new EitherMonad&lt;&gt;();</span>
+
+<span class="fc" id="L35">  private static final Class&lt;EitherMonad&gt; EITHER_MONAD_CLASS = EitherMonad.class;</span>
+
+  protected EitherMonad() {
+<span class="fc" id="L38">    super();</span>
+<span class="fc" id="L39">  }</span>
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static &lt;L&gt; EitherMonad&lt;L&gt; instance() {
+<span class="fc" id="L43">    return (EitherMonad&lt;L&gt;) INSTANCE;</span>
+  }
+
+  /**
+   * Lifts a value into the &quot;Right&quot; side of an {@link Either}. This is equivalent to {@code
+   * Either.right(value)}.
+   *
+   * @param value The value to lift into the {@link Either.Right}. Can be {@code null}.
+   * @param &lt;R&gt; The type of the &quot;Right&quot; value.
+   * @return A {@code Kind&lt;EitherKind.Witness&lt;L&gt;, R&gt;} representing {@code Right(value)}. Never null.
+   */
+  @Override
+  public &lt;R&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, R&gt; of(@Nullable R value) {
+<span class="fc" id="L56">    return EITHER.widen(Either.right(value));</span>
+  }
+
+  /**
+   * Sequentially composes two {@link Either} actions, operating on the &quot;Right&quot; value. If {@code ma}
+   * is {@code Right(a)}, applies {@code f} to {@code a} to get a new {@link Kind}. If {@code ma} is
+   * {@code Left(l)}, propagates the {@code Left(l)} unchanged.
+   *
+   * @param f The function to apply to the &quot;Right&quot; value, returning a new {@code
+   *     Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt;}. Must not be null.
+   * @param ma The input {@code Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt;}. Must not be null.
+   * @param &lt;A&gt; The type of the &quot;Right&quot; value in the input {@code Kind}.
+   * @param &lt;B&gt; The type of the &quot;Right&quot; value in the resulting {@code Kind}.
+   * @return The resulting {@code Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt;} after applying {@code f}, or the
+   *     original &quot;Left&quot; propagated. Never null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
+   *     to a valid {@code Either} representation.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt; flatMap(
+      Function&lt;? super A, ? extends Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt;&gt; f,
+      Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; ma) {
+<span class="fc" id="L79">    Validation.function().validateFlatMap(f, ma, EITHER_MONAD_CLASS);</span>
+
+<span class="fc" id="L81">    Either&lt;L, A&gt; eitherA = EITHER.narrow(ma);</span>
+<span class="fc" id="L82">    Either&lt;L, B&gt; resultEither =</span>
+<span class="fc" id="L83">        eitherA.flatMap(</span>
+            a -&gt; {
+<span class="fc" id="L85">              Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt; kindB = f.apply(a);</span>
+<span class="fc" id="L86">              Validation.function()</span>
+<span class="fc" id="L87">                  .requireNonNullResult(kindB, &quot;f&quot;, EITHER_MONAD_CLASS, FLAT_MAP, Kind.class);</span>
+<span class="fc" id="L88">              return EITHER.narrow(kindB);</span>
+            });
+<span class="fc" id="L90">    return EITHER.widen(resultEither);</span>
+  }
+
+  /**
+   * Applies a function wrapped in an {@code Either} to a value wrapped in an {@code Either}. If
+   * both {@code ffKind} (the function container) and {@code faKind} (the argument container) are
+   * {@link Either.Right}, the function is applied to the value. If either is {@link Either.Left},
+   * the first encountered &quot;Left&quot; is propagated.
+   *
+   * @param ffKind The {@code Kind&lt;EitherKind.Witness&lt;L&gt;, Function&lt;A, B&gt;&gt;} containing the function.
+   *     Must not be null.
+   * @param faKind The {@code Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt;} containing the argument. Must not be
+   *     null.
+   * @param &lt;A&gt; The input type of the function.
+   * @param &lt;B&gt; The output type of the function.
+   * @return A {@code Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt;} representing the result. Never null.
+   * @throws NullPointerException if {@code ffKind} or {@code faKind} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ffKind} or {@code faKind}
+   *     cannot be unwrapped to valid {@code Either} representations.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt; ap(
+      Kind&lt;EitherKind.Witness&lt;L&gt;, ? extends Function&lt;A, B&gt;&gt; ffKind,
+      Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; faKind) {
+
+<span class="fc" id="L115">    Validation.kind().validateAp(ffKind, faKind, EITHER_MONAD_CLASS);</span>
+
+<span class="fc" id="L117">    Either&lt;L, ? extends Function&lt;A, B&gt;&gt; eitherF = EITHER.narrow(ffKind);</span>
+<span class="fc" id="L118">    Either&lt;L, A&gt; eitherA = EITHER.narrow(faKind);</span>
+
+<span class="fc" id="L120">    Either&lt;L, B&gt; resultEither = eitherF.flatMap(eitherA::map);</span>
+<span class="fc" id="L121">    return EITHER.widen(resultEither);</span>
+  }
+
+  // map is inherited from EitherFunctor and is correct.
+
+  @Override
+  public &lt;A, B, C, R_TYPE&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, R_TYPE&gt; map3(
+      Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; faKind,
+      Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt; fbKind,
+      Kind&lt;EitherKind.Witness&lt;L&gt;, C&gt; fcKind,
+      Function3&lt;? super A, ? super B, ? super C, ? extends R_TYPE&gt; f) {
+    Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; validatedFaKind =
+<span class="fc" id="L133">        Validation.kind().requireNonNull(faKind, EITHER_MONAD_CLASS, MAP_3, &quot;first&quot;);</span>
+    Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt; validatedFbKind =
+<span class="fc" id="L135">        Validation.kind().requireNonNull(fbKind, EITHER_MONAD_CLASS, MAP_3, &quot;second&quot;);</span>
+    Kind&lt;EitherKind.Witness&lt;L&gt;, C&gt; validatedFcKind =
+<span class="fc" id="L137">        Validation.kind().requireNonNull(fcKind, EITHER_MONAD_CLASS, MAP_3, &quot;third&quot;);</span>
+    Function3&lt;? super A, ? super B, ? super C, ? extends R_TYPE&gt; validatedF =
+<span class="fc" id="L139">        Validation.function().requireFunction(f, &quot;combining function&quot;, EITHER_MONAD_CLASS, MAP_3);</span>
+
+<span class="fc" id="L141">    return this.flatMap(</span>
+        a -&gt;
+<span class="fc" id="L143">            this.flatMap(</span>
+<span class="fc" id="L144">                b -&gt; this.map(c -&gt; validatedF.apply(a, b, c), validatedFcKind), validatedFbKind),</span>
+        validatedFaKind);
+  }
+
+  @Override
+  public &lt;A, B, C, D, R_TYPE&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, R_TYPE&gt; map4(
+      Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; faKind,
+      Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt; fbKind,
+      Kind&lt;EitherKind.Witness&lt;L&gt;, C&gt; fcKind,
+      Kind&lt;EitherKind.Witness&lt;L&gt;, D&gt; fdKind,
+      Function4&lt;? super A, ? super B, ? super C, ? super D, ? extends R_TYPE&gt; f) {
+
+    Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; validatedFaKind =
+<span class="fc" id="L157">        Validation.kind().requireNonNull(faKind, EITHER_MONAD_CLASS, MAP_4, &quot;first&quot;);</span>
+    Kind&lt;EitherKind.Witness&lt;L&gt;, B&gt; validatedFbKind =
+<span class="fc" id="L159">        Validation.kind().requireNonNull(fbKind, EITHER_MONAD_CLASS, MAP_4, &quot;second&quot;);</span>
+    Kind&lt;EitherKind.Witness&lt;L&gt;, C&gt; validatedFcKind =
+<span class="fc" id="L161">        Validation.kind().requireNonNull(fcKind, EITHER_MONAD_CLASS, MAP_4, &quot;third&quot;);</span>
+    Kind&lt;EitherKind.Witness&lt;L&gt;, D&gt; validatedFdKind =
+<span class="fc" id="L163">        Validation.kind().requireNonNull(fdKind, EITHER_MONAD_CLASS, MAP_4, &quot;fourth&quot;);</span>
+    Function4&lt;? super A, ? super B, ? super C, ? super D, ? extends R_TYPE&gt; validatedF =
+<span class="fc" id="L165">        Validation.function().requireFunction(f, &quot;combining function&quot;, EITHER_MONAD_CLASS, MAP_4);</span>
+
+<span class="fc" id="L167">    return this.flatMap(</span>
+        a -&gt;
+<span class="fc" id="L169">            this.flatMap(</span>
+                b -&gt;
+<span class="fc" id="L171">                    this.flatMap(</span>
+<span class="fc" id="L172">                        c -&gt; this.map(d -&gt; validatedF.apply(a, b, c, d), validatedFdKind),</span>
+                        validatedFcKind),
+                validatedFbKind),
+        validatedFaKind);
+  }
+
+  /**
+   * Raises an error in the {@code Kind&lt;EitherKind.Witness&lt;L&gt;, R&gt;} context by creating a &quot;Left&quot;
+   * value.
+   *
+   * @param error The error value of type {@code L}. Can be null if {@code L} is nullable.
+   * @return A {@code Kind&lt;EitherKind.Witness&lt;L&gt;, R&gt;} representing {@code Left(error)}.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; raiseError(@Nullable L error) {
+    // Either allows null error values - no validation needed
+<span class="fc" id="L188">    return EITHER.widen(Either.left(error));</span>
+  }
+
+  /**
+   * Handles an error (a &quot;Left&quot; value) using the provided handler function.
+   *
+   * @param ma The {@code Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt;} to handle. Must not be null.
+   * @param handler The function to apply if {@code ma} represents a &quot;Left&quot; value. Must not be null.
+   * @param &lt;A&gt; The type of the &quot;Right&quot; value.
+   * @return A {@code Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt;}, either the original or the result of the
+   *     handler.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped.
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; handleErrorWith(
+      Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; ma,
+      Function&lt;? super L, ? extends Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt;&gt; handler) {
+
+<span class="fc" id="L207">    Validation.function().validateHandleErrorWith(ma, handler, EITHER_MONAD_CLASS);</span>
+
+<span class="fc" id="L209">    Either&lt;L, A&gt; either = EITHER.narrow(ma);</span>
+<span class="fc" id="L210">    return either.fold(handler, _ -&gt; ma);</span>
+  }
+
+  @Override
+  public &lt;A&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; recoverWith(
+      final Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; ma, final Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; fallback) {
+
+<span class="fc" id="L217">    Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, RECOVER_WITH, &quot;source&quot;);</span>
+<span class="fc" id="L218">    Validation.kind().requireNonNull(fallback, EITHER_MONAD_CLASS, RECOVER_WITH, &quot;fallback&quot;);</span>
+
+<span class="fc" id="L220">    return handleErrorWith(ma, error -&gt; fallback);</span>
+  }
+
+  @Override
+  public &lt;A&gt; Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; recover(
+      final Kind&lt;EitherKind.Witness&lt;L&gt;, A&gt; ma, @Nullable A value) {
+
+<span class="fc" id="L227">    Validation.kind().requireNonNull(ma, EITHER_MONAD_CLASS, RECOVER, &quot;source&quot;);</span>
+
+<span class="fc" id="L229">    return handleError(ma, _ -&gt; value);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

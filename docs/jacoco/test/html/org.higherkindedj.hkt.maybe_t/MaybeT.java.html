@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MaybeT.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.maybe_t</a> &gt; <span class="el_source">MaybeT.java</span></div><h1>MaybeT.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.maybe_t;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Represents the concrete implementation of the Maybe Transformer Monad (MaybeT). It wraps a
+ * monadic value of type {@code Kind&lt;F, Maybe&lt;A&gt;&gt;}, where {@code F} is the outer monad and {@code
+ * Maybe&lt;A&gt;} is the inner optional value.
+ *
+ * &lt;p&gt;This class is a record, making it an immutable data holder for the wrapped value. It
+ * implements {@link MaybeTKind} to participate in higher-kinded type simulations, allowing it to be
+ * treated as {@code Kind&lt;MaybeTKind.Witness&lt;F&gt;, A&gt;}.
+ *
+ * @param &lt;F&gt; The witness type of the outer monad (e.g., {@code OptionalKind.Witness}).
+ * @param &lt;A&gt; The type of the value potentially held by the inner {@link Maybe}.
+ * @param value The underlying monadic value {@code Kind&lt;F, Maybe&lt;A&gt;&gt;}. Must not be null.
+ * @see MaybeTKind
+ * @see MaybeTMonad
+ * @see MaybeTKindHelper
+ */
+public record MaybeT&lt;F, A&gt;(Kind&lt;F, Maybe&lt;A&gt;&gt; value) implements MaybeTKind&lt;F, A&gt; {
+
+<span class="fc" id="L30">  private static final Class&lt;MaybeT&gt; MAYBE_T_CLASS = MaybeT.class;</span>
+
+  /**
+   * Canonical constructor for {@code MaybeT}.
+   *
+   * @param value The underlying monadic value {@code Kind&lt;F, Maybe&lt;A&gt;&gt;}.
+   * @throws NullPointerException if {@code value} is null.
+   */
+<span class="fc" id="L38">  public MaybeT {</span>
+<span class="fc" id="L39">    Validation.coreType().requireValue(value, MAYBE_T_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L40">  }</span>
+
+  /**
+   * Creates a {@code MaybeT} from an existing {@code Kind&lt;F, Maybe&lt;A&gt;&gt;}.
+   *
+   * @param value The monadic value to wrap. Must not be null.
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;A&gt; The type of the value in the inner {@link Maybe}.
+   * @return A new {@code MaybeT} instance.
+   * @throws NullPointerException if {@code value} is null.
+   */
+  public static &lt;F, A&gt; MaybeT&lt;F, A&gt; fromKind(Kind&lt;F, Maybe&lt;A&gt;&gt; value) {
+<span class="fc" id="L52">    return new MaybeT&lt;&gt;(value);</span>
+  }
+
+  /**
+   * Lifts a non-null value {@code a} into {@code MaybeT&lt;F, A&gt;}, resulting in {@code F&lt;Just(a)&gt;}.
+   *
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param a The value to wrap. Must not be null (enforced by {@link Maybe#just(Object)}).
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;A&gt; The type of the value to wrap.
+   * @return A new {@code MaybeT} instance representing {@code outerMonad.of(Maybe.just(a))}.
+   * @throws NullPointerException if {@code outerMonad} or {@code a} is null.
+   */
+  public static &lt;F, A extends Object&gt; MaybeT&lt;F, A&gt; just(Monad&lt;F&gt; outerMonad, A a) {
+<span class="fc" id="L66">    Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, JUST);</span>
+<span class="fc" id="L67">    Kind&lt;F, Maybe&lt;A&gt;&gt; lifted = outerMonad.of(Maybe.just(a));</span>
+<span class="fc" id="L68">    return new MaybeT&lt;&gt;(lifted);</span>
+  }
+
+  /**
+   * Creates a {@code MaybeT&lt;F, A&gt;} representing the {@code Nothing} state, resulting in {@code
+   * F&lt;Nothing&gt;}.
+   *
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;A&gt; The type of the value in the inner {@link Maybe} (will be absent).
+   * @return A new {@code MaybeT} instance representing {@code outerMonad.of(Maybe.nothing())}.
+   * @throws NullPointerException if {@code outerMonad} is null.
+   */
+  public static &lt;F, A&gt; MaybeT&lt;F, A&gt; nothing(Monad&lt;F&gt; outerMonad) {
+<span class="fc" id="L82">    Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, NONE);</span>
+<span class="fc" id="L83">    Kind&lt;F, Maybe&lt;A&gt;&gt; lifted = outerMonad.of(Maybe.nothing());</span>
+<span class="fc" id="L84">    return new MaybeT&lt;&gt;(lifted);</span>
+  }
+
+  /**
+   * Lifts a plain {@link Maybe&lt;A&gt;} into {@code MaybeT&lt;F, A&gt;}, resulting in {@code F&lt;Maybe&lt;A&gt;&gt;}.
+   *
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param maybe The {@link Maybe} instance to lift. Must not be null.
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;A&gt; The type of the value in the {@link Maybe}.
+   * @return A new {@code MaybeT} instance representing {@code outerMonad.of(maybe)}.
+   * @throws NullPointerException if {@code outerMonad} or {@code maybe} is null.
+   */
+  public static &lt;F, A&gt; MaybeT&lt;F, A&gt; fromMaybe(Monad&lt;F&gt; outerMonad, Maybe&lt;A&gt; maybe) {
+<span class="fc" id="L98">    Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, FROM_MAYBE);</span>
+<span class="fc" id="L99">    Validation.transformer()</span>
+<span class="fc" id="L100">        .requireTransformerComponent(maybe, &quot;inner Maybe&quot;, MAYBE_T_CLASS, FROM_MAYBE);</span>
+<span class="fc" id="L101">    Kind&lt;F, Maybe&lt;A&gt;&gt; lifted = outerMonad.of(maybe);</span>
+<span class="fc" id="L102">    return new MaybeT&lt;&gt;(lifted);</span>
+  }
+
+  /**
+   * Lifts a monadic value {@code Kind&lt;F, A&gt;} into {@code MaybeT&lt;F, A&gt;}, resulting in {@code
+   * F&lt;Maybe&lt;A&gt;&gt;}. The value {@code A} inside {@code F} is mapped to {@code Maybe&lt;A&gt;} using {@link
+   * Maybe#fromNullable(Object)}.
+   *
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param fa The monadic value {@code Kind&lt;F, A&gt;} to lift. Must not be null.
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;A&gt; The type of the value in {@code fa}.
+   * @return A new {@code MaybeT} instance representing {@code outerMonad.map(Maybe::fromNullable,
+   *     fa)}.
+   * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
+   */
+  public static &lt;F, A&gt; MaybeT&lt;F, A&gt; liftF(Monad&lt;F&gt; outerMonad, Kind&lt;F, A&gt; fa) {
+<span class="fc" id="L119">    Validation.transformer().requireOuterMonad(outerMonad, MAYBE_T_CLASS, LIFT_F);</span>
+<span class="fc" id="L120">    Validation.kind().requireNonNull(fa, MAYBE_T_CLASS, LIFT_F, &quot;source Kind&quot;);</span>
+<span class="fc" id="L121">    Kind&lt;F, Maybe&lt;A&gt;&gt; mapped = outerMonad.map(Maybe::fromNullable, fa);</span>
+<span class="fc" id="L122">    return new MaybeT&lt;&gt;(mapped);</span>
+  }
+
+  /**
+   * Accessor for the underlying monadic value.
+   *
+   * @return The {@code Kind&lt;F, Maybe&lt;A&gt;&gt;} wrapped by this {@code MaybeT}.
+   */
+  @Override
+  public Kind&lt;F, Maybe&lt;A&gt;&gt; value() {
+    return value;
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

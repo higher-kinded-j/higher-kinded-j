@@ -351,6 +351,6 @@ public class Tutorial03_PrismBasics {
    * checking ✓ How to use doesNotMatch for exclusion filtering ✓ How to use nearly for
    * predicate-based matching ✓ When to use prisms (sum types, sealed interfaces)
    *
-   * <p>Next: Tutorial 04 - Traversal Basics
+   * <p>Next: Tutorial 04 - Affine Basics
    */
 }

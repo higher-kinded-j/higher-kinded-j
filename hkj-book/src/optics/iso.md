@@ -567,6 +567,6 @@ The step-by-step conversion approach shown in the examples is the most practical
 
 ---
 
-**Previous:** [Advanced Prism Patterns](advanced_prism_patterns.md)
-**Next:** [Traversals: Handling Bulk Updates](traversals.md)
+**Previous:** [Affines: Working with Optional Fields](affine.md)
+**Next:** [Composition Rules](composition_rules.md)
 

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -166,18 +167,18 @@ public class Tutorial10_AdvancedPrismPatterns_Solution {
 
     Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-    // SOLUTION: Compose lens with prism to get Traversal
-    Traversal<Config, DatabaseSettings> databaseTraversal = databaseLens.andThen(somePrism);
+    // SOLUTION: Compose lens with prism to get Affine
+    Affine<Config, DatabaseSettings> databaseAffine = databaseLens.andThen(somePrism);
 
     Config withDb = new Config("prod", Optional.of(new DatabaseSettings("localhost", 5432)));
     Config withoutDb = new Config("dev", Optional.empty());
 
-    // SOLUTION: Use Traversals.getAll to extract values
-    List<DatabaseSettings> foundDb = Traversals.getAll(databaseTraversal, withDb);
-    List<DatabaseSettings> notFoundDb = Traversals.getAll(databaseTraversal, withoutDb);
+    // SOLUTION: Use Affine.getOptional to extract values
+    Optional<DatabaseSettings> foundDb = databaseAffine.getOptional(withDb);
+    Optional<DatabaseSettings> notFoundDb = databaseAffine.getOptional(withoutDb);
 
-    assertThat(foundDb).hasSize(1);
-    assertThat(foundDb.get(0).host()).isEqualTo("localhost");
+    assertThat(foundDb).isPresent();
+    assertThat(foundDb.get().host()).isEqualTo("localhost");
     assertThat(notFoundDb).isEmpty();
   }
 
@@ -195,18 +196,18 @@ public class Tutorial10_AdvancedPrismPatterns_Solution {
     Lens<ResponseData, String> contentLens =
         Lens.of(ResponseData::content, (rd, content) -> new ResponseData(content, rd.size()));
 
-    // SOLUTION: Compose prism with lens to get Traversal
-    Traversal<ApiResponse, ResponseData> successDataTraversal = successPrism.andThen(dataLens);
+    // SOLUTION: Compose prism with lens to get Affine
+    Affine<ApiResponse, ResponseData> successDataAffine = successPrism.andThen(dataLens);
 
     ApiResponse success = new Success(new ResponseData("Hello", 5), "2024-01-01");
     ApiResponse error = new ClientError("Not Found", 404);
 
-    // SOLUTION: Use Traversals.getAll
-    List<ResponseData> successData = Traversals.getAll(successDataTraversal, success);
-    List<ResponseData> errorData = Traversals.getAll(successDataTraversal, error);
+    // SOLUTION: Use Affine.getOptional
+    Optional<ResponseData> successData = successDataAffine.getOptional(success);
+    Optional<ResponseData> errorData = successDataAffine.getOptional(error);
 
-    assertThat(successData).hasSize(1);
-    assertThat(successData.get(0).content()).isEqualTo("Hello");
+    assertThat(successData).isPresent();
+    assertThat(successData.get().content()).isEqualTo("Hello");
     assertThat(errorData).isEmpty();
   }
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -103,6 +104,49 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
   default <B> Prism<S, B> andThen(Prism<A, B> other) {
     Iso<S, A> self = this;
     return Prism.of(s -> other.getOptional(self.get(s)), b -> self.reverseGet(other.build(b)));
+  }
+
+  /**
+   * Composes this {@code Iso<S, A>} with an {@code Affine<A, B>} to produce a new {@code Affine<S,
+   * B>}.
+   *
+   * <p>This is possible because composing a lossless, two-way conversion with a partial focus
+   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * conveniently typed as an {@link Affine}.
+   *
+   * @param other The {@link Affine} to compose with.
+   * @param <B> The final target type of the new {@link Affine}.
+   * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Affine<S, B> andThen(Affine<A, B> other) {
+    Iso<S, A> self = this;
+    return new Affine<>() {
+      @Override
+      public Optional<B> getOptional(S source) {
+        return other.getOptional(self.get(source));
+      }
+
+      @Override
+      public S set(B newValue, S source) {
+        return self.reverseGet(other.set(newValue, self.get(source)));
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Iso<S, A>} with another {@code Iso<A, B>} to produce a new {@code Iso<S,
+   * B>}.
+   *
+   * <p>Two isomorphisms compose to produce another isomorphism. This is the most natural form of
+   * Iso composition.
+   *
+   * @param other The {@link Iso} to compose with.
+   * @param <B> The final target type of the new {@link Iso}.
+   * @return A new {@link Iso} that converts from {@code S} to {@code B}.
+   */
+  default <B> Iso<S, B> andThen(Iso<A, B> other) {
+    Iso<S, A> self = this;
+    return Iso.of(s -> other.get(self.get(s)), b -> self.reverseGet(other.reverseGet(b)));
   }
 
   /**

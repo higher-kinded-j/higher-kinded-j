@@ -172,11 +172,11 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
-   * Composes this {@code Prism<S, A>} with a {@code Lens<A, B>} to create a {@code Traversal<S,
-   * B>}.
+   * Composes this {@code Prism<S, A>} with a {@code Lens<A, B>} to create an {@code Affine<S, B>}.
    *
-   * <p>The composition follows the standard optic composition rule: Prism >>> Lens = Traversal. The
-   * result is a Traversal because the Prism may not match, resulting in zero-or-one focus.
+   * <p>The composition follows the standard optic composition rule: Prism >>> Lens = Affine. The
+   * result is an Affine because the Prism may not match (resulting in zero-or-one focus), but once
+   * matched, the Lens guarantees access to the field.
    *
    * <p>This composition is useful when navigating from sum types into their components:
    *
@@ -209,34 +209,65 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    *     (data, msg) -> new ResponseData(msg, data.count())
    * );
    *
-   * // Compose: Prism >>> Lens = Traversal
-   * Traversal<ApiResponse, ResponseData> dataTraversal = successPrism.andThen(dataLens);
+   * // Compose: Prism >>> Lens = Affine
+   * Affine<ApiResponse, ResponseData> dataAffine = successPrism.andThen(dataLens);
    *
-   * // Use the traversal
+   * // Use the affine
    * ApiResponse success = new Success(new ResponseData("OK", 1), "2024-01-01");
-   * List<ResponseData> data = Traversals.getAll(dataTraversal, success);
-   * // Returns [ResponseData[message=OK, count=1]]
+   * Optional<ResponseData> data = dataAffine.getOptional(success);
+   * // Returns Optional[ResponseData[message=OK, count=1]]
    *
    * ApiResponse failure = new Failure("Not Found", 404);
-   * List<ResponseData> empty = Traversals.getAll(dataTraversal, failure);
-   * // Returns []
+   * Optional<ResponseData> empty = dataAffine.getOptional(failure);
+   * // Returns Optional.empty()
    *
    * // Chain further to reach the message
-   * Traversal<ApiResponse, String> messageTraversal = dataTraversal.andThen(messageLens.asTraversal());
+   * Affine<ApiResponse, String> messageAffine = dataAffine.andThen(messageLens);
    * }</pre>
    *
    * @param lens The {@link Lens} to compose with.
    * @param <B> The type of the final focused part.
-   * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
+   * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Traversal<S, B> andThen(final Lens<A, B> lens) {
+  default <B> Affine<S, B> andThen(final Lens<A, B> lens) {
     Prism<S, A> self = this;
-    return new Traversal<>() {
+    return new Affine<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public Optional<B> getOptional(S source) {
+        return self.getOptional(source).map(lens::get);
+      }
+
+      @Override
+      public S set(B newValue, S source) {
+        return self.getOptional(source).map(a -> self.build(lens.set(newValue, a))).orElse(source);
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Prism<S, A>} with an {@code Affine<A, B>} to create an {@code Affine<S,
+   * B>}.
+   *
+   * <p>The result is an Affine because both the Prism may not match and the Affine may not find a
+   * value, resulting in zero-or-one focus.
+   *
+   * @param affine The {@link Affine} to compose with.
+   * @param <B> The type of the final focused part.
+   * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Affine<S, B> andThen(final Affine<A, B> affine) {
+    Prism<S, A> self = this;
+    return new Affine<>() {
+      @Override
+      public Optional<B> getOptional(S source) {
+        return self.getOptional(source).flatMap(affine::getOptional);
+      }
+
+      @Override
+      public S set(B newValue, S source) {
         return self.getOptional(source)
-            .map(a -> app.map(newB -> self.build(lens.set(newB, a)), f.apply(lens.get(a))))
-            .orElse(app.of(source));
+            .map(a -> self.build(affine.set(newValue, a)))
+            .orElse(source);
       }
     };
   }

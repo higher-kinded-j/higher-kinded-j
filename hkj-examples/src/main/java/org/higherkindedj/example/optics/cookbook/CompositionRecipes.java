@@ -4,6 +4,7 @@ package org.higherkindedj.example.optics.cookbook;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -22,8 +23,8 @@ import org.higherkindedj.optics.util.Traversals;
  *
  * <ul>
  *   <li>Lens + Lens = Lens
- *   <li>Lens + Prism = Traversal
- *   <li>Prism + Lens = Traversal
+ *   <li>Lens + Prism = Affine
+ *   <li>Prism + Lens = Affine
  *   <li>Lens + Traversal = Traversal
  *   <li>Prism + Prism = Prism
  * </ul>
@@ -75,35 +76,34 @@ public class CompositionRecipes {
     // Prism to unwrap Optional
     Prism<Optional<Content>, Content> somePrism = Prisms.some();
 
-    // Lens + Prism = Traversal
-    Traversal<Container, Content> contentTraversal = contentLens.andThen(somePrism);
+    // Lens + Prism = Affine
+    Affine<Container, Content> contentAffine = contentLens.andThen(somePrism);
 
     Container withContent = new Container("C1", Optional.of(new Content("data", 5)));
     Container empty = new Container("C2", Optional.empty());
 
     // Get content (may be empty)
-    List<Content> found = Traversals.getAll(contentTraversal, withContent);
-    List<Content> notFound = Traversals.getAll(contentTraversal, empty);
+    Optional<Content> found = contentAffine.getOptional(withContent);
+    Optional<Content> notFound = contentAffine.getOptional(empty);
 
     System.out.println("Container with content: " + found);
     System.out.println("Empty container: " + notFound);
 
     // Modify content (no-op on empty)
     Container modified =
-        Traversals.modify(
-            contentTraversal, c -> new Content(c.data().toUpperCase(), c.priority()), withContent);
+        contentAffine.modify(c -> new Content(c.data().toUpperCase(), c.priority()), withContent);
 
     System.out.println("Modified: " + modified);
     System.out.println();
   }
 
   /**
-   * Recipe: Prism + Lens = Traversal.
+   * Recipe: Prism + Lens = Affine.
    *
    * <p>Pattern: Focus on a sum type variant, then access its fields.
    */
   private static void recipePrismLensComposition() {
-    System.out.println("--- Recipe: Prism + Lens = Traversal ---");
+    System.out.println("--- Recipe: Prism + Lens = Affine ---");
 
     // Prism for Success variant
     Prism<Result, Success> successPrism =
@@ -112,23 +112,22 @@ public class CompositionRecipes {
     // Lens to Success's value
     Lens<Success, String> valueLens = Lens.of(Success::value, (s, v) -> new Success(v, s.meta()));
 
-    // Prism + Lens = Traversal
-    Traversal<Result, String> successValueTraversal = successPrism.andThen(valueLens);
+    // Prism + Lens = Affine
+    Affine<Result, String> successValueAffine = successPrism.andThen(valueLens);
 
     Result success = new Success("result", new Metadata("api", System.currentTimeMillis()));
     Result failure = new Failure("error");
 
-    // Get value from Success (empty list from Failure)
-    List<String> successValue = Traversals.getAll(successValueTraversal, success);
-    List<String> failureValue = Traversals.getAll(successValueTraversal, failure);
+    // Get value from Success (empty from Failure)
+    Optional<String> successValue = successValueAffine.getOptional(success);
+    Optional<String> failureValue = successValueAffine.getOptional(failure);
 
     System.out.println("From Success: " + successValue);
     System.out.println("From Failure: " + failureValue);
 
     // Uppercase only Success values
-    Result modifiedSuccess = Traversals.modify(successValueTraversal, String::toUpperCase, success);
-    Result unchangedFailure =
-        Traversals.modify(successValueTraversal, String::toUpperCase, failure);
+    Result modifiedSuccess = successValueAffine.modify(String::toUpperCase, success);
+    Result unchangedFailure = successValueAffine.modify(String::toUpperCase, failure);
 
     System.out.println("Modified Success: " + modifiedSuccess);
     System.out.println("Unchanged Failure: " + unchangedFailure);
@@ -138,7 +137,7 @@ public class CompositionRecipes {
   /**
    * Recipe: Access deeply nested optional fields.
    *
-   * <p>Pattern: Chain Lens + Prism + Lens (use .asTraversal() for final Lens).
+   * <p>Pattern: Chain Lens + Prism + Lens (Affine + Lens = Affine).
    */
   private static void recipeOptionalFieldAccess() {
     System.out.println("--- Recipe: Access Nested Optional Fields ---");
@@ -152,18 +151,18 @@ public class CompositionRecipes {
     Lens<Content, Integer> priorityLens =
         Lens.of(Content::priority, (c, p) -> new Content(c.data(), p));
 
-    // After Lens+Prism=Traversal, chain with Lens.asTraversal()
-    Traversal<Container, Integer> priorityTraversal =
-        contentLens.andThen(somePrism).andThen(priorityLens.asTraversal());
+    // After Lens+Prism=Affine, chain with Lens to get another Affine
+    Affine<Container, Integer> priorityAffine =
+        contentLens.andThen(somePrism).andThen(priorityLens);
 
     Container container = new Container("C1", Optional.of(new Content("important", 5)));
 
     // Get priority
-    List<Integer> priorities = Traversals.getAll(priorityTraversal, container);
-    System.out.println("Priorities: " + priorities);
+    Optional<Integer> priority = priorityAffine.getOptional(container);
+    System.out.println("Priority: " + priority);
 
     // Increase priority
-    Container updated = Traversals.modify(priorityTraversal, p -> p + 1, container);
+    Container updated = priorityAffine.modify(p -> p + 1, container);
     System.out.println("After priority increase: " + updated);
     System.out.println();
   }
@@ -186,11 +185,11 @@ public class CompositionRecipes {
 
     Lens<Success, String> valueLens = Lens.of(Success::value, (s, v) -> new Success(v, s.meta()));
 
-    // Build from inside out: Prism + Lens = Traversal, then compose all Traversals
-    // (Prism.andThen(Lens) = Traversal, Traversal.andThen(Traversal) = Traversal)
-    Traversal<Result, String> resultToValue = successPrism.andThen(valueLens);
+    // Build from inside out: Prism + Lens = Affine, convert to Traversal for list composition
+    // (Prism.andThen(Lens) = Affine, Traversal.andThen(Traversal) = Traversal)
+    Affine<Result, String> resultToValueAffine = successPrism.andThen(valueLens);
     Traversal<List<Result>, String> listToValues =
-        Traversals.<Result>forList().andThen(resultToValue);
+        Traversals.<Result>forList().andThen(resultToValueAffine.asTraversal());
     Traversal<Batch, String> allSuccessValues = resultsLens.asTraversal().andThen(listToValues);
 
     Batch batch =

@@ -157,7 +157,7 @@ class PrismTest {
     }
 
     @Test
-    @DisplayName("andThen(Lens) should compose Prism and Lens into a Traversal")
+    @DisplayName("andThen(Lens) should compose Prism and Lens into an Affine")
     void andThen_withLens() {
       // Note: This Lens is unsafe, but fine for this specific test case.
       Lens<Json, String> jsonStringLens =
@@ -165,15 +165,48 @@ class PrismTest {
               json -> (json instanceof JsonString s) ? s.value() : "",
               (json, newValue) -> new JsonString(newValue));
 
-      // Direct composition: Prism >>> Lens = Traversal
-      Traversal<Result, String> composed = successPrism.andThen(jsonStringLens);
+      // Direct composition: Prism >>> Lens = Affine
+      Affine<Result, String> composed = successPrism.andThen(jsonStringLens);
 
       Result source = new Success(new JsonString("hello"));
-      Result modified = Traversals.modify(composed, String::toUpperCase, source);
+      Result modified = composed.modify(String::toUpperCase, source);
       assertThat(modified).isEqualTo(new Success(new JsonString("HELLO")));
 
       Result failedSource = new Failure("error");
-      Result unmodified = Traversals.modify(composed, String::toUpperCase, failedSource);
+      Result unmodified = composed.modify(String::toUpperCase, failedSource);
+      assertThat(unmodified).isSameAs(failedSource);
+    }
+
+    @Test
+    @DisplayName("andThen(Affine) should compose Prism and Affine into an Affine")
+    void andThen_withAffine() {
+      // Create an Affine that focuses on the value of a JsonString if present
+      Affine<Json, String> jsonStringAffine =
+          Affine.of(
+              json -> (json instanceof JsonString s) ? Optional.of(s.value()) : Optional.empty(),
+              (json, newValue) -> new JsonString(newValue));
+
+      // Direct composition: Prism >>> Affine = Affine
+      Affine<Result, String> composed = successPrism.andThen(jsonStringAffine);
+
+      // Test getOptional when both Prism and Affine match
+      Result source = new Success(new JsonString("hello"));
+      assertThat(composed.getOptional(source)).isPresent().contains("hello");
+
+      // Test getOptional when Prism matches but Affine doesn't
+      Result numberResult = new Success(new JsonNumber(42));
+      assertThat(composed.getOptional(numberResult)).isEmpty();
+
+      // Test getOptional when Prism doesn't match
+      Result failedSource = new Failure("error");
+      assertThat(composed.getOptional(failedSource)).isEmpty();
+
+      // Test set when Prism matches
+      Result modified = composed.set("HELLO", source);
+      assertThat(modified).isEqualTo(new Success(new JsonString("HELLO")));
+
+      // Test set when Prism doesn't match (returns original)
+      Result unmodified = composed.set("HELLO", failedSource);
       assertThat(unmodified).isSameAs(failedSource);
     }
 

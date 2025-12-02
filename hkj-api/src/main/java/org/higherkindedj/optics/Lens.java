@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -191,11 +192,11 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
   }
 
   /**
-   * Composes this {@code Lens<S, A>} with a {@code Prism<A, B>} to create a {@code Traversal<S,
-   * B>}.
+   * Composes this {@code Lens<S, A>} with a {@code Prism<A, B>} to create an {@code Affine<S, B>}.
    *
-   * <p>The composition follows the standard optic composition rule: Lens >>> Prism = Traversal. The
-   * result is a Traversal because the Prism may not match, resulting in zero-or-one focus.
+   * <p>The composition follows the standard optic composition rule: Lens >>> Prism = Affine. The
+   * result is an Affine because the Prism may not match (resulting in zero-or-one focus), but the
+   * Lens guarantees we can always set a value.
    *
    * <p>This composition is useful when navigating into optional parts of a structure:
    *
@@ -223,36 +224,63 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    *     (db, url) -> new DatabaseConfig(url, db.port())
    * );
    *
-   * // Compose: Lens >>> Prism = Traversal
-   * Traversal<Config, DatabaseConfig> dbTraversal = databaseLens.andThen(somePrism);
+   * // Compose: Lens >>> Prism = Affine
+   * Affine<Config, DatabaseConfig> dbAffine = databaseLens.andThen(somePrism);
    *
-   * // Use the traversal
+   * // Use the affine
    * Config config = new Config(Optional.of(new DatabaseConfig("localhost", 5432)));
-   * List<DatabaseConfig> dbs = Traversals.getAll(dbTraversal, config);
-   * // Returns [DatabaseConfig[url=localhost, port=5432]]
+   * Optional<DatabaseConfig> db = dbAffine.getOptional(config);
+   * // Returns Optional[DatabaseConfig[url=localhost, port=5432]]
    *
    * Config emptyConfig = new Config(Optional.empty());
-   * List<DatabaseConfig> empty = Traversals.getAll(dbTraversal, emptyConfig);
-   * // Returns []
+   * Optional<DatabaseConfig> empty = dbAffine.getOptional(emptyConfig);
+   * // Returns Optional.empty()
    *
    * // Can chain further with another lens
-   * Traversal<Config, String> urlTraversal = dbTraversal.andThen(urlLens.asTraversal());
+   * Affine<Config, String> urlAffine = dbAffine.andThen(urlLens);
    * }</pre>
    *
    * @param prism The {@link Prism} to compose with.
    * @param <B> The type of the final focused part.
-   * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
+   * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Traversal<S, B> andThen(final Prism<A, B> prism) {
+  default <B> Affine<S, B> andThen(final Prism<A, B> prism) {
     Lens<S, A> self = this;
-    return new Traversal<>() {
+    return new Affine<>() {
       @Override
-      public <F> Kind<F, S> modifyF(Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+      public Optional<B> getOptional(S source) {
+        return prism.getOptional(self.get(source));
+      }
+
+      @Override
+      public S set(B newValue, S source) {
+        return self.set(prism.build(newValue), source);
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Lens<S, A>} with an {@code Affine<A, B>} to create an {@code Affine<S,
+   * B>}.
+   *
+   * <p>The result is an Affine because the inner Affine may not find a value (zero-or-one focus).
+   *
+   * @param affine The {@link Affine} to compose with.
+   * @param <B> The type of the final focused part.
+   * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
+   */
+  default <B> Affine<S, B> andThen(final Affine<A, B> affine) {
+    Lens<S, A> self = this;
+    return new Affine<>() {
+      @Override
+      public Optional<B> getOptional(S source) {
+        return affine.getOptional(self.get(source));
+      }
+
+      @Override
+      public S set(B newValue, S source) {
         A a = self.get(source);
-        return prism
-            .getOptional(a)
-            .map(b -> app.map(newB -> self.set(prism.build(newB), source), f.apply(b)))
-            .orElse(app.of(source));
+        return self.set(affine.set(newValue, a), source);
       }
     };
   }

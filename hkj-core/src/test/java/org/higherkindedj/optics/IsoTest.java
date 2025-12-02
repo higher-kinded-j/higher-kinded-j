@@ -300,6 +300,53 @@ class IsoTest {
       UserId notModified = composed.modify(v -> v * 2, negativeId);
       assertThat(notModified.value()).isEqualTo(-5L);
     }
+
+    @Test
+    @DisplayName("andThen(Affine) should compose Iso with Affine to produce Affine")
+    void isoAndThenAffine() {
+      // Affine for positive longs
+      Affine<Long, Long> positiveAffine =
+          Affine.of(n -> n > 0 ? Optional.of(n) : Optional.empty(), (source, newValue) -> newValue);
+
+      // Compose: Iso >>> Affine = Affine
+      Affine<UserId, Long> composed = userIdIso.andThen(positiveAffine);
+
+      // Test getOptional on matching case
+      UserId positiveId = new UserId(42L);
+      assertThat(composed.getOptional(positiveId)).isPresent().contains(42L);
+
+      // Test getOptional on non-matching case
+      UserId negativeId = new UserId(-5L);
+      assertThat(composed.getOptional(negativeId)).isEmpty();
+
+      // Test set
+      UserId updated = composed.set(100L, positiveId);
+      assertThat(updated.value()).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("andThen(Iso) should compose two Isos into a new Iso")
+    void isoAndThenIso() {
+      record WrappedId(Long id) {}
+
+      Iso<Long, WrappedId> wrapperIso = Iso.of(WrappedId::new, WrappedId::id);
+
+      // Compose: Iso >>> Iso = Iso
+      Iso<UserId, WrappedId> composed = userIdIso.andThen(wrapperIso);
+
+      // Test get
+      UserId userId = new UserId(42L);
+      WrappedId wrapped = composed.get(userId);
+      assertThat(wrapped.id()).isEqualTo(42L);
+
+      // Test reverseGet
+      UserId reconstructed = composed.reverseGet(new WrappedId(100L));
+      assertThat(reconstructed.value()).isEqualTo(100L);
+
+      // Test round-trip (Iso law)
+      UserId roundTrip = composed.reverseGet(composed.get(userId));
+      assertThat(roundTrip).isEqualTo(userId);
+    }
   }
 
   @Nested

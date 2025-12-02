@@ -36,16 +36,21 @@ Before diving into individual optics, it helps to see how they relate to one ano
               │               ┌─────┴─────┐
               │               │           │
          ┌────┴────┐    ┌─────┴─────┐ ┌───┴───┐
-         │  Lens   │◄───│   Prism   │ │Setter │
-         └────┬────┘    └───────────┘ └───────┘
-              │              (zero-or-one)
-              │
-         ┌────┴────┐
-         │   Iso   │  (exactly-one, reversible)
-         └─────────┘
+         │  Lens   │    │  Affine   │ │Setter │
+         └────┬────┘    └─────┬─────┘ └───────┘
+              │         (zero-or-one)
+              │               │
+              │         ┌─────┴─────┐
+              │         │   Prism   │
+              │         └─────┬─────┘
+              │               │
+              └───────┬───────┘
+                 ┌────┴────┐
+                 │   Iso   │  (exactly-one, reversible)
+                 └─────────┘
 ```
 
-Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Getter or Fold is expected. An Iso (the most specific optic) can be used as any of the others.
+Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Getter or Fold is expected. An Iso (the most specific optic) can be used as any of the others. Affine sits between Traversal and Prism, representing precisely zero-or-one focus, making it ideal for optional fields.
 
 ---
 
@@ -54,6 +59,7 @@ Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Ge
 ~~~admonish info title="In This Chapter"
 - **Lenses** – Focusing on required fields within records
 - **Prisms** – Safely handling sum types and optional variants
+- **Affines** – Working with optional fields (zero-or-one focus)
 - **Isomorphisms** – Lossless conversions between equivalent types
 - **Composition** – Chaining optics to navigate deep structures
 - **The Composition Rules** – A reference for what type results from combining optics
