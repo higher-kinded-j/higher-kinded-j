@@ -208,6 +208,166 @@ class ForIndexedTest {
     }
 
     @Test
+    @DisplayName("should set field on filtered indices only")
+    void setWithFilterIndex() {
+      List<Player> players =
+          List.of(
+              new Player("Alice", 100),
+              new Player("Bob", 200),
+              new Player("Charlie", 300),
+              new Player("Diana", 400));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .filterIndex(i -> i % 2 == 0) // Only even indices (0, 2)
+              .set(scoreLens, index -> 999)
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      // Index 0 (Alice): set to 999
+      // Index 1 (Bob): unchanged -> 200
+      // Index 2 (Charlie): set to 999
+      // Index 3 (Diana): unchanged -> 400
+      assertThat(resultList).extracting(Player::score).containsExactly(999, 200, 999, 400);
+    }
+
+    @Test
+    @DisplayName("should set field based on combined index and value filter")
+    void setWithFilter() {
+      List<Player> players =
+          List.of(
+              new Player("Alice", 50),
+              new Player("Bob", 150),
+              new Player("Charlie", 100),
+              new Player("Diana", 200));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .filter((index, player) -> index < 3 && player.score() >= 100)
+              .set(scoreLens, index -> index * 500)
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      // Index 0, Alice (50): doesn't match score condition -> unchanged (50)
+      // Index 1, Bob (150): matches both -> set to 1*500 = 500
+      // Index 2, Charlie (100): matches both -> set to 2*500 = 1000
+      // Index 3, Diana (200): doesn't match index condition -> unchanged (200)
+      assertThat(resultList).extracting(Player::score).containsExactly(50, 500, 1000, 200);
+    }
+
+    @Test
+    @DisplayName("should chain multiple set operations")
+    void chainSetOperations() {
+      List<Player> players = List.of(new Player("Alice", 100), new Player("Bob", 200));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .set(scoreLens, index -> (index + 1) * 100)
+              .set(nameLens, index -> "Player" + index)
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      assertThat(resultList)
+          .containsExactly(new Player("Player0", 100), new Player("Player1", 200));
+    }
+
+    @Test
+    @DisplayName("should preserve previous transformations when filter excludes element")
+    void setPreservesPreviousTransformationsWhenFiltered() {
+      List<Player> players =
+          List.of(new Player("Alice", 100), new Player("Bob", 200), new Player("Charlie", 300));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .modify(scoreLens, (i, score) -> score + 1000) // First: add 1000 to all
+              .filterIndex(i -> i == 1) // Then: only index 1
+              .set(scoreLens, i -> 5000) // Set index 1 to 5000
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      // Index 0 (Alice): 100 + 1000 = 1100, then excluded by filter -> preserved as 1100
+      // Index 1 (Bob): 200 + 1000 = 1200, then set to 5000
+      // Index 2 (Charlie): 300 + 1000 = 1300, then excluded by filter -> preserved as 1300
+      assertThat(resultList).extracting(Player::score).containsExactly(1100, 5000, 1300);
+    }
+
+    @Test
+    @DisplayName("should combine set and modify operations correctly")
+    void combineSetAndModify() {
+      List<Player> players =
+          List.of(new Player("Alice", 100), new Player("Bob", 200), new Player("Charlie", 300));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .set(scoreLens, i -> i * 100) // Set scores to 0, 100, 200
+              .modify(scoreLens, (i, score) -> score + 50) // Add 50 to each
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      // Index 0: 0 + 50 = 50
+      // Index 1: 100 + 50 = 150
+      // Index 2: 200 + 50 = 250
+      assertThat(resultList).extracting(Player::score).containsExactly(50, 150, 250);
+    }
+
+    @Test
+    @DisplayName("should handle set on empty list")
+    void setOnEmptyList() {
+      List<Player> players = List.of();
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .set(scoreLens, i -> 999)
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      assertThat(resultList).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should handle set on single element")
+    void setOnSingleElement() {
+      List<Player> players = List.of(new Player("Solo", 100));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .set(scoreLens, i -> (i + 1) * 500)
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      assertThat(resultList).containsExactly(new Player("Solo", 500));
+    }
+
+    @Test
+    @DisplayName("should apply different values based on index function")
+    void setWithComplexIndexFunction() {
+      List<Player> players =
+          List.of(
+              new Player("First", 0),
+              new Player("Second", 0),
+              new Player("Third", 0),
+              new Player("Fourth", 0));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .set(
+                  scoreLens,
+                  index -> {
+                    // Gold/Silver/Bronze bonus structure
+                    return switch (index) {
+                      case 0 -> 1000; // Gold
+                      case 1 -> 500; // Silver
+                      case 2 -> 250; // Bronze
+                      default -> 100; // Participation
+                    };
+                  })
+              .run();
+
+      List<Player> resultList = IdKindHelper.ID.unwrap(result);
+      assertThat(resultList).extracting(Player::score).containsExactly(1000, 500, 250, 100);
+    }
+
+    @Test
     @DisplayName("set() should throw on null lens")
     void setThrowsOnNullLens() {
       List<Player> players = List.of(new Player("Alice", 100));
