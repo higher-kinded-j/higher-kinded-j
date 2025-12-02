@@ -976,6 +976,10 @@ Once you're comfortable with these prism fundamentals, explore [Advanced Prism P
 - Performance optimisation and testing strategies
 ~~~
 
+~~~admonish tip title="For Comprehension Integration"
+Prisms integrate with For comprehensions via the `match()` operation, which provides prism-based pattern matching with short-circuit semantics. When the prism match fails, the computation short-circuits using the monad's zero value (empty list, Nothing, etc.). See [For Comprehensions: Pattern Matching with match()](../functional/for_comprehension.md#pattern-matching-with-match).
+~~~
+
 ---
 
 ## Further Reading

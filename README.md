@@ -21,15 +21,15 @@ It uses a defunctionalisation approach for HKTs and provides a powerful toolkit 
 
 ## Where to start
 
-**[All the details you need to get started with Higher-Kinded-J can be found in the documentation website](https://higher-kinded-j.github.io/latest/home.html)**
+**[All the details you need to get started with Higher-Kinded-J can be found in the documentation website](https://higher-kinded-j.github.io/home.html)**
 
 ## Introduction: Abstracting over Computation and Structure
 
-### [Higher-Kinded Types (HKTs)](https://higher-kinded-j.github.io/latest/hkts/hkt_introduction.html)
+### [Higher-Kinded Types (HKTs)](https://higher-kinded-j.github.io/hkts/hkt_introduction.html)
 
 Java's powerful type system excels in many areas, but it lacks native support for HKTs. This means we cannot easily write code that abstracts over type constructors like `List<A>`, `Optional<A>`, or `CompletableFuture<A>`. This project tackles that challenge by **simulating HKTs in Java**, allowing you to use common functional abstractions like `Functor`, `Applicative`, and `Monad` across different type constructors.
 
-### [Optics](https://higher-kinded-j.github.io/latest/optics/optics_intro.html)
+### [Optics](https://higher-kinded-j.github.io/optics/optics_intro.html)
 
 Working with nested immutable data structures in Java can be verbose and tedious. Optics provide a solution by offering a principled way to access and modify parts of a larger structure. They are composable getters and setters that allow you to "focus" on a specific piece of data within a nested object graph and perform operations on it without boilerplate. The library includes advanced capabilities such as filtered traversals, indexed optics for position-aware transformations, and a fluent API for Java-friendly syntax. An annotation processor generates the necessary Optics for your data classes automatically.
 
@@ -47,7 +47,7 @@ You can apply the patterns and techniques from Higher-Kinded-J in many ways:
 * **Learning Tool:** Understand HKTs, type classes, and Optics through concrete Java examples.
 
 
-## Practical Example: [Order Processing Workflow](https://higher-kinded-j.github.io/latest/hkts/order-walkthrough.html)
+## Practical Example: [Order Processing Workflow](https://higher-kinded-j.github.io/hkts/order-walkthrough.html)
 
 To see HKT concepts applied in a realistic scenario, check out the **Order Processing Example** located in the `higher-kinded-j-example` module.
 
@@ -61,7 +61,7 @@ This example demonstrates:
 Explore the `OrderWorkflowRunner` class to see how `flatMap` and `handleErrorWith` are used to build the workflow.
 
 
-## Practical Example: [Optics for Data Manipulation](https://higher-kinded-j.github.io/latest/optics/auditing_complex_data_example.html)
+## Practical Example: [Optics for Data Manipulation](https://higher-kinded-j.github.io/optics/auditing_complex_data_example.html)
 
 The `higher-kinded-j-example` module also contains examples of how to use **Optics**. See the `OpticsExample` class for demonstrations of:
 
@@ -125,8 +125,8 @@ The project is modular. To use it, add the relevant dependencies to your `build.
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
 ```
 
-* **Follow the Usage Guides:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/latest/hkts/usage-guide.html) to wrap your Java objects for HKT operations or to define and use Optics for your data models.
-* **Extend if Necessary:** Follow the guide [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/latest/hkts/extending-simulation.html) in the documentation to create your own HKT simulations or Optics for custom types.
+* **Follow the Usage Guides:** Apply the steps outlined in the [Usage Guide](https://higher-kinded-j.github.io/hkts/usage-guide.html) to wrap your Java objects for HKT operations or to define and use Optics for your data models.
+* **Extend if Necessary:** Follow the guide [Extending Higher-Kinded-J](https://higher-kinded-j.github.io/hkts/extending-simulation.html) in the documentation to create your own HKT simulations or Optics for custom types.
 
 **For Optics:**
 
@@ -149,10 +149,10 @@ repositories {
 }
 ```
 
-* **Annotate your data classes:** Use the provided annotations (e.g., `@GenerateLenses`) on your immutable classes. [Lenses](https://higher-kinded-j.github.io/latest/optics/lenses.html)
+* **Annotate your data classes:** Use the provided annotations (e.g., `@GenerateLenses`) on your immutable classes. [Lenses](https://higher-kinded-j.github.io/optics/lenses.html)
 * **Build your project:** The annotation processor will generate the corresponding `Lens`, `Prism`, `Iso`, `Fold`, and `Traversal` implementations for you.
 * **Use the generated Optics:** Import and use the generated optics classes to manipulate your data structures in a clean, functional, and immutable way.
-* **Explore advanced features:** Apply [filtered traversals](https://higher-kinded-j.github.io/latest/optics/filtered_optics.html), [indexed optics](https://higher-kinded-j.github.io/latest/optics/indexed_optics.html), or the [fluent API](https://higher-kinded-j.github.io/latest/optics/fluent_api.html) for more sophisticated data manipulation patterns.
+* **Explore advanced features:** Apply [filtered traversals](https://higher-kinded-j.github.io/optics/filtered_optics.html), [indexed optics](https://higher-kinded-j.github.io/optics/indexed_optics.html), or the [fluent API](https://higher-kinded-j.github.io/optics/fluent_api.html) for more sophisticated data manipulation patterns.
 
 ## Spring Boot Integration
 
@@ -235,8 +235,8 @@ public class UserDetailsService {
 ```
 
 For complete documentation, see:
-- [Spring Boot Integration Guide](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html)
-- [Migration Guide](https://higher-kinded-j.github.io/latest/spring/migrating_to_functional_errors.html)
+- [Spring Boot Integration Guide](https://higher-kinded-j.github.io/spring/spring_boot_integration.html)
+- [Migration Guide](https://higher-kinded-j.github.io/spring/migrating_to_functional_errors.html)
 - [Working Example Application](hkj-spring/example/)
 
 ##

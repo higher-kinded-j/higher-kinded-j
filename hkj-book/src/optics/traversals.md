@@ -812,6 +812,12 @@ Original league unchanged: League[name=Pro League, teams=[Team[name=Team Alpha, 
 
 ---
 
+~~~admonish tip title="For Comprehension Integration"
+For a fluent, comprehension-style API for traversal operations, see [For Comprehensions: Bulk Operations with ForTraversal](../functional/for_comprehension.md#bulk-operations-with-fortraversal). This provides an alternative syntax for filtering, modifying, and collecting traversal targets within an applicative context.
+~~~
+
+---
+
 ## Unifying the Concepts
 
 A `Traversal` is the most general of the core optics. In fact, all other optics can be seen as specialised `Traversal`s:
