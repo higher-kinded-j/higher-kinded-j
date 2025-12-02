@@ -1135,6 +1135,10 @@ This creates an indexed traversal over lists where the index is an integer: exac
 - [Optics By Example](https://leanpub.com/optics-by-example) by Chris Penner - Chapter on indexed optics
 - [Monocle (Scala)](https://www.optics.dev/Monocle/) - Similar indexed optics for Scala
 
+~~~admonish tip title="For Comprehension Integration"
+For a fluent, comprehension-style API for indexed traversal operations, see [For Comprehensions: Position-Aware Traversals with ForIndexed](../functional/for_comprehension.md#position-aware-traversals-with-forindexed). This provides an alternative syntax for position-based filtering, modifying, and collecting traversal targets.
+~~~
+
 ---
 
 ## Summary: The Power of Indexed Optics

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.expression;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -17,6 +18,8 @@ import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.hkt.tuple.Tuple4;
 import org.higherkindedj.hkt.tuple.Tuple5;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Prism;
 
 /**
  * Provides a statically-typed, fluent for-comprehension builder for monadic types, simulating a
@@ -184,6 +187,43 @@ public final class For {
     }
 
     /**
+     * Extracts a value from the current computation result using the provided {@link Lens} and adds
+     * it to the accumulated tuple.
+     *
+     * <p>This operation is equivalent to a pure computation that doesn't introduce new effects—it
+     * simply extracts a focused part of the current value. The extracted value is accumulated
+     * alongside the original value.
+     *
+     * <h3>Example</h3>
+     *
+     * <pre>{@code
+     * record User(String name, Address address) {}
+     * record Address(String city) {}
+     *
+     * Lens<User, Address> addressLens = Lens.of(User::address, User::withAddress);
+     *
+     * Kind<IdKind.Witness, String> result =
+     *     For.from(idMonad, Id.of(new User("Alice", new Address("NYC"))))
+     *         .focus(addressLens)
+     *         .yield((user, address) -> user.name() + " lives in " + address.city());
+     * // Result: "Alice lives in NYC"
+     * }</pre>
+     *
+     * @param lens The {@link Lens} to use for extracting the focused value.
+     * @param <B> The type of the extracted value.
+     * @return The next step in the builder, now tracking the original value and the extracted
+     *     value.
+     * @throws NullPointerException if {@code lens} is null.
+     * @see Lens
+     */
+    public <B> MonadicSteps2<M, A, B> focus(Lens<A, B> lens) {
+      Objects.requireNonNull(lens, "lens must not be null");
+      Kind<M, Tuple2<A, B>> newComputation =
+          monad.map(a -> Tuple.of(a, lens.get(a)), this.computation);
+      return new MonadicSteps2<>(monad, newComputation);
+    }
+
+    /**
      * Completes the for-comprehension by applying a function to the final result.
      *
      * @param f A function to transform the final value of type {@code A} into the result type
@@ -242,6 +282,25 @@ public final class For {
     public <C> MonadicSteps3<M, A, B, C> let(Function<Tuple2<A, B>, C> f) {
       Kind<M, Tuple3<A, B, C>> newComputation =
           monad.map(ab -> Tuple.of(ab._1(), ab._2(), f.apply(ab)), this.computation);
+      return new MonadicSteps3<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * <p>This is a more flexible version of {@code focus} that allows extracting values based on
+     * the entire accumulated state.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <C> The type of the extracted value.
+     * @return The next step in the builder, now tracking three values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <C> MonadicSteps3<M, A, B, C> focus(Function<Tuple2<A, B>, C> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple3<A, B, C>> newComputation =
+          monad.map(ab -> Tuple.of(ab._1(), ab._2(), extractor.apply(ab)), this.computation);
       return new MonadicSteps3<>(monad, newComputation);
     }
 
@@ -308,6 +367,24 @@ public final class For {
     public <D> MonadicSteps4<M, A, B, C, D> let(Function<Tuple3<A, B, C>, D> f) {
       Kind<M, Tuple4<A, B, C, D>> newComputation =
           monad.map(abc -> Tuple.of(abc._1(), abc._2(), abc._3(), f.apply(abc)), this.computation);
+      return new MonadicSteps4<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <D> The type of the extracted value.
+     * @return The next step in the builder, now tracking four values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <D> MonadicSteps4<M, A, B, C, D> focus(Function<Tuple3<A, B, C>, D> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple4<A, B, C, D>> newComputation =
+          monad.map(
+              abc -> Tuple.of(abc._1(), abc._2(), abc._3(), extractor.apply(abc)),
+              this.computation);
       return new MonadicSteps4<>(monad, newComputation);
     }
 
@@ -379,6 +456,24 @@ public final class For {
       Kind<M, Tuple5<A, B, C, D, E>> newComputation =
           monad.map(
               abcd -> Tuple.of(abcd._1(), abcd._2(), abcd._3(), abcd._4(), f.apply(abcd)),
+              this.computation);
+      return new MonadicSteps5<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <E> The type of the extracted value.
+     * @return The next step in the builder, now tracking five values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <E> MonadicSteps5<M, A, B, C, D, E> focus(Function<Tuple4<A, B, C, D>, E> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple5<A, B, C, D, E>> newComputation =
+          monad.map(
+              abcd -> Tuple.of(abcd._1(), abcd._2(), abcd._3(), abcd._4(), extractor.apply(abcd)),
               this.computation);
       return new MonadicSteps5<>(monad, newComputation);
     }
@@ -508,6 +603,69 @@ public final class For {
     }
 
     /**
+     * Extracts a value from the current computation result using the provided {@link Lens} and adds
+     * it to the accumulated tuple.
+     *
+     * <p>This operation is equivalent to a pure computation that doesn't introduce new effects—it
+     * simply extracts a focused part of the current value.
+     *
+     * @param lens The {@link Lens} to use for extracting the focused value.
+     * @param <B> The type of the extracted value.
+     * @return The next step in the builder, now tracking the original value and the extracted
+     *     value.
+     * @throws NullPointerException if {@code lens} is null.
+     * @see Lens
+     */
+    public <B> FilterableSteps2<M, A, B> focus(Lens<A, B> lens) {
+      Objects.requireNonNull(lens, "lens must not be null");
+      Kind<M, Tuple2<A, B>> newComputation =
+          monad.map(a -> Tuple.of(a, lens.get(a)), this.computation);
+      return new FilterableSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Attempts to extract a value using the provided {@link Prism}. If the prism matches, the
+     * extracted value is added to the accumulated tuple. If it doesn't match, the computation
+     * short-circuits using the monad's {@link MonadZero#zero()} element.
+     *
+     * <p>This provides type-safe pattern matching within for-comprehensions, eliminating the need
+     * for {@code instanceof} checks and casts.
+     *
+     * <h3>Example</h3>
+     *
+     * <pre>{@code
+     * sealed interface Result permits Success, Failure {}
+     * record Success(String value) implements Result {}
+     * record Failure(String error) implements Result {}
+     *
+     * Prism<Result, Success> successPrism = Prism.of(
+     *     r -> r instanceof Success s ? Optional.of(s) : Optional.empty(),
+     *     s -> s
+     * );
+     *
+     * Kind<MaybeKind.Witness, String> result =
+     *     For.from(maybeMonad, MAYBE.just(someResult))
+     *         .match(successPrism)
+     *         .yield((original, success) -> success.value());
+     * // Returns Just(value) if someResult is Success, Nothing otherwise
+     * }</pre>
+     *
+     * @param prism The {@link Prism} to use for pattern matching.
+     * @param <B> The type of the extracted value when the prism matches.
+     * @return The next step in the builder if the prism matches, or short-circuits to zero.
+     * @throws NullPointerException if {@code prism} is null.
+     * @see Prism
+     */
+    public <B> FilterableSteps2<M, A, B> match(Prism<A, B> prism) {
+      Objects.requireNonNull(prism, "prism must not be null");
+      Kind<M, Tuple2<A, B>> newComputation =
+          monad.flatMap(
+              a -> prism.getOptional(a).map(b -> monad.of(Tuple.of(a, b))).orElseGet(monad::zero),
+              this.computation);
+      return new FilterableSteps2<>(monad, newComputation);
+    }
+
+    /**
      * Completes the for-comprehension by applying a function to the final result.
      *
      * @param f A function to transform the final value.
@@ -573,6 +731,46 @@ public final class For {
       Kind<M, Tuple2<A, B>> newComputation =
           monad.flatMap(ab -> filter.test(ab) ? monad.of(ab) : monad.zero(), this.computation);
       return new FilterableSteps2<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <C> The type of the extracted value.
+     * @return The next step in the builder, now tracking three values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <C> FilterableSteps3<M, A, B, C> focus(Function<Tuple2<A, B>, C> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple3<A, B, C>> newComputation =
+          monad.map(ab -> Tuple.of(ab._1(), ab._2(), extractor.apply(ab)), this.computation);
+      return new FilterableSteps3<>(monad, newComputation);
+    }
+
+    /**
+     * Attempts to extract a value using a function that returns an {@link Optional}. If the
+     * optional is present, the extracted value is added to the accumulated tuple. If it's empty,
+     * the computation short-circuits using the monad's {@link MonadZero#zero()} element.
+     *
+     * @param matcher A function that takes the current tuple and returns an optional extracted
+     *     value.
+     * @param <C> The type of the extracted value when present.
+     * @return The next step in the builder if the match succeeds, or short-circuits to zero.
+     * @throws NullPointerException if {@code matcher} is null.
+     */
+    public <C> FilterableSteps3<M, A, B, C> match(Function<Tuple2<A, B>, Optional<C>> matcher) {
+      Objects.requireNonNull(matcher, "matcher must not be null");
+      Kind<M, Tuple3<A, B, C>> newComputation =
+          monad.flatMap(
+              ab ->
+                  matcher
+                      .apply(ab)
+                      .map(c -> monad.of(Tuple.of(ab._1(), ab._2(), c)))
+                      .orElseGet(monad::zero),
+              this.computation);
+      return new FilterableSteps3<>(monad, newComputation);
     }
 
     /**
@@ -648,6 +846,49 @@ public final class For {
       Kind<M, Tuple3<A, B, C>> newComputation =
           monad.flatMap(abc -> filter.test(abc) ? monad.of(abc) : monad.zero(), this.computation);
       return new FilterableSteps3<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <D> The type of the extracted value.
+     * @return The next step in the builder, now tracking four values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <D> FilterableSteps4<M, A, B, C, D> focus(Function<Tuple3<A, B, C>, D> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple4<A, B, C, D>> newComputation =
+          monad.map(
+              abc -> Tuple.of(abc._1(), abc._2(), abc._3(), extractor.apply(abc)),
+              this.computation);
+      return new FilterableSteps4<>(monad, newComputation);
+    }
+
+    /**
+     * Attempts to extract a value using a function that returns an {@link Optional}. If the
+     * optional is present, the extracted value is added to the accumulated tuple. If it's empty,
+     * the computation short-circuits using the monad's {@link MonadZero#zero()} element.
+     *
+     * @param matcher A function that takes the current tuple and returns an optional extracted
+     *     value.
+     * @param <D> The type of the extracted value when present.
+     * @return The next step in the builder if the match succeeds, or short-circuits to zero.
+     * @throws NullPointerException if {@code matcher} is null.
+     */
+    public <D> FilterableSteps4<M, A, B, C, D> match(
+        Function<Tuple3<A, B, C>, Optional<D>> matcher) {
+      Objects.requireNonNull(matcher, "matcher must not be null");
+      Kind<M, Tuple4<A, B, C, D>> newComputation =
+          monad.flatMap(
+              abc ->
+                  matcher
+                      .apply(abc)
+                      .map(d -> monad.of(Tuple.of(abc._1(), abc._2(), abc._3(), d)))
+                      .orElseGet(monad::zero),
+              this.computation);
+      return new FilterableSteps4<>(monad, newComputation);
     }
 
     /**
@@ -732,6 +973,49 @@ public final class For {
           monad.flatMap(
               abcd -> filter.test(abcd) ? monad.of(abcd) : monad.zero(), this.computation);
       return new FilterableSteps4<>(monad, newComputation);
+    }
+
+    /**
+     * Extracts a value using a function that accesses the current tuple and adds the result to the
+     * accumulated tuple.
+     *
+     * @param extractor A function that takes the current tuple and returns the extracted value.
+     * @param <E> The type of the extracted value.
+     * @return The next step in the builder, now tracking five values.
+     * @throws NullPointerException if {@code extractor} is null.
+     */
+    public <E> FilterableSteps5<M, A, B, C, D, E> focus(Function<Tuple4<A, B, C, D>, E> extractor) {
+      Objects.requireNonNull(extractor, "extractor must not be null");
+      Kind<M, Tuple5<A, B, C, D, E>> newComputation =
+          monad.map(
+              abcd -> Tuple.of(abcd._1(), abcd._2(), abcd._3(), abcd._4(), extractor.apply(abcd)),
+              this.computation);
+      return new FilterableSteps5<>(monad, newComputation);
+    }
+
+    /**
+     * Attempts to extract a value using a function that returns an {@link Optional}. If the
+     * optional is present, the extracted value is added to the accumulated tuple. If it's empty,
+     * the computation short-circuits using the monad's {@link MonadZero#zero()} element.
+     *
+     * @param matcher A function that takes the current tuple and returns an optional extracted
+     *     value.
+     * @param <E> The type of the extracted value when present.
+     * @return The next step in the builder if the match succeeds, or short-circuits to zero.
+     * @throws NullPointerException if {@code matcher} is null.
+     */
+    public <E> FilterableSteps5<M, A, B, C, D, E> match(
+        Function<Tuple4<A, B, C, D>, Optional<E>> matcher) {
+      Objects.requireNonNull(matcher, "matcher must not be null");
+      Kind<M, Tuple5<A, B, C, D, E>> newComputation =
+          monad.flatMap(
+              abcd ->
+                  matcher
+                      .apply(abcd)
+                      .map(e -> monad.of(Tuple.of(abcd._1(), abcd._2(), abcd._3(), abcd._4(), e)))
+                      .orElseGet(monad::zero),
+              this.computation);
+      return new FilterableSteps5<>(monad, newComputation);
     }
 
     /**

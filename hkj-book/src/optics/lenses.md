@@ -377,9 +377,15 @@ Function<String, Kind<ValidatedKind.Witness<String>, String>> validateStreet =
         : VALIDATED.widen(Validated.invalid("Street name must be between 1 and 100 characters"));
 
 // Use the same lens with effectful validation
-Kind<ValidatedKind.Witness<String>, Employee> result = 
+Kind<ValidatedKind.Witness<String>, Employee> result =
     employeeToStreet.modifyF(validateStreet, employee, validatedApplicative);
 ```
+
+~~~admonish tip title="For Comprehension Integration"
+Lenses integrate with For comprehensions in two ways:
+- Use `focus()` within a For comprehension to extract values via lens-like accessors. See [For Comprehensions: Extracting Values with focus()](../functional/for_comprehension.md#extracting-values-with-focus).
+- Use `ForState` for stateful lens operations that thread updates through a workflow. See [For Comprehensions: Stateful Updates with ForState](../functional/for_comprehension.md#stateful-updates-with-forstate).
+~~~
 
 ---
 

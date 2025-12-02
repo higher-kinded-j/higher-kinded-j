@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -497,7 +498,7 @@ class IndexedFoldTest {
         @Override
         public <M> M ifoldMap(
             Monoid<M> monoid,
-            java.util.function.BiFunction<? super Integer, ? super A, ? extends M> f,
+            BiFunction<? super Integer, ? super A, ? extends M> f,
             List<A> source) {
           M result = monoid.empty();
           for (int i = 0; i < source.size(); i++) {

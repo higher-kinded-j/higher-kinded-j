@@ -2,8 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+
 import java.time.Instant;
 import java.util.*;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.expression.ForIndexed;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.indexed.IndexedLens;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
@@ -54,6 +60,7 @@ public class IndexedOpticsExample {
     demonstrateAuditTrail();
     demonstrateComposition();
     demonstrateRealWorldScenario();
+    demonstrateForIndexedComprehension();
   }
 
   /** Demonstrates basic list indexing with integer indices. */
@@ -463,5 +470,96 @@ public class IndexedOpticsExample {
     }
 
     System.out.println("\n=== Indexed optics enable position-aware business logic ===");
+  }
+
+  /**
+   * Demonstrates ForIndexed comprehension as a fluent alternative to IndexedTraversals.imodify().
+   *
+   * <p>ForIndexed provides a comprehension-style API for position-aware traversal operations,
+   * combining filtering, modification, and collection in a fluent chain.
+   */
+  private static void demonstrateForIndexedComprehension() {
+    System.out.println("--- ForIndexed: Comprehension-Style Position-Aware Operations ---");
+
+    IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed = IndexedTraversals.forList();
+
+    // Lens for accessing the price field
+    Lens<LineItem, Double> priceLens =
+        Lens.of(
+            LineItem::price,
+            (item, price) -> new LineItem(item.productName(), item.quantity(), price));
+
+    List<LineItem> items =
+        List.of(
+            new LineItem("Laptop", 1, 999.99),
+            new LineItem("Mouse", 2, 24.99),
+            new LineItem("Keyboard", 1, 79.99),
+            new LineItem("Monitor", 1, 299.99),
+            new LineItem("Webcam", 1, 59.99));
+
+    System.out.println("Original items:");
+    for (int i = 0; i < items.size(); i++) {
+      System.out.printf(
+          "  Position %d: %s - £%.2f%n", i, items.get(i).productName(), items.get(i).price());
+    }
+
+    // Example 1: Apply position-based discount using ForIndexed
+    // Items at even positions (0, 2, 4) get 10% off
+    Kind<IdKind.Witness, List<LineItem>> discountedResult =
+        ForIndexed.overIndexed(itemsIndexed, items, IdMonad.instance())
+            .filterIndex(i -> i % 2 == 0)
+            .modify(priceLens, (index, price) -> price * 0.9)
+            .run();
+
+    List<LineItem> discounted = ID.unwrap(discountedResult);
+
+    System.out.println("\nAfter ForIndexed even-position discount (10% off):");
+    for (int i = 0; i < discounted.size(); i++) {
+      LineItem item = discounted.get(i);
+      System.out.printf("  Position %d: %s - £%.2f", i, item.productName(), item.price());
+      if (i % 2 == 0) {
+        System.out.print(" (discounted)");
+      }
+      System.out.println();
+    }
+
+    // Example 2: Combined index and value filtering
+    // Only discount expensive items (>£50) at the first 3 positions
+    Kind<IdKind.Witness, List<LineItem>> combinedResult =
+        ForIndexed.overIndexed(itemsIndexed, items, IdMonad.instance())
+            .filter((index, item) -> index < 3 && item.price() > 50.0)
+            .modify(priceLens, (index, price) -> price * 0.85) // 15% off
+            .run();
+
+    List<LineItem> combinedFiltered = ID.unwrap(combinedResult);
+
+    System.out.println("\nAfter combined filter (first 3 positions AND price > £50, 15% off):");
+    for (int i = 0; i < combinedFiltered.size(); i++) {
+      LineItem item = combinedFiltered.get(i);
+      boolean wasDiscounted = i < 3 && items.get(i).price() > 50.0;
+      System.out.printf("  Position %d: %s - £%.2f", i, item.productName(), item.price());
+      if (wasDiscounted) {
+        System.out.print(" (discounted)");
+      }
+      System.out.println();
+    }
+
+    // Example 3: Collect items with their indices
+    Kind<IdKind.Witness, List<Pair<Integer, LineItem>>> indexedListResult =
+        ForIndexed.overIndexed(itemsIndexed, items, IdMonad.instance())
+            .filterIndex(i -> i % 2 == 1) // Odd positions only
+            .toIndexedList();
+
+    List<Pair<Integer, LineItem>> indexedList = ID.unwrap(indexedListResult);
+
+    System.out.println("\nOdd-positioned items collected with indices:");
+    for (Pair<Integer, LineItem> pair : indexedList) {
+      System.out.printf(
+          "  Index %d: %s (£%.2f)%n",
+          pair.first(), pair.second().productName(), pair.second().price());
+    }
+
+    System.out.println(
+        "\n=== ForIndexed provides fluent, comprehension-style position-aware operations ===\n");
   }
 }

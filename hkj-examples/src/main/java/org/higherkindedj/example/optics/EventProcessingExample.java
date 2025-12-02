@@ -2,10 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -95,6 +101,7 @@ public class EventProcessingExample {
     demonstrateEventEnrichment();
     demonstrateCompositeHandlers();
     demonstrateEventAggregation();
+    demonstrateForComprehensionWithMatch();
   }
 
   private static void demonstrateEventRouting() {
@@ -302,6 +309,95 @@ public class EventProcessingExample {
     System.out.println("Unique active users: " + uniqueUsers);
 
     System.out.println();
+  }
+
+  /**
+   * Demonstrates For comprehension with match() for declarative event filtering.
+   *
+   * <p>The match() operation provides prism-based pattern matching within For comprehensions. When
+   * the prism match fails, the computation short-circuits using the monad's zero value (empty list
+   * for List, Nothing for Maybe).
+   */
+  private static void demonstrateForComprehensionWithMatch() {
+    System.out.println("--- For Comprehension with match() ---");
+
+    ListMonad listMonad = ListMonad.INSTANCE;
+
+    List<DomainEvent> events =
+        List.of(
+            new UserRegistered("U001", "alice@example.com", Instant.now()),
+            new OrderPlaced("O001", "U001", 199.99, Instant.now()),
+            new OrderPlaced("O002", "U002", 49.99, Instant.now()),
+            new UserLoggedIn("U001", "192.168.1.1", Instant.now()),
+            new OrderShipped("O001", "TRACK123", Instant.now()),
+            new ServiceStarted("payment-service", "1.0.0", Instant.now()),
+            new OrderPlaced("O003", "U003", 350.00, Instant.now()));
+
+    // Example 1: Extract high-value orders using For + match()
+    // Compare with the traditional flatMap approach in demonstrateEventFiltering()
+    Prism<DomainEvent, OrderPlaced> orderPlacedPrism = ORDER_EVENT.andThen(ORDER_PLACED);
+
+    Kind<ListKind.Witness, OrderPlaced> highValueOrders =
+        For.from(listMonad, LIST.widen(events))
+            .match(orderPlacedPrism)
+            .when(t -> t._2().amount() > 100.0)
+            .yield((event, order) -> order);
+
+    List<OrderPlaced> highValueList = LIST.narrow(highValueOrders);
+
+    System.out.println("High-value orders (> £100) using For + match():");
+    for (OrderPlaced order : highValueList) {
+      System.out.printf("  Order %s: £%.2f%n", order.orderId(), order.amount());
+    }
+
+    // Example 2: Extract user registration emails
+    Prism<DomainEvent, UserRegistered> userRegisteredPrism = USER_EVENT.andThen(USER_REGISTERED);
+
+    Kind<ListKind.Witness, String> registrationEmails =
+        For.from(listMonad, LIST.widen(events))
+            .match(userRegisteredPrism)
+            .yield((event, registration) -> registration.email());
+
+    List<String> emailList = LIST.narrow(registrationEmails);
+
+    System.out.println("\nRegistration emails using For + match():");
+    for (String email : emailList) {
+      System.out.println("  " + email);
+    }
+
+    // Example 3: Combine match() with focus() for complex extraction
+    // Extract order IDs along with amounts for orders from specific users
+    Kind<ListKind.Witness, String> orderSummaries =
+        For.from(listMonad, LIST.widen(events))
+            .match(orderPlacedPrism)
+            .focus(t -> t._2().userId())
+            .when(t -> t._3().startsWith("U00"))
+            .yield(
+                (event, order, userId) ->
+                    String.format(
+                        "Order %s by %s: £%.2f", order.orderId(), userId, order.amount()));
+
+    List<String> summaryList = LIST.narrow(orderSummaries);
+
+    System.out.println("\nOrder summaries (users U00*) using For + match() + focus():");
+    for (String summary : summaryList) {
+      System.out.println("  " + summary);
+    }
+
+    // Example 4: Count events by type using match() short-circuit behaviour
+    // Only UserEvents pass through this comprehension
+    Kind<ListKind.Witness, String> userEventTypes =
+        For.from(listMonad, LIST.widen(events))
+            .match(USER_EVENT)
+            .yield((event, userEvent) -> userEvent.getClass().getSimpleName());
+
+    List<String> userEventTypeList = LIST.narrow(userEventTypes);
+
+    System.out.println("\nUser event types (others filtered out):");
+    System.out.println("  Types: " + userEventTypeList);
+    System.out.println("  Count: " + userEventTypeList.size() + " user events");
+
+    System.out.println("\n=== For + match() provides declarative, type-safe event filtering ===\n");
   }
 
   // Helper methods
