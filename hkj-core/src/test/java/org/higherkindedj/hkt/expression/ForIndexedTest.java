@@ -316,9 +316,7 @@ class ForIndexedTest {
       List<Player> players = List.of();
 
       Kind<IdKind.Witness, List<Player>> result =
-          ForIndexed.overIndexed(playersTraversal, players, idMonad)
-              .set(scoreLens, i -> 999)
-              .run();
+          ForIndexed.overIndexed(playersTraversal, players, idMonad).set(scoreLens, i -> 999).run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
       assertThat(resultList).isEmpty();
