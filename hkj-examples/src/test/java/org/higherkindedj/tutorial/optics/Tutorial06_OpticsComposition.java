@@ -21,7 +21,7 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 05: Optics Composition - Combining Different Optic Types
+ * Tutorial 06: Optics Composition - Combining Different Optic Types
  *
  * <p>The true power of optics comes from composing different types together. You can chain Lenses,
  * Prisms, and Traversals to navigate complex data structures.
@@ -41,7 +41,7 @@ import org.junit.jupiter.api.Test;
  * <p><strong>Important:</strong> When composing a Lens with a Prism (or vice versa), the result is
  * a Traversal because the Prism might not match, resulting in zero-or-one focus.
  */
-public class Tutorial05_OpticsComposition {
+public class Tutorial06_OpticsComposition {
 
   /** Helper method for incomplete exercises that throws a clear exception. */
   private static <T> T answerRequired() {
@@ -507,7 +507,7 @@ public class Tutorial05_OpticsComposition {
   }
 
   /**
-   * Congratulations! You've completed Tutorial 05: Optics Composition
+   * Congratulations! You've completed Tutorial 06: Optics Composition
    *
    * <p>You now understand:
    *
@@ -521,6 +521,6 @@ public class Tutorial05_OpticsComposition {
    *   <li>How to navigate deeply nested structures with type safety
    * </ul>
    *
-   * <p>Next: Tutorial 06 - Generated Optics
+   * <p>Next: Tutorial 07 - Generated Optics
    */
 }

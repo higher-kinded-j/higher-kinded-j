@@ -20,7 +20,7 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 06: Generated Optics - Leveraging Annotation Processing
+ * Tutorial 07: Generated Optics - Leveraging Annotation Processing
  *
  * <p>Higher-kinded-j provides annotations that automatically generate optics for your types. This
  * eliminates boilerplate and ensures consistency.
@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
  * InterfaceNamePrisms: contains prism instances for each variant - RecordNameTraversals: contains
  * traversal instances for collections
  */
-public class Tutorial06_GeneratedOptics {
+public class Tutorial07_GeneratedOptics {
 
   /** Helper method for incomplete exercises that throws a clear exception. */
   private static <T> T answerRequired() {
@@ -509,13 +509,13 @@ public class Tutorial06_GeneratedOptics {
   }
 
   /**
-   * Congratulations! You've completed Tutorial 06: Generated Optics
+   * Congratulations! You've completed Tutorial 07: Generated Optics
    *
    * <p>You now understand: ✓ How to use @GenerateLenses for automatic lens creation ✓ How to
    * use @GeneratePrisms for sealed interface variants ✓ How to use @GenerateTraversals for
    * collections ✓ How generated optics compose like manual ones ✓ How to use with* helpers for
    * convenient updates ✓ How to combine all three annotations in real scenarios
    *
-   * <p>Next: Tutorial 07 - Real World Optics
+   * <p>Next: Tutorial 08 - Real World Optics
    */
 }

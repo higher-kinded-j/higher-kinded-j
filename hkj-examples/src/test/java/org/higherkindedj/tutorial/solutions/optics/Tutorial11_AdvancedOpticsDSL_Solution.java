@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>This is an advanced topic. Complete Tutorial 08 first.
  */
-public class Tutorial09_AdvancedOpticsDSL_Solution {
+public class Tutorial11_AdvancedOpticsDSL_Solution {
 
   /**
    * Exercise 1: Building a simple program

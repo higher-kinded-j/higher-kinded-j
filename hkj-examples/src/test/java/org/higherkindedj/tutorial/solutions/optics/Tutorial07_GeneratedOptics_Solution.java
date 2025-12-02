@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
  * InterfaceNamePrisms: contains prism instances for each variant - RecordNameTraversals: contains
  * traversal instances for collections
  */
-public class Tutorial06_GeneratedOptics_Solution {
+public class Tutorial07_GeneratedOptics_Solution {
 
   // Sealed interfaces must be at class level
   @GeneratePrisms

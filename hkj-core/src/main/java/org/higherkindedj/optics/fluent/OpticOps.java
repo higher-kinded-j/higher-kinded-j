@@ -24,6 +24,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -199,6 +200,93 @@ public final class OpticOps {
    */
   public static <S, A> Optional<A> preview(S source, Traversal<S, A> traversal) {
     return traversalToFold(traversal).preview(source);
+  }
+
+  /**
+   * Gets the value focused by an {@link Affine}, if present.
+   *
+   * <p>Affines focus on zero or one element, making them ideal for optional fields. This method
+   * returns the focused value wrapped in an {@link Optional}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Optional<String> phone = OpticOps.getOptional(user, userPhoneAffine);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param affine The affine to focus with
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return An {@link Optional} containing the focused value, or empty if not present
+   */
+  public static <S, A> Optional<A> getOptional(S source, Affine<S, A> affine) {
+    return affine.getOptional(source);
+  }
+
+  /**
+   * Sets a new value through an {@link Affine}.
+   *
+   * <p>Affines can set values even when the focus is not currently present, as long as the
+   * underlying structure supports it.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * User updated = OpticOps.set(user, userPhoneAffine, "+44 7700 900000");
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param affine The affine to focus with
+   * @param value The new value to set
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A new structure with the value updated
+   */
+  public static <S, A> S set(S source, Affine<S, A> affine, A value) {
+    return affine.set(value, source);
+  }
+
+  /**
+   * Modifies the value focused by an {@link Affine}, if present.
+   *
+   * <p>If the affine does not focus on a value (i.e., the optional field is absent), the source is
+   * returned unchanged.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * User updated = OpticOps.modify(user, userPhoneAffine, phone -> phone.replace(" ", "-"));
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param affine The affine to focus with
+   * @param modifier The function to transform the focused value
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A new structure with the value modified, or the original if no value was focused
+   */
+  public static <S, A> S modify(S source, Affine<S, A> affine, Function<A, A> modifier) {
+    return affine.modify(modifier, source);
+  }
+
+  /**
+   * Checks if the {@link Affine} focuses on a value in the given structure.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * boolean hasPhone = OpticOps.matches(user, userPhoneAffine);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param affine The affine to check
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return {@code true} if a value is present, {@code false} otherwise
+   */
+  public static <S, A> boolean matches(S source, Affine<S, A> affine) {
+    return affine.matches(source);
   }
 
   /**
@@ -936,6 +1024,19 @@ public final class OpticOps {
     }
 
     /**
+     * Gets the value through an {@link Affine}, returning {@link Optional}.
+     *
+     * <p>Affines focus on zero or one element, making them ideal for optional fields.
+     *
+     * @param affine The affine to focus with
+     * @param <A> The focused value type
+     * @return An {@link Optional} containing the focused value, or empty if not present
+     */
+    public <A> Optional<A> maybeThrough(Affine<S, A> affine) {
+      return affine.getOptional(source);
+    }
+
+    /**
      * Gets all values through a {@link Fold} or {@link Traversal}.
      *
      * @param fold The optic to focus with
@@ -983,6 +1084,21 @@ public final class OpticOps {
     }
 
     /**
+     * Sets a value through an {@link Affine}.
+     *
+     * <p>Affines can set values even when the focus is not currently present, as long as the
+     * underlying structure supports it.
+     *
+     * @param affine The affine to focus with
+     * @param value The new value to set
+     * @param <A> The focused value type
+     * @return A new structure with the value updated
+     */
+    public <A> S through(Affine<S, A> affine, A value) {
+      return affine.set(value, source);
+    }
+
+    /**
      * Sets all values through a {@link Traversal}.
      *
      * @param traversal The traversal to focus with
@@ -1017,6 +1133,21 @@ public final class OpticOps {
      */
     public <A> S through(Lens<S, A> lens, Function<A, A> modifier) {
       return lens.modify(modifier, source);
+    }
+
+    /**
+     * Modifies a value through an {@link Affine}, if present.
+     *
+     * <p>If the affine does not focus on a value (i.e., the optional field is absent), the source
+     * is returned unchanged.
+     *
+     * @param affine The affine to focus with
+     * @param modifier The function to transform the focused value
+     * @param <A> The focused value type
+     * @return A new structure with the value modified, or unchanged if no value was focused
+     */
+    public <A> S through(Affine<S, A> affine, Function<A, A> modifier) {
+      return affine.modify(modifier, source);
     }
 
     /**

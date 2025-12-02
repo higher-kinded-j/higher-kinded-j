@@ -4,7 +4,6 @@ package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
@@ -12,9 +11,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for composing {@link Prism} with {@link Lens} to produce a {@link Traversal}.
+ * Tests for composing {@link Prism} with {@link Lens} to produce an {@link Affine}.
  *
- * <p>This composition follows the standard optic composition rule: Prism >>> Lens = Traversal.
+ * <p>This composition follows the standard optic composition rule: Prism >>> Lens = Affine.
  */
 @DisplayName("Prism.andThen(Lens) Composition Tests")
 class PrismLensCompositionTest {
@@ -40,68 +39,68 @@ class PrismLensCompositionTest {
       Lens.of(Circle::colour, (circle, colour) -> new Circle(circle.radius(), colour));
 
   @Nested
-  @DisplayName("Prism.andThen(Lens) produces Traversal")
+  @DisplayName("Prism.andThen(Lens) produces Affine")
   class PrismAndThenLens {
 
     @Test
-    @DisplayName("should compose to a Traversal")
-    void composesToTraversal() {
-      Traversal<Shape, Double> traversal = circlePrism.andThen(radiusLens);
+    @DisplayName("should compose to an Affine")
+    void composesToAffine() {
+      Affine<Shape, Double> affine = circlePrism.andThen(radiusLens);
 
-      assertThat(traversal).isNotNull();
+      assertThat(affine).isNotNull();
     }
 
     @Test
-    @DisplayName("toList should return value when prism matches")
-    void traversal_toList_returnsValueWhenPrismMatches() {
-      Traversal<Shape, Double> radiusTraversal = circlePrism.andThen(radiusLens);
+    @DisplayName("getOptional should return value when prism matches")
+    void affine_getOptional_returnsValueWhenPrismMatches() {
+      Affine<Shape, Double> radiusAffine = circlePrism.andThen(radiusLens);
       Shape circle = new Circle(5.0, "red");
 
-      List<Double> result = Traversals.getAll(radiusTraversal, circle);
+      Optional<Double> result = radiusAffine.getOptional(circle);
 
-      assertThat(result).containsExactly(5.0);
+      assertThat(result).contains(5.0);
     }
 
     @Test
-    @DisplayName("toList should return empty when prism does not match")
-    void traversal_toList_returnsEmptyWhenPrismDoesNotMatch() {
-      Traversal<Shape, Double> radiusTraversal = circlePrism.andThen(radiusLens);
+    @DisplayName("getOptional should return empty when prism does not match")
+    void affine_getOptional_returnsEmptyWhenPrismDoesNotMatch() {
+      Affine<Shape, Double> radiusAffine = circlePrism.andThen(radiusLens);
       Shape rectangle = new Rectangle(10.0, 20.0, "blue");
 
-      List<Double> result = Traversals.getAll(radiusTraversal, rectangle);
+      Optional<Double> result = radiusAffine.getOptional(rectangle);
 
       assertThat(result).isEmpty();
     }
 
     @Test
     @DisplayName("modify should apply function when prism matches")
-    void traversal_modify_appliesWhenPrismMatches() {
-      Traversal<Shape, Double> radiusTraversal = circlePrism.andThen(radiusLens);
+    void affine_modify_appliesWhenPrismMatches() {
+      Affine<Shape, Double> radiusAffine = circlePrism.andThen(radiusLens);
       Shape circle = new Circle(5.0, "red");
 
-      Shape result = Traversals.modify(radiusTraversal, r -> r * 2, circle);
+      Shape result = radiusAffine.modify(r -> r * 2, circle);
 
       assertThat(result).isEqualTo(new Circle(10.0, "red"));
     }
 
     @Test
     @DisplayName("modify should return unchanged when prism does not match")
-    void traversal_modify_returnsUnchangedWhenPrismDoesNotMatch() {
-      Traversal<Shape, Double> radiusTraversal = circlePrism.andThen(radiusLens);
+    void affine_modify_returnsUnchangedWhenPrismDoesNotMatch() {
+      Affine<Shape, Double> radiusAffine = circlePrism.andThen(radiusLens);
       Shape rectangle = new Rectangle(10.0, 20.0, "blue");
 
-      Shape result = Traversals.modify(radiusTraversal, r -> r * 2, rectangle);
+      Shape result = radiusAffine.modify(r -> r * 2, rectangle);
 
       assertThat(result).isEqualTo(rectangle);
     }
 
     @Test
     @DisplayName("modify should preserve other fields")
-    void traversal_modify_preservesOtherFields() {
-      Traversal<Shape, String> colourTraversal = circlePrism.andThen(circleColourLens);
+    void affine_modify_preservesOtherFields() {
+      Affine<Shape, String> colourAffine = circlePrism.andThen(circleColourLens);
       Shape circle = new Circle(5.0, "red");
 
-      Shape result = Traversals.modify(colourTraversal, String::toUpperCase, circle);
+      Shape result = colourAffine.modify(String::toUpperCase, circle);
 
       assertThat(result).isEqualTo(new Circle(5.0, "RED"));
     }
@@ -130,32 +129,29 @@ class PrismLensCompositionTest {
         Lens.of(ResponseData::message, (data, msg) -> new ResponseData(msg, data.count()));
 
     @Test
-    @DisplayName("should chain traversals from prism-lens composition")
-    void chainsTraversals() {
-      Traversal<ApiResponse, ResponseData> dataTraversal = successPrism.andThen(dataLens);
-      Traversal<ApiResponse, String> messageTraversal =
-          dataTraversal.andThen(messageLens.asTraversal());
+    @DisplayName("should chain affines from prism-lens composition")
+    void chainsAffines() {
+      Affine<ApiResponse, ResponseData> dataAffine = successPrism.andThen(dataLens);
+      Affine<ApiResponse, String> messageAffine = dataAffine.andThen(messageLens);
 
       ApiResponse success = new Success(new ResponseData("hello", 1), "2024-01-01");
 
-      List<String> messages = Traversals.getAll(messageTraversal, success);
-      assertThat(messages).containsExactly("hello");
+      Optional<String> message = messageAffine.getOptional(success);
+      assertThat(message).contains("hello");
 
-      ApiResponse modified = Traversals.modify(messageTraversal, String::toUpperCase, success);
+      ApiResponse modified = messageAffine.modify(String::toUpperCase, success);
       assertThat(modified).isEqualTo(new Success(new ResponseData("HELLO", 1), "2024-01-01"));
     }
 
     @Test
     @DisplayName("should modify nested data correctly")
     void modifiesNestedData() {
-      Traversal<ApiResponse, ResponseData> dataTraversal = successPrism.andThen(dataLens);
+      Affine<ApiResponse, ResponseData> dataAffine = successPrism.andThen(dataLens);
       ApiResponse success = new Success(new ResponseData("success", 1), "2024-01-01");
 
       ApiResponse modified =
-          Traversals.modify(
-              dataTraversal,
-              data -> new ResponseData(data.message().toUpperCase(), data.count() + 100),
-              success);
+          dataAffine.modify(
+              data -> new ResponseData(data.message().toUpperCase(), data.count() + 100), success);
 
       assertThat(modified).isInstanceOf(Success.class);
       Success modifiedSuccess = (Success) modified;
@@ -167,11 +163,10 @@ class PrismLensCompositionTest {
     @Test
     @DisplayName("should leave failure response unchanged")
     void leavesFailureUnchanged() {
-      Traversal<ApiResponse, ResponseData> dataTraversal = successPrism.andThen(dataLens);
+      Affine<ApiResponse, ResponseData> dataAffine = successPrism.andThen(dataLens);
       ApiResponse failure = new Failure("Not Found", 404);
 
-      ApiResponse result =
-          Traversals.modify(dataTraversal, data -> new ResponseData("Modified", 999), failure);
+      ApiResponse result = dataAffine.modify(data -> new ResponseData("Modified", 999), failure);
 
       assertThat(result).isSameAs(failure);
     }
@@ -182,26 +177,28 @@ class PrismLensCompositionTest {
   class ComparisonTests {
 
     @Test
-    @DisplayName("andThen(Lens) should behave same as asTraversal().andThen(lens.asTraversal())")
+    @DisplayName(
+        "andThen(Lens) Affine should behave same as asTraversal().andThen(lens.asTraversal())")
     void behavesLikeAsTraversalComposition() {
       Shape circle = new Circle(5.0, "red");
       Shape rectangle = new Rectangle(10.0, 20.0, "blue");
 
-      // Direct composition
-      Traversal<Shape, Double> direct = circlePrism.andThen(radiusLens);
+      // Direct composition returns Affine
+      Affine<Shape, Double> direct = circlePrism.andThen(radiusLens);
 
-      // Manual composition via asTraversal
+      // Manual composition via asTraversal returns Traversal
       Traversal<Shape, Double> manual = circlePrism.asTraversal().andThen(radiusLens.asTraversal());
 
-      // Both should produce same results for getAll
-      assertThat(Traversals.getAll(direct, circle)).isEqualTo(Traversals.getAll(manual, circle));
-      assertThat(Traversals.getAll(direct, rectangle))
+      // Both should produce same results for getOptional/getAll
+      assertThat(direct.getOptional(circle).stream().toList())
+          .isEqualTo(Traversals.getAll(manual, circle));
+      assertThat(direct.getOptional(rectangle).stream().toList())
           .isEqualTo(Traversals.getAll(manual, rectangle));
 
       // Both should produce same results for modify
-      assertThat(Traversals.modify(direct, r -> r * 2, circle))
+      assertThat(direct.modify(r -> r * 2, circle))
           .isEqualTo(Traversals.modify(manual, r -> r * 2, circle));
-      assertThat(Traversals.modify(direct, r -> r * 2, rectangle))
+      assertThat(direct.modify(r -> r * 2, rectangle))
           .isEqualTo(Traversals.modify(manual, r -> r * 2, rectangle));
     }
   }

@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.tutorial.solutions.optics;
+package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -21,13 +21,18 @@ import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 07: Real World Optics - Practical Applications
+ * Tutorial 08: Real World Optics - Practical Applications
  *
  * <p>In this final tutorial, we'll apply optics to solve real-world problems: 1. Updating user
  * profiles in a database 2. Processing API responses with nested structures 3. Batch operations on
  * complex data
  */
-public class Tutorial07_RealWorldOptics_Solution {
+public class Tutorial08_RealWorldOptics {
+
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
 
   // Sealed interfaces must be at class level
   @GeneratePrisms
@@ -185,17 +190,16 @@ public class Tutorial07_RealWorldOptics_Solution {
             new UserSettings(
                 new NotificationPrefs(true, false, true), new PrivacySettings(false, false)));
 
-    // Compose lenses: UserProfile -> UserSettings -> NotificationPrefs -> email
-    Lens<UserProfile, Boolean> emailNotifLens =
-        UserProfileLenses.settings()
-            .andThen(UserSettingsLenses.notifications())
-            .andThen(NotificationPrefsLenses.email());
+    // TODO: Replace null with a lens that accesses the email notification preference
+    // Hint: Compose lenses through settings -> notifications -> email
+    Lens<UserProfile, Boolean> emailNotifLens = answerRequired();
 
     // Enable email notifications
     UserProfile updated = emailNotifLens.set(true, user);
     assertThat(updated.settings().notifications().email()).isTrue();
 
-    // Compose lens to access publicProfile setting
+    // TODO: Replace null with code that toggles the publicProfile setting
+    // Hint: Use the privacy lens and modify with boolean negation
     Lens<UserProfile, Boolean> publicProfileLens =
         UserProfileLenses.settings()
             .andThen(UserSettingsLenses.privacy())
@@ -272,17 +276,14 @@ public class Tutorial07_RealWorldOptics_Solution {
     Traversal<SuccessResponse2, Location2> locationsTraversal =
         SuccessResponseTraversals.locations();
 
-    // Compose: success prism -> locations traversal -> city lens
-    Traversal<ApiResponse2, String> citiesTraversal =
-        successPrism
-            .asTraversal()
-            .andThen(locationsTraversal)
-            .andThen(LocationLenses.city().asTraversal());
+    // TODO: Replace null with a composed optic that extracts all city names
+    // Hint: Compose success prism -> locations traversal -> city lens
+    Traversal<ApiResponse2, String> citiesTraversal = answerRequired();
 
     List<String> cities = Traversals.getAll(citiesTraversal, response);
     assertThat(cities).containsExactly("New York", "London");
 
-    // Compose traversal to adjust all latitudes
+    // TODO: Replace null with code that adjusts all latitudes by +1.0
     Traversal<ApiResponse2, Double> latitudesTraversal =
         successPrism
             .asTraversal()
@@ -292,7 +293,7 @@ public class Tutorial07_RealWorldOptics_Solution {
 
     ApiResponse2 adjusted = Traversals.modify(latitudesTraversal, lat -> lat + 1.0, response);
     var successData = (SuccessResponse2) adjusted;
-    assertThat(successData.locations().get(0).coords().lat()).isCloseTo(41.7128, within(0.001));
+    assertThat(successData.locations().getFirst().coords().lat()).isCloseTo(41.7128, within(0.001));
   }
 
   /**
@@ -379,21 +380,20 @@ public class Tutorial07_RealWorldOptics_Solution {
             new Pending3(),
             0.0);
 
-    // Compose traversal: items -> price
-    Traversal<Order, Double> pricesTraversal =
-        OrderTraversals.items().andThen(LineItemLenses.price().asTraversal());
+    // TODO: Replace null with a traversal that accesses all item prices
+    Traversal<Order, Double> pricesTraversal = answerRequired();
 
-    // Calculate total before discount (sum of unit prices)
+    // Calculate total before discount
     List<Double> prices = Traversals.getAll(pricesTraversal, order);
     double total = prices.stream().mapToDouble(p -> p).sum();
-    assertThat(total).isEqualTo(35.0); // 10.0 + 25.0 (unit prices only)
+    assertThat(total).isEqualTo(45.0); // 2*10 + 1*25
 
-    // Apply 10% discount to all items (multiply by 0.9)
-    Order discounted = Traversals.modify(pricesTraversal, price -> price * 0.9, order);
+    // TODO: Replace null with code that applies a 10% discount to all items
+    Order discounted = answerRequired();
 
     List<Double> newPrices = Traversals.getAll(pricesTraversal, discounted);
     double newTotal = newPrices.stream().mapToDouble(p -> p).sum();
-    assertThat(newTotal).isCloseTo(31.5, within(0.01)); // 35.0 * 0.9
+    assertThat(newTotal).isCloseTo(40.5, within(0.01)); // 45 * 0.9
 
     // Update order status to shipped
     Lens<Order, OrderStatus3> statusLens = OrderLenses.status();
@@ -497,17 +497,16 @@ public class Tutorial07_RealWorldOptics_Solution {
                     "bob@example.com",
                     List.of(new Address("456 oak ave", "shelbyville", "il", "62702")))));
 
-    // Compose traversal: customers -> name
-    Traversal<CustomerDatabase, String> namesTraversal =
-        CustomerDatabaseTraversals.customers().andThen(CustomerLenses.name().asTraversal());
+    // TODO: Replace null with a traversal that accesses all customer names
+    Traversal<CustomerDatabase, String> namesTraversal = answerRequired();
 
     // Trim and normalize names
-    CustomerDatabase normalized = Traversals.modify(namesTraversal, String::trim, db);
+    CustomerDatabase normalized = Traversals.modify(namesTraversal, name -> name.trim(), db);
 
     List<String> names = Traversals.getAll(namesTraversal, normalized);
     assertThat(names.get(0)).isEqualTo("Alice Smith"); // Trimmed
 
-    // Compose traversal: customers -> addresses -> city
+    // TODO: Replace null with a traversal that accesses all city names in all addresses
     Traversal<CustomerDatabase, String> citiesTraversal =
         CustomerDatabaseTraversals.customers()
             .andThen(CustomerTraversals.addresses())
@@ -611,9 +610,8 @@ public class Tutorial07_RealWorldOptics_Solution {
             new DatabaseConfig("localhost", 5432, "dev_user", false),
             new CacheConfig("localhost", 6379, 3600));
 
-    // Compose lens: AppConfig -> DatabaseConfig -> ssl
-    Lens<AppConfig, Boolean> dbSslLens =
-        AppConfigLenses.database().andThen(DatabaseConfigLenses.ssl());
+    // TODO: Replace null with a lens to access the database SSL setting
+    Lens<AppConfig, Boolean> dbSslLens = answerRequired();
 
     // Enable SSL for production
     AppConfig prodConfig = AppConfigLenses.environment().set("production", devConfig);
@@ -622,14 +620,15 @@ public class Tutorial07_RealWorldOptics_Solution {
     assertThat(prodConfig.environment()).isEqualTo("production");
     assertThat(prodConfig.database().ssl()).isTrue();
 
-    // Update both database and cache hosts
+    // TODO: Replace null with code that updates both database and cache hosts to
+    // "prod.example.com"
     Lens<AppConfig, String> dbHostLens =
         AppConfigLenses.database().andThen(DatabaseConfigLenses.host());
     Lens<AppConfig, String> cacheHostLens =
         AppConfigLenses.cache().andThen(CacheConfigLenses.host());
 
     AppConfig updated = dbHostLens.set("prod.example.com", prodConfig);
-    updated = cacheHostLens.set("prod.example.com", updated);
+    updated = answerRequired();
 
     assertThat(updated.database().host()).isEqualTo("prod.example.com");
     assertThat(updated.cache().host()).isEqualTo("prod.example.com");
@@ -725,7 +724,7 @@ public class Tutorial07_RealWorldOptics_Solution {
 
     Prism<Event6, Purchase6> purchasePrism = EventPrisms.purchase();
 
-    // Compose traversal: events -> purchases -> amount
+    // TODO: Replace null with a traversal that gets all purchase amounts
     Traversal<EventStream, Double> purchaseAmounts =
         EventStreamTraversals.events()
             .andThen(purchasePrism.asTraversal())
@@ -739,7 +738,7 @@ public class Tutorial07_RealWorldOptics_Solution {
   }
 
   /**
-   * Congratulations! You've completed Tutorial 07: Real World Optics
+   * Congratulations! You've completed Tutorial 08: Real World Optics
    *
    * <p>You now understand: ✓ How to manage nested user profiles and settings ✓ How to process
    * complex API responses ✓ How to handle e-commerce orders with optics ✓ How to validate and

@@ -18,7 +18,7 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 09: Advanced Optics DSL - Free Monad for Complex Workflows
+ * Tutorial 11: Advanced Optics DSL - Free Monad for Complex Workflows
  *
  * <p>The Free Monad DSL allows you to build optic operations as composable data structures that can
  * be interpreted in multiple ways:
@@ -38,9 +38,9 @@ import org.junit.jupiter.api.Test;
  * <p>When NOT to Use: - Simple one-off operations (use OpticOps instead) - No need for multiple
  * interpretations
  *
- * <p>This is an advanced topic. Complete Tutorial 08 first.
+ * <p>This is an advanced topic. Complete Tutorial 09 first.
  */
-public class Tutorial09_AdvancedOpticsDSL {
+public class Tutorial11_AdvancedOpticsDSL {
 
   /** Helper method for incomplete exercises that throws a clear exception. */
   private static <T> T answerRequired() {
@@ -480,7 +480,7 @@ public class Tutorial09_AdvancedOpticsDSL {
   }
 
   /**
-   * Congratulations! You've completed Tutorial 09: Advanced Optics DSL
+   * Congratulations! You've completed Tutorial 11: Advanced Optics DSL
    *
    * <p>You now understand: ✓ How to build optic programs as Free monad data structures ✓ Composing
    * programs with flatMap for multi-step workflows ✓ Conditional logic in programs (if-then-else) ✓
@@ -490,7 +490,7 @@ public class Tutorial09_AdvancedOpticsDSL {
    * <p>Key Takeaways: - Free monads separate program description from execution - Multiple
    * interpreters enable different execution strategies - Great for complex workflows requiring
    * audit trails - Logging interpreter provides automatic audit trail - Validation interpreter
-   * enables dry-run checks - For simple operations, use OpticOps (Tutorial 08) instead
+   * enables dry-run checks - For simple operations, use OpticOps (Tutorial 09) instead
    *
    * <p>You've completed all optics tutorials! 🎉
    *

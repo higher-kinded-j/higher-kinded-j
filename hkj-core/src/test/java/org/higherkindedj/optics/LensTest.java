@@ -146,7 +146,7 @@ class LensTest {
     }
 
     @Test
-    @DisplayName("andThen(Prism) should compose Lens and Prism into Traversal")
+    @DisplayName("andThen(Prism) should compose Lens and Prism into Affine")
     void andThenPrism() {
       Lens<Profile, Json> profileJsonLens = Lens.of(Profile::data, (p, j) -> new Profile(j));
       Prism<Json, String> jsonStringPrism =
@@ -154,20 +154,47 @@ class LensTest {
               json -> json instanceof JsonString s ? Optional.of(s.value()) : Optional.empty(),
               JsonString::new);
 
-      // Direct composition: Lens >>> Prism = Traversal
-      Traversal<Profile, String> profileToStringTraversal =
-          profileJsonLens.andThen(jsonStringPrism);
+      // Direct composition: Lens >>> Prism = Affine
+      Affine<Profile, String> profileToStringAffine = profileJsonLens.andThen(jsonStringPrism);
 
       Profile stringProfile = new Profile(new JsonString("some data"));
       Profile numberProfile = new Profile(new JsonNumber(123));
 
       Profile updatedStringProfile =
-          Traversals.modify(profileToStringTraversal, String::toUpperCase, stringProfile);
+          profileToStringAffine.modify(String::toUpperCase, stringProfile);
       assertThat(updatedStringProfile.data()).isEqualTo(new JsonString("SOME DATA"));
 
       Profile updatedNumberProfile =
-          Traversals.modify(profileToStringTraversal, String::toUpperCase, numberProfile);
+          profileToStringAffine.modify(String::toUpperCase, numberProfile);
       assertThat(updatedNumberProfile.data()).isEqualTo(new JsonNumber(123));
+    }
+
+    @Test
+    @DisplayName("andThen(Affine) should compose Lens and Affine into Affine")
+    void andThenAffine() {
+      // Create an Affine that focuses on the value of a JsonString if present
+      Affine<Json, String> jsonStringAffine =
+          Affine.of(
+              json -> json instanceof JsonString s ? Optional.of(s.value()) : Optional.empty(),
+              (json, newValue) -> new JsonString(newValue));
+
+      Lens<Profile, Json> profileJsonLens = Lens.of(Profile::data, (p, j) -> new Profile(j));
+
+      // Direct composition: Lens >>> Affine = Affine
+      Affine<Profile, String> composed = profileJsonLens.andThen(jsonStringAffine);
+
+      Profile stringProfile = new Profile(new JsonString("some data"));
+      Profile numberProfile = new Profile(new JsonNumber(123));
+
+      // Test getOptional when Affine matches
+      assertThat(composed.getOptional(stringProfile)).isPresent().contains("some data");
+
+      // Test getOptional when Affine doesn't match
+      assertThat(composed.getOptional(numberProfile)).isEmpty();
+
+      // Test set - always uses the lens path
+      Profile updated = composed.set("NEW DATA", stringProfile);
+      assertThat(updated.data()).isEqualTo(new JsonString("NEW DATA"));
     }
 
     @Test

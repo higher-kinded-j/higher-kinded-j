@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -936,5 +937,105 @@ class OpticOpsTest {
 
     assertTrue(result.isRight());
     assertEquals("alice", result.getRight().username()); // Normalized to lowercase
+  }
+
+  // ============================================================================
+  // Affine Static Method Tests
+  // ============================================================================
+
+  record Profile(String name, Optional<String> bio) {}
+
+  static final Affine<Profile, String> PROFILE_BIO_AFFINE =
+      Affine.of(Profile::bio, (profile, bio) -> new Profile(profile.name(), Optional.of(bio)));
+
+  @Test
+  void testGetOptionalWithAffineWhenPresent() {
+    Profile profile = new Profile("Alice", Optional.of("Software Engineer"));
+
+    Optional<String> bio = OpticOps.getOptional(profile, PROFILE_BIO_AFFINE);
+
+    assertTrue(bio.isPresent());
+    assertEquals("Software Engineer", bio.get());
+  }
+
+  @Test
+  void testGetOptionalWithAffineWhenAbsent() {
+    Profile profile = new Profile("Alice", Optional.empty());
+
+    Optional<String> bio = OpticOps.getOptional(profile, PROFILE_BIO_AFFINE);
+
+    assertTrue(bio.isEmpty());
+  }
+
+  @Test
+  void testSetWithAffine() {
+    Profile profile = new Profile("Alice", Optional.of("Old bio"));
+
+    Profile updated = OpticOps.set(profile, PROFILE_BIO_AFFINE, "New bio");
+
+    assertTrue(updated.bio().isPresent());
+    assertEquals("New bio", updated.bio().get());
+  }
+
+  @Test
+  void testModifyWithAffine() {
+    Profile profile = new Profile("Alice", Optional.of("software engineer"));
+
+    Profile updated = OpticOps.modify(profile, PROFILE_BIO_AFFINE, String::toUpperCase);
+
+    assertTrue(updated.bio().isPresent());
+    assertEquals("SOFTWARE ENGINEER", updated.bio().get());
+  }
+
+  @Test
+  void testMatchesWithAffineWhenPresent() {
+    Profile profile = new Profile("Alice", Optional.of("Software Engineer"));
+
+    boolean matches = OpticOps.matches(profile, PROFILE_BIO_AFFINE);
+
+    assertTrue(matches);
+  }
+
+  @Test
+  void testMatchesWithAffineWhenAbsent() {
+    Profile profile = new Profile("Alice", Optional.empty());
+
+    boolean matches = OpticOps.matches(profile, PROFILE_BIO_AFFINE);
+
+    assertFalse(matches);
+  }
+
+  // ============================================================================
+  // Affine Fluent Builder Tests
+  // ============================================================================
+
+  @Test
+  void testGettingMaybeThroughAffine() {
+    Profile profile = new Profile("Alice", Optional.of("Software Engineer"));
+
+    Optional<String> bio = OpticOps.getting(profile).maybeThrough(PROFILE_BIO_AFFINE);
+
+    assertTrue(bio.isPresent());
+    assertEquals("Software Engineer", bio.get());
+  }
+
+  @Test
+  void testSettingThroughAffine() {
+    Profile profile = new Profile("Alice", Optional.of("Old bio"));
+
+    Profile updated = OpticOps.setting(profile).through(PROFILE_BIO_AFFINE, "New bio");
+
+    assertTrue(updated.bio().isPresent());
+    assertEquals("New bio", updated.bio().get());
+  }
+
+  @Test
+  void testModifyingThroughAffine() {
+    Profile profile = new Profile("Alice", Optional.of("software engineer"));
+
+    Profile updated = OpticOps.modifying(profile).through(PROFILE_BIO_AFFINE, String::toUpperCase);
+
+    assertTrue(updated.bio().isPresent());
+    assertEquals("SOFTWARE ENGINEER", updated.bio().get());
   }
 }

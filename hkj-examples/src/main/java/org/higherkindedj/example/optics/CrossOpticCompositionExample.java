@@ -4,6 +4,7 @@ package org.higherkindedj.example.optics;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -17,12 +18,12 @@ import org.higherkindedj.optics.util.Traversals;
  * <p>This example showcases the new direct composition methods:
  *
  * <ul>
- *   <li>{@code Lens.andThen(Prism)} - Returns a {@code Traversal}
- *   <li>{@code Prism.andThen(Lens)} - Returns a {@code Traversal}
+ *   <li>{@code Lens.andThen(Prism)} - Returns an {@code Affine}
+ *   <li>{@code Prism.andThen(Lens)} - Returns an {@code Affine}
  * </ul>
  *
  * <p>These compositions follow the standard optic composition rules where composing with a Prism
- * (which may not match) results in a Traversal (zero-or-one focus) rather than maintaining the
+ * (which may not match) results in an Affine (zero-or-one focus) rather than maintaining the
  * original optic type.
  */
 public class CrossOpticCompositionExample {
@@ -64,13 +65,13 @@ public class CrossOpticCompositionExample {
   }
 
   /**
-   * Demonstrates Lens >>> Prism = Traversal.
+   * Demonstrates Lens >>> Prism = Affine.
    *
    * <p>When you have a product type (record) containing an optional field, you can compose a Lens
-   * with the {@code Prisms.some()} prism to get a Traversal that focuses on the value when present.
+   * with the {@code Prisms.some()} prism to get an Affine that focuses on the value when present.
    */
   private static void demonstrateLensAndThenPrism() {
-    System.out.println("--- Lens.andThen(Prism) = Traversal ---");
+    System.out.println("--- Lens.andThen(Prism) = Affine ---");
     System.out.println("Scenario: Config with optional DatabaseSettings\n");
 
     // Create optics
@@ -79,34 +80,32 @@ public class CrossOpticCompositionExample {
 
     Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-    // Direct composition: Lens >>> Prism = Traversal
-    Traversal<Config, DatabaseSettings> databaseTraversal = databaseLens.andThen(somePrism);
+    // Direct composition: Lens >>> Prism = Affine
+    Affine<Config, DatabaseSettings> databaseAffine = databaseLens.andThen(somePrism);
 
     // Test data
     Config configWithDb =
         new Config("production", Optional.of(new DatabaseSettings("localhost", 5432, "admin")));
     Config configWithoutDb = new Config("development", Optional.empty());
 
-    // Get all focused values
-    List<DatabaseSettings> withDbResult = Traversals.getAll(databaseTraversal, configWithDb);
-    List<DatabaseSettings> withoutDbResult = Traversals.getAll(databaseTraversal, configWithoutDb);
+    // Get focused value (Optional)
+    Optional<DatabaseSettings> withDbResult = databaseAffine.getOptional(configWithDb);
+    Optional<DatabaseSettings> withoutDbResult = databaseAffine.getOptional(configWithoutDb);
 
     System.out.println("Config with database:");
     System.out.println("  Input: " + configWithDb);
-    System.out.println("  Focused values: " + withDbResult);
+    System.out.println("  Focused value: " + withDbResult);
     System.out.println();
 
     System.out.println("Config without database:");
     System.out.println("  Input: " + configWithoutDb);
-    System.out.println("  Focused values: " + withoutDbResult + " (empty - prism didn't match)");
+    System.out.println("  Focused value: " + withoutDbResult + " (empty - prism didn't match)");
     System.out.println();
 
     // Modify the focused value
     Config modifiedConfig =
-        Traversals.modify(
-            databaseTraversal,
-            db -> new DatabaseSettings(db.host(), db.port() + 1, db.username()),
-            configWithDb);
+        databaseAffine.modify(
+            db -> new DatabaseSettings(db.host(), db.port() + 1, db.username()), configWithDb);
 
     System.out.println("After modifying port (+1):");
     System.out.println("  Result: " + modifiedConfig);
@@ -114,10 +113,8 @@ public class CrossOpticCompositionExample {
 
     // Modification on empty config leaves it unchanged
     Config unchangedConfig =
-        Traversals.modify(
-            databaseTraversal,
-            db -> new DatabaseSettings("new-host", 9999, db.username()),
-            configWithoutDb);
+        databaseAffine.modify(
+            db -> new DatabaseSettings("new-host", 9999, db.username()), configWithoutDb);
 
     System.out.println("Modifying config without database:");
     System.out.println("  Result: " + unchangedConfig + " (unchanged - nothing to modify)");
@@ -125,13 +122,13 @@ public class CrossOpticCompositionExample {
   }
 
   /**
-   * Demonstrates Prism >>> Lens = Traversal.
+   * Demonstrates Prism >>> Lens = Affine.
    *
    * <p>When you have a sum type (sealed interface) and want to access a field from a specific case,
-   * compose a Prism with a Lens to get a Traversal.
+   * compose a Prism with a Lens to get an Affine.
    */
   private static void demonstratePrismAndThenLens() {
-    System.out.println("--- Prism.andThen(Lens) = Traversal ---");
+    System.out.println("--- Prism.andThen(Lens) = Affine ---");
     System.out.println("Scenario: ApiResponse sum type with Success/Failure cases\n");
 
     // Create optics
@@ -141,17 +138,17 @@ public class CrossOpticCompositionExample {
     Lens<Success, ResponseData> dataLens =
         Lens.of(Success::data, (success, data) -> new Success(data, success.timestamp()));
 
-    // Direct composition: Prism >>> Lens = Traversal
-    Traversal<ApiResponse, ResponseData> successDataTraversal = successPrism.andThen(dataLens);
+    // Direct composition: Prism >>> Lens = Affine
+    Affine<ApiResponse, ResponseData> successDataAffine = successPrism.andThen(dataLens);
 
     // Test data
     ApiResponse successResponse =
         new Success(new ResponseData("Operation completed", 42), "2024-01-15T10:30:00Z");
     ApiResponse failureResponse = new Failure("Not found", 404);
 
-    // Get all focused values
-    List<ResponseData> fromSuccess = Traversals.getAll(successDataTraversal, successResponse);
-    List<ResponseData> fromFailure = Traversals.getAll(successDataTraversal, failureResponse);
+    // Get focused value (Optional)
+    Optional<ResponseData> fromSuccess = successDataAffine.getOptional(successResponse);
+    Optional<ResponseData> fromFailure = successDataAffine.getOptional(failureResponse);
 
     System.out.println("Success response:");
     System.out.println("  Input: " + successResponse);
@@ -165,16 +162,12 @@ public class CrossOpticCompositionExample {
 
     // Modify only success responses
     ApiResponse modifiedSuccess =
-        Traversals.modify(
-            successDataTraversal,
-            data -> new ResponseData(data.message().toUpperCase(), data.count()),
-            successResponse);
+        successDataAffine.modify(
+            data -> new ResponseData(data.message().toUpperCase(), data.count()), successResponse);
 
     ApiResponse unchangedFailure =
-        Traversals.modify(
-            successDataTraversal,
-            data -> new ResponseData(data.message().toUpperCase(), data.count()),
-            failureResponse);
+        successDataAffine.modify(
+            data -> new ResponseData(data.message().toUpperCase(), data.count()), failureResponse);
 
     System.out.println("After uppercasing message:");
     System.out.println("  Success: " + modifiedSuccess);
@@ -239,9 +232,9 @@ public class CrossOpticCompositionExample {
     Lens<Circle, String> colourLens =
         Lens.of(Circle::colour, (circle, c) -> new Circle(circle.radius(), c));
 
-    // Prism >>> Lens = Traversal
-    Traversal<Shape, Double> circleRadiusTraversal = circlePrism.andThen(radiusLens);
-    Traversal<Shape, String> circleColourTraversal = circlePrism.andThen(colourLens);
+    // Prism >>> Lens = Affine
+    Affine<Shape, Double> circleRadiusAffine = circlePrism.andThen(radiusLens);
+    Affine<Shape, String> circleColourAffine = circlePrism.andThen(colourLens);
 
     // Test data
     List<Shape> shapes =
@@ -254,9 +247,9 @@ public class CrossOpticCompositionExample {
     System.out.println("Original shapes: " + shapes);
     System.out.println();
 
-    // Extract all circle radii using Traversals.forList() combined with our traversal
+    // Extract all circle radii using Traversals.forList() combined with our affine (as Traversal)
     Traversal<List<Shape>, Double> allCircleRadii =
-        Traversals.<Shape>forList().andThen(circleRadiusTraversal);
+        Traversals.<Shape>forList().andThen(circleRadiusAffine.asTraversal());
 
     List<Double> radii = Traversals.getAll(allCircleRadii, shapes);
     System.out.println("All circle radii: " + radii);
@@ -268,7 +261,7 @@ public class CrossOpticCompositionExample {
 
     // Change all circle colours to "purple"
     Traversal<List<Shape>, String> allCircleColours =
-        Traversals.<Shape>forList().andThen(circleColourTraversal);
+        Traversals.<Shape>forList().andThen(circleColourAffine.asTraversal());
 
     List<Shape> recolouredShapes =
         Traversals.modify(allCircleColours, _ -> "purple", modifiedShapes);

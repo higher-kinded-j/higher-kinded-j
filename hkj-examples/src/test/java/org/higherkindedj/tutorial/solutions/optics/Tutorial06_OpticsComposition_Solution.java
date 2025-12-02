@@ -11,6 +11,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -41,7 +42,7 @@ import org.junit.jupiter.api.Test;
  * <p><strong>Important:</strong> When composing a Lens with a Prism (or vice versa), the result is
  * a Traversal because the Prism might not match, resulting in zero-or-one focus.
  */
-public class Tutorial05_OpticsComposition_Solution {
+public class Tutorial06_OpticsComposition_Solution {
 
   // Shared sealed interfaces for exercises (must be at class level)
 
@@ -128,17 +129,17 @@ public class Tutorial05_OpticsComposition_Solution {
     Lens<Order, PaymentMethod1> orderToPayment = OrderLenses.payment();
     Prism<PaymentMethod1, CreditCard1> creditCardPrism = PaymentMethodPrisms.creditCard();
 
-    // SOLUTION: Compose Lens + Prism = Traversal
-    Traversal<Order, CreditCard1> orderToCreditCard = orderToPayment.andThen(creditCardPrism);
+    // SOLUTION: Compose Lens + Prism = Affine
+    Affine<Order, CreditCard1> orderToCreditCard = orderToPayment.andThen(creditCardPrism);
 
-    // Use Traversals.getAll to extract the credit card (returns list with 0 or 1 element)
-    List<CreditCard1> cards = Traversals.getAll(orderToCreditCard, order);
-    assertThat(cards).hasSize(1);
-    assertThat(cards.get(0).number()).isEqualTo("1234-5678");
+    // Use Affine.getOptional to extract the credit card
+    Optional<CreditCard1> card = orderToCreditCard.getOptional(order);
+    assertThat(card).isPresent();
+    assertThat(card.get().number()).isEqualTo("1234-5678");
 
-    // For cash orders, the traversal finds no credit cards
-    List<CreditCard1> noCards = Traversals.getAll(orderToCreditCard, cashOrder);
-    assertThat(noCards).isEmpty();
+    // For cash orders, the affine finds no credit cards
+    Optional<CreditCard1> noCard = orderToCreditCard.getOptional(cashOrder);
+    assertThat(noCard).isEmpty();
   }
 
   /**
@@ -174,15 +175,15 @@ public class Tutorial05_OpticsComposition_Solution {
     Prism<PaymentMethod1, CreditCard1> creditCardPrism = PaymentMethodPrisms.creditCard();
     Lens<CreditCard1, String> cvvLens = CreditCardLenses.cvv();
 
-    // SOLUTION: Compose Prism + Lens = Traversal
-    Traversal<PaymentMethod1, String> cvvTraversal = creditCardPrism.andThen(cvvLens);
+    // SOLUTION: Compose Prism + Lens = Affine
+    Affine<PaymentMethod1, String> cvvAffine = creditCardPrism.andThen(cvvLens);
 
-    // Modify the CVV using Traversals.modify
-    PaymentMethod1 updated = Traversals.modify(cvvTraversal, cvv -> "999", creditCard);
+    // Modify the CVV using Affine.modify
+    PaymentMethod1 updated = cvvAffine.modify(cvv -> "999", creditCard);
     assertThat(((CreditCard1) updated).cvv()).isEqualTo("999");
 
-    // Modifying cash payment does nothing (traversal doesn't match)
-    PaymentMethod1 unchangedCash = Traversals.modify(cvvTraversal, cvv -> "999", cash);
+    // Modifying cash payment does nothing (affine doesn't match)
+    PaymentMethod1 unchangedCash = cvvAffine.modify(cvv -> "999", cash);
     assertThat(unchangedCash).isSameAs(cash);
   }
 

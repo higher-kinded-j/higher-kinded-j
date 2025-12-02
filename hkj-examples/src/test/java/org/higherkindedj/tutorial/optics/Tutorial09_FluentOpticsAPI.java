@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.tutorial.solutions.optics;
+package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,12 +17,11 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
-import org.higherkindedj.optics.fluent.OpticOps;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tutorial 08: Fluent Optics API - Ergonomic Data Access
+ * Tutorial 09: Fluent Optics API - Ergonomic Data Access
  *
  * <p>The OpticOps class provides a more fluent, Java-friendly API for working with optics. It
  * offers two complementary styles:
@@ -36,9 +35,14 @@ import org.junit.jupiter.api.Test;
  * operations with Either, Maybe, and Validated - Query operations (exists, count, find) - Cleaner
  * syntax for common patterns
  *
- * <p>This tutorial covers the fluent API. For the Free Monad DSL approach, see Tutorial 09.
+ * <p>This tutorial covers the fluent API. For the Free Monad DSL approach, see Tutorial 11.
  */
-public class Tutorial08_FluentOpticsAPI_Solution {
+public class Tutorial09_FluentOpticsAPI {
+
+  /** Helper method for incomplete exercises that throws a clear exception. */
+  private static <T> T answerRequired() {
+    throw new RuntimeException("Answer required");
+  }
 
   // Manual traversal/lens implementations (annotation processor generates these in real projects)
 
@@ -88,13 +92,15 @@ public class Tutorial08_FluentOpticsAPI_Solution {
     Lens<Person, String> nameLens = PersonLenses.name();
     Lens<Person, Integer> ageLens = PersonLenses.age();
 
-    // Use OpticOps.get() with source-first parameter ordering
-    String name = OpticOps.get(person, nameLens);
+    // TODO: Replace null with OpticOps.get() to extract the name
+    // Hint: OpticOps.get(person, nameLens)
+    String name = answerRequired();
 
     assertThat(name).isEqualTo("Alice");
 
-    // Use OpticOps.set() with source-first parameter ordering
-    Person updated = OpticOps.set(person, ageLens, 31);
+    // TODO: Replace null with OpticOps.set() to update the age to 31
+    // Hint: OpticOps.set(person, ageLens, 31)
+    Person updated = answerRequired();
 
     assertThat(updated.age()).isEqualTo(31);
     assertThat(updated.name()).isEqualTo("Alice"); // Other fields unchanged
@@ -128,13 +134,15 @@ public class Tutorial08_FluentOpticsAPI_Solution {
     Lens<Person, String> nameLens = PersonLenses.name();
     Lens<Person, Integer> ageLens = PersonLenses.age();
 
-    // Use OpticOps.modify() to increment age by 1
-    Person older = OpticOps.modify(person, ageLens, age -> age + 1);
+    // TODO: Replace null with OpticOps.modify() to increment age by 1
+    // Hint: OpticOps.modify(person, ageLens, age -> age + 1)
+    Person older = answerRequired();
 
     assertThat(older.age()).isEqualTo(31);
 
-    // Use OpticOps.modify() to uppercase the name
-    Person capitalized = OpticOps.modify(person, nameLens, String::toUpperCase);
+    // TODO: Replace null with OpticOps.modify() to uppercase the name
+    // Hint: OpticOps.modify(person, nameLens, String::toUpperCase)
+    Person capitalized = answerRequired();
 
     assertThat(capitalized.name()).isEqualTo("ALICE");
   }
@@ -177,16 +185,17 @@ public class Tutorial08_FluentOpticsAPI_Solution {
     Traversal<Team, String> playerNames =
         TeamTraversals.players().andThen(PlayerLenses.name().asTraversal());
 
-    // Use OpticOps.getAll() to extract all player names
-    List<String> names = OpticOps.getAll(team, playerNames);
+    // TODO: Replace null with OpticOps.getAll() to extract all player names
+    // Hint: OpticOps.getAll(team, playerNames)
+    List<String> names = answerRequired();
 
     assertThat(names).containsExactly("Alice", "Bob");
 
     Traversal<Team, Player> playersTraversal = TeamTraversals.players();
 
-    // Use OpticOps.modifyAll() to give everyone +10 bonus points
-    Team bonusApplied =
-        OpticOps.modifyAll(team, playersTraversal, p -> new Player(p.name(), p.score() + 10));
+    // TODO: Replace null with OpticOps.modifyAll() to give everyone +10 bonus points
+    // Hint: OpticOps.modifyAll(team, playersTraversal, p -> new Player(p.name(), p.score() + 10))
+    Team bonusApplied = answerRequired();
 
     assertThat(bonusApplied.players().get(0).score()).isEqualTo(110);
     assertThat(bonusApplied.players().get(1).score()).isEqualTo(100);
@@ -232,20 +241,23 @@ public class Tutorial08_FluentOpticsAPI_Solution {
     Traversal<Team, Integer> scores =
         TeamTraversals.players().andThen(PlayerLenses.score().asTraversal());
 
-    // Use OpticOps.exists() to check if any score >= 100
-    boolean hasHighScorers = OpticOps.exists(team, scores, score -> score >= 100);
+    // TODO: Replace false with OpticOps.exists() to check if any score >= 100
+    // Hint: OpticOps.exists(team, scores, score -> score >= 100)
+    boolean hasHighScorers = answerRequired();
 
     assertThat(hasHighScorers).isTrue();
 
-    // Use OpticOps.count() to count total players
-    int playerCount = OpticOps.count(team, TeamTraversals.players());
+    // TODO: Replace 0 with OpticOps.count() to count total players
+    // Hint: OpticOps.count(team, TeamTraversals.players())
+    int playerCount = answerRequired();
 
     assertThat(playerCount).isEqualTo(3);
 
     Traversal<Team, Player> players = TeamTraversals.players();
 
-    // Use OpticOps.find() to find first player with score > 100
-    Optional<Player> topPlayer = OpticOps.find(team, players, p -> p.score() > 100);
+    // TODO: Replace null with OpticOps.find() to find first player with score > 100
+    // Hint: OpticOps.find(team, players, p -> p.score() > 100)
+    Optional<Player> topPlayer = answerRequired();
 
     assertThat(topPlayer).isPresent();
     assertThat(topPlayer.get().name()).isEqualTo("Alice");
@@ -290,8 +302,9 @@ public class Tutorial08_FluentOpticsAPI_Solution {
           return Either.right(email.toLowerCase());
         };
 
-    // Use OpticOps.modifyEither() to validate and normalize email
-    Either<String, User> validResult = OpticOps.modifyEither(user, emailLens, validateEmail);
+    // TODO: Replace null with OpticOps.modifyEither() to validate and normalize email
+    // Hint: OpticOps.modifyEither(user, emailLens, validateEmail)
+    Either<String, User> validResult = answerRequired();
 
     assertThat(validResult.isRight()).isTrue();
     assertThat(validResult.getRight().email()).isEqualTo("alice@example.com");
@@ -299,9 +312,8 @@ public class Tutorial08_FluentOpticsAPI_Solution {
     // Test with invalid email
     User invalidUser = new User("user2", "notanemail");
 
-    // Use OpticOps.modifyEither() on invalid email
-    Either<String, User> invalidResult =
-        OpticOps.modifyEither(invalidUser, emailLens, validateEmail);
+    // TODO: Replace null with OpticOps.modifyEither() on invalid email
+    Either<String, User> invalidResult = answerRequired();
 
     assertThat(invalidResult.isLeft()).isTrue();
     assertThat(invalidResult.getLeft()).contains("missing @");
@@ -338,16 +350,17 @@ public class Tutorial08_FluentOpticsAPI_Solution {
     Function<Integer, Maybe<Integer>> validateAge =
         age -> (age >= 0 && age <= 150) ? Maybe.just(age) : Maybe.nothing();
 
-    // Use OpticOps.modifyMaybe() to validate age
-    Maybe<Person> validResult = OpticOps.modifyMaybe(person, ageLens, validateAge);
+    // TODO: Replace null with OpticOps.modifyMaybe() to validate age
+    // Hint: OpticOps.modifyMaybe(person, ageLens, validateAge)
+    Maybe<Person> validResult = answerRequired();
 
     assertThat(validResult.isJust()).isTrue();
 
     // Test with invalid age
     Person invalidPerson = new Person("Bob", 200);
 
-    // Use OpticOps.modifyMaybe() on invalid age
-    Maybe<Person> invalidResult = OpticOps.modifyMaybe(invalidPerson, ageLens, validateAge);
+    // TODO: Replace null with OpticOps.modifyMaybe() on invalid age
+    Maybe<Person> invalidResult = answerRequired();
 
     assertThat(invalidResult.isNothing()).isTrue();
   }
@@ -401,9 +414,9 @@ public class Tutorial08_FluentOpticsAPI_Solution {
                 ? Validated.valid(price)
                 : Validated.invalid("Price must be positive: " + price);
 
-    // Use OpticOps.modifyAllValidated() to validate all prices
-    Validated<List<String>, Order> result =
-        OpticOps.modifyAllValidated(order, prices, validatePrice);
+    // TODO: Replace null with OpticOps.modifyAllValidated() to validate all prices
+    // Hint: OpticOps.modifyAllValidated(order, prices, validatePrice)
+    Validated<List<String>, Order> result = answerRequired();
 
     // Should be invalid because we have negative and zero prices
     assertThat(result.isInvalid()).isTrue();
@@ -418,15 +431,14 @@ public class Tutorial08_FluentOpticsAPI_Solution {
     Traversal<Order, Double> validPrices =
         OrderTraversals.items().andThen(ItemLenses.price().asTraversal());
 
-    // Use OpticOps.modifyAllValidated() on valid order
-    Validated<List<String>, Order> validResult =
-        OpticOps.modifyAllValidated(validOrder, validPrices, validatePrice);
+    // TODO: Replace null with OpticOps.modifyAllValidated() on valid order
+    Validated<List<String>, Order> validResult = answerRequired();
 
     assertThat(validResult.isValid()).isTrue();
   }
 
   /**
-   * Congratulations! You've completed Tutorial 08: Fluent Optics API
+   * Congratulations! You've completed Tutorial 09: Fluent Optics API
    *
    * <p>You now understand: ✓ How to use OpticOps static methods for concise operations ✓ Source-
    * first parameter ordering (more natural in Java) ✓ Collection operations: getAll, modifyAll,
@@ -437,6 +449,6 @@ public class Tutorial08_FluentOpticsAPI_Solution {
    * modifyEither/modifyMaybe for single-field validation - Use modifyAllValidated for multi-field
    * validation with error accumulation - Query operations make data inspection cleaner
    *
-   * <p>Next: Tutorial 09 - Advanced Optics DSL (Free Monad)
+   * <p>Next: Tutorial 10 - Advanced Prism Patterns (Free Monad)
    */
 }

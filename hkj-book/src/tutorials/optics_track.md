@@ -1,6 +1,8 @@
 # Optics Tutorial Track
 
-**Duration**: ~100 minutes | **Tutorials**: 10 | **Exercises**: 68
+**Sessions**: 6 | **Total Duration**: ~115 minutes | **Tutorials**: 11 | **Exercises**: 75
+
+Each session is designed to fit comfortably into a lunch break (20-25 minutes). Work through them at your own pace, one session per sitting, or combine them for longer learning sessions.
 
 ## What You'll Master
 
@@ -8,6 +10,7 @@ By the end of this track, you'll confidently use Optics to:
 - Perform deep updates on nested immutable data structures without boilerplate
 - Work with collections elegantly using Traversals
 - Handle sum types (sealed interfaces) safely with Prisms
+- Navigate optional fields precisely with Affines
 - Build sophisticated data transformation pipelines with optic composition
 - Create reusable, testable data access patterns
 
@@ -20,11 +23,18 @@ This track teaches you practical techniques for working with complex domain mode
            ├── Iso (reversible conversion)
            ├── Lens (product type field access)
            ├── Prism (sum type case matching)
+           ├── Affine (optional field access, zero-or-one)
            ├── Traversal (multiple targets)
            ├── Fold (read-only aggregation)
            ├── Getter (read-only access)
            └── Setter (write-only modification)
 ```
+
+---
+
+## Session 1: Lens Fundamentals (~18 minutes)
+
+*Master the foundation: accessing and updating fields in immutable records*
 
 ### Tutorial 01: Lens Basics (~8 minutes)
 **File**: `Tutorial01_LensBasics.java` | **Exercises**: 7
@@ -79,6 +89,10 @@ var newUser = userToStreetName.set("New St", user);
 
 ---
 
+## Session 2: Sum Types and Optional Fields (~22 minutes)
+
+*Handle variants and missing data with type safety*
+
 ### Tutorial 03: Prism Basics (~10 minutes)
 **File**: `Tutorial03_PrismBasics.java` | **Exercises**: 9
 
@@ -102,8 +116,35 @@ Learn to work with sum types (sealed interfaces) safely using Prisms.
 
 ---
 
-### Tutorial 04: Traversal Basics (~10 minutes)
-**File**: `Tutorial04_TraversalBasics.java` | **Exercises**: 7
+### Tutorial 04: Affine Basics (~12 minutes)
+**File**: `Tutorial04_AffineBasics.java` | **Exercises**: 7
+
+Learn to work with optional fields and nullable properties using Affines.
+
+**What you'll learn**:
+- The core operations: `getOptional`, `set`, `modify`
+- Using `Affines.some()` for `Optional<T>` fields
+- Why `Lens.andThen(Prism)` produces an Affine, not a Traversal
+- Using `matches()` and `getOrElse()` convenience methods
+- Composing Affines for deep optional access
+- When to use Affine vs Lens vs Prism vs Traversal
+
+**Key insight**: An Affine is more precise than a Traversal when you know there's at most one element. It's what you get when you compose a guaranteed path (Lens) with an uncertain one (Prism).
+
+**Real-world application**: User profiles with optional contact info, configuration with optional sections, nullable legacy fields.
+
+**Example scenario**: A `UserProfile` has an optional `ContactInfo`, which has an optional phone number. An Affine lets you safely access and update the phone number through both layers of optionality.
+
+**Links to documentation**: [Affines Guide](../optics/affine.md)
+
+---
+
+## Session 3: Collections and Composition (~20 minutes)
+
+*Work with multiple elements and combine optic types*
+
+### Tutorial 05: Traversal Basics (~10 minutes)
+**File**: `Tutorial05_TraversalBasics.java` | **Exercises**: 7
 
 Learn to work with multiple targets simultaneously using Traversals.
 
@@ -132,39 +173,45 @@ League updated = Traversals.modify(allScores, score -> score + 10, league);
 
 ---
 
-### Tutorial 05: Optics Composition (~10 minutes)
-**File**: `Tutorial05_OpticsComposition.java` | **Exercises**: 7
+### Tutorial 06: Optics Composition (~10 minutes)
+**File**: `Tutorial06_OpticsComposition.java` | **Exercises**: 7
 
 Learn the rules and patterns for composing different optic types.
 
 **What you'll learn**:
 - Lens + Lens → Lens (both always succeed)
-- Lens + Prism → Traversal (might fail, so result is more general)
-- Prism + Lens → Traversal (might fail, so result is more general)
+- Lens + Prism → Affine (might fail, so result is more precise than Traversal)
+- Prism + Lens → Affine (might fail, so result is more precise than Traversal)
+- Affine + Affine → Affine (chained optional access)
 - Lens + Traversal → Traversal
 - Prism + Prism → Prism
 - When the result type "generalises" based on composition
 
-**Key insight**: Composition follows intuitive rules. If any step might fail or have multiple targets, the result reflects that uncertainty.
+**Key insight**: Composition follows intuitive rules. If any step might fail, the result reflects that uncertainty. If at most one element can be focused, you get an Affine; if potentially many, a Traversal.
 
 **Composition Rules**:
 | First     | Second    | Result    |
 |-----------|-----------|-----------|
 | Lens      | Lens      | Lens      |
-| Lens      | Prism     | Traversal |
-| Prism     | Lens      | Traversal |
+| Lens      | Prism     | Affine    |
+| Prism     | Lens      | Affine    |
+| Affine    | Affine    | Affine    |
 | Lens      | Traversal | Traversal |
 | Prism     | Prism     | Prism     |
 | Traversal | Lens      | Traversal |
 
 **Real-world application**: Complex domain model navigation, API response processing, configuration validation.
 
-**Links to documentation**: [Composing Optics](../optics/composing_optics.md)
+**Links to documentation**: [Composition Rules](../optics/composition_rules.md)
 
 ---
 
-### Tutorial 06: Generated Optics (~8 minutes)
-**File**: `Tutorial06_GeneratedOptics.java` | **Exercises**: 7
+## Session 4: Practical Optics (~20 minutes)
+
+*From annotation-driven generation to real-world scenarios*
+
+### Tutorial 07: Generated Optics (~8 minutes)
+**File**: `Tutorial07_GeneratedOptics.java` | **Exercises**: 7
 
 Learn to leverage annotation-driven code generation for zero-boilerplate optics.
 
@@ -183,8 +230,8 @@ Learn to leverage annotation-driven code generation for zero-boilerplate optics.
 
 ---
 
-### Tutorial 07: Real World Optics (~12 minutes)
-**File**: `Tutorial07_RealWorldOptics.java` | **Exercises**: 6
+### Tutorial 08: Real World Optics (~12 minutes)
+**File**: `Tutorial08_RealWorldOptics.java` | **Exercises**: 6
 
 Apply optics to realistic scenarios that mirror production code.
 
@@ -196,7 +243,7 @@ Apply optics to realistic scenarios that mirror production code.
 - Form state management
 - Configuration updates
 
-**Key insight**: Real applications combine Lens, Prism, and Traversal in sophisticated ways. The patterns you've learned compose beautifully.
+**Key insight**: Real applications combine Lens, Prism, Affine, and Traversal in sophisticated ways. The patterns you've learned compose beautifully.
 
 **Scenarios include**:
 1. **User Management**: Update user profiles with nested address and contact info
@@ -208,8 +255,12 @@ Apply optics to realistic scenarios that mirror production code.
 
 ---
 
-### Tutorial 08: Fluent Optics API (~12 minutes)
-**File**: `Tutorial08_FluentOpticsAPI.java` | **Exercises**: 7
+## Session 5: Fluent APIs and Advanced Patterns (~22 minutes)
+
+*Ergonomic syntax and sophisticated prism techniques*
+
+### Tutorial 09: Fluent Optics API (~12 minutes)
+**File**: `Tutorial09_FluentOpticsAPI.java` | **Exercises**: 7
 
 Learn the ergonomic fluent API for Java-friendly optic operations.
 
@@ -237,8 +288,45 @@ List<Integer> scores = OpticOps.getAll(league, playerScoresTraversal);
 
 ---
 
-### Tutorial 09: Advanced Optics DSL (~15 minutes)
-**File**: `Tutorial09_AdvancedOpticsDSL.java` | **Exercises**: 7
+### Tutorial 10: Advanced Prism Patterns (~10 minutes)
+**File**: `Tutorial10_AdvancedPrismPatterns.java` | **Exercises**: 8
+
+Master advanced prism techniques including predicate-based matching and cross-optic composition.
+
+**What you'll learn**:
+- The `nearly` prism for predicate-based matching (complement to `only`)
+- Using `doesNotMatch` for exclusion filtering
+- Lens + Prism = Affine composition pattern
+- Prism + Lens = Affine composition pattern
+- Chaining compositions with `lens.asTraversal()`
+
+**Key insight**: Cross-optic composition lets you navigate complex data structures that mix product types, sum types, and optional values.
+
+**Composition patterns**:
+```java
+// Navigate through optional field
+Lens<Config, Optional<Database>> dbLens = ...;
+Prism<Optional<Database>, Database> somePrism = Prisms.some();
+Affine<Config, Database> dbAffine = dbLens.andThen(somePrism);
+
+// Access field within sum type variant
+Prism<Response, Success> successPrism = ...;
+Lens<Success, Data> dataLens = ...;
+Affine<Response, Data> dataAffine = successPrism.andThen(dataLens);
+```
+
+**Real-world application**: API response processing, configuration with optional sections, validation pipelines.
+
+**Links to documentation**: [Advanced Prism Patterns](../optics/advanced_prism_patterns.md) | [Composition Rules](../optics/composition_rules.md)
+
+---
+
+## Session 6: The Free Monad DSL (~15 minutes)
+
+*Build composable optic programs as data structures*
+
+### Tutorial 11: Advanced Optics DSL (~15 minutes)
+**File**: `Tutorial11_AdvancedOpticsDSL.java` | **Exercises**: 7
 
 Master the Free Monad DSL for building composable optic programs as data structures.
 
@@ -281,81 +369,42 @@ ValidationResult validation = OpticInterpreters.validating().validate(program);
 
 ---
 
-### Tutorial 10: Advanced Prism Patterns (~10 minutes)
-**File**: `Tutorial10_AdvancedPrismPatterns.java` | **Exercises**: 8
-
-Master advanced prism techniques including predicate-based matching and cross-optic composition.
-
-**What you'll learn**:
-- The `nearly` prism for predicate-based matching (complement to `only`)
-- Using `doesNotMatch` for exclusion filtering
-- Lens + Prism = Traversal composition pattern
-- Prism + Lens = Traversal composition pattern
-- Chaining compositions with `lens.asTraversal()`
-
-**Key insight**: Cross-optic composition lets you navigate complex data structures that mix product types, sum types, and optional values.
-
-**Composition patterns**:
-```java
-// Navigate through optional field
-Lens<Config, Optional<Database>> dbLens = ...;
-Prism<Optional<Database>, Database> somePrism = Prisms.some();
-Traversal<Config, Database> dbTraversal = dbLens.andThen(somePrism);
-
-// Access field within sum type variant
-Prism<Response, Success> successPrism = ...;
-Lens<Success, Data> dataLens = ...;
-Traversal<Response, Data> dataTraversal = successPrism.andThen(dataLens);
-```
-
-**Real-world application**: API response processing, configuration with optional sections, validation pipelines.
-
-**Links to documentation**: [Advanced Prism Patterns](../optics/advanced_prism_patterns.md) | [Composing Optics](../optics/composing_optics.md)
-
----
-
 ## Learning Map
 
 ```
-Tutorial 01: Lens Basics
+Session 1: Lens Fundamentals
     ↓
-    └─ get, set, modify single fields
+    └─ Tutorial 01: get, set, modify single fields
        ↓
-Tutorial 02: Lens Composition
+       └─ Tutorial 02: andThen for deep paths
+          ↓
+Session 2: Sum Types and Optional Fields
     ↓
-    └─ andThen for deep paths
+    └─ Tutorial 03: getOptional, build for sum types
        ↓
-Tutorial 03: Prism Basics
+       └─ Tutorial 04: Affines for optional fields
+          ↓
+Session 3: Collections and Composition
     ↓
-    └─ getOptional, build for sum types
+    └─ Tutorial 05: modify collections in bulk
        ↓
-Tutorial 04: Traversal Basics
+       └─ Tutorial 06: Combine different optic types
+          ↓
+Session 4: Practical Optics
     ↓
-    └─ modify collections in bulk
+    └─ Tutorial 07: @GenerateLenses, @GeneratePrisms
        ↓
-Tutorial 05: Optics Composition
+       └─ Tutorial 08: Apply to production scenarios
+          ↓
+Session 5: Fluent APIs and Advanced Patterns
     ↓
-    └─ Combine different optic types
+    └─ Tutorial 09: Ergonomic Java-friendly syntax
        ↓
-Tutorial 06: Generated Optics
+       └─ Tutorial 10: nearly, doesNotMatch, cross-optic composition
+          ↓
+Session 6: The Free Monad DSL
     ↓
-    └─ @GenerateLenses, @GeneratePrisms
-       ↓
-Tutorial 07: Real World Optics
-    ↓
-    └─ Apply to production scenarios
-       ↓
-Tutorial 08: Fluent API
-    ↓
-    └─ Ergonomic Java-friendly syntax
-       ↓
-Tutorial 09: Free Monad DSL
-    ↓
-    └─ Build composable programs
-       ↓
-Tutorial 10: Advanced Prism Patterns
-    ↓
-    └─ nearly, doesNotMatch, cross-optic composition
+    └─ Tutorial 11: Build composable programs
 ```
 
 ## Optics Cheat Sheet
@@ -371,6 +420,12 @@ Tutorial 10: Advanced Prism Patterns
 - **Operations**: `getOptional`, `build`, `modify`
 - **Example**: "Shipped" variant of OrderStatus
 - **Generation**: `@GeneratePrisms`
+
+### Affine 🎯
+- **Focus**: Zero or one element (optional field)
+- **Operations**: `getOptional`, `set`, `modify`
+- **Example**: User's optional phone number
+- **Creation**: `Lens.andThen(Prism)` or `Affine.of()`
 
 ### Traversal 🗺️
 - **Focus**: Zero or more targets
@@ -420,18 +475,18 @@ var userToStreetName = UserLenses.address()
 Optional<Shipped> shipped = shippedPrism.getOptional(orderStatus);
 ```
 
-### 3. Generated Code Not Available
+### 3. Expecting Traversal When You Get Affine
+**Problem**: Thinking Lens + Prism = Traversal.
+
+**Solution**: Lens + Prism = Affine (zero-or-one, not zero-or-more). This is more precise. Use `asTraversal()` if you need a Traversal.
+
+### 4. Generated Code Not Available
 **Problem**: Can't find `UserLenses` even though you annotated the class.
 
 **Solution**:
 - Rebuild the project to trigger annotation processing
 - Check that the annotation is on a top-level or static class, not a local class
 - Verify annotation processor is configured in build.gradle
-
-### 4. Wrong Traversal Type After Composition
-**Problem**: Expecting a Lens after composing Lens + Prism.
-
-**Solution**: Consult the composition table. Lens + Prism = Traversal. When composing through a Prism that might fail, the result becomes a Traversal.
 
 ### 5. Null Checks in Validation Interpreter
 **Problem**: NPE when using Free Monad DSL with validation interpreter.
@@ -463,4 +518,4 @@ After completing this track:
 
 ---
 
-Ready to start? Open `Tutorial01_LensBasics.java` and say goodbye to verbose immutable updates! 🚀
+Ready to start? Open `Tutorial01_LensBasics.java` and say goodbye to verbose immutable updates!
