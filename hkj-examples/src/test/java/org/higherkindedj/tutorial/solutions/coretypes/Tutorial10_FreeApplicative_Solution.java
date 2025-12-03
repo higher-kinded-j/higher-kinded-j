@@ -3,9 +3,8 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.id.IdKindHelper.ID;
-
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
