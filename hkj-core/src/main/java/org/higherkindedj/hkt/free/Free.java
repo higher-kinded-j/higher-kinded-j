@@ -6,6 +6,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 
 /**
@@ -121,18 +122,61 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
   }
 
   /**
-   * Interprets this Free monad into a target monad M using a natural transformation. This is a
-   * stack-safe interpreter that uses the {@link Trampoline} monad internally to ensure stack safety
-   * during Free structure traversal.
+   * Interprets this Free monad into a target monad M using a type-safe {@link Natural}
+   * transformation. This is the preferred method for interpreting Free monads as it provides
+   * compile-time type safety for the transformation.
+   *
+   * <p>This is a stack-safe interpreter that uses the {@link Trampoline} monad internally to ensure
+   * stack safety during Free structure traversal.
    *
    * <p>By leveraging Higher-Kinded-J's own Trampoline implementation, this method demonstrates the
    * composability and practical utility of the library's abstractions whilst ensuring stack-safe
    * execution for deeply nested Free structures.
    *
-   * @param transform The natural transformation from F to M
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * // Define a natural transformation from your DSL to IO
+   * Natural<MyDSL.Witness, IO.Witness> interpreter = new Natural<>() {
+   *   @Override
+   *   public <A> Kind<IO.Witness, A> apply(Kind<MyDSL.Witness, A> fa) {
+   *     return switch (MyDSLKindHelper.narrow(fa)) {
+   *       case ReadOp<?> r -> IO.of(() -> readFromConsole());
+   *       case WriteOp<?> w -> IO.of(() -> writeToConsole(w.message()));
+   *     };
+   *   }
+   * };
+   *
+   * // Interpret the Free program
+   * Free<MyDSL.Witness, String> program = ...;
+   * IO<String> executable = program.foldMap(interpreter, ioMonad);
+   * }</pre>
+   *
+   * @param transform The natural transformation from F to M. Must not be null.
+   * @param monad The monad instance for M. Must not be null.
+   * @param <M> The target monad type
+   * @return The interpreted result in monad M
+   * @see Natural
+   */
+  default <M> Kind<M, A> foldMap(Natural<F, M> transform, Monad<M> monad) {
+    return interpretFreeNatural(this, transform, monad).run();
+  }
+
+  /**
+   * Interprets this Free monad into a target monad M using a raw function transformation.
+   *
+   * <p>This method is provided for backwards compatibility and convenience when a full {@link
+   * Natural} transformation is not needed. For type-safe interpretation, prefer {@link
+   * #foldMap(Natural, Monad)}.
+   *
+   * <p>This is a stack-safe interpreter that uses the {@link Trampoline} monad internally to ensure
+   * stack safety during Free structure traversal.
+   *
+   * @param transform The transformation function from F to M (natural transformation as function)
    * @param monad The monad instance for M
    * @param <M> The target monad type
    * @return The interpreted result in monad M
+   * @see #foldMap(Natural, Monad)
    */
   default <M> Kind<M, A> foldMap(Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
     return interpretFree(this, transform, monad).run();
@@ -183,6 +227,58 @@ public sealed interface Free<F, A> permits Free.Pure, Free.Suspend, Free.FlatMap
                                 x -> {
                                   Free<F, A> next = fm.continuation().apply(x);
                                   return interpretFree(next, transform, monad).run();
+                                },
+                                kindOfX)));
+      }
+    };
+  }
+
+  /**
+   * Internal helper that interprets a Free monad using a type-safe {@link Natural} transformation
+   * and Trampoline for stack-safe traversal.
+   *
+   * @param free The Free monad to interpret
+   * @param transform The natural transformation from F to M
+   * @param monad The monad instance for M
+   * @param <F> The functor type
+   * @param <M> The target monad type
+   * @param <A> The result type
+   * @return A Trampoline that produces the interpreted result in monad M
+   */
+  private static <F, M, A> Trampoline<Kind<M, A>> interpretFreeNatural(
+      Free<F, A> free, Natural<F, M> transform, Monad<M> monad) {
+
+    return switch (free) {
+      case Pure<F, A> pure ->
+          // Terminal case: lift the pure value into the target monad
+          Trampoline.done(monad.of(pure.value()));
+
+      case Suspend<F, A> suspend -> {
+        // Transform the suspended computation using the type-safe Natural transformation
+        // The Natural transformation properly handles the type: Kind<F, Free<F, A>> -> Kind<M,
+        // Free<F, A>>
+        Kind<M, Free<F, A>> transformed = transform.apply(suspend.computation());
+
+        // Use Trampoline.defer to ensure stack safety for nested interpretations
+        yield Trampoline.done(
+            monad.flatMap(
+                innerFree -> interpretFreeNatural(innerFree, transform, monad).run(), transformed));
+      }
+
+      case FlatMapped<F, ?, A> flatMapped -> {
+        // Handle FlatMapped by deferring the interpretation
+        @SuppressWarnings("unchecked")
+        FlatMapped<F, Object, A> fm = (FlatMapped<F, Object, A>) flatMapped;
+
+        yield Trampoline.defer(
+            () ->
+                interpretFreeNatural(fm.sub(), transform, monad)
+                    .map(
+                        kindOfX ->
+                            monad.flatMap(
+                                x -> {
+                                  Free<F, A> next = fm.continuation().apply(x);
+                                  return interpretFreeNatural(next, transform, monad).run();
                                 },
                                 kindOfX)));
       }

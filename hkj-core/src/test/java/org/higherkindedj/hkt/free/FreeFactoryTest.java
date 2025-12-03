@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.free;
 import static org.assertj.core.api.Assertions.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
@@ -235,7 +236,7 @@ class FreeFactoryTest {
 
   /** Helper method to interpret a Free program using the identity transformation. */
   private <A> A interpret(Free<IdKind.Witness, A> free) {
-    Kind<IdKind.Witness, A> result = free.foldMap(kind -> kind, idMonad);
+    Kind<IdKind.Witness, A> result = free.foldMap(Natural.identity(), idMonad);
     return IdKindHelper.ID.narrow(result).value();
   }
 }

@@ -1,0 +1,48 @@
+@startuml free_ap_applicative
+
+skinparam backgroundColor #24273A
+skinparam class {
+  BackgroundColor #24273A
+  BorderColor #C6A0F6
+  ArrowColor #F5BDE6
+  AttributeFontColor #A6DA95
+  AttributeFontSize 12
+  FontColor #A6DA95
+  FontSize 16
+  HeaderBackgroundColor #363A4F
+}
+skinparam stereotypeCBackgroundColor #ADD1B2
+skinparam stereotypeIBackgroundColor #B4A7E5
+
+hide empty members
+
+interface "Functor<F>" <<interface>>
+interface "Applicative<F>" <<interface>>
+
+class "FreeApFunctor<F>" <<class>> {
+  + Kind<FreeApKind.Witness<F>, B> map(Function<A, B> f, Kind<FreeApKind.Witness<F>, A> fa)
+}
+
+class "FreeApApplicative<F>" <<class>> {
+  + Kind<FreeApKind.Witness<F>, A> of(A value)
+  + Kind<FreeApKind.Witness<F>, B> ap(Kind<FreeApKind.Witness<F>, Function<A, B>> ff, Kind<FreeApKind.Witness<F>, A> fa)
+}
+
+interface "FreeApKind<F, A>" <<interface>>
+
+interface "FreeAp<F, A>" <<sealed interface>> {
+  + {static} FreeAp<F, A> pure(A value)
+  + {static} FreeAp<F, A> lift(Kind<F, A> fa)
+  + <B> FreeAp<F, B> map(Function<A, B> f)
+  + <B> FreeAp<F, B> ap(FreeAp<F, Function<A, B>> ff)
+  + <G> Kind<G, A> foldMap(Natural<F, G> nat, Applicative<G> app)
+}
+
+"FreeApFunctor<F>" .up.|> "Functor<F>" : implements
+"FreeApApplicative<F>" .up.|> "Applicative<F>" : implements
+"FreeApApplicative<F>" -right-|> "FreeApFunctor<F>" : extends
+
+"FreeApApplicative<F>" ..> "FreeApKind<F, A>" : operates on Kind<FreeApKind.Witness<F>, A>
+"FreeApApplicative<F>" ..> "FreeAp<F, A>" : uses methods of
+
+@enduml

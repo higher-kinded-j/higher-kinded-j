@@ -24,6 +24,11 @@ For deeper exploration of Free monads and their applications:
 - **Runar Bjarnason**: [Stackless Scala With Free Monads](http://blog.higher-order.com/assets/trampolines.pdf) - Stack-safe execution patterns
 - **Cats Documentation**: [Free Monad](https://typelevel.org/cats/datatypes/freemonad.html) - Scala implementation and examples
 - **John A De Goes**: [Modern Functional Programming (Part 2)](http://degoes.net/articles/modern-fp-part-2) - Practical applications in real systems
+
+**Related Higher-Kinded-J Documentation:**
+- [Natural Transformation](../functional/natural_transformation.md) - Polymorphic functions used for Free monad interpretation
+- [Free Applicative](free_applicative.md) - For independent computations that can run in parallel
+- [Coyoneda](coyoneda.md) - Automatic Functor instances and map fusion
 ~~~
 
 ## Purpose
@@ -596,6 +601,10 @@ Free<ConsoleOpKind.Witness, String> simpleReadLine =
 
 ### Free Applicative vs. Free Monad
 
+~~~admonish note title="See Also"
+For comprehensive coverage of Free Applicative, see the dedicated [Free Applicative](free_applicative.md) documentation.
+~~~
+
 The **Free Applicative** is a related but distinct structure:
 
 ```java
@@ -643,6 +652,10 @@ Applicative<DatabaseQuery, Report> report =
 ```
 
 ### Coyoneda Optimisation
+
+~~~admonish note title="See Also"
+For comprehensive coverage of Coyoneda, see the dedicated [Coyoneda](coyoneda.md) documentation.
+~~~
 
 The **Coyoneda lemma** states that every type constructor can be made into a Functor. This allows Free monads to work with non-functor instruction sets:
 

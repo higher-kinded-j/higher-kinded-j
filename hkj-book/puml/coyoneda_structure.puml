@@ -1,0 +1,53 @@
+@startuml coyoneda_structure
+
+skinparam backgroundColor #24273A
+skinparam class {
+  BackgroundColor #24273A
+  BorderColor #C6A0F6
+  ArrowColor #F5BDE6
+  AttributeFontColor #A6DA95
+  AttributeFontSize 12
+  FontColor #A6DA95
+  FontSize 16
+  HeaderBackgroundColor #363A4F
+}
+skinparam note {
+  BackgroundColor #EED49F
+  BorderColor #A80036
+}
+skinparam stereotypeCBackgroundColor #B4A7E5
+skinparam stereotypeIBackgroundColor #B4A7E5
+
+hide empty members
+
+interface "Coyoneda<F, A>" <<sealed interface>> {
+  + {static} Coyoneda<F, A> lift(Kind<F, A> fa)
+  + {static} Coyoneda<F, A> apply(Kind<F, X> fx, Function<X, A> transform)
+  + <B> Coyoneda<F, B> map(Function<A, B> f)
+  + Kind<F, A> lower(Functor<F> functor)
+  + Kind<F, ?> underlying()
+}
+
+class "Impl<F, X, A>" <<record>> {
+  + Kind<F, X> fx
+  + Function<X, A> transform
+}
+
+"Impl<F, X, A>" -up-|> "Coyoneda<F, A>" : implements
+
+note right of "Coyoneda<F, A>"
+  The "free functor".
+  Provides Functor for any F
+  without F being a Functor.
+end note
+
+note right of "Impl<F, X, A>"
+  Stores:
+  - Original value: Kind<F, X>
+  - Accumulated transforms: X -> A
+
+  map() composes functions.
+  lower() applies them once.
+end note
+
+@enduml

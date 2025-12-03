@@ -5,12 +5,14 @@ module org.higherkindedj.core {
   requires transitive org.higherkindedj.api;
 
   exports org.higherkindedj.hkt.constant;
+  exports org.higherkindedj.hkt.coyoneda;
   exports org.higherkindedj.hkt.tuple;
   exports org.higherkindedj.hkt.either;
   exports org.higherkindedj.hkt.either_t;
   exports org.higherkindedj.hkt.exception;
   exports org.higherkindedj.hkt.expression;
   exports org.higherkindedj.hkt.free;
+  exports org.higherkindedj.hkt.free_ap;
   exports org.higherkindedj.hkt.future;
   exports org.higherkindedj.hkt.func;
   exports org.higherkindedj.hkt.id;
