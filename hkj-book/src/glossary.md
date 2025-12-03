@@ -640,6 +640,133 @@ Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEff
 
 ---
 
+### Natural Transformation
+
+**Definition:** A polymorphic function between type constructors. Given type constructors `F` and `G`, a natural transformation is a function that converts `F[A]` to `G[A]` for any type `A`, without knowing or inspecting what `A` is.
+
+**Core Operation:**
+- `apply(Kind<F, A> fa)` - Transform from context F to context G
+
+**Example:**
+```java
+// Natural transformation from Maybe to List
+Natural<MaybeKind.Witness, ListKind.Witness> maybeToList = fa -> {
+    Maybe<?> maybe = MAYBE.narrow(fa);
+    List<?> list = maybe.fold(
+        () -> List.of(),           // Nothing -> empty list
+        value -> List.of(value)    // Just(x) -> singleton list
+    );
+    return LIST.widen(list);
+};
+
+// Use with Free monad interpretation
+Free<ConsoleOpKind.Witness, String> program = ...;
+Kind<IOKind.Witness, String> executable = program.foldMap(interpreter, ioMonad);
+```
+
+**The Naturality Law:** For any function `f: A -> B`:
+```
+nat.apply(functor.map(f, fa)) == functor.map(f, nat.apply(fa))
+```
+
+**When To Use:** Free monad/applicative interpretation, type conversions between containers, monad transformer lifting.
+
+**Related:** [Natural Transformation Documentation](functional/natural_transformation.md)
+
+---
+
+### Coyoneda
+
+**Definition:** The "free functor" that provides automatic Functor instances for any type constructor. Coyoneda stores a value and an accumulated transformation function, deferring actual mapping until lowering.
+
+**Core Operations:**
+- `lift(Kind<F, A> fa)` - Wrap a value in Coyoneda
+- `map(Function<A, B> f)` - Compose functions (no Functor needed)
+- `lower(Functor<F> functor)` - Apply accumulated function using provided Functor
+
+**Example:**
+```java
+// Lift into Coyoneda - no Functor required for mapping!
+Coyoneda<MyDSL, Integer> coyo = Coyoneda.lift(myInstruction);
+
+// Chain maps - functions are composed, not applied
+Coyoneda<MyDSL, String> mapped = coyo
+    .map(x -> x * 2)
+    .map(x -> x + 1)
+    .map(Object::toString);
+
+// Only when lowering is the Functor used (and functions applied once)
+Kind<MyDSL, String> result = mapped.lower(myDslFunctor);
+```
+
+**Key Benefit:** Enables map fusion (multiple maps become one function composition) and eliminates the need for Functor instances on Free monad instruction sets.
+
+**When To Use:** With Free monads to avoid implementing Functor for every DSL instruction type; optimising chains of map operations.
+
+**Related:** [Coyoneda Documentation](monads/coyoneda.md), [Map Fusion](#map-fusion)
+
+---
+
+### Free Applicative
+
+**Definition:** The applicative counterpart to Free Monad. Whilst Free Monad captures sequential, dependent computations, Free Applicative captures independent computations that can potentially run in parallel.
+
+**Core Operations:**
+- `pure(A value)` - Lift a pure value
+- `lift(Kind<F, A> fa)` - Lift a single instruction
+- `map2(FreeAp<F, B> fb, BiFunction<A, B, C> f)` - Combine independent computations
+- `foldMap(Natural<F, G> nat, Applicative<G> app)` - Interpret using a natural transformation
+
+**Example:**
+```java
+// Independent computations - can run in parallel
+FreeAp<DbOp, User> userFetch = FreeAp.lift(new GetUser(userId));
+FreeAp<DbOp, List<Post>> postsFetch = FreeAp.lift(new GetPosts(userId));
+
+// Combine them - neither depends on the other's result
+FreeAp<DbOp, UserProfile> profile = userFetch.map2(
+    postsFetch,
+    UserProfile::new
+);
+
+// Smart interpreter can execute both in parallel or batch them
+Kind<CompletableFutureKind.Witness, UserProfile> result =
+    profile.foldMap(parallelInterpreter, cfApplicative);
+```
+
+**When To Use:** Parallel data fetching, validation that accumulates all errors, batching independent operations, static analysis of programs before execution.
+
+**Related:** [Free Applicative Documentation](monads/free_applicative.md), [Free Monad](monads/free_monad.md)
+
+---
+
+### Map Fusion
+
+**Definition:** An optimisation where multiple consecutive `map` operations are combined into a single function composition, reducing the number of traversals over a data structure.
+
+**Example:**
+```java
+// Without fusion: three separate traversals
+list.map(x -> x * 2)      // Traversal 1
+    .map(x -> x + 1)      // Traversal 2
+    .map(Object::toString); // Traversal 3
+
+// With Coyoneda: one traversal
+Coyoneda.lift(list)
+    .map(x -> x * 2)       // Just composes functions
+    .map(x -> x + 1)       // Just composes functions
+    .map(Object::toString) // Just composes functions
+    .lower(listFunctor);   // ONE traversal with composed function
+```
+
+**How It Works:** Coyoneda stores the accumulated function `f.andThen(g).andThen(h)` instead of applying each map immediately. The composed function is applied once during `lower()`.
+
+**When To Use:** Chains of transformations on expensive-to-traverse structures; automatically enabled when using Coyoneda.
+
+**Related:** [Coyoneda](#coyoneda), [Coyoneda Documentation](monads/coyoneda.md)
+
+---
+
 ## Data Types and Structures
 
 ### Choice

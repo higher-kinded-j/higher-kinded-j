@@ -1,0 +1,67 @@
+@startuml free_ap_structure
+
+skinparam backgroundColor #24273A
+skinparam class {
+  BackgroundColor #24273A
+  BorderColor #C6A0F6
+  ArrowColor #F5BDE6
+  AttributeFontColor #A6DA95
+  AttributeFontSize 12
+  FontColor #A6DA95
+  FontSize 16
+  HeaderBackgroundColor #363A4F
+}
+skinparam note {
+  BackgroundColor #EED49F
+  BorderColor #A80036
+}
+skinparam stereotypeCBackgroundColor #B4A7E5
+skinparam stereotypeIBackgroundColor #B4A7E5
+
+hide empty members
+
+interface "FreeAp<F, A>" <<sealed interface>> {
+  + {static} FreeAp<F, A> pure(A value)
+  + {static} FreeAp<F, A> lift(Kind<F, A> fa)
+  + <B> FreeAp<F, B> map(Function<A, B> f)
+  + <B> FreeAp<F, B> ap(FreeAp<F, Function<A, B>> ff)
+  + <B, C> FreeAp<F, C> map2(FreeAp<F, B> fb, BiFunction<A, B, C> f)
+  + <G> Kind<G, A> foldMap(Natural<F, G> transform, Applicative<G> applicative)
+  + Kind<F, A> retract(Applicative<F> applicative)
+}
+
+class "Pure<F, A>" <<record>> {
+  + A value
+}
+
+class "Lift<F, A>" <<record>> {
+  + Kind<F, A> fa
+}
+
+class "Ap<F, X, A>" <<record>> {
+  + FreeAp<F, Function<X, A>> ff
+  + FreeAp<F, X> fa
+}
+
+"Pure<F, A>" -up-|> "FreeAp<F, A>" : implements
+"Lift<F, A>" -up-|> "FreeAp<F, A>" : implements
+"Ap<F, X, A>" -up-|> "FreeAp<F, A>" : implements
+
+note right of "Pure<F, A>"
+  Completed computation.
+  Contains a final value.
+end note
+
+note right of "Lift<F, A>"
+  Suspended single operation.
+  Contains one instruction in F.
+end note
+
+note right of "Ap<F, X, A>"
+  Independent computations.
+  ff and fa do NOT depend
+  on each other's results.
+  Enables parallelism.
+end note
+
+@enduml

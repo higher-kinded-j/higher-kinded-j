@@ -1,0 +1,51 @@
+@startuml natural_transformation
+
+skinparam backgroundColor #24273A
+skinparam class {
+  BackgroundColor #24273A
+  BorderColor #C6A0F6
+  ArrowColor #F5BDE6
+  AttributeFontColor #A6DA95
+  AttributeFontSize 12
+  FontColor #A6DA95
+  FontSize 16
+  HeaderBackgroundColor #363A4F
+}
+skinparam note {
+  BackgroundColor #EED49F
+  BorderColor #A80036
+}
+skinparam stereotypeCBackgroundColor #ADD1B2
+skinparam stereotypeIBackgroundColor #B4A7E5
+
+hide empty members
+
+interface "Natural<F, G>" <<functional interface>> {
+  + <A> Kind<G, A> apply(Kind<F, A> fa)
+  + <H> Natural<F, H> andThen(Natural<G, H> after)
+  + <E> Natural<E, G> compose(Natural<E, F> before)
+  + {static} <F> Natural<F, F> identity()
+}
+
+note right of "Natural<F, G>"
+  Polymorphic function
+  between type constructors.
+
+  F[A] ──Natural──> G[A]
+
+  Works for ANY type A.
+end note
+
+interface "Functor<F>" <<interface>>
+interface "Functor<G>" <<interface>>
+
+"Natural<F, G>" ..> "Functor<F>" : operates on
+"Natural<F, G>" ..> "Functor<G>" : produces
+
+note bottom of "Natural<F, G>"
+  **Naturality Law:**
+  nat.apply(functorF.map(f, fa))
+    == functorG.map(f, nat.apply(fa))
+end note
+
+@enduml

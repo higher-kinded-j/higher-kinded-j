@@ -110,6 +110,15 @@ Examples demonstrating type class abstractions.
 |---------|-------------|-------------|---------------|
 | [ConsoleProgram.java](src/main/java/org/higherkindedj/example/free/ConsoleProgram.java) | Demonstrates Free monad with a Console DSL | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.free.ConsoleProgram` | [Free Monad](https://higher-kinded-j.github.io/latest/monads/free_monad.html) |
 
+### Free Applicative and Related Abstractions
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [NaturalTransformationExample.java](src/main/java/org/higherkindedj/example/basic/natural/NaturalTransformationExample.java) | Demonstrates natural transformations between type constructors | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.natural.NaturalTransformationExample` | [Natural Transformation](https://higher-kinded-j.github.io/latest/functional/natural_transformation.html) |
+| [CoyonedaExample.java](src/main/java/org/higherkindedj/example/basic/coyoneda/CoyonedaExample.java) | Shows the free functor and map fusion | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.coyoneda.CoyonedaExample` | [Coyoneda](https://higher-kinded-j.github.io/latest/monads/coyoneda.html) |
+| [FreeApplicativeExample.java](src/main/java/org/higherkindedj/example/basic/free_ap/FreeApplicativeExample.java) | Demonstrates Free Applicative for independent computations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.free_ap.FreeApplicativeExample` | [Free Applicative](https://higher-kinded-j.github.io/latest/monads/free_applicative.html) |
+| [ParallelDataFetchExample.java](src/main/java/org/higherkindedj/example/basic/free_ap/ParallelDataFetchExample.java) | Extended example: parallel data fetching with Free Applicative | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.free_ap.ParallelDataFetchExample` | [Free Applicative](https://higher-kinded-j.github.io/latest/monads/free_applicative.html) |
+
 ---
 
 ## Optics Examples

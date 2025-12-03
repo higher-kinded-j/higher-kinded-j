@@ -24,6 +24,7 @@
   - [Selective](functional/selective.md)
   - [Profunctor](functional/profunctor.md)
   - [Bifunctor](functional/bifunctor.md)
+  - [Natural Transformation](functional/natural_transformation.md)
   - [For Comprehension](functional/for_comprehension.md)
 # Monads in Practice
 - [Introduction](monads/ch_intro.md)
@@ -41,6 +42,8 @@
   - [Stream](monads/stream_monad.md)
   - [Trampoline](monads/trampoline_monad.md)
   - [Free](monads/free_monad.md)
+  - [Free Applicative](monads/free_applicative.md)
+  - [Coyoneda](monads/coyoneda.md)
   - [Try](monads/try_monad.md)
   - [Validated](monads/validated_monad.md)
   - [Writer](monads/writer_monad.md)

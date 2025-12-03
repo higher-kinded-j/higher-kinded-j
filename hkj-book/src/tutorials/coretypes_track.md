@@ -1,6 +1,6 @@
 # Core Types Tutorial Track
 
-**Duration**: ~60 minutes | **Tutorials**: 7 | **Exercises**: 44
+**Duration**: ~86 minutes | **Tutorials**: 10 | **Exercises**: 60
 
 ## What You'll Master
 
@@ -9,6 +9,9 @@ By the end of this track, you'll confidently use Higher-Kinded Types to:
 - Combine independent operations for parallel validation (Applicative)
 - Chain dependent computations with automatic error handling (Monad)
 - Choose the right type for error handling, optionality, and accumulation
+- Transform between type constructors with Natural Transformations
+- Optimise mapping operations with Coyoneda (map fusion)
+- Model independent, parallelisable computations with Free Applicative
 
 This track teaches you the theoretical foundation that powers the entire Higher-Kinded-J library, including the optics system. You'll learn to write generic code that works uniformly across `List`, `Optional`, `Either`, `CompletableFuture`, and custom types.
 
@@ -18,6 +21,10 @@ Each tutorial introduces a new abstraction that builds on the previous one:
 
 ```
 Kind (container) → Functor (map) → Applicative (combine) → Monad (chain)
+                                                              ↓
+                          Coyoneda ← Natural Transformation ← Real World
+                              ↓
+                      Free Applicative
 ```
 
 ### Tutorial 01: Kind Basics (~8 minutes)
@@ -159,6 +166,66 @@ Bring everything together by building realistic workflows that combine multiple 
 
 ---
 
+### Tutorial 08: Natural Transformations (~8 minutes)
+**File**: `Tutorial08_NaturalTransformation.java` | **Exercises**: 5
+
+Learn to transform between type constructors while preserving structure.
+
+**What you'll learn**:
+- What natural transformations are and why they matter
+- The `Natural<F, G>` interface for polymorphic transformations
+- Composing transformations with `andThen` and `compose`
+- Using transformations to interpret Free structures
+- The identity transformation and its uses
+
+**Key insight**: Natural transformations let you change the "container" without touching the contents. They're the morphisms between functors.
+
+**Real-world application**: Interpreting DSLs, converting between effect types, abstracting over different backends.
+
+**Links to documentation**: [Natural Transformation Guide](../functional/natural_transformation.md)
+
+---
+
+### Tutorial 09: Coyoneda (~8 minutes)
+**File**: `Tutorial09_Coyoneda.java` | **Exercises**: 5
+
+Learn how Coyoneda gives you a free Functor and enables map fusion.
+
+**What you'll learn**:
+- Lifting values into Coyoneda with `lift`
+- Mapping without a Functor instance (deferred execution)
+- Map fusion: chaining maps accumulates into one traversal
+- Lowering back to execute accumulated transformations
+- When and why to use Coyoneda
+
+**Key insight**: Coyoneda stores the value and accumulated function separately, executing only when you lower. Multiple maps become a single traversal.
+
+**Real-world application**: Optimising repeated transformations, working with types that lack Functor instances, building efficient pipelines.
+
+**Links to documentation**: [Coyoneda Guide](../monads/coyoneda.md)
+
+---
+
+### Tutorial 10: Free Applicative (~10 minutes)
+**File**: `Tutorial10_FreeApplicative.java` | **Exercises**: 6
+
+Learn to model independent computations that can potentially run in parallel.
+
+**What you'll learn**:
+- Creating pure values with `FreeAp.pure`
+- Lifting instructions with `FreeAp.lift`
+- Combining independent computations with `map2`
+- Interpreting programs with `foldMap`
+- The key difference from Free Monad: independence vs dependence
+
+**Key insight**: With Free Applicative, neither computation in `map2` depends on the other's result. This structural independence enables parallel execution.
+
+**Real-world application**: Parallel data fetching, form validation, batch API calls, request deduplication.
+
+**Links to documentation**: [Free Applicative Guide](../monads/free_applicative.md)
+
+---
+
 ## Learning Map
 
 ```
@@ -189,6 +256,18 @@ Tutorial 06: Concrete Types
 Tutorial 07: Real World
     ↓
     └─ Combine everything into production patterns
+       ↓
+Tutorial 08: Natural Transformations
+    ↓
+    └─ Transform between type constructors
+       ↓
+Tutorial 09: Coyoneda
+    ↓
+    └─ Free functor and map fusion
+       ↓
+Tutorial 10: Free Applicative
+    ↓
+    └─ Model independent, parallelisable computations
 ```
 
 ## Key Concepts Summary
@@ -207,6 +286,15 @@ A typeclass for chaining dependent computations. Provides `flatMap` for sequence
 
 ### MonadError
 A typeclass for explicit error handling. Provides `raiseError` and `handleErrorWith` for working with failures.
+
+### Natural Transformation
+A polymorphic function between type constructors: `Natural<F, G>` transforms `Kind<F, A>` to `Kind<G, A>` for any type `A`. Used to interpret Free structures.
+
+### Coyoneda
+The "free functor" that gives any type a Functor instance. Stores a value and an accumulated function, enabling map fusion where multiple maps become a single traversal.
+
+### Free Applicative
+Captures independent computations that can potentially run in parallel. Unlike Free Monad's `flatMap`, `map2` combines values without creating dependencies.
 
 ## Running the Tutorials
 
@@ -273,4 +361,4 @@ After completing this track:
 
 ---
 
-Ready to start? Open `Tutorial01_KindBasics.java` and let's demystify Higher-Kinded Types! 🚀
+Ready to start? Open `Tutorial01_KindBasics.java` and let's demystify Higher-Kinded Types!
