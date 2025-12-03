@@ -650,13 +650,13 @@ Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEff
 **Example:**
 ```java
 // Natural transformation from Maybe to List
-Natural<MaybeKind.Witness, ListKind.Witness> maybeToList = fa -> {
-    Maybe<?> maybe = MAYBE.narrow(fa);
-    List<?> list = maybe.fold(
-        () -> List.of(),           // Nothing -> empty list
-        value -> List.of(value)    // Just(x) -> singleton list
-    );
-    return LIST.widen(list);
+Natural<MaybeKind.Witness, ListKind.Witness> maybeToList = new Natural<>() {
+    @Override
+    public <A> Kind<ListKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
+        Maybe<A> maybe = MAYBE.narrow(fa);
+        List<A> list = maybe.map(List::of).orElse(List.of());
+        return LIST.widen(list);
+    }
 };
 
 // Use with Free monad interpretation

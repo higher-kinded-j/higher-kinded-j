@@ -227,15 +227,12 @@ public sealed interface Coyoneda<F, A> permits Coyoneda.Impl {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <B> Coyoneda<F, B> map(Function<? super A, ? extends B> f) {
       requireNonNull(f, "Map function cannot be null");
       // Compose the new function with the existing transformation
       // This achieves map fusion: multiple maps become one composed function
-      Function<? super X, ? extends B> composed =
-          x -> {
-            A intermediate = transform.apply(x);
-            return f.apply(intermediate);
-          };
+      Function<X, B> composed = ((Function<X, A>) transform).andThen((Function<A, B>) f);
       return new Impl<>(fx, composed);
     }
 

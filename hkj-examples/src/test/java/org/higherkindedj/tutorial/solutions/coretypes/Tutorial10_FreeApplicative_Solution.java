@@ -5,9 +5,13 @@ package org.higherkindedj.tutorial.solutions.coretypes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
+import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
+
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free_ap.FreeAp;
+import org.higherkindedj.hkt.free_ap.FreeApApplicative;
+import org.higherkindedj.hkt.free_ap.FreeApKind;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.junit.jupiter.api.Test;
@@ -97,11 +101,15 @@ public class Tutorial10_FreeApplicative_Solution {
     FreeAp<IdKind.Witness, Integer> fetchAge = FreeAp.pure(25);
     FreeAp<IdKind.Witness, String> fetchCity = FreeAp.pure("London");
 
-    // SOLUTION: Combine all three into a Person using map2 chains
-    FreeAp<IdKind.Witness, Person> person =
-        fetchName
-            .map2(fetchAge, (name, age) -> new Person(name, age, null))
-            .map2(fetchCity, (partial, city) -> new Person(partial.name(), partial.age(), city));
+    // SOLUTION: Combine all three into a Person using map3
+    FreeApApplicative<IdKind.Witness> applicative = FreeApApplicative.instance();
+    Kind<FreeApKind.Witness<IdKind.Witness>, Person> personKind =
+        applicative.map3(
+            FREE_AP.widen(fetchName),
+            FREE_AP.widen(fetchAge),
+            FREE_AP.widen(fetchCity),
+            Person::new);
+    FreeAp<IdKind.Witness, Person> person = FREE_AP.narrow(personKind);
 
     Kind<IdKind.Witness, Person> result = person.foldMap(IDENTITY, ID_APP);
     Person p = ID.narrow(result).value();

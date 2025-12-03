@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free_ap.FreeAp;
+import org.higherkindedj.hkt.free_ap.FreeApApplicative;
+import org.higherkindedj.hkt.free_ap.FreeApKind;
+import org.higherkindedj.hkt.free_ap.FreeApKindHelper;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
@@ -161,22 +163,17 @@ public class ParallelDataFetchExample {
     FreeAp<FetchOpKind.Witness, List<Notification>> notificationsFetch = fetchNotifications(userId);
     FreeAp<FetchOpKind.Witness, Settings> settingsFetch = fetchSettings(userId);
 
-    // Combine all four using map2 chains
-    // First combine user and posts
-    FreeAp<FetchOpKind.Witness, Function<List<Notification>, Function<Settings, Dashboard>>>
-        partial1 =
-            userFetch.map2(
-                postsFetch,
-                (user, posts) ->
-                    notifications ->
-                        settings -> new Dashboard(user, posts, notifications, settings));
+    // Combine all four using map4 for better readability
+    FreeApApplicative<FetchOpKind.Witness> applicative = FreeApApplicative.instance();
+    Kind<FreeApKind.Witness<FetchOpKind.Witness>, Dashboard> result =
+        applicative.map4(
+            FreeApKindHelper.FREE_AP.widen(userFetch),
+            FreeApKindHelper.FREE_AP.widen(postsFetch),
+            FreeApKindHelper.FREE_AP.widen(notificationsFetch),
+            FreeApKindHelper.FREE_AP.widen(settingsFetch),
+            Dashboard::new);
 
-    // Then add notifications
-    FreeAp<FetchOpKind.Witness, Function<Settings, Dashboard>> partial2 =
-        partial1.map2(notificationsFetch, (f, notifications) -> f.apply(notifications));
-
-    // Finally add settings
-    return partial2.map2(settingsFetch, (f, settings) -> f.apply(settings));
+    return FreeApKindHelper.FREE_AP.narrow(result);
   }
 
   // ============================================================================

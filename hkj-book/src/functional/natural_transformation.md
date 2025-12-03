@@ -109,14 +109,17 @@ Kind<ListKind.Witness, String> listValue = maybeToList.apply(maybeValue);
 Discarding the error information from an `Either`:
 
 ```java
-Natural<EitherKind.Witness<String>, MaybeKind.Witness> eitherToMaybe = fa -> {
-    Either<String, ?> either = EITHER.narrow(fa);
-    return MAYBE.widen(
-        either.fold(
-            left -> Maybe.nothing(),
-            right -> Maybe.just(right)
-        )
-    );
+Natural<EitherKind.Witness<String>, MaybeKind.Witness> eitherToMaybe = new Natural<>() {
+    @Override
+    public <A> Kind<MaybeKind.Witness, A> apply(Kind<EitherKind.Witness<String>, A> fa) {
+        Either<String, A> either = EITHER.<String, A>narrow(fa);
+        return MAYBE.widen(
+            either.fold(
+                left -> Maybe.nothing(),
+                Maybe::just
+            )
+        );
+    }
 };
 ```
 
@@ -125,13 +128,16 @@ Natural<EitherKind.Witness<String>, MaybeKind.Witness> eitherToMaybe = fa -> {
 Getting the first element of a list (if any):
 
 ```java
-Natural<ListKind.Witness, MaybeKind.Witness> listHead = fa -> {
-    List<?> list = LIST.narrow(fa);
-    return MAYBE.widen(
-        list.isEmpty()
-            ? Maybe.nothing()
-            : Maybe.just(list.get(0))
-    );
+Natural<ListKind.Witness, MaybeKind.Witness> listHead = new Natural<>() {
+    @Override
+    public <A> Kind<MaybeKind.Witness, A> apply(Kind<ListKind.Witness, A> fa) {
+        List<A> list = LIST.narrow(fa);
+        return MAYBE.widen(
+            list.isEmpty()
+                ? Maybe.nothing()
+                : Maybe.just(list.get(0))
+        );
+    }
 };
 ```
 

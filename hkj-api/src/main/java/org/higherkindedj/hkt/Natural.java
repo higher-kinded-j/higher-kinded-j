@@ -286,12 +286,18 @@ public interface Natural<F, G> {
    * @param <F> The type constructor
    * @return The identity natural transformation
    */
+  @SuppressWarnings("unchecked")
   static <F> Natural<F, F> identity() {
-    return new Natural<>() {
-      @Override
-      public <A> Kind<F, A> apply(Kind<F, A> fa) {
-        return fa;
-      }
-    };
+    return (Natural<F, F>) IDENTITY;
   }
+
+  /** Cached identity instance to avoid allocations on each call. */
+  @SuppressWarnings("rawtypes")
+  Natural IDENTITY =
+      new Natural() {
+        @Override
+        public Kind apply(Kind fa) {
+          return fa;
+        }
+      };
 }
