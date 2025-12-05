@@ -245,7 +245,7 @@ The cleanup workflow removes all root-level files except:
 Potential improvements to consider:
 
 - [ ] Version comparison view
-- [x] ~~Automated version archival (remove old versions)~~ - Use cleanup-old-docs.yml workflow
+- [x] ~~Automated version archival (remove old versions)~~ - Addressed with a manual cleanup workflow (`cleanup-old-docs.yml`).
 - [ ] Better 404 handling for missing pages in specific versions
 - [ ] Version-specific search indices
 - [ ] RSS feed for documentation updates
