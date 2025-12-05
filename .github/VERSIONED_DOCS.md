@@ -246,7 +246,7 @@ Potential improvements to consider:
 
 - [ ] Version comparison view
 - [x] ~~Automated version archival (remove old versions)~~ - Addressed with a manual cleanup workflow (`cleanup-old-docs.yml`).
-- [ ] Better 404 handling for missing pages in specific versions
+- [x] ~~Better 404 handling for missing pages in specific versions~~ - Custom 404.html redirects old root URLs to `/latest/`.
 - [ ] Version-specific search indices
 - [ ] RSS feed for documentation updates
 - [ ] Version aliases (e.g., `/stable/` pointing to latest stable)
