@@ -102,7 +102,7 @@
             }
 
             // Not in a versioned path - redirect to /latest/ + current path
-            var targetPath = '/latest' + currentPath;
+            var targetPath = '/latest' + (currentPath.startsWith('/') ? currentPath.slice(1) : currentPath);
 
             // Update the target link
             var targetLink = document.getElementById('target-link');
