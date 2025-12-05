@@ -1,0 +1,67 @@
+@startuml focus_processor_flow
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title Focus DSL - Annotation Processing Flow
+
+actor Developer
+
+package "Source Code" {
+    class "User.java" as UserSource <<record>> {
+        @GenerateLenses
+        @GenerateFocus
+        --
+        name: String
+        age: int
+        email: Optional<String>
+        skills: List<Skill>
+    }
+}
+
+package "Annotation Processors" {
+    class "LensProcessor" as LensProc {
+        + process()
+    }
+    class "FocusProcessor" as FocusProc {
+        + process()
+        - generateFocusClass()
+        - detectFieldType()
+        - generatePathMethod()
+    }
+}
+
+package "Generated Code" {
+    class "UserLenses.java" as UserLenses <<generated>> {
+        + name() : Lens<User, String>
+        + age() : Lens<User, Integer>
+        + email() : Lens<User, Optional<String>>
+        + skills() : Lens<User, List<Skill>>
+    }
+
+    class "UserFocus.java" as UserFocus <<generated>> {
+        + name() : FocusPath<User, String>
+        + age() : FocusPath<User, Integer>
+        + email() : AffinePath<User, String>
+        + skills() : TraversalPath<User, Skill>
+        + skill(index: int) : AffinePath<User, Skill>
+    }
+}
+
+Developer --> UserSource : writes
+UserSource --> LensProc : @GenerateLenses
+UserSource --> FocusProc : @GenerateFocus
+LensProc --> UserLenses : generates
+FocusProc --> UserFocus : generates
+UserFocus ..> UserLenses : uses
+
+note bottom of FocusProc
+    FocusProcessor:
+    1. Detects field types
+    2. Generates appropriate path type:
+       - Required fields -> FocusPath
+       - Optional<T> -> AffinePath (with .some())
+       - List<T> -> TraversalPath (with .each())
+       - Map<K,V> -> TraversalPath (with .atKey())
+end note
+
+@enduml

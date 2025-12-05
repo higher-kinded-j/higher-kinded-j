@@ -12,6 +12,10 @@ import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.FocusPaths;
+import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.Test;
 
@@ -744,6 +748,148 @@ class OpticProgramsTest {
     Free<OpticOpKind.Witness, String> program = OpticPrograms.get(person, nameGetter);
     String result = OpticInterpreters.direct().run(program);
     assertEquals("Alice", result);
+  }
+
+  // ============================================================================
+  // Focus DSL Overload Tests
+  // ============================================================================
+
+  @Test
+  void testGetWithFocusPath() {
+    Person person = new Person("Alice", 25);
+    FocusPath<Person, String> namePath = FocusPath.of(NAME_LENS);
+
+    Free<OpticOpKind.Witness, String> program = OpticPrograms.get(person, namePath);
+    String result = OpticInterpreters.direct().run(program);
+    assertEquals("Alice", result);
+  }
+
+  @Test
+  void testPreviewWithAffinePath() {
+    record Box(Optional<String> value) {}
+
+    Lens<Box, Optional<String>> valueLens = Lens.of(Box::value, (box, v) -> new Box(v));
+    AffinePath<Box, String> valuePath = FocusPath.of(valueLens).via(FocusPaths.optionalSome());
+
+    Box fullBox = new Box(Optional.of("treasure"));
+    Box emptyBox = new Box(Optional.empty());
+
+    Free<OpticOpKind.Witness, Optional<String>> fullProgram =
+        OpticPrograms.preview(fullBox, valuePath);
+    Optional<String> fullResult = OpticInterpreters.direct().run(fullProgram);
+    assertTrue(fullResult.isPresent());
+    assertEquals("treasure", fullResult.get());
+
+    Free<OpticOpKind.Witness, Optional<String>> emptyProgram =
+        OpticPrograms.preview(emptyBox, valuePath);
+    Optional<String> emptyResult = OpticInterpreters.direct().run(emptyProgram);
+    assertFalse(emptyResult.isPresent());
+  }
+
+  @Test
+  void testGetAllWithTraversalPath() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    TraversalPath<Team, Person> membersPath =
+        FocusPath.of(TEAM_MEMBERS_LENS).via(Traversals.forList());
+
+    Free<OpticOpKind.Witness, List<Person>> program = OpticPrograms.getAll(team, membersPath);
+    List<Person> result = OpticInterpreters.direct().run(program);
+    assertEquals(2, result.size());
+    assertEquals("Alice", result.get(0).name());
+    assertEquals("Bob", result.get(1).name());
+  }
+
+  @Test
+  void testSetWithFocusPath() {
+    Person person = new Person("Alice", 25);
+    FocusPath<Person, Integer> agePath = FocusPath.of(AGE_LENS);
+
+    Free<OpticOpKind.Witness, Person> program = OpticPrograms.set(person, agePath, 30);
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals("Alice", result.name());
+    assertEquals(30, result.age());
+  }
+
+  @Test
+  void testSetAllWithTraversalPath() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    TraversalPath<Team, Integer> agesPath =
+        FocusPath.of(TEAM_MEMBERS_LENS).via(Traversals.forList()).via(AGE_LENS);
+
+    Free<OpticOpKind.Witness, Team> program = OpticPrograms.setAll(team, agesPath, 21);
+    Team result = OpticInterpreters.direct().run(program);
+    assertEquals(21, result.members().get(0).age());
+    assertEquals(21, result.members().get(1).age());
+  }
+
+  @Test
+  void testModifyWithFocusPath() {
+    Person person = new Person("Alice", 25);
+    FocusPath<Person, String> namePath = FocusPath.of(NAME_LENS);
+
+    Free<OpticOpKind.Witness, Person> program =
+        OpticPrograms.modify(person, namePath, String::toUpperCase);
+    Person result = OpticInterpreters.direct().run(program);
+    assertEquals("ALICE", result.name());
+    assertEquals(25, result.age());
+  }
+
+  @Test
+  void testModifyAllWithTraversalPath() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    TraversalPath<Team, Integer> agesPath =
+        FocusPath.of(TEAM_MEMBERS_LENS).via(Traversals.forList()).via(AGE_LENS);
+
+    Free<OpticOpKind.Witness, Team> program =
+        OpticPrograms.modifyAll(team, agesPath, age -> age + 5);
+    Team result = OpticInterpreters.direct().run(program);
+    assertEquals(30, result.members().get(0).age());
+    assertEquals(35, result.members().get(1).age());
+  }
+
+  @Test
+  void testExistsWithTraversalPath() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    TraversalPath<Team, Integer> agesPath =
+        FocusPath.of(TEAM_MEMBERS_LENS).via(Traversals.forList()).via(AGE_LENS);
+
+    Free<OpticOpKind.Witness, Boolean> hasAdultProgram =
+        OpticPrograms.exists(team, agesPath, age -> age >= 30);
+    assertTrue(OpticInterpreters.direct().run(hasAdultProgram));
+
+    Free<OpticOpKind.Witness, Boolean> hasSeniorProgram =
+        OpticPrograms.exists(team, agesPath, age -> age >= 65);
+    assertFalse(OpticInterpreters.direct().run(hasSeniorProgram));
+  }
+
+  @Test
+  void testAllWithTraversalPath() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    TraversalPath<Team, Integer> agesPath =
+        FocusPath.of(TEAM_MEMBERS_LENS).via(Traversals.forList()).via(AGE_LENS);
+
+    Free<OpticOpKind.Witness, Boolean> allAdultsProgram =
+        OpticPrograms.all(team, agesPath, age -> age >= 18);
+    assertTrue(OpticInterpreters.direct().run(allAdultsProgram));
+
+    Free<OpticOpKind.Witness, Boolean> allSeniorsProgram =
+        OpticPrograms.all(team, agesPath, age -> age >= 30);
+    assertFalse(OpticInterpreters.direct().run(allSeniorsProgram));
+  }
+
+  @Test
+  void testCountWithTraversalPath() {
+    Team team = new Team("Wildcats", List.of(new Person("Alice", 25), new Person("Bob", 30)));
+    TraversalPath<Team, Person> membersPath =
+        FocusPath.of(TEAM_MEMBERS_LENS).via(Traversals.forList());
+
+    Free<OpticOpKind.Witness, Integer> program = OpticPrograms.count(team, membersPath);
+    Integer result = OpticInterpreters.direct().run(program);
+    assertEquals(2, result);
+
+    Team emptyTeam = new Team("Lonely", List.of());
+    Free<OpticOpKind.Witness, Integer> emptyProgram = OpticPrograms.count(emptyTeam, membersPath);
+    assertEquals(0, OpticInterpreters.direct().run(emptyProgram));
   }
 
   // ============================================================================

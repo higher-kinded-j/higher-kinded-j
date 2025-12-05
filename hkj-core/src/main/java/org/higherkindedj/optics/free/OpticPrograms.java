@@ -17,6 +17,9 @@ import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.TraversalPath;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -514,5 +517,225 @@ public final class OpticPrograms {
    */
   public static <A> Free<OpticOpKind.Witness, A> pure(A value) {
     return Free.pure(value);
+  }
+
+  // ============================================================================
+  // Focus DSL Operations
+  // ============================================================================
+
+  /**
+   * Creates a program that gets a value through a {@link FocusPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, String> program =
+   *     OpticPrograms.get(person, PersonFocus.name());
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The focus path to navigate with
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns the focused value
+   */
+  public static <S, A> Free<OpticOpKind.Witness, A> get(S source, FocusPath<S, A> path) {
+    return get(source, path.toLens());
+  }
+
+  /**
+   * Creates a program that previews (optionally gets) a value through an {@link AffinePath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Optional<String>> program =
+   *     OpticPrograms.preview(config, ConfigFocus.database().via(dbHostLens));
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The affine path to navigate with
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns an Optional of the focused value
+   */
+  public static <S, A> Free<OpticOpKind.Witness, Optional<A>> preview(
+      S source, AffinePath<S, A> path) {
+    return preview(source, path.toAffine().asFold());
+  }
+
+  /**
+   * Creates a program that gets all values through a {@link TraversalPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, List<String>> program =
+   *     OpticPrograms.getAll(team, TeamFocus.members().via(nameLens));
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The traversal path to navigate with
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns a list of all focused values
+   */
+  public static <S, A> Free<OpticOpKind.Witness, List<A>> getAll(
+      S source, TraversalPath<S, A> path) {
+    return getAll(source, path.toTraversal());
+  }
+
+  /**
+   * Creates a program that sets a value through a {@link FocusPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Person> program =
+   *     OpticPrograms.set(person, PersonFocus.age(), 30);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The focus path to navigate with
+   * @param value The new value to set
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns the updated structure
+   */
+  public static <S, A> Free<OpticOpKind.Witness, S> set(S source, FocusPath<S, A> path, A value) {
+    return set(source, path.toLens(), value);
+  }
+
+  /**
+   * Creates a program that sets all values through a {@link TraversalPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Team> program =
+   *     OpticPrograms.setAll(team, TeamFocus.scores(), 100);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The traversal path to navigate with
+   * @param value The new value to set for all focused elements
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns the updated structure
+   */
+  public static <S, A> Free<OpticOpKind.Witness, S> setAll(
+      S source, TraversalPath<S, A> path, A value) {
+    return setAll(source, path.toTraversal(), value);
+  }
+
+  /**
+   * Creates a program that modifies a value through a {@link FocusPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Person> program =
+   *     OpticPrograms.modify(person, PersonFocus.age(), age -> age + 1);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The focus path to navigate with
+   * @param modifier The function to transform the focused value
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns the updated structure
+   */
+  public static <S, A> Free<OpticOpKind.Witness, S> modify(
+      S source, FocusPath<S, A> path, Function<A, A> modifier) {
+    return modify(source, path.toLens(), modifier);
+  }
+
+  /**
+   * Creates a program that modifies all values through a {@link TraversalPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Team> program =
+   *     OpticPrograms.modifyAll(team, TeamFocus.scores(), score -> score + 10);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The traversal path to navigate with
+   * @param modifier The function to transform each focused value
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns the updated structure
+   */
+  public static <S, A> Free<OpticOpKind.Witness, S> modifyAll(
+      S source, TraversalPath<S, A> path, Function<A, A> modifier) {
+    return modifyAll(source, path.toTraversal(), modifier);
+  }
+
+  /**
+   * Creates a program that checks if any focused element matches a predicate through a {@link
+   * TraversalPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Boolean> program =
+   *     OpticPrograms.exists(team, TeamFocus.ages(), age -> age >= 18);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The traversal path to navigate with
+   * @param predicate The predicate to test
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns true if any element matches
+   */
+  public static <S, A> Free<OpticOpKind.Witness, Boolean> exists(
+      S source, TraversalPath<S, A> path, Predicate<A> predicate) {
+    return exists(source, path.toTraversal(), predicate);
+  }
+
+  /**
+   * Creates a program that checks if all focused elements match a predicate through a {@link
+   * TraversalPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Boolean> program =
+   *     OpticPrograms.all(team, TeamFocus.ages(), age -> age >= 18);
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The traversal path to navigate with
+   * @param predicate The predicate to test
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns true if all elements match
+   */
+  public static <S, A> Free<OpticOpKind.Witness, Boolean> all(
+      S source, TraversalPath<S, A> path, Predicate<A> predicate) {
+    return all(source, path.toTraversal(), predicate);
+  }
+
+  /**
+   * Creates a program that counts the number of focused elements through a {@link TraversalPath}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Free<OpticOpKind.Witness, Integer> program =
+   *     OpticPrograms.count(team, TeamFocus.players());
+   * }</pre>
+   *
+   * @param source The source structure
+   * @param path The traversal path to navigate with
+   * @param <S> The source type
+   * @param <A> The focused value type
+   * @return A Free monad program that returns the count
+   */
+  public static <S, A> Free<OpticOpKind.Witness, Integer> count(
+      S source, TraversalPath<S, A> path) {
+    return count(source, path.toTraversal());
   }
 }
