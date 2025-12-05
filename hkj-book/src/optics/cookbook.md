@@ -473,5 +473,276 @@ List<String> nicknames = Traversals.getAll(optionalNickname, user);
 
 ---
 
+## Focus DSL Recipes
+
+The following recipes demonstrate the Focus DSL for more ergonomic optic usage.
+
+### Recipe 11: Nested Record Updates with Focus DSL
+
+#### Problem
+
+You have deeply nested records and want to update values without verbose composition.
+
+#### Solution
+
+```java
+record Company(String name, List<Department> departments) {}
+record Department(String name, List<Employee> employees) {}
+record Employee(String name, int salary) {}
+
+// Using Focus DSL instead of manual lens composition
+FocusPath<Company, List<Department>> deptPath = FocusPath.of(companyDeptsLens);
+TraversalPath<Company, Employee> allEmployees = deptPath.each().via(deptEmployeesLens).each();
+TraversalPath<Company, Integer> allSalaries = allEmployees.via(employeeSalaryLens);
+
+// Give everyone a 5% raise
+Company updated = allSalaries.modifyAll(s -> (int) (s * 1.05), company);
+
+// Or use generated Focus classes (with @GenerateFocus)
+Company updated = CompanyFocus.departments().employees().salary()
+    .modifyAll(s -> (int) (s * 1.05), company);
+```
+
+#### Why It Works
+
+The Focus DSL tracks path type transitions automatically—from `FocusPath` through collections to `TraversalPath`—whilst maintaining full type safety.
+
+---
+
+### Recipe 12: Sum Type Handling with instanceOf()
+
+#### Problem
+
+You have a sealed interface and want to work with specific variants using the Focus DSL.
+
+#### Solution
+
+```java
+sealed interface Notification permits Email, SMS, Push {}
+record Email(String address, String subject, String body) implements Notification {}
+record SMS(String phone, String message) implements Notification {}
+record Push(String token, String title) implements Notification {}
+
+record User(String name, List<Notification> notifications) {}
+
+// Focus on Email notifications only
+TraversalPath<User, Notification> allNotifications =
+    FocusPath.of(userNotificationsLens).each();
+
+TraversalPath<User, Email> emailsOnly =
+    allNotifications.via(AffinePath.instanceOf(Email.class));
+
+// Get all email addresses
+List<String> emailAddresses = emailsOnly
+    .via(emailAddressLens)
+    .getAll(user);
+
+// Update all email subjects
+User updated = emailsOnly
+    .via(emailSubjectLens)
+    .modifyAll(subject -> "[URGENT] " + subject, user);
+```
+
+---
+
+### Recipe 13: Generic Collection Traversal with traverseOver()
+
+#### Problem
+
+Your data contains Kind-wrapped collections (e.g., `Kind<ListKind.Witness, T>`) rather than raw `List<T>`.
+
+#### Solution
+
+```java
+record Team(String name, Kind<ListKind.Witness, Member> members) {}
+record Member(String name, Kind<ListKind.Witness, Role> roles) {}
+record Role(String name, int level) {}
+
+// Path to all roles across all members
+FocusPath<Team, Kind<ListKind.Witness, Member>> membersPath =
+    FocusPath.of(teamMembersLens);
+
+TraversalPath<Team, Member> allMembers =
+    membersPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+
+TraversalPath<Team, Kind<ListKind.Witness, Role>> memberRoles =
+    allMembers.via(memberRolesLens);
+
+TraversalPath<Team, Role> allRoles =
+    memberRoles.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+
+// Promote all high-level roles
+Team updated = allRoles.modifyWhen(
+    r -> r.level() >= 5,
+    r -> new Role(r.name(), r.level() + 1),
+    team
+);
+```
+
+---
+
+### Recipe 14: Validation Pipelines with modifyF()
+
+#### Problem
+
+You need to validate and transform data, accumulating errors or short-circuiting on failure.
+
+#### Solution
+
+```java
+record Config(String apiKey, String dbUrl, int timeout) {}
+
+FocusPath<Config, String> apiKeyPath = FocusPath.of(configApiKeyLens);
+FocusPath<Config, String> dbUrlPath = FocusPath.of(configDbUrlLens);
+
+// Validation function returning Maybe (short-circuits on Nothing)
+Function<String, Kind<MaybeKind.Witness, String>> validateApiKey = key -> {
+    if (key != null && key.length() >= 10) {
+        return MaybeKindHelper.MAYBE.widen(Maybe.just(key.toUpperCase()));
+    }
+    return MaybeKindHelper.MAYBE.widen(Maybe.nothing());
+};
+
+// Apply validation (MaybeMonad extends Applicative)
+Kind<MaybeKind.Witness, Config> result =
+    apiKeyPath.modifyF(validateApiKey, config, MaybeMonad.INSTANCE);
+
+Maybe<Config> validated = MaybeKindHelper.MAYBE.narrow(result);
+if (validated.isJust()) {
+    Config validConfig = validated.get();
+    // Proceed with valid config
+} else {
+    // Handle validation failure
+}
+```
+
+---
+
+### Recipe 15: Aggregation with foldMap()
+
+#### Problem
+
+You need to aggregate values across a traversal (sum, max, concatenate, etc.).
+
+#### Solution
+
+```java
+record Order(List<LineItem> items) {}
+record LineItem(String name, int quantity, BigDecimal price) {}
+
+TraversalPath<Order, LineItem> allItems = FocusPath.of(orderItemsLens).each();
+
+// Sum quantities using integer addition monoid
+Monoid<Integer> intSum = new Monoid<>() {
+    @Override public Integer empty() { return 0; }
+    @Override public Integer combine(Integer a, Integer b) { return a + b; }
+};
+
+int totalQuantity = allItems
+    .via(lineItemQuantityLens)
+    .foldMap(intSum, q -> q, order);
+
+// Sum prices using BigDecimal monoid
+Monoid<BigDecimal> decimalSum = new Monoid<>() {
+    @Override public BigDecimal empty() { return BigDecimal.ZERO; }
+    @Override public BigDecimal combine(BigDecimal a, BigDecimal b) { return a.add(b); }
+};
+
+BigDecimal totalPrice = allItems
+    .via(lineItemPriceLens)
+    .foldMap(decimalSum, p -> p, order);
+
+// Collect all item names
+Monoid<List<String>> listConcat = new Monoid<>() {
+    @Override public List<String> empty() { return List.of(); }
+    @Override public List<String> combine(List<String> a, List<String> b) {
+        var result = new ArrayList<>(a);
+        result.addAll(b);
+        return result;
+    }
+};
+
+List<String> allNames = allItems.foldMap(
+    listConcat,
+    item -> List.of(item.name()),
+    order
+);
+```
+
+---
+
+### Recipe 16: Debugging Complex Paths with traced()
+
+#### Problem
+
+You have a complex path composition and need to understand what values are being accessed.
+
+#### Solution
+
+```java
+record System(List<Server> servers) {}
+record Server(String hostname, List<Service> services) {}
+record Service(String name, Status status) {}
+
+TraversalPath<System, Service> allServices =
+    FocusPath.of(systemServersLens).each().via(serverServicesLens).each();
+
+// Add tracing to observe navigation
+TraversalPath<System, Service> tracedServices = allServices.traced(
+    (system, services) -> {
+        System.out.println("Accessing " + services.size() + " services");
+        for (Service s : services) {
+            System.out.println("  - " + s.name() + ": " + s.status());
+        }
+    }
+);
+
+// Every getAll() now logs
+List<Service> services = tracedServices.getAll(system);
+// Output:
+// Accessing 5 services
+//   - api: RUNNING
+//   - db: RUNNING
+//   - cache: STOPPED
+//   - ...
+
+// Note: traced() only observes getAll(), not modifyAll()
+```
+
+---
+
+### Recipe 17: Conditional Updates with modifyWhen()
+
+#### Problem
+
+You need to update only elements that match a predicate, leaving others unchanged.
+
+#### Solution
+
+```java
+record Inventory(List<Product> products) {}
+record Product(String name, int stock, BigDecimal price, Category category) {}
+enum Category { ELECTRONICS, CLOTHING, FOOD }
+
+TraversalPath<Inventory, Product> allProducts =
+    FocusPath.of(inventoryProductsLens).each();
+
+// Apply 20% discount to electronics with low stock
+Inventory updated = allProducts.modifyWhen(
+    p -> p.category() == Category.ELECTRONICS && p.stock() < 10,
+    p -> new Product(p.name(), p.stock(), p.price().multiply(new BigDecimal("0.80")), p.category()),
+    inventory
+);
+
+// Clear stock only for food items
+Inventory cleared = allProducts.modifyWhen(
+    p -> p.category() == Category.FOOD,
+    p -> new Product(p.name(), 0, p.price(), p.category()),
+    inventory
+);
+```
+
+---
+
 **Previous:** [Composition Rules](composition_rules.md)
 **Next:** [Practical Examples](optics_examples.md)

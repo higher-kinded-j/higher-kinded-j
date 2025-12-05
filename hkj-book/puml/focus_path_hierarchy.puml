@@ -1,0 +1,81 @@
+@startuml focus_path_hierarchy
+
+!include https://raw.githubusercontent.com/ncosta-ic/catppuccin-macchiato-plantuml-theme/main/theme.puml
+
+title Focus Path Type Hierarchy
+
+package "Focus DSL - Path Types" {
+    interface "FocusPath<S, A>" as FocusPath {
+        + get(source: S) : A
+        + set(value: A, source: S) : S
+        + modify(f: Function<A,A>, source: S) : S
+        --
+        + via(lens: Lens<A,B>) : FocusPath<S,B>
+        + via(prism: Prism<A,B>) : AffinePath<S,B>
+        + via(traversal: Traversal<A,B>) : TraversalPath<S,B>
+        --
+        + each() : TraversalPath<S,E>
+        + at(index: int) : AffinePath<S,E>
+        + some() : AffinePath<S,E>
+        --
+        + toLens() : Lens<S,A>
+    }
+
+    interface "AffinePath<S, A>" as AffinePath {
+        + getOptional(source: S) : Optional<A>
+        + set(value: A, source: S) : S
+        + modify(f: Function<A,A>, source: S) : S
+        + matches(source: S) : boolean
+        --
+        + via(lens: Lens<A,B>) : AffinePath<S,B>
+        + via(prism: Prism<A,B>) : AffinePath<S,B>
+        + via(traversal: Traversal<A,B>) : TraversalPath<S,B>
+        --
+        + toAffine() : Affine<S,A>
+    }
+
+    interface "TraversalPath<S, A>" as TraversalPath {
+        + getAll(source: S) : List<A>
+        + preview(source: S) : Optional<A>
+        + setAll(value: A, source: S) : S
+        + modifyAll(f: Function<A,A>, source: S) : S
+        --
+        + filter(predicate: Predicate<A>) : TraversalPath<S,A>
+        --
+        + via(lens: Lens<A,B>) : TraversalPath<S,B>
+        + via(traversal: Traversal<A,B>) : TraversalPath<S,B>
+        --
+        + toTraversal() : Traversal<S,A>
+    }
+
+    FocusPath --> AffinePath : via(Prism)
+    FocusPath --> TraversalPath : via(Traversal)
+    AffinePath --> TraversalPath : via(Traversal)
+
+    note right of FocusPath
+        Exactly one element
+        (wraps Lens)
+    end note
+
+    note right of AffinePath
+        Zero or one element
+        (wraps Affine)
+    end note
+
+    note right of TraversalPath
+        Zero or more elements
+        (wraps Traversal)
+    end note
+}
+
+package "Core Optics (existing)" {
+    interface "Lens<S, A>" as Lens
+    interface "Affine<S, A>" as Affine
+    interface "Traversal<S, A>" as Traversal
+}
+
+FocusPath ..> Lens : wraps
+AffinePath ..> Affine : wraps
+TraversalPath ..> Traversal : wraps
+
+@enduml

@@ -13,6 +13,39 @@ import javax.tools.JavaFileObject;
 public final class GeneratorTestHelper {
 
   /**
+   * Asserts that the generated file contains the expected raw text (without normalization). This is
+   * useful for checking Javadoc content and other documentation that would be stripped by the
+   * normalizer.
+   *
+   * @param compilation The result from the compiler.
+   * @param generatedFileName The fully qualified name of the generated file.
+   * @param expectedText The expected text to find.
+   */
+  public static void assertGeneratedCodeContainsRaw(
+      final Compilation compilation, final String generatedFileName, final String expectedText) {
+
+    Optional<JavaFileObject> generatedSourceFile =
+        compilation.generatedSourceFile(generatedFileName);
+
+    if (generatedSourceFile.isEmpty()) {
+      fail("Generated source file not found: " + generatedFileName);
+      return;
+    }
+
+    try {
+      final String actualGeneratedCode = generatedSourceFile.get().getCharContent(true).toString();
+
+      assertTrue(
+          actualGeneratedCode.contains(expectedText),
+          String.format(
+              "Expected generated code to contain (raw):%n---%n%s%n---%nBut was:%n---%n%s%n---",
+              expectedText, actualGeneratedCode));
+    } catch (IOException e) {
+      fail("Could not read content from generated file: " + generatedFileName, e);
+    }
+  }
+
+  /**
    * Asserts that the generated file contains the expected code snippet, after normalizing both for
    * whitespace and class name qualifications.
    *
@@ -68,15 +101,28 @@ public final class GeneratorTestHelper {
     normalized =
         normalized
             .replaceAll("java\\.util\\.Optional", "Optional")
+            .replaceAll("java\\.util\\.function\\.Function", "Function")
             .replaceAll("org\\.higherkindedj\\.optics\\.Prism", "Prism")
             .replaceAll("org\\.higherkindedj\\.optics\\.Lens", "Lens")
             .replaceAll("org\\.higherkindedj\\.optics\\.Traversal", "Traversal")
             .replaceAll("org\\.higherkindedj\\.optics\\.util\\.Traversals", "Traversals")
+            .replaceAll("org\\.higherkindedj\\.optics\\.focus\\.FocusPath", "FocusPath")
+            .replaceAll("org\\.higherkindedj\\.optics\\.focus\\.AffinePath", "AffinePath")
+            .replaceAll("org\\.higherkindedj\\.optics\\.focus\\.TraversalPath", "TraversalPath")
             .replaceAll("org\\.higherkindedj\\.hkt\\.Applicative", "Applicative")
             // Test-specific types
             .replaceAll("com\\.example\\.Shape", "Shape")
             .replaceAll("com\\.example\\.User", "User")
-            .replaceAll("com\\.example\\.Playlist", "Playlist");
+            .replaceAll("com\\.example\\.Address", "Address")
+            .replaceAll("com\\.example\\.Company", "Company")
+            .replaceAll("com\\.example\\.Department", "Department")
+            .replaceAll("com\\.example\\.Team", "Team")
+            .replaceAll("com\\.example\\.Level1", "Level1")
+            .replaceAll("com\\.example\\.Level2", "Level2")
+            .replaceAll("com\\.example\\.Level3", "Level3")
+            .replaceAll("com\\.example\\.Playlist", "Playlist")
+            .replaceAll("com\\.example\\.model\\.Person", "Person")
+            .replaceAll("com\\.example\\.Wrapper", "Wrapper");
 
     // Remove ALL whitespace to make the comparison robust.
     return normalized.replaceAll("\\s+", "").trim();
