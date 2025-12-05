@@ -1,0 +1,183 @@
+name: Cleanup Old Root Documentation
+
+# One-time cleanup workflow to remove old documentation files
+# that were deployed to the root before the versioned system was introduced.
+#
+# This workflow removes all files from the root of higher-kinded-j.github.io
+# EXCEPT:
+# - index.html (the redirect page)
+# - versions.json (version metadata)
+# - latest/ directory
+# - v*/ version directories
+# - .nojekyll file
+# - CNAME file (if exists)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (show what would be deleted without actually deleting)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout gh-pages repository
+        uses: actions/checkout@v4
+        with:
+          repository: higher-kinded-j/higher-kinded-j.github.io
+          path: gh-pages-repo
+          token: ${{ secrets.GH_PAGES_PAT }}
+          fetch-depth: 0
+
+      - name: Identify files to remove
+        id: identify
+        working-directory: gh-pages-repo
+        run: |
+          echo "=== Current repository contents ==="
+          ls -la
+          echo ""
+
+          echo "=== Files and directories that will be KEPT ==="
+          echo "- index.html (redirect page)"
+          echo "- versions.json (version metadata)"
+          echo "- latest/ (latest snapshot)"
+          echo "- v*/ (versioned releases)"
+          echo "- .nojekyll (GitHub Pages config)"
+          echo "- CNAME (custom domain, if exists)"
+          echo "- .git/ (git metadata)"
+          echo ""
+
+          echo "=== Files and directories to REMOVE ==="
+          # Find all items at root level that should be removed
+          TO_REMOVE=""
+          for item in *; do
+            # Skip items we want to keep
+            case "$item" in
+              index.html|versions.json|.nojekyll|CNAME|.git)
+                echo "KEEP: $item"
+                ;;
+              latest)
+                echo "KEEP: $item/ (latest snapshot directory)"
+                ;;
+              v[0-9]*)
+                echo "KEEP: $item/ (versioned release directory)"
+                ;;
+              *)
+                echo "REMOVE: $item"
+                TO_REMOVE="$TO_REMOVE $item"
+                ;;
+            esac
+          done
+
+          # Also check for hidden files (except .git and .nojekyll)
+          for item in .*; do
+            case "$item" in
+              .|..|.git|.nojekyll)
+                ;;
+              *)
+                echo "REMOVE (hidden): $item"
+                TO_REMOVE="$TO_REMOVE $item"
+                ;;
+            esac
+          done
+
+          echo ""
+          echo "Items to remove:$TO_REMOVE"
+          echo "to_remove=$TO_REMOVE" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Remove old documentation (dry run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        working-directory: gh-pages-repo
+        run: |
+          echo "=== DRY RUN MODE ==="
+          echo "The following would be removed:"
+
+          for item in *; do
+            case "$item" in
+              index.html|versions.json|.nojekyll|CNAME|.git|latest)
+                ;;
+              v[0-9]*)
+                ;;
+              *)
+                if [ -d "$item" ]; then
+                  echo "  [DIR]  $item/"
+                  find "$item" -type f | head -10
+                  count=$(find "$item" -type f | wc -l)
+                  if [ "$count" -gt 10 ]; then
+                    echo "  ... and $((count - 10)) more files"
+                  fi
+                else
+                  echo "  [FILE] $item"
+                fi
+                ;;
+            esac
+          done
+
+          echo ""
+          echo "=== To actually remove these files, run the workflow again with dry_run=false ==="
+        shell: bash
+
+      - name: Remove old documentation (actual)
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        working-directory: gh-pages-repo
+        run: |
+          echo "=== REMOVING OLD DOCUMENTATION ==="
+
+          for item in *; do
+            case "$item" in
+              index.html|versions.json|.nojekyll|CNAME|.git|latest)
+                echo "Keeping: $item"
+                ;;
+              v[0-9]*)
+                echo "Keeping version directory: $item"
+                ;;
+              *)
+                echo "Removing: $item"
+                rm -rf "$item"
+                ;;
+            esac
+          done
+
+          # Remove any old hidden files (except .git and .nojekyll)
+          for item in .*; do
+            case "$item" in
+              .|..|.git|.nojekyll)
+                ;;
+              *)
+                echo "Removing hidden: $item"
+                rm -rf "$item"
+                ;;
+            esac
+          done
+
+          echo ""
+          echo "=== Remaining contents ==="
+          ls -la
+        shell: bash
+
+      - name: Commit and push changes
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        working-directory: gh-pages-repo
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit - repository was already clean"
+          else
+            git commit -m "chore: Remove old root-level documentation from pre-versioned deployment"
+            git push origin main
+            echo "=== Cleanup complete! ==="
+          fi
+        shell: bash

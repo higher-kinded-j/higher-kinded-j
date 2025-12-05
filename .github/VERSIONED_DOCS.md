@@ -224,12 +224,28 @@ The new workflow (`.github/workflows/deploy-mdbook-versioned.yml`) deploys to ve
 - Verify `GH_PAGES_PAT` secret is set and valid
 - Ensure Python scripts are executable
 
+## Cleanup Old Root Documentation
+
+If you migrated from the old (non-versioned) documentation system, old files may still exist at the root of the gh-pages repository. To clean these up:
+
+1. Go to **Actions** → **Cleanup Old Root Documentation**
+2. Click **Run workflow**
+3. First run with `dry_run=true` to see what would be deleted
+4. If the list looks correct, run again with `dry_run=false` to actually delete
+
+The cleanup workflow removes all root-level files except:
+- `index.html` (redirect page)
+- `versions.json` (version metadata)
+- `latest/` (snapshot directory)
+- `v*/` (versioned release directories)
+- `.nojekyll` and `CNAME` (GitHub Pages config)
+
 ## Future Enhancements
 
 Potential improvements to consider:
 
 - [ ] Version comparison view
-- [ ] Automated version archival (remove old versions)
+- [x] ~~Automated version archival (remove old versions)~~ - Addressed with a manual cleanup workflow (`cleanup-old-docs.yml`).
 - [ ] Better 404 handling for missing pages in specific versions
 - [ ] Version-specific search indices
 - [ ] RSS feed for documentation updates
