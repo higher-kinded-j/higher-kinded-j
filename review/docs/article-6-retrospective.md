@@ -286,7 +286,7 @@ The Focus DSL earns its keep in several situations:
 
 ### When Simpler Approaches Suffice
 
-**Shallow structures** (one or two levels): Java's record `with` pattern (via JEP 468, if/when it lands) will be simpler for single-level updates. A plain constructor call might be clearer than a lens.
+**Shallow structures** (one or two levels): Java's record `with` pattern (JEP 468, currently preview in JDK 25) will be simpler for single-level updates once finalised. A plain constructor call might be clearer than a lens.
 
 **One-off transformations**: If you're only doing an operation once, the overhead of defining optics may not be worth it. Write the code directly.
 
@@ -364,7 +364,7 @@ Higher-Kinded-J exists within a broader ecosystem of approaches to immutable dat
 
 ### Other Approaches in Java
 
-**Record patterns and with expressions (JEP 468)**: When this arrives, it will provide language-level support for shallow updates. For single-level changes, it will be simpler than optics. Optics will remain valuable for deeper nesting and composition.
+**Record patterns and with expressions (JEP 468)**: Currently in preview (JDK 25), this provides language-level support for shallow updates. For single-level changes, it will be simpler than optics once finalised. Optics remain valuable for deeper nesting and composition.
 
 **Immutables and AutoValue**: These libraries generate immutable classes with builders. They're mature and well-integrated with IDE tooling. They don't provide optic composition, but for many use cases, builders suffice.
 

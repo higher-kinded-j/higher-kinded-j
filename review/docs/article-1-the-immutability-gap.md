@@ -158,7 +158,7 @@ employee with { address.street = "100 New Street" }  // Nested updates: not supp
 
 ### A Note on JEP 468: Derived Record Creation
 
-Java is making progress here. [JEP 468](https://openjdk.org/jeps/468) introduces derived record creation, a `with` expression for records. Currently a Candidate JEP (preview in JDK 23), it allows:
+Java is making progress here. [JEP 468](https://openjdk.org/jeps/468) introduces derived record creation, a `with` expression for records. Currently in preview (JDK 25), it allows:
 
 ```java
 Address updated = oldAddress with { street = "100 New Street"; };
@@ -518,7 +518,7 @@ By the end of this series, you'll never want to update nested data manually agai
 
 - **[JEP 395: Records](https://openjdk.org/jeps/395)**, **[JEP 409: Sealed Classes](https://openjdk.org/jeps/409)**, **[JEP 441: Pattern Matching for switch](https://openjdk.org/jeps/441)**: The JDK Enhancement Proposals that brought DOP to Java, essential for understanding the design rationale.
 
-- **[JEP 468: Derived Record Creation (Preview)](https://openjdk.org/jeps/468)**: The forthcoming `with` expression for records, addressing single-level updates (though not nested ones).
+- **[JEP 468: Derived Record Creation (Preview)](https://openjdk.org/jeps/468)**: The `with` expression for records (preview in JDK 25), addressing single-level updates (though not nested ones).
 
 ### The Broader DOP Philosophy
 
