@@ -133,15 +133,22 @@ Yet notice the manual reconstruction in the `Binary` and `Conditional` cases. Th
 
 ## Generating Optics for the AST
 
-This reconstruction problem is precisely what optics solve. With two annotations, Higher-Kinded-J generates a complete toolkit for navigating and transforming our AST:
+This reconstruction problem is precisely what optics solve. With three annotations, Higher-Kinded-J generates a complete toolkit for navigating and transforming our AST:
 
 ```java
 @GeneratePrisms  // Generates prisms for each sealed variant
 public sealed interface Expr {
-    @GenerateLenses record Literal(Object value) implements Expr {}
-    @GenerateLenses record Variable(String name) implements Expr {}
-    @GenerateLenses record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
-    @GenerateLenses record Conditional(Expr cond, Expr thenBranch, Expr elseBranch) implements Expr {}
+    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    record Literal(Object value) implements Expr {}
+
+    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    record Variable(String name) implements Expr {}
+
+    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
+
+    @GenerateLenses @GenerateFocus(generateNavigators = true)
+    record Conditional(Expr cond, Expr thenBranch, Expr elseBranch) implements Expr {}
 }
 ```
 
@@ -185,24 +192,50 @@ Each lens lets us:
 - Set a field, producing a new node
 - Modify a field with a function
 
-### Composition: Where Optics Earn Their Keep
+### Focus DSL: Fluent Navigation
 
-The payoff comes when we compose these optics:
+The `@GenerateFocus(generateNavigators = true)` annotation generates Focus classes with fluent navigation:
 
 ```java
-// Focus on the left operand's value (if it's a literal)
-Optional<Binary, Object> leftLiteralValue =
+// Generated: BinaryFocus.java
+public final class BinaryFocus {
+    public static FocusPath<Binary, Expr> left() { ... }
+    public static FocusPath<Binary, BinaryOp> op() { ... }
+    public static FocusPath<Binary, Expr> right() { ... }
+}
+```
+
+Focus classes wrap lenses in `FocusPath` objects that enable method chaining without explicit composition. The difference becomes clear when you navigate nested structures.
+
+### Composition: Where Optics Earn Their Keep
+
+The payoff comes when we compose these optics. Here's the traditional approach with raw optics:
+
+```java
+// Raw optics: explicit composition with andThen
+Affine<Binary, Object> leftLiteralValue =
     BinaryLenses.left()
         .andThen(ExprPrisms.literal())
         .andThen(LiteralLenses.value());
 
-// Check if a binary expression has a literal on the left
 Binary expr = new Binary(new Literal(5), ADD, new Variable("x"));
 Optional<Object> value = leftLiteralValue.getOptional(expr);
 // Optional[5]
 ```
 
-We've navigated from `Binary` → `left` (Expr) → as `Literal` → `value`, all type-safe and composable.
+With the Focus DSL, this becomes fluent navigation:
+
+```java
+// Focus DSL: fluent method chaining
+Binary expr = new Binary(new Literal(5), ADD, new Variable("x"));
+Optional<Object> value = BinaryFocus.left()
+    .via(ExprPrisms.literal())
+    .via(LiteralLenses.value())
+    .getOptional(expr);
+// Optional[5]
+```
+
+Both approaches navigate from `Binary` → `left` (Expr) → as `Literal` → `value`, but the Focus DSL reads more naturally. As we add navigators in Article 4, this becomes even more elegant.
 
 ### Why Optics Instead of Just Pattern Matching?
 
@@ -221,14 +254,17 @@ if (expr instanceof Binary(Binary(var ll, _, _), _, _)) {
 }
 ```
 
-Optics compose to arbitrary depth with a single expression:
+Optics compose to arbitrary depth. With the Focus DSL, it reads naturally:
 
 ```java
-// Optics: composed path
-var leftOfLeft = ExprPrisms.binary()
-    .andThen(BinaryLenses.left())
-    .andThen(ExprPrisms.binary())
-    .andThen(BinaryLenses.left());
+// Focus DSL: fluent path
+AffinePath<Expr, Expr> leftOfLeft = ExprPrisms.binary()
+    .via(BinaryFocus.left())
+    .via(ExprPrisms.binary())
+    .via(BinaryFocus.left());
+
+// Or with navigators (preview of Article 4):
+// BinaryFocus.left().asBinary().left()
 ```
 
 **2. Bidirectional Access**
@@ -236,32 +272,35 @@ var leftOfLeft = ExprPrisms.binary()
 Pattern matching *reads* data. Optics *read and write*:
 
 ```java
+// With Focus DSL paths:
+FocusPath<Binary, Expr> leftPath = BinaryFocus.left();
+
 // Read the left operand
-Optional<Expr> left = leftLens.getOptional(expr);
+Expr left = leftPath.get(binaryExpr);
 
 // Replace the left operand (returns new immutable tree)
-Expr updated = leftLens.set(newLeft, expr);
+Binary updated = leftPath.set(newLeft, binaryExpr);
 
 // Transform the left operand
-Expr transformed = leftLens.modify(this::optimize, expr);
+Binary transformed = leftPath.modify(this::optimize, binaryExpr);
 ```
 
-The `modify` operation is particularly powerful: it extracts, transforms, and rebuilds in one step, handling all the immutable reconstruction automatically.
+The `modify` operation is particularly powerful: it extracts, transforms, and rebuilds in one step, handling all the immutable reconstruction automatically. The Focus DSL makes this read naturally.
 
 **3. Reusable Paths**
 
 A pattern match is code you write inline. An optic is a *value* you can store, pass, and reuse:
 
 ```java
-// Define once
-private static final Lens<Binary, Expr> leftOperand = BinaryLenses.left();
+// Define once using Focus DSL
+private static final FocusPath<Binary, Expr> leftOperand = BinaryFocus.left();
 
 // Use anywhere
-Expr opt1 = leftOperand.modify(this::fold, expr1);
-Expr opt2 = leftOperand.modify(this::fold, expr2);
+Binary opt1 = leftOperand.modify(this::fold, expr1);
+Binary opt2 = leftOperand.modify(this::fold, expr2);
 ```
 
-This becomes invaluable when the same traversal pattern appears across multiple transformations, which happens constantly in real compilers and interpreters.
+Focus paths are first-class values. Store them in fields, pass them to methods, compose them dynamically. This becomes invaluable when the same navigation pattern appears across multiple transformations.
 
 ---
 
@@ -537,6 +576,7 @@ We've built a solid foundation for expression language development using Java 25
 - **Records** provide immutable, transparent data carriers
 - **Pattern matching** enables elegant, exhaustive case analysis
 - **Optics** (via Higher-Kinded-J) add composable, bidirectional transformations
+- **Focus DSL** makes optic composition fluent and readable
 
 ### Optics and the DOP Philosophy
 
@@ -554,15 +594,28 @@ This is why optics feel natural alongside DOP rather than against it. Both empha
 
 There's a limitation in our current approach: the `transformExpr` function is hand-written boilerplate. Every time we add a new expression type, we must update it. This violates the DRY principle and risks bugs when someone forgets.
 
-In Article 4, we'll introduce *traversals*, optics that focus on multiple values simultaneously. With a traversal over all sub-expressions, we can:
+In Article 4, we'll introduce *traversals* and the **Focus DSL's `TraversalPath`**: optics that focus on multiple values simultaneously. This is where the Focus DSL becomes truly powerful:
 
-- **Eliminate the manual recursion**: One traversal replaces the switch-based boilerplate
-- **Collect all variables** in an expression with a single composed optic
-- **Implement sophisticated rewrites**: Pattern-based transformations become declarative
+```java
+// Preview: what's coming in Article 4
+TraversalPath<Company, Employee> allEmployees = CompanyFocus
+    .departments()
+    .each()          // Navigate into each department
+    .employees()
+    .each();         // Navigate into each employee
 
-Higher-Kinded-J's traversal support will prove essential here. The library provides not just the `Traversal` type, but utilities for folding over focused values, filtering by predicates, and composing traversals with lenses and prisms. This means our expression-walking logic becomes a composable value we can store, pass around, and reuse, rather than ad-hoc code scattered throughout the codebase.
+// Modify all employees in one expression
+Company updated = allEmployees.modifyAll(Employee::promote, company);
+```
 
-We'll also tackle dead code elimination and common subexpression elimination, transformations that showcase how optics scale to real compiler optimisations.
+With the Focus DSL's collection navigation (`each()`, `at()`, `atKey()`), we can:
+
+- **Eliminate manual recursion**: `TraversalPath.each()` replaces switch-based boilerplate
+- **Collect values fluently**: `allEmployees.getAll(company)` returns all focused values
+- **Chain arbitrarily deep**: Navigate through nested collections with method chains
+- **Apply conditional updates**: `modifyWhen()` transforms only elements matching a predicate
+
+We'll also tackle dead code elimination and common subexpression elimination, showcasing how the Focus DSL scales to real compiler optimisations.
 
 ---
 

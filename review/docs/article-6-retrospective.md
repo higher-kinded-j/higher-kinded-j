@@ -16,15 +16,22 @@ Let's trace the arc of what we've built:
 
 **Article 1** identified the problem: the immutability gap. Modern Java gives us beautiful, immutable data structures but leaves us struggling when we need to update them. The copy-constructor cascade is verbose, error-prone, and obscures intent.
 
-**Article 2** introduced the toolkit: lenses for product types (records), prisms for sum types (sealed interfaces), and the crucial insight that these optics compose. A lens into a record composed with another lens gives you a lens that reaches deeper. The path becomes a first-class value.
+**Article 2** introduced the toolkit: lenses for product types (records), prisms for sum types (sealed interfaces), and the crucial insight that these optics compose. We previewed the Focus DSL as an ergonomic layer over raw optics.
 
-**Article 3** applied these ideas to a real domain: an expression language AST. We saw how `@GenerateLenses` and `@GeneratePrisms` eliminate boilerplate whilst sealed interfaces and records give us exhaustive, type-safe data modelling. The philosophical connection to data-oriented programming became clearer: optics are the "write" side of the equation that pattern matching provides for reading.
+**Article 3** applied these ideas to a real domain: an expression language AST. We introduced `@GenerateFocus` alongside `@GenerateLenses` and `@GeneratePrisms`. The Focus DSL started showing its value: fluent navigation without explicit composition.
 
-**Article 4** scaled up with traversals. When we needed to operate on all children of a node, or all nodes of a certain type throughout a tree, traversals provided the abstraction. The `children()` traversal became our primary tool for recursive tree operations.
+**Article 4** showcased the Focus DSL's power with `TraversalPath`. Collection navigation with `each()`, conditional updates with `modifyWhen()`, and sum type targeting with `AffinePath.instanceOf()`. The fluent API made tree traversal remarkably clean:
 
-**Article 5** unified everything through effect polymorphism. The same structural code works with `Identity` for pure transformations, `Validated` for error accumulation, `State` for threading context, and any other effect we might need. The `modifyF` method, parameterised by an `Applicative`, is the key that unlocks this flexibility.
+```java
+TraversalPath<Company, Address> allAddresses = CompanyFocus
+    .departments().each()
+    .employees().each()
+    .address();
+```
 
-The result is a small but complete language implementation: AST definition, optics generation, tree traversals, optimisation passes, type checking with comprehensive error reporting, and interpretation. Each piece composes with the others.
+**Article 5** unified everything through effect polymorphism. The same Focus paths work with `Validated` for error accumulation, `State` for threading context, and any other effect. The `modifyF` method extends fluent navigation to effectful operations.
+
+The result is a small but complete language implementation with an ergonomic API: AST definition, Focus DSL generation, fluent traversals, optimisation passes, type checking with comprehensive error reporting, and interpretation. Each piece composes with the others, and the Focus DSL makes it all accessible.
 
 ---
 
@@ -121,40 +128,100 @@ This is data-oriented architecture at the system level, not just the type level.
 
 ---
 
+## The Focus DSL: The Recommended API
+
+Throughout this series, we've progressively introduced the Focus DSL. It's time to be explicit: **the Focus DSL with navigators is the recommended way to use Higher-Kinded-J optics**.
+
+### Why Focus DSL?
+
+The Focus DSL wraps optics in path types (`FocusPath`, `AffinePath`, `TraversalPath`) that provide:
+
+1. **Fluent navigation**: Chain through nested structures naturally
+2. **Built-in collection operations**: `each()`, `at()`, `atKey()`, `some()`
+3. **Conditional updates**: `modifyWhen()` for predicate-based transformations
+4. **Effect polymorphism**: `modifyF()` for validation, state, and other effects
+5. **Navigator generation**: Cross-type navigation without explicit composition
+
+Compare these two approaches for accessing all employee addresses in a company:
+
+```java
+// Raw optics: explicit composition
+Traversal<Company, Address> addresses =
+    CompanyLenses.departments().asTraversal()
+        .andThen(Traversals.list())
+        .andThen(DepartmentLenses.employees().asTraversal())
+        .andThen(Traversals.list())
+        .andThen(EmployeeLenses.address().asTraversal());
+
+// Focus DSL: fluent navigation
+TraversalPath<Company, Address> addresses = CompanyFocus
+    .departments().each()
+    .employees().each()
+    .address();
+```
+
+The Focus DSL version reads like the data structure it navigates. The intent is clear, and there's less opportunity for error.
+
+### Enabling Navigators
+
+For maximum ergonomics, enable navigator generation:
+
+```java
+@GenerateFocus(generateNavigators = true)
+record Company(String name, List<Department> departments) {}
+
+@GenerateFocus(generateNavigators = true)
+record Department(String name, List<Employee> employees) {}
+
+@GenerateFocus(generateNavigators = true)
+record Employee(String name, Address address) {}
+```
+
+With navigators, you don't even need `.via()` calls for cross-type navigation. The generated navigator classes handle composition automatically.
+
+### When to Use Raw Optics
+
+The Focus DSL covers most use cases, but raw optics remain valuable for:
+
+- **Custom traversals**: When you need effect-polymorphic behaviour not covered by the DSL
+- **Maximum performance**: In rare cases where the abstraction overhead matters
+- **Library development**: When building reusable optics that others will consume
+
+For application code, start with the Focus DSL. Drop to raw optics only when you have a specific reason.
+
+---
+
 ## Design Patterns That Emerged
 
 Working through the series, several patterns crystallised. These aren't prescriptions, but observations about what worked well.
 
-### Pattern: Traversal-First Design
+### Pattern: Focus-Path-First Design
 
-When working with tree structures, define your data types first, then derive traversals from their structure, and finally write operations in terms of those traversals.
-
-The `children()` traversal we developed in Article 4 exemplifies this:
+When working with data structures, annotate your types with `@GenerateFocus(generateNavigators = true)`, then express operations as path traversals:
 
 ```java
-public static Traversal<Expr, Expr> children() {
-    return new Traversal<>() {
-        @Override
-        public <F> Kind<F, Expr> modifyF(
-                Function<Expr, Kind<F, Expr>> f,
-                Expr source,
-                Applicative<F> applicative) {
-            return switch (source) {
-                case Literal _ -> applicative.of(source);
-                case Variable _ -> applicative.of(source);
-                case Binary(var l, var op, var r) ->
-                    applicative.map2(f.apply(l), f.apply(r),
-                        (newL, newR) -> new Binary(newL, op, newR));
-                case Conditional(var c, var t, var e) ->
-                    applicative.map3(f.apply(c), f.apply(t), f.apply(e),
-                        (newC, newT, newE) -> new Conditional(newC, newT, newE));
-            };
-        }
-    };
-}
+@GenerateFocus(generateNavigators = true)
+record Department(String name, List<Employee> employees, Employee manager) {}
+
+@GenerateFocus(generateNavigators = true)
+record Employee(String name, BigDecimal salary, Address address) {}
+
+// Define paths once
+TraversalPath<Department, Employee> allEmployees = DepartmentFocus.employees().each();
+FocusPath<Department, Employee> departmentManager = DepartmentFocus.manager();
+
+// Use them for any operation
+List<String> names = allEmployees.getAll(dept).stream()
+    .map(Employee::name)
+    .toList();
+
+Department withRaises = allEmployees.modifyAll(
+    emp -> emp.withSalary(emp.salary().multiply(1.1)),
+    dept
+);
 ```
 
-The benefit: adding a new operation (say, "find all function calls") requires zero changes to `Expr` or to the traversal. You simply write a new function that uses the existing infrastructure. This inverts the usual pain point where new operations require touching every case of a type hierarchy.
+The benefit: adding a new operation requires zero changes to your types or paths. You simply write a new function that uses the existing Focus paths. This inverts the usual pain point where new operations require touching every case of a type hierarchy.
 
 ### Pattern: Effect Stratification
 
@@ -169,23 +236,27 @@ The key insight from Article 5 is that the same structural traversal code works 
 
 This stratification makes the code easier to reason about. When you see `Validated`, you know errors will accumulate. When you see `State`, you know context is being threaded. The types communicate intent.
 
-### Pattern: Optic Composition as Configuration
+### Pattern: Focus Paths as Configuration
 
-Optic paths can be stored as values and composed dynamically:
+Focus paths can be stored as values and composed dynamically:
 
 ```java
 // Define reusable path components
-Traversal<Expr, Expr> allNodes = Traversals.universe(Expr.children());
-Prism<Expr, Binary> binaryPrism = ExprPrisms.binary();
-Lens<Binary, Expr> leftLens = BinaryLenses.left();
+TraversalPath<Company, Department> allDepartments = CompanyFocus.departments().each();
+TraversalPath<Department, Employee> allEmployees = DepartmentFocus.employees().each();
+FocusPath<Employee, BigDecimal> salary = EmployeeFocus.salary();
 
 // Compose them for specific use cases
-Traversal<Expr, Expr> allLeftOperands = allNodes
-    .compose(binaryPrism)
-    .compose(leftLens);
+TraversalPath<Company, BigDecimal> allSalaries = allDepartments
+    .via(allEmployees)
+    .via(salary);
+
+// Use in configurable operations
+BigDecimal total = allSalaries.getAll(company).stream()
+    .reduce(BigDecimal.ZERO, BigDecimal::add);
 ```
 
-This enables configurable operations. A linter might load its rules from configuration, where each rule specifies which optic path to examine and what predicate to apply. The optic composition happens at runtime based on configuration, but with full type safety.
+This enables configurable operations. A reporting system might define Focus paths for different metrics, composing them based on user selections. The path composition happens at runtime based on configuration, but with full type safety.
 
 ### Pattern: Validated for User-Facing Errors
 
@@ -199,17 +270,19 @@ Type checking is user-facing: developers want to see all type errors, not just t
 
 Honesty requires acknowledging that abstractions have costs. Optics add indirection, and that indirection isn't always free.
 
-### When Optics Shine
+### When Focus DSL Shines
 
-Optics earn their keep in several situations:
+The Focus DSL earns its keep in several situations:
 
-**Complex, nested structures** (depth three and beyond): The copy-constructor cascade becomes genuinely painful without optics. The boilerplate reduction alone justifies the abstraction.
+**Complex, nested structures** (depth three and beyond): The copy-constructor cascade becomes genuinely painful without optics. The Focus DSL's fluent chains make navigation readable.
 
-**Code that's read more than executed**: Most business logic runs infrequently compared to how often developers read it. Optics make intent clearer at the cost of some runtime overhead.
+**Code that's read more than executed**: Most business logic runs infrequently compared to how often developers read it. Focus paths make intent clearer at the cost of some runtime overhead.
 
-**Path reuse**: When you're accessing the same nested path in multiple places, storing the composed optic eliminates duplication and ensures consistency.
+**Path reuse**: When you're accessing the same nested path in multiple places, storing a Focus path eliminates duplication and ensures consistency.
 
-**Effect-polymorphic operations**: When you genuinely need to run the same structural code with different effects, there's no simpler alternative. The traversal infrastructure pays for itself.
+**Effect-polymorphic operations**: When you genuinely need to run the same structural code with different effects, `modifyF` on Focus paths provides this without complexity.
+
+**Collection-heavy domains**: The `each()`, `at()`, and `atKey()` methods make list and map navigation trivial. This is where Focus DSL really pulls ahead of raw optics.
 
 ### When Simpler Approaches Suffice
 
@@ -309,15 +382,21 @@ Higher-Kinded-J brings patterns from the functional programming tradition to Jav
 
 Higher-Kinded-J's contribution is bringing these patterns to Java idiomatically, without requiring a different language or complex interop.
 
-### What's Missing
+### What Sets Higher-Kinded-J Apart
 
-Honest assessment requires acknowledging gaps:
+Beyond feature parity, Higher-Kinded-J offers something unique:
 
-**Additional optic types**: We've focused on Lens, Prism, and Traversal. The full optics hierarchy includes Iso (isomorphisms), Getter (read-only), Setter (write-only), Fold (multiple read-only), and Affine (at-most-one focus). Higher-Kinded-J implements some of these, but not all are fully developed.
+**The Focus DSL**: No other Java optics library provides this level of ergonomics. The combination of `@GenerateFocus`, navigators, `each()`/`at()`/`atKey()`, and `modifyWhen()` makes Higher-Kinded-J feel like it was designed for Java's data-oriented ecosystem.
 
-**Profunctor optics**: The cutting edge of optics research uses profunctors for an even more unified treatment. This is academically interesting and may eventually influence Higher-Kinded-J's design.
+**Type class integration**: Focus paths integrate with `Validated`, `State`, and other effects through `modifyF()`. This isn't bolted on; it's the foundation.
 
-**IDE support**: Haskell and Scala have better tooling for optics. Java IDE support for Higher-Kinded-J is functional but not polished. This will improve as the library matures.
+**Native Java design**: Higher-Kinded-J is designed for Java's type system and idioms. There's no language boundary to cross, no interop overhead.
+
+Areas for future development:
+
+**IDE support**: Haskell and Scala have better tooling for optics. Java IDE support for Higher-Kinded-J is functional but improving.
+
+**Profunctor optics**: The cutting edge of optics research uses profunctors for unified treatment. This may eventually influence Higher-Kinded-J's design.
 
 ---
 
@@ -344,7 +423,17 @@ The optics implementation covers **ten optic types** with full composition suppo
 
 Plus indexed variants (IndexedLens, IndexedTraversal, IndexedFold) for operations that need to track position.
 
-Annotation-driven generation via `@GenerateLenses`, `@GeneratePrisms`, `@GenerateGetters`, `@GenerateFolds`, `@GenerateSetters`, and `@GenerateIsos` eliminates most boilerplate.
+**The Focus DSL** provides the ergonomic layer:
+
+| Path Type | Wraps | Key Methods |
+|-----------|-------|-------------|
+| **FocusPath** | Lens | `get()`, `set()`, `modify()`, `via()`, `each()` |
+| **AffinePath** | Affine | `getOptional()`, `set()`, `modify()`, `via()`, `instanceOf()` |
+| **TraversalPath** | Traversal | `getAll()`, `modifyAll()`, `modifyWhen()`, `foldMap()` |
+
+Navigator generation via `@GenerateFocus(generateNavigators = true)` enables fluent cross-type navigation without explicit composition.
+
+Annotation-driven generation via `@GenerateLenses`, `@GeneratePrisms`, `@GenerateFocus`, `@GenerateGetters`, `@GenerateFolds`, `@GenerateSetters`, and `@GenerateIsos` eliminates most boilerplate.
 
 The effect system provides a complete monad hierarchy: Functor, Applicative, Monad. Key types include `Validated` for error accumulation, `Either` for fail-fast errors, `State` for stateful computation, and `IO` for effect tracking.
 
@@ -356,11 +445,13 @@ Compared to established libraries:
 | Affine/Optional | ✓ | ✓ | ✓ | ✓ |
 | Indexed optics | ✓ | ✓ | ✓ | ✓ |
 | At/Ixed | ✓ | ✓ | ✓ | ✓ |
+| **Focus DSL** | - | - | - | **✓** |
+| **Navigators** | - | - | - | **✓** |
 | Type safety | Native HKT | Native HKT | Native HKT | Simulated HKT |
 | IDE support | Excellent | Good | Good | Growing |
 | Java integration | N/A | Interop | Interop | Native |
 
-The key differentiator is native Java integration. Higher-Kinded-J is designed for Java's type system and idioms. There's no language boundary to cross, no interop overhead, and no need to convince your team to adopt a different language.
+The key differentiators are the **Focus DSL** and **navigator generation**. No other library provides this level of fluent, ergonomic optics for Java. Combined with native Java integration, Higher-Kinded-J is designed specifically for Java's data-oriented ecosystem.
 
 ### Future Directions
 
@@ -415,17 +506,43 @@ We've covered considerable ground. Time for some reflection.
 
 Java 25 and its predecessors have given us remarkable tools for data-oriented programming. Records provide concise, immutable data carriers. Sealed interfaces enable exhaustive sum types. Pattern matching makes destructuring elegant. Switch expressions replace verbose visitor patterns.
 
-Higher-Kinded-J's optics complete the picture by providing the "write" side that pattern matching lacks. Effect polymorphism, via `modifyF` and the `Applicative` type class, unifies operations across different computational contexts.
+Higher-Kinded-J's Focus DSL completes the picture by providing the "write" side that pattern matching lacks. The fluent API mirrors the natural structure of your data:
 
-The combination is powerful: define your data with records and sealed interfaces, read it with pattern matching, write it with optics, and choose your effects based on what the operation requires. It's data-oriented programming with a complete toolkit.
+```java
+// Pattern matching reads:
+if (company instanceof Company(_, var departments)) {
+    for (var dept : departments) {
+        // access nested data...
+    }
+}
+
+// Focus DSL writes:
+Company updated = CompanyFocus.departments().each()
+    .employees().each()
+    .salary()
+    .modifyAll(s -> s.multiply(1.1), company);
+```
+
+The combination is powerful: define your data with records and sealed interfaces, read it with pattern matching, write it with Focus paths, and choose your effects based on what the operation requires. It's data-oriented programming with a complete toolkit.
 
 ### The Composability Principle
 
-A theme running through this series is composition. Lenses compose with lenses. Prisms compose with prisms. Traversals compose with both. Effects compose via type classes. Each composition multiplies capability without multiplying complexity.
+A theme running through this series is composition. Focus paths compose with `via()`. Collection navigation composes with `each()`. Effects compose via type classes. Each composition multiplies capability without multiplying complexity.
+
+The Focus DSL makes this composition visible and intuitive:
+
+```java
+// Paths compose naturally
+TraversalPath<Company, String> allCities = CompanyFocus
+    .departments().each()      // Into each department
+    .employees().each()        // Into each employee
+    .address()                 // To their address
+    .city();                   // To the city field
+```
 
 This is the payoff of principled abstraction. When your building blocks follow laws (the lens laws, the functor laws, the applicative laws), composition just works. You don't need to verify each combination manually; the laws guarantee sensible behaviour.
 
-Eric Normand captures this in his work on data-oriented programming: build with small pieces that combine predictably. Rich Hickey emphasises simplicity over ease: simple things compose, easy things often don't. Higher-Kinded-J embodies these principles in Java.
+Eric Normand captures this in his work on data-oriented programming: build with small pieces that combine predictably. Rich Hickey emphasises simplicity over ease: simple things compose, easy things often don't. The Focus DSL embodies these principles in Java.
 
 ### The Future: Higher-Kinded Types in Java?
 
@@ -439,9 +556,11 @@ Either way, we're not waiting.
 
 ### Final Reflection
 
-We've shown one path through the territory. Your domain will suggest its own patterns. The goal isn't optics everywhere, but optics where they clarify.
+We've shown one path through the territory. Your domain will suggest its own patterns. The goal isn't Focus paths everywhere, but Focus paths where they clarify.
 
-Some problems genuinely benefit from these abstractions. Deep nesting, effect polymorphism, configurable transformations: these are the sweet spots. Other problems are better served by simpler tools. Knowing the difference is engineering judgement, not ideology.
+Some problems genuinely benefit from these abstractions. Deep nesting, collection navigation, effect polymorphism, configurable transformations: these are the sweet spots. The Focus DSL makes them accessible. Other problems are better served by simpler tools. Knowing the difference is engineering judgement, not ideology.
+
+Start with `@GenerateFocus(generateNavigators = true)` on your domain types. Build paths that match your data's shape. Call `modify()` for pure operations, `modifyF()` for effects. Let the DSL guide you.
 
 It's been rather interesting to explore. We hope you find it useful.
 
