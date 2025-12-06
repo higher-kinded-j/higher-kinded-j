@@ -6,7 +6,7 @@ In Article 4, we built traversals that visit every node in our expression tree. 
 
 Real compilers and interpreters need more. Type checking should report *all* errors, not just the first one. Interpretation must track variable bindings as it descends through the tree. Logging might help debug complex transformations. These are *effects*, and they change everything about how we structure our code.
 
-This is where Higher-Kinded-J reveals its full potential. The same traversals we wrote in Article 4 will work unchanged with effectful operations. We simply swap the effect type. It's rather like discovering your trusty Swiss Army knife also works underwater.
+This is where Higher-Kinded-J reveals its full potential. The Focus DSL paths we built in Article 4 work unchanged with effectful operations. We simply call `modifyF` instead of `modify`. It's rather like discovering your trusty Swiss Army knife also works underwater.
 
 ---
 
@@ -89,18 +89,27 @@ For Java developers used to thinking in terms of `Optional<T>` or `CompletableFu
 
 ## The modifyF Operation
 
-Every optic in Higher-Kinded-J supports `modifyF`, which lifts a transformation into an effectful context:
+Every optic in Higher-Kinded-J supports `modifyF`, and the Focus DSL exposes it through path types. Here's how it looks:
+
+```java
+// FocusPath, AffinePath, and TraversalPath all support modifyF
+FocusPath<Employee, String> namePath = EmployeeFocus.name();
+
+// Pure modification (what we've been doing)
+Employee updated = namePath.modify(String::toUpperCase, employee);
+
+// Effectful modification (the new capability)
+Kind<ValidatedKind.Witness<List<Error>>, Employee> result = namePath.modifyF(
+    name -> validateName(name),  // Returns Validated<List<Error>, String>
+    employee,
+    validatedApplicative
+);
+```
+
+The underlying interface shows what's happening:
 
 ```java
 public interface Traversal<S, A> {
-    /**
-     * Apply an effectful transformation to all focused elements.
-     *
-     * @param f the effectful transformation
-     * @param source the structure to transform
-     * @param applicative the Applicative instance for effect F
-     * @return the transformed structure wrapped in effect F
-     */
     <F> Kind<F, S> modifyF(
         Function<A, Kind<F, A>> f,
         S source,
@@ -118,16 +127,27 @@ With just these two operations, we can sequence independent computations whilst 
 
 ### Example: Pure Transformation
 
-For pure transformations, we can use the optics library's `Traversals.modify` utility, which handles the `Id` effect internally:
+With the Focus DSL, pure transformations use `modify` or `modifyAll`:
 
 ```java
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.util.Traversals;
+import org.higherkindedj.optics.focus.TraversalPath;
 
-Traversal<Expr, Expr> children = ExprTraversal.children();
+// Using Focus DSL for pure transformations
+TraversalPath<Company, Employee> allEmployees = CompanyFocus
+    .departments().each()
+    .employees().each();
+
+// Pure transformation: promote all employees
+Company updated = allEmployees.modifyAll(Employee::promote, company);
+```
+
+For the expression language, we can wrap our traversal in a TraversalPath:
+
+```java
+TraversalPath<Expr, Expr> childrenPath = TraversalPath.fromTraversal(children());
 
 // Pure transformation: double all literals
-Expr result = Traversals.modify(children, e -> {
+Expr result = childrenPath.modifyAll(e -> {
     if (e instanceof Literal(Integer i)) {
         return new Literal(i * 2);
     }
@@ -137,7 +157,7 @@ Expr result = Traversals.modify(children, e -> {
 
 ### Example: Stateful Transformation
 
-Using Higher-Kinded-J's `State` monad, transformations can track state. Here's where it gets interesting:
+Using Higher-Kinded-J's `State` monad, Focus paths can track state through transformations:
 
 ```java
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
@@ -148,10 +168,12 @@ import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state.StateTuple;
 
+// Using Focus DSL with State effect
+TraversalPath<Expr, Expr> childrenPath = TraversalPath.fromTraversal(children());
 StateMonad<Integer> stateMonad = new StateMonad<>();
 
 // Count and transform literals using modifyF with State effect
-Kind<StateKind.Witness<Integer>, Expr> stateKind = children.modifyF(
+Kind<StateKind.Witness<Integer>, Expr> stateKind = childrenPath.modifyF(
     e -> {
         if (e instanceof Literal(Integer i)) {
             // State.modify returns Unit, so we use _ to indicate the unused parameter
@@ -169,6 +191,8 @@ StateTuple<Integer, Expr> stateResult = STATE.narrow(stateKind).run(0);
 System.out.printf("Transformed: %s, count = %d%n",
     stateResult.value().format(), stateResult.state());
 ```
+
+The Focus DSL's `modifyF` delegates to the underlying traversal's effect-polymorphic implementation. Your Focus paths gain stateful operations without any additional code.
 
 Notice the `_` in `.map(_ -> new Literal(i * 10))`. Since `State.modify` returns `Unit` (it modifies state but produces no meaningful value), we use Java's unnamed variable pattern to indicate we're deliberately ignoring it. It signals intent clearly to anyone reading the code.
 
@@ -479,9 +503,39 @@ Higher-Kinded-J's design makes this distinction explicit through its type class 
 
 ---
 
-## Optics and Effects Together
+## Focus DSL and Effects Together
 
-The real power comes when we combine our traversals with effects. Remember our `children()` traversal from Article 4:
+The real power comes when we combine Focus paths with effects. Every path type (`FocusPath`, `AffinePath`, `TraversalPath`) supports `modifyF`:
+
+```java
+// A Focus path built from the DSL
+TraversalPath<Company, Employee> allEmployees = CompanyFocus
+    .departments().each()
+    .employees().each();
+
+// The same path works with any effect:
+
+// 1. Pure transformations (what we've been doing)
+Company promoted = allEmployees.modifyAll(Employee::promote, company);
+
+// 2. Validated (error accumulation)
+Kind<ValidatedKind.Witness<List<Error>>, Company> validated = allEmployees.modifyF(
+    emp -> validateEmployee(emp),
+    company,
+    validatedApplicative
+);
+
+// 3. State (context threading)
+Kind<StateKind.Witness<AuditLog>, Company> audited = allEmployees.modifyF(
+    emp -> auditAndTransform(emp),
+    company,
+    stateMonad
+);
+```
+
+One path definition. Multiple effect behaviours. The `Applicative<F>` parameter is the switch that determines which effect system we're using. It's polymorphism at the effect level.
+
+Under the hood, Focus paths delegate to their underlying optics:
 
 ```java
 public static Traversal<Expr, Expr> children() {
@@ -506,15 +560,7 @@ public static Traversal<Expr, Expr> children() {
 }
 ```
 
-This same traversal works with:
-
-1. **Identity**: Pure transformations (our Article 4 optimiser)
-2. **Maybe**: Transformations that might fail silently
-3. **Validated**: Transformations that accumulate errors
-4. **State**: Transformations that need context
-5. **IO**: Transformations with side effects
-
-We wrote the traversal once. Higher-Kinded-J's abstraction gives us all these behaviours. The `Applicative<F>` parameter is the magic switch that determines which effect system we're using. It's polymorphism at the effect level, and it's remarkably powerful.
+The Focus DSL wraps this power in an ergonomic API. You get fluent path construction AND effect polymorphism.
 
 ### Example: Collecting Variables with State
 
@@ -596,16 +642,16 @@ The expression language we've built across these articles now has type checking 
 
 ## Summary
 
-This article explored effect-polymorphic optics, where the same structural code works with different computational effects:
+This article explored effect-polymorphic optics through the Focus DSL:
 
-1. **Effect polymorphism**: Abstract over computational context with `Kind<F, A>`
-2. **Applicative and Monad**: The type classes that enable effect composition
+1. **Focus DSL with effects**: Same paths work for pure and effectful operations via `modifyF`
+2. **Effect polymorphism**: Abstract over computational context with `Kind<F, A>`
 3. **Validated**: Accumulate all errors instead of failing fast
 4. **State**: Thread context through computations implicitly
-5. **modifyF**: The bridge between optics and effects
-6. **ValidatedMonad.map2/map3**: The idiomatic way to combine validations in Higher-Kinded-J
+5. **Applicative and Monad**: The type classes that enable effect composition
+6. **ValidatedMonad.map2/map3**: The idiomatic way to combine validations
 
-The key takeaway: Higher-Kinded-J's abstractions eliminate boilerplate, prevent bugs, and make your code more expressive. The `map2` and `map3` methods alone save you from writing dozens of lines of error-prone pattern matching.
+The key takeaway: The Focus DSL paths you build for pure operations work unchanged with effects. Call `modifyF` instead of `modify`, pass an `Applicative`, and your fluent navigation gains error accumulation, state threading, or any other effect you need.
 
 ---
 

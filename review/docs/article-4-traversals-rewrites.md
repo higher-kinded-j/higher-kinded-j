@@ -6,6 +6,20 @@ In Article 3, we built our expression language AST and applied basic optics (len
 
 This is where traversals become essential. A traversal focuses on zero or more elements within a structure, making it perfect for recursive tree operations.
 
+The Focus DSL provides `TraversalPath`: a fluent wrapper around traversals that makes collection navigation elegant and composable. By the end of this article, you'll be writing code like:
+
+```java
+// Navigate all employees in all departments, modify their salaries
+Company updated = CompanyFocus.departments()
+    .each()                              // Traverse each department
+    .employees()                         // Navigate to employees list
+    .each()                              // Traverse each employee
+    .salary()                            // Focus on salary field
+    .modifyAll(s -> s.multiply(1.1), company);
+```
+
+No manual recursion. No reconstruction boilerplate. Just a fluent path that describes what you want.
+
 ---
 
 ## The Recursive Challenge
@@ -86,6 +100,38 @@ Expr result = Traversals.modify(children(), f, expr);
 
 This handles the `Id` effect internally, giving you a clean API for pure transformations.
 
+### The Focus DSL Alternative: TraversalPath
+
+While the raw `Traversal` interface provides maximum control, the Focus DSL offers a more ergonomic API for everyday use. `TraversalPath` wraps a traversal and provides fluent methods:
+
+```java
+import org.higherkindedj.optics.focus.TraversalPath;
+import org.higherkindedj.optics.focus.FocusPaths;
+
+// Create a TraversalPath from our children traversal
+TraversalPath<Expr, Expr> childrenPath = TraversalPath.fromTraversal(children());
+
+// Now we have fluent operations:
+List<Expr> allChildren = childrenPath.getAll(expr);           // Collect all children
+Expr modified = childrenPath.modifyAll(this::optimise, expr); // Transform all children
+```
+
+The Focus DSL becomes even more powerful with collection navigation. For lists, use `each()`:
+
+```java
+// Given a department with a list of employees
+FocusPath<Department, List<Employee>> staffPath = DepartmentFocus.staff();
+
+// Navigate into the list with each()
+TraversalPath<Department, Employee> allStaff = staffPath.each();
+
+// Now we can operate on all employees:
+List<Employee> employees = allStaff.getAll(department);
+Department updated = allStaff.modifyAll(Employee::promote, department);
+```
+
+The `each()` method is the key: it transforms a `FocusPath<S, List<A>>` into a `TraversalPath<S, A>`. This pattern scales to nested structures, as we'll see throughout this article.
+
 ### Deep Traversal: Visiting All Descendants
 
 The `children()` traversal only visits immediate children. For full tree traversal, we combine it with recursive descent:
@@ -128,6 +174,38 @@ The choice between bottom-up and top-down matters:
 
 - **Top-down**: The node is transformed first. Use this when you want to pattern-match on the original structure before children change (like macro expansion).
 
+### Focus DSL: The Practical Choice
+
+For most use cases, the Focus DSL provides what you need without writing custom traversals. Here's the pattern for nested structures:
+
+```java
+@GenerateFocus(generateNavigators = true)
+record Company(String name, List<Department> departments) {}
+
+@GenerateFocus(generateNavigators = true)
+record Department(String name, List<Employee> employees, Employee manager) {}
+
+@GenerateFocus(generateNavigators = true)
+record Employee(String name, BigDecimal salary, Address address) {}
+
+// Navigate all the way to employee addresses:
+TraversalPath<Company, Address> allEmployeeAddresses = CompanyFocus
+    .departments().each()          // Into each department
+    .employees().each()            // Into each employee
+    .address();                    // To their address
+
+// Get all addresses
+List<Address> addresses = allEmployeeAddresses.getAll(company);
+
+// Relocate all employees
+Company relocated = allEmployeeAddresses.modifyAll(
+    addr -> new Address("New HQ", addr.city(), addr.postcode()),
+    company
+);
+```
+
+With navigators enabled, cross-type navigation happens automatically. No explicit `via()` calls, no manual composition. The path reads like English: "company's departments, each one's employees, each one's address."
+
 ---
 
 ## Collecting Information
@@ -160,21 +238,35 @@ private static void collectVariables(Expr expr, Set<String> accumulator) {
 }
 ```
 
-With traversals and prisms, we can make this more compositional:
+With the Focus DSL, we can make this more elegant:
 
 ```java
 public static Set<String> findVariables(Expr expr) {
-    return foldMap(
-        expr,
-        e -> ExprPrisms.variable().getOptional(e)
-            .map(v -> Set.of(v.name()))
-            .orElse(Set.of()),
-        Sets::union
+    // Create a TraversalPath that focuses on all Variable nodes
+    TraversalPath<Expr, Expr> allNodes = ExprFocus.universe();  // All descendants
+
+    // Filter to variables and extract names
+    return allNodes.getAll(expr).stream()
+        .filter(e -> e instanceof Variable)
+        .map(e -> ((Variable) e).name())
+        .collect(Collectors.toSet());
+}
+```
+
+Or using `foldMap` on the TraversalPath for a more functional approach:
+
+```java
+public static Set<String> findVariables(Expr expr) {
+    TraversalPath<Expr, Expr> allNodes = ExprFocus.universe();
+    return allNodes.foldMap(
+        Monoids.set(),
+        e -> e instanceof Variable(var name) ? Set.of(name) : Set.of(),
+        expr
     );
 }
 ```
 
-The `foldMap` function traverses the entire tree, extracts data from each node, and combines results using a monoid (here, set union).
+The `foldMap` method on `TraversalPath` traverses all focused elements and combines results using a monoid (here, set union).
 
 ### Counting Nodes by Type
 
@@ -228,11 +320,32 @@ public static <A> A foldMap(Expr expr, Function<Expr, A> extract, BinaryOperator
 
 ---
 
-## Filtered Traversals
+## Filtered Traversals and Conditional Updates
 
-Sometimes we only want to focus on certain nodes. Filtered traversals combine a traversal with a predicate or prism.
+Sometimes we only want to focus on certain elements. The Focus DSL provides `modifyWhen()` for conditional updates and filtering capabilities for targeted navigation.
+
+### Conditional Modification with modifyWhen
+
+The `modifyWhen` method is perfect for targeted updates:
+
+```java
+// Give a raise only to employees earning below a threshold
+TraversalPath<Company, Employee> allEmployees = CompanyFocus
+    .departments().each()
+    .employees().each();
+
+Company updated = allEmployees.modifyWhen(
+    emp -> emp.salary().compareTo(threshold) < 0,  // Predicate
+    emp -> emp.withSalary(emp.salary().multiply(1.15)),  // Transformation
+    company
+);
+```
+
+This is cleaner than filtering after the fact: the predicate and transformation are co-located, making the intent clear.
 
 ### Targeting Only Binary Additions
+
+For our expression language, we might want to target specific node types:
 
 ```java
 public static Expr doubleAllAdditions(Expr expr) {
@@ -248,29 +361,40 @@ public static Expr doubleAllAdditions(Expr expr) {
 
 ### Using Prisms for Type-Safe Filtering
 
+The Focus DSL integrates beautifully with prisms for sum type navigation:
+
 ```java
 public static List<BinaryOp> findAllOperators(Expr expr) {
-    List<BinaryOp> ops = new ArrayList<>();
-    collectWhere(expr, ExprPrisms.binary(), bin -> ops.add(bin.op()));
-    return ops;
-}
+    // Navigate to all Binary nodes using instanceOf
+    TraversalPath<Expr, Binary> allBinaries = ExprFocus.universe()
+        .via(AffinePath.instanceOf(Binary.class));
 
-private static <A> void collectWhere(Expr expr, Prism<Expr, A> prism, Consumer<A> action) {
-    prism.getOptional(expr).ifPresent(action);
-    switch (expr) {
-        case Binary(var l, _, var r) -> {
-            collectWhere(l, prism, action);
-            collectWhere(r, prism, action);
-        }
-        case Conditional(var c, var t, var e) -> {
-            collectWhere(c, prism, action);
-            collectWhere(t, prism, action);
-            collectWhere(e, prism, action);
-        }
-        default -> { }
-    }
+    return allBinaries.getAll(expr).stream()
+        .map(Binary::op)
+        .collect(Collectors.toList());
 }
 ```
+
+The `AffinePath.instanceOf()` creates an affine path that focuses on elements of a specific type. When composed with a traversal, it filters to only matching elements.
+
+### Sum Type Navigation with instanceOf
+
+For sealed interfaces, `instanceOf` is particularly powerful:
+
+```java
+// Focus on all Circle shapes in a drawing
+TraversalPath<Drawing, Circle> circles = DrawingFocus.shapes()
+    .each()
+    .via(AffinePath.instanceOf(Circle.class));
+
+// Double all circle radii
+Drawing updated = circles.modifyAll(
+    c -> new Circle(c.radius() * 2),
+    drawing
+);
+```
+
+This pattern combines the type safety of sealed interfaces with the composability of the Focus DSL. The compiler ensures exhaustiveness while the DSL provides elegant navigation.
 
 ---
 
@@ -511,36 +635,38 @@ All through composable, declarative transformations.
 
 ## Summary
 
-This article introduced traversals for recursive AST manipulation:
+This article introduced traversals and the Focus DSL's `TraversalPath` for recursive manipulation:
 
-1. **Universal Traversals**: Visit all children of any expression variant
-2. **Deep Traversal**: Bottom-up and top-down recursive descent
-3. **Information Collection**: Extract data with folds and monoids
-4. **Filtered Traversals**: Target specific node types with prisms
-5. **Optimisation Passes**: Constant folding, identity simplification, dead branch elimination
+1. **TraversalPath**: Fluent wrapper for traversals with `getAll()`, `modifyAll()`, `foldMap()`
+2. **Collection Navigation**: `each()` for lists, `at()` for indices, `atKey()` for maps
+3. **Conditional Updates**: `modifyWhen()` for predicate-based transformations
+4. **Sum Type Navigation**: `AffinePath.instanceOf()` for type-safe variant targeting
+5. **Deep Traversal**: Bottom-up and top-down recursive descent
 6. **Composable Optimiser**: Multiple passes running to fixed point
 
-The key insight: traversals separate *what* to visit from *what* to do. Define the traversal once; use it for any operation. This is the optics philosophy: composable, reusable abstractions for structural manipulation.
+The key insight: the Focus DSL separates *what* to visit from *what* to do. Build paths declaratively, then apply operations fluently. This is the optics philosophy made accessible.
 
 ### The Higher-Kinded-J Advantage for Tree Operations
 
-What makes Higher-Kinded-J particularly powerful for AST manipulation is how it elevates tree traversal from ad-hoc recursion to principled, composable abstractions. Consider what we achieved in this article:
+The Focus DSL transforms what could be tedious tree manipulation into expressive, readable code. Consider what we achieved:
 
-1. **Effect-polymorphic traversals**: The `children()` traversal's `modifyF` signature works with any `Applicative`. This means the same traversal definition handles pure transformations, error accumulation, and stateful operations without modification. Higher-Kinded-J's witness types make this polymorphism type-safe.
+1. **Fluent navigation with TraversalPath**: Instead of writing custom traversals, we chain methods: `.departments().each().employees().each().salary()`. The path describes the data shape, not the mechanics of traversal.
 
-2. **Compositional by design**: We composed prisms (for variant matching) with traversals (for tree descent) seamlessly. `ExprPrisms.binary()` focuses on Binary nodes; compose it with our traversal and you can target all Binary nodes in the entire tree. This compositional power comes directly from Higher-Kinded-J's optics implementation.
+2. **Collection navigation built-in**: Methods like `each()`, `at()`, and `atKey()` handle the common cases. No need to write `Traversals.list()` and compose it manually.
 
-3. **Separation of concerns**: The traversal infrastructure (how to walk the tree) is completely separate from the operations (what to do at each node). This separation means adding a new AST variant requires updating only the traversal, not every operation that uses it.
+3. **Conditional updates with modifyWhen**: Target specific elements with predicates directly on the path. The intent is clear and the implementation is correct by construction.
 
-4. **Reusable building blocks**: Our `transformBottomUp`, `transformTopDown`, and `foldMap` utilities work for any expression tree operation. These aren't special-cased functions; they're generic combinators built on Higher-Kinded-J's traversal foundations.
+4. **Sum type integration**: `AffinePath.instanceOf()` bridges sealed interfaces with the Focus DSL. Navigate to specific variants type-safely.
 
-The elegance here is that Higher-Kinded-J lets us write code that describes *what* we want to do (visit all nodes, collect variables, fold constants) rather than *how* to do it (manual recursion, visitor boilerplate). The library handles the structural plumbing, letting us focus on the domain logic.
+5. **Effect polymorphism underneath**: The Focus DSL wraps Higher-Kinded-J's effect-polymorphic traversals. When you need `modifyF` for validation or state, the same paths work.
+
+The Focus DSL embodies the principle: common things should be easy, powerful things should be possible. Most operations use the fluent API; when you need maximum control, the underlying traversals are always accessible.
 
 ---
 
 ## What's Next
 
-We've built a powerful foundation for tree manipulation. Our traversals can visit every node, our folds can aggregate information, and our optimisation passes compose cleanly.
+We've built a powerful foundation for tree manipulation with the Focus DSL. Our `TraversalPath` chains can visit every node, `foldMap` can aggregate information, and optimisation passes compose cleanly.
 
 But we've been working with pure transformations. Real compilers need effects:
 
@@ -548,15 +674,21 @@ But we've been working with pure transformations. Real compilers need effects:
 - **Interpretation** needs to track variable bindings (state)
 - **Optimisation** might need logging for debugging
 
-In Article 5, we'll explore effect-polymorphic optics with `modifyF`. We'll build:
+In Article 5, we'll explore effect-polymorphic optics with `modifyF`. The Focus DSL integrates seamlessly:
 
-- A type checker using `Validated` to collect all errors
-- An interpreter using `State` to manage environments
-- A Free monad DSL for composable, interpretable transformations
+```java
+// Preview: effectful modification through Focus paths
+Kind<ValidatedKind.Witness<List<TypeError>>, Employee> result =
+    employeePath.modifyF(
+        emp -> validateEmployee(emp),  // Returns Validated
+        employee,
+        validatedApplicative
+    );
+```
 
-Higher-Kinded-J's true power emerges here. The `modifyF` method we've seen on our traversals accepts any `Applicative` (or `Monad` for operations requiring sequencing). This means the same traversal code we wrote in this article will work unchanged with `Validated` for error accumulation, `State` for environment threading, or `IO` for side effects. Higher-Kinded-J provides the type-class instances and witness types that make this polymorphism possible in Java.
+The same Focus paths we've built work with `Validated` for error accumulation, `State` for environment threading, and any other effect. Higher-Kinded-J provides the type-class instances that make this polymorphism possible.
 
-We'll see how Higher-Kinded-J's `Validated` type differs from `Either` (accumulating all errors rather than short-circuiting), how `State` threads environment bindings through interpretation, and how these effects compose with our existing optics. The expression language will gain a full type system and interpreter, all built on the same traversal foundations.
+We'll see how `Validated` differs from `Either` (accumulating all errors rather than short-circuiting), how `State` threads environment bindings through interpretation, and how these effects compose with Focus paths. The expression language will gain a full type system and interpreter, all built on the same Focus DSL foundations.
 
 ---
 

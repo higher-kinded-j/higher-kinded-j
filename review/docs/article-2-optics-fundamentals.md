@@ -524,6 +524,24 @@ The same optic (the same composed path) works with any effect. This is the power
 
 We'll explore `modifyF` fully in Article 5, where we'll use it for type-checking with error accumulation and interpretation with state. For now, know that the optics you're learning aren't limited to pure transformations.
 
+### A Preview: The Focus DSL
+
+The optics we're learning in this article form the foundation. But Higher-Kinded-J also provides something even more ergonomic: the **Focus DSL**. With `@GenerateFocus` annotations, you can write fluent navigation chains like:
+
+```java
+// Instead of manually composing lenses:
+Lens<Employee, String> streetLens =
+    EmployeeLenses.address().andThen(AddressLenses.street());
+String street = streetLens.get(employee);
+
+// With Focus DSL:
+String street = EmployeeFocus.address().street().get(employee);
+```
+
+The Focus DSL wraps optics in path types (`FocusPath`, `AffinePath`, `TraversalPath`) that enable fluent cross-type navigation. When navigators are enabled, you chain directly through nested types without explicit composition.
+
+We'll introduce the Focus DSL properly in Article 3 and use it extensively from Article 4 onwards. For now, understanding the underlying optics gives you the conceptual foundation that makes the DSL's elegance possible.
+
 ---
 
 ## Introducing the Expression Language
@@ -572,6 +590,7 @@ Key takeaways:
 2. **The type tells you what to expect**: Lens always succeeds; Prism might not; Traversal might find many
 3. **Annotation-driven generation eliminates boilerplate**: `@GenerateLenses` and `@GeneratePrisms` do the mechanical work
 4. **Effects come later**: The same optics work with pure transformations and effectful ones
+5. **The Focus DSL awaits**: An even more ergonomic API builds on these foundations
 
 ### The Higher-Kinded-J Advantage
 
@@ -579,7 +598,7 @@ What makes Higher-Kinded-J particularly elegant is how it brings these functiona
 
 The library's design philosophy prioritises practicality: minimal boilerplate, compile-time verification of optic laws, and clear composition semantics. Rather than fighting Java's type system, Higher-Kinded-J works with it, using witness types and type-class patterns that feel natural once understood.
 
-In Article 3, we'll apply these fundamentals to build the expression language AST, demonstrating how lenses and prisms work together for real-world tree manipulation. Higher-Kinded-J will prove invaluable here, allowing us to define recursive traversals over the expression tree with elegant, declarative code.
+In Article 3, we'll apply these fundamentals to build the expression language AST, introducing the `@GenerateFocus` annotation alongside lenses and prisms. You'll see how the Focus DSL transforms optic composition from explicit method chains into fluent navigation, making real-world tree manipulation remarkably clean.
 
 ---
 
