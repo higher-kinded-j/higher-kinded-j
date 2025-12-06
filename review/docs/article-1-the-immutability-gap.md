@@ -304,26 +304,42 @@ Optics compose, but the result type depends on what you're composing:
 | First | Second | Result |
 |-------|--------|--------|
 | Lens | Lens | Lens |
-| Lens | Prism | Traversal |
+| Lens | Prism | Affine |
+| Lens | Affine | Affine |
 | Lens | Traversal | Traversal |
-| Prism | Lens | Traversal |
+| Prism | Lens | Affine |
 | Prism | Prism | Prism |
+| Prism | Affine | Affine |
 | Prism | Traversal | Traversal |
+| Affine | Lens | Affine |
+| Affine | Prism | Affine |
+| Affine | Affine | Affine |
+| Affine | Traversal | Traversal |
 | Traversal | Lens | Traversal |
 | Traversal | Prism | Traversal |
+| Traversal | Affine | Traversal |
 | Traversal | Traversal | Traversal |
 
-The intuition: composing with something "weaker" yields a Traversal. A lens through a prism might not find anything (the prism might not match). A lens through a traversal might find many things.
+The intuition: composing optics that might fail to focus yields an optic that reflects that uncertainty.
 
-Some optics libraries introduce additional types like "affine" or "optional" for the zero-or-one case. Higher-Kinded-J takes a simpler approach: `Traversal` handles all these cases uniformly, whether the focus is zero, one, or many elements.
+### Affine: Focus on Zero or One
+
+Between Prism and Lens sits another useful optic: the *Affine* (sometimes called "Optional"). An Affine focuses on at most one value that might not exist:
+
+- A lens composed with a prism yields an Affine
+- Accessing an optional field uses an Affine
+- Looking up a key in a map uses an Affine
+
+Higher-Kinded-J provides full Affine support, completing the optics hierarchy.
 
 ### When to Use Each
 
-- **Lens**: Navigate to a field that always exists
-- **Prism**: Navigate to a variant that might or might not apply
-- **Traversal**: Navigate to multiple elements in a collection
+- **Lens**: Navigate to a field that always exists (exactly one)
+- **Prism**: Navigate to a variant that might or might not apply (zero or one, with construction)
+- **Affine**: Navigate to a value that might not exist (zero or one)
+- **Traversal**: Navigate to multiple elements in a collection (zero to many)
 
-In practice, you'll compose all three. Navigating to "the radius of every circle in a list of shapes" requires a traversal (for the list), a prism (for circles), and a lens (for the radius).
+In practice, you'll compose all four. Navigating to "the radius of every circle in a list of shapes" requires a traversal (for the list), a prism (for circles), and a lens (for the radius). Accessing an optional configuration value uses an Affine.
 
 ---
 
@@ -482,6 +498,7 @@ You don't need to understand higher-kinded types to use the library effectively.
 In Article 2, we'll dive deeper into optics fundamentals:
 - Lens laws and why they matter for correctness
 - Prisms for sum types and sealed interfaces
+- Affines for optional values
 - Traversals for collections and bulk operations
 - Setting up higher-kinded-j for annotation-driven lens generation
 
@@ -495,7 +512,7 @@ By the end of this series, you'll never want to update nested data manually agai
 
 ### Data-Oriented Programming in Java
 
-- **Brian Goetz & Chris Kiehl, *Data-Oriented Programming in Java*** (Manning, forthcoming): The definitive guide to DOP in modern Java, from the language architect who designed records and pattern matching.
+- **Chris Kiehl, [*Data-Oriented Programming in Java*](https://www.manning.com/books/data-oriented-programming-in-java)** (Manning): A practical guide to DOP in modern Java, covering records, sealed types, and functional patterns.
 
 - **Brian Goetz, ["Data-Oriented Programming in Java"](https://www.infoq.com/articles/data-oriented-programming-java/)** (InfoQ, 2022): Goetz's foundational article explaining the philosophy behind Java's DOP features.
 
