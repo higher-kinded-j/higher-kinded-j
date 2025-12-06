@@ -323,17 +323,18 @@ Honest assessment requires acknowledging gaps:
 
 ## Higher-Kinded-J: Where We Stand
 
-Higher-Kinded-J is a young project, but its optics implementation is more comprehensive than you might expect.
+Higher-Kinded-J is a young project, but its optics implementation is comprehensive and feature-complete.
 
 ### Current Capabilities
 
-The optics implementation covers **nine optic types** with full composition support:
+The optics implementation covers **ten optic types** with full composition support:
 
 | Optic | Description | Status |
 |-------|-------------|--------|
 | **Iso** | Bidirectional lossless transformations | Complete |
 | **Lens** | Focus on single field in product type | Complete |
 | **Prism** | Focus on variant in sum type | Complete |
+| **Affine** | Focus on zero or one element (optional fields) | Complete |
 | **Traversal** | Focus on multiple elements | Complete |
 | **Getter** | Read-only single value access | Complete |
 | **Setter** | Write-only modification | Complete |
@@ -352,7 +353,7 @@ Compared to established libraries:
 | Feature | Haskell lens | Monocle (Scala) | Arrow (Kotlin) | Higher-Kinded-J |
 |---------|-------------|-----------------|----------------|-----------------|
 | Core optics | Complete | Complete | Complete | Complete |
-| Optional/Affine | ✓ | ✓ | ✓ | Missing |
+| Affine/Optional | ✓ | ✓ | ✓ | ✓ |
 | Indexed optics | ✓ | ✓ | ✓ | ✓ |
 | At/Ixed | ✓ | ✓ | ✓ | ✓ |
 | Type safety | Native HKT | Native HKT | Native HKT | Simulated HKT |
@@ -361,11 +362,13 @@ Compared to established libraries:
 
 The key differentiator is native Java integration. Higher-Kinded-J is designed for Java's type system and idioms. There's no language boundary to cross, no interop overhead, and no need to convince your team to adopt a different language.
 
-### What's Missing
+### Future Directions
 
-The main gap is the **Optional** optic (also called **Affine** in profunctor optics). This represents focus on 0 or 1 elements, positioned between Lens (exactly 1) and Traversal (0 to many). Currently you'd use Prism or Traversal where Monocle/Arrow would use Optional, but an explicit type would provide better composition precision.
+With core optics complete, future development focuses on:
 
-Profunctor optics (the cutting-edge unified encoding) remain on the roadmap.
+- Profunctor optics (the cutting-edge unified encoding)
+- Enhanced IDE tooling for optic composition
+- Performance optimisation for hot paths
 
 ### The Ambition
 
@@ -394,11 +397,11 @@ Higher-Kinded-J needs contributors. If you've found these patterns useful, consi
 
 Areas where help is particularly welcome:
 
-- The Optional/Affine optic type for precise 0-or-1 focus semantics
 - Profunctor-based optics for unified composition
 - IDE plugins for optic composition visualisation
 - Documentation, tutorials, and real-world examples
 - Performance profiling and optimisation
+- Integration with popular Java frameworks
 
 The GitHub repository welcomes contributions, the issue tracker is open for bug reports and feature requests, and discussions provide a forum for questions and ideas.
 
