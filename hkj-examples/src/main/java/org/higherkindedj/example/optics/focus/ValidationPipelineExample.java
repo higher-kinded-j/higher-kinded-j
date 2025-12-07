@@ -242,7 +242,7 @@ public class ValidationPipelineExample {
     TraversalPath<Order, Integer> quantitiesPath = allItemsPath.via(LineItemFocus.quantity());
 
     // Navigate to prices
-    TraversalPath<Order, Double> pricesPath = allItemsPath.via(LineItemLenses.unitPrice());
+    TraversalPath<Order, Double> pricesPath = allItemsPath.via(LineItemFocus.unitPrice());
 
     // Integer sum monoid
     Monoid<Integer> intSum =
