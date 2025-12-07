@@ -97,8 +97,8 @@
 
 # Optics IV: Java-Friendly APIs
 - [Introduction](optics/ch4_intro.md)
-  - [Fluent API](optics/fluent_api.md)
   - [Focus DSL](optics/focus_dsl.md)
+  - [Fluent API](optics/fluent_api.md)
   - [Free Monad DSL](optics/free_monad_dsl.md)
   - [Interpreters](optics/interpreters.md)
 

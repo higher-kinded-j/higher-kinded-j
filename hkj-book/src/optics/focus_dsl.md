@@ -1148,5 +1148,5 @@ TraversalPath<JsonNode, String> path = TraversalPath.of(dynamicPath);
 
 ---
 
-**Previous:** [Fluent API](fluent_api.md)
-**Next:** [Free Monad DSL](free_monad_dsl.md)
+**Previous:** [Introduction](ch4_intro.md)
+**Next:** [Fluent API](fluent_api.md)

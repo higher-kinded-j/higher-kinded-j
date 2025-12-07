@@ -10,7 +10,8 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
-import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateFocus;
+import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 
@@ -27,6 +28,7 @@ import org.higherkindedj.optics.focus.TraversalPath;
  *   <li>Short-circuit validation (fail-fast)
  *   <li>Using {@code foldMap()} with custom Monoids for aggregation
  *   <li>Combining validation with transformation
+ *   <li>Using generated Focus classes for type-safe navigation
  * </ul>
  */
 public class ValidationPipelineExample {
@@ -34,55 +36,28 @@ public class ValidationPipelineExample {
   // ============= Domain Model =============
 
   /** Configuration with various fields that need validation. */
-  record Config(String apiKey, String databaseUrl, int timeout, int maxConnections) {}
+  @GenerateLenses
+  @GenerateFocus
+  public record Config(String apiKey, String databaseUrl, int timeout, int maxConnections) {}
 
   /** User profile with fields requiring validation. */
-  record UserProfile(String username, String email, int age) {}
+  @GenerateLenses
+  @GenerateFocus
+  public record UserProfile(String username, String email, int age) {}
 
   /** Order with line items for aggregation example. */
-  record Order(String orderId, List<LineItem> items) {}
+  @GenerateLenses
+  @GenerateFocus
+  public record Order(String orderId, List<LineItem> items) {}
 
   /** Line item in an order. */
-  record LineItem(String productId, int quantity, double unitPrice) {
+  @GenerateLenses
+  @GenerateFocus
+  public record LineItem(String productId, int quantity, double unitPrice) {
     double total() {
       return quantity * unitPrice;
     }
   }
-
-  // ============= Lenses =============
-
-  static final Lens<Config, String> configApiKeyLens =
-      Lens.of(
-          Config::apiKey,
-          (c, k) -> new Config(k, c.databaseUrl(), c.timeout(), c.maxConnections()));
-
-  static final Lens<Config, String> configDbUrlLens =
-      Lens.of(
-          Config::databaseUrl,
-          (c, url) -> new Config(c.apiKey(), url, c.timeout(), c.maxConnections()));
-
-  static final Lens<Config, Integer> configTimeoutLens =
-      Lens.of(
-          Config::timeout,
-          (c, t) -> new Config(c.apiKey(), c.databaseUrl(), t, c.maxConnections()));
-
-  static final Lens<UserProfile, String> usernameLens =
-      Lens.of(UserProfile::username, (u, name) -> new UserProfile(name, u.email(), u.age()));
-
-  static final Lens<UserProfile, String> emailLens =
-      Lens.of(UserProfile::email, (u, email) -> new UserProfile(u.username(), email, u.age()));
-
-  static final Lens<UserProfile, Integer> ageLens =
-      Lens.of(UserProfile::age, (u, age) -> new UserProfile(u.username(), u.email(), age));
-
-  static final Lens<Order, List<LineItem>> orderItemsLens =
-      Lens.of(Order::items, (o, items) -> new Order(o.orderId(), items));
-
-  static final Lens<LineItem, Integer> lineItemQuantityLens =
-      Lens.of(LineItem::quantity, (li, q) -> new LineItem(li.productId(), q, li.unitPrice()));
-
-  static final Lens<LineItem, Double> lineItemPriceLens =
-      Lens.of(LineItem::unitPrice, (li, p) -> new LineItem(li.productId(), li.quantity(), p));
 
   // ============= Examples =============
 
@@ -114,8 +89,8 @@ public class ValidationPipelineExample {
           }
         };
 
-    // Create path to API key
-    FocusPath<Config, String> apiKeyPath = FocusPath.of(configApiKeyLens);
+    // Use generated Focus class for type-safe navigation
+    FocusPath<Config, String> apiKeyPath = ConfigFocus.apiKey();
 
     // Validate and transform valid config
     Kind<MaybeKind.Witness, Config> validResult =
@@ -175,10 +150,10 @@ public class ValidationPipelineExample {
           return MaybeKindHelper.MAYBE.widen(Maybe.nothing());
         };
 
-    // Create paths
-    FocusPath<UserProfile, String> usernamePath = FocusPath.of(usernameLens);
-    FocusPath<UserProfile, String> emailPath = FocusPath.of(emailLens);
-    FocusPath<UserProfile, Integer> agePath = FocusPath.of(ageLens);
+    // Use generated Focus classes for type-safe navigation
+    FocusPath<UserProfile, String> usernamePath = UserProfileFocus.username();
+    FocusPath<UserProfile, String> emailPath = UserProfileFocus.email();
+    FocusPath<UserProfile, Integer> agePath = UserProfileFocus.age();
 
     // Chain validations manually (fail-fast)
     System.out.println("Validating valid profile:");
@@ -260,14 +235,14 @@ public class ValidationPipelineExample {
                 new LineItem("PROD-B", 1, 149.99),
                 new LineItem("PROD-C", 5, 9.99)));
 
-    // Path to all line items
-    TraversalPath<Order, LineItem> allItemsPath = FocusPath.of(orderItemsLens).each();
+    // Use generated Focus class - items() returns TraversalPath for List fields
+    TraversalPath<Order, LineItem> allItemsPath = OrderFocus.items();
 
-    // Path to quantities
-    TraversalPath<Order, Integer> quantitiesPath = allItemsPath.via(lineItemQuantityLens);
+    // Navigate to quantities using generated LineItemFocus
+    TraversalPath<Order, Integer> quantitiesPath = allItemsPath.via(LineItemLenses.quantity());
 
-    // Path to prices
-    TraversalPath<Order, Double> pricesPath = allItemsPath.via(lineItemPriceLens);
+    // Navigate to prices
+    TraversalPath<Order, Double> pricesPath = allItemsPath.via(LineItemLenses.unitPrice());
 
     // Integer sum monoid
     Monoid<Integer> intSum =
@@ -349,7 +324,8 @@ public class ValidationPipelineExample {
                 new LineItem("TINY-D", 1, 100.00) // Single item
                 ));
 
-    TraversalPath<Order, LineItem> allItemsPath = FocusPath.of(orderItemsLens).each();
+    // Use generated Focus class for type-safe navigation
+    TraversalPath<Order, LineItem> allItemsPath = OrderFocus.items();
 
     System.out.println("Original items:");
     printOrderItems(order);
