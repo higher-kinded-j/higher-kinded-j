@@ -239,7 +239,7 @@ public class ValidationPipelineExample {
     TraversalPath<Order, LineItem> allItemsPath = OrderFocus.items();
 
     // Navigate to quantities using generated LineItemFocus
-    TraversalPath<Order, Integer> quantitiesPath = allItemsPath.via(LineItemLenses.quantity());
+    TraversalPath<Order, Integer> quantitiesPath = allItemsPath.via(LineItemFocus.quantity());
 
     // Navigate to prices
     TraversalPath<Order, Double> pricesPath = allItemsPath.via(LineItemLenses.unitPrice());
