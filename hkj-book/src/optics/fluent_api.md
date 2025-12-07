@@ -1037,3 +1037,8 @@ for (Order order : orders) {
 - [Free Monad DSL for Optics](free_monad_dsl.md) - Build composable programs
 - [Optic Interpreters](interpreters.md) - Multiple execution strategies
 - [Advanced Patterns](composing_optics.md) - Complex real-world scenarios
+
+---
+
+**Previous:** [Focus DSL](focus_dsl.md)
+**Next:** [Free Monad DSL](free_monad_dsl.md)

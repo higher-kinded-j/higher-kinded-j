@@ -8,37 +8,104 @@
 
 Optics originated in Haskell, a language with rather different conventions to Java. Method names like `view`, `over`, and `preview` don't match what Java developers expect, and the parameter ordering (value before source) feels backwards to anyone accustomed to the receiver-first style.
 
-This chapter addresses that gap.
-
-The Fluent API provides two complementary styles: static methods for concise one-liners, and builder chains for discoverable, IDE-friendly operations. Both produce identical results; the choice is aesthetic. Some developers prefer `OpticOps.get(person, ageLens)`. Others prefer `OpticOps.getting(person).through(ageLens)`. Neither is wrong.
-
-Beyond syntax, this chapter introduces validation-aware modifications using Either, Maybe, and Validated: the core types that make optics genuinely useful in production code. When your field update might fail validation, `modifyEither` handles it cleanly. When you need to accumulate all validation errors rather than stopping at the first, `modifyAllValidated` is waiting.
-
-The Free Monad DSL takes this further, separating program description from execution. You build an optic program as a data structure, then interpret it: directly for production, with logging for audits, or with validation for dry-runs. It sounds abstract. It becomes practical remarkably quickly.
+This chapter addresses that gap with three complementary APIs, each suited to different needs.
 
 ---
 
-## Two Styles, Same Result
+## Which API Should I Use?
+
+~~~admonish tip title="Start Here"
+**For most users, the Focus DSL is the recommended starting point.** It provides the most intuitive, IDE-friendly experience for navigating and modifying nested data structures.
+~~~
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  TRADITIONAL OPTICS STYLE                                   │
-│                                                             │
-│    ageLens.set(30, ageLens.get(person))                    │
-│              ↑                    ↑                         │
-│         value first         source last (!)                 │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│  FLUENT BUILDER STYLE                                       │
-│                                                             │
-│    OpticOps.setting(person).through(ageLens, 30)           │
-│                 ↑              ↑           ↑                │
-│            source first    optic      value last            │
-│                                                             │
-│  Reads naturally: "Setting person, through age lens, to 30" │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CHOOSING YOUR API                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │  Focus DSL      │ ◄─── START HERE                                        │
+│  │  (Recommended)  │      Path-based navigation with full type safety       │
+│  └────────┬────────┘      CompanyFocus.departments().employees().name()     │
+│           │                                                                 │
+│           │  Need validation-aware modifications?                           │
+│           │  Working with Either/Maybe/Validated?                           │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                        │
+│  │  Fluent API     │      Static methods + builders for effectful ops       │
+│  │  (OpticOps)     │      OpticOps.modifyEither(user, lens, validator)      │
+│  └────────┬────────┘                                                        │
+│           │                                                                 │
+│           │  Need audit trails? Dry-runs? Multiple execution strategies?    │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                        │
+│  │  Free Monad DSL │      Programs as data, interpreted later               │
+│  │  (Advanced)     │      OpticPrograms.get(...).flatMap(...)               │
+│  └─────────────────┘                                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## The Three APIs at a Glance
+
+### Focus DSL — The Primary API
+
+The Focus DSL provides fluent, path-based navigation that mirrors how you think about your data:
+
+```java
+// Navigate deeply nested structures with type safety
+String city = CompanyFocus.headquarters().city().get(company);
+
+// Modify values at any depth
+Company updated = CompanyFocus.departments()
+    .employees()
+    .salary()
+    .modifyAll(s -> s.multiply(1.10), company);
+```
+
+Use `@GenerateFocus` on your records to generate path builders automatically. The DSL handles collections (`.each()`), optionals (`.some()`), and indexed access (`.at(index)`) naturally.
+
+**Best for:** Day-to-day optic operations, deep navigation, IDE discoverability, learning optics.
+
+### Fluent API — Validation and Effects
+
+The `OpticOps` class provides static methods and builders for operations that involve validation or effects:
+
+```java
+// Validation-aware modification with error accumulation
+Validated<List<String>, Order> result = OpticOps.modifyAllValidated(
+    order,
+    orderPricesTraversal,
+    price -> validatePrice(price)
+);
+
+// Effectful operations with type classes
+Kind<CompletableFutureKind.Witness, User> asyncResult = OpticOps.modifyF(
+    user, emailLens, this::fetchVerifiedEmail, cfApplicative
+);
+```
+
+**Best for:** Validation pipelines, error accumulation, async operations, integration with `Either`/`Maybe`/`Validated`.
+
+### Free Monad DSL — Programs as Data
+
+The Free Monad DSL separates *what* from *how*, letting you build optic programs as data structures that can be interpreted in multiple ways:
+
+```java
+// Build a program (no execution yet)
+Free<OpticOpKind.Witness, Person> program = OpticPrograms
+    .get(person, ageLens)
+    .flatMap(age -> OpticPrograms.set(person, ageLens, age + 1));
+
+// Choose how to execute
+Person result = OpticInterpreters.direct().run(program);      // Production
+LoggingInterpreter logger = OpticInterpreters.logging();
+Person logged = logger.run(program);                          // With audit trail
+```
+
+**Best for:** Audit trails, dry-runs, testing without side effects, complex conditional workflows.
 
 ---
 
@@ -77,8 +144,9 @@ Same program, different execution strategies.
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Fluent API** – Static methods and builder patterns for natural Java syntax
-- **Validation-Aware Modifications** – Using Either, Maybe, and Validated
+- **Focus DSL** – Path-based navigation with type safety and IDE support
+- **Fluent API** – Static methods and builders for validation-aware modifications
+- **Validation Integration** – Using Either, Maybe, and Validated with optics
 - **Free Monad DSL** – Building optic programs as composable data
 - **Interpreters** – Multiple execution strategies for the same program
 ~~~

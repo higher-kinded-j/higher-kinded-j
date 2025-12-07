@@ -12,7 +12,7 @@
 ~~~
 
 ~~~admonish title="Example Code"
-[OpticInterpretersExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/free/OpticInterpretersExample.java)
+[OpticInterpretersExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/OpticInterpretersExample.java)
 ~~~
 
 ## Introduction: The Power of Interpretation
@@ -738,4 +738,4 @@ try {
 
 - [Free Monad DSL for Optics](free_monad_dsl.md) - Building composable programs
 - [Fluent API for Optics](fluent_api.md) - Direct execution patterns
-- [Practical Examples](optics_examples.md) - Real-world applications
+- [Cookbook](cookbook.md) - Real-world recipes and patterns
