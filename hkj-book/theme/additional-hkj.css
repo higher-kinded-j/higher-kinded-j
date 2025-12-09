@@ -132,3 +132,22 @@ h1 + h2 {
         margin: 1rem 0;
     }
 }
+
+/* Navigation Sidebar Link */
+.nav-show-sidebar {
+    color: var(--links);
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.nav-show-sidebar:hover {
+    color: var(--links-hover);
+    text-decoration: underline;
+}
+
+.nav-show-sidebar-separator {
+    color: var(--fg);
+    opacity: 0.5;
+}
