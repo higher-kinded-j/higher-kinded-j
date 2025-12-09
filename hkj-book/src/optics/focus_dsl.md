@@ -1139,12 +1139,15 @@ TraversalPath<JsonNode, String> path = TraversalPath.of(dynamicPath);
 
 ---
 
-## Further Reading
+~~~admonish tip title="Further Reading"
+- **Monocle**: [Focus DSL](https://www.optics.dev/Monocle/docs/focus) - Scala's equivalent, inspiration for this design
+~~~
 
-- [Monocle Focus](https://www.optics.dev/Monocle/docs/focus) - Scala's equivalent, inspiration for this design
-- [Lenses: Composable Getters and Setters](lenses.md) - Foundation concepts
+~~~admonish tip title="See Also"
+- [Lenses](lenses.md) - Foundation concepts
 - [Fluent API](fluent_api.md) - Alternative fluent patterns
 - [Free Monad DSL](free_monad_dsl.md) - Composable optic programs
+~~~
 
 ---
 

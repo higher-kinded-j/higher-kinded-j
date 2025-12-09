@@ -328,14 +328,21 @@ Higher-Kinded-J provides Selective instances for:
 
 ---
 
-## Key Takeaways
-
+~~~admonish info title="Key Takeaways"
 * **Selective sits between Applicative and Monad**, providing conditional effects with static structure
 * **`select` is the core operation**, conditionally applying a function based on a `Choice`
 * **`whenS` enables conditional effect execution**, perfect for feature flags and debug logging
 * **`ifS` provides if-then-else semantics** with both branches visible upfront
 * **All branches are known at construction time**, enabling static analysis and optimisation
 * **Use Selective when you need conditional effects but want to avoid full monadic power**
+~~~
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Selective Applicative Functors**: [Original Paper](https://dl.acm.org/doi/10.1145/3341694) - The academic paper introducing Selective functors
+- **Haskell Selective Library**: [Hackage](https://hackage.haskell.org/package/selective) - Reference implementation with additional examples
+~~~
 
 ---
 

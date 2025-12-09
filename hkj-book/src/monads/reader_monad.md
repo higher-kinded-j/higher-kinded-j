@@ -273,9 +273,12 @@ For deeper exploration of the Reader monad and dependency injection patterns:
 - **Mark Seemann**: [Dependency Injection Revisited](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) - Functional alternatives to traditional DI
 
 **Java-Focused Resources:**
-- **Functional Java**: [Reader implementation](http://www.functionaljava.org/javadoc/4.8.1/functionaljava/fj/Reader.html) - Pure functional library for Java with Reader monad
-- **Vavr Documentation**: [Function composition patterns](https://docs.vavr.io/#_functions) - Demonstrates functional composition techniques applicable to Reader pattern
-- **Baeldung**: [Introduction to Vavr](https://www.baeldung.com/vavr) - Java FP patterns and idioms
+- **Functional Java**: [GitHub repository](https://github.com/functionaljava/functionaljava) - Pure functional library for Java with Reader monad
 - **Richard Warburton**: "Java 8 Lambdas" (O'Reilly, 2014) - Functional programming fundamentals in Java
 - **Pierre-Yves Saumont**: "Functional Programming in Java" (Manning, 2017) - Chapter on handling dependencies functionally
 ~~~
+
+---
+
+**Previous:** [Optional](optional_monad.md)
+**Next:** [State](state_monad.md)

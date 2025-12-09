@@ -493,3 +493,8 @@ public class StreamUsageExample {
 - You need to store the result for later reuse
 
 **Key Difference:** `List` is eager and reusable; `Stream` is lazy and single-use.
+
+---
+
+**Previous:** [State](state_monad.md)
+**Next:** [Trampoline](trampoline_monad.md)

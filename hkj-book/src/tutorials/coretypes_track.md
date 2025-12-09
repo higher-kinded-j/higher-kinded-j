@@ -1,5 +1,13 @@
 # Core Types Tutorial Track
 
+~~~admonish info title="What You'll Learn"
+- How Higher-Kinded Types work in Java through the `Kind<F, A>` wrapper
+- The progression from Functor (map) to Applicative (combine) to Monad (chain) abstractions
+- When to use `Either`, `Maybe`, `Validated`, and `List` for different scenarios
+- Advanced patterns including Natural Transformations, Coyoneda map fusion, and Free Applicative
+- Building real-world workflows that combine multiple functional programming patterns
+~~~
+
 **Duration**: ~86 minutes | **Tutorials**: 10 | **Exercises**: 60
 
 ## What You'll Master
@@ -362,3 +370,8 @@ After completing this track:
 ---
 
 Ready to start? Open `Tutorial01_KindBasics.java` and let's demystify Higher-Kinded Types!
+
+---
+
+**Previous:** [Interactive Tutorials](tutorials_intro.md)
+**Next:** [Optics Track](optics_track.md)

@@ -6,6 +6,14 @@
 Ready to master optics through practice? Our **[Optics Tutorial Track](../tutorials/optics_track.md)** offers 9 interactive tutorials covering Lenses, Prisms, Traversals, and the Free Monad DSL in ~90 minutes.
 ~~~
 
+~~~admonish info title="What You'll Learn"
+- What optics are and how they solve the nested immutable data update problem in Java
+- The five core optic types: Lens, Iso, Prism, Traversal, and Fold, and when to use each
+- How to compose optics to navigate and modify deeply nested structures
+- Using annotation-driven code generation to create type-safe optics automatically
+- Performing effectful modifications with Higher-Kinded Types using `modifyF` and Applicatives
+~~~
+
 As Java developers, we appreciate the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data can be a verbose and error-prone nightmare.
 
 Consider a simple nested record structure:

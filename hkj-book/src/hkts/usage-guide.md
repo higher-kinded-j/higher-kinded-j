@@ -227,4 +227,8 @@ public void genericExample() {
 }
 
 ```
-~~~
+
+---
+
+**Previous:** [Concepts](core-concepts.md)
+**Next:** [Basic HKT Examples](hkt_basic_examples.md)

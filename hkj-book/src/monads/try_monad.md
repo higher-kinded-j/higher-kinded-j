@@ -214,3 +214,8 @@ System.out.println(flatMappedTry);
 System.out.println(handledTry);
 ```
 ~~~
+
+---
+
+**Previous:** [Coyoneda](coyoneda.md)
+**Next:** [Validated](validated_monad.md)

@@ -650,12 +650,10 @@ logger.getLog().forEach(System.out::println);  // Side effect here is fine
 
 ---
 
-## Further Reading
-
-- **Free Monads Explained**: [Why Free Monads Matter](http://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) by Gabriel Gonzalez
-- **Interpreter Pattern**: [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Interpreter_pattern)
-- **Tagless Final vs Free**: [Typed Tagless Final Interpreters](http://okmij.org/ftp/tagless-final/)
-- **Railway-Oriented Programming**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) by Scott Wlaschin
+~~~admonish tip title="Further Reading"
+- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - The foundational explanation
+- **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) - Error handling patterns
+~~~
 
 ---
 
@@ -664,3 +662,8 @@ logger.getLog().forEach(System.out::println);  // Side effect here is fine
 - [Optic Interpreters](interpreters.md) - Deep dive into execution strategies
 - [Fluent API for Optics](fluent_api.md) - Direct execution patterns
 - [Advanced Patterns](composing_optics.md) - Complex real-world scenarios
+
+---
+
+**Previous:** [Fluent API](fluent_api.md)
+**Next:** [Interpreters](interpreters.md)

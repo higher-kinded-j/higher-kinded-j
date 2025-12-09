@@ -8,7 +8,7 @@ This web series explores the foundational ideas that inspired Higher-Kinded-J's 
 
 In this post, we explore the power of Algebraic Data Types (ADT) with Pattern Matching in Java. We look at how they help us model complex business domains and how using them together gives improvements on the traditional Visitor Pattern.
 
-- [Variance in Generics, Phantom and Existential types with Java and Scala](http://blog.scottlogic.com/2025/02/17/variance-in-java-and-scala.html)
+- [Variance in Generics, Phantom and Existential types with Java and Scala](https://blog.scottlogic.com/2025/02/17/variance-in-java-and-scala.html)
 
 In this post, we look at Variance in Generics and how it is handled in Java and Scala. We consider use-site and declaration-site approaches and the trade-offs of erasure. Finally, we take a look at Phantom and Existential types and how they can enhance the capabilities of the type system when it comes to modelling.
 

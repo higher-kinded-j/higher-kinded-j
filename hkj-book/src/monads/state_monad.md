@@ -374,3 +374,8 @@ For deeper exploration of the State monad and its applications:
 - **Venkat Subramaniam**: "Functional Programming in Java" (O'Reilly, 2014) - Practical guide to FP patterns in modern Java
 
 ~~~
+
+---
+
+**Previous:** [Reader](reader_monad.md)
+**Next:** [Stream](stream_monad.md)

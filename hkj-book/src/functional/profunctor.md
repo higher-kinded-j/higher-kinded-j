@@ -110,7 +110,7 @@ System.out.println(fullFunc.apply(42)); // Output: "Result: 2"
 
 Profunctors excel at creating **adaptable data transformation pipelines**. They're particularly powerful for:
 
-### 1. **API Adapters** 🔌
+### 1. **API Adapters**
 
 When you need to integrate with external systems that expect different data formats:
 
@@ -136,7 +136,7 @@ Kind2<FunctionKind.Witness, UserDto, ApiResponse<ValidationResult>> apiValidator
 Function<UserDto, ApiResponse<ValidationResult>> apiFunc = FUNCTION.getFunction(apiValidator);
 ```
 
-### 2. **Validation Pipelines** ✅
+### 2. **Validation Pipelines**
 
 Build reusable validation logic that adapts to different input and output formats:
 
@@ -166,7 +166,7 @@ System.out.println(validator.apply("-10"));   // "✗ Not a positive number"
 ```
 
 
-### 3. **Data Transformation Chains** 🔗
+### 3. **Data Transformation Chains**
 
 Chain multiple adaptations to build complex data processing pipelines:
 
@@ -219,4 +219,17 @@ Profunctors are ideal when you need to:
 * **Handle both sides of a computation** (input preprocessing and output postprocessing)
 
 The next time you find yourself writing similar functions that differ only in their input parsing or output formatting, consider whether a profunctor could help you write the logic once and adapt it as needed!
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Don't Fear the Profunctor Optics**: [Tutorial](https://github.com/hablapps/DontFearTheProfunctorOptics/blob/master/ProfunctorOptics.md) - Accessible introduction with practical examples
+- **Mojang/DataFixerUpper**: [Profunctor implementation](https://github.com/Mojang/DataFixerUpper) - Minecraft's profunctor optics library in Java, used for data transformation between game versions
+- **Community Documentation**: [Documented-DataFixerUpper](https://github.com/kvverti/Documented-DataFixerUpper) - Detailed explanations of Mojang's DFU library
+~~~
+
+---
+
+**Previous:** [Selective](selective.md)
+**Next:** [Bifunctor](bifunctor.md)
 

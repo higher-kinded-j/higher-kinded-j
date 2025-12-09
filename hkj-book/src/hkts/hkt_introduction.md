@@ -184,3 +184,8 @@ Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunct
 
 While Higher-Kinded-J introduces some boilerplate compared to languages with native HKT support, it offers a valuable way to explore these powerful functional programming concepts in Java.
 
+---
+
+**Previous:** [Introduction](ch_intro.md)
+**Next:** [Concepts](core-concepts.md)
+

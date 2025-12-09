@@ -243,3 +243,8 @@ public class ListMonadExample {
 ```
 
 This example demonstrates how to wrap Java Lists into `ListKind`, apply monadic operations using `ListMonad`, and then unwrap them back to standard Lists.
+
+---
+
+**Previous:** [Lazy](lazy_monad.md)
+**Next:** [Maybe](maybe_monad.md)

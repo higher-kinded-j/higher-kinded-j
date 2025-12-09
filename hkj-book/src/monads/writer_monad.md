@@ -241,3 +241,8 @@ It relies on a `Monoid<W>` instance to combine the accumulated outputs when sequ
 The Higher-Kinded-J enables these operations to be performed generically using standard type class interfaces, with `Writer<W,A>` directly implementing `WriterKind<W,A>`.
 
 ~~~
+
+---
+
+**Previous:** [Validated](validated_monad.md)
+**Next:** [Const](const_type.md)

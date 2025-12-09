@@ -1,5 +1,12 @@
-# The Transformers:  
+# The Transformers:
 _Combining Monadic Effects_
+
+~~~admonish info title="What You'll Learn"
+- Why directly nesting monadic types like `CompletableFuture<Either<E, A>>` leads to complex, unwieldy code
+- How monad transformers wrap nested monads to provide a unified interface with familiar `map` and `flatMap` operations
+- The available transformers in Higher-Kinded-J: EitherT, MaybeT, OptionalT, ReaderT, and StateT
+- How to choose the right transformer for your use case based on the effect you need to add
+~~~
 
 ![stand_back_monad_transformers.jpg](../images/stand_back_monad_transformers.jpg)
 
@@ -115,40 +122,41 @@ Key characteristics:
 
 ---
 
-## Further Reading
-
-~~~admonish tip title="Learning Path"
+~~~admonish tip title="Further Reading"
 Start with the **Java-focused** articles to understand why transformers matter in Java, then explore the **General FP** theory, and finally examine how other libraries implement these patterns.
 ~~~
 
 ### Java-Focused Resources
 
 **Beginner Level:**
-- 📚 [Monad Transformers in Java: A Practical Guide](https://medium.com/@johnmcclean/monad-transformers-in-java-e6f6b7e0f76d) - John McClean's clear explanation with Cyclops examples (15 min read)
-- 🎥 [Functional Programming in Java: Beyond Streams](https://www.youtube.com/watch?v=rPSL1alFIjI) - Venkat Subramaniam discusses composition patterns (45 min watch)
-- 📄 [Combining CompletableFuture with Optional: The Problem](https://www.baeldung.com/java-combine-optional-completablefuture) - Baeldung's treatment of nested monads (10 min read)
+-[Monad Transformers in Java: A Practical Guide](https://medium.com/@johnmcclean/monad-transformers-in-java-e6f6b7e0f76d) - John McClean's clear explanation with Cyclops examples (15 min read)
+-[Functional Programming in Java: Beyond Streams](https://www.youtube.com/watch?v=rPSL1alFIjI) - Venkat Subramaniam discusses composition patterns (45 min watch)
+-[Combining CompletableFuture with Optional: The Problem](https://www.baeldung.com/java-combine-optional-completablefuture) - Baeldung's treatment of nested monads (10 min read)
 
 **Intermediate Level:**
-- 📄 [Stacking Monads in Functional Java](https://medium.com/att-israel/stacking-monads-in-functional-java-c3c8a9c9c6e) - ATT Israel Engineering team's practical examples (20 min read)
-- 📄 [Vavr's Approach to Composition](https://www.vavr.io/) - Explore how Vavr handles similar challenges (interactive docs)
+-[Stacking Monads in Functional Java](https://medium.com/att-israel/stacking-monads-in-functional-java-c3c8a9c9c6e) - ATT Israel Engineering team's practical examples (20 min read)
 
 **Advanced:**
-- 🔬 [Free Monads and Monad Transformers](https://blog.rockthejvm.com/free-monad/) - Rock the JVM's Scala-based but Java-applicable deep dive (30 min read)
+-[Free Monads and Monad Transformers](https://blog.rockthejvm.com/free-monad/) - Rock the JVM's Scala-based but Java-applicable deep dive (30 min read)
 
 ### General FP Concepts
 
-- 📖 [Monad Transformers Step by Step](https://page.mi.fu-berlin.de/scravy/realworldhaskell/materialien/monad-transformers-step-by-step.pdf) - Martin Grabmüller's classic paper, accessible even for Java developers (PDF, 40 min read)
-- 🌐 [Monad Transformer - HaskellWiki](https://wiki.haskell.org/Monad_Transformers_Explained) - Formal definitions with clear examples
-- 📖 [What is a Monad Transformer?](https://www.fpcomplete.com/haskell/tutorial/monad-transformers/) - FP Complete's tutorial with interactive examples
+-[Monad Transformers Step by Step](https://page.mi.fu-berlin.de/scravy/realworldhaskell/materialien/monad-transformers-step-by-step.pdf) - Martin Grabmüller's classic paper, accessible even for Java developers (PDF, 40 min read)
+-[Monad Transformer - HaskellWiki](https://wiki.haskell.org/Monad_Transformers_Explained) - Formal definitions with clear examples
+-[What is a Monad Transformer?](https://www.fpcomplete.com/haskell/tutorial/monad-transformers/) - FP Complete's tutorial with interactive examples
 
 ### Related Libraries & Comparisons
 
-- 🔗 [Cyclops-React Transformers](https://github.com/aol/cyclops) - AOL's comprehensive Java FP library
-- 🔗 [Vavr Composition Patterns](https://www.vavr.io/vavr-docs/#_composition) - Alternative approach to the same problems
-- 🔗 [Arrow-kt Transformers](https://arrow-kt.io/docs/apidocs/arrow-fx-coroutines/arrow.fx.coroutines/-resource/) - Kotlin's excellent documentation
-- 🔗 [Cats MTL](https://typelevel.org/cats-mtl/) - Scala's monad transformer library (advanced)
+-[Cyclops-React Transformers](https://github.com/aol/cyclops) - AOL's comprehensive Java FP library
+-[Arrow-kt Resource](https://apidocs.arrow-kt.io/arrow-fx-coroutines/arrow.fx.coroutines/-resource/index.html) - Kotlin's excellent documentation
+-[Cats MTL](https://typelevel.org/cats-mtl/) - Scala's monad transformer library (advanced)
 
 ### Community & Discussion
 
-- 💬 [Why are Monad Transformers useful?](https://stackoverflow.com/questions/32579133/when-to-use-monad-transformers) - Stack Overflow discussion with practical examples
-- 💬 [Monad Transformers in Production](https://www.reddit.com/r/java/comments/8qhxzv/monad_transformers_in_production_code/) - Real-world experiences from Java developers
+-[Why are Monad Transformers useful?](https://stackoverflow.com/questions/32579133/when-to-use-monad-transformers) - Stack Overflow discussion with practical examples
+-[Monad Transformers in Production](https://www.reddit.com/r/java/comments/8qhxzv/monad_transformers_in_production_code/) - Real-world experiences from Java developers
+
+---
+
+**Previous:** [Introduction](ch_intro.md)
+**Next:** [EitherT](eithert_transformer.md)

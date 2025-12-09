@@ -172,3 +172,8 @@ try{
 }catch(Throwable t){/* ... */}
 ```
 ~~~
+
+---
+
+**Previous:** [IO](io_monad.md)
+**Next:** [List](list_monad.md)

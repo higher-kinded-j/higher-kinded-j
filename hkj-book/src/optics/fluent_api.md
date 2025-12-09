@@ -1023,12 +1023,10 @@ for (Order order : orders) {
 
 ---
 
-## Further Reading
-
-- **Fluent Interfaces**: [Martin Fowler's article](https://martinfowler.com/bliki/FluentInterface.html) on designing fluent APIs
-- **Readable and Expressive APIs**: [Fluent Interfaces in Java](https://samurai-developer.com/fluent-interfaces/)
-- **Fluent API**: [Practice and Theory](https://blog.sigplan.org/2021/03/02/fluent-api-practice-and-theory/)
-- **Lens Tutorial**: [Haskell lens tutorial](https://hackage.haskell.org/package/lens-tutorial) for deeper theoretical understanding
+~~~admonish tip title="Further Reading"
+- **Martin Fowler**: [Fluent Interface](https://martinfowler.com/bliki/FluentInterface.html) - The original pattern description
+- **Haskell Lens**: [Lens Tutorial](https://hackage.haskell.org/package/lens-tutorial) - Deeper theoretical understanding
+~~~
 
 ---
 

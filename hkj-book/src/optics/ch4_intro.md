@@ -50,7 +50,7 @@ This chapter addresses that gap with three complementary APIs, each suited to di
 
 ## The Three APIs at a Glance
 
-### Focus DSL — The Primary API
+### Focus DSL: The Primary API
 
 The Focus DSL provides fluent, path-based navigation that mirrors how you think about your data:
 
@@ -69,7 +69,7 @@ Use `@GenerateFocus` on your records to generate path builders automatically. Th
 
 **Best for:** Day-to-day optic operations, deep navigation, IDE discoverability, learning optics.
 
-### Fluent API — Validation and Effects
+### Fluent API: Validation and Effects
 
 The `OpticOps` class provides static methods and builders for operations that involve validation or effects:
 
@@ -89,7 +89,7 @@ Kind<CompletableFutureKind.Witness, User> asyncResult = OpticOps.modifyF(
 
 **Best for:** Validation pipelines, error accumulation, async operations, integration with `Either`/`Maybe`/`Validated`.
 
-### Free Monad DSL — Programs as Data
+### Free Monad DSL: Programs as Data
 
 The Free Monad DSL separates *what* from *how*, letting you build optic programs as data structures that can be interpreted in multiple ways:
 
@@ -144,14 +144,22 @@ Same program, different execution strategies.
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Focus DSL** – Path-based navigation with type safety and IDE support
-- **Fluent API** – Static methods and builders for validation-aware modifications
-- **Validation Integration** – Using Either, Maybe, and Validated with optics
-- **Free Monad DSL** – Building optic programs as composable data
-- **Interpreters** – Multiple execution strategies for the same program
+- **Focus DSL** – The recommended starting point for most users. Navigate nested structures with a fluent, path-based API that provides full IDE autocomplete support.
+- **Fluent API** – When modifications need validation or can fail, the `OpticOps` class provides builders that integrate with Either, Maybe, and Validated for error handling.
+- **Validation Integration** – Combine optics with functional error types. Validate all fields in a nested structure and accumulate every error, not just the first.
+- **Free Monad DSL** – Describe optic operations as data structures, then interpret them later. Enables dry-runs, audit trails, and testable programs.
+- **Interpreters** – Multiple ways to run the same optic program: direct execution for production, logging for debugging, validation for testing.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Focus DSL](focus_dsl.md) - Path-based navigation with type safety and IDE support
+2. [Fluent API](fluent_api.md) - Static methods and builders for validation-aware modifications
+3. [Free Monad DSL](free_monad_dsl.md) - Building optic programs as composable data
+4. [Interpreters](interpreters.md) - Multiple execution strategies for the same program
+
+---
+
+**Next:** [Focus DSL](focus_dsl.md)

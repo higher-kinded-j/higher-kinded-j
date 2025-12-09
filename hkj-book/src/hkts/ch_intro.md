@@ -47,15 +47,25 @@ The `Functor<F>` parameter carries the implementation; `Kind<F, A>` carries the 
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **The Analogy** – Higher-kinded types are to types what higher-order functions are to functions
-- **Core Concepts** – Witness types, Kind interfaces, and the widen/narrow pattern
-- **Usage Guide** – Working with Kind in practice
-- **Basic Examples** – Seeing HKT simulation in action
-- **Quick Reference** – Essential patterns at a glance
-- **Extending** – Adding HKT support to your own types
+- **The Analogy** – Just as higher-order functions take functions as arguments, higher-kinded types take types as arguments. Understanding this parallel unlocks the entire abstraction.
+- **Core Concepts** – You'll learn how witness types and the `Kind<F, A>` interface work together to simulate HKTs in Java, and how the widen/narrow pattern bridges between concrete types and their Kind representations.
+- **Usage Guide** – Practical patterns for working with `Kind` in real code, including how to write generic methods that work across multiple container types.
+- **Basic Examples** – Step-by-step examples showing HKT simulation in action, from simple mappings to complex compositions.
+- **Quick Reference** – A condensed reference of essential patterns you'll use repeatedly when working with the library.
+- **Extending** – How to add HKT support to your own types, enabling them to participate in the type class hierarchy.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [HKT Introduction](hkt_introduction.md) - The analogy: higher-kinded types are to types what higher-order functions are to functions
+2. [Concepts](core-concepts.md) - Witness types, Kind interfaces, and the widen/narrow pattern
+3. [Usage Guide](usage-guide.md) - Working with Kind in practice
+4. [Basic HKT Examples](hkt_basic_examples.md) - Seeing HKT simulation in action
+5. [Quick Reference](quick_reference.md) - Essential patterns at a glance
+6. [Extending](extending-simulation.md) - Adding HKT support to your own types
+
+---
+
+**Next:** [HKT Introduction](hkt_introduction.md)

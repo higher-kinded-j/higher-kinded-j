@@ -303,34 +303,36 @@ Both `MaybeT` and `OptionalT` serve similar purposes: combining optionality with
 
 ---
 
-## Further Reading
-
-~~~admonish tip title="Learning Path"
+~~~admonish tip title="Further Reading"
 Start with the **Java-focused** resources to understand Maybe/Option patterns, then explore **General FP concepts** for deeper understanding, and finally check **Related Libraries** to see alternative approaches.
 ~~~
 
 ### Java-Focused Resources
 
 **Beginner Level:**
-- 📚 [Maybe vs Optional: Understanding the Difference](https://medium.com/@johnmcclean/maybe-monad-in-java-8-2e0b7d8e3e5a) - When to use custom Maybe over Java's Optional (10 min read)
-- 📄 [Null Handling Patterns in Modern Java](https://www.baeldung.com/java-avoid-null-check) - Comprehensive guide to null safety (15 min read)
+-[Maybe vs Optional: Understanding the Difference](https://medium.com/@johnmcclean/maybe-monad-in-java-8-2e0b7d8e3e5a) - When to use custom Maybe over Java's Optional (10 min read)
+-[Null Handling Patterns in Modern Java](https://www.baeldung.com/java-avoid-null-check) - Comprehensive guide to null safety (15 min read)
 
 **Intermediate Level:**
-- 📄 [MonadZero and Failure](https://bartoszmilewski.com/2013/09/10/monoids-monads-and-monad-zero/) - Understanding failure representation (20 min read)
-- 📄 [Handling Nothing in Asynchronous Code](https://dzone.com/articles/functional-java-handling-optionals-in-completable) - DZone's practical patterns (12 min read)
+-[MonadZero and Failure](https://bartoszmilewski.com/2013/09/10/monoids-monads-and-monad-zero/) - Understanding failure representation (20 min read)
+-[Handling Nothing in Asynchronous Code](https://dzone.com/articles/functional-java-handling-optionals-in-completable) - DZone's practical patterns (12 min read)
 
 ### General FP Concepts
 
-- 📖 [Maybe/Option Type](https://en.wikipedia.org/wiki/Option_type) - Wikipedia's cross-language overview
-- 📖 [A Fistful of Monads (Haskell)](http://learnyouahaskell.com/a-fistful-of-monads) - Accessible introduction to Maybe (30 min read)
+-[Maybe/Option Type](https://en.wikipedia.org/wiki/Option_type) - Wikipedia's cross-language overview
+-[A Fistful of Monads (Haskell)](https://learnyouahaskell.com/a-fistful-of-monads) - Accessible introduction to Maybe (30 min read)
 
 ### Related Libraries & Comparisons
 
-- 🔗 [Vavr Option vs Java Optional](https://www.vavr.io/vavr-docs/#_option) - Feature comparison
-- 🔗 [Scala Option](https://www.scala-lang.org/api/2.13.3/scala/Option.html) - Scala's battle-tested implementation
-- 🔗 [Arrow Option (Kotlin)](https://arrow-kt.io/docs/apidocs/arrow-core/arrow.core/-option/) - Kotlin FP approach
+-[Scala Option](https://www.scala-lang.org/api/2.13.3/scala/Option.html) - Scala's battle-tested implementation
+-[Arrow Option (Kotlin)](https://apidocs.arrow-kt.io/arrow-core/arrow.core/-option/index.html) - Kotlin FP approach
 
 ### Community & Discussion
 
-- 💬 [Maybe vs Either for Error Handling](https://stackoverflow.com/questions/48280735/maybe-vs-either-for-error-handling) - Stack Overflow comparison
-- 💬 [Why Use Maybe When We Have Optional?](https://www.reddit.com/r/java/comments/7t3q6k/why_implement_maybe_when_java_has_optional/) - Reddit discussion on use cases
+-[Maybe vs Either for Error Handling](https://stackoverflow.com/questions/48280735/maybe-vs-either-for-error-handling) - Stack Overflow comparison
+-[Why Use Maybe When We Have Optional?](https://www.reddit.com/r/java/comments/7t3q6k/why_implement_maybe_when_java_has_optional/) - Reddit discussion on use cases
+
+---
+
+**Previous:** [OptionalT](optionalt_transformer.md)
+**Next:** [ReaderT](readert_transformer.md)

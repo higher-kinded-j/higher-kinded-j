@@ -109,14 +109,23 @@ All permissions validated. All errors accumulated. Original structure preserved.
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Composing Optics** – A complete validation workflow example
-- **Core Type Integration** – Using optics with Either, Maybe, Validated, and Optional
-- **Optics Extensions** – Extended capabilities for Lens and Traversal
-- **Cookbook** – Ready-to-use recipes for common problems
-- **Auditing Complex Data** – Real-world audit trail generation
+- **Composing Optics** – A complete walkthrough building a validation pipeline that composes Lens, Prism, and Traversal to validate deeply nested permissions in a form structure.
+- **Core Type Integration** – How optics work with the library's functional types. Use Prisms to focus on Right values in Either, or Some values in Maybe.
+- **Optics Extensions** – Additional capabilities beyond the basics. Extended Lens operations, Traversal utilities, and convenience methods for common patterns.
+- **Cookbook** – Copy-paste solutions for frequent problems. Updating nested optionals, modifying specific sum type variants, bulk collection operations, configuration management.
+- **Auditing Complex Data** – A production-ready example generating audit trails. Track every change to a complex nested structure with full before/after comparisons.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Composing Optics](composing_optics.md) - A complete validation workflow example
+2. [Core Type Integration](core_type_integration.md) - Using optics with Either, Maybe, Validated, and Optional
+3. [Optics Extensions](optics_extensions.md) - Extended capabilities for Lens and Traversal
+4. [Cookbook](cookbook.md) - Ready-to-use recipes for common problems
+5. [Auditing Complex Data](auditing_complex_data_example.md) - Real-world audit trail generation
+
+---
+
+**Next:** [Composing Optics](composing_optics.md)

@@ -885,7 +885,7 @@ Lens<UserProfile, Optional<String>> themeLens =
 
 **When To Use:** CRUD operations on maps or lists where you need to insert new entries or delete existing ones whilst maintaining immutability and optics composability.
 
-**Related:** [At Type Class Documentation](optics/at.md)
+**Related:** [Indexed Access: At and Ixed Type Classes](optics/indexed_access.md)
 
 ---
 

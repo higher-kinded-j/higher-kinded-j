@@ -65,15 +65,25 @@ When position matters:
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Filtered Optics** – Predicate-based targeting within traversals
-- **Indexed Optics** – Position-aware operations on collections
-- **String Traversals** – Character-level operations on text
-- **At and Ixed** – Type classes for indexed access patterns
-- **Advanced Prism Patterns** – `nearly`, `doesNotMatch`, and complex matching
-- **Profunctor Optics** – Type adaptation with contramap, map, and dimap
+- **Filtered Optics** – Apply predicates to narrow which elements a Traversal affects. Only modify items over a certain price, or extract elements matching a condition.
+- **Indexed Optics** – Carry position information alongside values. Know which index you're modifying, or transform values based on their position in a collection.
+- **String Traversals** – Treat strings as collections of characters. Modify individual characters, filter by character properties, or transform text character-by-character.
+- **At and Ixed** – Type classes for indexed access. `At` handles keys that may or may not exist (like Map entries); `Ixed` handles indices that should exist (like List positions).
+- **Advanced Prism Patterns** – Beyond basic sum types: `nearly` matches values close to a target, `doesNotMatch` inverts a Prism's focus, and complex hierarchies compose cleanly.
+- **Profunctor Optics** – Transform the input and output types of optics. Adapt an optic for a different representation without rewriting it.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Filtered Optics](filtered_optics.md) - Predicate-based targeting within traversals
+2. [Indexed Optics](indexed_optics.md) - Position-aware operations on collections
+3. [String Traversals](string_traversals.md) - Character-level operations on text
+4. [Indexed Access](indexed_access.md) - At and Ixed type classes for indexed access patterns
+5. [Advanced Prism Patterns](advanced_prism_patterns.md) - `nearly`, `doesNotMatch`, and complex matching
+6. [Profunctor Optics](profunctor_optics.md) - Type adaptation with contramap, map, and dimap
+
+---
+
+**Next:** [Filtered Optics](filtered_optics.md)

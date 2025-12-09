@@ -14,10 +14,6 @@
 [TrampolineExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/trampoline/TrampolineExample.java)
 ~~~
 
-~~~ admonish tip title="Further Reading"
-For a comprehensive exploration of recursion, thunks, and trampolines in Java and Scala, see Scott Logic's blog post: [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html).
-~~~
-
 In functional programming, recursion is a natural way to express iterative algorithms. However, the JVM's call stack has a limited depth, and deeply recursive computations can cause `StackOverflowError`. The JVM lacks tail-call optimisation, which means even tail-recursive functions will consume stack space.
 
 The `Trampoline<A>` type in `higher-kinded-j` solves this problem by converting recursive calls into data structures that are evaluated iteratively. Instead of making recursive calls directly (which grow the call stack), you return a `Trampoline` value that describes the next step of the computation. The `run()` method then processes these steps in a loop, using constant stack space regardless of recursion depth.
@@ -321,3 +317,14 @@ The `Trampoline` monad provides a practical solution to Java's lack of tail-call
 - Maintain clarity and correctness whilst preventing `StackOverflowError`
 
 For detailed implementation examples and more advanced use cases, see the [TrampolineExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/trampoline/TrampolineExample.java) in the examples module.
+
+---
+
+~~~ admonish tip title="Further Reading"
+For a comprehensive exploration of recursion, thunks, and trampolines in Java and Scala, see Scott Logic's blog post: [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html).
+~~~
+
+---
+
+**Previous:** [Stream](stream_monad.md)
+**Next:** [Free](free_monad.md)

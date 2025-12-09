@@ -56,15 +56,25 @@ Both can read. Only Traversal can write. Choose based on intent.
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Traversals** – Bulk operations on collection elements
-- **Folds** – Read-only queries with monoid-based aggregation
-- **Getters** – Read-only focus on single values
-- **Setters** – Write-only modification without reading
-- **Common Data Structures** – Patterns for List, Map, Set, and more
-- **Limiting Traversals** – First-N, take, and drop operations
+- **Traversals** – Focus on zero-or-more elements within a structure. Apply the same modification to every item in a list, or extract all values matching a path.
+- **Folds** – Read-only traversal that aggregates results using a Monoid. Sum all prices, count matching elements, or check if any element satisfies a predicate.
+- **Getters** – A read-only Lens. When you need to extract a value but never modify it, a Getter documents that intent in the type.
+- **Setters** – A write-only optic. Modify values without reading them first, useful when the modification doesn't depend on the current value.
+- **Common Data Structures** – Ready-made traversals for Java's standard collections. Iterate over List elements, Map entries, Set members, and more.
+- **Limiting Traversals** – Take the first N elements, skip elements, or focus only on specific indices. Control exactly which elements a Traversal affects.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Traversals](traversals.md) - Bulk operations on collection elements
+2. [Folds](folds.md) - Read-only queries with monoid-based aggregation
+3. [Getters](getters.md) - Read-only focus on single values
+4. [Setters](setters.md) - Write-only modification without reading
+5. [Common Data Structures](common_data_structure_traversals.md) - Patterns for List, Map, Set, and more
+6. [Limiting Traversals](limiting_traversals.md) - First-N, take, and drop operations
+
+---
+
+**Next:** [Traversals](traversals.md)

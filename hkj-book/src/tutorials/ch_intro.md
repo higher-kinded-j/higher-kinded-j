@@ -58,13 +58,22 @@ Start with whichever interests you more. Circle back to the other when ready.
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Core Types Track** – From `Kind<F, A>` basics to production workflows
-- **Optics Track** – From simple Lenses to complex data transformation pipelines
-- **Solutions Guide** – Reference implementations when you're truly stuck
-- **Troubleshooting** – Common issues and how to resolve them
+- **Core Types Track** – Forty-five exercises building from basic `Kind<F, A>` wrapping through Functors, Applicatives, and Monads to production-ready workflow patterns. Each exercise has tests that turn green when you've got it right.
+- **Optics Track** – Sixty-four exercises progressing from simple Lens operations through Prisms, Traversals, and the Free Monad DSL. You'll build intuition for when each optic type is appropriate.
+- **Solutions Guide** – When you're genuinely stuck, reference implementations are available. Try to struggle first; the learning happens in the struggle.
+- **Troubleshooting** – Common errors and their solutions. When tests fail unexpectedly or types don't align, check here before giving up.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Interactive Tutorials](tutorials_intro.md) - Getting started with the tutorial system
+2. [Core Types Track](coretypes_track.md) - From Kind basics to production workflows
+3. [Optics Track](optics_track.md) - From simple Lenses to complex data transformation pipelines
+4. [Solutions Guide](solutions_guide.md) - Reference implementations when you're truly stuck
+5. [Troubleshooting](troubleshooting.md) - Common issues and how to resolve them
+
+---
+
+**Next:** [Interactive Tutorials](tutorials_intro.md)

@@ -1,5 +1,13 @@
 # Tutorial Troubleshooting Guide
 
+~~~admonish info title="What You'll Learn"
+- How to fix compilation errors including missing generated lenses, type mismatches, and method not found errors
+- Solutions for runtime issues like KindUnwrapException, NullPointerException, and unexpected test failures
+- How to configure annotation processing in IntelliJ IDEA, Eclipse, and VS Code
+- Troubleshooting build failures in Gradle and Maven
+- When to use Functor, Applicative, or Monad and understanding the Kind abstraction
+~~~
+
 This guide addresses common issues you might encounter whilst working through the Higher-Kinded-J tutorials.
 
 ## Compilation Issues
@@ -507,4 +515,8 @@ If this guide doesn't solve your problem:
 
 ---
 
-**Remember**: Most "bugs" are actually learning opportunities. Take time to understand *why* something isn't working before asking for help. The debugging process itself builds understanding! 🐛🔍
+**Remember**: Most "bugs" are actually learning opportunities. Take time to understand *why* something isn't working before asking for help. The debugging process itself builds understanding!
+
+---
+
+**Previous:** [Solutions Guide](solutions_guide.md)

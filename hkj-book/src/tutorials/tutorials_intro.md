@@ -16,14 +16,14 @@ Think of these as a guided laboratory for functional programming patterns in Jav
 
 The tutorials are organised into two complementary tracks. You can follow them in order or jump to whichever interests you most.
 
-### [Core Types Track](coretypes_track.md) 🎯
+### [Core Types Track](coretypes_track.md)
 **Duration**: ~60 minutes | **Tutorials**: 7 | **Exercises**: 45
 
 Master the Higher-Kinded Types simulation that powers the library. Learn to work with `Kind<F, A>`, understand Functors, Applicatives, and Monads, and see how to build robust, composable workflows with types like `Either`, `Maybe`, and `Validated`.
 
 **Perfect for**: Developers who want to understand the theoretical foundation, write generic code that works across multiple types, or use monads directly in their applications.
 
-### [Optics Track](optics_track.md) 🔍
+### [Optics Track](optics_track.md)
 **Duration**: ~90 minutes | **Tutorials**: 9 | **Exercises**: 64
 
 Master immutable data manipulation with Lenses, Prisms, and Traversals. Learn to perform deep updates on nested structures, work with collections elegantly, and build sophisticated data transformation pipelines using the Free Monad DSL.
@@ -167,4 +167,7 @@ Choose your track and start coding:
 
 Remember: The goal isn't to memorise every detail. It's to develop an intuition for when and how to apply these patterns. That only comes through practice.
 
-Happy learning! 🚀
+---
+
+**Previous:** [Introduction](ch_intro.md)
+**Next:** [Core Types Track](coretypes_track.md)
