@@ -873,10 +873,13 @@ The migration is straightforward and the benefits are immediate. Start with one 
 
 ---
 
-## Related Documentation
-
+~~~admonish tip title="See Also"
 - [Spring Boot Integration](./spring_boot_integration.md) - Complete integration guide
 - [Either Monad](../monads/either_monad.md) - Either usage patterns
 - [Validated Monad](../monads/validated_monad.md) - Validation patterns
 - [EitherT Transformer](../transformers/eithert_transformer.md) - Async composition
-- [Configuration Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/CONFIGURATION.md) - Configuration options
+~~~
+
+---
+
+**Previous:** [Spring Boot Integration](spring_boot_integration.md)

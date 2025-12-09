@@ -239,3 +239,8 @@ This is where `CompletableFutureMonad` shines, providing functional error recove
 * `handleErrorWith` allows you to inspect the `Throwable` and return a *new*`CompletableFutureKind`, potentially recovering the flow.
 * The handler receives the *cause* of the failure (unwrapped from `CompletionException` if necessary).
 ~~~
+
+---
+
+**Previous:** [Supported Types](supported-types.md)
+**Next:** [Either](either_monad.md)

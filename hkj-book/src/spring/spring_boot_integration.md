@@ -980,3 +980,8 @@ The hkj-spring-boot-starter brings functional programming patterns seamlessly in
 
 
 Get started today by adding the dependency and returning functional types from your controllers. The framework handles the rest!
+
+---
+
+**Previous:** [Introduction](ch_intro.md)
+**Next:** [Migrating to Functional Errors](migrating_to_functional_errors.md)

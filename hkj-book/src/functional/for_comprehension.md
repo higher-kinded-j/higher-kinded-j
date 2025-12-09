@@ -441,3 +441,13 @@ Kind<IdKind.Witness, List<Pair<Integer, Player>>> indexed =
 For more details on indexed optics, see [Indexed Optics](../optics/indexed_optics.md).
 ~~~
 
+---
+
+~~~admonish tip title="Further Reading"
+- **Scala For-Comprehensions**: [Tour of Scala](https://docs.scala-lang.org/tour/for-comprehensions.html) - The inspiration for this API
+~~~
+
+---
+
+**Previous:** [Natural Transformation](natural_transformation.md)
+

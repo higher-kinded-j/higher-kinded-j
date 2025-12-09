@@ -237,3 +237,8 @@ To use `Either` within Higher-Kinded-J framework:
 - Serving as the inner type for monad transformers like `EitherT` to combine typed errors with other effects like asynchronicity (see the [Order Example Walkthrough](../hkts/order-walkthrough.md)).
 - Providing a more informative alternative to returning `null` or relying solely on exceptions for expected failure conditions.
 ~~~
+
+---
+
+**Previous:** [CompletableFuture](cf_monad.md)
+**Next:** [Identity](identity.md)

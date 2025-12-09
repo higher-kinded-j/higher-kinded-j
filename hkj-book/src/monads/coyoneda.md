@@ -16,12 +16,6 @@
 - [CoyonedaExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/coyoneda/CoyonedaExample.java) - Practical examples
 ~~~
 
-~~~admonish tip title="Further Reading"
-- **Chris Penner**: [Free Monads and Coyoneda](https://chrispenner.ca/posts/free-monads) - Practical explanation with examples
-- **Scala with Cats**: The Free Monad chapter discusses Coyoneda in the context of DSLs
-- **Bartosz Milewski**: [The Yoneda Lemma](https://bartoszmilewski.com/2015/09/01/the-yoneda-lemma/) - The mathematical foundation (more theoretical)
-~~~
-
 ## Purpose
 
 Coyoneda solves two practical problems:
@@ -284,3 +278,15 @@ Coyoneda provides:
 - **DSL simplification**: Free monad instruction sets don't need Functor instances
 
 It's a powerful tool for optimising functional pipelines and simplifying Free monad definitions, based on the elegant mathematics of the Yoneda lemma.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Why it helps**: [Introduction to Yoneda and Coyoneda](https://gist.github.com/gregberns/ede18190d5117eea6fb51815e2eab9b2) - Explains Coyoneda as a _deferred map_
+- **Bartosz Milewski**: [The Yoneda Lemma](https://bartoszmilewski.com/2015/09/01/the-yoneda-lemma/) - The mathematical foundation (more theoretical)
+~~~
+
+---
+
+**Previous:** [Free Applicative](free_applicative.md)
+**Next:** [Try](try_monad.md)

@@ -61,15 +61,25 @@ Same semantics. Vastly different ergonomics.
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **The Problem** – Why monads stack poorly and what transformers solve
-- **EitherT** – Typed errors in any monadic context
-- **OptionalT** – Java Optional lifting
-- **MaybeT** – Maybe lifting
-- **ReaderT** – Environment threading
-- **StateT** – State management in effectful computation
+- **The Problem** – Monads don't compose naturally. A `CompletableFuture<Either<E, A>>` requires nested operations that become unwieldy. Transformers restore ergonomic composition.
+- **EitherT** – Adds typed error handling to any monad. Wrap your async operations with `EitherT` to get a single `flatMap` that handles both async sequencing and error propagation.
+- **OptionalT** – Lifts `java.util.Optional` into another monadic context. When your async operation might return nothing, OptionalT provides clean composition.
+- **MaybeT** – The same capability as OptionalT but for the library's `Maybe` type. Choose based on whether you're using Optional or Maybe elsewhere.
+- **ReaderT** – Threads environment dependencies through effectful computations. Combine dependency injection with async operations or error handling.
+- **StateT** – Manages state within effectful computations. Track state changes across async boundaries or error-handling paths.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Monad Transformers](transformers.md) - Why monads stack poorly and what transformers solve
+2. [EitherT](eithert_transformer.md) - Typed errors in any monadic context
+3. [OptionalT](optionalt_transformer.md) - Java Optional lifting
+4. [MaybeT](maybet_transformer.md) - Maybe lifting
+5. [ReaderT](readert_transformer.md) - Environment threading
+6. [StateT](statet_transformer.md) - State management in effectful computation
+
+---
+
+**Next:** [Monad Transformers](transformers.md)

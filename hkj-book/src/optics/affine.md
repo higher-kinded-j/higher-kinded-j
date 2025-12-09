@@ -667,14 +667,10 @@ By adding Affines to your toolkit, you can write cleaner, safer code that handle
 
 ---
 
-## Further Reading
-
-For deeper understanding of affines and optional field handling:
-
-- [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) – Academic foundation covering Affine as a profunctor optic
-- [Monocle Optional](https://www.optics.dev/Monocle/docs/optics/optional) – Scala's Monocle library uses "Optional" for the same concept
-- [Handling Optionality in Domain Models](https://www.baeldung.com/java-optional) – Baeldung's guide to Java Optional, the underlying type Affine often works with
-- [Functional and Reactive Domain Modeling](https://www.manning.com/books/functional-and-reactive-domain-modeling) – Manning book covering optics in domain design (Scala-focused but concepts transfer)
+~~~admonish tip title="Further Reading"
+- **Monocle Optional**: [Scala's Affine](https://www.optics.dev/Monocle/docs/optics/optional) - Monocle uses "Optional" for the same concept
+- **Baeldung**: [Handling Optionality in Java](https://www.baeldung.com/java-optional) - Guide to Java Optional, the underlying type Affine often works with
+~~~
 
 ~~~admonish tip title="Terminology Note"
 In some functional programming libraries (notably Scala's Monocle), the Affine optic is called an **Optional**. This can cause confusion with Java's `java.util.Optional`. In higher-kinded-j, we use the term "Affine" to avoid this ambiguity whilst maintaining mathematical precision.

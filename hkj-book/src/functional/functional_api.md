@@ -4,6 +4,14 @@ The `hkj-api` module contains the heart of the `higher-kinded-j` library: a set 
 
 This document provides a high-level overview of the most important interfaces, which are often referred to as **type classes**.
 
+~~~admonish info title="What You'll Learn"
+- How the `Kind<F, A>` interface enables higher-kinded types in Java and serves as the foundation for all functional abstractions
+- The monad hierarchy from `Functor` through `Applicative` to `Monad`, plus specialized variants like `MonadError`, `Alternative`, `Selective`, and `MonadZero`
+- How to combine and aggregate data using `Semigroup` and `Monoid` type classes for operations like error accumulation
+- How to iterate over and transform data structures generically using `Foldable` and `Traverse` for tasks like validation and collection processing
+- How dual-parameter type classes like `Profunctor` and `Bifunctor` enable advanced data transformations and power optics
+~~~
+
 ---
 
 ## Core HKT Abstraction
@@ -157,3 +165,8 @@ New to variance terminology? See the [Glossary](../glossary.md) for detailed exp
   * `first(Function<A, C> f, Kind2<F, A, B> fab)`: Map over only the first type parameter
   * `second(Function<B, D> g, Kind2<F, A, B> fab)`: Map over only the second type parameter
 * **Use Case**: Essential for transforming both channels of sum types (like `Either<L, R>` or `Validated<E, A>`) or product types (like `Tuple2<A, B>` or `Writer<W, A>`), where both parameters hold data rather than representing input/output relationships. Perfect for API response transformation, validation pipelines, data migration, and error handling scenarios.
+
+---
+
+**Previous:** [Introduction](ch_intro.md)
+**Next:** [Functor](functor.md)

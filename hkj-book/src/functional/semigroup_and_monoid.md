@@ -512,7 +512,14 @@ Semigroups and Monoids are deceptively simple abstractions that unlock powerful 
 
 The new utility methods (`combineAll`, `combineN`, `isEmpty`) and expanded instance library (numeric types, Optional-based aggregations) make these abstractions even more practical for everyday Java development.
 
-**Further Reading:**
+---
+
+~~~admonish tip title="See Also"
 - [Foldable and Traverse](foldable_and_traverse.md) - See how Monoids power folding operations
 - [Applicative](applicative.md) - Learn how Semigroups enable error accumulation with Validated
-- [Java Optional Documentation](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html)
+~~~
+
+---
+
+**Previous:** [MonadError](monad_error.md)
+**Next:** [Foldable and Traverse](foldable_and_traverse.md)

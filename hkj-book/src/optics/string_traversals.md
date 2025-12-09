@@ -482,24 +482,6 @@ public class TextProcessing {
 
 String traversals complement existing functional libraries:
 
-### Vavr Integration
-
-```java
-import io.vavr.control.Try;
-
-// Process lines with error handling
-Traversal<String, String> lines = StringTraversals.lined();
-
-Try<String> processed = Try.of(() ->
-    Traversals.modify(lines, line -> {
-        if (line.startsWith("INVALID")) {
-            throw new IllegalStateException("Invalid line: " + line);
-        }
-        return line.toUpperCase();
-    }, content)
-);
-```
-
 ### Cyclops Integration
 
 ```java
@@ -523,7 +505,6 @@ Validated<List<String>, String> result = VALIDATED.narrow(
 ## Related Resources
 
 **Functional Java Libraries**:
-- [Vavr](https://www.vavr.io/) - Functional data structures with pattern matching
 - [Cyclops](https://github.com/aol/cyclops) - Functional control structures and higher-kinded types
 - [jOOλ](https://github.com/jOOQ/jOOL) - Functional utilities complementing Java Streams
 

@@ -116,3 +116,16 @@ System.out.println(LIST.narrow(listOfLengths));
 ```
 
 As you can see, the `Functor` provides a consistent API for transformation, regardless of the underlying data structure. This is the first and most essential step on the path to more powerful abstractions like `Applicative` and `Monad`.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Scott Logic**: [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html) - Practical guide to functors and monads in Java
+- **Bartosz Milewski**: [Functors](https://bartoszmilewski.com/2015/01/20/functors/) - Comprehensive explanation of functors from category theory to code
+- **Cats Documentation**: [Functor](https://typelevel.org/cats/typeclasses/functor.html) - Scala implementation and examples
+~~~
+
+---
+
+**Previous:** [Functional API](functional_api.md)
+**Next:** [Applicative](applicative.md)

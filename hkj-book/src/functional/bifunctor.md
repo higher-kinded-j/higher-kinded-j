@@ -64,7 +64,7 @@ public interface Bifunctor<F> {
 
 Understanding the distinction between **sum types** and **product types** is crucial to using bifunctors effectively.
 
-### Sum Types (Exclusive OR) 🔀
+### Sum Types (Exclusive OR)
 
 A **sum type** represents a choice between alternatives: you have *either* one value *or* another, but never both. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Either<A, B>` has `n + m` possible values (hence "sum").
 
@@ -74,7 +74,7 @@ Examples in higher-kinded-j:
 
 When you use `bimap` on a sum type, only *one* of the two functions will actually execute, depending on which variant is present.
 
-### Product Types (Both AND) 🔗
+### Product Types (Both AND)
 
 A **product type** contains multiple values simultaneously: you have *both* the first value *and* the second value. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Tuple2<A, B>` has `n × m` possible values (hence "product").
 
@@ -413,3 +413,16 @@ The power of bifunctors lies in their ability to abstract over the dual-paramete
 * **Differs from Profunctor** by being covariant in both parameters rather than contravariant/covariant
 
 Understanding bifunctors empowers you to write generic, reusable transformation logic that works uniformly across diverse dual-parameter types.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Mark Seemann**: [Bifunctors](https://blog.ploeh.dk/2018/12/24/bifunctors/) - Excellent article explaining bifunctors with Either and Tuple examples
+- **The F-words**: [Functor and Friends](https://kubuszok.com/2018/the-f-words-functors-and-friends/) - Comprehensive overview including bifunctors
+- **Cats Documentation**: [Bifunctor](https://typelevel.org/cats/typeclasses/bifunctor.html) - Scala implementation and examples
+~~~
+
+---
+
+**Previous:** [Profunctor](profunctor.md)
+**Next:** [Natural Transformation](natural_transformation.md)

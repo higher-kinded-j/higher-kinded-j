@@ -16,12 +16,6 @@
 - [FreeApplicativeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/FreeApplicativeExample.java) - Practical examples
 ~~~
 
-~~~admonish tip title="Further Reading"
-- **Functional Programming in Scala** (Red Book): Chapter 12 covers applicative functors and their relationship to monads
-- **Cats Documentation**: [Free Applicative](https://typelevel.org/cats/datatypes/freeapplicative.html) - Scala implementation with examples
-- **Paolo Capriotti**: [Free Applicative Functors](https://arxiv.org/abs/1403.0749) - The original paper (more academic)
-~~~
-
 ## Purpose
 
 The **Free Applicative** (`FreeAp`) is the applicative counterpart to the [Free Monad](free_monad.md). Whilst the Free Monad captures **sequential, dependent** computations, Free Applicative captures **independent** computations that can potentially run in parallel.
@@ -330,3 +324,15 @@ Free Applicative provides:
 - **Batching potential**: Similar operations can be combined
 
 Use Free Applicative when your computations are independent; use Free Monad when they have sequential dependencies. Often the best solution combines both.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Functional Programming in Scala** (Red Book): Chapter 12 covers applicative functors and their relationship to monads
+- **Cats Documentation**: [Free Applicative](https://typelevel.org/cats/datatypes/freeapplicative.html) - Scala implementation with examples
+~~~
+
+---
+
+**Previous:** [Free](free_monad.md)
+**Next:** [Coyoneda](coyoneda.md)

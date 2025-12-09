@@ -505,7 +505,7 @@ Company updated = CompanyFocus.departments().employees().salary()
 
 #### Why It Works
 
-The Focus DSL tracks path type transitions automatically—from `FocusPath` through collections to `TraversalPath`—whilst maintaining full type safety.
+The Focus DSL tracks path type transitions automatically, from `FocusPath` through collections to `TraversalPath`, whilst maintaining full type safety.
 
 ---
 
@@ -745,4 +745,4 @@ Inventory cleared = allProducts.modifyWhen(
 ---
 
 **Previous:** [Composition Rules](composition_rules.md)
-**Next:** [Practical Examples](optics_examples.md)
+**Next:** [Auditing Complex Data](auditing_complex_data_example.md)

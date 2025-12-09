@@ -15,12 +15,6 @@
 - [NaturalTransformationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/natural/NaturalTransformationExample.java) - Practical examples
 ~~~
 
-~~~admonish tip title="Further Reading"
-- **Bartosz Milewski**: [Natural Transformations](https://bartoszmilewski.com/2015/04/07/natural-transformations/) - Accessible introduction with diagrams
-- **Cats Documentation**: [FunctionK](https://typelevel.org/cats/datatypes/functionk.html) - Scala's equivalent (called `~>` or `FunctionK`)
-- **Functional Programming in Scala**: Chapter 11 covers natural transformations in the context of Free monads
-~~~
-
 ## Purpose
 
 In functional programming, we often work with values wrapped in different contexts: `Maybe<A>`, `List<A>`, `Either<E, A>`, `IO<A>`, and so on. Sometimes we need to convert between these contexts whilst preserving the value inside.
@@ -227,7 +221,7 @@ Free<ConsoleOpKind.Witness, String> program = ...;
 Kind<IOKind.Witness, String> executable = program.foldMap(interpreter, ioMonad);
 ```
 
-~~~admonish note title="See Also"
+~~~admonish tip title="See Also"
 For a complete guide to building DSLs with Free monads and natural transformations, see the [Free Monad](../monads/free_monad.md) documentation.
 ~~~
 
@@ -284,3 +278,16 @@ Natural transformations are polymorphic functions between type constructors that
 - Enable clean separation between program description and execution
 
 They are a fundamental building block in functional programming, particularly when working with effect systems and domain-specific languages.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Bartosz Milewski**: [Natural Transformations](https://bartoszmilewski.com/2015/04/07/natural-transformations/) - Accessible introduction with diagrams
+- **Cats Documentation**: [FunctionK](https://typelevel.org/cats/datatypes/functionk.html) - Scala's equivalent (called `~>` or `FunctionK`)
+- **Functional Programming in Scala**: Chapter 11 covers natural transformations in the context of Free monads
+~~~
+
+---
+
+**Previous:** [Bifunctor](bifunctor.md)
+**Next:** [For Comprehension](for_comprehension.md)

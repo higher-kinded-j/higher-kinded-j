@@ -176,3 +176,15 @@ System.out.println(VALIDATED.narrow(result));
 ### `sequenceA`
 
 `Traverse` also provides `sequenceA`, which is a specialised version of `traverse`. It's used when you already have a data structure containing effects (e.g., a `List<Optional<A>>`) and you want to flip it into a single effect containing the data structure (`Optional<List<A>>`).
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Cats Documentation**: [Foldable](https://typelevel.org/cats/typeclasses/foldable.html) - Lazy folding with Foldable
+- **Cats Documentation**: [Traverse](https://typelevel.org/cats/typeclasses/traverse.html) - Traversing data structures with effects
+~~~
+
+---
+
+**Previous:** [Semigroup and Monoid](semigroup_and_monoid.md)
+**Next:** [MonadZero](monad_zero.md)

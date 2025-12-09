@@ -330,3 +330,8 @@ This example demonstrates how `ValidatedMonad` along with `Validated` can be use
 
 
 ~~~
+
+---
+
+**Previous:** [Try](try_monad.md)
+**Next:** [Writer](writer_monad.md)

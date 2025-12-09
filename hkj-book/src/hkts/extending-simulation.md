@@ -4,6 +4,15 @@
 
 You can add support for new Java types (type constructors) to the Higher-Kinded-J simulation framework, allowing them to be used with type classes like `Functor`, `Monad`, etc.
 
+~~~admonish info title="What You'll Learn"
+- How to integrate new types into the Higher-Kinded-J framework
+- The pattern for adapting external types you don't control using holder records
+- How to design custom library types that directly implement Kind interfaces
+- Creating Kind interfaces with Witness types for type-level programming
+- Building ConverterOps interfaces and KindHelper enums for type conversions
+- Best practices for implementing type class instances for custom types
+~~~
+
 There are two main scenarios:
 
 1. **Adapting External Types**: For types you don't own (e.g., JDK classes like `java.util.Set`, `java.util.Map`, or classes from other libraries).
@@ -230,3 +239,7 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 
 By following these patterns, you can integrate new or existing types into the Higher-Kinded-J framework, enabling them to be used with generic functional abstractions. The `KindHelper` enums, along with their corresponding `ConverterOps` interfaces, provide a standardised way to handle the `widen` and `narrow` conversions.
 ~~~
+
+---
+
+**Previous:** [Quick Reference](quick_reference.md)

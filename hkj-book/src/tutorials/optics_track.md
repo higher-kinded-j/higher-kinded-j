@@ -251,7 +251,7 @@ Apply optics to realistic scenarios that mirror production code.
 3. **E-commerce**: Apply discounts, update inventory, modify order status
 4. **Validation**: Build reusable validators that navigate data structures
 
-**Links to documentation**: [Optics Examples](../optics/optics_examples.md) | [Auditing Complex Data](../optics/auditing_complex_data_example.md)
+**Links to documentation**: [Auditing Complex Data](../optics/auditing_complex_data_example.md)
 
 ---
 
@@ -409,31 +409,31 @@ Session 6: The Free Monad DSL
 
 ## Optics Cheat Sheet
 
-### Lens 🔎
+### Lens
 - **Focus**: Single required field
 - **Operations**: `get`, `set`, `modify`
 - **Example**: User's email address
 - **Generation**: `@GenerateLenses`
 
-### Prism 🔬
+### Prism
 - **Focus**: One variant of a sum type
 - **Operations**: `getOptional`, `build`, `modify`
 - **Example**: "Shipped" variant of OrderStatus
 - **Generation**: `@GeneratePrisms`
 
-### Affine 🎯
+### Affine
 - **Focus**: Zero or one element (optional field)
 - **Operations**: `getOptional`, `set`, `modify`
 - **Example**: User's optional phone number
 - **Creation**: `Lens.andThen(Prism)` or `Affine.of()`
 
-### Traversal 🗺️
+### Traversal
 - **Focus**: Zero or more targets
 - **Operations**: `getAll`, `modify`, `set`
 - **Example**: All players' scores
 - **Generation**: `@GenerateTraversals`
 
-### Iso 🔄
+### Iso
 - **Focus**: Reversible conversion
 - **Operations**: `get`, `reverseGet`, `modify`
 - **Example**: String ↔ Integer conversion
@@ -519,3 +519,8 @@ After completing this track:
 ---
 
 Ready to start? Open `Tutorial01_LensBasics.java` and say goodbye to verbose immutable updates!
+
+---
+
+**Previous:** [Core Types Track](coretypes_track.md)
+**Next:** [Solutions Guide](solutions_guide.md)

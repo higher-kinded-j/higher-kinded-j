@@ -62,11 +62,17 @@ The integration is non-invasive. Existing exception-based endpoints continue to 
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Spring Boot Integration** – Using Either, Validated, and EitherT in controllers
-- **Migration Guide** – Moving from exceptions to functional error handling
+- **Spring Boot Integration** – Configure Spring to accept Either, Validated, and EitherT as controller return types. The framework automatically maps Right to 200 OK and Left to appropriate error statuses.
+- **Migration Guide** – A practical path from exception-based error handling to functional types. Start with one endpoint, prove the pattern, then expand incrementally.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Spring Boot Integration](spring_boot_integration.md) - Using Either, Validated, and EitherT in controllers
+2. [Migrating to Functional Errors](migrating_to_functional_errors.md) - Moving from exceptions to functional error handling
+
+---
+
+**Next:** [Spring Boot Integration](spring_boot_integration.md)

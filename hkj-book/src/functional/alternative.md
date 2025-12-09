@@ -1,5 +1,14 @@
 # Alternative
 
+~~~admonish info title="What You'll Learn"
+- How Alternative provides choice and failure operations for applicative functors
+- Using `empty()` and `orElse()` for fallback chains
+- The `guard()` helper for conditional computations
+- How Alternative relates to MonadZero
+- Practical examples with Maybe, Optional, and List
+- Building configuration loaders with fallback chains
+~~~
+
 The `Alternative` type class represents applicative functors that support choice and failure. It extends the `Applicative` interface with operations for combining alternatives and representing empty/failed computations. Alternative sits at the same level as `Applicative` in the type class hierarchy, providing a more general abstraction than `MonadZero`.
 
 The interface for Alternative in hkj-api extends Applicative:
@@ -289,3 +298,14 @@ This example demonstrates:
 - `guard()` for conditional validation
 - Lazy evaluation benefits
 - Parser combinator patterns using Alternative
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Cats Documentation**: [Alternative](https://typelevel.org/cats/typeclasses/alternative.html) - Explains Alternative with practical examples including parsing and partitioning
+~~~
+
+---
+
+**Previous:** [Applicative](applicative.md)
+**Next:** [Monad](monad.md)

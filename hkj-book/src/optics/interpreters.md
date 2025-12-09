@@ -725,12 +725,10 @@ try {
 
 ---
 
-## Further Reading
-
-- **Interpreter Pattern**: [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Interpreter_pattern) - Gang of Four
-- **Natural Transformations**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) by Bartosz Milewski
-- **Free Monad Interpreters**: [Why free monads matter](http://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) by Gabriel Gonzalez
-- **Aspect-Oriented Programming**: [AspectJ in Action](https://www.manning.com/books/aspectj-in-action-second-edition) by Ramnivas Laddad
+~~~admonish tip title="Further Reading"
+- **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) - Natural transformations and functors
+- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - Free monad interpreters
+~~~
 
 ---
 
@@ -739,3 +737,7 @@ try {
 - [Free Monad DSL for Optics](free_monad_dsl.md) - Building composable programs
 - [Fluent API for Optics](fluent_api.md) - Direct execution patterns
 - [Cookbook](cookbook.md) - Real-world recipes and patterns
+
+---
+
+**Previous:** [Free Monad DSL](free_monad_dsl.md)

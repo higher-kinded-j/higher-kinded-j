@@ -219,3 +219,8 @@ System.out.println("\nComplete IO Program defined. Executing...");
 _Notes:_
 * `map` transforms the *result* of an `IO` action without changing the effect itself (though the transformation happens *after* the effect runs).
 * `flatMap` sequences `IO` actions, ensuring the effect of the first action completes before the second action (which might depend on the first action's result) begins.
+
+---
+
+**Previous:** [Identity](identity.md)
+**Next:** [Lazy](lazy_monad.md)

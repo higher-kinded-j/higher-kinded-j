@@ -57,15 +57,25 @@ Arrows indicate "can be used as" relationships. A Lens can be used anywhere a Ge
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Lenses** – Focusing on required fields within records
-- **Prisms** – Safely handling sum types and optional variants
-- **Affines** – Working with optional fields (zero-or-one focus)
-- **Isomorphisms** – Lossless conversions between equivalent types
-- **Composition** – Chaining optics to navigate deep structures
-- **The Composition Rules** – A reference for what type results from combining optics
+- **Lenses** – Focus on exactly one field within a record. A Lens guarantees the field exists and provides both get and set operations.
+- **Prisms** – Handle sum types (sealed interfaces) where a value might be one of several variants. A Prism can attempt to match a variant and construct new instances.
+- **Affines** – For optional fields that may or may not be present. An Affine targets zero-or-one values, making it perfect for nullable fields or conditional access.
+- **Isomorphisms** – Bidirectional, lossless conversions between equivalent types. An Iso can convert in both directions without losing information.
+- **Composition** – Chain optics together to navigate arbitrarily deep structures. The composition of a Lens with a Prism produces an Affine, following predictable rules.
+- **The Composition Rules** – A reference table showing what optic type results from composing any two optics. Keep this bookmarked; you'll need it.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [What Are Optics?](optics_intro.md) - Introduction to composable, reusable paths through data
+2. [Lenses](lenses.md) - Focusing on required fields within records
+3. [Prisms](prisms.md) - Safely handling sum types and optional variants
+4. [Affines](affine.md) - Working with optional fields (zero-or-one focus)
+5. [Isomorphisms](iso.md) - Lossless conversions between equivalent types
+6. [Composition Rules](composition_rules.md) - A reference for what type results from combining optics
+
+---
+
+**Next:** [What Are Optics?](optics_intro.md)

@@ -17,20 +17,6 @@
 - [FreeFactoryTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free/FreeFactoryTest.java) - Demonstrates improved type inference with FreeFactory
 ~~~
 
-~~~ admonish tip title="Further Reading"
-For deeper exploration of Free monads and their applications:
-
-- **Gabriel Gonzalez**: [Why free monads matter](http://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - An intuitive introduction to the concept
-- **Runar Bjarnason**: [Stackless Scala With Free Monads](http://blog.higher-order.com/assets/trampolines.pdf) - Stack-safe execution patterns
-- **Cats Documentation**: [Free Monad](https://typelevel.org/cats/datatypes/freemonad.html) - Scala implementation and examples
-- **John A De Goes**: [Modern Functional Programming (Part 2)](http://degoes.net/articles/modern-fp-part-2) - Practical applications in real systems
-
-**Related Higher-Kinded-J Documentation:**
-- [Natural Transformation](../functional/natural_transformation.md) - Polymorphic functions used for Free monad interpretation
-- [Free Applicative](free_applicative.md) - For independent computations that can run in parallel
-- [Coyoneda](coyoneda.md) - Automatic Functor instances and map fusion
-~~~
-
 ## Purpose
 
 In traditional Java programming, when you want to execute side effects (like printing to the console, reading files, or making database queries), you directly execute them:
@@ -601,7 +587,7 @@ Free<ConsoleOpKind.Witness, String> simpleReadLine =
 
 ### Free Applicative vs. Free Monad
 
-~~~admonish note title="See Also"
+~~~admonish tip title="See Also"
 For comprehensive coverage of Free Applicative, see the dedicated [Free Applicative](free_applicative.md) documentation.
 ~~~
 
@@ -653,7 +639,7 @@ Applicative<DatabaseQuery, Report> report =
 
 ### Coyoneda Optimisation
 
-~~~admonish note title="See Also"
+~~~admonish tip title="See Also"
 For comprehensive coverage of Coyoneda, see the dedicated [Coyoneda](coyoneda.md) documentation.
 ~~~
 
@@ -997,3 +983,24 @@ For detailed implementation examples and complete working code, see:
 - [FreeMonadTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free/FreeMonadTest.java) - Comprehensive test suite including monad laws and stack safety
 
 The Free monad represents a sophisticated approach to building composable, testable, and maintainable programs in Java. Whilst it requires understanding of advanced functional programming concepts, it pays dividends in large-scale applications where flexibility and testability are paramount.
+
+---
+
+~~~ admonish tip title="Further Reading"
+For deeper exploration of Free monads and their applications:
+
+- **Gabriel Gonzalez**: [Why free monads matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - An intuitive introduction to the concept
+- **Runar Bjarnason**: [Stackless Scala With Free Monads](https://blog.higher-order.com/assets/trampolines.pdf) - Stack-safe execution patterns
+- **Cats Documentation**: [Free Monad](https://typelevel.org/cats/datatypes/freemonad.html) - Scala implementation and examples
+- **John A De Goes**: [Modern Functional Programming (Part 2)](https://degoes.net/articles/modern-fp-part-2) - Practical applications in real systems
+
+**Related Higher-Kinded-J Documentation:**
+- [Natural Transformation](../functional/natural_transformation.md) - Polymorphic functions used for Free monad interpretation
+- [Free Applicative](free_applicative.md) - For independent computations that can run in parallel
+- [Coyoneda](coyoneda.md) - Automatic Functor instances and map fusion
+~~~
+
+---
+
+**Previous:** [Trampoline](trampoline_monad.md)
+**Next:** [Free Applicative](free_applicative.md)

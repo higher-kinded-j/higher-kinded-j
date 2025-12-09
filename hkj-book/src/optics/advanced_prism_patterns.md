@@ -961,14 +961,11 @@ public class PrismTestPatterns {
 
 ---
 
-## Further Reading
-
-For deeper understanding of optics theory and applications:
-
-- [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) - Academic foundations
-- [Lens in Scala (Monocle)](https://www.optics.dev/Monocle/) - Scala implementation and patterns
-- [Haskell Lens Library](https://hackage.haskell.org/package/lens) - Canonical reference
-- [A Little Lens Starter Tutorial](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/a-little-lens-starter-tutorial) - Beginner-friendly introduction
+~~~admonish tip title="Further Reading"
+- **Monocle**: [Scala Optics Library](https://www.optics.dev/Monocle/) - Production-ready Scala optics with extensive patterns
+- **Haskell Lens**: [Canonical Reference](https://hackage.haskell.org/package/lens) - The original comprehensive optics library
+- **Lens Tutorial**: [A Little Lens Starter Tutorial](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/a-little-lens-starter-tutorial) - Beginner-friendly introduction
+~~~
 
 ---
 

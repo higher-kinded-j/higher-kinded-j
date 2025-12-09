@@ -385,40 +385,42 @@ public class ReaderTAsyncExample {
 
 ---
 
-## Further Reading
-
-~~~admonish tip title="Learning Path"
+~~~admonish tip title="Further Reading"
 Start with the **Java-focused** resources to understand dependency injection patterns, then explore **General FP concepts** for deeper understanding, and finally check **Related Libraries** to see alternative approaches.
 ~~~
 
 ### Java-Focused Resources
 
 **Beginner Level:**
-- 📚 [Dependency Injection the Functional Way](https://www.baeldung.com/java-dependency-injection-functional) - Baeldung's introduction to Reader (15 min read)
-- 📄 [Reader Monad for Dependency Injection](https://medium.com/@johnmcclean/reader-monad-for-dependency-injection-in-java-9056d9501c75) - Practical examples without frameworks (12 min read)
-- 🎥 [Functional Dependency Injection](https://www.youtube.com/watch?v=ZasXwtTRkio) - Conference talk on Reader pattern (40 min watch)
+-[Dependency Injection the Functional Way](https://www.baeldung.com/java-dependency-injection-functional) - Baeldung's introduction to Reader (15 min read)
+-[Reader Monad for Dependency Injection](https://medium.com/@johnmcclean/reader-monad-for-dependency-injection-in-java-9056d9501c75) - Practical examples without frameworks (12 min read)
+-[Functional Dependency Injection](https://www.youtube.com/watch?v=ZasXwtTRkio) - Conference talk on Reader pattern (40 min watch)
 
 **Intermediate Level:**
-- 📄 [Configuration as Code with Reader](https://blog.rockthejvm.com/reader-monad/) - Rock the JVM's practical guide (20 min read)
-- 📄 [Reader vs Dependency Injection Frameworks](https://medium.com/@olxc/reader-monad-for-dependency-injection-4c5700c4c148) - When to use what (15 min read)
+-[Configuration as Code with Reader](https://blog.rockthejvm.com/reader-monad/) - Rock the JVM's practical guide (20 min read)
+-[Reader vs Dependency Injection Frameworks](https://medium.com/@olxc/reader-monad-for-dependency-injection-4c5700c4c148) - When to use what (15 min read)
 
 **Advanced:**
-- 🔬 [ReaderT Design Pattern](https://www.fpcomplete.com/blog/readert-design-pattern/) - FP Complete's production patterns (30 min read)
+-[ReaderT Design Pattern](https://www.fpcomplete.com/blog/readert-design-pattern/) - FP Complete's production patterns (30 min read)
 
 ### General FP Concepts
 
-- 📖 [Reader Monad Explained](https://wiki.haskell.org/Reader_monad) - HaskellWiki's clear explanation
-- 📖 [Environment Passing Style](https://en.wikipedia.org/wiki/Environment_passing_style) - Wikipedia on the underlying concept
-- 📖 [Functions as Context](https://bartoszmilewski.com/2014/01/14/functors-are-containers/) - Bartosz Milewski's blog on function contexts
+-[Reader Monad Explained](https://wiki.haskell.org/Reader_monad) - HaskellWiki's clear explanation
+-[Environment Passing Style](https://en.wikipedia.org/wiki/Environment_passing_style) - Wikipedia on the underlying concept
+-[Functions as Context](https://bartoszmilewski.com/2014/01/14/functors-are-containers/) - Bartosz Milewski's blog on function contexts
 
 ### Related Libraries & Comparisons
 
-- 🔗 [Cats Reader](https://typelevel.org/cats/datatypes/kleisli.html) - Scala's implementation (called Kleisli)
-- 🔗 [Arrow Reader (Kotlin)](https://arrow-kt.io/docs/apidocs/arrow-core/arrow.core/-reader/) - Kotlin FP approach
-- 🔗 [Haskell's ReaderT](https://hackage.haskell.org/package/mtl-2.2.2/docs/Control-Monad-Reader.html) - Original inspiration
+-[Cats Reader](https://typelevel.org/cats/datatypes/kleisli.html) - Scala's implementation (called Kleisli)
+-[Haskell's ReaderT](https://hackage.haskell.org/package/mtl-2.2.2/docs/Control-Monad-Reader.html) - Original inspiration
 
 ### Community & Discussion
 
-- 💬 [Reader Monad vs Constructor Injection](https://stackoverflow.com/questions/14301361/why-is-the-reader-monad-useful) - Stack Overflow debate
-- 💬 [Using Reader in Production](https://www.reddit.com/r/functionalprogramming/comments/5qvzwq/reader_monad_in_production/) - Real-world experiences
-- 💬 [ReaderT Pattern at Scale](https://news.ycombinator.com/item?id=16743608) - HN discussion from production teams
+-[Reader Monad vs Constructor Injection](https://stackoverflow.com/questions/14301361/why-is-the-reader-monad-useful) - Stack Overflow debate
+-[Using Reader in Production](https://www.reddit.com/r/functionalprogramming/comments/5qvzwq/reader_monad_in_production/) - Real-world experiences
+-[ReaderT Pattern at Scale](https://news.ycombinator.com/item?id=16743608) - HN discussion from production teams
+
+---
+
+**Previous:** [MaybeT](maybet_transformer.md)
+**Next:** [StateT](statet_transformer.md)

@@ -513,48 +513,11 @@ public class ConfigOptics {
 
 ---
 
-## Integration with Functional Java Ecosystem
-
-### Vavr Integration
-
-```java
-import io.vavr.control.Option;
-
-// Note: higher-kinded-j uses java.util.Optional
-// For Vavr's Option, you'd need custom traversals
-// But the pattern is the same:
-
-Traversal<Option<Integer>, Integer> vavrOption = new Traversal<>() {
-    @Override
-    public <F> Kind<F, Option<Integer>> modifyF(
-        Function<Integer, Kind<F, Integer>> f,
-        Option<Integer> source,
-        Applicative<F> applicative
-    ) {
-        return source.isDefined()
-            ? applicative.map(Option::of, f.apply(source.get()))
-            : applicative.of(source);
-    }
-};
-```
-
-### Cyclops Integration
-
-```java
-import cyclops.control.Maybe;
-
-// Similar pattern for Cyclops Maybe
-// Higher-kinded-j's patterns extend naturally to other monadic types
-```
-
----
-
 ## Related Resources
 
 **Functional Java Libraries**:
-- [Vavr](https://www.vavr.io/) - Immutable collections with Option, Try, Either
 - [Cyclops](https://github.com/aol/cyclops) - Functional control structures
-- [Functional Java](https://www.functionaljava.org/) - Classic FP utilities
+- [Functional Java](https://github.com/functionaljava/functionaljava) - Classic FP utilities
 
 **Further Reading**:
 - *Functional Programming in Java* by Venkat Subramaniam - Optional and immutable patterns

@@ -2,6 +2,15 @@
 
 This section provides at-a-glance summaries of all type classes in Higher-Kinded-J. Use this as a quick lookup while coding or to compare different type classes.
 
+~~~admonish info title="What You'll Learn"
+- Quick reference summaries for all core type classes and their key methods
+- Decision guides for choosing the right type class for your use case
+- Common patterns and examples for Functor, Applicative, Monad, and MonadError
+- Understanding Semigroup, Monoid, Foldable, and Traverse for data operations
+- Type class hierarchy and inheritance relationships
+- Performance considerations and when to use HKT versus direct methods
+~~~
+
 ## Core Type Classes
 
 ### Functor
@@ -513,3 +522,8 @@ public static <F> Kind<F, String> normalise(Functor<F> functor, Kind<F, String> 
 **Memory:** HKT simulation adds minimal overhead (single wrapper object per operation)
 **CPU:** Direct method calls vs type class method calls are comparable in modern JVMs
 ~~~
+
+---
+
+**Previous:** [Basic HKT Examples](hkt_basic_examples.md)
+**Next:** [Extending](extending-simulation.md)

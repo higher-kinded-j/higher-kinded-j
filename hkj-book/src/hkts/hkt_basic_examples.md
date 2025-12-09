@@ -4,6 +4,15 @@
 
 These examples showcase how to use various monads and monad transformers to handle common programming tasks like managing optional values, asynchronous operations, and state in a functional way.
 
+~~~admonish info title="What You'll Learn"
+- Practical examples of core monads including Either, Maybe, Optional, IO, and State
+- How to use monad transformers like EitherT, MaybeT, and StateT to combine effects
+- Working with specialized monads like Reader for dependency injection and Writer for logging
+- Using For comprehensions to compose complex monadic workflows
+- Writing generic functions that work across different Functor and Monad instances
+- Handling errors and exceptions functionally with Try, Either, and MonadError
+~~~
+
 ---
 
 ## Monads
@@ -421,4 +430,7 @@ These examples show how to use **monad transformers** (`EitherT`, `MaybeT`, `Opt
 
 For more advanced patterns combining State with other monads, see the [Order Processing Example](order-walkthrough.md) which demonstrates `StateT` with `EitherT`.
 
-```
+---
+
+**Previous:** [Usage Guide](usage-guide.md)
+**Next:** [Quick Reference](quick_reference.md)

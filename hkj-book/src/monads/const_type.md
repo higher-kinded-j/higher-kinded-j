@@ -362,3 +362,7 @@ Const<String, Double> safe = const_.mapSecond(i -> 3.14);
   * [Van Laarhoven Lenses](https://www.twanvl.nl/blog/haskell/cps-functional-references)
 
 Understanding `Const` empowers you to write efficient, compositional code for data extraction and accumulation, leveraging patterns battle-tested in the Scala functional programming ecosystem.
+
+---
+
+**Previous:** [Writer](writer_monad.md)

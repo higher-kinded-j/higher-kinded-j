@@ -16,7 +16,7 @@
 ~~~
 
 
-The `StateT` monad transformer is a powerful construct that allows you to add state-management capabilities to an existing monadic context. Think of it as taking the [State Monad](../monads/state_monad.html) and making it work on top of *another* monad, like `OptionalKind`, `EitherKind`, or `IOKind`.
+The `StateT` monad transformer is a powerful construct that allows you to add state-management capabilities to an existing monadic context. Think of it as taking the [State Monad](../monads/state_monad.md) and making it work on top of *another* monad, like `OptionalKind`, `EitherKind`, or `IOKind`.
 
 This is incredibly useful when you have computations that are both stateful and involve other effects, such as:
 
@@ -340,62 +340,60 @@ public class StateTStackExample {
 }
 ```
 
-~~~ admonish important  title="Key Points:"
+---
 
 ## Relationship to State Monad
 
 The [State Monad](../monads/state_monad.md) (`State<S, A>`) can be seen as a specialised version of `StateT`. Specifically, `State<S, A>` is equivalent to `StateT<S, Id, A>`, where `Id` is the Identity monad (a monad that doesn't add any effects, simply `Id<A> = A`). `higher-kinded-j` provides an `Id` monad. `State<S, A>` can be seen as an equivalent to `StateT<S, IdKind.Witness, A>`.
 
-## Further Reading
-
-* [State Monad](../monads/state_monad.md): Understand the basics of stateful computations.
-* [Monad Transformers](./transformers.md): General concept of monad transformers.
-* Documentation for the underlying monads you might use with `StateT`, such as:
-  * [OptionalKind](../monads/optional_monad.md)
-  * [EitherKind](../monads/either_monad.md)
-  * [IOKind](../monads/io_monad.md)
-
 Using `StateT` helps write cleaner, more composable code when dealing with computations that involve both state and other monadic effects.
 
+---
+
+~~~admonish tip title="See Also"
+- [State Monad](../monads/state_monad.md) - Understand the basics of stateful computations
+- [Monad Transformers](./transformers.md) - General concept of monad transformers
+- [OptionalKind](../monads/optional_monad.md), [EitherKind](../monads/either_monad.md), [IOKind](../monads/io_monad.md) - Underlying monads you might use with StateT
 ~~~
 
 ---
 
-## Further Reading
-
-~~~admonish tip title="Learning Path"
+~~~admonish tip title="Further Reading"
 Start with the **Java-focused** resources to understand state management patterns, then explore **General FP concepts** for deeper understanding, and finally check **Related Libraries** to see alternative approaches.
 ~~~
 
 ### Java-Focused Resources
 
 **Beginner Level:**
-- 📚 [State Management Without Mutability](https://www.baeldung.com/java-state-design-pattern-functional) - Baeldung's functional state guide (15 min read)
-- 📄 [Immutable State Transitions in Java](https://medium.com/@johnmcclean/state-monad-in-java-8-2e0b7d8e3e5b) - Practical patterns (12 min read)
-- 🎥 [Functional State Machines](https://www.youtube.com/watch?v=Pgo3K-FWyh0) - State monad concepts visualised (30 min watch)
+-[State Management Without Mutability](https://www.baeldung.com/java-state-design-pattern-functional) - Baeldung's functional state guide (15 min read)
+-[Immutable State Transitions in Java](https://medium.com/@johnmcclean/state-monad-in-java-8-2e0b7d8e3e5b) - Practical patterns (12 min read)
+-[Functional State Machines](https://www.youtube.com/watch?v=Pgo3K-FWyh0) - State monad concepts visualised (30 min watch)
 
 **Intermediate Level:**
-- 📄 [Threading State Through Computations](https://blog.rockthejvm.com/state-monad/) - Rock the JVM's excellent tutorial (25 min read)
-- 📄 [Combining State and Failure](https://medium.com/@olxc/statet-monad-transformer-4c5700c4c149) - StateT with Optional/Either (20 min read)
+-[Threading State Through Computations](https://blog.rockthejvm.com/state-monad/) - Rock the JVM's excellent tutorial (25 min read)
+-[Combining State and Failure](https://medium.com/@olxc/statet-monad-transformer-4c5700c4c149) - StateT with Optional/Either (20 min read)
 
 **Advanced:**
-- 🔬 [State Monad for Functional Rendering](https://www.youtube.com/watch?v=U0lK0hnbc4U) - John Carmack on functional state (60 min watch)
-- 🔬 [Implementing State in Pure FP](https://www.youtube.com/watch?v=hmX2s3pe_qk) - Gabriel Gonzalez's deep dive (45 min watch)
+-[State Monad for Functional Rendering](https://www.youtube.com/watch?v=U0lK0hnbc4U) - John Carmack on functional state (60 min watch)
+-[Implementing State in Pure FP](https://www.youtube.com/watch?v=hmX2s3pe_qk) - Gabriel Gonzalez's deep dive (45 min watch)
 
 ### General FP Concepts
 
-- 📖 [State Monad Explained](https://wiki.haskell.org/State_Monad) - HaskellWiki's detailed guide
-- 📖 [The Essence of State](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/state.pdf) - Classic paper by Wadler (PDF, academic but readable)
-- 📖 [Purely Functional State](http://dev.stephendiehl.com/fun/001_basics.html) - Stephen Diehl's tutorial
+-[State Monad Explained](https://wiki.haskell.org/State_Monad) - HaskellWiki's detailed guide
+-[The Essence of State](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/state.pdf) - Classic paper by Wadler (PDF, academic but readable)
+-[Purely Functional State](https://dev.stephendiehl.com/fun/001_basics.html) - Stephen Diehl's tutorial
 
 ### Related Libraries & Comparisons
 
-- 🔗 [Cats State](https://typelevel.org/cats/datatypes/state.html) - Scala's mature implementation
-- 🔗 [Arrow State (Kotlin)](https://arrow-kt.io/docs/apidocs/arrow-core/arrow.core/-state/) - Kotlin's approach
-- 🔗 [Redux for State Management](https://redux.js.org/introduction/core-concepts) - JavaScript's popular state library (different paradigm but related)
+-[Cats State](https://typelevel.org/cats/datatypes/state.html) - Scala's mature implementation
+-[Redux for State Management](https://redux.js.org/introduction/core-concepts) - JavaScript's popular state library (different paradigm but related)
 
 ### Community & Discussion
 
-- 💬 [When to Use State Monad](https://stackoverflow.com/questions/5469954/when-to-use-state-monad) - Stack Overflow practical advice
-- 💬 [State Monad vs Mutable State](https://www.reddit.com/r/haskell/comments/2e6v8q/when_to_use_the_state_monad/) - Reddit discussion on trade-offs
-- 💬 [StateT in Production Code](https://news.ycombinator.com/item?id=12345678) - HN thread on real-world usage
+-[When to Use State Monad](https://stackoverflow.com/questions/5469954/when-to-use-state-monad) - Stack Overflow practical advice
+-[State Monad vs Mutable State](https://www.reddit.com/r/haskell/comments/2e6v8q/when_to_use_the_state_monad/) - Reddit discussion on trade-offs
+-[StateT in Production Code](https://news.ycombinator.com/item?id=12345678) - HN thread on real-world usage
+
+---
+
+**Previous:** [ReaderT](readert_transformer.md)

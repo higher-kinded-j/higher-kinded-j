@@ -24,7 +24,7 @@ These work together to solve common Java pain points in a functional, type-safe 
 
 ## _Two Pillars of Functional Programming_
 
-## 1: A [Higher-Kinded Types](hkts/hkt_introduction.md) Simulation ⚙️
+## 1: A [Higher-Kinded Types](hkts/hkt_introduction.md) Simulation
 
 Java's type system lacks native support for Higher-Kinded Types, making it difficult to write code that abstracts over "container" types. We can't easily define a generic function that works identically for `List<A>`, `Optional<A>`, and `CompletableFuture<A>`.
 
@@ -37,7 +37,7 @@ Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunct
 * **Build Adaptable Pipelines:** Use profunctors to create flexible data transformation pipelines that adapt to different input and output formats.
 * **Manage Effects:** Use provided monads like `IO`, `Either`, `Validated`, and `State` to build robust, composable workflows.
 
-## 2: A Powerful [Optics](optics/optics_intro.md) Library 🔎
+## 2: A Powerful [Optics](optics/optics_intro.md) Library
 
 Working with immutable data structures, like Java records, is great for safety but leads to verbose "copy-and-update" logic for nested data.
 
@@ -53,7 +53,7 @@ Higher-Kinded-J provides a full-featured **Optics library** that treats data acc
 * **Query with Precision:** Use **filtered traversals** to declaratively focus on elements matching predicates, and **indexed optics** to perform position-aware transformations with full index tracking.
 * **Java-Friendly Syntax:** Leverage the **fluent API** for discoverable, readable optic operations, or use the **Free Monad DSL** to build composable optic programs with multiple execution strategies (direct, logging, validation).
 
-## Learn by Doing 🎯
+## Learn by Doing
 
 The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**. Each tutorial guides you through hands-on exercises with immediate test feedback.
 
@@ -63,7 +63,7 @@ The fastest way to master Higher-Kinded-J is through our **interactive tutorial 
 Perfect for developers who prefer learning by building rather than just reading. [Get started →](tutorials/tutorials_intro.md)
 
 
-## [Spring Boot Integration](spring/spring_boot_integration.md) 🚀
+## [Spring Boot Integration](spring/spring_boot_integration.md)
 
 Building enterprise applications with Spring Boot? The **hkj-spring-boot-starter** brings functional programming patterns seamlessly into your REST APIs, eliminating exception-based error handling whilst maintaining Spring's familiar conventions.
 

@@ -122,3 +122,14 @@ System.out.println(VALIDATED.narrow(invalidResult));
 ```
 
 This error accumulation is impossible with `Functor` and is one of the key features that makes `Applicative` so indispensable for real-world functional programming.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Cats Documentation**: [Applicative](https://typelevel.org/cats/typeclasses/applicative.html) - Comprehensive coverage of Applicative laws and practical examples
+~~~
+
+---
+
+**Previous:** [Functor](functor.md)
+**Next:** [Alternative](alternative.md)

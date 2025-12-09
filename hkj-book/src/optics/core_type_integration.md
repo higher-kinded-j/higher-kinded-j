@@ -8,6 +8,14 @@ Traditional optics work brilliantly with straightforward, deterministic data. Ho
 
 This is where **Core Type Integration** comes in.
 
+~~~admonish info title="What You'll Learn"
+- How to use Core Type Prisms to extract values from `Maybe`, `Either`, `Validated`, and `Try` without verbose pattern matching
+- How Optics Extensions add null safety, validation, and exception handling to lenses and traversals
+- Composing core type optics with lenses for deep navigation into nested structures
+- Processing collections of core type values using prisms for filtering and extraction
+- When to use Core Type Prisms versus Optics Extensions based on your use case
+~~~
+
 ---
 
 ## The Challenge

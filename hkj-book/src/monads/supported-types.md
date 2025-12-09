@@ -1,5 +1,13 @@
 # Supported Types
 
+~~~admonish info title="What You'll Learn"
+- How Higher-Kinded-J simulates higher-kinded types in Java using the Kind pattern
+- The unified pattern used across all types: Kind interfaces, Witness types, and Helper classes
+- The complete catalog of 17 supported types, from basic types like Id and List to advanced types like Free and monad transformers
+- The difference between external Java types (Optional, List) and library-defined types (Maybe, Either, IO)
+- Where to find detailed documentation and examples for each supported type
+~~~
+
 ![monads_everywhere.webp](../images/monads_everywhere.webp)
 
 Higher-Kinded-J provides Higher-Kinded Type (HKT) simulation capabilities, allowing various Java types and custom types to be used with generic functional type classes like `Functor`, `Applicative`, `Monad`, and `MonadError`. 
@@ -264,3 +272,5 @@ This is achieved by representing the application of a type constructor `F` to a 
 * **Usage**: [How to use the Const Type](./const_type.md)
 
 ---
+
+**Next:** [CompletableFuture](cf_monad.md)

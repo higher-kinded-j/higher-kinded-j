@@ -1,5 +1,13 @@
 # MonadError: Handling Errors Gracefully
 
+~~~admonish info title="What You'll Learn"
+- How MonadError extends Monad with explicit error handling capabilities
+- Using `raiseError` to create failed computations
+- Recovering from errors with `handleErrorWith` and `handleError`
+- Writing generic, resilient code that works with any error-capable monad
+- Practical examples with Either and Try
+~~~
+
 While a `Monad` is excellent for sequencing operations that might fail (like with `Optional` or `Either`), it doesn't provide a standardised way to *inspect* or *recover* from those failures. The **`MonadError`** type class fills this gap.
 
 It's a specialised `Monad` that has a defined error type `E`, giving you a powerful and abstract API for raising and handling errors within any monadic workflow.
@@ -96,3 +104,14 @@ System.out.println(EITHER.narrow(recovered));
 ```
 
 In this example, `raiseError` allows us to create the failure case in a clean, declarative way, while `handleErrorWith` provides a powerful mechanism for recovery, making our code more resilient and predictable.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Cats Documentation**: [ApplicativeError](https://typelevel.org/cats/typeclasses/applicativeerror.html) - The foundation that MonadError builds upon
+~~~
+
+---
+
+**Previous:** [Monad](monad.md)
+**Next:** [Semigroup and Monoid](semigroup_and_monoid.md)

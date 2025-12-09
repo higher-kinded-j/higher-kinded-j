@@ -1,5 +1,13 @@
 # MonadZero
 
+~~~admonish info title="What You'll Learn"
+- How MonadZero combines Monad and Alternative capabilities
+- The role of `zero()` as an absorbing element in monadic sequences
+- Enabling filtering in for-comprehensions with `when()`
+- Practical examples using List, Maybe, and Optional
+- Writing generic functions for monads with failure semantics
+~~~
+
 The `MonadZero` is a more advanced type class that extends both `Monad` and `Alternative` to combine the power of monadic bind with choice operations. It includes the concept of a "zero" or "empty" element and is designed for monads that can represent failure, absence, or emptiness, allowing them to be used in filtering operations and alternative chains.
 
 The interface for MonadZero in hkj-api extends Monad and Alternative:
@@ -95,3 +103,15 @@ System.out.println("Result of List comprehension: " + narrow);
 **Output:**
 
 ```Result of List comprehension: [1 + 10 = Sum: 11, 1 + 20 = Sum: 21, 3 + 10 = Sum: 13, 3 + 20 = Sum: 23]```
+
+---
+
+~~~admonish tip title="See Also"
+- [Alternative](alternative.md) - The type class that MonadZero extends alongside Monad
+- [For Comprehension](for_comprehension.md) - Using MonadZero's filtering capabilities in comprehensions
+~~~
+
+---
+
+**Previous:** [Foldable and Traverse](foldable_and_traverse.md)
+**Next:** [Selective](selective.md)

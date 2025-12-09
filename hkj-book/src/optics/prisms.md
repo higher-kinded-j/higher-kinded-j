@@ -983,15 +983,11 @@ Prisms integrate with For comprehensions via the `match()` operation, which prov
 
 ---
 
-## Further Reading
-
-For deeper understanding of prisms and optics theory:
-
-- [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) - Academic foundation for modern optics
-- [The Essence of Functional Programming](https://page.mi.fu-berlin.de/scravy/realworldhaskell/materialien/the-essence-of-functional-programming.pdf) - Wadler's seminal paper on monads and functors
-- [Lens in Scala (Monocle)](https://www.optics.dev/Monocle/) - Production-ready Scala optics library with extensive examples
-- [Haskell Lens Library](https://hackage.haskell.org/package/lens) - Canonical reference implementation
-- [A Little Lens Starter Tutorial](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/a-little-lens-starter-tutorial) - Beginner-friendly introduction to optics concepts
+~~~admonish tip title="Further Reading"
+- **Monocle**: [Scala Optics Library](https://www.optics.dev/Monocle/) - Production-ready Scala optics with extensive examples
+- **Haskell Lens**: [Canonical Reference](https://hackage.haskell.org/package/lens) - The original comprehensive optics library
+- **Lens Tutorial**: [A Little Lens Starter Tutorial](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/a-little-lens-starter-tutorial) - Beginner-friendly introduction
+~~~
 
 ---
 

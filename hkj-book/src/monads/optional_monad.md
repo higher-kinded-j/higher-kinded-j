@@ -298,3 +298,8 @@ public void monadExample() {
 
 This example demonstrates wrapping `Optional`s, applying monadic and error-handling operations via `OptionalMonad`, and unwrapping back to standard `Optional`s. The `MonadError` capabilities allow treating absence (`Optional.empty`) as a recoverable "error" state.
 ~~~
+
+---
+
+**Previous:** [Maybe](maybe_monad.md)
+**Next:** [Reader](reader_monad.md)

@@ -337,3 +337,16 @@ Kind<Optional.Witness, String> flatMapResult = monad.flatMap2(
 ```
 
 This pattern is especially powerful when combined with error-handling monads like `Either` or `Try`, where the combining function can itself fail with a meaningful error.
+
+---
+
+~~~admonish tip title="Further Reading"
+- **Scott Logic**: [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html) - Practical guide to functors and monads in Java
+- **Bartosz Milewski**: [Monads: Programmer's Definition](https://bartoszmilewski.com/2016/11/21/monads-programmers-definition/) - Practical explanation of monads for programmers
+- **Cats Documentation**: [Monad](https://typelevel.org/cats/typeclasses/monad.html) - Scala implementation and examples
+~~~
+
+---
+
+**Previous:** [Alternative](alternative.md)
+**Next:** [MonadError](monad_error.md)

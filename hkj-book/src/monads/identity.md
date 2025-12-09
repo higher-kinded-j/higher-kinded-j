@@ -3,6 +3,15 @@
 ~~~ admonish example title="See Example Code:"
  [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 ~~~
+
+~~~admonish info title="What You'll Learn"
+- What the Identity Monad is and why it's the simplest monad
+- How Id serves as a base case for monad transformers
+- The key classes and concepts: Id, IdKind, IdKind.Witness, IdKindHelper, and IdMonad
+- How to create and use Id instances with monadic operations
+- How to use Id with monad transformers like StateT
+~~~
+
 The Identity Monad, often referred to as `IdMonad`, is the simplest possible monad. It represents a computation that doesn't add any additional context or effect beyond simply holding a value. It's a direct wrapper around a value.
 
 While it might seem trivial on its own, the Identity Monad plays a crucial role in a higher-kinded type library for several reasons:
@@ -143,3 +152,8 @@ Let's illustrate how you might define a `State` monad type alias or use `StateT`
 This example shows that `StateT` with `Id` behaves just like a standard `State` monad, where the "effect" of the underlying monad is simply identity (no additional effect).
 
 ~~~
+
+---
+
+**Previous:** [Either](either_monad.md)
+**Next:** [IO](io_monad.md)

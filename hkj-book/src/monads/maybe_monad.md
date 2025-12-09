@@ -305,3 +305,8 @@ public static <A, B> Kind<MaybeKind.Witness, B> processData(
 
 This example highlights how `MaybeMonad` facilitates working with optional values in a functional, type-safe manner, especially when dealing with the HKT abstractions and requiring non-null guarantees for present values.
 ~~~
+
+---
+
+**Previous:** [List](list_monad.md)
+**Next:** [Optional](optional_monad.md)

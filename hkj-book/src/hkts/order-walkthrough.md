@@ -4,6 +4,15 @@ This example is a practical demonstration of how to use the Higher-Kinded-J libr
 
 The scenario covers an Order workflow that involves asynchronous operations.  The Operations can fail with specific, expected business errors.
 
+~~~admonish info title="What You'll Learn"
+- Using the EitherT monad transformer to combine async operations with typed error handling
+- Composing CompletableFuture with Either to handle both domain errors and system failures
+- Building multi-step workflows with dependency injection and structured logging
+- Implementing error recovery strategies with handleErrorWith and handleError
+- Converting synchronous exceptions to typed domain errors using Try
+- Using For comprehensions to sequence complex asynchronous and error-prone workflows
+~~~
+
 ## Async Operations with Error Handling:
 
 You can find the code for the Order Processing example in the [`org.higherkindedj.example.order`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow) package.
@@ -293,3 +302,7 @@ While this example covers a the core concepts, a real-world application might in
 ~~~
 
 Higher-Kinded-J can help build more robust, resilient, and observable workflows using these foundational patterns from this example.
+
+---
+
+**Next:** [Draughts Game](draughts.md)

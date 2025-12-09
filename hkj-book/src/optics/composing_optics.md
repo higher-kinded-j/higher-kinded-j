@@ -813,17 +813,11 @@ public class SimplifiedValidation {
 See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FluentValidationExample.java) for comprehensive demonstrations of all validation-aware methods, including complex real-world scenarios like order validation and bulk data import.
 ~~~
 
-### Further Reading
-
-For a complete guide to validation-aware modifications including:
-* Fluent builder API with method chaining
-* Integration with existing validation frameworks (Jakarta Bean Validation)
-* Performance optimisation techniques
-* Additional real-world scenarios
-
-See: [Fluent API for Optics - Part 2.5: Validation-Aware Modifications](fluent_api.md#part-25-validation-aware-modifications)
+~~~admonish tip title="See Also"
+For a complete guide to validation-aware modifications including fluent builder API, integration with Jakarta Bean Validation, and performance optimisation, see [Fluent API for Optics](fluent_api.md#part-25-validation-aware-modifications).
+~~~
 
 ---
 
 **Previous:** [Profunctor Optics: Advanced Data Transformation](profunctor_optics.md)
-**Next:** [Optics Examples](optics_examples.md)
+**Next:** [Core Type Integration](core_type_integration.md)

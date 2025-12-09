@@ -6,6 +6,15 @@ This tutorial will guide you through building a complete and playable command-li
 
 We will provide all the necessary code, broken down into manageable files. More importantly, we will demonstrate how `higher-kinded-j` makes this process more robust, maintainable, and functionally elegant by cleanly separating game logic, user interaction, and state management.
 
+~~~admonish info title="What You'll Learn"
+- How to build a complete functional game using the State, Either, and IO monads
+- Techniques for managing immutable game state with the State monad
+- How to handle user input and validation with Either for type-safe error handling
+- Using the IO monad to encapsulate side effects while keeping core logic pure
+- Composing monadic operations with For comprehensions for readable workflows
+- Implementing complex game rules like multi-jump captures using pure functions
+~~~
+
 ### The Functional Approach
 
 At its core, a game like draughts involves several key aspects where functional patterns can shine:
@@ -564,3 +573,7 @@ Having seen the complete code, let's reflect on the benefits:
 This tutorial has only scratched the surface. You could extend this by exploring other constructs from the library, like using `Validated` to accumulate multiple validation errors or using the `Reader` monad to inject different sets of game rules.
 
 Java may not have native HKTs, but with [**Higher-Kinded-J**](https://higher-kinded-j.github.io/home.html), you can absolutely utilise these powerful and elegant functional patterns to write better, more robust applications.
+
+---
+
+**Previous:** [An Order Workflow](order-walkthrough.md)

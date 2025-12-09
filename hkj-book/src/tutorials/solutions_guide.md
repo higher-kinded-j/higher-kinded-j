@@ -1,5 +1,13 @@
 # Tutorial Solutions Guide
 
+~~~admonish info title="What You'll Learn"
+- When to consult solutions versus working through problems independently
+- How to learn effectively from solutions without just copy-pasting code
+- Common patterns used throughout solution files (widen-operate-narrow, typeclass instances, optic composition)
+- Debugging techniques for compilation and runtime errors
+- How to experiment with variations and connect solutions to documentation
+~~~
+
 ## Philosophy: When to Use Solutions
 
 The solution files exist to help you learn, not to short-circuit the learning process. Here's how to use them effectively.
@@ -346,4 +354,5 @@ Take your time. Struggle productively. Learn deeply.
 
 ---
 
-**Now get back to coding!** 🚀
+**Previous:** [Optics Track](optics_track.md)
+**Next:** [Troubleshooting](troubleshooting.md)

@@ -65,21 +65,39 @@ Write once. Use everywhere the capability exists.
 ## What You'll Learn
 
 ~~~admonish info title="In This Chapter"
-- **Functor** – The foundation: mapping over wrapped values
-- **Applicative** – Combining independent computations
-- **Alternative** – Choice and fallback operations
-- **Monad** – Sequencing dependent computations
-- **MonadError** – Explicit error handling in monadic contexts
-- **Semigroup and Monoid** – Combining values associatively
-- **Foldable and Traverse** – Iterating and transforming structures
-- **MonadZero** – Filtering in comprehensions
-- **Selective** – Conditional effects with static analysis
-- **Profunctor** – Transforming both input and output
-- **Bifunctor** – Mapping over two type parameters
-- **For Comprehension** – Readable monadic composition
+- **Functor** – The foundational type class that enables transformation of values inside containers without changing the container's structure. Every other abstraction builds on this.
+- **Applicative** – When you have multiple independent computations and need to combine their results. Unlike Monad, Applicative allows parallel evaluation since results don't depend on each other.
+- **Alternative** – Provides choice and fallback semantics: try one computation, and if it fails, try another. Essential for parsing and error recovery patterns.
+- **Monad** – The power to sequence dependent computations where each step can use results from previous steps. The workhorse of functional programming.
+- **MonadError** – Extends Monad with explicit error handling capabilities, allowing you to raise errors and recover from them within the monadic context.
+- **Semigroup and Monoid** – Type classes for combining values associatively. Monoids add an identity element, enabling operations like folding empty collections.
+- **Foldable and Traverse** – Foldable lets you reduce structures to single values; Traverse lets you transform structures while collecting effects.
+- **MonadZero** – Adds filtering capabilities to monads, enabling guard conditions in for-comprehensions that can short-circuit computation.
+- **Selective** – Sits between Applicative and Monad, providing conditional effects that can be statically analysed. Useful for build systems and optimisation.
+- **Profunctor** – For types with both input and output, allowing you to transform both sides. The foundation for advanced optics.
+- **Bifunctor** – Like Functor, but for types with two type parameters. Enables simultaneous transformation of both sides of types like Either or Tuple.
+- **For Comprehension** – A fluent API for composing monadic operations, inspired by Scala's for-comprehensions and Haskell's do-notation.
 ~~~
 
 ---
 
 ## Chapter Contents
 
+1. [Functional API](functional_api.md) - Overview of all type class interfaces
+2. [Functor](functor.md) - The foundation: mapping over wrapped values
+3. [Applicative](applicative.md) - Combining independent computations
+4. [Alternative](alternative.md) - Choice and fallback operations
+5. [Monad](monad.md) - Sequencing dependent computations
+6. [MonadError](monad_error.md) - Explicit error handling in monadic contexts
+7. [Semigroup and Monoid](semigroup_and_monoid.md) - Combining values associatively
+8. [Foldable and Traverse](foldable_and_traverse.md) - Iterating and transforming structures
+9. [MonadZero](monad_zero.md) - Filtering in comprehensions
+10. [Selective](selective.md) - Conditional effects with static analysis
+11. [Profunctor](profunctor.md) - Transforming both input and output
+12. [Bifunctor](bifunctor.md) - Mapping over two type parameters
+13. [Natural Transformation](natural_transformation.md) - Polymorphic functions between type constructors
+14. [For Comprehension](for_comprehension.md) - Readable monadic composition
+
+---
+
+**Next:** [Functional API](functional_api.md)
