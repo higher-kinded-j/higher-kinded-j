@@ -151,7 +151,7 @@ jobs:
           ls -la "$DEPLOY_PATH"
         shell: bash
 
-      - name: Create/update root index.html and 404.html
+      - name: Create/update root index.html, 404.html, and social preview image
         run: |
           # Always copy the redirect page to root to ensure it's up to date
           cp .github/scripts/root-index.html gh-pages-repo/index.html
@@ -160,6 +160,10 @@ jobs:
           # Copy 404 page that redirects old URLs to /latest/
           cp .github/scripts/404.html gh-pages-repo/404.html
           echo "404.html updated"
+
+          # Copy social preview image to root for Open Graph meta tags
+          cp ${{ env.BOOK_ROOT_DIR }}/src/preview.png gh-pages-repo/preview.png
+          echo "Social preview image (preview.png) copied to root"
         shell: bash
 
       - name: Commit and push changes
