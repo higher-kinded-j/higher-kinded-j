@@ -130,6 +130,22 @@ public class NavigatorClassGenerator {
    * @return AFFINE for optional types, TRAVERSAL for collection types, FOCUS otherwise
    */
   private PathKind getFieldPathKind(TypeMirror type) {
+    return getFieldPathKind(null, type);
+  }
+
+  /**
+   * Determines what path kind a field type introduces, considering annotations.
+   *
+   * @param component the record component (may be null for nested navigation)
+   * @param type the field type to analyze
+   * @return AFFINE for optional/nullable types, TRAVERSAL for collection types, FOCUS otherwise
+   */
+  private PathKind getFieldPathKind(RecordComponentElement component, TypeMirror type) {
+    // Check for @Nullable annotation first
+    if (component != null && NullableAnnotations.hasNullableAnnotation(component)) {
+      return PathKind.AFFINE;
+    }
+
     if (type.getKind() != TypeKind.DECLARED) {
       return PathKind.FOCUS;
     }
@@ -199,8 +215,8 @@ public class NavigatorClassGenerator {
         continue;
       }
 
-      // Determine the path kind for this field
-      PathKind fieldKind = getFieldPathKind(fieldType);
+      // Determine the path kind for this field (including @Nullable detection)
+      PathKind fieldKind = getFieldPathKind(component, fieldType);
       PathKind widenedKind = currentPathKind.widen(fieldKind);
 
       // Generate the navigator class for this field

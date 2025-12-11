@@ -4,6 +4,7 @@ package org.higherkindedj.optics.focus;
 
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -403,6 +404,35 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
   }
 
   /**
+   * When the focused type may be null, creates an AffinePath that safely handles null values.
+   *
+   * <p>This is useful for working with legacy APIs or records that use null to represent absent
+   * values instead of {@link java.util.Optional}. The resulting AffinePath treats null as absent
+   * (empty Optional) and non-null as present.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Given an AffinePath to an optionally-present nullable field
+   * AffinePath<Config, @Nullable String> apiKeyPath = ConfigFocus.apiKey();
+   *
+   * // Chain with nullable() to handle the null case
+   * AffinePath<Config, String> safeApiKey = apiKeyPath.nullable();
+   *
+   * // getOptional returns empty for both "path doesn't match" and "value is null"
+   * Optional<String> result = safeApiKey.getOptional(config);
+   * }</pre>
+   *
+   * @param <E> the non-null element type
+   * @return an AffinePath that treats null as absent
+   * @see FocusPaths#nullable()
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, E> nullable() {
+    return via((Affine<A, E>) FocusPaths.nullable());
+  }
+
+  /**
    * When the optionally-focused value is a traversable container {@code Kind<F, E>}, creates a
    * TraversalPath that focuses on all elements within it.
    *
@@ -552,5 +582,42 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
             s -> subclass.isInstance(s) ? Optional.of(subclass.cast(s)) : Optional.empty(),
             (s, a) -> a);
     return of(affine);
+  }
+
+  /**
+   * Creates an AffinePath for a nullable field with implicit null-safety.
+   *
+   * <p>This is a convenience factory for creating paths to fields that may be null. The path treats
+   * null values as absent (empty Optional), providing seamless integration with the Focus DSL for
+   * legacy APIs that use null instead of {@link Optional}.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * record LegacyUser(String name, @Nullable String nickname) {}
+   *
+   * // Create an AffinePath directly for the nullable field
+   * AffinePath<LegacyUser, String> nicknamePath = AffinePath.ofNullable(
+   *     LegacyUser::nickname,
+   *     (user, nickname) -> new LegacyUser(user.name(), nickname)
+   * );
+   *
+   * // Use like any AffinePath
+   * LegacyUser user = new LegacyUser("Alice", null);
+   * Optional<String> result = nicknamePath.getOptional(user);  // Optional.empty()
+   *
+   * LegacyUser updated = nicknamePath.set("Ally", user);
+   * // LegacyUser[name=Alice, nickname=Ally]
+   * }</pre>
+   *
+   * @param getter extracts the potentially-null value from the source
+   * @param setter creates a new source with the value set (receives non-null value)
+   * @param <S> the source type
+   * @param <A> the focused type (non-null)
+   * @return an AffinePath that handles null safely
+   */
+  @SuppressWarnings("nullness") // Intentionally working with nullable values
+  static <S, A> AffinePath<S, A> ofNullable(Function<S, A> getter, BiFunction<S, A, S> setter) {
+    return of(Affine.of(s -> Optional.ofNullable(getter.apply(s)), (s, a) -> setter.apply(s, a)));
   }
 }

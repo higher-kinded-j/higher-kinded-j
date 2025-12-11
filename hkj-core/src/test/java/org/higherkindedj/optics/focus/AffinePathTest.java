@@ -324,6 +324,439 @@ class AffinePathTest {
   }
 
   @Nested
+  @DisplayName("Nullable Field Handling")
+  class NullableFieldHandling {
+
+    record UserWithNullable(String name, String nickname) {}
+
+    @Test
+    @DisplayName("ofNullable should create AffinePath that handles null as absent")
+    void ofNullableShouldHandleNullAsAbsent() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          AffinePath.ofNullable(
+              UserWithNullable::nickname,
+              (user, nickname) -> new UserWithNullable(user.name(), nickname));
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(nicknamePath.getOptional(withNickname)).contains("Ally");
+      assertThat(nicknamePath.getOptional(withoutNickname)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("ofNullable should allow setting value on null field")
+    void ofNullableShouldAllowSettingOnNull() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          AffinePath.ofNullable(
+              UserWithNullable::nickname,
+              (user, nickname) -> new UserWithNullable(user.name(), nickname));
+
+      UserWithNullable user = new UserWithNullable("Bob", null);
+
+      UserWithNullable updated = nicknamePath.set("Bobby", user);
+      assertThat(updated.nickname()).isEqualTo("Bobby");
+    }
+
+    @Test
+    @DisplayName("ofNullable should support modify operation")
+    void ofNullableShouldSupportModify() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          AffinePath.ofNullable(
+              UserWithNullable::nickname,
+              (user, nickname) -> new UserWithNullable(user.name(), nickname));
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      UserWithNullable modified = nicknamePath.modify(String::toUpperCase, withNickname);
+      assertThat(modified.nickname()).isEqualTo("ALLY");
+
+      // Modify on null should return original unchanged
+      UserWithNullable unchanged = nicknamePath.modify(String::toUpperCase, withoutNickname);
+      assertThat(unchanged.nickname()).isNull();
+    }
+
+    @Test
+    @DisplayName("ofNullable should support matches operation")
+    void ofNullableShouldSupportMatches() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          AffinePath.ofNullable(
+              UserWithNullable::nickname,
+              (user, nickname) -> new UserWithNullable(user.name(), nickname));
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(nicknamePath.matches(withNickname)).isTrue();
+      assertThat(nicknamePath.matches(withoutNickname)).isFalse();
+    }
+
+    @Test
+    @DisplayName("nullable() method should chain to handle null values")
+    void nullableMethodShouldChainToHandleNulls() {
+      Lens<UserWithNullable, String> nicknameLens =
+          Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n));
+
+      // Create AffinePath using nullable() chaining via FocusPath
+      AffinePath<UserWithNullable, String> nicknamePath = FocusPath.of(nicknameLens).nullable();
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(nicknamePath.getOptional(withNickname)).contains("Ally");
+      assertThat(nicknamePath.getOptional(withoutNickname)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("nullable() should compose with other path operations")
+    void nullableShouldComposeWithOtherOperations() {
+      record Company(String name, UserWithNullable owner) {}
+
+      Lens<Company, UserWithNullable> ownerLens =
+          Lens.of(Company::owner, (c, o) -> new Company(c.name(), o));
+
+      AffinePath<Company, String> ownerNicknamePath =
+          FocusPath.of(ownerLens)
+              .via(Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n)))
+              .nullable();
+
+      Company withOwnerNickname = new Company("Acme", new UserWithNullable("Alice", "Ally"));
+      Company withoutOwnerNickname = new Company("Corp", new UserWithNullable("Bob", null));
+
+      assertThat(ownerNicknamePath.getOptional(withOwnerNickname)).contains("Ally");
+      assertThat(ownerNicknamePath.getOptional(withoutOwnerNickname)).isEmpty();
+
+      Company updated = ownerNicknamePath.set("Bobby", withoutOwnerNickname);
+      assertThat(updated.owner().nickname()).isEqualTo("Bobby");
+    }
+
+    @Test
+    @DisplayName("nullable() on AffinePath should handle null values")
+    void nullableOnAffinePathShouldHandleNulls() {
+      // Create a scenario where we have an Optional containing a record with nullable field
+      record ConfigWithNullable(Optional<UserWithNullable> user) {}
+
+      // Build the path: ConfigWithNullable -> Optional<UserWithNullable> -> UserWithNullable ->
+      // String
+      // First create an AffinePath via ofNullable for the inner nullable field
+      AffinePath<UserWithNullable, String> innerNicknamePath =
+          AffinePath.ofNullable(
+              UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n));
+
+      // Create Lens for the Optional field
+      Lens<ConfigWithNullable, Optional<UserWithNullable>> userOptLens =
+          Lens.of(ConfigWithNullable::user, (c, u) -> new ConfigWithNullable(u));
+
+      // Compose: FocusPath -> some() -> via(innerNicknamePath)
+      AffinePath<ConfigWithNullable, String> nicknamePath =
+          FocusPath.of(userOptLens).<UserWithNullable>some().via(innerNicknamePath);
+
+      ConfigWithNullable withNickname =
+          new ConfigWithNullable(Optional.of(new UserWithNullable("Alice", "Ally")));
+      ConfigWithNullable withNullNickname =
+          new ConfigWithNullable(Optional.of(new UserWithNullable("Bob", null)));
+      ConfigWithNullable withNoUser = new ConfigWithNullable(Optional.empty());
+
+      assertThat(nicknamePath.getOptional(withNickname)).contains("Ally");
+      assertThat(nicknamePath.getOptional(withNullNickname)).isEmpty();
+      assertThat(nicknamePath.getOptional(withNoUser)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("nullable() should support modify operation")
+    void nullableShouldSupportModify() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          FocusPath.of(
+                  Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n)))
+              .nullable();
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      UserWithNullable modified = nicknamePath.modify(String::toUpperCase, withNickname);
+      assertThat(modified.nickname()).isEqualTo("ALLY");
+
+      // Modify on null should return original unchanged
+      UserWithNullable unchanged = nicknamePath.modify(String::toUpperCase, withoutNickname);
+      assertThat(unchanged.nickname()).isNull();
+    }
+
+    @Test
+    @DisplayName("nullable() should support getOrElse with default value")
+    void nullableShouldSupportGetOrElse() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          FocusPath.of(
+                  Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n)))
+              .nullable();
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(nicknamePath.getOrElse("default", withNickname)).isEqualTo("Ally");
+      assertThat(nicknamePath.getOrElse("default", withoutNickname)).isEqualTo("default");
+    }
+
+    @Test
+    @DisplayName("nullable() should support mapOptional transformation")
+    void nullableShouldSupportMapOptional() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          FocusPath.of(
+                  Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n)))
+              .nullable();
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(nicknamePath.mapOptional(String::length, withNickname)).contains(4);
+      assertThat(nicknamePath.mapOptional(String::length, withoutNickname)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("nullable() should support matches operation")
+    void nullableShouldSupportMatches() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          FocusPath.of(
+                  Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n)))
+              .nullable();
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(nicknamePath.matches(withNickname)).isTrue();
+      assertThat(nicknamePath.matches(withoutNickname)).isFalse();
+    }
+
+    @Test
+    @DisplayName("nullable() should handle deeply nested nullable fields")
+    void nullableShouldHandleDeeplyNestedNullables() {
+      record Address(String city, String street) {}
+      record Person(String name, Address address) {}
+      record Company(String name, Person ceo) {}
+
+      // Create nullable-aware AffinePaths for each level
+      AffinePath<Company, Person> ceoPath =
+          AffinePath.ofNullable(Company::ceo, (c, p) -> new Company(c.name(), p));
+
+      AffinePath<Person, Address> addressPath =
+          AffinePath.ofNullable(Person::address, (p, a) -> new Person(p.name(), a));
+
+      AffinePath<Address, String> streetPath =
+          AffinePath.ofNullable(Address::street, (a, s) -> new Address(a.city(), s));
+
+      // Compose the paths: Company -> Person -> Address -> String
+      AffinePath<Company, String> fullPath = ceoPath.via(addressPath).via(streetPath);
+
+      Company withStreet =
+          new Company("Acme", new Person("Alice", new Address("NYC", "123 Main St")));
+      Company withNullStreet = new Company("Corp", new Person("Bob", new Address("LA", null)));
+      Company withNullAddress = new Company("Inc", new Person("Charlie", null));
+      Company withNullCeo = new Company("LLC", null);
+
+      assertThat(fullPath.getOptional(withStreet)).contains("123 Main St");
+      assertThat(fullPath.getOptional(withNullStreet)).isEmpty();
+      assertThat(fullPath.getOptional(withNullAddress)).isEmpty();
+      assertThat(fullPath.getOptional(withNullCeo)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("nullable() should allow set even when original is null")
+    void nullableShouldAllowSetWhenOriginalIsNull() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          FocusPath.of(
+                  Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n)))
+              .nullable();
+
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      UserWithNullable updated = nicknamePath.set("Bobby", withoutNickname);
+      assertThat(updated.nickname()).isEqualTo("Bobby");
+    }
+
+    @Test
+    @DisplayName("nullable() combined with some() for Optional containing nullable")
+    void nullableCombinedWithSomeForOptionalContainingNullable() {
+      record Profile(Optional<String> bio) {}
+
+      Lens<Profile, Optional<String>> bioOptLens = Lens.of(Profile::bio, (p, b) -> new Profile(b));
+
+      // Path: Profile -> Optional<String> -> String (via some) -> String (via nullable)
+      // This tests the scenario where Optional contains a value but that value might be null
+      // (which shouldn't happen in practice but tests the composition)
+      AffinePath<Profile, String> bioPath = FocusPath.of(bioOptLens).some();
+
+      Profile withBio = new Profile(Optional.of("Software developer"));
+      Profile withEmptyBio = new Profile(Optional.empty());
+
+      assertThat(bioPath.getOptional(withBio)).contains("Software developer");
+      assertThat(bioPath.getOptional(withEmptyBio)).isEmpty();
+
+      // Set should work
+      Profile updated = bioPath.set("New bio", withEmptyBio);
+      assertThat(updated.bio()).contains("New bio");
+    }
+
+    @Test
+    @DisplayName("nullable() should work with asTraversal conversion")
+    void nullableShouldWorkWithAsTraversalConversion() {
+      AffinePath<UserWithNullable, String> nicknamePath =
+          FocusPath.of(
+                  Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n)))
+              .nullable();
+
+      TraversalPath<UserWithNullable, String> traversalPath = nicknamePath.asTraversal();
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(traversalPath.getAll(withNickname)).containsExactly("Ally");
+      assertThat(traversalPath.getAll(withoutNickname)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("AffinePath.nullable() should treat null focus value as absent")
+    void affinePathNullableShouldTreatNullAsAbsent() {
+      record Inner(String value) {}
+      record Outer(Optional<Inner> inner) {}
+
+      Lens<Outer, Optional<Inner>> innerOptLens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
+
+      Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
+
+      // Build AffinePath: Outer -> Optional<Inner> -> Inner -> String
+      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, String> valuePath = innerPath.via(valueLens);
+
+      // Call nullable() directly on the AffinePath
+      AffinePath<Outer, String> safeValuePath = valuePath.<String>nullable();
+
+      // Test: Inner present with non-null value
+      Outer withValue = new Outer(Optional.of(new Inner("hello")));
+      assertThat(safeValuePath.getOptional(withValue)).contains("hello");
+
+      // Test: Inner present with null value - nullable() should return empty
+      Outer withNullValue = new Outer(Optional.of(new Inner(null)));
+      assertThat(safeValuePath.getOptional(withNullValue)).isEmpty();
+
+      // Test: Inner absent
+      Outer withEmpty = new Outer(Optional.empty());
+      assertThat(safeValuePath.getOptional(withEmpty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("AffinePath.nullable() should support set operation when value is present")
+    void affinePathNullableShouldSupportSet() {
+      record Inner(String value) {}
+      record Outer(Optional<Inner> inner) {}
+
+      Lens<Outer, Optional<Inner>> innerOptLens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
+
+      Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
+
+      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
+
+      // Set works when value is present (non-null)
+      Outer withValue = new Outer(Optional.of(new Inner("original")));
+      Outer updated = safeValuePath.set("new value", withValue);
+      assertThat(updated.inner().get().value()).isEqualTo("new value");
+
+      // When value is null, set returns unchanged (null is treated as absent)
+      // This is a consequence of affine composition - set only proceeds when getOptional is present
+      Outer withNullValue = new Outer(Optional.of(new Inner(null)));
+      Outer unchanged = safeValuePath.set("new value", withNullValue);
+      assertThat(unchanged.inner().get().value()).isNull();
+    }
+
+    @Test
+    @DisplayName("AffinePath.nullable() should support modify operation")
+    void affinePathNullableShouldSupportModify() {
+      record Inner(String value) {}
+      record Outer(Optional<Inner> inner) {}
+
+      Lens<Outer, Optional<Inner>> innerOptLens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
+
+      Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
+
+      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
+
+      Outer withValue = new Outer(Optional.of(new Inner("hello")));
+      Outer withNullValue = new Outer(Optional.of(new Inner(null)));
+
+      // Modify should apply function when value present
+      Outer modified = safeValuePath.modify(String::toUpperCase, withValue);
+      assertThat(modified.inner().get().value()).isEqualTo("HELLO");
+
+      // Modify should return unchanged when value is null
+      Outer unchanged = safeValuePath.modify(String::toUpperCase, withNullValue);
+      assertThat(unchanged.inner().get().value()).isNull();
+    }
+
+    @Test
+    @DisplayName("AffinePath.nullable() should support matches operation")
+    void affinePathNullableShouldSupportMatches() {
+      record Inner(String value) {}
+      record Outer(Optional<Inner> inner) {}
+
+      Lens<Outer, Optional<Inner>> innerOptLens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
+
+      Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
+
+      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
+
+      Outer withValue = new Outer(Optional.of(new Inner("hello")));
+      Outer withNullValue = new Outer(Optional.of(new Inner(null)));
+      Outer withEmpty = new Outer(Optional.empty());
+
+      assertThat(safeValuePath.matches(withValue)).isTrue();
+      assertThat(safeValuePath.matches(withNullValue)).isFalse();
+      assertThat(safeValuePath.matches(withEmpty)).isFalse();
+    }
+
+    @Test
+    @DisplayName("AffinePath.nullable() should support getOrElse")
+    void affinePathNullableShouldSupportGetOrElse() {
+      record Inner(String value) {}
+      record Outer(Optional<Inner> inner) {}
+
+      Lens<Outer, Optional<Inner>> innerOptLens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
+
+      Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
+
+      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
+
+      Outer withValue = new Outer(Optional.of(new Inner("hello")));
+      Outer withNullValue = new Outer(Optional.of(new Inner(null)));
+
+      assertThat(safeValuePath.getOrElse("default", withValue)).isEqualTo("hello");
+      assertThat(safeValuePath.getOrElse("default", withNullValue)).isEqualTo("default");
+    }
+
+    @Test
+    @DisplayName("AffinePath.nullable() should support mapOptional")
+    void affinePathNullableShouldSupportMapOptional() {
+      record Inner(String value) {}
+      record Outer(Optional<Inner> inner) {}
+
+      Lens<Outer, Optional<Inner>> innerOptLens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
+
+      Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
+
+      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
+
+      Outer withValue = new Outer(Optional.of(new Inner("hello")));
+      Outer withNullValue = new Outer(Optional.of(new Inner(null)));
+
+      assertThat(safeValuePath.mapOptional(String::length, withValue)).contains(5);
+      assertThat(safeValuePath.mapOptional(String::length, withNullValue)).isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("Conversion Methods")
   class ConversionMethods {
 
