@@ -543,9 +543,12 @@ public class Tutorial13_AdvancedFocusDSL {
    * <p>Next Steps:
    *
    * <ul>
+   *   <li>Use {@code @GenerateFocus} for automatic Kind field support - the processor detects
+   *       {@code Kind<F, A>} fields and generates {@code traverseOver()} calls automatically
+   *   <li>See {@code KindFieldFocusExample.java} for automatic Kind field detection in action
+   *   <li>Use {@code @TraverseField} annotation for custom Kind types not in the library
    *   <li>Explore the TraverseTraversals utility class for more Traverse-based optics
    *   <li>Combine Focus DSL with Free Monad patterns for complex workflows
-   *   <li>Create custom Traverse instances for your collection types
    * </ul>
    */
 }

@@ -370,4 +370,86 @@ class TraversalPathTest {
       assertThat(fold.all(s -> s.length() > 3, list)).isTrue();
     }
   }
+
+  @Nested
+  @DisplayName("Narrowing Methods")
+  class NarrowingMethods {
+
+    @Test
+    @DisplayName("headOption should return AffinePath focusing on first element")
+    void headOptionShouldReturnAffinePathFocusingOnFirst() {
+      TraversalPath<List<String>, String> path = TraversalPath.of(Traversals.forList());
+      AffinePath<List<String>, String> affinePath = path.headOption();
+
+      assertThat(affinePath).isNotNull();
+      assertThat(affinePath.getOptional(List.of("a", "b", "c"))).contains("a");
+    }
+
+    @Test
+    @DisplayName("headOption should return empty Optional when no elements")
+    void headOptionShouldReturnEmptyWhenNoElements() {
+      TraversalPath<List<String>, String> path = TraversalPath.of(Traversals.forList());
+      AffinePath<List<String>, String> affinePath = path.headOption();
+
+      assertThat(affinePath.getOptional(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("headOption AffinePath set should update all elements")
+    void headOptionSetShouldUpdateAllElements() {
+      TraversalPath<List<String>, String> path = TraversalPath.of(Traversals.forList());
+      AffinePath<List<String>, String> affinePath = path.headOption();
+
+      List<String> result = affinePath.set("X", List.of("a", "b", "c"));
+
+      // headOption's set uses setAll, updating all focused elements
+      assertThat(result).containsExactly("X", "X", "X");
+    }
+
+    @Test
+    @DisplayName("headOption AffinePath set on empty list should return empty list")
+    void headOptionSetOnEmptyShouldReturnEmpty() {
+      TraversalPath<List<String>, String> path = TraversalPath.of(Traversals.forList());
+      AffinePath<List<String>, String> affinePath = path.headOption();
+
+      List<String> result = affinePath.set("X", List.of());
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("headOption AffinePath modify should transform all elements")
+    void headOptionModifyShouldTransformAllElements() {
+      TraversalPath<List<String>, String> path = TraversalPath.of(Traversals.forList());
+      AffinePath<List<String>, String> affinePath = path.headOption();
+
+      List<String> result = affinePath.modify(String::toUpperCase, List.of("a", "b", "c"));
+
+      // Modify only modifies if getOptional returns a value
+      // Since we have elements, all get updated via setAll
+      assertThat(result).containsExactly("A", "A", "A");
+    }
+
+    @Test
+    @DisplayName("headOption AffinePath modify on empty should return unchanged")
+    void headOptionModifyOnEmptyShouldReturnUnchanged() {
+      TraversalPath<List<String>, String> path = TraversalPath.of(Traversals.forList());
+      AffinePath<List<String>, String> affinePath = path.headOption();
+
+      List<String> empty = List.of();
+      List<String> result = affinePath.modify(String::toUpperCase, empty);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("headOption matches should return true when elements exist")
+    void headOptionMatchesShouldReturnTrueWhenElementsExist() {
+      TraversalPath<List<String>, String> path = TraversalPath.of(Traversals.forList());
+      AffinePath<List<String>, String> affinePath = path.headOption();
+
+      assertThat(affinePath.matches(List.of("a", "b"))).isTrue();
+      assertThat(affinePath.matches(List.of())).isFalse();
+    }
+  }
 }

@@ -1,6 +1,6 @@
 # Optics Tutorial Track
 
-**Sessions**: 6 | **Total Duration**: ~115 minutes | **Tutorials**: 11 | **Exercises**: 75
+**Sessions**: 7 | **Total Duration**: ~137 minutes | **Tutorials**: 13 | **Exercises**: 93
 
 Each session is designed to fit comfortably into a lunch break (20-25 minutes). Work through them at your own pace, one session per sitting, or combine them for longer learning sessions.
 
@@ -369,6 +369,69 @@ ValidationResult validation = OpticInterpreters.validating().validate(program);
 
 ---
 
+## Session 7: Focus DSL (~22 minutes)
+
+*Type-safe path navigation with automatic type transitions*
+
+### Tutorial 12: Focus DSL Basics (~12 minutes)
+**File**: `Tutorial12_FocusDSL.java` | **Exercises**: 10
+
+Learn the Focus DSL for ergonomic, type-safe path navigation through nested data structures.
+
+**What you'll learn**:
+- Creating `FocusPath` from a Lens with `FocusPath.of()`
+- Composing paths with `via()` for deep navigation
+- `AffinePath` for optional values using `some()`
+- `TraversalPath` for collections using `each()`
+- Accessing specific elements with `at(index)` and `atKey(key)`
+- Filtering traversals with `filter()`
+- Converting paths with `toLens()`, `asAffine()`, `asTraversal()`
+
+**Key insight**: Path types automatically widen as you navigate. `FocusPath` becomes `AffinePath` through optional values, and becomes `TraversalPath` through collections.
+
+**Path type transitions**:
+```
+FocusPath → via(Prism) → AffinePath → via(Traversal) → TraversalPath
+         → via(Affine) →            → via(Lens)      →
+         → each()      →            → each()         →
+```
+
+**Links to documentation**: [Focus DSL](../optics/focus_dsl.md)
+
+---
+
+### Tutorial 13: Advanced Focus DSL (~10 minutes)
+**File**: `Tutorial13_AdvancedFocusDSL.java` | **Exercises**: 8
+
+Master advanced Focus DSL features including type class integration, monoid aggregation, and Kind field navigation.
+
+**What you'll learn**:
+- `modifyF()` for effectful modifications with Applicative/Monad
+- `foldMap()` for aggregating values using Monoid
+- `traverseOver()` for generic collection traversal via Traverse type class
+- `modifyWhen()` for conditional modifications
+- `instanceOf()` for sum type navigation
+- `traced()` for debugging path navigation
+
+**Key insight**: `traverseOver()` bridges the HKT Traverse type class with optics, letting you navigate into `Kind<F, A>` wrapped collections. This is the foundation for automatic Kind field support in `@GenerateFocus`.
+
+**Real-world application**: Processing Kind-wrapped collections, aggregate computations, conditional business logic, debugging complex path compositions.
+
+**Example**:
+```java
+// Manual traverseOver for Kind<ListKind.Witness, Role> field
+FocusPath<User, Kind<ListKind.Witness, Role>> rolesKindPath = FocusPath.of(userRolesLens);
+TraversalPath<User, Role> allRolesPath = rolesKindPath
+    .<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+
+// With @GenerateFocus, this is generated automatically:
+// TraversalPath<User, Role> roles = UserFocus.roles();
+```
+
+**Links to documentation**: [Kind Field Support](../optics/kind_field_support.md) | [Foldable and Traverse](../functional/foldable_and_traverse.md)
+
+---
+
 ## Learning Map
 
 ```
@@ -405,6 +468,12 @@ Session 5: Fluent APIs and Advanced Patterns
 Session 6: The Free Monad DSL
     ↓
     └─ Tutorial 11: Build composable programs
+       ↓
+Session 7: Focus DSL
+    ↓
+    └─ Tutorial 12: Type-safe path navigation
+       ↓
+       └─ Tutorial 13: Kind fields and type class integration
 ```
 
 ## Optics Cheat Sheet
@@ -504,10 +573,11 @@ Optional<Shipped> shipped = shippedPrism.getOptional(orderStatus);
 
 After completing this track:
 
-1. **Apply to Your Domain Models**: Annotate your records with `@GenerateLenses`
-2. **Explore Advanced Features**: [Filtered Optics](../optics/filtered_optics.md), [Indexed Optics](../optics/indexed_optics.md)
-3. **Study Production Examples**: The [Config Audit Example](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/configaudit/ConfigAuditExample.java)
-4. **Learn Core Types**: Understand how `modifyF` uses Higher-Kinded Types
+1. **Use Focus DSL with @GenerateFocus**: Annotate your records with `@GenerateFocus` for automatic path generation
+2. **Explore Kind Field Support**: See [Kind Field Support](../optics/kind_field_support.md) for automatic `Kind<F, A>` field handling
+3. **Explore Advanced Features**: [Filtered Optics](../optics/filtered_optics.md), [Indexed Optics](../optics/indexed_optics.md)
+4. **Study Production Examples**: The [Kind Field Focus Example](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/KindFieldFocusExample.java)
+5. **Learn Core Types**: Understand how `modifyF` uses Higher-Kinded Types
 
 ## Getting Help
 

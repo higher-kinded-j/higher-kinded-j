@@ -1038,5 +1038,5 @@ for (Order order : orders) {
 
 ---
 
-**Previous:** [Focus DSL](focus_dsl.md)
+**Previous:** [Kind Field Support](kind_field_support.md)
 **Next:** [Free Monad DSL](free_monad_dsl.md)

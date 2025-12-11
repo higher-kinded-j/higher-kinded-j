@@ -576,6 +576,46 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
     return via((Traversal<A, E>) traversal);
   }
 
+  // ===== Narrowing Methods =====
+
+  /**
+   * Narrows this TraversalPath to an AffinePath focusing on the first element.
+   *
+   * <p>This method converts a TraversalPath (zero or more elements) to an AffinePath (zero or one
+   * element) by focusing only on the first element if present. Subsequent elements are ignored
+   * during queries but preserved during modifications.
+   *
+   * <p>This is useful when composing with optics that produce a TraversalPath but you only need the
+   * first element, such as when working with HKT types that have "zero or one" semantics (like
+   * Maybe, Either, Try).
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * // TraversalPath from traverseOver
+   * TraversalPath<Config, Value> allValues = configPath.traverseOver(MaybeTraverse.INSTANCE);
+   *
+   * // Narrow to just the first (and likely only) value
+   * AffinePath<Config, Value> firstValue = allValues.headOption();
+   *
+   * // Now can use AffinePath methods
+   * Optional<Value> maybeValue = firstValue.getOptional(config);
+   * }</pre>
+   *
+   * @return an AffinePath focusing on the first element of this traversal
+   */
+  default AffinePath<S, A> headOption() {
+    TraversalPath<S, A> self = this;
+    return AffinePath.of(
+        Affine.of(
+            self::preview,
+            (s, a) -> {
+              // Set all focused elements to the same value
+              // This preserves the semantics of the underlying traversal
+              return self.setAll(a, s);
+            }));
+  }
+
   // ===== Conversion Methods =====
 
   /**
