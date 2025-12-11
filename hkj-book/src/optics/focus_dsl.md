@@ -1235,4 +1235,4 @@ TraversalPath<JsonNode, String> path = TraversalPath.of(dynamicPath);
 ---
 
 **Previous:** [Introduction](ch4_intro.md)
-**Next:** [Fluent API](fluent_api.md)
+**Next:** [Kind Field Support](kind_field_support.md)

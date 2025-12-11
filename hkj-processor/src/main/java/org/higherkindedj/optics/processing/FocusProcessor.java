@@ -7,6 +7,7 @@ import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
@@ -27,6 +28,8 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
+import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
+import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 
 /**
  * Annotation processor for {@link GenerateFocus} that generates Focus DSL utility classes.
@@ -34,31 +37,52 @@ import org.higherkindedj.optics.annotations.GenerateFocus;
  * <p>For each annotated record, this processor generates a companion class with the suffix "Focus"
  * containing static methods that return {@code FocusPath} instances for each record component.
  *
+ * <h2>Supported Field Types</h2>
+ *
+ * <p>The processor automatically handles various field types with appropriate path widening:
+ *
+ * <ul>
+ *   <li><b>Standard fields</b> - Generate {@code FocusPath}
+ *   <li><b>Optional/Maybe fields</b> - Generate {@code AffinePath} via {@code .some()}
+ *   <li><b>Collection fields</b> (List, Set) - Generate {@code TraversalPath} via {@code .each()}
+ *   <li><b>Kind&lt;F, A&gt; fields</b> - Generate appropriate path via {@code .traverseOver()}
+ * </ul>
+ *
+ * <h2>Kind Field Support</h2>
+ *
+ * <p>The processor recognises {@code Kind<F, A>} fields from the Higher-Kinded-J library and
+ * automatically generates traversal code. For custom Kind types, use the {@link
+ * org.higherkindedj.optics.annotations.TraverseField} annotation.
+ *
  * <h2>Generated Code Structure</h2>
  *
  * <p>For a record like:
  *
  * <pre>{@code
  * @GenerateFocus
- * record User(String name, Address address) {}
+ * record Team(String name, Kind<ListKind.Witness, Member> members) {}
  * }</pre>
  *
  * <p>The processor generates:
  *
  * <pre>{@code
  * @Generated
- * public final class UserFocus {
- *     private UserFocus() {}
+ * public final class TeamFocus {
+ *     private TeamFocus() {}
  *
- *     public static FocusPath<User, String> name() {
- *         return FocusPath.of(Lens.of(User::name, (source, newValue) -> new User(newValue, source.address())));
+ *     public static FocusPath<Team, String> name() {
+ *         return FocusPath.of(Lens.of(...));
  *     }
  *
- *     public static FocusPath<User, Address> address() {
- *         return FocusPath.of(Lens.of(User::address, (source, newValue) -> new User(source.name(), newValue)));
+ *     public static TraversalPath<Team, Member> members() {
+ *         return FocusPath.of(Lens.of(...))
+ *             .<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
  *     }
  * }
  * }</pre>
+ *
+ * @see org.higherkindedj.optics.annotations.TraverseField
+ * @see org.higherkindedj.optics.annotations.KindSemantics
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateFocus")
@@ -304,6 +328,42 @@ public class FocusProcessor extends AbstractProcessor {
               Lens.class,
               recordTypeName,
               recordTypeName);
+      case KIND_EXACTLY_ONE -> {
+        // Kind with exactly-one semantics (e.g., IdKind): AffinePath via
+        // traverseOver().headOption()
+        // Note: Although IdKind always contains exactly one element, traverseOver() returns
+        // TraversalPath, so we narrow via headOption() to get AffinePath. This is type-safe.
+        KindFieldInfo kindInfo = pathTypeInfo.kindInfo();
+        String traverseOverCall = buildTraverseOverCall(kindInfo);
+        methodBuilder.addStatement(
+            "return " + baseLens + traverseOverCall + ".headOption()",
+            FOCUS_PATH_CLASS,
+            Lens.class,
+            recordTypeName,
+            recordTypeName);
+      }
+      case KIND_ZERO_OR_ONE -> {
+        // Kind with zero-or-one semantics: AffinePath via traverseOver().headOption()
+        KindFieldInfo kindInfo = pathTypeInfo.kindInfo();
+        String traverseOverCall = buildTraverseOverCall(kindInfo);
+        methodBuilder.addStatement(
+            "return " + baseLens + traverseOverCall + ".headOption()",
+            FOCUS_PATH_CLASS,
+            Lens.class,
+            recordTypeName,
+            recordTypeName);
+      }
+      case KIND_ZERO_OR_MORE -> {
+        // Kind with zero-or-more semantics: TraversalPath via traverseOver()
+        KindFieldInfo kindInfo = pathTypeInfo.kindInfo();
+        String traverseOverCall = buildTraverseOverCall(kindInfo);
+        methodBuilder.addStatement(
+            "return " + baseLens + traverseOverCall,
+            FOCUS_PATH_CLASS,
+            Lens.class,
+            recordTypeName,
+            recordTypeName);
+      }
       default ->
           methodBuilder.addStatement(
               "return " + baseLens, FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName);
@@ -312,16 +372,65 @@ public class FocusProcessor extends AbstractProcessor {
     return methodBuilder.build();
   }
 
+  /**
+   * Builds the traverseOver() method call string for a Kind field.
+   *
+   * @param kindInfo the Kind field information
+   * @return the traverseOver call string including type parameters
+   */
+  private String buildTraverseOverCall(KindFieldInfo kindInfo) {
+    // Build witness type with any type arguments
+    String witnessType = kindInfo.witnessType();
+    if (kindInfo.isParameterised() && !kindInfo.witnessTypeArgs().isEmpty()) {
+      witnessType = witnessType + "<" + kindInfo.witnessTypeArgs() + ">";
+    }
+
+    // Get element type as string
+    String elementType = kindInfo.elementType().toString();
+
+    // Build the traverseOver call with explicit type parameters for Java's type inference
+    return String.format(
+        ".<%s, %s>traverseOver(%s)", witnessType, elementType, kindInfo.traverseExpression());
+  }
+
   /** Represents the type of path widening to apply. */
   private enum WideningType {
+    /** No widening - standard FocusPath. */
     NONE,
+    /** Optional/Maybe types - AffinePath via .some(). */
     OPTIONAL,
+    /** Collection types - TraversalPath via .each(). */
     COLLECTION,
-    NULLABLE
+    /** Nullable types - AffinePath via .nullable(). */
+    NULLABLE,
+    /** Kind types with EXACTLY_ONE semantics - AffinePath via .traverseOver().headOption(). */
+    KIND_EXACTLY_ONE,
+    /** Kind types with ZERO_OR_ONE semantics - AffinePath via .traverseOver().headOption(). */
+    KIND_ZERO_OR_ONE,
+    /** Kind types with ZERO_OR_MORE semantics - TraversalPath via .traverseOver(). */
+    KIND_ZERO_OR_MORE
   }
 
   /** Holds information about path type analysis. */
-  private record PathTypeInfo(ClassName pathClass, TypeName innerType, WideningType wideningType) {}
+  private record PathTypeInfo(
+      ClassName pathClass, TypeName innerType, WideningType wideningType, KindFieldInfo kindInfo) {
+
+    /** Creates a PathTypeInfo without Kind info. */
+    static PathTypeInfo of(ClassName pathClass, TypeName innerType, WideningType wideningType) {
+      return new PathTypeInfo(pathClass, innerType, wideningType, null);
+    }
+
+    /** Creates a PathTypeInfo for a Kind field. */
+    static PathTypeInfo forKind(ClassName pathClass, KindFieldInfo kindInfo) {
+      WideningType widening =
+          switch (kindInfo.semantics()) {
+            case EXACTLY_ONE -> WideningType.KIND_EXACTLY_ONE;
+            case ZERO_OR_ONE -> WideningType.KIND_ZERO_OR_ONE;
+            case ZERO_OR_MORE -> WideningType.KIND_ZERO_OR_MORE;
+          };
+      return new PathTypeInfo(pathClass, kindInfo.elementType(), widening, kindInfo);
+    }
+  }
 
   /** Analyses a field type and annotations to determine path widening. */
   private PathTypeInfo analyseFieldType(RecordComponentElement component, TypeMirror type) {
@@ -331,9 +440,9 @@ public class FocusProcessor extends AbstractProcessor {
     if (type.getKind() != TypeKind.DECLARED) {
       // Primitive types cannot be null, but boxed types can
       if (isNullable) {
-        return new PathTypeInfo(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
+        return PathTypeInfo.of(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
       }
-      return new PathTypeInfo(FOCUS_PATH_CLASS, null, WideningType.NONE);
+      return PathTypeInfo.of(FOCUS_PATH_CLASS, null, WideningType.NONE);
     }
 
     DeclaredType declaredType = (DeclaredType) type;
@@ -343,21 +452,36 @@ public class FocusProcessor extends AbstractProcessor {
     // Check for Optional types (takes precedence over @Nullable)
     if (OPTIONAL_TYPES.contains(qualifiedName)) {
       TypeName innerType = extractTypeArgument(declaredType);
-      return new PathTypeInfo(AFFINE_PATH_CLASS, innerType, WideningType.OPTIONAL);
+      return PathTypeInfo.of(AFFINE_PATH_CLASS, innerType, WideningType.OPTIONAL);
     }
 
     // Check for Collection types (takes precedence over @Nullable)
     if (COLLECTION_TYPES.contains(qualifiedName)) {
       TypeName innerType = extractTypeArgument(declaredType);
-      return new PathTypeInfo(TRAVERSAL_PATH_CLASS, innerType, WideningType.COLLECTION);
+      return PathTypeInfo.of(TRAVERSAL_PATH_CLASS, innerType, WideningType.COLLECTION);
     }
 
-    // Check for @Nullable annotation
+    // Check for Kind<F, A> types
+    KindFieldAnalyser kindAnalyser = new KindFieldAnalyser(processingEnv);
+    Optional<KindFieldInfo> kindInfo = kindAnalyser.analyse(component);
+    if (kindInfo.isPresent()) {
+      KindFieldInfo info = kindInfo.get();
+      // Note: EXACTLY_ONE also returns AffinePath because traverseOver() returns
+      // TraversalPath and we narrow via headOption(). This is a safe type downgrade.
+      ClassName pathClass =
+          switch (info.semantics()) {
+            case EXACTLY_ONE, ZERO_OR_ONE -> AFFINE_PATH_CLASS;
+            case ZERO_OR_MORE -> TRAVERSAL_PATH_CLASS;
+          };
+      return PathTypeInfo.forKind(pathClass, info);
+    }
+
+    // Check for @Nullable annotation (after Kind check, as Kind types have their own semantics)
     if (isNullable) {
-      return new PathTypeInfo(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
+      return PathTypeInfo.of(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
     }
 
-    return new PathTypeInfo(FOCUS_PATH_CLASS, null, WideningType.NONE);
+    return PathTypeInfo.of(FOCUS_PATH_CLASS, null, WideningType.NONE);
   }
 
   /** Extracts the first type argument from a parameterised type. */
@@ -372,18 +496,18 @@ public class FocusProcessor extends AbstractProcessor {
   /** Gets the path class description for Javadoc. */
   private String getPathDescription(PathTypeInfo info) {
     return switch (info.wideningType) {
-      case OPTIONAL, NULLABLE -> "AffinePath";
-      case COLLECTION -> "TraversalPath";
-      default -> "FocusPath";
+      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE -> "AffinePath";
+      case COLLECTION, KIND_ZERO_OR_MORE -> "TraversalPath";
+      case NONE -> "FocusPath";
     };
   }
 
   /** Gets the appropriate get method name for Javadoc examples. */
   private String getPathGetMethod(PathTypeInfo info) {
     return switch (info.wideningType) {
-      case OPTIONAL, NULLABLE -> "getOptional";
-      case COLLECTION -> "getAll";
-      default -> "get";
+      case OPTIONAL, NULLABLE, KIND_ZERO_OR_ONE, KIND_EXACTLY_ONE -> "getOptional";
+      case COLLECTION, KIND_ZERO_OR_MORE -> "getAll";
+      case NONE -> "get";
     };
   }
 

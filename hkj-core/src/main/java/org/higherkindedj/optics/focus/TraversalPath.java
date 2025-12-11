@@ -576,6 +576,52 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
     return via((Traversal<A, E>) traversal);
   }
 
+  // ===== Narrowing Methods =====
+
+  /**
+   * Narrows this TraversalPath to an AffinePath focusing on the first element.
+   *
+   * <p>This method converts a TraversalPath (zero or more elements) to an AffinePath (zero or one
+   * element) by focusing only on the first element if present for queries. For modifications, the
+   * new value is applied to all elements of the underlying traversal to preserve update semantics.
+   *
+   * <p><b>Query behaviour:</b> {@code getOptional} returns only the first element (if any).
+   *
+   * <p><b>Modification behaviour:</b> {@code set} and {@code modify} update all elements targeted
+   * by the underlying traversal, not just the first. This ensures that modifications are consistent
+   * with the original traversal's semantics.
+   *
+   * <p>This is useful when composing with optics that produce a TraversalPath but you only need the
+   * first element, such as when working with HKT types that have "zero or one" semantics (like
+   * Maybe, Either, Try).
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * // TraversalPath from traverseOver
+   * TraversalPath<Config, Value> allValues = configPath.traverseOver(MaybeTraverse.INSTANCE);
+   *
+   * // Narrow to just the first (and likely only) value
+   * AffinePath<Config, Value> firstValue = allValues.headOption();
+   *
+   * // Now can use AffinePath methods
+   * Optional<Value> maybeValue = firstValue.getOptional(config);
+   * }</pre>
+   *
+   * @return an AffinePath focusing on the first element of this traversal
+   */
+  default AffinePath<S, A> headOption() {
+    TraversalPath<S, A> self = this;
+    return AffinePath.of(
+        Affine.of(
+            self::preview,
+            (s, a) -> {
+              // Set all focused elements to the same value
+              // This preserves the semantics of the underlying traversal
+              return self.setAll(a, s);
+            }));
+  }
+
   // ===== Conversion Methods =====
 
   /**
