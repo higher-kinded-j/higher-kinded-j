@@ -582,8 +582,14 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * Narrows this TraversalPath to an AffinePath focusing on the first element.
    *
    * <p>This method converts a TraversalPath (zero or more elements) to an AffinePath (zero or one
-   * element) by focusing only on the first element if present. Subsequent elements are ignored
-   * during queries but preserved during modifications.
+   * element) by focusing only on the first element if present for queries. For modifications, the
+   * new value is applied to all elements of the underlying traversal to preserve update semantics.
+   *
+   * <p><b>Query behaviour:</b> {@code getOptional} returns only the first element (if any).
+   *
+   * <p><b>Modification behaviour:</b> {@code set} and {@code modify} update all elements targeted
+   * by the underlying traversal, not just the first. This ensures that modifications are consistent
+   * with the original traversal's semantics.
    *
    * <p>This is useful when composing with optics that produce a TraversalPath but you only need the
    * first element, such as when working with HKT types that have "zero or one" semantics (like
