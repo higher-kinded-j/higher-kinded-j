@@ -218,8 +218,8 @@ public class FocusProcessor extends AbstractProcessor {
     TypeMirror componentType = component.asType();
     TypeName componentTypeName = TypeName.get(componentType);
 
-    // Detect path type widening based on field type
-    PathTypeInfo pathTypeInfo = analyseFieldType(componentType);
+    // Detect path type widening based on field type and annotations
+    PathTypeInfo pathTypeInfo = analyseFieldType(component, componentType);
 
     // Determine return type and inner type based on widening
     ClassName pathClass = pathTypeInfo.pathClass;
@@ -297,6 +297,13 @@ public class FocusProcessor extends AbstractProcessor {
               Lens.class,
               recordTypeName,
               recordTypeName);
+      case NULLABLE ->
+          methodBuilder.addStatement(
+              "return " + baseLens + ".nullable()",
+              FOCUS_PATH_CLASS,
+              Lens.class,
+              recordTypeName,
+              recordTypeName);
       default ->
           methodBuilder.addStatement(
               "return " + baseLens, FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName);
@@ -309,15 +316,23 @@ public class FocusProcessor extends AbstractProcessor {
   private enum WideningType {
     NONE,
     OPTIONAL,
-    COLLECTION
+    COLLECTION,
+    NULLABLE
   }
 
   /** Holds information about path type analysis. */
   private record PathTypeInfo(ClassName pathClass, TypeName innerType, WideningType wideningType) {}
 
-  /** Analyses a field type to determine path widening. */
-  private PathTypeInfo analyseFieldType(TypeMirror type) {
+  /** Analyses a field type and annotations to determine path widening. */
+  private PathTypeInfo analyseFieldType(RecordComponentElement component, TypeMirror type) {
+    // Check for @Nullable annotation on the field first
+    boolean isNullable = NullableAnnotations.hasNullableAnnotation(component);
+
     if (type.getKind() != TypeKind.DECLARED) {
+      // Primitive types cannot be null, but boxed types can
+      if (isNullable) {
+        return new PathTypeInfo(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
+      }
       return new PathTypeInfo(FOCUS_PATH_CLASS, null, WideningType.NONE);
     }
 
@@ -325,16 +340,21 @@ public class FocusProcessor extends AbstractProcessor {
     TypeElement typeElement = (TypeElement) declaredType.asElement();
     String qualifiedName = typeElement.getQualifiedName().toString();
 
-    // Check for Optional types
+    // Check for Optional types (takes precedence over @Nullable)
     if (OPTIONAL_TYPES.contains(qualifiedName)) {
       TypeName innerType = extractTypeArgument(declaredType);
       return new PathTypeInfo(AFFINE_PATH_CLASS, innerType, WideningType.OPTIONAL);
     }
 
-    // Check for Collection types
+    // Check for Collection types (takes precedence over @Nullable)
     if (COLLECTION_TYPES.contains(qualifiedName)) {
       TypeName innerType = extractTypeArgument(declaredType);
       return new PathTypeInfo(TRAVERSAL_PATH_CLASS, innerType, WideningType.COLLECTION);
+    }
+
+    // Check for @Nullable annotation
+    if (isNullable) {
+      return new PathTypeInfo(AFFINE_PATH_CLASS, TypeName.get(type).box(), WideningType.NULLABLE);
     }
 
     return new PathTypeInfo(FOCUS_PATH_CLASS, null, WideningType.NONE);
@@ -352,7 +372,7 @@ public class FocusProcessor extends AbstractProcessor {
   /** Gets the path class description for Javadoc. */
   private String getPathDescription(PathTypeInfo info) {
     return switch (info.wideningType) {
-      case OPTIONAL -> "AffinePath";
+      case OPTIONAL, NULLABLE -> "AffinePath";
       case COLLECTION -> "TraversalPath";
       default -> "FocusPath";
     };
@@ -361,7 +381,7 @@ public class FocusProcessor extends AbstractProcessor {
   /** Gets the appropriate get method name for Javadoc examples. */
   private String getPathGetMethod(PathTypeInfo info) {
     return switch (info.wideningType) {
-      case OPTIONAL -> "getOptional";
+      case OPTIONAL, NULLABLE -> "getOptional";
       case COLLECTION -> "getAll";
       default -> "get";
     };

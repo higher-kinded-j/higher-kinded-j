@@ -216,6 +216,39 @@ public final class FocusPaths {
         Function.identity(), (opt, value) -> Optional.of(value), opt -> Optional.empty());
   }
 
+  // ===== Nullable Optics =====
+
+  /**
+   * Creates an affine that treats null as absent.
+   *
+   * <p>This is useful for working with legacy APIs or records that use null to represent absent
+   * values instead of {@link Optional}. The affine wraps null checks in Optional semantics,
+   * allowing seamless integration with the Focus DSL.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * record LegacyUser(String name, @Nullable String nickname) {}
+   *
+   * // Create a path to the nullable nickname field
+   * FocusPath<LegacyUser, @Nullable String> nicknamePath = LegacyUserFocus.nickname();
+   *
+   * // Chain with nullable() to get an AffinePath that handles null safely
+   * AffinePath<LegacyUser, String> safeNickname = nicknamePath.nullable();
+   *
+   * // Now use it like any other AffinePath
+   * Optional<String> result = safeNickname.getOptional(user);  // Empty if null
+   * LegacyUser updated = safeNickname.set("Ally", user);       // Sets the nickname
+   * }</pre>
+   *
+   * @param <E> the element type (non-null)
+   * @return an affine that treats null as absent
+   */
+  @SuppressWarnings("nullness") // Intentionally working with nullable values
+  public static <E> Affine<E, E> nullable() {
+    return Affine.of(Optional::ofNullable, (ignored, value) -> value);
+  }
+
   // ===== Array Optics =====
 
   /**

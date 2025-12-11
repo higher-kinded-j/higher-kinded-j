@@ -237,6 +237,58 @@ class FocusPathsTest {
   }
 
   @Nested
+  @DisplayName("Nullable Optics")
+  class NullableOptics {
+
+    @Test
+    @DisplayName("nullable should return value when non-null")
+    void nullableShouldReturnValueWhenNonNull() {
+      Affine<String, String> affine = FocusPaths.nullable();
+
+      assertThat(affine.getOptional("hello")).contains("hello");
+    }
+
+    @Test
+    @DisplayName("nullable should return empty when null")
+    void nullableShouldReturnEmptyWhenNull() {
+      Affine<String, String> affine = FocusPaths.nullable();
+
+      assertThat(affine.getOptional(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("nullable should set value directly")
+    void nullableShouldSetValueDirectly() {
+      Affine<String, String> affine = FocusPaths.nullable();
+
+      assertThat(affine.set("world", "hello")).isEqualTo("world");
+      assertThat(affine.set("new", null)).isEqualTo("new");
+    }
+
+    @Test
+    @DisplayName("nullable should work with records containing nullable fields")
+    void nullableShouldWorkWithRecords() {
+      record UserWithNullable(String name, String nickname) {}
+
+      // Create lens for nickname field
+      Lens<UserWithNullable, String> nicknameLens =
+          Lens.of(UserWithNullable::nickname, (u, n) -> new UserWithNullable(u.name(), n));
+
+      // Create path with nullable
+      AffinePath<UserWithNullable, String> nicknamePath = FocusPath.of(nicknameLens).nullable();
+
+      UserWithNullable withNickname = new UserWithNullable("Alice", "Ally");
+      UserWithNullable withoutNickname = new UserWithNullable("Bob", null);
+
+      assertThat(nicknamePath.getOptional(withNickname)).contains("Ally");
+      assertThat(nicknamePath.getOptional(withoutNickname)).isEmpty();
+
+      UserWithNullable updated = nicknamePath.set("Bobby", withoutNickname);
+      assertThat(updated.nickname()).isEqualTo("Bobby");
+    }
+  }
+
+  @Nested
   @DisplayName("Array Optics")
   class ArrayOptics {
 

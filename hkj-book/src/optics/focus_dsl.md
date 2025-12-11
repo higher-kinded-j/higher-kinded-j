@@ -7,7 +7,8 @@
 - Using `@GenerateFocus` to generate path builders automatically
 - **Fluent cross-type navigation** with generated navigators (no `.via()` needed)
 - The difference between `FocusPath`, `AffinePath`, and `TraversalPath`
-- Collection navigation with `.each()`, `.at()`, `.some()`, and `.traverseOver()`
+- Collection navigation with `.each()`, `.at()`, `.some()`, `.nullable()`, and `.traverseOver()`
+- **Seamless nullable field handling** with `@Nullable` annotation detection
 - Type class integration: effectful operations, monoid aggregation, and Traverse support
 - Working with sum types using `instanceOf()` and conditional modification with `modifyWhen()`
 - Composing Focus paths with existing optics
@@ -262,6 +263,31 @@ AffinePath<Employee, String> emailPath = EmployeeFocus.email();
 // Internally uses .some() to unwrap the Optional
 Optional<String> email = emailPath.getOptional(employee);
 ```
+
+### `.nullable()` - Handle Null Values
+
+For fields that may be null, use `.nullable()` to treat null as absent:
+
+```java
+record LegacyUser(String name, @Nullable String nickname) {}
+
+// If @Nullable is detected, the processor generates this automatically
+// Otherwise, chain with .nullable() manually:
+FocusPath<LegacyUser, String> rawPath = LegacyUserFocus.nickname();
+AffinePath<LegacyUser, String> safePath = rawPath.nullable();
+
+// Null is treated as absent (empty Optional)
+LegacyUser user = new LegacyUser("Alice", null);
+Optional<String> result = safePath.getOptional(user);  // Optional.empty()
+
+// Non-null values work normally
+LegacyUser withNick = new LegacyUser("Bob", "Bobby");
+Optional<String> present = safePath.getOptional(withNick);  // Optional.of("Bobby")
+```
+
+~~~admonish tip title="Automatic @Nullable Detection"
+When a field is annotated with `@Nullable` (from JSpecify, JSR-305, JetBrains, etc.), the `@GenerateFocus` processor automatically generates an `AffinePath` with `.nullable()` applied. No manual chaining required.
+~~~
 
 ---
 
@@ -644,7 +670,13 @@ For a record like:
 ```java
 @GenerateLenses
 @GenerateFocus
-record Employee(String name, int age, Optional<String> email, List<Skill> skills) {}
+record Employee(
+    String name,
+    int age,
+    Optional<String> email,
+    @Nullable String nickname,
+    List<Skill> skills
+) {}
 ```
 
 The processor generates:
@@ -663,9 +695,14 @@ public final class EmployeeFocus {
         return FocusPath.of(EmployeeLenses.age());
     }
 
-    // Optional<T> field -> AffinePath (automatically unwraps)
+    // Optional<T> field -> AffinePath (automatically unwraps with .some())
     public static AffinePath<Employee, String> email() {
         return FocusPath.of(EmployeeLenses.email()).some();
+    }
+
+    // @Nullable field -> AffinePath (automatically handles null with .nullable())
+    public static AffinePath<Employee, String> nickname() {
+        return FocusPath.of(EmployeeLenses.nickname()).nullable();
     }
 
     // List<T> field -> TraversalPath (traverses elements)
@@ -1086,26 +1123,72 @@ FocusPath<MyRecord, String> path = MyRecordFocus.external().via(fieldLens);
 
 #### Q: How do I handle nullable fields?
 
-Wrap nullable fields in `Optional` and use `some()`:
+The Focus DSL provides four approaches for handling nullable fields, from most to least automated:
+
+**Option 1: Use `@Nullable` annotation (Recommended)**
+
+Annotate nullable fields with `@Nullable` from JSpecify, JSR-305, or similar. The processor automatically generates `AffinePath` with null-safe access:
 
 ```java
-// If email can be null, model as Optional<String>
-record User(String name, Optional<String> email) {}
+import org.jspecify.annotations.Nullable;
 
-// Focus DSL handles it naturally
-AffinePath<User, String> emailPath = UserFocus.email();  // Uses .some() internally
+@GenerateFocus
+record User(String name, @Nullable String nickname) {}
+
+// Generated: AffinePath that handles null automatically
+AffinePath<User, String> nicknamePath = UserFocus.nickname();
+
+User user = new User("Alice", null);
+Optional<String> result = nicknamePath.getOptional(user);  // Optional.empty()
+
+User withNick = new User("Bob", "Bobby");
+Optional<String> present = nicknamePath.getOptional(withNick);  // Optional.of("Bobby")
 ```
 
-If you must work with raw nullable fields:
+Supported nullable annotations:
+- `org.jspecify.annotations.Nullable`
+- `javax.annotation.Nullable`
+- `jakarta.annotation.Nullable`
+- `org.jetbrains.annotations.Nullable`
+- `androidx.annotation.Nullable`
+- `edu.umd.cs.findbugs.annotations.Nullable`
+
+**Option 2: Use `.nullable()` method**
+
+For existing `FocusPath` instances, chain with `.nullable()` to handle nulls:
 
 ```java
-// Create a nullable-aware affine manually
-Affine<User, String> nullableEmail = Affine.of(
-    u -> Optional.ofNullable(u.email()),
-    (u, email) -> new User(u.name(), email)
-);
+// If you have a FocusPath to a nullable field
+FocusPath<LegacyUser, String> rawPath = LegacyUserFocus.nickname();
 
-AffinePath<User, String> emailPath = AffinePath.of(nullableEmail);
+// Chain with nullable() for null-safe access
+AffinePath<LegacyUser, String> safePath = rawPath.nullable();
+
+Optional<String> result = safePath.getOptional(user);  // Empty if null
+```
+
+**Option 3: Use `AffinePath.ofNullable()` factory**
+
+For manual creation without code generation:
+
+```java
+// Create a nullable-aware AffinePath directly
+AffinePath<User, String> nicknamePath = AffinePath.ofNullable(
+    User::nickname,
+    (user, nickname) -> new User(user.name(), nickname)
+);
+```
+
+**Option 4: Wrap in `Optional` (Alternative design)**
+
+If you control the data model, consider using `Optional<T>` instead of nullable fields:
+
+```java
+// Model absence explicitly with Optional
+record User(String name, Optional<String> email) {}
+
+// Focus DSL handles it naturally with .some()
+AffinePath<User, String> emailPath = UserFocus.email();  // Uses .some() internally
 ```
 
 #### Q: What's the performance overhead of Focus DSL?

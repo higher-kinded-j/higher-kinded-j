@@ -394,6 +394,41 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
   }
 
   /**
+   * When the focused type may be null, creates an AffinePath that safely handles null values.
+   *
+   * <p>This is useful for working with legacy APIs or records that use null to represent absent
+   * values instead of {@link java.util.Optional}. The resulting AffinePath treats null as absent
+   * (empty Optional) and non-null as present.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * record LegacyUser(String name, @Nullable String nickname) {}
+   *
+   * // Generate focus for the record (nickname is nullable)
+   * FocusPath<LegacyUser, @Nullable String> nicknamePath = LegacyUserFocus.nickname();
+   *
+   * // Chain with nullable() to get null-safe access
+   * AffinePath<LegacyUser, String> safeNickname = nicknamePath.nullable();
+   *
+   * // Now use it like any other AffinePath
+   * LegacyUser user = new LegacyUser("Alice", null);
+   * Optional<String> result = safeNickname.getOptional(user);  // Optional.empty()
+   *
+   * LegacyUser withNick = new LegacyUser("Bob", "Bobby");
+   * Optional<String> present = safeNickname.getOptional(withNick);  // Optional.of("Bobby")
+   * }</pre>
+   *
+   * @param <E> the non-null element type
+   * @return an AffinePath that treats null as absent
+   * @see FocusPaths#nullable()
+   */
+  @SuppressWarnings("unchecked")
+  default <E> AffinePath<S, E> nullable() {
+    return via((Affine<A, E>) FocusPaths.nullable());
+  }
+
+  /**
    * When the focused value is a traversable container {@code Kind<F, E>}, creates a TraversalPath
    * that focuses on all elements within it.
    *
