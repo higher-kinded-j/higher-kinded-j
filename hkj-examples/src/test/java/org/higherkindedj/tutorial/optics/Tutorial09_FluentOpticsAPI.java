@@ -142,9 +142,9 @@ public class Tutorial09_FluentOpticsAPI {
 
     // TODO: Replace null with OpticOps.modify() to uppercase the name
     // Hint: OpticOps.modify(person, nameLens, String::toUpperCase)
-    Person capitalized = answerRequired();
+    Person capitalised = answerRequired();
 
-    assertThat(capitalized.name()).isEqualTo("ALICE");
+    assertThat(capitalised.name()).isEqualTo("ALICE");
   }
 
   /**

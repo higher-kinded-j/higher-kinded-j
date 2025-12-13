@@ -157,23 +157,23 @@ Practice Lens basics in [Tutorial 01: Lens Basics](../tutorials/optics/Tutorial0
 
 ### Further Reading Section
 
-Every content page should have a "Further Reading" admonishment at the **end** of the page, before the navigation links. This section should contain **external** references.
+Content pages may include a "Further Reading" admonishment at the **end** of the page, before the navigation links. This section should contain **external** references only.
 
 **Important:** Do not add a separate markdown heading (`## Further Reading`) before the admonishment. The admonishment title serves as the heading.
 
 ```markdown
 ~~~admonish tip title="Further Reading"
 - **Author/Source Name**: [Article Title](https://example.com/url) - Brief description
-- **Cats Documentation**: [Topic](https://typelevel.org/cats/...) - Scala implementation and examples
 ~~~
 ```
 
 Guidelines for Further Reading:
+- **Prefer internal "See Also" links** over external "Further Reading" links when Higher-Kinded-J already covers the topic
+- **Only add external links** if they offer unique value not already covered in Higher-Kinded-J documentation (e.g., foundational articles, unique perspectives, or comprehensive treatments of a topic)
+- **Verify all links resolve correctly** before adding them - broken links (404 pages) significantly harm user experience and documentation credibility
 - Prefer practical, developer-focused resources over academic papers
 - Java-focused resources are preferred where available
-- Cats/Scala documentation is acceptable as Scala is closely related
 - Avoid Vavr references as Higher-Kinded-J provides its own implementations
-- Verify all links are valid before adding them
 
 ### Navigation Links
 
@@ -224,6 +224,45 @@ Tables work well for:
 - Comparing type classes
 - Summarising optic types
 - Contrasting implementation approaches
+
+### Problem-Solution Structure
+
+When documenting patterns, techniques, or recipes, prefer a problem-solution structure that connects the technique to a real need:
+
+```markdown
+### Pattern Name
+
+**The problem:** What challenge does this address? (1-2 sentences)
+
+**The solution:** Code showing the pattern
+
+**Why this works:** Brief rationale (optional, for complex patterns)
+```
+
+This structure:
+- Engages readers by showing relevance before code
+- Makes documentation scannable (readers can skip patterns that do not match their problem)
+- Provides context that makes the code memorable
+
+Example:
+
+```markdown
+### Fallback Chain
+
+**The problem:** You have multiple sources for the same data, each with different trade-offs.
+Try the preferred source first, then fall back to alternatives.
+
+**The solution:**
+
+```java
+EitherPath<Error, Config> config =
+    Path.either(loadFromFile())
+        .recoverWith(e -> Path.either(loadFromEnv()))
+        .recoverWith(e -> Path.right(Config.defaults()));
+```
+
+Each `recoverWith` only triggers if the previous step failed.
+```
 
 ### Type Class/Monad Page Structure
 

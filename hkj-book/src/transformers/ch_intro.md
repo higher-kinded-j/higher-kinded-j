@@ -22,9 +22,9 @@ Higher-Kinded-J provides transformers for common combinations: `EitherT` for typ
     ┌─────────────────────────────────────────────────────────────┐
     │  WITHOUT TRANSFORMER                                        │
     │                                                             │
-    │    CompletableFuture<Either<Error, Result>>                │
+    │    CompletableFuture<Either<Error, Result>>                 │
     │                                                             │
-    │    future.thenApply(either ->                              │
+    │    future.thenApply(either ->                               │
     │        either.map(result ->                                 │
     │            either2.map(r2 ->                                │
     │                ...)))   // Nesting grows unboundedly        │
@@ -33,12 +33,12 @@ Higher-Kinded-J provides transformers for common combinations: `EitherT` for typ
     ┌─────────────────────────────────────────────────────────────┐
     │  WITH TRANSFORMER                                           │
     │                                                             │
-    │    EitherT<FutureWitness, Error, Result>                   │
+    │    EitherT<FutureWitness, Error, Result>                    │
     │                                                             │
     │    eitherT                                                  │
-    │        .flatMap(result -> operation1(result))              │
-    │        .flatMap(r1 -> operation2(r1))                      │
-    │        .map(r2 -> finalTransform(r2))  // Flat!            │
+    │        .flatMap(result -> operation1(result))               │
+    │        .flatMap(r1 -> operation2(r1))                       │
+    │        .map(r2 -> finalTransform(r2))  // Flat!             │
     └─────────────────────────────────────────────────────────────┘
 ```
 

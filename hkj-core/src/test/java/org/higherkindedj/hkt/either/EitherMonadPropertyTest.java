@@ -53,25 +53,19 @@ class EitherMonadPropertyTest {
   @Provide
   Arbitrary<Function<Integer, Either<String, String>>> intToEitherStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, Either<String, String>>)
-            (i -> i % 2 == 0 ? Either.right("even:" + i) : Either.left("error: odd number")),
-        (Function<Integer, Either<String, String>>)
-            (i ->
-                i > 0 ? Either.right("positive:" + i) : Either.left("error: non-positive number")),
-        (Function<Integer, Either<String, String>>) (i -> Either.right("value:" + i)),
-        (Function<Integer, Either<String, String>>)
-            (i -> i == 0 ? Either.left("error: zero") : Either.right(String.valueOf(i))));
+        i -> i % 2 == 0 ? Either.right("even:" + i) : Either.left("error: odd number"),
+        i -> i > 0 ? Either.right("positive:" + i) : Either.left("error: non-positive number"),
+        i -> Either.right("value:" + i),
+        i -> i == 0 ? Either.left("error: zero") : Either.right(String.valueOf(i)));
   }
 
   /** Provides arbitrary flatMap functions (String -> Either<String, String>) */
   @Provide
   Arbitrary<Function<String, Either<String, String>>> stringToEitherStringFunctions() {
     return Arbitraries.of(
-        (Function<String, Either<String, String>>)
-            (s -> s.isEmpty() ? Either.left("error: empty") : Either.right(s.toUpperCase())),
-        (Function<String, Either<String, String>>)
-            (s -> s.length() > 3 ? Either.right("long:" + s) : Either.left("error: too short")),
-        (Function<String, Either<String, String>>) (s -> Either.right("transformed:" + s)));
+        s -> s.isEmpty() ? Either.left("error: empty") : Either.right(s.toUpperCase()),
+        s -> s.length() > 3 ? Either.right("long:" + s) : Either.left("error: too short"),
+        s -> Either.right("transformed:" + s));
   }
 
   /**

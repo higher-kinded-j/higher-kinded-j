@@ -500,10 +500,10 @@ public class Tutorial08_RealWorldOptics {
     // TODO: Replace null with a traversal that accesses all customer names
     Traversal<CustomerDatabase, String> namesTraversal = answerRequired();
 
-    // Trim and normalize names
-    CustomerDatabase normalized = Traversals.modify(namesTraversal, name -> name.trim(), db);
+    // Trim and normalise names
+    CustomerDatabase normalised = Traversals.modify(namesTraversal, name -> name.trim(), db);
 
-    List<String> names = Traversals.getAll(namesTraversal, normalized);
+    List<String> names = Traversals.getAll(namesTraversal, normalised);
     assertThat(names.get(0)).isEqualTo("Alice Smith"); // Trimmed
 
     // TODO: Replace null with a traversal that accesses all city names in all addresses
@@ -512,14 +512,14 @@ public class Tutorial08_RealWorldOptics {
             .andThen(CustomerTraversals.addresses())
             .andThen(AddressLenses.city().asTraversal());
 
-    // Capitalize all cities
-    CustomerDatabase capitalized =
+    // Capitalise all cities
+    CustomerDatabase capitalised =
         Traversals.modify(
             citiesTraversal,
             city -> city.substring(0, 1).toUpperCase() + city.substring(1),
-            normalized);
+            normalised);
 
-    List<String> cities = Traversals.getAll(citiesTraversal, capitalized);
+    List<String> cities = Traversals.getAll(citiesTraversal, capitalised);
     assertThat(cities).contains("Springfield", "Shelbyville");
   }
 

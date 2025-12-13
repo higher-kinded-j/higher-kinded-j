@@ -555,23 +555,23 @@ class FreeApTest {
   }
 
   // ============================================================================
-  // Analyze Tests
+  // Analyse Tests
   // ============================================================================
 
   @Nested
-  @DisplayName("Analyze Operations")
-  class AnalyzeTests {
+  @DisplayName("Analyse Operations")
+  class AnalyseTests {
 
     @Test
-    @DisplayName("analyze works like foldMap")
-    void analyzeWorksLikeFoldMap() {
+    @DisplayName("analyse works like foldMap")
+    void analyseWorksLikeFoldMap() {
       FreeAp<MaybeKind.Witness, Integer> a = FreeAp.lift(MAYBE.just(10));
       FreeAp<MaybeKind.Witness, Integer> b = FreeAp.lift(MAYBE.just(5));
       FreeAp<MaybeKind.Witness, Integer> combined = a.map2(b, Integer::sum);
 
-      Kind<MaybeKind.Witness, Integer> analyzed = combined.analyze(IDENTITY_NAT, MAYBE_APPLICATIVE);
+      Kind<MaybeKind.Witness, Integer> analysed = combined.analyse(IDENTITY_NAT, MAYBE_APPLICATIVE);
 
-      assertThat(MAYBE.narrow(analyzed).get()).isEqualTo(15);
+      assertThat(MAYBE.narrow(analysed).get()).isEqualTo(15);
     }
   }
 

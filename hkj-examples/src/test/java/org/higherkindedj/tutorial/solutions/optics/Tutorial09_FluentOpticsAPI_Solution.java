@@ -134,9 +134,9 @@ public class Tutorial09_FluentOpticsAPI_Solution {
     assertThat(older.age()).isEqualTo(31);
 
     // Use OpticOps.modify() to uppercase the name
-    Person capitalized = OpticOps.modify(person, nameLens, String::toUpperCase);
+    Person capitalised = OpticOps.modify(person, nameLens, String::toUpperCase);
 
-    assertThat(capitalized.name()).isEqualTo("ALICE");
+    assertThat(capitalised.name()).isEqualTo("ALICE");
   }
 
   /**
