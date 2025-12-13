@@ -108,7 +108,8 @@ class EitherPathLawsTest {
               () -> {
                 int value = 10;
 
-                EitherPath<String, String> leftSide = Path.<String, Integer>right(value).via(intToEitherString);
+                EitherPath<String, String> leftSide =
+                    Path.<String, Integer>right(value).via(intToEitherString);
                 EitherPath<String, String> rightSide = intToEitherString.apply(value);
 
                 assertThat(leftSide.run()).isEqualTo(rightSide.run());
@@ -118,7 +119,8 @@ class EitherPathLawsTest {
               () -> {
                 int value = -5;
 
-                EitherPath<String, String> leftSide = Path.<String, Integer>right(value).via(intToEitherString);
+                EitherPath<String, String> leftSide =
+                    Path.<String, Integer>right(value).via(intToEitherString);
                 EitherPath<String, String> rightSide = intToEitherString.apply(value);
 
                 assertThat(leftSide.run()).isEqualTo(rightSide.run());

@@ -178,8 +178,7 @@ class EitherPathPropertyTest {
 
   @Property
   @Label("recover provides fallback for Left")
-  void recoverProvidesFallbackForLeft(
-      @ForAll @IntRange(min = -100, max = 100) int fallbackValue) {
+  void recoverProvidesFallbackForLeft(@ForAll @IntRange(min = -100, max = 100) int fallbackValue) {
 
     EitherPath<String, Integer> left = Path.left("error");
     EitherPath<String, Integer> result = left.recover(e -> fallbackValue);
@@ -203,8 +202,7 @@ class EitherPathPropertyTest {
 
   @Property
   @Label("mapError transforms the error type")
-  void mapErrorTransformsError(
-      @ForAll @IntRange(min = 1, max = 10) int errorLength) {
+  void mapErrorTransformsError(@ForAll @IntRange(min = 1, max = 10) int errorLength) {
 
     String error = "e".repeat(errorLength);
     EitherPath<String, Integer> left = Path.left(error);

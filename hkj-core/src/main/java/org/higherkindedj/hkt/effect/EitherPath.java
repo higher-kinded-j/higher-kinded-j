@@ -12,6 +12,8 @@ import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
 
 /**
  * A fluent path wrapper for {@link Either} values.
@@ -119,9 +121,7 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    * @return a MaybePath containing the value, or empty if this contains an error
    */
   public MaybePath<A> toMaybePath() {
-    return value.fold(
-        e -> new MaybePath<>(org.higherkindedj.hkt.maybe.Maybe.nothing()),
-        a -> new MaybePath<>(org.higherkindedj.hkt.maybe.Maybe.just(a)));
+    return value.fold(e -> new MaybePath<>(Maybe.nothing()), a -> new MaybePath<>(Maybe.just(a)));
   }
 
   /**
@@ -136,8 +136,8 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
   public TryPath<A> toTryPath(Function<? super E, ? extends Throwable> errorToException) {
     Objects.requireNonNull(errorToException, "errorToException must not be null");
     return value.fold(
-        e -> new TryPath<>(org.higherkindedj.hkt.trymonad.Try.failure(errorToException.apply(e))),
-        a -> new TryPath<>(org.higherkindedj.hkt.trymonad.Try.success(a)));
+        e -> new TryPath<>(Try.failure(errorToException.apply(e))),
+        a -> new TryPath<>(Try.success(a)));
   }
 
   /**

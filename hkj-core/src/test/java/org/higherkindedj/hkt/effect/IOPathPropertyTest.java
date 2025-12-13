@@ -181,8 +181,7 @@ class IOPathPropertyTest {
 
   @Property
   @Label("handleError provides fallback for exceptions")
-  void handleErrorProvidesFallback(
-      @ForAll @IntRange(min = -100, max = 100) int fallbackValue) {
+  void handleErrorProvidesFallback(@ForAll @IntRange(min = -100, max = 100) int fallbackValue) {
 
     RuntimeException error = new RuntimeException("test error");
     IOPath<Integer> failing =

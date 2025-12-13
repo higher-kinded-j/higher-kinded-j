@@ -203,9 +203,10 @@ class TryPathLawsTest {
     @TestFactory
     @DisplayName("map catches exceptions thrown by function")
     Stream<DynamicTest> mapCatchesExceptions() {
-      Function<Integer, Integer> throwing = x -> {
-        throw new RuntimeException("function threw");
-      };
+      Function<Integer, Integer> throwing =
+          x -> {
+            throw new RuntimeException("function threw");
+          };
 
       return Stream.of(
           DynamicTest.dynamicTest(
@@ -220,9 +221,10 @@ class TryPathLawsTest {
     @TestFactory
     @DisplayName("via catches exceptions thrown by function")
     Stream<DynamicTest> viaCatchesExceptions() {
-      Function<Integer, TryPath<Integer>> throwing = x -> {
-        throw new RuntimeException("function threw");
-      };
+      Function<Integer, TryPath<Integer>> throwing =
+          x -> {
+            throw new RuntimeException("function threw");
+          };
 
       return Stream.of(
           DynamicTest.dynamicTest(

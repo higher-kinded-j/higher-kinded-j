@@ -88,8 +88,7 @@ class IOPathLawsTest {
     private final Function<Integer, IOPath<String>> intToIOString =
         x -> Path.io(() -> "computed:" + x);
 
-    private final Function<String, IOPath<Integer>> stringToIOInt =
-        s -> Path.io(s::length);
+    private final Function<String, IOPath<Integer>> stringToIOInt = s -> Path.io(s::length);
 
     @TestFactory
     @DisplayName("Left Identity Law: Path.ioPure(a).via(f).unsafeRun() == f(a).unsafeRun()")

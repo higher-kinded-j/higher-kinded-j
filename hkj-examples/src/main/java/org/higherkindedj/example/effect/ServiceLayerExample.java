@@ -115,8 +115,14 @@ public class ServiceLayerExample {
     System.out.println("Executing...");
 
     OrderSummary summary = getOrderSummary.unsafeRun();
-    System.out.println("Summary: " + summary.user().name() + " ordered " + summary.order().product()
-        + " (status: " + summary.status() + ")");
+    System.out.println(
+        "Summary: "
+            + summary.user().name()
+            + " ordered "
+            + summary.order().product()
+            + " (status: "
+            + summary.status()
+            + ")");
 
     // Combine independent lookups with zipWith
     System.out.println("\n--- Parallel-style Composition (zipWith) ---");
@@ -144,7 +150,8 @@ public class ServiceLayerExample {
 
     // Option 2: Handle error inline
     IOPath<User> withFallback =
-        findUserById("unknown").handleError(ex -> new User("default", "Guest", "guest@example.com"));
+        findUserById("unknown")
+            .handleError(ex -> new User("default", "Guest", "guest@example.com"));
 
     System.out.println("With fallback: " + withFallback.unsafeRun().name()); // Guest
 

@@ -2,11 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.effect;
 
-import org.higherkindedj.hkt.effect.EitherPath;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
-import org.higherkindedj.hkt.effect.TryPath;
 
 /**
  * Examples demonstrating sequential composition with the Effect Path API.
@@ -64,7 +64,7 @@ public class ChainedComputationsExample {
     record User(String id, String name, String role) {}
 
     // User database (simulated)
-    java.util.function.Function<String, MaybePath<User>> findUser =
+    Function<String, MaybePath<User>> findUser =
         id ->
             switch (id) {
               case "1" -> Path.just(new User("1", "Alice", "admin"));
@@ -73,7 +73,7 @@ public class ChainedComputationsExample {
             };
 
     // Permission check depends on user
-    java.util.function.Function<User, MaybePath<String>> checkPermission =
+    Function<User, MaybePath<String>> checkPermission =
         user ->
             user.role().equals("admin")
                 ? Path.just("Access granted to " + user.name())
@@ -104,7 +104,7 @@ public class ChainedComputationsExample {
     // then() executes effects in sequence, discarding the first result
     // Useful when you want side effects but don't need the value
 
-    java.util.concurrent.atomic.AtomicInteger step = new java.util.concurrent.atomic.AtomicInteger();
+    AtomicInteger step = new AtomicInteger();
 
     MaybePath<String> sequence =
         Path.just("start")
@@ -143,8 +143,7 @@ public class ChainedComputationsExample {
 
     // Demonstrating lazy evaluation
     System.out.println("\n--- Lazy Evaluation Demo ---");
-    java.util.concurrent.atomic.AtomicInteger counter =
-        new java.util.concurrent.atomic.AtomicInteger();
+    AtomicInteger counter = new AtomicInteger();
 
     IOPath<Integer> lazyChain =
         Path.io(

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.effect;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.MaybePath;
@@ -189,8 +190,7 @@ public class ErrorHandlingExample {
   private static void retryPattern() {
     System.out.println("--- Retry Pattern with IOPath ---");
 
-    java.util.concurrent.atomic.AtomicInteger attempts =
-        new java.util.concurrent.atomic.AtomicInteger(0);
+    AtomicInteger attempts = new AtomicInteger(0);
 
     // Simulating an operation that fails twice then succeeds
     IOPath<String> unreliableOperation =

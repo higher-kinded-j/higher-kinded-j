@@ -12,8 +12,10 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
 
 /**
  * A fluent path wrapper for {@link Maybe} values.
@@ -126,8 +128,8 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    */
   public <E> EitherPath<E, A> toEitherPath(E error) {
     return value.isJust()
-        ? new EitherPath<>(org.higherkindedj.hkt.either.Either.right(value.get()))
-        : new EitherPath<>(org.higherkindedj.hkt.either.Either.left(error));
+        ? new EitherPath<>(Either.right(value.get()))
+        : new EitherPath<>(Either.left(error));
   }
 
   /**
@@ -143,8 +145,8 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   public TryPath<A> toTryPath(Supplier<? extends Throwable> exceptionSupplier) {
     Objects.requireNonNull(exceptionSupplier, "exceptionSupplier must not be null");
     return value.isJust()
-        ? new TryPath<>(org.higherkindedj.hkt.trymonad.Try.success(value.get()))
-        : new TryPath<>(org.higherkindedj.hkt.trymonad.Try.failure(exceptionSupplier.get()));
+        ? new TryPath<>(Try.success(value.get()))
+        : new TryPath<>(Try.failure(exceptionSupplier.get()));
   }
 
   // ===== Composable implementation =====

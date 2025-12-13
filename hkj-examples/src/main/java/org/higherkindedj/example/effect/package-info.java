@@ -27,5 +27,7 @@
  * ./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.BasicPathExample
  * }</pre>
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.higherkindedj.example.effect;
+
+import org.jspecify.annotations.NullMarked;

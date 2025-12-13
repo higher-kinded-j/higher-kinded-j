@@ -99,8 +99,7 @@ public class ValidationPipelineExample {
 
     // Invalid case - captures first error
     EitherPath<String, String> invalidEmail = validateEmailE("invalid-email");
-    EitherPath<String, User> invalidUser =
-        name.zipWith3(invalidEmail, age, User::new);
+    EitherPath<String, User> invalidUser = name.zipWith3(invalidEmail, age, User::new);
 
     var invalidResult = invalidUser.run();
     if (invalidResult.isRight()) {

@@ -49,9 +49,13 @@ class TryPathPropertyTest {
   Arbitrary<Function<Integer, TryPath<String>>> intToTryStringFunctions() {
     return Arbitraries.of(
         (Function<Integer, TryPath<String>>)
-            (i -> i % 2 == 0 ? Path.success("even:" + i) : Path.failure(new RuntimeException("odd"))),
+            (i ->
+                i % 2 == 0 ? Path.success("even:" + i) : Path.failure(new RuntimeException("odd"))),
         (Function<Integer, TryPath<String>>)
-            (i -> i > 0 ? Path.success("positive:" + i) : Path.failure(new RuntimeException("not positive"))),
+            (i ->
+                i > 0
+                    ? Path.success("positive:" + i)
+                    : Path.failure(new RuntimeException("not positive"))),
         (Function<Integer, TryPath<String>>) (i -> Path.success("value:" + i)));
   }
 
@@ -59,9 +63,15 @@ class TryPathPropertyTest {
   Arbitrary<Function<String, TryPath<String>>> stringToTryStringFunctions() {
     return Arbitraries.of(
         (Function<String, TryPath<String>>)
-            (s -> s.isEmpty() ? Path.failure(new RuntimeException("empty")) : Path.success(s.toUpperCase())),
+            (s ->
+                s.isEmpty()
+                    ? Path.failure(new RuntimeException("empty"))
+                    : Path.success(s.toUpperCase())),
         (Function<String, TryPath<String>>)
-            (s -> s.length() > 3 ? Path.success("long:" + s) : Path.failure(new RuntimeException("too short"))),
+            (s ->
+                s.length() > 3
+                    ? Path.success("long:" + s)
+                    : Path.failure(new RuntimeException("too short"))),
         (Function<String, TryPath<String>>) (s -> Path.success("transformed:" + s)));
   }
 
@@ -227,16 +237,19 @@ class TryPathPropertyTest {
   void mapExceptionTransformsException() {
     RuntimeException original = new RuntimeException("original");
     TryPath<Integer> failure = Path.failure(original);
-    TryPath<Integer> result = failure.mapException(e -> new IllegalStateException("wrapped: " + e.getMessage()));
+    TryPath<Integer> result =
+        failure.mapException(e -> new IllegalStateException("wrapped: " + e.getMessage()));
 
     assertThat(result.run().isFailure()).isTrue();
-    result.run().fold(
-        v -> null,
-        e -> {
-          assertThat(e).isInstanceOf(IllegalStateException.class);
-          assertThat(e.getMessage()).contains("wrapped");
-          return null;
-        });
+    result
+        .run()
+        .fold(
+            v -> null,
+            e -> {
+              assertThat(e).isInstanceOf(IllegalStateException.class);
+              assertThat(e.getMessage()).contains("wrapped");
+              return null;
+            });
   }
 
   @Property(tries = 50)

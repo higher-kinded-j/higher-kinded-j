@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 
 /**
@@ -116,9 +117,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * @return a MaybePath containing the value, or empty if this contains an exception
    */
   public MaybePath<A> toMaybePath() {
-    return value.fold(
-        a -> new MaybePath<>(org.higherkindedj.hkt.maybe.Maybe.just(a)),
-        ex -> new MaybePath<>(org.higherkindedj.hkt.maybe.Maybe.nothing()));
+    return value.fold(a -> new MaybePath<>(Maybe.just(a)), ex -> new MaybePath<>(Maybe.nothing()));
   }
 
   /**
