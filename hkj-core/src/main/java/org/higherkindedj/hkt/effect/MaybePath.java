@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
+import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
 
 /**
@@ -198,7 +199,7 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   public <B, C, D> MaybePath<D> zipWith3(
       MaybePath<B> second,
       MaybePath<C> third,
-      TriFunction<? super A, ? super B, ? super C, ? extends D> combiner) {
+      Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
@@ -326,18 +327,5 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   @Override
   public String toString() {
     return "MaybePath(" + value + ")";
-  }
-
-  /**
-   * A function that takes three arguments and returns a result.
-   *
-   * @param <A> the type of the first argument
-   * @param <B> the type of the second argument
-   * @param <C> the type of the third argument
-   * @param <R> the type of the result
-   */
-  @FunctionalInterface
-  public interface TriFunction<A, B, C, R> {
-    R apply(A a, B b, C c);
   }
 }

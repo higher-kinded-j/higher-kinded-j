@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.function.Function3;
 
 /**
  * A fluent path wrapper for {@link Either} values.
@@ -214,7 +215,7 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
   public <B, C, D> EitherPath<E, D> zipWith3(
       EitherPath<E, B> second,
       EitherPath<E, C> third,
-      MaybePath.TriFunction<? super A, ? super B, ? super C, ? extends D> combiner) {
+      Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");

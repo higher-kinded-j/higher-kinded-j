@@ -15,7 +15,7 @@ Java developers should feel at home immediately. No category theory knowledge re
 Everything starts with the `Path` factory class:
 
 ```java
-import org.higherkindedj.hkt.path.Path;
+import org.higherkindedj.hkt.effect.Path;
 
 // That's it. One import for most use cases.
 ```
@@ -46,7 +46,7 @@ String name = Path.maybe(userRepo.findById(id))
 
 **Key Methods at This Level**:
 - `Path.maybe(value)` - Start with a nullable value
-- `Path.attempt(() -> ...)` - Wrap code that might throw
+- `Path.tryOf(() -> ...)` - Wrap code that might throw
 - `.map(f)` - Transform the value
 - `.via(f)` - Chain to another Maybe/Either
 - `.getOrElse(default)` - Extract with fallback
@@ -108,32 +108,30 @@ EitherPath<Error, User> eitherUser = enrichUser(Path.right(user));
 
 ```java
 // Maybe paths
-Path.maybe(value)                    // Maybe from value
-Path.maybeNullable(nullableValue)    // Maybe from nullable
-Path.nothing()                       // Empty Maybe
+Path.just(value)                     // MaybePath from non-null value
+Path.maybe(nullableValue)            // MaybePath from nullable (Just or Nothing)
+Path.nothing()                       // Empty MaybePath
 
 // Either paths
-Path.right(value)                    // Success Either
-Path.left(error)                     // Failure Either
+Path.right(value)                    // Success EitherPath
+Path.left(error)                     // Failure EitherPath
 Path.<Error>right(value)             // When type inference needs help
 
 // Try paths
-Path.success(value)                  // Successful Try
-Path.failure(throwable)              // Failed Try
-Path.attempt(() -> riskyCode())      // Wrap throwing code
+Path.success(value)                  // Successful TryPath
+Path.failure(throwable)              // Failed TryPath
+Path.tryOf(() -> riskyCode())        // Wrap throwing code
 
 // IO paths
-Path.io(() -> sideEffect())          // Lazy side effect
-Path.delay(() -> expensiveCalc())    // Deferred computation
+Path.io(() -> sideEffect())          // Lazy deferred computation
+Path.ioPure(value)                   // IOPath with immediate value
+Path.ioRunnable(() -> action())      // IOPath from Runnable
 
-// From existing types
-Path.from(maybe)                     // MaybePath from Maybe
-Path.from(either)                    // EitherPath from Either
-Path.from(tryValue)                  // TryPath from Try
-
-// From Java stdlib
-Path.fromOptional(optional)          // MaybePath from Optional
-Path.fromCompletableFuture(future)   // TryPath from CompletableFuture
+// From existing HKJ types
+Path.maybe(maybe)                    // MaybePath from Maybe
+Path.either(either)                  // EitherPath from Either
+Path.tryPath(tryValue)               // TryPath from Try
+Path.ioPath(io)                      // IOPath from IO
 ```
 
 ### Composition Methods
@@ -190,18 +188,14 @@ path.toOptional()                      // To Optional
 path.stream()                          // To Stream (0 or 1 element)
 ```
 
-### Applicative Methods (Parallel Combination)
+### Applicative Methods (Independent Combination)
 
 ```java
-// Combine two paths
-path1.map2(path2, (a, b) -> combine(a, b))
+// Combine two paths (independent, fail-fast)
+path1.zipWith(path2, (a, b) -> combine(a, b))
 
 // Combine three paths
-path1.map3(path2, path3, (a, b, c) -> combine(a, b, c))
-
-// Combine many paths (static method)
-Path.zip(path1, path2, path3)
-    .map((a, b, c) -> combine(a, b, c))
+path1.zipWith3(path2, path3, (a, b, c) -> combine(a, b, c))
 ```
 
 ### Debugging Methods
@@ -253,8 +247,8 @@ ValidatedPath<List<Error>, User> validated = Path.validated(formData)
 
 ```java
 // Safe resource management
-TryPath<String> content = Path.attempt(() -> Files.newInputStream(path))
-    .via(stream -> Path.attempt(() -> {
+TryPath<String> content = Path.tryOf(() -> Files.newInputStream(path))
+    .via(stream -> Path.tryOf(() -> {
         try (var reader = new BufferedReader(new InputStreamReader(stream))) {
             return reader.lines().collect(joining("\n"));
         }
@@ -286,17 +280,16 @@ Path.maybe(userId)
     );
 ```
 
-### Pattern 7: Parallel Composition
+### Pattern 7: Independent Composition
 
 ```java
-// Fetch data in parallel (semantically)
-UserDashboard dashboard = Path.zip(
-    Path.attempt(() -> fetchProfile(id)),
-    Path.attempt(() -> fetchOrders(id)),
-    Path.attempt(() -> fetchPreferences(id))
-).map((profile, orders, prefs) ->
-    new UserDashboard(profile, orders, prefs)
-).getOrThrow();
+// Combine independent computations
+UserDashboard dashboard = Path.tryOf(() -> fetchProfile(id))
+    .zipWith3(
+        Path.tryOf(() -> fetchOrders(id)),
+        Path.tryOf(() -> fetchPreferences(id)),
+        UserDashboard::new
+    ).getOrElse(UserDashboard.empty());
 ```
 
 ## IDE Experience
@@ -305,18 +298,20 @@ UserDashboard dashboard = Path.zip(
 
 When you type `Path.`, your IDE shows:
 ```
+Path.just(...)
 Path.maybe(...)
-Path.maybeNullable(...)
 Path.nothing()
 Path.right(...)
 Path.left(...)
-Path.attempt(...)
+Path.either(...)
+Path.tryOf(...)
 Path.success(...)
 Path.failure(...)
+Path.tryPath(...)
 Path.io(...)
-Path.from(...)
-Path.fromOptional(...)
-Path.zip(...)
+Path.ioPure(...)
+Path.ioRunnable(...)
+Path.ioPath(...)
 ```
 
 When you have a `MaybePath<User>` and type `.`, you see:
@@ -400,10 +395,10 @@ MaybePath<User> user = eitherPath
 
 ```java
 // DON'T: Side effect without checking result
-Path.attempt(() -> saveToDatabase(user));  // Result ignored!
+Path.tryOf(() -> saveToDatabase(user));  // Result ignored!
 
 // DO: Handle the result
-Path.attempt(() -> saveToDatabase(user))
+Path.tryOf(() -> saveToDatabase(user))
     .fold(
         error -> log.error("Save failed", error),
         _ -> log.info("Save succeeded")
@@ -441,7 +436,7 @@ Maybe<String> maybeName = maybeUser.flatMap(u ->
 String name = maybeName.getOrElse("Unknown");
 
 // After
-String name = Path.from(userRepo.findById(id))
+String name = Path.maybe(userRepo.findById(id))
     .via(User::getProfile)
     .map(Profile::getName)
     .getOrElse("Unknown");
@@ -459,7 +454,7 @@ try {
 }
 
 // After
-String content = Path.attempt(() -> Files.readString(path))
+String content = Path.tryOf(() -> Files.readString(path))
     .getOrElse("default");
 ```
 
@@ -473,9 +468,9 @@ String name = optUser
     .map(Profile::getName)
     .orElse("Unknown");
 
-// After
-String name = Path.fromOptional(userRepo.findById(id))
-    .viaNullable(User::getProfile)
+// After (convert Optional to Maybe first)
+String name = Path.maybe(Maybe.fromOptional(userRepo.findById(id)))
+    .via(u -> Path.maybe(u.getProfile()))
     .map(Profile::getName)
     .getOrElse("Unknown");
 ```

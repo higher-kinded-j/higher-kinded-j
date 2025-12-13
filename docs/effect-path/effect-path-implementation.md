@@ -12,7 +12,7 @@ This document provides implementation details for the EffectPath API, including 
 
 ```
 hkj-core/src/main/java/org/higherkindedj/hkt/
-├── path/                                    # Main path package
+├── effect/                                  # Main effect path package
 │   ├── Path.java                           # Primary factory (entry point)
 │   ├── MaybePath.java                      # Maybe wrapper
 │   ├── EitherPath.java                     # Either wrapper
@@ -23,37 +23,33 @@ hkj-core/src/main/java/org/higherkindedj/hkt/
 │   │
 │   ├── capability/                         # Capability interfaces
 │   │   ├── Composable.java                 # Base: map, peek
+│   │   ├── Combinable.java                 # Applicative: zipWith
 │   │   ├── Chainable.java                  # Monadic: via, then, flatMap
 │   │   ├── Recoverable.java                # Error: recover, mapError
-│   │   ├── Accumulating.java               # Validation: zipWith
 │   │   └── Effectful.java                  # Side effects: run semantics
 │   │
-│   ├── spi/                                # Service Provider Interface
+│   ├── spi/                                # Service Provider Interface (Future)
 │   │   ├── PathProvider.java               # Plugin interface
 │   │   ├── PathRegistry.java               # Provider discovery
 │   │   └── TypeMapping.java                # Type to path mapping
 │   │
-│   ├── annotation/                         # Annotation definitions
+│   ├── annotation/                         # Annotation definitions (Future)
 │   │   ├── PathSource.java
 │   │   ├── GeneratePathBridge.java
 │   │   ├── PathVia.java
 │   │   └── PathConfig.java
 │   │
-│   ├── processor/                          # Annotation processor
-│   │   ├── PathProcessor.java
-│   │   ├── PathSourceGenerator.java
-│   │   ├── PathBridgeGenerator.java
-│   │   ├── PathCodeModel.java
-│   │   └── PathValidations.java
-│   │
-│   └── support/                            # Supporting types
-│       ├── ThrowingSupplier.java
-│       └── PathConversions.java
+│   └── processor/                          # Annotation processor (Future)
+│       ├── PathProcessor.java
+│       ├── PathSourceGenerator.java
+│       ├── PathBridgeGenerator.java
+│       ├── PathCodeModel.java
+│       └── PathValidations.java
 │
-├── maybe/                                   # EXISTING - add asPath() method
-├── either/                                  # EXISTING - add asPath() method
-├── trymonad/                                # EXISTING - add asPath() method
-└── io/                                      # EXISTING - add asPath() method
+├── maybe/                                   # EXISTING
+├── either/                                  # EXISTING
+├── trymonad/                                # EXISTING
+└── io/                                      # EXISTING
 ```
 
 ## Code Organization Principles
@@ -129,7 +125,7 @@ public final class MaybePath<A> {
 ```java
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License.
-package org.higherkindedj.hkt.path;
+package org.higherkindedj.hkt.effect;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -138,7 +134,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
-import org.higherkindedj.hkt.path.support.ThrowingSupplier;
+import org.higherkindedj.hkt.effect.support.ThrowingSupplier;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -399,7 +395,7 @@ public final class Path {
 ### Composable.java
 
 ```java
-package org.higherkindedj.hkt.path.capability;
+package org.higherkindedj.hkt.effect.capability;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -412,7 +408,7 @@ import org.jspecify.annotations.NullMarked;
  */
 @NullMarked
 public sealed interface Composable<A>
-    permits Chainable, org.higherkindedj.hkt.path.GenericPath {
+    permits Chainable, org.higherkindedj.hkt.effect.GenericPath {
 
     /**
      * Transforms the contained value.
@@ -436,7 +432,7 @@ public sealed interface Composable<A>
 ### Chainable.java
 
 ```java
-package org.higherkindedj.hkt.path.capability;
+package org.higherkindedj.hkt.effect.capability;
 
 import java.util.function.Function;
 import org.jspecify.annotations.NullMarked;
@@ -448,7 +444,7 @@ import org.jspecify.annotations.NullMarked;
  */
 @NullMarked
 public sealed interface Chainable<A> extends Composable<A>
-    permits Recoverable, Effectful, org.higherkindedj.hkt.path.GenericPath {
+    permits Recoverable, Effectful, org.higherkindedj.hkt.effect.GenericPath {
 
     /**
      * Chains with an effect-returning function (FocusPath-style).
@@ -491,7 +487,7 @@ public sealed interface Chainable<A> extends Composable<A>
 ### Recoverable.java
 
 ```java
-package org.higherkindedj.hkt.path.capability;
+package org.higherkindedj.hkt.effect.capability;
 
 import java.util.function.Function;
 import org.jspecify.annotations.NullMarked;
@@ -504,10 +500,10 @@ import org.jspecify.annotations.NullMarked;
  */
 @NullMarked
 public sealed interface Recoverable<E, A> extends Chainable<A>
-    permits org.higherkindedj.hkt.path.MaybePath,
-            org.higherkindedj.hkt.path.EitherPath,
-            org.higherkindedj.hkt.path.TryPath,
-            org.higherkindedj.hkt.path.ValidatedPath {
+    permits org.higherkindedj.hkt.effect.MaybePath,
+            org.higherkindedj.hkt.effect.EitherPath,
+            org.higherkindedj.hkt.effect.TryPath,
+            org.higherkindedj.hkt.effect.ValidatedPath {
 
     /**
      * Recovers from an error by providing a replacement value.
@@ -551,7 +547,7 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
 ```java
 // Copyright (c) 2025 Magnus Smith
 // Licensed under the MIT License.
-package org.higherkindedj.hkt.path;
+package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -560,7 +556,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.path.capability.Recoverable;
+import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -879,7 +875,7 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
 ### ThrowingSupplier.java
 
 ```java
-package org.higherkindedj.hkt.path.support;
+package org.higherkindedj.hkt.effect.support;
 
 /**
  * A supplier that may throw checked exceptions.
@@ -929,19 +925,18 @@ module org.higherkindedj.hkt {
     // Existing exports...
 
     // New exports
-    exports org.higherkindedj.hkt.path;
-    exports org.higherkindedj.hkt.path.capability;
-    exports org.higherkindedj.hkt.path.spi;
-    exports org.higherkindedj.hkt.path.annotation;
-    exports org.higherkindedj.hkt.path.support;
+    exports org.higherkindedj.hkt.effect;
+    exports org.higherkindedj.hkt.effect.capability;
+    exports org.higherkindedj.hkt.effect.spi;        // Future
+    exports org.higherkindedj.hkt.effect.annotation;  // Future
 
-    // SPI
-    uses org.higherkindedj.hkt.path.spi.PathProvider;
-    provides org.higherkindedj.hkt.path.spi.PathProvider with
-        org.higherkindedj.hkt.path.MaybePathProvider,
-        org.higherkindedj.hkt.path.EitherPathProvider,
-        org.higherkindedj.hkt.path.TryPathProvider,
-        org.higherkindedj.hkt.path.IOPathProvider;
+    // SPI (Future)
+    uses org.higherkindedj.hkt.effect.spi.PathProvider;
+    provides org.higherkindedj.hkt.effect.spi.PathProvider with
+        org.higherkindedj.hkt.effect.MaybePathProvider,
+        org.higherkindedj.hkt.effect.EitherPathProvider,
+        org.higherkindedj.hkt.effect.TryPathProvider,
+        org.higherkindedj.hkt.effect.IOPathProvider;
 }
 ```
 
@@ -973,16 +968,16 @@ module org.higherkindedj.hkt {
 - [ ] Implement `Accumulating.java`
 
 ### Phase 3: SPI
-- [ ] Create `org.higherkindedj.hkt.path.spi` package
+- [ ] Create `org.higherkindedj.hkt.effect.spi` package
 - [ ] Implement `PathProvider.java`
 - [ ] Implement `PathRegistry.java`
 - [ ] Implement provider implementations
 - [ ] Configure ServiceLoader
 
 ### Phase 4: Annotations
-- [ ] Create `org.higherkindedj.hkt.path.annotation` package
+- [ ] Create `org.higherkindedj.hkt.effect.annotation` package
 - [ ] Implement annotation types
-- [ ] Create `org.higherkindedj.hkt.path.processor` package
+- [ ] Create `org.higherkindedj.hkt.effect.processor` package
 - [ ] Implement `PathProcessor.java`
 - [ ] Implement generators
 - [ ] Configure annotation processor

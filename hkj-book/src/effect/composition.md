@@ -209,7 +209,11 @@ EitherPath<Error, Config> config =
 
 ```java
 record Errors(List<String> messages) {
-    Errors add(String msg) { return new Errors(List.of(messages, List.of(msg)).flatMap(l -> l)); }
+    Errors add(String msg) {
+        var newMessages = new java.util.ArrayList<>(messages);
+        newMessages.add(msg);
+        return new Errors(newMessages);
+    }
 }
 
 EitherPath<Errors, User> validateUser(Input input) {

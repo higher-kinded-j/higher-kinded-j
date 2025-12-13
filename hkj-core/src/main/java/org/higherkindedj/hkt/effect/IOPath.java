@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Effectful;
+import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
 
 /**
@@ -163,7 +164,7 @@ public final class IOPath<A> implements Effectful<A> {
   public <B, C, D> IOPath<D> zipWith3(
       IOPath<B> second,
       IOPath<C> third,
-      MaybePath.TriFunction<? super A, ? super B, ? super C, ? extends D> combiner) {
+      Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");

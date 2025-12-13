@@ -11,7 +11,7 @@ This document describes the comprehensive testing strategy for the EffectPath AP
 ## Test Directory Structure
 
 ```
-hkj-core/src/test/java/org/higherkindedj/hkt/path/
+hkj-core/src/test/java/org/higherkindedj/hkt/effect/
 ├── MaybePathTest.java              # Core functionality tests
 ├── MaybePathPropertyTest.java      # Property-based tests (jQwik)
 ├── MaybePathLawsTest.java          # Functor/Monad law verification
@@ -30,24 +30,24 @@ hkj-core/src/test/java/org/higherkindedj/hkt/path/
 │   ├── ChainableContractTest.java
 │   └── RecoverableContractTest.java
 │
-├── spi/                            # SPI tests
+├── spi/                            # SPI tests (Future)
 │   ├── PathProviderTest.java
 │   ├── PathRegistryTest.java
 │   └── ServiceLoaderIntegrationTest.java
 │
-├── processor/                      # Annotation processor tests
+├── processor/                      # Annotation processor tests (Future)
 │   ├── PathProcessorTest.java
 │   ├── PathSourceGeneratorTest.java
 │   ├── PathBridgeGeneratorTest.java
 │   └── ProcessorValidationTest.java
 │
-├── assertions/                     # Custom AssertJ assertions
+├── assertions/                     # Custom AssertJ assertions (Future)
 │   ├── MaybePathAssert.java
 │   ├── EitherPathAssert.java
 │   ├── TryPathAssert.java
 │   └── PathAssertions.java         # Static import facade
 │
-└── fixtures/                       # Test fixtures and helpers
+└── fixtures/                       # Test fixtures and helpers (Future)
     ├── TestDomain.java             # Domain objects for testing
     ├── ArbitraryProviders.java     # jQwik arbitrary providers
     └── PathTestHelpers.java        # Common test utilities
@@ -91,16 +91,16 @@ Since paths wrap lawful types, verify that laws still hold through the wrapper l
 ### PathAssertions.java (Facade)
 
 ```java
-package org.higherkindedj.hkt.path.assertions;
+package org.higherkindedj.hkt.effect.assertions;
 
-import org.higherkindedj.hkt.path.*;
+import org.higherkindedj.hkt.effect.*;
 
 /**
  * Static import facade for all Path assertions.
  *
  * <p>Usage:
  * <pre>{@code
- * import static org.higherkindedj.hkt.path.assertions.PathAssertions.*;
+ * import static org.higherkindedj.hkt.effect.assertions.PathAssertions.*;
  *
  * assertThatPath(maybePath).isJust().hasValue("expected");
  * assertThatPath(eitherPath).isRight().hasRightValue(42);
@@ -127,13 +127,13 @@ public final class PathAssertions {
 ### MaybePathAssert.java
 
 ```java
-package org.higherkindedj.hkt.path.assertions;
+package org.higherkindedj.hkt.effect.assertions;
 
 import java.util.Objects;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.path.MaybePath;
+import org.higherkindedj.hkt.effect.MaybePath;
 
 public class MaybePathAssert<A> extends AbstractAssert<MaybePathAssert<A>, MaybePath<A>> {
 
@@ -209,12 +209,12 @@ public class MaybePathAssert<A> extends AbstractAssert<MaybePathAssert<A>, Maybe
 ### EitherPathAssert.java
 
 ```java
-package org.higherkindedj.hkt.path.assertions;
+package org.higherkindedj.hkt.effect.assertions;
 
 import java.util.Objects;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
-import org.higherkindedj.hkt.path.EitherPath;
+import org.higherkindedj.hkt.effect.EitherPath;
 
 public class EitherPathAssert<E, A>
         extends AbstractAssert<EitherPathAssert<E, A>, EitherPath<E, A>> {
@@ -284,12 +284,12 @@ public class EitherPathAssert<E, A>
 ### ArbitraryProviders.java
 
 ```java
-package org.higherkindedj.hkt.path.fixtures;
+package org.higherkindedj.hkt.effect.fixtures;
 
 import net.jqwik.api.*;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.path.*;
+import org.higherkindedj.hkt.effect.*;
 import java.util.function.Function;
 
 /**
@@ -356,10 +356,10 @@ public class ArbitraryProviders {
 ### MaybePathPropertyTest.java
 
 ```java
-package org.higherkindedj.hkt.path;
+package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.path.fixtures.ArbitraryProviders.*;
+import static org.higherkindedj.hkt.effect.fixtures.ArbitraryProviders.*;
 
 import java.util.function.Function;
 import net.jqwik.api.*;
@@ -462,7 +462,7 @@ class MaybePathPropertyTest {
 ### PathProcessorTest.java
 
 ```java
-package org.higherkindedj.hkt.path.processor;
+package org.higherkindedj.hkt.effect.processor;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -485,7 +485,7 @@ class PathProcessorTest {
                 .compile(JavaFileObjects.forSourceString("test.MyEffect",
                     """
                     package test;
-                    import org.higherkindedj.hkt.path.annotation.PathSource;
+                    import org.higherkindedj.hkt.effect.annotation.PathSource;
                     import java.util.function.Function;
 
                     @PathSource(witness = MyEffectKind.Witness.class)
@@ -518,7 +518,7 @@ class PathProcessorTest {
                 .compile(JavaFileObjects.forSourceString("test.BadEffect",
                     """
                     package test;
-                    import org.higherkindedj.hkt.path.annotation.PathSource;
+                    import org.higherkindedj.hkt.effect.annotation.PathSource;
                     import java.util.function.Function;
 
                     @PathSource(witness = Object.class)
@@ -541,7 +541,7 @@ class PathProcessorTest {
                 .compile(JavaFileObjects.forSourceString("test.MyEffect",
                     """
                     package test;
-                    import org.higherkindedj.hkt.path.annotation.PathSource;
+                    import org.higherkindedj.hkt.effect.annotation.PathSource;
                     import java.util.function.Function;
 
                     @PathSource(witness = MyEffectKind.Witness.class, pathClassName = "CustomPath")
@@ -573,7 +573,7 @@ class PathProcessorTest {
                 .compile(JavaFileObjects.forSourceString("test.MyService",
                     """
                     package test;
-                    import org.higherkindedj.hkt.path.annotation.*;
+                    import org.higherkindedj.hkt.effect.annotation.*;
                     import org.higherkindedj.hkt.maybe.Maybe;
                     import org.higherkindedj.hkt.either.Either;
 
@@ -601,7 +601,7 @@ class PathProcessorTest {
                 .compile(JavaFileObjects.forSourceString("test.MyService",
                     """
                     package test;
-                    import org.higherkindedj.hkt.path.annotation.*;
+                    import org.higherkindedj.hkt.effect.annotation.*;
                     import org.higherkindedj.hkt.maybe.Maybe;
 
                     @GeneratePathBridge
@@ -631,7 +631,7 @@ class PathProcessorTest {
                 .compile(JavaFileObjects.forSourceString("test.BadService",
                     """
                     package test;
-                    import org.higherkindedj.hkt.path.annotation.*;
+                    import org.higherkindedj.hkt.effect.annotation.*;
 
                     @GeneratePathBridge
                     public interface BadService {
@@ -652,7 +652,7 @@ class PathProcessorTest {
                 .compile(JavaFileObjects.forSourceString("test.BadService",
                     """
                     package test;
-                    import org.higherkindedj.hkt.path.annotation.*;
+                    import org.higherkindedj.hkt.effect.annotation.*;
                     import org.higherkindedj.hkt.maybe.Maybe;
 
                     @GeneratePathBridge
@@ -674,13 +674,13 @@ class PathProcessorTest {
 ### PathRegistryTest.java
 
 ```java
-package org.higherkindedj.hkt.path.spi;
+package org.higherkindedj.hkt.effect.spi;
 
 import static org.assertj.core.api.Assertions.*;
 
 import org.higherkindedj.hkt.maybe.*;
-import org.higherkindedj.hkt.path.*;
-import org.higherkindedj.hkt.path.capability.Chainable;
+import org.higherkindedj.hkt.effect.*;
+import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.junit.jupiter.api.*;
 
 @DisplayName("PathRegistry SPI Tests")
@@ -731,7 +731,7 @@ class PathRegistryTest {
 ### PathPerformanceTest.java
 
 ```java
-package org.higherkindedj.hkt.path;
+package org.higherkindedj.hkt.effect;
 
 import org.junit.jupiter.api.*;
 import java.time.Duration;
@@ -788,7 +788,7 @@ class PathPerformanceTest {
 ### PathThreadSafetyTest.java
 
 ```java
-package org.higherkindedj.hkt.path;
+package org.higherkindedj.hkt.effect;
 
 import org.junit.jupiter.api.*;
 import java.util.concurrent.*;
@@ -849,10 +849,10 @@ class PathThreadSafetyTest {
 ### FocusPathIntegrationTest.java
 
 ```java
-package org.higherkindedj.hkt.path;
+package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.path.assertions.PathAssertions.*;
+import static org.higherkindedj.hkt.effect.assertions.PathAssertions.*;
 
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.focus.*;

@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.trymonad.Try;
 
 /**
@@ -216,7 +217,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   public <B, C, D> TryPath<D> zipWith3(
       TryPath<B> second,
       TryPath<C> third,
-      MaybePath.TriFunction<? super A, ? super B, ? super C, ? extends D> combiner) {
+      Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
