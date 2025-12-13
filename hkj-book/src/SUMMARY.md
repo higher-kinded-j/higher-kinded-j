@@ -48,6 +48,16 @@
   - [Validated](monads/validated_monad.md)
   - [Writer](monads/writer_monad.md)
   - [Const](monads/const_type.md)
+
+# Effect Path API
+- [Introduction](effect/ch_intro.md)
+  - [Effect Path Overview](effect/effect_path_overview.md)
+  - [Capability Interfaces](effect/capabilities.md)
+  - [Path Types](effect/path_types.md)
+  - [Composition Patterns](effect/composition.md)
+  - [Type Conversions](effect/conversions.md)
+  - [Patterns and Recipes](effect/patterns.md)
+
 # Advanced Topics
 - [Introduction](transformers/ch_intro.md)
   - [Monad Transformers](transformers/transformers.md)

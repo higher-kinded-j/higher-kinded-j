@@ -46,6 +46,8 @@ class PackageStructureRules {
         .and()
         .haveSimpleNameNotContaining("EitherT") // Transformer is separate
         .and()
+        .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
+        .and()
         .resideInAPackage("..hkt..")
         .should()
         .resideInAPackage("..either..")
@@ -62,6 +64,8 @@ class PackageStructureRules {
         .haveSimpleNameStartingWith("Maybe")
         .and()
         .haveSimpleNameNotContaining("MaybeT") // Transformer is separate
+        .and()
+        .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
         .and()
         .resideInAPackage("..hkt..")
         .should()
@@ -82,6 +86,8 @@ class PackageStructureRules {
         .that()
         .haveSimpleNameStartingWith("Try")
         .and()
+        .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
+        .and()
         .resideInAPackage("..hkt..")
         .should()
         .resideInAPackage("..trymonad..")
@@ -100,6 +106,8 @@ class PackageStructureRules {
         .resideInAPackage("..hkt..")
         .and()
         .haveSimpleNameNotContaining("IOException") // Standard Java exception
+        .and()
+        .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
         .should()
         .resideInAPackage("..io..")
         .allowEmptyShould(true)
