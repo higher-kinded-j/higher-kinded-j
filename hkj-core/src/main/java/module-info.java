@@ -7,6 +7,8 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.constant;
   exports org.higherkindedj.hkt.coyoneda;
   exports org.higherkindedj.hkt.tuple;
+  exports org.higherkindedj.hkt.effect;
+  exports org.higherkindedj.hkt.effect.capability;
   exports org.higherkindedj.hkt.either;
   exports org.higherkindedj.hkt.either_t;
   exports org.higherkindedj.hkt.exception;

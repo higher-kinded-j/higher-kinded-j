@@ -10,6 +10,7 @@ This guide provides an overview of all runnable examples in the `hkj-examples` m
   - [Core Types](#core-types)
   - [Monad Transformers](#monad-transformers)
   - [Type Classes](#type-classes)
+- [Effect Path API Examples](#effect-path-api-examples)
 - [Optics Examples](#optics-examples)
   - [Core Optics](#core-optics)
   - [Traversals](#traversals)
@@ -118,6 +119,27 @@ Examples demonstrating type class abstractions.
 | [CoyonedaExample.java](src/main/java/org/higherkindedj/example/basic/coyoneda/CoyonedaExample.java) | Shows the free functor and map fusion | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.coyoneda.CoyonedaExample` | [Coyoneda](https://higher-kinded-j.github.io/latest/monads/coyoneda.html) |
 | [FreeApplicativeExample.java](src/main/java/org/higherkindedj/example/basic/free_ap/FreeApplicativeExample.java) | Demonstrates Free Applicative for independent computations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.free_ap.FreeApplicativeExample` | [Free Applicative](https://higher-kinded-j.github.io/latest/monads/free_applicative.html) |
 | [ParallelDataFetchExample.java](src/main/java/org/higherkindedj/example/basic/free_ap/ParallelDataFetchExample.java) | Extended example: parallel data fetching with Free Applicative | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.free_ap.ParallelDataFetchExample` | [Free Applicative](https://higher-kinded-j.github.io/latest/monads/free_applicative.html) |
+
+---
+
+## Effect Path API Examples
+
+The Effect Path API provides a fluent, type-safe approach to composing effect types with minimal boilerplate. It offers an alternative to traditional HKT patterns, making functional programming more accessible while preserving the full power of monadic composition.
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [BasicPathExample.java](src/main/java/org/higherkindedj/example/effect/BasicPathExample.java) | Demonstrates creating paths, map/via operations, and conversions between types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.BasicPathExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
+| [ChainedComputationsExample.java](src/main/java/org/higherkindedj/example/effect/ChainedComputationsExample.java) | Shows fluent chaining patterns with via, then, and zipWith | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ChainedComputationsExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
+| [ErrorHandlingExample.java](src/main/java/org/higherkindedj/example/effect/ErrorHandlingExample.java) | Demonstrates error handling with recover, mapError, and handleError | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ErrorHandlingExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
+| [ValidationPipelineExample.java](src/main/java/org/higherkindedj/example/effect/ValidationPipelineExample.java) | Shows validation pipelines combining independent validations with zipWith | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ValidationPipelineExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
+| [ServiceLayerExample.java](src/main/java/org/higherkindedj/example/effect/ServiceLayerExample.java) | Real-world service layer patterns with EitherPath and IOPath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ServiceLayerExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
+
+### Path Types Overview
+
+- **MaybePath\<A\>**: Represents computations that may produce a value (Just) or nothing
+- **EitherPath\<E, A\>**: Represents computations with typed error handling (Left/Right)
+- **TryPath\<A\>**: Represents computations that may throw exceptions
+- **IOPath\<A\>**: Represents deferred side-effectful computations
 
 ---
 
