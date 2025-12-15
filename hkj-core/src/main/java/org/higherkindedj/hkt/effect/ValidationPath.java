@@ -467,8 +467,8 @@ public final class ValidationPath<E, A>
    * Transforms the error type.
    *
    * <p><strong>Note:</strong> This method throws {@link UnsupportedOperationException} for invalid
-   * values because error type transformation requires a new {@link
-   * org.higherkindedj.hkt.Semigroup} for the transformed error type, which cannot be inferred.
+   * values because error type transformation requires a new {@link org.higherkindedj.hkt.Semigroup}
+   * for the transformed error type, which cannot be inferred.
    *
    * <h2>Recommended Alternatives</h2>
    *
