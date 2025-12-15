@@ -235,12 +235,12 @@ public class SetterUsageExample {
     // --- SCENARIO 7: Batch Data Transformation ---
     System.out.println("--- Scenario 7: Batch Data Transformation ---");
 
-    // Normalize all product names (trim, capitalize first letter)
+    // Normalise all product names (trim, capitalise first letter)
     Setter<Product, String> nameSetter =
         Setter.fromGetSet(
             Product::name, (p, name) -> new Product(name, p.price(), p.stock(), p.tags()));
 
-    Function<String, String> normalize =
+    Function<String, String> normalise =
         name -> {
           String trimmed = name.trim();
           return trimmed.substring(0, 1).toUpperCase() + trimmed.substring(1).toLowerCase();
@@ -252,11 +252,11 @@ public class SetterUsageExample {
             new Product("keyboard", 79.99, 100, List.of()),
             new Product("MONITOR", 299.99, 30, List.of()));
 
-    List<Product> normalizedProducts =
-        productListSetter.modify(product -> nameSetter.modify(normalize, product), rawProducts);
+    List<Product> normalisedProducts =
+        productListSetter.modify(product -> nameSetter.modify(normalise, product), rawProducts);
 
-    System.out.println("Normalized product names:");
-    for (Product p : normalizedProducts) {
+    System.out.println("Normalised product names:");
+    for (Product p : normalisedProducts) {
       System.out.println("  - " + p.name());
     }
 

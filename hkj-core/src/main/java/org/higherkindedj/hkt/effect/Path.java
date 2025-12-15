@@ -3,12 +3,18 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -52,10 +58,44 @@ import org.jspecify.annotations.Nullable;
  * IOPath<Config> fromIO = Path.ioPath(someIO);
  * }</pre>
  *
+ * <h2>Creating ValidationPath instances</h2>
+ *
+ * <pre>{@code
+ * ValidationPath<List<Error>, User> success = Path.valid(user, Semigroups.list());
+ * ValidationPath<List<Error>, User> failure = Path.invalid(errors, Semigroups.list());
+ * ValidationPath<List<Error>, User> fromValidated = Path.validated(v, Semigroups.list());
+ * }</pre>
+ *
+ * <h2>Creating IdPath instances</h2>
+ *
+ * <pre>{@code
+ * IdPath<User> path = Path.id(user);
+ * IdPath<User> fromId = Path.idPath(Id.of(user));
+ * }</pre>
+ *
+ * <h2>Creating OptionalPath instances</h2>
+ *
+ * <pre>{@code
+ * OptionalPath<User> path = Path.optional(Optional.of(user));
+ * OptionalPath<User> present = Path.present(user);
+ * OptionalPath<User> absent = Path.absent();
+ * }</pre>
+ *
+ * <h2>Creating GenericPath instances</h2>
+ *
+ * <pre>{@code
+ * GenericPath<CustomKind.Witness, User> path = Path.generic(kindValue, customMonad);
+ * GenericPath<CustomKind.Witness, User> pure = Path.genericPure(user, customMonad);
+ * }</pre>
+ *
  * @see MaybePath
  * @see EitherPath
  * @see TryPath
  * @see IOPath
+ * @see ValidationPath
+ * @see IdPath
+ * @see OptionalPath
+ * @see GenericPath
  */
 public final class Path {
 
@@ -266,5 +306,151 @@ public final class Path {
   public static <A> IOPath<A> ioPath(IO<A> io) {
     Objects.requireNonNull(io, "io must not be null");
     return new IOPath<>(io);
+  }
+
+  // ===== ValidationPath factory methods =====
+
+  /**
+   * Creates a valid ValidationPath containing the given value.
+   *
+   * @param value the success value
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param <E> the error type
+   * @param <A> the value type
+   * @return a valid ValidationPath
+   * @throws NullPointerException if semigroup is null
+   */
+  public static <E, A> ValidationPath<E, A> valid(A value, Semigroup<E> semigroup) {
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return new ValidationPath<>(Validated.valid(value), semigroup);
+  }
+
+  /**
+   * Creates an invalid ValidationPath containing the given error.
+   *
+   * @param error the error value; must not be null
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param <E> the error type
+   * @param <A> the phantom type of the success value
+   * @return an invalid ValidationPath
+   * @throws NullPointerException if error or semigroup is null
+   */
+  public static <E, A> ValidationPath<E, A> invalid(E error, Semigroup<E> semigroup) {
+    Objects.requireNonNull(error, "error must not be null");
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return new ValidationPath<>(Validated.invalid(error), semigroup);
+  }
+
+  /**
+   * Creates a ValidationPath from an existing Validated.
+   *
+   * @param validated the Validated to wrap; must not be null
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param <E> the error type
+   * @param <A> the value type
+   * @return a ValidationPath wrapping the Validated
+   * @throws NullPointerException if validated or semigroup is null
+   */
+  public static <E, A> ValidationPath<E, A> validated(
+      Validated<E, A> validated, Semigroup<E> semigroup) {
+    Objects.requireNonNull(validated, "validated must not be null");
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return new ValidationPath<>(validated, semigroup);
+  }
+
+  // ===== IdPath factory methods =====
+
+  /**
+   * Creates an IdPath containing the given value.
+   *
+   * @param value the value to wrap
+   * @param <A> the type of the value
+   * @return an IdPath containing the value
+   */
+  public static <A> IdPath<A> id(@Nullable A value) {
+    return new IdPath<>(Id.of(value));
+  }
+
+  /**
+   * Creates an IdPath from an existing Id.
+   *
+   * @param id the Id to wrap; must not be null
+   * @param <A> the type of the value
+   * @return an IdPath wrapping the Id
+   * @throws NullPointerException if id is null
+   */
+  public static <A> IdPath<A> idPath(Id<A> id) {
+    Objects.requireNonNull(id, "id must not be null");
+    return new IdPath<>(id);
+  }
+
+  // ===== OptionalPath factory methods =====
+
+  /**
+   * Creates an OptionalPath from a java.util.Optional.
+   *
+   * @param optional the Optional to wrap; must not be null
+   * @param <A> the type of the value
+   * @return an OptionalPath wrapping the Optional
+   * @throws NullPointerException if optional is null
+   */
+  public static <A> OptionalPath<A> optional(Optional<A> optional) {
+    Objects.requireNonNull(optional, "optional must not be null");
+    return new OptionalPath<>(optional);
+  }
+
+  /**
+   * Creates an OptionalPath containing the given non-null value.
+   *
+   * @param value the value to wrap; must not be null
+   * @param <A> the type of the value
+   * @return an OptionalPath containing the value
+   * @throws NullPointerException if value is null
+   */
+  public static <A> OptionalPath<A> present(A value) {
+    Objects.requireNonNull(value, "value must not be null");
+    return new OptionalPath<>(Optional.of(value));
+  }
+
+  /**
+   * Creates an empty OptionalPath.
+   *
+   * @param <A> the phantom type of the absent value
+   * @return an empty OptionalPath
+   */
+  public static <A> OptionalPath<A> absent() {
+    return new OptionalPath<>(Optional.empty());
+  }
+
+  // ===== GenericPath factory methods =====
+
+  /**
+   * Creates a GenericPath from a Kind and Monad instance.
+   *
+   * <p>This is the escape hatch for using custom monads in Path composition.
+   *
+   * @param value the Kind to wrap; must not be null
+   * @param monad the Monad instance; must not be null
+   * @param <F> the witness type
+   * @param <A> the value type
+   * @return a GenericPath wrapping the Kind
+   * @throws NullPointerException if value or monad is null
+   */
+  public static <F, A> GenericPath<F, A> generic(Kind<F, A> value, Monad<F> monad) {
+    return GenericPath.of(value, monad);
+  }
+
+  /**
+   * Creates a GenericPath by lifting a pure value using the Monad's {@code of} method.
+   *
+   * @param value the value to lift
+   * @param monad the Monad instance; must not be null
+   * @param <F> the witness type
+   * @param <A> the value type
+   * @return a GenericPath containing the lifted value
+   * @throws NullPointerException if monad is null
+   */
+  public static <F, A> GenericPath<F, A> genericPure(A value, Monad<F> monad) {
+    return GenericPath.pure(value, monad);
   }
 }

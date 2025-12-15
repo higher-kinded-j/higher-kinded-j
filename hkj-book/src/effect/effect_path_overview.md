@@ -3,7 +3,7 @@
 This chapter covers the fundamental operations of the Effect Path API: creating paths, transforming values, chaining computations, and extracting results.
 
 ~~~admonish info title="What You'll Learn"
-- How to create Path types using factory methods (`Path.just`, `Path.right`, `Path.tryOf`, `Path.io`)
+- How to create Path types using factory methods (`Path.just`, `Path.right`, `Path.tryOf`, `Path.io`, `Path.valid`, `Path.id`, `Path.optional`, `Path.generic`)
 - Transforming values inside paths with `map`
 - Chaining dependent computations with `via` and `flatMap`
 - Extracting results with `run`, `getOrElse`, and other terminal operations
@@ -74,6 +74,60 @@ IOPath<String> readFile = Path.io(() -> Files.readString(path));
 // From an existing IO
 IO<Connection> ioConn = connectToDatabase();
 IOPath<Connection> connPath = Path.ioOf(ioConn);
+```
+
+### ValidationPath
+
+```java
+// Valid value
+ValidationPath<String, Integer> valid = Path.valid(42);
+
+// Invalid value (single error)
+ValidationPath<String, Integer> invalid = Path.invalid("Value must be positive");
+
+// Invalid with list of errors
+ValidationPath<List<String>, Integer> multiError = Path.invalid(List.of("Error 1", "Error 2"));
+
+// From an existing Validated
+Validated<String, User> validated = validateUser(input);
+ValidationPath<String, User> validPath = Path.validation(validated);
+```
+
+### IdPath
+
+```java
+// Wrap a pure value (identity monad)
+IdPath<String> id = Path.id("hello");
+
+// From an existing Id
+Id<Integer> idValue = Id.of(42);
+IdPath<Integer> idPath = Path.idOf(idValue);
+```
+
+### OptionalPath
+
+```java
+// From Java Optional
+Optional<String> opt = Optional.of("hello");
+OptionalPath<String> optPath = Path.optional(opt);
+
+// Empty Optional
+OptionalPath<String> empty = Path.optional(Optional.empty());
+
+// From nullable value
+OptionalPath<String> fromNullable = Path.optionalOfNullable(possiblyNullValue);
+```
+
+### GenericPath
+
+```java
+// Wrap any Kind with its Monad instance
+Kind<MaybeKind.Witness, String> maybeKind = MaybeKind.widen(Maybe.just("hello"));
+GenericPath<MaybeKind.Witness, String> generic = Path.generic(maybeKind, MaybeMonad.INSTANCE);
+
+// Works with any monad type
+Kind<ListKind.Witness, Integer> listKind = ListKind.widen(List.of(1, 2, 3));
+GenericPath<ListKind.Witness, Integer> listPath = Path.generic(listKind, ListMonad.INSTANCE);
 ```
 
 ---
@@ -277,6 +331,8 @@ Path.maybe(findUser(id))
 
 ## Summary
 
+### Factory Methods
+
 | Operation | Purpose | Example |
 |-----------|---------|---------|
 | `Path.just(x)` | Create MaybePath with value | `Path.just("hello")` |
@@ -287,6 +343,16 @@ Path.maybe(findUser(id))
 | `Path.tryOf(f)` | Create TryPath from computation | `Path.tryOf(() -> parse(s))` |
 | `Path.ioPure(x)` | Create pure IOPath | `Path.ioPure(42)` |
 | `Path.io(f)` | Create IOPath from effect | `Path.io(() -> readFile())` |
+| `Path.valid(x)` | Create valid ValidationPath | `Path.valid(user)` |
+| `Path.invalid(e)` | Create invalid ValidationPath | `Path.invalid("error")` |
+| `Path.id(x)` | Create IdPath | `Path.id("hello")` |
+| `Path.optional(opt)` | Create OptionalPath | `Path.optional(Optional.of(x))` |
+| `Path.generic(k, m)` | Create GenericPath | `Path.generic(kind, monad)` |
+
+### Common Operations
+
+| Operation | Purpose | Example |
+|-----------|---------|---------|
 | `.map(f)` | Transform success value | `path.map(x -> x * 2)` |
 | `.via(f)` | Chain dependent computation | `path.via(x -> nextPath(x))` |
 | `.run()` | Extract underlying type | `path.run()` |
@@ -295,9 +361,10 @@ Path.maybe(findUser(id))
 
 Continue to [Capability Interfaces](capabilities.md) to understand the interface hierarchy.
 
-~~~admonish tip title="Further Reading"
-- **Cats Documentation**: [Effect Types](https://typelevel.org/cats-effect/) - Scala's approach to effect management
-- **Functional Programming in Scala**: Chapter 13 covers external effects and I/O
+~~~admonish tip title="See Also"
+- [IO Monad](../monads/io_monad.md) - The underlying type for IOPath and deferred effect execution
+- [Monad](../functional/monad.md) - The type class powering `via` and `flatMap`
+- [Functor](../functional/functor.md) - The type class powering `map`
 ~~~
 
 ---

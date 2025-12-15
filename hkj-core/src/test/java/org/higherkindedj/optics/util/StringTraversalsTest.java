@@ -207,8 +207,8 @@ class StringTraversalsTest {
     }
 
     @Test
-    @DisplayName("worded() should capitalize first letter of each word")
-    void wordedCapitalizesWords() {
+    @DisplayName("worded() should capitalise first letter of each word")
+    void wordedCapitalisesWords() {
       Traversal<String, String> wordTraversal = StringTraversals.worded();
 
       String result =

@@ -3,6 +3,7 @@ module org.higherkindedj.core {
   // This module requires jspecify and makes it available to its users.
   requires transitive org.jspecify;
   requires transitive org.higherkindedj.api;
+  requires org.higherkindedj.annotations;
 
   exports org.higherkindedj.hkt.constant;
   exports org.higherkindedj.hkt.coyoneda;

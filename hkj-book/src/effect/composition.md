@@ -77,9 +77,15 @@ EitherPath<String, String> result = invalid1.zipWith(invalid2, (a, b) -> a + b);
 // result.run() → Left("Error 1")
 ```
 
-~~~admonish tip title="Accumulating Errors"
-For accumulating all errors (not just the first), use `Validated` with `ValidatedPath`
-(available in Phase 2).
+~~~admonish tip title="Accumulating All Errors"
+Need to collect *all* validation errors rather than stopping at the first? Use `ValidationPath` with `zipWithAccum`:
+
+```java
+ValidationPath<List<String>, User> user = nameV.zipWith3Accum(emailV, ageV, User::new);
+// Returns ALL errors: ["Name too short", "Invalid email", "Age negative"]
+```
+
+See [ValidationPath](path_types.md#validationpath) for the complete error accumulation API.
 ~~~
 
 ### zipWith Variants
@@ -121,7 +127,11 @@ EitherPath<Error, Order> createOrder(OrderInput input) {
 
 ---
 
-## Debugging with `peek` and `traced`
+## Debugging with `peek`
+
+Effect chains can be frustrating to debug. When something fails partway through a pipeline, the error propagates silently to the end. You know *that* it failed, but not *where*. Traditional debugging techniques like print statements would break the chain, and debugger breakpoints can be awkward with lambdas.
+
+The `peek` method solves this by letting you observe values as they flow through the pipeline without disrupting the computation.
 
 ### The `peek` Method
 
@@ -164,7 +174,15 @@ EitherPath<Error, Invoice> pipeline =
 
 ## Error Handling Patterns
 
+Not every error should halt processing. Sometimes a failure is expected and you have a sensible fallback. Sometimes you want to transform the error into something more meaningful for the caller. Sometimes you want to try several approaches before giving up.
+
+The Path API provides a toolkit for these scenarios. Each pattern addresses a different question: "What should happen when this operation fails?"
+
 ### Pattern 1: Recover with Default
+
+**The problem:** An operation might fail, but you have a reasonable fallback value that lets processing continue.
+
+**The solution:**
 
 ```java
 MaybePath<Config> config = Path.maybe(loadConfig())
@@ -176,13 +194,23 @@ EitherPath<Error, User> user = Path.either(findUser(id))
 
 ### Pattern 2: Transform and Rethrow
 
+**The problem:** Low-level errors (API failures, database exceptions) leak implementation details to callers. You need errors that make sense at your abstraction level.
+
+**The solution:**
+
 ```java
 EitherPath<ServiceError, Data> result =
     Path.either(externalApi.fetch())
         .mapError(apiError -> new ServiceError("API failed", apiError));
 ```
 
+This wraps the raw API error in a domain-appropriate type while preserving the original cause for debugging.
+
 ### Pattern 3: Retry Logic
+
+**The problem:** Network calls and external services fail transiently. A single failure should not necessarily mean permanent failure.
+
+**The solution:**
 
 ```java
 EitherPath<Error, Data> withRetry(Supplier<Either<Error, Data>> operation, int maxRetries) {
@@ -198,6 +226,10 @@ EitherPath<Error, Data> withRetry(Supplier<Either<Error, Data>> operation, int m
 
 ### Pattern 4: Fallback Chain
 
+**The problem:** You have multiple sources for the same data, each with different trade-offs. Try the preferred source first, then fall back to alternatives.
+
+**The solution:**
+
 ```java
 EitherPath<Error, Config> config =
     Path.either(loadFromFile())
@@ -205,33 +237,31 @@ EitherPath<Error, Config> config =
         .recoverWith(e2 -> Path.either(loadFromDefaults()));
 ```
 
-### Pattern 5: Error Accumulation (Manual)
+Each `recoverWith` only triggers if the previous step failed. The first successful result short-circuits the chain.
+
+### Pattern 5: Error Accumulation
+
+**The problem:** Standard short-circuit behaviour means users only see one error at a time. For form validation, you want to show *all* problems at once.
+
+**The solution:** Use `ValidationPath` with `zipWithAccum`:
 
 ```java
-record Errors(List<String> messages) {
-    Errors add(String msg) {
-        var newMessages = new java.util.ArrayList<>(messages);
-        newMessages.add(msg);
-        return new Errors(newMessages);
-    }
+ValidationPath<List<String>, User> validateUser(Input input) {
+    return validateName(input.name())
+        .zipWith3Accum(
+            validateEmail(input.email()),
+            validateAge(input.age()),
+            User::new
+        );
 }
-
-EitherPath<Errors, User> validateUser(Input input) {
-    List<String> errors = new ArrayList<>();
-
-    String name = input.name();
-    if (name == null || name.isBlank()) errors.add("Name required");
-
-    String email = input.email();
-    if (email == null || !email.contains("@")) errors.add("Invalid email");
-
-    if (!errors.isEmpty()) {
-        return Path.left(new Errors(errors));
-    }
-
-    return Path.right(new User(name, email));
-}
+// If name, email, and age all fail, returns ALL THREE errors
 ```
+
+See [ValidationPath](path_types.md#validationpath) for the complete error accumulation API.
+
+~~~admonish note title="Manual Accumulation"
+Before `ValidationPath`, you would need to manually collect errors into a list and check at the end. This works but loses the compositional benefits of the Path API. Prefer `ValidationPath.zipWithAccum` for new code.
+~~~
 
 ---
 
@@ -314,6 +344,7 @@ public class OrderService {
 | Sequential | `via` | Each step depends on previous |
 | Sequential (ignore value) | `then` | Sequencing, don't need result |
 | Independent | `zipWith` | Combine independent computations |
+| Accumulate errors | `zipWithAccum` | Collect all validation errors |
 | Debug | `peek` | Logging without changing value |
 | Default value | `recover` | Provide fallback on error |
 | Error transform | `mapError` | Change error type |

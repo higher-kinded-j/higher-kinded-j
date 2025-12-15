@@ -215,7 +215,7 @@ public class Tutorial01_LensBasics {
     Person person = new Person("alice", 30, "alice@example.com");
 
     // TODO: Replace null with code that uses nameLens.modify() with String::toUpperCase
-    // to capitalize the name
+    // to capitalise the name
     Person updated = answerRequired();
 
     assertThat(updated.name()).isEqualTo("ALICE");

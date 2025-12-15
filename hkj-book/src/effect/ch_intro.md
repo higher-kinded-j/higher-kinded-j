@@ -15,10 +15,11 @@ together and the code becomes a nested mess of maps, flatMaps, and explicit unwr
 The Effect Path API provides a way through.
 
 Rather than working with raw effect types, you wrap them in Path types: `MaybePath`,
-`EitherPath`, `TryPath`, `IOPath`. These thin wrappers expose a unified vocabulary;
-the same `via`, `map`, and `recover` operations regardless of the underlying effect.
-Chain them together, convert between them, extract results at the end. The underlying
-complexity remains (it must), but the Path contains it.
+`EitherPath`, `TryPath`, `IOPath`, `ValidationPath`, `IdPath`, `OptionalPath`, and
+`GenericPath`. These thin wrappers expose a unified vocabulary; the same `via`, `map`,
+and `recover` operations regardless of the underlying effect. Chain them together,
+convert between them, extract results at the end. The underlying complexity remains
+(it must), but the Path contains it.
 
 The vocabulary deliberately mirrors the Focus DSL from the optics chapters. Where
 FocusPath navigates through *data structures*, EffectPath navigates through *effect
@@ -29,13 +30,15 @@ will help when you do.
 ---
 
 ~~~admonish info title="In This Chapter"
-- **Path Types** – Fluent wrappers (`MaybePath`, `EitherPath`, `TryPath`, `IOPath`)
-  that provide unified composition over higher-kinded-j's effect types. Each wrapper
-  delegates to its underlying type while exposing a consistent API.
+- **Path Types** – Fluent wrappers (`MaybePath`, `EitherPath`, `TryPath`, `IOPath`,
+  `ValidationPath`, `IdPath`, `OptionalPath`, `GenericPath`) that provide unified
+  composition over higher-kinded-j's effect types. Each wrapper delegates to its
+  underlying type while exposing a consistent API.
 
 - **Capability Interfaces** – The hierarchy that powers composition: `Composable`
   (mapping), `Combinable` (independent combination), `Chainable` (sequencing),
-  `Recoverable` (error handling), and `Effectful` (deferred execution).
+  `Recoverable` (error handling), `Effectful` (deferred execution), and
+  `Accumulating` (error accumulation for validation).
 
 - **The `via` Pattern** – Chain dependent computations using the same vocabulary as
   optics. Where FocusPath's `via` navigates data, EffectPath's `via` navigates
@@ -46,6 +49,9 @@ will help when you do.
 
 - **Error Recovery** – Handle failures gracefully with `recover`, `orElse`, and
   `recoverWith`. Transform error types with `mapError`.
+
+- **Error Accumulation** – Collect all validation errors with `ValidationPath` using
+  `zipWithAccum` instead of short-circuiting on the first error.
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -54,6 +60,9 @@ will help when you do.
 - [ErrorHandlingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ErrorHandlingExample.java) - Recovery and error handling
 - [ValidationPipelineExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ValidationPipelineExample.java) - Combining validations
 - [ServiceLayerExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ServiceLayerExample.java) - Real-world service patterns
+- [AccumulatingValidationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/AccumulatingValidationExample.java) - Error accumulation with ValidationPath
+- [PathOpsExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/PathOpsExample.java) - Sequence and traverse utilities
+- [CrossPathConversionsExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/CrossPathConversionsExample.java) - Converting between path types
 ~~~
 
 ## Chapter Contents
@@ -132,6 +141,10 @@ The Path types handle the error propagation. Each step uses the same vocabulary 
 | `EitherPath<E, A>` | `Either<E, A>` | Typed error handling |
 | `TryPath<A>` | `Try<A>` | Exception handling |
 | `IOPath<A>` | `IO<A>` | Deferred side effects |
+| `ValidationPath<E, A>` | `Validated<E, A>` | Error-accumulating validation |
+| `IdPath<A>` | `Id<A>` | Identity wrapper (trivial monad) |
+| `OptionalPath<A>` | `Optional<A>` | Java stdlib Optional bridge |
+| `GenericPath<F, A>` | `Kind<F, A>` | Custom monad escape hatch |
 
 Each Path type wraps its underlying effect and provides:
 - `map(f)` – Transform the success value

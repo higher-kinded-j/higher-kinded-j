@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect.capability;
 
+import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.trymonad.Try;
 
 /**
@@ -32,7 +33,7 @@ import org.higherkindedj.hkt.trymonad.Try;
  *
  * @param <A> the type of the value produced by the effect
  */
-public interface Effectful<A> extends Chainable<A> {
+public sealed interface Effectful<A> extends Chainable<A> permits IOPath {
 
   /**
    * Executes the deferred effect synchronously and returns the result.

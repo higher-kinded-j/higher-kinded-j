@@ -1,7 +1,7 @@
 # EffectPath API Implementation Guide
 
-> **Status**: Phase 1 Complete, Living Document (v2.1)
-> **Last Updated**: 2025-12-13
+> **Status**: Phase 2 Complete, Living Document (v2.2)
+> **Last Updated**: 2025-12-14
 > **Scope**: Implementation patterns, package structure, and code organization
 
 ## Overview
@@ -963,9 +963,22 @@ module org.higherkindedj.hkt {
 - [x] Update EXAMPLES_GUIDE.md
 
 ### Phase 2: Extensions
-- [ ] Implement `ValidatedPath.java`
-- [ ] Implement `GenericPath.java`
-- [ ] Implement `Accumulating.java`
+- [x] Implement `Accumulating.java` capability interface
+- [x] Implement `ValidationPath.java`
+- [x] Implement `IdPath.java`
+- [x] Implement `OptionalPath.java`
+- [x] Implement `GenericPath.java`
+- [x] Implement `PathOps.java` utility class
+- [x] Update `Path.java` factory with new types
+- [x] Update sealed interface permits
+- [x] Cross-path conversion methods
+- [x] Unit tests with 100% coverage
+- [x] Property-based law tests (jQwik)
+- [x] @GeneratePathBridge annotation (hkj-annotations)
+- [x] @PathVia annotation (hkj-annotations)
+- [x] PathProcessor (hkj-processor)
+- [x] Processor tests
+- [x] Examples in hkj-examples (AccumulatingValidationExample, PathOpsExample, CrossPathConversionsExample)
 
 ### Phase 3: SPI
 - [ ] Create `org.higherkindedj.hkt.effect.spi` package

@@ -27,38 +27,28 @@ class EitherPathPropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, String>> intToStringFunctions() {
-    return Arbitraries.of(
-        (Function<Integer, String>) (i -> "value:" + i),
-        (Function<Integer, String>) (i -> String.valueOf(i * 2)),
-        (Function<Integer, String>) Object::toString);
+    return Arbitraries.of(i -> "value:" + i, i -> String.valueOf(i * 2), Object::toString);
   }
 
   @Provide
   Arbitrary<Function<String, Integer>> stringToIntFunctions() {
-    return Arbitraries.of(
-        (Function<String, Integer>) String::length,
-        (Function<String, Integer>) String::hashCode,
-        (Function<String, Integer>) (s -> s.isEmpty() ? 0 : 1));
+    return Arbitraries.of(String::length, String::hashCode, s -> s.isEmpty() ? 0 : 1);
   }
 
   @Provide
   Arbitrary<Function<Integer, EitherPath<String, String>>> intToEitherStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, EitherPath<String, String>>)
-            (i -> i % 2 == 0 ? Path.right("even:" + i) : Path.left("odd")),
-        (Function<Integer, EitherPath<String, String>>)
-            (i -> i > 0 ? Path.right("positive:" + i) : Path.left("not positive")),
-        (Function<Integer, EitherPath<String, String>>) (i -> Path.right("value:" + i)));
+        i -> i % 2 == 0 ? Path.right("even:" + i) : Path.left("odd"),
+        i -> i > 0 ? Path.right("positive:" + i) : Path.left("not positive"),
+        i -> Path.right("value:" + i));
   }
 
   @Provide
   Arbitrary<Function<String, EitherPath<String, String>>> stringToEitherStringFunctions() {
     return Arbitraries.of(
-        (Function<String, EitherPath<String, String>>)
-            (s -> s.isEmpty() ? Path.left("empty") : Path.right(s.toUpperCase())),
-        (Function<String, EitherPath<String, String>>)
-            (s -> s.length() > 3 ? Path.right("long:" + s) : Path.left("too short")),
-        (Function<String, EitherPath<String, String>>) (s -> Path.right("transformed:" + s)));
+        s -> s.isEmpty() ? Path.left("empty") : Path.right(s.toUpperCase()),
+        s -> s.length() > 3 ? Path.right("long:" + s) : Path.left("too short"),
+        s -> Path.right("transformed:" + s));
   }
 
   // ===== Functor Laws =====

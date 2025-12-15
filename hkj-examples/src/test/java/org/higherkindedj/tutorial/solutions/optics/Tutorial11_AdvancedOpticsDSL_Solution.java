@@ -230,11 +230,11 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
     Lens<User, Boolean> activeLens = UserLenses.active();
 
     // Build a program that:
-    // 1. Capitalizes the name (first letter uppercase, rest lowercase)
+    // 1. Capitalises the name (first letter uppercase, rest lowercase)
     // 2. Lowercases the email
     // 3. Sets active to true
     Free<OpticOpKind.Witness, User> program =
-        OpticPrograms.modify(user, nameLens, name -> capitalize(name))
+        OpticPrograms.modify(user, nameLens, name -> capitalise(name))
             .flatMap(
                 u1 ->
                     OpticPrograms.modify(u1, emailLens, String::toLowerCase)
@@ -246,8 +246,8 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
     assertThat(result.active()).isTrue();
   }
 
-  // Helper method for capitalization
-  private static String capitalize(String s) {
+  // Helper method for capitalisation
+  private static String capitalise(String s) {
     if (s == null || s.isEmpty()) return s;
     return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
   }
@@ -255,7 +255,7 @@ public class Tutorial11_AdvancedOpticsDSL_Solution {
   /**
    * Exercise 5: Logging interpreter for audit trails
    *
-   * <p>The logging interpreter records all operations without changing behavior.
+   * <p>The logging interpreter records all operations without changing behaviour.
    *
    * <p>Task: Execute a program with logging to create an audit trail
    */

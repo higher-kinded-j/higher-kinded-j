@@ -39,24 +39,19 @@ class MaybeMonadPropertyTest {
   @Provide
   Arbitrary<Function<Integer, Maybe<String>>> intToMaybeStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, Maybe<String>>)
-            (i -> i % 2 == 0 ? Maybe.just("even:" + i) : Maybe.nothing()),
-        (Function<Integer, Maybe<String>>)
-            (i -> i > 0 ? Maybe.just("positive:" + i) : Maybe.nothing()),
-        (Function<Integer, Maybe<String>>) (i -> Maybe.just("value:" + i)),
-        (Function<Integer, Maybe<String>>)
-            (i -> i == 0 ? Maybe.nothing() : Maybe.just(String.valueOf(i))));
+        i -> i % 2 == 0 ? Maybe.just("even:" + i) : Maybe.nothing(),
+        i -> i > 0 ? Maybe.just("positive:" + i) : Maybe.nothing(),
+        i -> Maybe.just("value:" + i),
+        i -> i == 0 ? Maybe.nothing() : Maybe.just(String.valueOf(i)));
   }
 
   /** Provides arbitrary flatMap functions (String -> Maybe<String>) */
   @Provide
   Arbitrary<Function<String, Maybe<String>>> stringToMaybeStringFunctions() {
     return Arbitraries.of(
-        (Function<String, Maybe<String>>)
-            (s -> s.isEmpty() ? Maybe.nothing() : Maybe.just(s.toUpperCase())),
-        (Function<String, Maybe<String>>)
-            (s -> s.length() > 3 ? Maybe.just("long:" + s) : Maybe.nothing()),
-        (Function<String, Maybe<String>>) (s -> Maybe.just("transformed:" + s)));
+        s -> s.isEmpty() ? Maybe.nothing() : Maybe.just(s.toUpperCase()),
+        s -> s.length() > 3 ? Maybe.just("long:" + s) : Maybe.nothing(),
+        s -> Maybe.just("transformed:" + s));
   }
 
   /**

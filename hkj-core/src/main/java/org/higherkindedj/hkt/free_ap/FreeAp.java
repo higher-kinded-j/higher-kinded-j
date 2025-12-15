@@ -249,10 +249,10 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
   }
 
   /**
-   * Analyzes the structure of this FreeAp, returning information in the applicative G.
+   * Analyses the structure of this FreeAp, returning information in the applicative G.
    *
-   * <p>This is similar to {@link #foldMap} but is specifically named to emphasize that the
-   * structure can be analyzed before any actual execution happens.
+   * <p>This is similar to {@link #foldMap} but is specifically named to emphasise that the
+   * structure can be analysed before any actual execution happens.
    *
    * @param transform The natural transformation from F to G. Must not be null.
    * @param applicative The Applicative instance for G. Must not be null.
@@ -260,7 +260,7 @@ public sealed interface FreeAp<F, A> permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap
    * @return The analysis result in G
    * @throws NullPointerException if transform or applicative is null
    */
-  default <G> Kind<G, A> analyze(Natural<F, G> transform, Applicative<G> applicative) {
+  default <G> Kind<G, A> analyse(Natural<F, G> transform, Applicative<G> applicative) {
     return foldMap(transform, applicative);
   }
 

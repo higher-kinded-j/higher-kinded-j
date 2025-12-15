@@ -23,34 +23,28 @@ class IOPathPropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, String>> intToStringFunctions() {
-    return Arbitraries.of(
-        (Function<Integer, String>) (i -> "value:" + i),
-        (Function<Integer, String>) (i -> String.valueOf(i * 2)),
-        (Function<Integer, String>) Object::toString);
+    return Arbitraries.of(i -> "value:" + i, i -> String.valueOf(i * 2), Object::toString);
   }
 
   @Provide
   Arbitrary<Function<String, Integer>> stringToIntFunctions() {
-    return Arbitraries.of(
-        (Function<String, Integer>) String::length,
-        (Function<String, Integer>) String::hashCode,
-        (Function<String, Integer>) (s -> s.isEmpty() ? 0 : 1));
+    return Arbitraries.of(String::length, String::hashCode, s -> s.isEmpty() ? 0 : 1);
   }
 
   @Provide
   Arbitrary<Function<Integer, IOPath<String>>> intToIOStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, IOPath<String>>) (i -> Path.ioPure("value:" + i)),
-        (Function<Integer, IOPath<String>>) (i -> Path.io(() -> "computed:" + (i * 2))),
-        (Function<Integer, IOPath<String>>) (i -> Path.ioPure(String.valueOf(i))));
+        i -> Path.ioPure("value:" + i),
+        i -> Path.io(() -> "computed:" + (i * 2)),
+        i -> Path.ioPure(String.valueOf(i)));
   }
 
   @Provide
   Arbitrary<Function<String, IOPath<String>>> stringToIOStringFunctions() {
     return Arbitraries.of(
-        (Function<String, IOPath<String>>) (s -> Path.ioPure(s.toUpperCase())),
-        (Function<String, IOPath<String>>) (s -> Path.io(() -> "length:" + s.length())),
-        (Function<String, IOPath<String>>) (s -> Path.ioPure("transformed:" + s)));
+        s -> Path.ioPure(s.toUpperCase()),
+        s -> Path.io(() -> "length:" + s.length()),
+        s -> Path.ioPure("transformed:" + s));
   }
 
   // ===== Functor Laws =====
