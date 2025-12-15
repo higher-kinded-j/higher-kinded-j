@@ -33,19 +33,13 @@ class MaybeFunctorPropertyTest {
   @Provide
   Arbitrary<Function<Integer, String>> intToStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, String>) (i -> "value:" + i),
-        (Function<Integer, String>) (i -> String.valueOf(i * 2)),
-        (Function<Integer, String>) (i -> "test-" + i),
-        (Function<Integer, String>) (i -> i.toString()));
+        i -> "value:" + i, i -> String.valueOf(i * 2), i -> "test-" + i, Object::toString);
   }
 
   /** Provides arbitrary functions for String -> Integer transformations */
   @Provide
   Arbitrary<Function<String, Integer>> stringToIntFunctions() {
-    return Arbitraries.of(
-        (Function<String, Integer>) String::length,
-        (Function<String, Integer>) (s -> s.hashCode()),
-        (Function<String, Integer>) (s -> s.isEmpty() ? 0 : 1));
+    return Arbitraries.of(String::length, String::hashCode, s -> s.isEmpty() ? 0 : 1);
   }
 
   /**

@@ -35,25 +35,25 @@ public final class GeneratorTestHelper {
       // Correctly read the content from the JavaFileObject
       final String actualGeneratedCode = generatedSourceFile.get().getCharContent(true).toString();
 
-      final String normalizedActual = normaliseCode(actualGeneratedCode);
-      final String normalizedExpected = normaliseCode(expectedCode);
+      final String normalisedActual = normaliseCode(actualGeneratedCode);
+      final String normalisedExpected = normaliseCode(expectedCode);
 
       assertTrue(
-          normalizedActual.contains(normalizedExpected),
+          normalisedActual.contains(normalisedExpected),
           String.format(
               "Expected generated code to contain:%n---%n%s%n---%nBut was:%n---%n%s%n---",
-              normalizedExpected, normalizedActual));
+              normalisedExpected, normalisedActual));
     } catch (IOException e) {
       fail("Could not read content from generated file: " + generatedFileName, e);
     }
   }
 
   /**
-   * Normalizes a Java code string by: 1. Removing package and import statements. 2. Removing all
+   * Normalises a Java code string by: 1. Removing package and import statements. 2. Removing all
    * comments. 3. Collapsing all sequential whitespace characters (including newlines) into a single
    * space.
    *
-   * @param code The code string to normalize.
+   * @param code The code string to normalise.
    * @return A normalised version of the code.
    */
   private static String normaliseCode(final String code) {

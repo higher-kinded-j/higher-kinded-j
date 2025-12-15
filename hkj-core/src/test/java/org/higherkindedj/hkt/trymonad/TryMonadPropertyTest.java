@@ -75,39 +75,32 @@ class TryMonadPropertyTest {
   @Provide
   Arbitrary<Function<Integer, Try<String>>> intToTryStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, Try<String>>)
-            (i ->
-                i % 2 == 0
-                    ? Try.success("even:" + i)
-                    : Try.failure(new IllegalArgumentException("odd number"))),
-        (Function<Integer, Try<String>>)
-            (i ->
-                i > 0
-                    ? Try.success("positive:" + i)
-                    : Try.failure(new IllegalArgumentException("non-positive"))),
-        (Function<Integer, Try<String>>) (i -> Try.success("value:" + i)),
-        (Function<Integer, Try<String>>)
-            (i ->
-                i == 0
-                    ? Try.failure(new ArithmeticException("zero"))
-                    : Try.success(String.valueOf(i))));
+        i ->
+            i % 2 == 0
+                ? Try.success("even:" + i)
+                : Try.failure(new IllegalArgumentException("odd number")),
+        i ->
+            i > 0
+                ? Try.success("positive:" + i)
+                : Try.failure(new IllegalArgumentException("non-positive")),
+        i -> Try.success("value:" + i),
+        i ->
+            i == 0 ? Try.failure(new ArithmeticException("zero")) : Try.success(String.valueOf(i)));
   }
 
   /** Provides arbitrary flatMap functions (String -> Try<String>) */
   @Provide
   Arbitrary<Function<String, Try<String>>> stringToTryStringFunctions() {
     return Arbitraries.of(
-        (Function<String, Try<String>>)
-            (s ->
-                s.isEmpty()
-                    ? Try.failure(new IllegalArgumentException("empty"))
-                    : Try.success(s.toUpperCase())),
-        (Function<String, Try<String>>)
-            (s ->
-                s.length() > 3
-                    ? Try.success("long:" + s)
-                    : Try.failure(new IllegalArgumentException("too short"))),
-        (Function<String, Try<String>>) (s -> Try.success("transformed:" + s)));
+        s ->
+            s.isEmpty()
+                ? Try.failure(new IllegalArgumentException("empty"))
+                : Try.success(s.toUpperCase()),
+        s ->
+            s.length() > 3
+                ? Try.success("long:" + s)
+                : Try.failure(new IllegalArgumentException("too short")),
+        s -> Try.success("transformed:" + s));
   }
 
   /**

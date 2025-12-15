@@ -126,7 +126,7 @@ public class NavigatorClassGenerator {
   /**
    * Determines what path kind a field type introduces.
    *
-   * @param type the field type to analyze
+   * @param type the field type to analyse
    * @return AFFINE for optional types, TRAVERSAL for collection types, FOCUS otherwise
    */
   private PathKind getFieldPathKind(TypeMirror type) {
@@ -137,7 +137,7 @@ public class NavigatorClassGenerator {
    * Determines what path kind a field type introduces, considering annotations.
    *
    * @param component the record component (may be null for nested navigation)
-   * @param type the field type to analyze
+   * @param type the field type to analyse
    * @return AFFINE for optional/nullable types, TRAVERSAL for collection types, FOCUS otherwise
    */
   private PathKind getFieldPathKind(RecordComponentElement component, TypeMirror type) {

@@ -3,19 +3,23 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * A fluent path wrapper for {@link Maybe} values.
@@ -147,6 +151,56 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     return value.isJust()
         ? new TryPath<>(Try.success(value.get()))
         : new TryPath<>(Try.failure(exceptionSupplier.get()));
+  }
+
+  /**
+   * Converts this MaybePath to a ValidationPath.
+   *
+   * <p>If this path contains a value, returns a Valid. If this path is empty, returns an Invalid
+   * with the provided error.
+   *
+   * @param errorIfEmpty the error to use if this path is empty; must not be null
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param <E> the error type
+   * @return a ValidationPath representing this path's value or the provided error
+   * @throws NullPointerException if either argument is null
+   */
+  public <E> ValidationPath<E, A> toValidationPath(E errorIfEmpty, Semigroup<E> semigroup) {
+    Objects.requireNonNull(errorIfEmpty, "errorIfEmpty must not be null");
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return value.isJust()
+        ? new ValidationPath<>(Validated.valid(value.get()), semigroup)
+        : new ValidationPath<>(Validated.invalid(errorIfEmpty), semigroup);
+  }
+
+  /**
+   * Converts this MaybePath to an OptionalPath.
+   *
+   * @return an OptionalPath containing the value if present, or empty otherwise
+   */
+  public OptionalPath<A> toOptionalPath() {
+    return value.isJust()
+        ? new OptionalPath<>(Optional.of(value.get()))
+        : new OptionalPath<>(Optional.empty());
+  }
+
+  /**
+   * Converts this MaybePath to an IdPath.
+   *
+   * <p>If this path contains a value, returns an IdPath wrapping it. If this path is empty, throws
+   * the exception provided by the supplier.
+   *
+   * @param exceptionSupplier provides the exception if this path is empty; must not be null
+   * @return an IdPath containing this path's value
+   * @throws RuntimeException the exception from the supplier if this path is empty
+   * @throws NullPointerException if exceptionSupplier is null
+   */
+  public IdPath<A> toIdPath(Supplier<? extends RuntimeException> exceptionSupplier) {
+    Objects.requireNonNull(exceptionSupplier, "exceptionSupplier must not be null");
+    if (value.isJust()) {
+      return new IdPath<>(Id.of(value.get()));
+    }
+    throw exceptionSupplier.get();
   }
 
   // ===== Composable implementation =====

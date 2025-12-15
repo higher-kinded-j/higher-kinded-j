@@ -3,10 +3,12 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
@@ -14,6 +16,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * A fluent path wrapper for {@link Try} values.
@@ -136,6 +139,36 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
     return value.fold(
         a -> new EitherPath<>(Either.right(a)),
         ex -> new EitherPath<>(Either.left(exceptionToError.apply(ex))));
+  }
+
+  /**
+   * Converts this TryPath to a ValidationPath.
+   *
+   * <p>The exception is transformed using the provided function to create the error type.
+   *
+   * @param exceptionToError converts the exception to an error; must not be null
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param <E> the error type
+   * @return a ValidationPath representing this path's value or the transformed error
+   * @throws NullPointerException if either argument is null
+   */
+  public <E> ValidationPath<E, A> toValidationPath(
+      Function<? super Throwable, ? extends E> exceptionToError, Semigroup<E> semigroup) {
+    Objects.requireNonNull(exceptionToError, "exceptionToError must not be null");
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return value.fold(
+        a -> new ValidationPath<>(Validated.valid(a), semigroup),
+        ex -> new ValidationPath<>(Validated.invalid(exceptionToError.apply(ex)), semigroup));
+  }
+
+  /**
+   * Converts this TryPath to an OptionalPath, discarding the exception.
+   *
+   * @return an OptionalPath containing the value if Success, or empty if Failure
+   */
+  public OptionalPath<A> toOptionalPath() {
+    return value.fold(
+        a -> new OptionalPath<>(Optional.of(a)), _ -> new OptionalPath<>(Optional.empty()));
   }
 
   // ===== Composable implementation =====

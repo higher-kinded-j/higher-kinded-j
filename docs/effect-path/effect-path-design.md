@@ -1,8 +1,8 @@
 # EffectPath API Design Document
 
-> **Status**: Living Document (v2.0)
-> **Last Updated**: 2025-01-15
-> **Scope**: Phase 1 (Maybe, Either, Try, IO) with extension architecture
+> **Status**: Living Document (v3.0)
+> **Last Updated**: 2025-12-14
+> **Scope**: Phase 1-2 (Maybe, Either, Try, IO, Validation, Id, Optional, Generic) with extension architecture
 > **Java Baseline**: Java 25 (RELEASE_25) - leverages pattern matching, unnamed variables, sequenced collections
 
 ## Overview
@@ -40,6 +40,10 @@ The EffectPath API does **not** introduce new effect types. Instead, it provides
 | `Either<E, A>` | `EitherPath<E, A>` | Error-aware composition |
 | `Try<A>` | `TryPath<A>` | Exception-handling composition |
 | `IO<A>` | `IOPath<A>` | Side-effect composition |
+| `Validated<E, A>` | `ValidationPath<E, A>` | Error-accumulating validation (Phase 2) |
+| `Id<A>` | `IdPath<A>` | Identity wrapper, trivial monad (Phase 2) |
+| `Optional<A>` | `OptionalPath<A>` | Java stdlib Optional bridge (Phase 2) |
+| `Kind<F, A>` | `GenericPath<F, A>` | Custom monad escape hatch (Phase 2) |
 
 ### Principle 2: FocusPath-Style Composition
 
@@ -135,20 +139,28 @@ public sealed interface Maybe<A> { ... }
 ```
 Composable<A>                        (base sealed interface)
     │
-    ├── Chainable<A>                 (adds via, then, flatMap)
+    ├── Combinable<A>                (adds zipWith)
     │       │
-    │       ├── Recoverable<E, A>    (adds recover, recoverWith)
-    │       │       │
-    │       │       ├── MaybePath<A>
-    │       │       ├── EitherPath<E, A>
-    │       │       ├── TryPath<A>
-    │       │       └── ValidatedPath<E, A>
-    │       │
-    │       └── Effectful<A>         (adds run semantics)
+    │       └── Chainable<A>         (adds via, then, flatMap)
     │               │
-    │               └── IOPath<A>
+    │               ├── Recoverable<E, A>    (adds recover, recoverWith)
+    │               │       │
+    │               │       ├── MaybePath<A>
+    │               │       ├── EitherPath<E, A>
+    │               │       ├── TryPath<A>
+    │               │       └── ValidationPath<E, A>
+    │               │
+    │               ├── Effectful<A>         (adds run semantics)
+    │               │       │
+    │               │       └── IOPath<A>
+    │               │
+    │               ├── IdPath<A>            (identity monad, Phase 2)
+    │               ├── OptionalPath<A>      (Optional bridge, Phase 2)
+    │               └── GenericPath<F, A>    (custom monad escape hatch)
     │
-    └── GenericPath<F, A>            (escape hatch for custom types)
+    └── Accumulating<E, A>           (error accumulation, Phase 2)
+            │
+            └── ValidationPath<E, A> (implements both Chainable & Accumulating)
 ```
 
 ### Capability-Based Interface Design
@@ -247,19 +259,25 @@ If a class exceeds guidelines:
 
 ## Sealed Type Growth Strategy
 
-### Current Permits
+### Current Permits (Phase 2)
 
 ```java
-public sealed interface Chainable<A>
-    permits MaybePath, EitherPath, TryPath, IOPath, ValidatedPath, GenericPath {
+public sealed interface Chainable<A> extends Combinable<A>
+    permits Recoverable, Effectful, IdPath, OptionalPath, GenericPath {
+    // MaybePath, EitherPath, TryPath, ValidationPath via Recoverable
+    // IOPath via Effectful
+}
+
+public sealed interface Recoverable<E, A> extends Chainable<A>
+    permits MaybePath, EitherPath, TryPath, ValidationPath {
 }
 ```
 
-### Adding New Types
+### Types by Phase
 
-1. **Phase 1 Types**: Maybe, Either, Try, IO (core effects)
-2. **Phase 2 Types**: Validated, Reader, Writer (common patterns)
-3. **Phase 3 Types**: State, Lazy, Free (advanced)
+1. **Phase 1 Types** ✅: MaybePath, EitherPath, TryPath, IOPath (core effects)
+2. **Phase 2 Types** ✅: ValidationPath, IdPath, OptionalPath, GenericPath
+3. **Phase 3 Types** (Future): Reader, Writer, State paths
 4. **Plugin Types**: Via GenericPath + PathProvider SPI
 
 ### Versioning Strategy
@@ -515,31 +533,39 @@ MaybePath.just(user)
 
 ## Phase Plan
 
-### Phase 1: Core Types (MVP)
-- MaybePath, EitherPath, TryPath
+### Phase 1: Core Types (MVP) ✅ COMPLETE
+- MaybePath, EitherPath, TryPath, IOPath
 - Path factory class
-- Basic capability interfaces
-- Core test suite
+- Basic capability interfaces (Composable, Combinable, Chainable, Recoverable, Effectful)
+- Core test suite with 100% coverage
+- Law verification tests (Functor/Monad laws)
+- Book chapter documentation (7 chapters)
+- Runnable examples (5 examples)
 
-### Phase 2: Full Coverage
-- IOPath, ValidatedPath
-- Cross-path conversions
-- FocusPath integration bridges
-- Property-based tests
+### Phase 2: Extended Types ✅ COMPLETE
+- ValidationPath with error accumulation
+- IdPath (identity monad)
+- OptionalPath (Java Optional bridge)
+- GenericPath (custom monad escape hatch)
+- Accumulating interface (parallel to Combinable)
+- PathOps utility class (sequence, traverse, firstSuccess)
+- Cross-path conversion methods
+- Property-based tests (jQwik)
+- @GeneratePathBridge, @PathVia annotations
+- PathProcessor for code generation
+- Additional examples (AccumulatingValidation, PathOps, CrossPathConversions)
 
-### Phase 3: Extensibility
+### Phase 3: Extensibility (Future)
 - PathProvider SPI
 - PathRegistry
-- GenericPath implementation
+- ServiceLoader integration
 - Plugin documentation
 
-### Phase 4: Code Generation
-- @PathSource annotation
-- @GeneratePathBridge annotation
-- PathProcessor
-- Generated code tests
+### Phase 4: FocusPath Integration (Future)
+- FocusPath integration bridges (deferred to assess Effect API usage patterns)
+- FocusDSL interaction patterns
 
-### Phase 5: Advanced Features
+### Phase 5: Advanced Features (Future)
 - Natural transformations
 - Parallel composition
 - Reader/Writer/State paths

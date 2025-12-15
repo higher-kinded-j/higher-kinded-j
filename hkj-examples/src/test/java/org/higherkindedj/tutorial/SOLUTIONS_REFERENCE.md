@@ -669,7 +669,7 @@ Person updated = OpticOps.set(person, ageLens, 31);
 **Exercise 2:**
 ```java
 Person older = OpticOps.modify(person, ageLens, age -> age + 1);
-Person capitalized = OpticOps.modify(person, nameLens, String::toUpperCase);
+Person capitalised = OpticOps.modify(person, nameLens, String::toUpperCase);
 ```
 
 **Exercise 3:**

@@ -13,9 +13,9 @@ import javax.tools.JavaFileObject;
 public final class GeneratorTestHelper {
 
   /**
-   * Asserts that the generated file contains the expected raw text (without normalization). This is
+   * Asserts that the generated file contains the expected raw text (without normalisation). This is
    * useful for checking Javadoc content and other documentation that would be stripped by the
-   * normalizer.
+   * normaliser.
    *
    * @param compilation The result from the compiler.
    * @param generatedFileName The fully qualified name of the generated file.
@@ -66,29 +66,29 @@ public final class GeneratorTestHelper {
 
     try {
       final String actualGeneratedCode = generatedSourceFile.get().getCharContent(true).toString();
-      final String normalizedActual = normalizeCode(actualGeneratedCode);
-      final String normalizedExpected = normalizeCode(expectedCode);
+      final String normalisedActual = normaliseCode(actualGeneratedCode);
+      final String normalisedExpected = normaliseCode(expectedCode);
 
       assertTrue(
-          normalizedActual.contains(normalizedExpected),
+          normalisedActual.contains(normalisedExpected),
           String.format(
               "Expected generated code to contain:%n---%n%s%n---%nBut was:%n---%n%s%n---",
-              normalizedExpected, normalizedActual));
+              normalisedExpected, normalisedActual));
     } catch (IOException e) {
       fail("Could not read content from generated file: " + generatedFileName, e);
     }
   }
 
   /**
-   * Normalizes a Java code string by: 1. Removing package and import statements. 2. Removing
+   * Normalises a Java code string by: 1. Removing package and import statements. 2. Removing
    * comments. 3. Replacing fully qualified names with simple names for common types. 4. Removing
    * ALL whitespace.
    *
-   * @param code The code string to normalize.
-   * @return A normalized version of the code with no whitespace.
+   * @param code The code string to normalise.
+   * @return A normalised version of the code with no whitespace.
    */
-  private static String normalizeCode(final String code) {
-    String normalized =
+  private static String normaliseCode(final String code) {
+    String normalised =
         code
             // Remove package and import statements
             .replaceAll("package [\\w.]+;\\s*", "")
@@ -97,9 +97,9 @@ public final class GeneratorTestHelper {
             .replaceAll("/\\*([^*]|[\\r\\n]|(\\*+([^*/]|[\\r\\n])))*\\*+/", "")
             .replaceAll("//.*", "");
 
-    // Normalize fully qualified class names to simple names
-    normalized =
-        normalized
+    // Normalise fully qualified class names to simple names
+    normalised =
+        normalised
             .replaceAll("java\\.util\\.Optional", "Optional")
             .replaceAll("java\\.util\\.function\\.Function", "Function")
             .replaceAll("org\\.higherkindedj\\.optics\\.Prism", "Prism")
@@ -125,6 +125,6 @@ public final class GeneratorTestHelper {
             .replaceAll("com\\.example\\.Wrapper", "Wrapper");
 
     // Remove ALL whitespace to make the comparison robust.
-    return normalized.replaceAll("\\s+", "").trim();
+    return normalised.replaceAll("\\s+", "").trim();
   }
 }

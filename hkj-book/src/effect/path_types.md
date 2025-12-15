@@ -3,9 +3,10 @@
 This chapter provides detailed coverage of each Path type, their specific operations, and when to use them.
 
 ~~~admonish info title="What You'll Learn"
-- Detailed API for `MaybePath`, `EitherPath`, `TryPath`, and `IOPath`
+- Detailed API for `MaybePath`, `EitherPath`, `TryPath`, `IOPath`, `ValidationPath`, `IdPath`, `OptionalPath`, and `GenericPath`
 - Creation methods, core operations, and extraction patterns for each type
 - Recovery and error handling specific to each Path type
+- Error accumulation with `ValidationPath`
 - Guidelines for choosing the right Path type for your use case
 ~~~
 
@@ -353,15 +354,284 @@ Use `IOPath` when:
 
 ---
 
+## ValidationPath
+
+`ValidationPath<E, A>` wraps `Validated<E, A>` for computations that accumulate errors instead of short-circuiting on the first failure.
+
+### Creation
+
+```java
+// Valid value
+ValidationPath<List<String>, Integer> valid = Path.valid(42, Semigroups.list());
+
+// Invalid value with errors
+ValidationPath<List<String>, Integer> invalid =
+    Path.invalid(List.of("Error 1", "Error 2"), Semigroups.list());
+
+// From existing Validated
+ValidationPath<String, User> userPath =
+    Path.validation(validatedUser, Semigroups.first());
+```
+
+The `Semigroup<E>` parameter defines how errors combine when multiple validations fail.
+
+### Core Operations
+
+```java
+ValidationPath<List<String>, String> name = Path.valid("Alice", Semigroups.list());
+
+// Transform (same as other paths)
+ValidationPath<List<String>, Integer> length = name.map(String::length);
+
+// Chain with via (short-circuits on first error)
+ValidationPath<List<String>, String> upper =
+    name.via(s -> Path.valid(s.toUpperCase(), Semigroups.list()));
+```
+
+### Error Accumulation
+
+The key feature of `ValidationPath` is error accumulation with `zipWithAccum`:
+
+```java
+ValidationPath<List<String>, String> nameV = validateName(input.name());
+ValidationPath<List<String>, String> emailV = validateEmail(input.email());
+ValidationPath<List<String>, Integer> ageV = validateAge(input.age());
+
+// Accumulate ALL errors (does not short-circuit)
+ValidationPath<List<String>, User> userV = nameV.zipWithAccum(
+    emailV,
+    ageV,
+    User::new
+);
+
+// If name and email both fail, you get BOTH errors
+```
+
+Compare with `zipWith` which short-circuits:
+
+```java
+// Short-circuits: only first error returned
+ValidationPath<List<String>, User> userShortCircuit =
+    nameV.zipWith(emailV, ageV, User::new);
+```
+
+### Combining Validations
+
+```java
+// andAlso combines two validations, accumulating errors
+ValidationPath<List<String>, Unit> combined =
+    checkNotEmpty(name)
+        .andAlso(checkMaxLength(name, 100))
+        .andAlso(checkNoSpecialChars(name));
+
+// All three checks run; all errors collected
+```
+
+### Extraction
+
+```java
+ValidationPath<List<String>, User> path = validateUser(input);
+Validated<List<String>, User> validated = path.run();
+
+// Pattern match
+String result = validated.fold(
+    errors -> "Errors: " + String.join(", ", errors),
+    user -> "Valid user: " + user.name()
+);
+```
+
+### When to Use
+
+Use `ValidationPath` when:
+- You need to collect all validation errors, not just the first
+- Building form validation or input processing
+- Multiple independent checks must all run
+- Error messages should be comprehensive
+
+---
+
+## IdPath
+
+`IdPath<A>` wraps `Id<A>`, the identity monad. It always contains a value and never fails.
+
+### Creation
+
+```java
+// From a value
+IdPath<String> id = Path.id("hello");
+
+// From existing Id
+IdPath<User> userPath = Path.idOf(idUser);
+```
+
+### Core Operations
+
+```java
+IdPath<String> name = Path.id("Alice");
+
+// Transform
+IdPath<Integer> length = name.map(String::length);  // Id(5)
+
+// Chain (always succeeds)
+IdPath<String> upper = name.via(s -> Path.id(s.toUpperCase()));
+
+// Combine
+IdPath<Integer> age = Path.id(25);
+IdPath<String> combined = name.zipWith(age, (n, a) -> n + " is " + a);
+```
+
+### Extraction
+
+```java
+IdPath<String> path = Path.id("hello");
+
+// Get the value directly
+String value = path.run().value();  // "hello"
+
+// Or use get()
+String value = path.get();  // "hello"
+```
+
+### When to Use
+
+Use `IdPath` when:
+- You need a trivial path for testing or placeholder purposes
+- Writing generic code that works with any path type
+- The computation always succeeds with a value
+
+---
+
+## OptionalPath
+
+`OptionalPath<A>` wraps Java's `java.util.Optional<A>`, providing a bridge to the standard library.
+
+### Creation
+
+```java
+// From a value
+OptionalPath<String> present = Path.present("hello");
+
+// Empty
+OptionalPath<String> absent = Path.absent();
+
+// From Java Optional
+Optional<User> javaOptional = findUser(id);
+OptionalPath<User> userPath = Path.optional(javaOptional);
+```
+
+### Core Operations
+
+```java
+OptionalPath<String> name = Path.present("Alice");
+
+// Transform
+OptionalPath<Integer> length = name.map(String::length);  // Optional[5]
+
+// Chain
+OptionalPath<String> upper = name.via(s -> Path.present(s.toUpperCase()));
+
+// Combine
+OptionalPath<Integer> age = Path.present(25);
+OptionalPath<String> combined = name.zipWith(age, (n, a) -> n + " is " + a);
+```
+
+### Extraction
+
+```java
+OptionalPath<String> path = Path.present("hello");
+
+// Get underlying Optional
+Optional<String> optional = path.run();
+
+// Get with default
+String value = path.getOrElse("default");
+
+// Check presence
+boolean hasValue = path.isPresent();
+```
+
+### Conversion to MaybePath
+
+```java
+OptionalPath<User> optPath = Path.optional(findUser(id));
+
+// Convert to MaybePath for richer operations
+MaybePath<User> maybePath = optPath.toMaybePath();
+```
+
+### When to Use
+
+Use `OptionalPath` when:
+- Integrating with Java APIs that return `Optional`
+- You prefer `Optional` semantics over `Maybe`
+- Bridging between Higher-Kinded-J and standard library code
+
+---
+
+## GenericPath
+
+`GenericPath<F, A>` represents one of higher-kinded-j's distinctive capabilities: the ability to work with *any* monad through a unified API. Where other Java libraries force you to choose between specific effect types, `GenericPath` lets you write code that operates over any monadic structure.
+
+### Creation
+
+```java
+// Create with a Kind and its Monad instance
+Monad<ListKind.Witness> listMonad = ListMonad.INSTANCE;
+Kind<ListKind.Witness, Integer> listKind = ListKindHelper.LIST.widen(List.of(1, 2, 3));
+
+GenericPath<ListKind.Witness, Integer> listPath = Path.generic(listKind, listMonad);
+```
+
+### Core Operations
+
+```java
+GenericPath<ListKind.Witness, Integer> numbers = Path.generic(listKind, listMonad);
+
+// Transform
+GenericPath<ListKind.Witness, String> strings = numbers.map(n -> "n" + n);
+
+// Chain
+GenericPath<ListKind.Witness, Integer> doubled = numbers.via(n ->
+    Path.generic(ListKindHelper.LIST.widen(List.of(n, n * 2)), listMonad));
+```
+
+### Extraction
+
+```java
+GenericPath<ListKind.Witness, Integer> path = ...;
+
+// Get the underlying Kind
+Kind<ListKind.Witness, Integer> kind = path.run();
+
+// Narrow to concrete type
+List<Integer> list = ListKindHelper.LIST.narrow(kind);
+```
+
+### When to Use
+
+Use `GenericPath` when:
+- You have a custom monad not covered by the built-in path types
+- Writing highly generic code that works across multiple monad types
+- Experimenting with new effect types
+
+~~~admonish tip title="Extensibility by Design"
+`GenericPath` demonstrates the power of higher-kinded types in Java: write your algorithm once, and it works with `Maybe`, `Either`, `List`, `IO`, or any custom monad you create. This is the same abstraction power that makes libraries like Cats and ZIO so flexible in Scala, now available in Java through higher-kinded-j.
+~~~
+
+---
+
 ## Choosing the Right Path Type
 
 | Scenario | Path Type | Reason |
 |----------|-----------|--------|
 | Optional value, absence OK | `MaybePath` | Simple, no error info needed |
-| Validation with error messages | `EitherPath` | Typed errors |
+| Validation with error messages | `EitherPath` | Typed errors, short-circuits |
+| Collect ALL validation errors | `ValidationPath` | Error accumulation |
 | Exception-throwing APIs | `TryPath` | Captures exceptions |
 | Side effects (I/O, network) | `IOPath` | Deferred execution |
-| Need error info | `EitherPath` or `TryPath` | Both preserve error details |
+| Java Optional integration | `OptionalPath` | Standard library bridge |
+| Always succeeds, no errors | `IdPath` | Trivial monad |
+| Custom monad types | `GenericPath` | Escape hatch |
 | Need referential transparency | `IOPath` | Effects are values |
 
 ---
@@ -374,6 +644,10 @@ Use `IOPath` when:
 | `EitherPath<E, A>` | `Either<E, A>` | `E` (typed) | Immediate |
 | `TryPath<A>` | `Try<A>` | `Throwable` | Immediate |
 | `IOPath<A>` | `IO<A>` | `Throwable` | Deferred |
+| `ValidationPath<E, A>` | `Validated<E, A>` | `E` (accumulated) | Immediate |
+| `IdPath<A>` | `Id<A>` | None (always succeeds) | Immediate |
+| `OptionalPath<A>` | `Optional<A>` | None (absence) | Immediate |
+| `GenericPath<F, A>` | `Kind<F, A>` | Depends on monad | Depends on monad |
 
 Continue to [Composition Patterns](composition.md) for advanced composition techniques.
 
@@ -382,6 +656,9 @@ Continue to [Composition Patterns](composition.md) for advanced composition tech
 - [Either Monad](../monads/either_monad.md) - The underlying type for EitherPath
 - [Try Monad](../monads/try_monad.md) - The underlying type for TryPath
 - [IO Monad](../monads/io_monad.md) - The underlying type for IOPath
+- [Validated](../monads/validated_monad.md) - The underlying type for ValidationPath
+- [Identity](../monads/identity.md) - The underlying type for IdPath
+- [Optional](../monads/optional_monad.md) - The underlying type for OptionalPath
 ~~~
 
 ---

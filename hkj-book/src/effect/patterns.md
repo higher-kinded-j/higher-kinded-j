@@ -1,6 +1,8 @@
 # Patterns and Recipes
 
-This chapter presents real-world patterns and recipes for using the Effect Path API effectively.
+Every application faces the same challenges: validating input, orchestrating services, handling errors gracefully, and testing complex workflows. This chapter shows how the Effect Path API addresses these challenges with reusable patterns.
+
+The patterns here are not academic exercises. They come from real codebases where tangled error handling was replaced with clear, composable pipelines. Each pattern solves a specific problem that you will recognise from your own projects.
 
 ~~~admonish info title="What You'll Learn"
 - Validation pipeline patterns for single fields and combined validations
@@ -13,7 +15,11 @@ This chapter presents real-world patterns and recipes for using the Effect Path 
 
 ## Validation Pipelines
 
+User input cannot be trusted. Every field might be missing, malformed, or malicious. Traditional validation scatters null checks and conditionals throughout your code. The Path API lets you build validation as composable pipelines where each rule is a small, testable function.
+
 ### Single Field Validation
+
+**The pattern:** Each field gets its own validation function that returns a Path. Success carries the validated value (possibly transformed); failure carries an error message.
 
 ```java
 private EitherPath<String, String> validateEmail(String email) {
@@ -29,6 +35,8 @@ private EitherPath<String, String> validateEmail(String email) {
 
 ### Combining Validations
 
+**The pattern:** When multiple fields must all be valid to construct an object, use `zipWith` to combine them. The first error stops processing (fail-fast behaviour).
+
 ```java
 record User(String name, String email, int age) {}
 
@@ -40,6 +48,8 @@ EitherPath<String, User> validateUser(UserInput input) {
     return name.zipWith3(email, age, User::new);
 }
 ```
+
+**Why this works:** `zipWith3` only calls `User::new` if all three validations succeed. If any fails, the error propagates immediately.
 
 ### Nested Validation
 
@@ -63,11 +73,19 @@ EitherPath<String, Registration> validateRegistration(RegistrationInput input) {
 }
 ```
 
+~~~admonish tip title="Accumulating All Errors"
+For user-facing forms where you want to show *all* validation errors at once, use `ValidationPath` with `zipWithAccum` instead of `EitherPath` with `zipWith`. See [ValidationPath](path_types.md#validationpath) for details.
+~~~
+
 ---
 
 ## Service Layer Patterns
 
+Service layers orchestrate multiple operations: fetching data, applying business rules, calling external services. Each step might fail, and each failure needs different handling. The Path API makes this orchestration explicit and composable.
+
 ### Repository Pattern
+
+**The problem:** Repositories return optional values (user might not exist), but services need to turn "not found" into meaningful errors.
 
 ```java
 public class UserRepository {
@@ -258,31 +276,45 @@ public class CircuitBreaker<E, A> {
 
 ## Testing Patterns
 
-### Testing Path-returning Methods
+Path-returning methods are inherently testable. The explicit success/failure encoding means you can verify both happy paths and error cases without exception handling in your tests. The lawful behaviour of Path types also enables property-based testing that catches edge cases you might not think to test manually.
+
+### Testing Success and Failure Paths
+
+**The pattern:** Call `.run()` to extract the underlying type, then assert on its state. Test both the success case and relevant failure cases.
 
 ```java
 @Test
 void shouldReturnUserWhenFound() {
+    // Given
     when(repository.findById("123")).thenReturn(Maybe.just(testUser));
 
+    // When
     EitherPath<UserError, User> result = service.getUserById("123");
 
+    // Then
     assertThat(result.run().isRight()).isTrue();
     assertThat(result.run().getRight()).isEqualTo(testUser);
 }
 
 @Test
 void shouldReturnErrorWhenNotFound() {
+    // Given
     when(repository.findById("123")).thenReturn(Maybe.nothing());
 
+    // When
     EitherPath<UserError, User> result = service.getUserById("123");
 
+    // Then
     assertThat(result.run().isLeft()).isTrue();
     assertThat(result.run().getLeft()).isInstanceOf(UserError.NotFound.class);
 }
 ```
 
-### Testing Chains
+### Testing Error Propagation
+
+**The problem:** When chaining multiple operations, you need to verify that errors from any step propagate correctly.
+
+**The pattern:** Create inputs that fail at specific steps and verify the error emerges unchanged.
 
 ```java
 @Test
@@ -294,16 +326,69 @@ void shouldPropagateFirstError() {
     // When combining
     EitherPath<String, User> result = invalidName.zipWith(validEmail, User::new);
 
-    // Then first error is returned
+    // Then first error is returned (not swallowed or transformed)
     assertThat(result.run().getLeft()).isEqualTo("Name too short");
+}
+
+@Test
+void shouldPropagateErrorThroughChain() {
+    // Given a chain where the second step fails
+    EitherPath<String, Integer> result =
+        Path.right("hello")
+            .via(s -> Path.left("Error in step 2"))
+            .via(x -> Path.right(42));  // Never reached
+
+    // Then the error from step 2 propagates
+    assertThat(result.run().getLeft()).isEqualTo("Error in step 2");
+}
+```
+
+### Testing with Mocked Dependencies
+
+**The pattern:** Mock repository and service dependencies to return specific Path values, then verify the orchestration logic.
+
+```java
+@Test
+void shouldCombineUserAndOrderData() {
+    // Given
+    when(userService.getUser(userId)).thenReturn(Path.right(testUser));
+    when(orderService.getOrders(testUser)).thenReturn(Path.right(testOrders));
+
+    // When
+    EitherPath<Error, UserWithOrders> result =
+        compositeService.getUserWithOrders(userId);
+
+    // Then
+    assertThat(result.run().isRight()).isTrue();
+    UserWithOrders data = result.run().getRight();
+    assertThat(data.user()).isEqualTo(testUser);
+    assertThat(data.orders()).isEqualTo(testOrders);
+}
+
+@Test
+void shouldFailIfUserServiceFails() {
+    // Given
+    when(userService.getUser(userId))
+        .thenReturn(Path.left(new Error.UserNotFound(userId)));
+
+    // When
+    EitherPath<Error, UserWithOrders> result =
+        compositeService.getUserWithOrders(userId);
+
+    // Then - order service should never be called
+    verify(orderService, never()).getOrders(any());
+    assertThat(result.run().isLeft()).isTrue();
 }
 ```
 
 ### Property-Based Testing
 
+**The pattern:** Use property-based testing (with jqwik or similar) to verify that Path types obey their laws across many random inputs. This catches edge cases that example-based tests miss.
+
 ```java
 @Property
 void functorIdentityLaw(@ForAll @StringLength(min = 1, max = 100) String value) {
+    // Law: path.map(identity) == path
     MaybePath<String> path = Path.just(value);
     MaybePath<String> result = path.map(Function.identity());
 
@@ -315,10 +400,55 @@ void monadLeftIdentity(
         @ForAll @IntRange(min = -100, max = 100) int value,
         @ForAll("intToMaybeStringFunctions") Function<Integer, MaybePath<String>> f) {
 
+    // Law: Path.just(a).via(f) == f(a)
     MaybePath<String> leftSide = Path.just(value).via(f);
     MaybePath<String> rightSide = f.apply(value);
 
     assertThat(leftSide.run()).isEqualTo(rightSide.run());
+}
+
+@Property
+void recoverAlwaysSucceeds(@ForAll String errorMessage, @ForAll String fallback) {
+    // Property: recover always produces a success
+    EitherPath<String, String> failed = Path.left(errorMessage);
+    EitherPath<String, String> recovered = failed.recover(e -> fallback);
+
+    assertThat(recovered.run().isRight()).isTrue();
+    assertThat(recovered.run().getRight()).isEqualTo(fallback);
+}
+```
+
+### Testing IOPath Effects
+
+**The problem:** IOPath defers execution until `run()` is called. You need to verify both that the effect is properly deferred and that it executes correctly.
+
+```java
+@Test
+void shouldDeferExecution() {
+    AtomicInteger callCount = new AtomicInteger(0);
+    IOPath<Integer> io = Path.io(() -> callCount.incrementAndGet());
+
+    // Effect not yet executed
+    assertThat(callCount.get()).isEqualTo(0);
+
+    // Execute
+    int result = io.unsafeRun();
+
+    // Now executed exactly once
+    assertThat(callCount.get()).isEqualTo(1);
+    assertThat(result).isEqualTo(1);
+}
+
+@Test
+void shouldCaptureExceptionInRunSafe() {
+    IOPath<String> failing = Path.io(() -> {
+        throw new RuntimeException("test error");
+    });
+
+    Try<String> result = failing.runSafe();
+
+    assertThat(result.isFailure()).isTrue();
+    assertThat(result.getCause().getMessage()).isEqualTo("test error");
 }
 ```
 
@@ -326,7 +456,13 @@ void monadLeftIdentity(
 
 ## Integration with Existing Code
 
+Real projects do not start with a blank slate. You have existing code that throws exceptions, returns `Optional`, or uses other patterns. The Path API provides bridges to work with this code without rewriting everything.
+
 ### Wrapping Exception-Throwing APIs
+
+**The problem:** Legacy code throws exceptions, but you want to use Path composition.
+
+**The solution:** Use `Path.tryOf` to capture exceptions as `TryPath` failures.
 
 ```java
 public class LegacyWrapper {
@@ -382,7 +518,11 @@ public class ServiceAdapter {
 
 ## Common Pitfalls
 
+The Path API is straightforward, but a few patterns can trip up newcomers. These pitfalls come from treating Paths like regular values when they are actually descriptions of computations.
+
 ### Pitfall 1: Unnecessary Conversions
+
+**The issue:** Converting between path types repeatedly wastes effort and obscures intent.
 
 ```java
 // Bad: Converting back and forth
@@ -397,6 +537,8 @@ Path.maybe(findUser(id))
 ```
 
 ### Pitfall 2: Forgetting to Run
+
+**The issue:** Paths are lazy descriptions. Without calling `.run()`, nothing actually happens.
 
 ```java
 // Bug: path is never executed
@@ -414,6 +556,8 @@ void processUser(String id) {
 ```
 
 ### Pitfall 3: Side Effects in map
+
+**The issue:** The `map` function should be pure (no side effects). Side effects in `map` break referential transparency and can lead to surprising behaviour.
 
 ```java
 // Bad: Side effect in map
@@ -449,11 +593,12 @@ Path.io(() -> database.save(user));
 
 The Effect Path API provides a consistent vocabulary for working with effectful computations:
 
-- **Create** paths with `Path.just()`, `Path.right()`, `Path.tryOf()`, `Path.io()`
+- **Create** paths with `Path.just()`, `Path.right()`, `Path.tryOf()`, `Path.io()`, `Path.valid()`
 - **Transform** with `map()`
 - **Chain** with `via()` for dependent computations
-- **Combine** with `zipWith()` for independent computations
-- **Convert** between types with `toEitherPath()`, `toMaybePath()`, etc.
+- **Combine** with `zipWith()` for independent computations (fail-fast)
+- **Accumulate** with `zipWithAccum()` for validation (collect all errors)
+- **Convert** between types with `toEitherPath()`, `toValidationPath()`, etc.
 - **Handle errors** with `recover()`, `recoverWith()`, `mapError()`
 - **Extract** with `run()`, `getOrElse()`, `unsafeRun()`
 

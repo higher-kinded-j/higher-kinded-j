@@ -31,48 +31,37 @@ class TryPathPropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, String>> intToStringFunctions() {
-    return Arbitraries.of(
-        (Function<Integer, String>) (i -> "value:" + i),
-        (Function<Integer, String>) (i -> String.valueOf(i * 2)),
-        (Function<Integer, String>) Object::toString);
+    return Arbitraries.of(i -> "value:" + i, i -> String.valueOf(i * 2), Object::toString);
   }
 
   @Provide
   Arbitrary<Function<String, Integer>> stringToIntFunctions() {
-    return Arbitraries.of(
-        (Function<String, Integer>) String::length,
-        (Function<String, Integer>) String::hashCode,
-        (Function<String, Integer>) (s -> s.isEmpty() ? 0 : 1));
+    return Arbitraries.of(String::length, String::hashCode, s -> s.isEmpty() ? 0 : 1);
   }
 
   @Provide
   Arbitrary<Function<Integer, TryPath<String>>> intToTryStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, TryPath<String>>)
-            (i ->
-                i % 2 == 0 ? Path.success("even:" + i) : Path.failure(new RuntimeException("odd"))),
-        (Function<Integer, TryPath<String>>)
-            (i ->
-                i > 0
-                    ? Path.success("positive:" + i)
-                    : Path.failure(new RuntimeException("not positive"))),
-        (Function<Integer, TryPath<String>>) (i -> Path.success("value:" + i)));
+        i -> i % 2 == 0 ? Path.success("even:" + i) : Path.failure(new RuntimeException("odd")),
+        i ->
+            i > 0
+                ? Path.success("positive:" + i)
+                : Path.failure(new RuntimeException("not positive")),
+        i -> Path.success("value:" + i));
   }
 
   @Provide
   Arbitrary<Function<String, TryPath<String>>> stringToTryStringFunctions() {
     return Arbitraries.of(
-        (Function<String, TryPath<String>>)
-            (s ->
-                s.isEmpty()
-                    ? Path.failure(new RuntimeException("empty"))
-                    : Path.success(s.toUpperCase())),
-        (Function<String, TryPath<String>>)
-            (s ->
-                s.length() > 3
-                    ? Path.success("long:" + s)
-                    : Path.failure(new RuntimeException("too short"))),
-        (Function<String, TryPath<String>>) (s -> Path.success("transformed:" + s)));
+        s ->
+            s.isEmpty()
+                ? Path.failure(new RuntimeException("empty"))
+                : Path.success(s.toUpperCase()),
+        s ->
+            s.length() > 3
+                ? Path.success("long:" + s)
+                : Path.failure(new RuntimeException("too short")),
+        s -> Path.success("transformed:" + s));
   }
 
   // ===== Functor Laws =====

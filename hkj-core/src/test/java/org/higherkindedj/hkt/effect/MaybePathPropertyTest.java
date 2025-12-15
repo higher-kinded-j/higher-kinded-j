@@ -26,39 +26,29 @@ class MaybePathPropertyTest {
   @Provide
   Arbitrary<Function<Integer, String>> intToStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, String>) (i -> "value:" + i),
-        (Function<Integer, String>) (i -> String.valueOf(i * 2)),
-        (Function<Integer, String>) (i -> "n" + i),
-        (Function<Integer, String>) Object::toString);
+        i -> "value:" + i, i -> String.valueOf(i * 2), i -> "n" + i, Object::toString);
   }
 
   @Provide
   Arbitrary<Function<String, Integer>> stringToIntFunctions() {
-    return Arbitraries.of(
-        (Function<String, Integer>) String::length,
-        (Function<String, Integer>) String::hashCode,
-        (Function<String, Integer>) (s -> s.isEmpty() ? 0 : 1));
+    return Arbitraries.of(String::length, String::hashCode, s -> s.isEmpty() ? 0 : 1);
   }
 
   @Provide
   Arbitrary<Function<Integer, MaybePath<String>>> intToMaybeStringFunctions() {
     return Arbitraries.of(
-        (Function<Integer, MaybePath<String>>)
-            (i -> i % 2 == 0 ? Path.just("even:" + i) : Path.nothing()),
-        (Function<Integer, MaybePath<String>>)
-            (i -> i > 0 ? Path.just("positive:" + i) : Path.nothing()),
-        (Function<Integer, MaybePath<String>>) (i -> Path.just("value:" + i)),
-        (Function<Integer, MaybePath<String>>) (i -> i == 0 ? Path.nothing() : Path.just("" + i)));
+        i -> i % 2 == 0 ? Path.just("even:" + i) : Path.nothing(),
+        i -> i > 0 ? Path.just("positive:" + i) : Path.nothing(),
+        i -> Path.just("value:" + i),
+        i -> i == 0 ? Path.nothing() : Path.just("" + i));
   }
 
   @Provide
   Arbitrary<Function<String, MaybePath<String>>> stringToMaybeStringFunctions() {
     return Arbitraries.of(
-        (Function<String, MaybePath<String>>)
-            (s -> s.isEmpty() ? Path.nothing() : Path.just(s.toUpperCase())),
-        (Function<String, MaybePath<String>>)
-            (s -> s.length() > 3 ? Path.just("long:" + s) : Path.nothing()),
-        (Function<String, MaybePath<String>>) (s -> Path.just("transformed:" + s)));
+        s -> s.isEmpty() ? Path.nothing() : Path.just(s.toUpperCase()),
+        s -> s.length() > 3 ? Path.just("long:" + s) : Path.nothing(),
+        s -> Path.just("transformed:" + s));
   }
 
   // ===== Functor Laws =====

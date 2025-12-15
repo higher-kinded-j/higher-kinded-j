@@ -3,10 +3,12 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
@@ -14,6 +16,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * A fluent path wrapper for {@link Either} values.
@@ -148,6 +151,30 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
   public EitherPath<A, E> swap() {
     return value.fold(
         e -> new EitherPath<>(Either.right(e)), a -> new EitherPath<>(Either.left(a)));
+  }
+
+  /**
+   * Converts this EitherPath to a ValidationPath.
+   *
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @return a ValidationPath with the same state
+   * @throws NullPointerException if semigroup is null
+   */
+  public ValidationPath<E, A> toValidationPath(Semigroup<E> semigroup) {
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return value.fold(
+        e -> new ValidationPath<>(Validated.invalid(e), semigroup),
+        a -> new ValidationPath<>(Validated.valid(a), semigroup));
+  }
+
+  /**
+   * Converts this EitherPath to an OptionalPath, discarding the error.
+   *
+   * @return an OptionalPath containing the value if Right, or empty if Left
+   */
+  public OptionalPath<A> toOptionalPath() {
+    return value.fold(
+        _ -> new OptionalPath<>(Optional.empty()), a -> new OptionalPath<>(Optional.of(a)));
   }
 
   // ===== Composable implementation =====

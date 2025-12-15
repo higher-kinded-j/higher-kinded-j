@@ -36,7 +36,7 @@
  *   <li>When computations are independent (neither depends on the other's result)
  *   <li>When you want to parallelize operations
  *   <li>When you want to batch similar operations
- *   <li>When you need to analyze the program structure before execution
+ *   <li>When you need to analyse the program structure before execution
  *   <li>For validation that collects all errors (with Validated)
  * </ul>
  *
