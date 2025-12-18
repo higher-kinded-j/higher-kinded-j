@@ -3,14 +3,24 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.either.EitherMonad;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
@@ -27,6 +37,8 @@ import org.junit.jupiter.api.Test;
 class GenericPathTest {
 
   private static final MaybeMonad MONAD = MaybeMonad.INSTANCE;
+  // IdMonad is a pure Monad without MonadError support - use for "without MonadError" tests
+  private static final IdMonad ID_MONAD = IdMonad.instance();
 
   @Nested
   @DisplayName("Factory Methods")
@@ -601,6 +613,419 @@ class GenericPathTest {
       GenericPath<MaybeKind.Witness, Integer> right = path.via(x -> f.apply(x).via(g));
 
       assertThat(left).isEqualTo(right);
+    }
+  }
+
+  @Nested
+  @DisplayName("MonadError Factory Methods")
+  class MonadErrorFactoryMethods {
+
+    private static final EitherMonad<String> EITHER_MONAD = EitherMonad.instance();
+
+    @Test
+    @DisplayName("of(value, monadError) creates GenericPath with error recovery support")
+    void ofWithMonadErrorCreatesPath() {
+      Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(Either.right(42));
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.of(kind, EITHER_MONAD);
+
+      assertThat(path.supportsRecovery()).isTrue();
+      assertThat(path.<String>monadError()).isPresent();
+    }
+
+    @Test
+    @DisplayName("pure(value, monadError) lifts value with error recovery support")
+    void pureWithMonadErrorLiftsValue() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      assertThat(path.supportsRecovery()).isTrue();
+      Either<String, Integer> result = EITHER.narrow(path.runKind());
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("raiseError() creates a GenericPath representing an error")
+    void raiseErrorCreatesErrorPath() {
+      GenericPath<EitherKind.Witness<String>, Integer> path =
+          GenericPath.raiseError("error message", EITHER_MONAD);
+
+      Either<String, Integer> result = EITHER.narrow(path.runKind());
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft()).isEqualTo("error message");
+    }
+
+    @Test
+    @DisplayName("raiseError() throws NullPointerException when monadError is null")
+    void raiseErrorThrowsOnNullMonadError() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> GenericPath.raiseError("error", null))
+          .withMessageContaining("monadError must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Error Recovery Operations")
+  class ErrorRecoveryOperations {
+
+    private static final EitherMonad<String> EITHER_MONAD = EitherMonad.instance();
+
+    @Test
+    @DisplayName("supportsRecovery() returns true when MonadError provided")
+    void supportsRecoveryReturnsTrueWithMonadError() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      assertThat(path.supportsRecovery()).isTrue();
+    }
+
+    @Test
+    @DisplayName("supportsRecovery() returns false when only Monad provided")
+    void supportsRecoveryReturnsFalseWithoutMonadError() {
+      // Use IdMonad which is a pure Monad (not MonadError)
+      GenericPath<IdKind.Witness, Integer> path = GenericPath.pure(42, ID_MONAD);
+
+      assertThat(path.supportsRecovery()).isFalse();
+    }
+
+    @Test
+    @DisplayName("monadError() returns Optional containing MonadError when provided")
+    void monadErrorReturnsOptionalWhenProvided() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      Optional<MonadError<EitherKind.Witness<String>, String>> me = path.monadError();
+
+      assertThat(me).isPresent();
+    }
+
+    @Test
+    @DisplayName("monadError() returns empty Optional when not provided")
+    void monadErrorReturnsEmptyWhenNotProvided() {
+      // Use IdMonad which is a pure Monad (not MonadError)
+      GenericPath<IdKind.Witness, Integer> path = GenericPath.pure(42, ID_MONAD);
+
+      Optional<MonadError<IdKind.Witness, Object>> me = path.monadError();
+
+      assertThat(me).isEmpty();
+    }
+
+    @Test
+    @DisplayName("recover() transforms error to success value")
+    void recoverTransformsErrorToSuccess() {
+      GenericPath<EitherKind.Witness<String>, Integer> path =
+          GenericPath.raiseError("error", EITHER_MONAD);
+
+      GenericPath<EitherKind.Witness<String>, Integer> recovered =
+          path.recover(err -> ((String) err).length());
+
+      Either<String, Integer> result = EITHER.narrow(recovered.runKind());
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(5); // "error".length()
+    }
+
+    @Test
+    @DisplayName("recover() does nothing on success")
+    void recoverDoesNothingOnSuccess() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      GenericPath<EitherKind.Witness<String>, Integer> recovered = path.recover(err -> 0);
+
+      Either<String, Integer> result = EITHER.narrow(recovered.runKind());
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("recover() throws UnsupportedOperationException without MonadError")
+    void recoverThrowsWithoutMonadError() {
+      // Use IdMonad which is a pure Monad (not MonadError)
+      GenericPath<IdKind.Witness, Integer> path = GenericPath.pure(42, ID_MONAD);
+
+      assertThatThrownBy(() -> path.recover(err -> 0))
+          .isInstanceOf(UnsupportedOperationException.class)
+          .hasMessageContaining("recover requires MonadError support");
+    }
+
+    @Test
+    @DisplayName("recover() throws NullPointerException when recovery is null")
+    void recoverThrowsOnNullRecovery() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.recover(null))
+          .withMessageContaining("recovery must not be null");
+    }
+
+    @Test
+    @DisplayName("recoverWith() transforms error to new GenericPath")
+    void recoverWithTransformsErrorToPath() {
+      GenericPath<EitherKind.Witness<String>, Integer> path =
+          GenericPath.raiseError("error", EITHER_MONAD);
+
+      GenericPath<EitherKind.Witness<String>, Integer> recovered =
+          path.recoverWith(err -> GenericPath.pure(((String) err).length(), EITHER_MONAD));
+
+      Either<String, Integer> result = EITHER.narrow(recovered.runKind());
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("recoverWith() does nothing on success")
+    void recoverWithDoesNothingOnSuccess() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      GenericPath<EitherKind.Witness<String>, Integer> recovered =
+          path.recoverWith(err -> GenericPath.pure(0, EITHER_MONAD));
+
+      Either<String, Integer> result = EITHER.narrow(recovered.runKind());
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("recoverWith() throws UnsupportedOperationException without MonadError")
+    void recoverWithThrowsWithoutMonadError() {
+      // Use IdMonad which is a pure Monad (not MonadError)
+      GenericPath<IdKind.Witness, Integer> path = GenericPath.pure(42, ID_MONAD);
+
+      assertThatThrownBy(() -> path.recoverWith(err -> GenericPath.pure(0, ID_MONAD)))
+          .isInstanceOf(UnsupportedOperationException.class)
+          .hasMessageContaining("recoverWith requires MonadError support");
+    }
+
+    @Test
+    @DisplayName("recoverWith() throws NullPointerException when recovery is null")
+    void recoverWithThrowsOnNullRecovery() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.recoverWith(null))
+          .withMessageContaining("recovery must not be null");
+    }
+
+    @Test
+    @DisplayName("mapError() transforms error within same effect type")
+    void mapErrorTransformsError() {
+      GenericPath<EitherKind.Witness<String>, Integer> path =
+          GenericPath.raiseError("error", EITHER_MONAD);
+
+      // mapError with same error type (identity transformation for testing coverage)
+      GenericPath<EitherKind.Witness<String>, Integer> mapped =
+          path.<String, String>mapError(String::toUpperCase, EITHER_MONAD);
+
+      Either<String, Integer> result = EITHER.narrow(mapped.runKind());
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft()).isEqualTo("ERROR");
+    }
+
+    @Test
+    @DisplayName("mapError() does nothing on success")
+    void mapErrorDoesNothingOnSuccess() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      GenericPath<EitherKind.Witness<String>, Integer> mapped =
+          path.<String, String>mapError(String::toUpperCase, EITHER_MONAD);
+
+      Either<String, Integer> result = EITHER.narrow(mapped.runKind());
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("mapError() throws UnsupportedOperationException without MonadError")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void mapErrorThrowsWithoutMonadError() {
+      // Use IdMonad which is a pure Monad (not MonadError)
+      GenericPath<IdKind.Witness, Integer> path = GenericPath.pure(42, ID_MONAD);
+
+      // Use raw MonadError cast - exception is thrown before it's actually used
+      MonadError rawMonadError = EitherMonad.instance();
+      assertThatThrownBy(() -> path.mapError(Object::toString, rawMonadError))
+          .isInstanceOf(UnsupportedOperationException.class)
+          .hasMessageContaining("mapError requires MonadError support");
+    }
+
+    @Test
+    @DisplayName("mapError() throws NullPointerException when mapper is null")
+    void mapErrorThrowsOnNullMapper() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.<String, String>mapError(null, EITHER_MONAD))
+          .withMessageContaining("mapper must not be null");
+    }
+
+    @Test
+    @DisplayName("mapError() throws NullPointerException when targetMonadError is null")
+    void mapErrorThrowsOnNullTargetMonadError() {
+      GenericPath<EitherKind.Witness<String>, Integer> path = GenericPath.pure(42, EITHER_MONAD);
+
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  path.<String, String>mapError(
+                      String::toUpperCase, (MonadError<EitherKind.Witness<String>, String>) null))
+          .withMessageContaining("targetMonadError must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Natural Transformation Operations")
+  class NaturalTransformationOperations {
+
+    private static final EitherMonad<String> EITHER_MONAD = EitherMonad.instance();
+
+    @Test
+    @DisplayName("mapK() transforms to different effect type using Monad")
+    void mapKTransformsWithMonad() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+
+      // Create a natural transformation from Maybe to Either
+      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new NaturalTransformation<>() {
+            @Override
+            public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              Maybe<A> maybe = MAYBE.narrow(fa);
+              return maybe.isJust()
+                  ? EITHER.widen(Either.right(maybe.get()))
+                  : EITHER.widen(Either.left("Nothing found"));
+            }
+          };
+
+      GenericPath<EitherKind.Witness<String>, String> transformed =
+          path.mapK(maybeToEither, EITHER_MONAD);
+
+      Either<String, String> result = EITHER.narrow(transformed.runKind());
+      assertThat(result.isRight()).isTrue();
+      assertThat(result.getRight()).isEqualTo("hello");
+    }
+
+    @Test
+    @DisplayName("mapK() transforms Nothing to Left")
+    void mapKTransformsNothingToLeft() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.of(MAYBE.<String>nothing(), MONAD);
+
+      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new NaturalTransformation<>() {
+            @Override
+            public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              Maybe<A> maybe = MAYBE.narrow(fa);
+              return maybe.isJust()
+                  ? EITHER.widen(Either.right(maybe.get()))
+                  : EITHER.widen(Either.left("Nothing found"));
+            }
+          };
+
+      GenericPath<EitherKind.Witness<String>, String> transformed =
+          path.mapK(maybeToEither, EITHER_MONAD);
+
+      Either<String, String> result = EITHER.narrow(transformed.runKind());
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft()).isEqualTo("Nothing found");
+    }
+
+    @Test
+    @DisplayName("mapK() throws NullPointerException when transform is null")
+    void mapKThrowsOnNullTransform() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.mapK(null, EITHER_MONAD))
+          .withMessageContaining("transform must not be null");
+    }
+
+    @Test
+    @DisplayName("mapK() throws NullPointerException when targetMonad is null")
+    void mapKThrowsOnNullTargetMonad() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+      // Use a transformation to IdKind (pure Monad, not MonadError) to test the Monad overload
+      NaturalTransformation<MaybeKind.Witness, IdKind.Witness> maybeToId =
+          new NaturalTransformation<>() {
+            @Override
+            public <A> Kind<IdKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              Maybe<A> maybe = MAYBE.narrow(fa);
+              return maybe.isJust() ? Id.of(maybe.get()) : Id.of(null);
+            }
+          };
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.mapK(maybeToId, (Monad<IdKind.Witness>) null))
+          .withMessageContaining("targetMonad must not be null");
+    }
+
+    @Test
+    @DisplayName("mapK() with Monad transforms to new effect type without recovery")
+    void mapKWithMonadTransformsWithoutRecovery() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+      // Use a transformation to IdKind (pure Monad, not MonadError)
+      NaturalTransformation<MaybeKind.Witness, IdKind.Witness> maybeToId =
+          new NaturalTransformation<>() {
+            @Override
+            public <A> Kind<IdKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              Maybe<A> maybe = MAYBE.narrow(fa);
+              return maybe.isJust() ? Id.of(maybe.get()) : Id.of(null);
+            }
+          };
+
+      GenericPath<IdKind.Witness, String> transformed = path.mapK(maybeToId, ID_MONAD);
+
+      // Verify the transformation succeeded
+      Id<String> result = ID.narrow(transformed.runKind());
+      assertThat(result.value()).isEqualTo("hello");
+      // Verify that recovery is NOT supported (since we used Monad, not MonadError)
+      assertThat(transformed.supportsRecovery()).isFalse();
+    }
+
+    @Test
+    @DisplayName("mapK() with MonadError preserves error recovery capability")
+    void mapKWithMonadErrorPreservesRecovery() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+
+      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new NaturalTransformation<>() {
+            @Override
+            public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              Maybe<A> maybe = MAYBE.narrow(fa);
+              return maybe.isJust()
+                  ? EITHER.widen(Either.right(maybe.get()))
+                  : EITHER.widen(Either.left("Nothing found"));
+            }
+          };
+
+      GenericPath<EitherKind.Witness<String>, String> transformed =
+          path.mapK(maybeToEither, EITHER_MONAD);
+
+      assertThat(transformed.supportsRecovery()).isTrue();
+    }
+
+    @Test
+    @DisplayName("mapK() with MonadError throws NullPointerException when transform is null")
+    void mapKWithMonadErrorThrowsOnNullTransform() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.mapK(null, EITHER_MONAD))
+          .withMessageContaining("transform must not be null");
+    }
+
+    @Test
+    @DisplayName("mapK() with MonadError throws NullPointerException when targetMonadError is null")
+    void mapKWithMonadErrorThrowsOnNullTargetMonadError() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new NaturalTransformation<>() {
+            @Override
+            public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              Maybe<A> maybe = MAYBE.narrow(fa);
+              return maybe.isJust()
+                  ? EITHER.widen(Either.right(maybe.get()))
+                  : EITHER.widen(Either.left("Nothing found"));
+            }
+          };
+
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> path.mapK(maybeToEither, (MonadError<EitherKind.Witness<String>, String>) null))
+          .withMessageContaining("targetMonadError must not be null");
     }
   }
 

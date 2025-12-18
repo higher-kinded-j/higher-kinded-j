@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -404,5 +406,329 @@ public final class PathOps {
       results.add(optional.get());
     }
     return new OptionalPath<>(Optional.of(results));
+  }
+
+  // ===== NonDetPath Operations =====
+
+  /**
+   * Converts a list of NonDetPaths into a NonDetPath of list (Cartesian product).
+   *
+   * <p>This operation produces all possible combinations of elements from each path. The result is
+   * the Cartesian product of all inner lists.
+   *
+   * <pre>{@code
+   * List<NonDetPath<Integer>> paths = List.of(
+   *     NonDetPath.of(List.of(1, 2)),
+   *     NonDetPath.of(List.of(3, 4))
+   * );
+   * NonDetPath<List<Integer>> result = PathOps.sequenceNonDet(paths);
+   * // result.run() = [[1,3], [1,4], [2,3], [2,4]]
+   * }</pre>
+   *
+   * @param paths the list of paths to sequence; must not be null
+   * @param <A> the element type
+   * @return a NonDetPath containing all combinations
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> NonDetPath<List<A>> sequenceNonDet(List<NonDetPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+
+    if (paths.isEmpty()) {
+      return NonDetPath.of(List.of(List.of()));
+    }
+
+    // Start with a list containing a single empty list
+    NonDetPath<List<A>> result = NonDetPath.pure(new ArrayList<>());
+
+    for (NonDetPath<A> path : paths) {
+      result =
+          result.via(
+              acc ->
+                  path.map(
+                      a -> {
+                        List<A> newAcc = new ArrayList<>(acc);
+                        newAcc.add(a);
+                        return newAcc;
+                      }));
+    }
+
+    return result;
+  }
+
+  /**
+   * Maps a function over a list and sequences the results (Cartesian product).
+   *
+   * <p>Applies the function to each element and produces all possible combinations of results.
+   *
+   * @param items the items to traverse; must not be null
+   * @param f the function to apply; must not be null
+   * @param <A> the input element type
+   * @param <B> the output element type
+   * @return a NonDetPath containing all combinations
+   * @throws NullPointerException if items or f is null
+   */
+  public static <A, B> NonDetPath<List<B>> traverseNonDet(
+      List<A> items, Function<A, NonDetPath<B>> f) {
+    Objects.requireNonNull(items, "items must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    if (items.isEmpty()) {
+      return NonDetPath.of(List.of(List.of()));
+    }
+
+    NonDetPath<List<B>> result = NonDetPath.pure(new ArrayList<>());
+
+    for (A item : items) {
+      NonDetPath<B> path = f.apply(item);
+      result =
+          result.via(
+              acc ->
+                  path.map(
+                      b -> {
+                        List<B> newAcc = new ArrayList<>(acc);
+                        newAcc.add(b);
+                        return newAcc;
+                      }));
+    }
+
+    return result;
+  }
+
+  /**
+   * Flattens a NonDetPath of NonDetPaths into a single NonDetPath.
+   *
+   * <p>Concatenates all inner lists.
+   *
+   * @param nested the nested NonDetPath to flatten; must not be null
+   * @param <A> the element type
+   * @return a flattened NonDetPath
+   * @throws NullPointerException if nested is null
+   */
+  public static <A> NonDetPath<A> flatten(NonDetPath<NonDetPath<A>> nested) {
+    Objects.requireNonNull(nested, "nested must not be null");
+
+    List<A> flattened =
+        nested.run().stream().flatMap(innerPath -> innerPath.run().stream()).toList();
+
+    return NonDetPath.of(flattened);
+  }
+
+  // ===== ListPath Operations =====
+
+  /**
+   * Converts a list of ListPaths into a ListPath of lists using positional zipping.
+   *
+   * <p>Unlike {@link #sequenceNonDet}, which produces a Cartesian product, this method transposes
+   * the list of lists, pairing elements at corresponding positions.
+   *
+   * <pre>{@code
+   * List<ListPath<Integer>> paths = List.of(
+   *     ListPath.of(1, 2, 3),
+   *     ListPath.of(4, 5, 6)
+   * );
+   * ListPath<List<Integer>> result = PathOps.sequenceListPath(paths);
+   * // result.run() = [[1, 4], [2, 5], [3, 6]]
+   * }</pre>
+   *
+   * @param paths the list of paths to sequence; must not be null
+   * @param <A> the element type
+   * @return a ListPath containing lists of corresponding elements
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> ListPath<List<A>> sequenceListPath(List<ListPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+
+    if (paths.isEmpty()) {
+      return ListPath.of(List.of(List.of()));
+    }
+
+    // Find the minimum size among all lists
+    int minSize = paths.stream().mapToInt(ListPath::size).min().orElse(0);
+
+    // Transpose: collect element at position i from each list
+    List<List<A>> result = new ArrayList<>(minSize);
+    for (int i = 0; i < minSize; i++) {
+      final int index = i;
+      List<A> row = paths.stream().map(path -> path.run().get(index)).toList();
+      result.add(row);
+    }
+
+    return ListPath.of(result);
+  }
+
+  /**
+   * Applies a function to each item and sequences the results positionally.
+   *
+   * <pre>{@code
+   * List<String> items = List.of("a", "b");
+   * ListPath<List<String>> result = PathOps.traverseListPath(
+   *     items,
+   *     s -> ListPath.of(s.toUpperCase(), s + s)
+   * );
+   * // result.run() = [["A", "aa"], ["B", "bb"]]
+   * }</pre>
+   *
+   * @param items the items to traverse; must not be null
+   * @param f the function to apply to each item; must not be null
+   * @param <A> the input item type
+   * @param <B> the element type of the resulting ListPaths
+   * @return a ListPath of lists containing corresponding transformed elements
+   * @throws NullPointerException if items or f is null
+   */
+  public static <A, B> ListPath<List<B>> traverseListPath(
+      List<A> items, Function<A, ListPath<B>> f) {
+    Objects.requireNonNull(items, "items must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    if (items.isEmpty()) {
+      return ListPath.of(List.of(List.of()));
+    }
+
+    List<ListPath<B>> mapped = items.stream().map(f).toList();
+    return sequenceListPath(mapped);
+  }
+
+  /**
+   * Flattens a ListPath of ListPaths by concatenating all inner lists.
+   *
+   * @param nested the nested ListPath to flatten; must not be null
+   * @param <A> the element type
+   * @return a flattened ListPath
+   * @throws NullPointerException if nested is null
+   */
+  public static <A> ListPath<A> flattenListPath(ListPath<ListPath<A>> nested) {
+    Objects.requireNonNull(nested, "nested must not be null");
+
+    List<A> flattened =
+        nested.run().stream().flatMap(innerPath -> innerPath.run().stream()).toList();
+
+    return ListPath.of(flattened);
+  }
+
+  /**
+   * Zips a list of ListPaths element-wise, producing a ListPath of tuples (as lists).
+   *
+   * <p>This is similar to Python's {@code zip(*lists)} - it transposes rows and columns.
+   *
+   * @param paths the list of paths to zip; must not be null
+   * @param <A> the element type
+   * @return a ListPath where each element is a list of corresponding elements
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> ListPath<List<A>> zipAll(List<ListPath<A>> paths) {
+    return sequenceListPath(paths);
+  }
+
+  // ===== CompletableFuturePath Operations =====
+
+  /**
+   * Converts a list of CompletableFuturePaths into a CompletableFuturePath of list.
+   *
+   * <p>Runs all futures concurrently and collects all results. If any future fails, the result
+   * fails with that exception.
+   *
+   * @param paths the list of paths to sequence; must not be null
+   * @param <A> the element type
+   * @return a CompletableFuturePath containing a list of all results
+   * @throws NullPointerException if paths is null
+   */
+  public static <A> CompletableFuturePath<List<A>> sequenceFuture(
+      List<CompletableFuturePath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+
+    if (paths.isEmpty()) {
+      return CompletableFuturePath.completed(List.of());
+    }
+
+    List<CompletableFuture<A>> futures =
+        paths.stream().map(CompletableFuturePath::toCompletableFuture).collect(Collectors.toList());
+
+    CompletableFuture<List<A>> combined =
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(_ -> futures.stream().map(CompletableFuture::join).toList());
+
+    return CompletableFuturePath.fromFuture(combined);
+  }
+
+  /**
+   * Maps a function over a list and sequences the results concurrently.
+   *
+   * <p>Applies the function to each element concurrently and collects all results. If any
+   * application fails, the result fails with that exception.
+   *
+   * @param items the items to traverse; must not be null
+   * @param f the function to apply; must not be null
+   * @param <A> the input element type
+   * @param <B> the output element type
+   * @return a CompletableFuturePath containing a list of all results
+   * @throws NullPointerException if items or f is null
+   */
+  public static <A, B> CompletableFuturePath<List<B>> traverseFuture(
+      List<A> items, Function<A, CompletableFuturePath<B>> f) {
+    Objects.requireNonNull(items, "items must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+
+    if (items.isEmpty()) {
+      return CompletableFuturePath.completed(List.of());
+    }
+
+    List<CompletableFuture<B>> futures =
+        items.stream()
+            .map(item -> f.apply(item).toCompletableFuture())
+            .collect(Collectors.toList());
+
+    CompletableFuture<List<B>> combined =
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(_ -> futures.stream().map(CompletableFuture::join).toList());
+
+    return CompletableFuturePath.fromFuture(combined);
+  }
+
+  /**
+   * Returns the first successful future path, or the last failure if all fail.
+   *
+   * <p>Note: Unlike {@link #firstSuccess(List)} for TryPath, this races the futures concurrently
+   * rather than trying them sequentially.
+   *
+   * @param paths the paths to race; must not be null or empty
+   * @param <A> the element type
+   * @return the first completed successful path, or a path with the last exception
+   * @throws NullPointerException if paths is null
+   * @throws IllegalArgumentException if paths is empty
+   */
+  public static <A> CompletableFuturePath<A> firstCompletedSuccess(
+      List<CompletableFuturePath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    if (paths.isEmpty()) {
+      throw new IllegalArgumentException("paths must not be empty");
+    }
+
+    if (paths.size() == 1) {
+      return paths.getFirst();
+    }
+
+    // Use anyOf to race, but we need the first SUCCESS, not just first completion
+    // This requires a more complex implementation
+    CompletableFuture<A> result = new CompletableFuture<>();
+    List<Throwable> failures = new ArrayList<>();
+
+    for (CompletableFuturePath<A> path : paths) {
+      path.toCompletableFuture()
+          .whenComplete(
+              (value, ex) -> {
+                if (ex == null && !result.isDone()) {
+                  result.complete(value);
+                } else if (ex != null) {
+                  synchronized (failures) {
+                    failures.add(ex);
+                    if (failures.size() == paths.size() && !result.isDone()) {
+                      result.completeExceptionally(failures.getLast());
+                    }
+                  }
+                }
+              });
+    }
+
+    return CompletableFuturePath.fromFuture(result);
   }
 }

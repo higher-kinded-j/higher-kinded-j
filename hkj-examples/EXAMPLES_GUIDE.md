@@ -126,13 +126,27 @@ Examples demonstrating type class abstractions.
 
 The Effect Path API provides a fluent, type-safe approach to composing effect types with minimal boilerplate. It offers an alternative to traditional HKT patterns, making functional programming more accessible while preserving the full power of monadic composition.
 
+### Core Path Types
+
 | Example | Description | Run Command | Documentation |
 |---------|-------------|-------------|---------------|
-| [BasicPathExample.java](src/main/java/org/higherkindedj/example/effect/BasicPathExample.java) | Demonstrates creating paths, map/via operations, and conversions between types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.BasicPathExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
-| [ChainedComputationsExample.java](src/main/java/org/higherkindedj/example/effect/ChainedComputationsExample.java) | Shows fluent chaining patterns with via, then, and zipWith | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ChainedComputationsExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
-| [ErrorHandlingExample.java](src/main/java/org/higherkindedj/example/effect/ErrorHandlingExample.java) | Demonstrates error handling with recover, mapError, and handleError | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ErrorHandlingExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
-| [ValidationPipelineExample.java](src/main/java/org/higherkindedj/example/effect/ValidationPipelineExample.java) | Shows validation pipelines combining independent validations with zipWith | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ValidationPipelineExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
-| [ServiceLayerExample.java](src/main/java/org/higherkindedj/example/effect/ServiceLayerExample.java) | Real-world service layer patterns with EitherPath and IOPath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ServiceLayerExample` | [Effect Path API](https://higher-kinded-j.github.io/latest/effect/effect_path_api.html) |
+| [BasicPathExample.java](src/main/java/org/higherkindedj/example/effect/BasicPathExample.java) | Demonstrates creating paths, map/via operations, and conversions between types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.BasicPathExample` | [Effect Path Overview](https://higher-kinded-j.github.io/latest/effect/effect_path_overview.html) |
+| [ChainedComputationsExample.java](src/main/java/org/higherkindedj/example/effect/ChainedComputationsExample.java) | Shows fluent chaining patterns with via, then, and zipWith | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ChainedComputationsExample` | [Composition Patterns](https://higher-kinded-j.github.io/latest/effect/composition.html) |
+| [ErrorHandlingExample.java](src/main/java/org/higherkindedj/example/effect/ErrorHandlingExample.java) | Demonstrates error handling with recover, mapError, and handleError | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ErrorHandlingExample` | [Patterns and Recipes](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
+| [ValidationPipelineExample.java](src/main/java/org/higherkindedj/example/effect/ValidationPipelineExample.java) | Shows validation pipelines combining independent validations with zipWith | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ValidationPipelineExample` | [Patterns and Recipes](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
+| [AccumulatingValidationExample.java](src/main/java/org/higherkindedj/example/effect/AccumulatingValidationExample.java) | Error-accumulating validation with ValidationPath and Semigroup | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.AccumulatingValidationExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
+| [ServiceLayerExample.java](src/main/java/org/higherkindedj/example/effect/ServiceLayerExample.java) | Real-world service layer patterns with EitherPath and IOPath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ServiceLayerExample` | [Patterns and Recipes](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
+| [PathOpsExample.java](src/main/java/org/higherkindedj/example/effect/PathOpsExample.java) | PathOps utilities: sequence, traverse, and firstSuccess | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.PathOpsExample` | [Composition Patterns](https://higher-kinded-j.github.io/latest/effect/composition.html) |
+| [CrossPathConversionsExample.java](src/main/java/org/higherkindedj/example/effect/CrossPathConversionsExample.java) | Converting between different Path types | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CrossPathConversionsExample` | [Type Conversions](https://higher-kinded-j.github.io/latest/effect/conversions.html) |
+
+### Advanced Effects
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [AdvancedEffectsExample.java](src/main/java/org/higherkindedj/example/effect/AdvancedEffectsExample.java) | ReaderPath for DI, WithStatePath for state, WriterPath for logging | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.AdvancedEffectsExample` | [Advanced Effects](https://higher-kinded-j.github.io/latest/effect/advanced_effects.html) |
+| [LazyPathExample.java](src/main/java/org/higherkindedj/example/effect/LazyPathExample.java) | Deferred, memoised computations with LazyPath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.LazyPathExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
+| [CompletableFuturePathExample.java](src/main/java/org/higherkindedj/example/effect/CompletableFuturePathExample.java) | Async computations with CompletableFuturePath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CompletableFuturePathExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
+| [CollectionPathsExample.java](src/main/java/org/higherkindedj/example/effect/CollectionPathsExample.java) | ListPath and StreamPath for collection effects | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CollectionPathsExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
 
 ### Path Types Overview
 
@@ -140,6 +154,14 @@ The Effect Path API provides a fluent, type-safe approach to composing effect ty
 - **EitherPath\<E, A\>**: Represents computations with typed error handling (Left/Right)
 - **TryPath\<A\>**: Represents computations that may throw exceptions
 - **IOPath\<A\>**: Represents deferred side-effectful computations
+- **ValidationPath\<E, A\>**: Represents validations that accumulate errors
+- **ReaderPath\<R, A\>**: Represents computations that read from an environment (dependency injection)
+- **WithStatePath\<S, A\>**: Represents stateful computations that thread state
+- **WriterPath\<W, A\>**: Represents computations that accumulate output (logging, audit)
+- **LazyPath\<A\>**: Represents deferred, memoised computations
+- **CompletableFuturePath\<A\>**: Represents async computations
+- **ListPath\<A\>**: Represents list effects with positional zipping
+- **StreamPath\<A\>**: Represents lazy stream effects
 
 ---
 

@@ -1,6 +1,16 @@
 # Type Conversions
 
-This chapter covers converting between different Path types, lifting values into paths, and extracting values with terminal operations.
+> *"The system was invisible, as they had intended, until you looked."*
+>
+> — Don DeLillo, *Underworld*
+
+DeLillo's observation captures the nature of type conversions in effect-oriented
+code. The conversions exist invisibly, implicit in how the types relate to each
+other. But once you see the system (the natural transformations between `Maybe`
+and `Either`, the bridges from `Try` to `Validation`), the invisible becomes
+navigable.
+
+This chapter makes that system visible.
 
 ~~~admonish info title="What You'll Learn"
 - Converting between Path types: `MaybePath` ↔ `EitherPath` ↔ `TryPath` ↔ `ValidationPath`

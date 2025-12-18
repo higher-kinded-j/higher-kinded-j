@@ -3,12 +3,14 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.either.Either;
@@ -30,11 +32,11 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *   <li><b>Testing/prototyping</b>: Quick experiments before adding full Path support
  * </ul>
  *
- * <h2>Phase 2 Limitations</h2>
+ * <h2>Phase 3 Enhancements</h2>
  *
  * <ul>
- *   <li>Cannot mix with concrete path types in via/zipWith operations
- *   <li>No automatic error recovery (no MonadError evidence)
+ *   <li>Optional {@link MonadError} support for error recovery
+ *   <li>Natural transformation support via {@link #mapK(NaturalTransformation, Monad)}
  *   <li>Same witness type required for composition
  * </ul>
  *
@@ -66,16 +68,19 @@ public final class GenericPath<F, A> implements Chainable<A> {
 
   private final Kind<F, A> value;
   private final Monad<F> monad;
+  private final MonadError<F, ?> monadError; // null if not provided
 
   /**
    * Creates a new GenericPath wrapping the given Kind with the specified Monad instance.
    *
    * @param value the Kind to wrap; must not be null
    * @param monad the Monad instance for this type; must not be null
+   * @param monadError the optional MonadError instance; may be null
    */
-  private GenericPath(Kind<F, A> value, Monad<F> monad) {
+  private GenericPath(Kind<F, A> value, Monad<F> monad, MonadError<F, ?> monadError) {
     this.value = Objects.requireNonNull(value, "value must not be null");
     this.monad = Objects.requireNonNull(monad, "monad must not be null");
+    this.monadError = monadError; // nullable
   }
 
   // ===== Factory Methods =====
@@ -90,7 +95,25 @@ public final class GenericPath<F, A> implements Chainable<A> {
    * @return a new GenericPath
    */
   public static <F, A> GenericPath<F, A> of(Kind<F, A> value, Monad<F> monad) {
-    return new GenericPath<>(value, monad);
+    return new GenericPath<>(value, monad, null);
+  }
+
+  /**
+   * Creates a GenericPath from a Kind and MonadError instance.
+   *
+   * <p>This factory enables error recovery operations like {@link #recover(Function)}, {@link
+   * #recoverWith(Function)}, and {@link #mapError(Function)}.
+   *
+   * @param value the Kind to wrap; must not be null
+   * @param monadError the MonadError instance; must not be null
+   * @param <F> the witness type
+   * @param <E> the error type
+   * @param <A> the value type
+   * @return a new GenericPath with error recovery support
+   */
+  public static <F, E, A> GenericPath<F, A> of(Kind<F, A> value, MonadError<F, E> monadError) {
+    Objects.requireNonNull(monadError, "monad must not be null");
+    return new GenericPath<>(value, monadError, monadError);
   }
 
   /**
@@ -104,7 +127,41 @@ public final class GenericPath<F, A> implements Chainable<A> {
    */
   public static <F, A> GenericPath<F, A> pure(A value, Monad<F> monad) {
     Objects.requireNonNull(monad, "monad must not be null");
-    return new GenericPath<>(monad.of(value), monad);
+    return new GenericPath<>(monad.of(value), monad, null);
+  }
+
+  /**
+   * Lifts a pure value into a GenericPath using the MonadError's {@code of} method.
+   *
+   * <p>This factory enables error recovery operations.
+   *
+   * @param value the value to lift
+   * @param monadError the MonadError instance; must not be null
+   * @param <F> the witness type
+   * @param <E> the error type
+   * @param <A> the value type
+   * @return a new GenericPath containing the value with error recovery support
+   */
+  public static <F, E, A> GenericPath<F, A> pure(A value, MonadError<F, E> monadError) {
+    Objects.requireNonNull(monadError, "monad must not be null");
+    return new GenericPath<>(monadError.of(value), monadError, monadError);
+  }
+
+  /**
+   * Creates a GenericPath representing an error.
+   *
+   * <p>Requires a MonadError instance to lift the error into the monadic context.
+   *
+   * @param error the error value
+   * @param monadError the MonadError instance; must not be null
+   * @param <F> the witness type
+   * @param <E> the error type
+   * @param <A> the value type
+   * @return a new GenericPath representing an error
+   */
+  public static <F, E, A> GenericPath<F, A> raiseError(E error, MonadError<F, E> monadError) {
+    Objects.requireNonNull(monadError, "monadError must not be null");
+    return new GenericPath<>(monadError.raiseError(error), monadError, monadError);
   }
 
   // ===== Terminal Operations =====
@@ -128,6 +185,152 @@ public final class GenericPath<F, A> implements Chainable<A> {
    */
   public Monad<F> monad() {
     return monad;
+  }
+
+  /**
+   * Returns whether this GenericPath supports error recovery operations.
+   *
+   * <p>Recovery is supported when a {@link MonadError} instance was provided at construction.
+   *
+   * @return true if recovery operations are available
+   */
+  public boolean supportsRecovery() {
+    return monadError != null;
+  }
+
+  /**
+   * Returns the optional MonadError instance if available.
+   *
+   * @param <E> the error type
+   * @return an Optional containing the MonadError if present
+   */
+  @SuppressWarnings("unchecked")
+  public <E> Optional<MonadError<F, E>> monadError() {
+    return Optional.ofNullable((MonadError<F, E>) monadError);
+  }
+
+  // ===== Error Recovery =====
+
+  /**
+   * Recovers from an error by applying the given function.
+   *
+   * <p>Requires a MonadError instance to have been provided at construction.
+   *
+   * @param recovery the function to apply to the error to produce a recovery value
+   * @param <E> the error type
+   * @return a new GenericPath that recovers from errors
+   * @throws UnsupportedOperationException if no MonadError was provided
+   */
+  @SuppressWarnings("unchecked")
+  public <E> GenericPath<F, A> recover(Function<? super E, ? extends A> recovery) {
+    Objects.requireNonNull(recovery, "recovery must not be null");
+    if (monadError == null) {
+      throw new UnsupportedOperationException(
+          "recover requires MonadError support. Use GenericPath.of(value, monadError) factory.");
+    }
+    MonadError<F, E> me = (MonadError<F, E>) monadError;
+    Kind<F, A> recovered = me.handleError(value, recovery);
+    return new GenericPath<>(recovered, monad, monadError);
+  }
+
+  /**
+   * Recovers from an error by applying the given function that returns a new GenericPath.
+   *
+   * <p>Requires a MonadError instance to have been provided at construction.
+   *
+   * @param recovery the function to apply to the error to produce a recovery path
+   * @param <E> the error type
+   * @return a new GenericPath that recovers from errors
+   * @throws UnsupportedOperationException if no MonadError was provided
+   */
+  @SuppressWarnings("unchecked")
+  public <E> GenericPath<F, A> recoverWith(
+      Function<? super E, ? extends GenericPath<F, A>> recovery) {
+    Objects.requireNonNull(recovery, "recovery must not be null");
+    if (monadError == null) {
+      throw new UnsupportedOperationException(
+          "recoverWith requires MonadError support. Use GenericPath.of(value, monadError) factory.");
+    }
+    MonadError<F, E> me = (MonadError<F, E>) monadError;
+    Kind<F, A> recovered = me.handleErrorWith(value, e -> recovery.apply(e).runKind());
+    return new GenericPath<>(recovered, monad, monadError);
+  }
+
+  /**
+   * Transforms the error type using the given function.
+   *
+   * <p>This allows changing the error while keeping the success value intact. Requires a MonadError
+   * instance to have been provided at construction.
+   *
+   * <p>Note: This method is useful for error type unification but requires the target MonadError to
+   * be able to raise the new error type.
+   *
+   * @param mapper the function to transform the error
+   * @param targetMonadError the MonadError for the target error type
+   * @param <E1> the original error type
+   * @param <E2> the new error type
+   * @return a new GenericPath with the transformed error
+   * @throws UnsupportedOperationException if no MonadError was provided
+   */
+  @SuppressWarnings("unchecked")
+  public <E1, E2> GenericPath<F, A> mapError(
+      Function<? super E1, ? extends E2> mapper, MonadError<F, E2> targetMonadError) {
+    Objects.requireNonNull(mapper, "mapper must not be null");
+    Objects.requireNonNull(targetMonadError, "targetMonadError must not be null");
+    if (monadError == null) {
+      throw new UnsupportedOperationException(
+          "mapError requires MonadError support. Use GenericPath.of(value, monadError) factory.");
+    }
+    MonadError<F, E1> me = (MonadError<F, E1>) monadError;
+    Kind<F, A> mapped =
+        me.handleErrorWith(value, e -> targetMonadError.raiseError(mapper.apply(e)));
+    return new GenericPath<>(mapped, targetMonadError, targetMonadError);
+  }
+
+  // ===== Natural Transformations =====
+
+  /**
+   * Transforms this GenericPath to a different effect type using a natural transformation.
+   *
+   * <p>This allows converting computations from one effect type to another while preserving the
+   * structure.
+   *
+   * <pre>{@code
+   * // Convert Maybe to Either with a default error
+   * NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither = ...;
+   * GenericPath<MaybeKind.Witness, User> maybePath = ...;
+   * GenericPath<EitherKind.Witness<String>, User> eitherPath =
+   *     maybePath.mapK(maybeToEither, eitherMonad);
+   * }</pre>
+   *
+   * @param transform the natural transformation to apply; must not be null
+   * @param targetMonad the Monad instance for the target type; must not be null
+   * @param <G> the target witness type
+   * @return a new GenericPath with the transformed effect type
+   */
+  public <G> GenericPath<G, A> mapK(NaturalTransformation<F, G> transform, Monad<G> targetMonad) {
+    Objects.requireNonNull(transform, "transform must not be null");
+    Objects.requireNonNull(targetMonad, "targetMonad must not be null");
+    Kind<G, A> transformed = transform.apply(value);
+    return new GenericPath<>(transformed, targetMonad, null);
+  }
+
+  /**
+   * Transforms this GenericPath to a different effect type using a natural transformation,
+   * preserving error recovery capabilities.
+   *
+   * @param transform the natural transformation to apply; must not be null
+   * @param targetMonadError the MonadError instance for the target type; must not be null
+   * @param <G> the target witness type
+   * @param <E> the error type
+   * @return a new GenericPath with the transformed effect type and error recovery support
+   */
+  public <G, E> GenericPath<G, A> mapK(
+      NaturalTransformation<F, G> transform, MonadError<G, E> targetMonadError) {
+    Objects.requireNonNull(transform, "transform must not be null");
+    Objects.requireNonNull(targetMonadError, "targetMonadError must not be null");
+    Kind<G, A> transformed = transform.apply(value);
+    return new GenericPath<>(transformed, targetMonadError, targetMonadError);
   }
 
   // ===== Conversions =====
@@ -172,7 +375,7 @@ public final class GenericPath<F, A> implements Chainable<A> {
   @Override
   public <B> GenericPath<F, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new GenericPath<>(monad.map(mapper, value), monad);
+    return new GenericPath<>(monad.map(mapper, value), monad, monadError);
   }
 
   @Override
@@ -204,7 +407,7 @@ public final class GenericPath<F, A> implements Chainable<A> {
 
     Kind<F, C> result =
         monad.flatMap(a -> monad.map(b -> combiner.apply(a, b), typedOther.value), value);
-    return new GenericPath<>(result, monad);
+    return new GenericPath<>(result, monad, monadError);
   }
 
   /**
@@ -232,7 +435,7 @@ public final class GenericPath<F, A> implements Chainable<A> {
                 monad.flatMap(
                     b -> monad.map(c -> combiner.apply(a, b, c), third.value), second.value),
             value);
-    return new GenericPath<>(result, monad);
+    return new GenericPath<>(result, monad, monadError);
   }
 
   // ===== Chainable implementation =====
@@ -257,7 +460,7 @@ public final class GenericPath<F, A> implements Chainable<A> {
             },
             value);
 
-    return new GenericPath<>(result, monad);
+    return new GenericPath<>(result, monad, monadError);
   }
 
   @Override

@@ -57,6 +57,7 @@
   - [Composition Patterns](effect/composition.md)
   - [Type Conversions](effect/conversions.md)
   - [Patterns and Recipes](effect/patterns.md)
+  - [Advanced Effects](effect/advanced_effects.md)
 
 # Advanced Topics
 - [Introduction](transformers/ch_intro.md)

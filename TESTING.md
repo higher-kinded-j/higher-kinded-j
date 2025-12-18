@@ -556,6 +556,283 @@ Stream<DynamicTest> modifyOnlyAffectsMatching() {
 - `LensLawsTestFactory.java` - 36 tests across 9 lens implementations
 - `PrismLawsTestFactory.java` - 55 tests across 11 prism implementations
 
+## Effect Path API Testing Patterns
+
+The Effect Path API provides fluent wrappers around effect types with a unified interface. This section documents the testing patterns specific to Path types.
+
+### Currently Implemented Path Types
+
+The following Path types are implemented and should have comprehensive test coverage:
+
+**Phase 1 & 2 Paths:**
+- **MaybePath** - Optional values (nullable/absent handling)
+- **EitherPath** - Disjoint union (success/failure with typed errors)
+- **TryPath** - Exception-safe computations
+- **IOPath** - Lazy side-effecting computations
+- **ValidationPath** - Error accumulation
+- **IdPath** - Identity wrapper
+- **OptionalPath** - Java Optional wrapper
+- **GenericPath** - Escape hatch for custom monads
+
+**Phase 3 Paths:**
+- **ReaderPath** - Environment-dependent computations
+- **WriterPath** - Computations with log accumulation
+- **WithStatePath** - Stateful computations
+- **LazyPath** - Memoized deferred computation
+- **CompletableFuturePath** - Asynchronous computations
+- **ListPath** - Collection with positional semantics
+- **StreamPath** - Lazy stream computations
+- **NonDetPath** - Non-deterministic computations with Cartesian product
+
+### Three-Layer Testing Strategy for Effect Paths
+
+Each effect path type should have three layers of tests:
+
+1. **Unit Tests** (`*PathTest.java`): Comprehensive behavior testing
+2. **Property Tests** (`*PathPropertyTest.java`): Functor and Monad laws via jQwik
+3. **Laws Tests** (`*PathLawsTest.java`): Explicit law verification with DynamicTests
+
+### Standard Unit Test Structure
+
+All effect path unit tests follow a consistent `@Nested` class structure:
+
+```java
+@DisplayName("XxxPath<A> Complete Test Suite")
+class XxxPathTest {
+
+  @Nested
+  @DisplayName("Factory Methods via Path")
+  class FactoryMethodsTests {
+    // Tests for Path.xxx() factory methods
+  }
+
+  @Nested
+  @DisplayName("Run and Terminal Methods")
+  class RunAndTerminalMethodsTests {
+    // Tests for run(), get(), unsafeRun(), etc.
+  }
+
+  @Nested
+  @DisplayName("Composable Operations (map, peek)")
+  class ComposableOperationsTests {
+    // Functor operations
+  }
+
+  @Nested
+  @DisplayName("Chainable Operations (via, then)")
+  class ChainableOperationsTests {
+    // Monad operations
+  }
+
+  @Nested
+  @DisplayName("Combinable Operations (zipWith)")
+  class CombinableOperationsTests {
+    // Applicative operations
+  }
+
+  @Nested
+  @DisplayName("Recoverable Operations (recover, mapError)")  // if applicable
+  class RecoverableOperationsTests {
+    // MonadError operations - only for Recoverable paths
+  }
+
+  @Nested
+  @DisplayName("Object Methods (equals, hashCode, toString)")
+  class ObjectMethodsTests {
+    // Standard object method tests
+  }
+}
+```
+
+### Path-Specific Factory Delegation Pattern
+
+Tests verify that the `Path` factory delegates correctly:
+
+```java
+@Test
+@DisplayName("Path.just() creates MaybePath with value")
+void pathJustCreatesMaybePathWithValue() {
+  MaybePath<String> path = Path.just(TEST_VALUE);
+  assertThat(path.run().isJust()).isTrue();
+}
+```
+
+### Environment/Context Testing Pattern
+
+For paths that require context (ReaderPath, WriterPath, WithStatePath), use embedded records:
+
+```java
+// Test environment record
+record Config(String host, int port, boolean debug) {}
+private static final Config TEST_CONFIG = new Config("localhost", 8080, true);
+
+@Test
+@DisplayName("run() executes computation with environment")
+void runExecutesWithEnvironment() {
+  ReaderPath<Config, String> path = Path.asks(c -> c.host() + ":" + c.port());
+  assertThat(path.run(TEST_CONFIG)).isEqualTo("localhost:8080");
+}
+```
+
+### AtomicBoolean Side-Effect Verification Pattern
+
+Consistently used to verify peek/consumer invocation:
+
+```java
+@Test
+@DisplayName("peek() observes value without modifying")
+void peekObservesValueWithoutModifying() {
+  AtomicBoolean called = new AtomicBoolean(false);
+  MaybePath<String> result = path.peek(v -> called.set(true));
+
+  result.run(); // Execute the path
+  assertThat(called).isTrue();
+}
+```
+
+### Property Test Arbitrary Provider Pattern
+
+Property tests should provide arbitraries for both paths and functions:
+
+```java
+@Provide
+Arbitrary<MaybePath<Integer>> maybePaths() {
+  return Arbitraries.integers()
+      .between(-1000, 1000)
+      .injectNull(0.15)  // For paths with empty/failure states
+      .map(i -> i == null ? Path.nothing() : Path.just(i));
+}
+
+@Provide
+Arbitrary<Function<Integer, MaybePath<String>>> intToMaybeStringFunctions() {
+  return Arbitraries.of(
+      i -> i % 2 == 0 ? Path.just("even:" + i) : Path.nothing(),
+      i -> i > 0 ? Path.just("positive:" + i) : Path.nothing(),
+      i -> Path.just("value:" + i),
+      i -> i == 0 ? Path.nothing() : Path.just("" + i)
+  );
+}
+```
+
+### Property Test Standard Laws
+
+Every path property test should verify:
+
+```java
+// Functor Laws
+@Property
+@Label("Functor Identity Law: path.map(id) == path")
+void functorIdentityLaw(@ForAll("paths") XxxPath<Integer> path) {
+  XxxPath<Integer> result = path.map(Function.identity());
+  assertThat(/* semantic equality */);
+}
+
+@Property
+@Label("Functor Composition Law: path.map(f).map(g) == path.map(g.compose(f))")
+void functorCompositionLaw(...) { /* ... */ }
+
+// Monad Laws
+@Property
+@Label("Monad Left Identity Law: XxxPath.pure(a).via(f) == f(a)")
+void leftIdentityLaw(...) { /* ... */ }
+
+@Property
+@Label("Monad Right Identity Law: path.via(XxxPath::pure) == path")
+void rightIdentityLaw(...) { /* ... */ }
+
+@Property
+@Label("Monad Associativity Law: path.via(f).via(g) == path.via(x -> f(x).via(g))")
+void associativityLaw(...) { /* ... */ }
+```
+
+### Laws Test DynamicTest Organization
+
+Laws tests should use `@TestFactory` with nested classes:
+
+```java
+@Nested
+@DisplayName("Functor Laws")
+class FunctorLawsTests {
+  @TestFactory
+  @DisplayName("Functor Identity Law: path.map(id) == path")
+  Stream<DynamicTest> functorIdentityLaw() {
+    return Stream.of(
+        DynamicTest.dynamicTest("Identity law holds for pure value", () -> { ... }),
+        DynamicTest.dynamicTest("Identity law holds for computed value", () -> { ... })
+    );
+  }
+}
+
+@Nested
+@DisplayName("Monad Laws")
+class MonadLawsTests {
+  // Similar structure for monad laws
+}
+```
+
+### Collection Path Testing (ListPath vs NonDetPath)
+
+ListPath and NonDetPath have different zipWith semantics that must be tested:
+
+```java
+// ListPath: positional zipWith (stops at shortest)
+@Test
+void zipWithUsesPositionalSemantics() {
+  ListPath<Integer> a = ListPath.of(1, 2, 3);
+  ListPath<String> b = ListPath.of("a", "b");
+  ListPath<String> result = a.zipWith(b, (i, s) -> i + s);
+  assertThat(result.toList()).containsExactly("1a", "2b"); // Only 2 elements
+}
+
+// NonDetPath: Cartesian product zipWith
+@Test
+void zipWithUsesCartesianProductSemantics() {
+  NonDetPath<Integer> a = NonDetPath.of(1, 2);
+  NonDetPath<String> b = NonDetPath.of("a", "b");
+  NonDetPath<String> result = a.zipWith(b, (i, s) -> i + s);
+  assertThat(result.toList()).containsExactly("1a", "1b", "2a", "2b"); // 4 elements
+}
+```
+
+### Async Path Testing (CompletableFuturePath)
+
+For async paths, use `.join()` for blocking assertions in tests:
+
+```java
+@Test
+void mapTransformsCompletedValue() {
+  CompletableFuturePath<Integer> path = CompletableFuturePath.pure(42);
+  CompletableFuturePath<String> result = path.map(i -> "value:" + i);
+  assertThat(result.run().join()).isEqualTo("value:42");
+}
+```
+
+### Lazy Path Testing (LazyPath)
+
+Test laziness preservation and memoization:
+
+```java
+@Test
+void computationIsDeferred() {
+  AtomicInteger counter = new AtomicInteger(0);
+  LazyPath<Integer> path = LazyPath.defer(() -> counter.incrementAndGet());
+
+  assertThat(counter.get()).isEqualTo(0); // Not yet evaluated
+  path.run(); // Force evaluation
+  assertThat(counter.get()).isEqualTo(1);
+}
+
+@Test
+void resultIsMemoized() {
+  AtomicInteger counter = new AtomicInteger(0);
+  LazyPath<Integer> path = LazyPath.defer(() -> counter.incrementAndGet());
+
+  path.run();
+  path.run();
+  assertThat(counter.get()).isEqualTo(1); // Only evaluated once
+}
+```
+
 ## Testing Patterns by Concept
 
 ### Either: Error Handling

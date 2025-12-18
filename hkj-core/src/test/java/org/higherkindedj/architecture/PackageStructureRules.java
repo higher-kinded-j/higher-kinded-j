@@ -259,6 +259,8 @@ class PackageStructureRules {
         .and()
         .resideInAPackage("..hkt..")
         .and()
+        .resideOutsideOfPackage("..effect..") // Exclude effect package (ListPath is an Effect Path)
+        .and()
         .haveSimpleNameNotContaining("java.util") // Exclude java.util.List
         .should()
         .resideInAPackage("..list..")
