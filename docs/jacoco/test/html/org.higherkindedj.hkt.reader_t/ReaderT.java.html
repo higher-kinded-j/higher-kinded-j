@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReaderT.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.reader_t</a> &gt; <span class="el_source">ReaderT.java</span></div><h1>ReaderT.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.reader_t;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Represents the Reader Transformer Monad, {@code ReaderT&lt;F, R, A&gt;}. It wraps a computation that
+ * depends on a read-only environment of type {@code R} to produce a monadic value {@code Kind&lt;F,
+ * A&gt;}, where {@code F} is the witness type of an outer monad.
+ *
+ * &lt;p&gt;This class is implemented as an immutable record that holds the core function {@code R -&gt;
+ * Kind&lt;F, A&gt;}. It allows composing operations that require reading from an environment with other
+ * monadic effects.
+ *
+ * &lt;p&gt;It implements {@link ReaderTKind ReaderTKind&amp;lt;F, R, A&amp;gt;}, which allows {@code ReaderT} to
+ * be treated as {@code Kind&lt;ReaderTKind.Witness&lt;F, R&gt;, A&gt;}. The type constructor {@code
+ * ReaderTKind.Witness&lt;F, R&gt;} serves as the witness for a ReaderT with a fixed outer monad witness
+ * {@code F} and a fixed environment type {@code R}.
+ *
+ * @param &lt;F&gt; The witness type of the outer monad (e.g., {@code OptionalKind.Witness}, {@code
+ *     IOKind.Witness}). This represents the type constructor of the underlying monad.
+ * @param &lt;R_ENV&gt; The type of the read-only environment.
+ * @param &lt;A&gt; The type of the value produced within the outer monad {@code F}.
+ * @param run The core function of this {@code ReaderT}, which takes an environment of type {@code
+ *     R_ENV} and returns a monadic value {@code Kind&lt;F, A&gt;}. Must not be null.
+ * @see ReaderTKind
+ * @see ReaderTMonad
+ * @see ReaderTKindHelper
+ * @see Monad
+ * @see Kind
+ */
+public record ReaderT&lt;F, R_ENV, A&gt;(Function&lt;R_ENV, Kind&lt;F, A&gt;&gt; run)
+    implements ReaderTKind&lt;F, R_ENV, A&gt; {
+
+<span class="fc" id="L41">  private static final Class&lt;ReaderT&gt; READER_T_CLASS = ReaderT.class;</span>
+
+  /**
+   * Constructs a new {@link ReaderT}. The {@code run} function is the core of the {@code ReaderT},
+   * defining how to produce a monadic value {@code Kind&lt;F, A&gt;} from an environment {@code R_ENV}.
+   *
+   * @param run The function {@code R_ENV -&gt; Kind&lt;F, A&gt;}. Must not be null.
+   * @throws NullPointerException if {@code run} is null.
+   */
+<span class="fc" id="L50">  public ReaderT {</span>
+<span class="fc" id="L51">    Validation.function().requireFunction(run, &quot;run&quot;, READER_T_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L52">  }</span>
+
+  /**
+   * Factory method to create a {@link ReaderT} instance from a given run function.
+   *
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;R_ENV&gt; The type of the environment.
+   * @param &lt;A&gt; The type of the value.
+   * @param runFunction The function {@code R_ENV -&gt; Kind&lt;F, A&gt;} that defines the {@code ReaderT}.
+   *     Must not be null.
+   * @return A new {@link ReaderT} instance. Never null.
+   * @throws NullPointerException if {@code runFunction} is null.
+   */
+  public static &lt;F, R_ENV, A&gt; ReaderT&lt;F, R_ENV, A&gt; of(Function&lt;R_ENV, Kind&lt;F, A&gt;&gt; runFunction) {
+<span class="fc" id="L66">    return new ReaderT&lt;&gt;(runFunction);</span>
+  }
+
+  /**
+   * Lifts a monadic value {@code Kind&lt;F, A&gt;} into the {@link ReaderT} context. The resulting {@code
+   * ReaderT} will produce the given monadic value {@code fa} regardless of the environment {@code
+   * R_ENV}.
+   *
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;R_ENV&gt; The type of the environment (it will be ignored).
+   * @param &lt;A&gt; The type of the value within the outer monad.
+   * @param outerMonad An instance of {@link Monad} for the outer type {@code F}. Must not be null.
+   * @param fa The monadic value {@code Kind&lt;F, A&gt;} to lift. Must not be null.
+   * @return A new {@link ReaderT} that wraps {@code fa}. Never null.
+   * @throws NullPointerException if {@code outerMonad} or {@code fa} is null.
+   */
+  public static &lt;F, R_ENV, A&gt; ReaderT&lt;F, R_ENV, A&gt; liftF(Monad&lt;F&gt; outerMonad, Kind&lt;F, A&gt; fa) {
+<span class="fc" id="L83">    Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, LIFT_F);</span>
+<span class="fc" id="L84">    Validation.kind().requireNonNull(fa, READER_T_CLASS, LIFT_F, &quot;source Kind&quot;);</span>
+<span class="fc" id="L85">    return new ReaderT&lt;&gt;(r -&gt; fa);</span>
+  }
+
+  /**
+   * Creates a {@link ReaderT} from a function {@code R_ENV -&gt; A}, lifting the result {@code A} into
+   * the outer monad {@code F} using the provided {@code outerMonad}'s {@code of} method.
+   *
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;R_ENV&gt; The type of the environment.
+   * @param &lt;A&gt; The type of the value produced by the function {@code f} and lifted into {@code F}.
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @param f The function {@code R_ENV -&gt; A} which computes a value from the environment. Must not
+   *     be null.
+   * @return A new {@link ReaderT} instance. Never null.
+   * @throws NullPointerException if {@code outerMonad} or {@code f} is null.
+   */
+  public static &lt;F, R_ENV, A&gt; ReaderT&lt;F, R_ENV, A&gt; reader(
+      Monad&lt;F&gt; outerMonad, Function&lt;R_ENV, A&gt; f) {
+<span class="fc" id="L103">    Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, READER);</span>
+<span class="fc" id="L104">    Validation.function().requireFunction(f, &quot;environment function&quot;, READER_T_CLASS, READER);</span>
+<span class="fc" id="L105">    return new ReaderT&lt;&gt;(r -&gt; outerMonad.of(f.apply(r)));</span>
+  }
+
+  /**
+   * Creates a {@link ReaderT} that provides the environment {@code R_ENV} itself, lifted into the
+   * outer monad {@code F}. This is the &quot;ask&quot; operation for {@code ReaderT}.
+   *
+   * @param &lt;F&gt; The witness type of the outer monad.
+   * @param &lt;R_ENV&gt; The type of the environment, which will also be the value type within {@code F}.
+   * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
+   * @return A new {@link ReaderT} that, when run, yields {@code outerMonad.of(r)}. Never null.
+   * @throws NullPointerException if {@code outerMonad} is null.
+   */
+  public static &lt;F, R_ENV&gt; ReaderT&lt;F, R_ENV, R_ENV&gt; ask(Monad&lt;F&gt; outerMonad) {
+<span class="fc" id="L119">    Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, ASK);</span>
+<span class="fc" id="L120">    return new ReaderT&lt;&gt;(r -&gt; outerMonad.of(r));</span>
+  }
+
+  /**
+   * Accesses the underlying function {@code R_ENV -&gt; Kind&lt;F, A&gt;} of this {@link ReaderT}.
+   *
+   * @return The function {@code R_ENV -&gt; Kind&lt;F, A&gt;}. Never null.
+   */
+  @Override
+  public Function&lt;R_ENV, Kind&lt;F, A&gt;&gt; run() {
+    return run;
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

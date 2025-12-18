@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TrampolineUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.trampoline</a> &gt; <span class="el_source">TrampolineUtils.java</span></div><h1>TrampolineUtils.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.trampoline;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * Utility methods for working with {@link Trampoline} to ensure stack safety in various functional
+ * operations.
+ *
+ * &lt;p&gt;This class provides helper methods for making traverse operations and applicative operations
+ * stack-safe by wrapping them in {@code Trampoline} computations.
+ *
+ * &lt;h2&gt;Use Cases&lt;/h2&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;1. Stack-Safe List Traversal:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // For very large lists with potentially unsafe applicatives
+ * List&lt;Integer&gt; largeList = IntStream.range(0, 100000).boxed().collect(Collectors.toList());
+ *
+ * Kind&lt;MyApplicative.Witness, List&lt;String&gt;&gt; result =
+ *     TrampolineUtils.traverseListStackSafe(
+ *         largeList,
+ *         i -&gt; myApplicative.of(&quot;item-&quot; + i),
+ *         myApplicative
+ *     );
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;2. Stack-Safe Applicative Combinations:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Chain many map2 operations safely
+ * Kind&lt;F, Integer&gt; result = initial;
+ * for (int i = 0; i &lt; 10000; i++) {
+ *     final int value = i;
+ *     result = TrampolineUtils.map2StackSafe(
+ *         result,
+ *         applicative.of(value),
+ *         (acc, v) -&gt; acc + v,
+ *         applicative
+ *     );
+ * }
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;When to Use&lt;/h2&gt;
+ *
+ * &lt;p&gt;Use these utilities when:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Processing very large collections (&gt;10,000 elements)
+ *   &lt;li&gt;Using custom {@code Applicative} instances that may not be stack-safe
+ *   &lt;li&gt;Chaining many {@code map2} or {@code flatMap} operations
+ *   &lt;li&gt;You need guaranteed stack safety regardless of the underlying applicative implementation
+ * &lt;/ul&gt;
+ *
+ * &lt;h2&gt;Performance Considerations&lt;/h2&gt;
+ *
+ * &lt;p&gt;These utilities add a small overhead due to trampoline wrapping. For most standard
+ * applicatives (Id, Optional, Either) on moderately-sized lists (&amp;lt;10,000 elements), the standard
+ * traverse implementations are sufficient and more efficient.
+ *
+ * @see Trampoline
+ * @see Applicative
+ */
+@NullMarked
+public final class TrampolineUtils {
+  /** Private constructor to prevent instantiation. */
+  private TrampolineUtils() {}
+
+  /**
+   * Traverses a list using an applicative function in a stack-safe manner.
+   *
+   * &lt;p&gt;This method uses {@link Trampoline} internally to ensure that traversing large lists
+   * (100,000+ elements) will not cause {@code StackOverflowError}, regardless of the {@code
+   * Applicative} instance's implementation.
+   *
+   * &lt;p&gt;The traversal builds the result list from left to right, maintaining the order of elements.
+   *
+   * &lt;h3&gt;Example:&lt;/h3&gt;
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Integer&gt; numbers = IntStream.range(0, 50000).boxed().collect(Collectors.toList());
+   *
+   * // Apply validation to each element
+   * Kind&lt;Validated.Witness&lt;String&gt;, List&lt;String&gt;&gt; validated =
+   *     TrampolineUtils.traverseListStackSafe(
+   *         numbers,
+   *         n -&gt; n % 2 == 0
+   *             ? Validated.valid(&quot;even-&quot; + n)
+   *             : Validated.invalid(&quot;Odd number: &quot; + n),
+   *         validatedApplicative
+   *     );
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;F&gt; The applicative effect type witness
+   * @param &lt;A&gt; The element type of the input list
+   * @param &lt;B&gt; The element type of the output list
+   * @param list The list to traverse
+   * @param f The effectful function to apply to each element
+   * @param applicative The applicative instance
+   * @return The traversed list wrapped in the applicative effect
+   */
+  public static &lt;F, A, B&gt; Kind&lt;F, List&lt;B&gt;&gt; traverseListStackSafe(
+      final List&lt;A&gt; list,
+      final Function&lt;? super A, ? extends Kind&lt;F, ? extends B&gt;&gt; f,
+      final Applicative&lt;F&gt; applicative) {
+
+<span class="fc" id="L114">    final Trampoline&lt;Kind&lt;F, List&lt;B&gt;&gt;&gt; trampoline =</span>
+<span class="fc" id="L115">        traverseListTrampoline(list, 0, applicative.of(new ArrayList&lt;&gt;()), f, applicative);</span>
+
+<span class="fc" id="L117">    return trampoline.run();</span>
+  }
+
+  /**
+   * Tail-recursive helper for traversing a list using Trampoline.
+   *
+   * @param list The list to traverse
+   * @param index Current index in the list
+   * @param accumulator The accumulated result so far (Kind of List)
+   * @param f The effectful function
+   * @param applicative The applicative instance
+   * @param &lt;F&gt; The applicative effect type witness
+   * @param &lt;A&gt; Input element type
+   * @param &lt;B&gt; Output element type
+   * @return A Trampoline that will produce the final result when run
+   */
+  private static &lt;F, A, B&gt; Trampoline&lt;Kind&lt;F, List&lt;B&gt;&gt;&gt; traverseListTrampoline(
+      final List&lt;A&gt; list,
+      final int index,
+      final Kind&lt;F, List&lt;B&gt;&gt; accumulator,
+      final Function&lt;? super A, ? extends Kind&lt;F, ? extends B&gt;&gt; f,
+      final Applicative&lt;F&gt; applicative) {
+
+    // Base case: processed all elements
+<span class="fc bfc" id="L141" title="All 2 branches covered.">    if (index &gt;= list.size()) {</span>
+<span class="fc" id="L142">      return Trampoline.done(accumulator);</span>
+    }
+
+    // Recursive case: process next element
+<span class="fc" id="L146">    final A element = list.get(index);</span>
+<span class="fc" id="L147">    final Kind&lt;F, ? extends B&gt; effectOfB = f.apply(element);</span>
+
+<span class="fc" id="L149">    final Kind&lt;F, List&lt;B&gt;&gt; nextAccumulator =</span>
+<span class="fc" id="L150">        applicative.map2(</span>
+            accumulator,
+            effectOfB,
+            (listB, b) -&gt; {
+              // Create new list to ensure correctness for multi-branch Applicatives (e.g., List)
+<span class="fc" id="L155">              List&lt;B&gt; newList = new ArrayList&lt;&gt;(listB);</span>
+<span class="fc" id="L156">              newList.add((B) b);</span>
+<span class="fc" id="L157">              return newList;</span>
+            });
+
+<span class="fc" id="L160">    return Trampoline.defer(</span>
+<span class="fc" id="L161">        () -&gt; traverseListTrampoline(list, index + 1, nextAccumulator, f, applicative));</span>
+  }
+
+  /**
+   * Sequences a list of applicative effects into an applicative of a list in a stack-safe manner.
+   *
+   * &lt;p&gt;This is the stack-safe version of the standard {@code sequence} operation. It converts
+   * {@code List&lt;Kind&lt;F, A&gt;&gt;} into {@code Kind&lt;F, List&lt;A&gt;&gt;}.
+   *
+   * &lt;h3&gt;Example:&lt;/h3&gt;
+   *
+   * &lt;pre&gt;{@code
+   * List&lt;Kind&lt;Optional.Witness, Integer&gt;&gt; optionals = List.of(
+   *     Optional.of(1),
+   *     Optional.of(2),
+   *     Optional.of(3),
+   *     // ... 50,000 more elements
+   * );
+   *
+   * Kind&lt;Optional.Witness, List&lt;Integer&gt;&gt; result =
+   *     TrampolineUtils.sequenceStackSafe(optionals, optionalApplicative);
+   * // Result: Optional.of(List.of(1, 2, 3, ...))
+   * }&lt;/pre&gt;
+   *
+   * @param &lt;F&gt; The applicative effect type witness
+   * @param &lt;A&gt; The element type
+   * @param effects The list of effectful values
+   * @param applicative The applicative instance
+   * @return All effects sequenced into a single effect containing a list
+   */
+  public static &lt;F, A&gt; Kind&lt;F, List&lt;A&gt;&gt; sequenceStackSafe(
+      final List&lt;Kind&lt;F, A&gt;&gt; effects, final Applicative&lt;F&gt; applicative) {
+
+<span class="fc" id="L194">    return traverseListStackSafe(effects, Function.identity(), applicative);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

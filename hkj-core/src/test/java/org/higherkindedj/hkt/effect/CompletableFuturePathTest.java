@@ -11,6 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -694,6 +695,279 @@ class CompletableFuturePathTest {
       CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
 
       assertThat(path.hashCode()).isEqualTo(path.hashCode());
+    }
+  }
+
+  @Nested
+  @DisplayName("Parallel and Race Operations")
+  class ParallelAndRaceOperationsTests {
+
+    @Test
+    @DisplayName("parZipWith() combines two futures in parallel")
+    void parZipWithCombinesTwoFutures() {
+      CompletableFuturePath<String> first = CompletableFuturePath.completed("hello");
+      CompletableFuturePath<Integer> second = CompletableFuturePath.completed(3);
+
+      CompletableFuturePath<String> result = first.parZipWith(second, (s, n) -> s.repeat(n));
+
+      assertThat(result.join()).isEqualTo("hellohellohello");
+    }
+
+    @Test
+    @DisplayName("parZipWith() validates null parameters")
+    void parZipWithValidatesNullParameters() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.parZipWith(null, (a, b) -> a + b))
+          .withMessageContaining("other must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.parZipWith(CompletableFuturePath.completed(1), null))
+          .withMessageContaining("combiner must not be null");
+    }
+
+    @Test
+    @DisplayName("parZipWith() runs truly in parallel")
+    void parZipWithRunsInParallel() {
+      AtomicInteger startCount = new AtomicInteger(0);
+
+      CompletableFuturePath<Integer> first =
+          CompletableFuturePath.supplyAsync(
+              () -> {
+                startCount.incrementAndGet();
+                try {
+                  Thread.sleep(50);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 1;
+              });
+
+      CompletableFuturePath<Integer> second =
+          CompletableFuturePath.supplyAsync(
+              () -> {
+                startCount.incrementAndGet();
+                try {
+                  Thread.sleep(50);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 2;
+              });
+
+      long startTime = System.currentTimeMillis();
+      Integer result = first.parZipWith(second, Integer::sum).join();
+      long duration = System.currentTimeMillis() - startTime;
+
+      assertThat(result).isEqualTo(3);
+      // Both should have started, and total time should be ~50ms (parallel) not ~100ms (sequential)
+      assertThat(duration).isLessThan(150);
+    }
+
+    @Test
+    @DisplayName("race() returns first to complete")
+    void raceReturnsFirstToComplete() {
+      CompletableFuturePath<String> slow =
+          CompletableFuturePath.supplyAsync(
+              () -> {
+                try {
+                  Thread.sleep(500);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "slow";
+              });
+
+      CompletableFuturePath<String> fast = CompletableFuturePath.completed("fast");
+
+      CompletableFuturePath<String> result = slow.race(fast);
+
+      assertThat(result.join()).isEqualTo("fast");
+    }
+
+    @Test
+    @DisplayName("race() validates null parameter")
+    void raceValidatesNullParameter() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.race(null))
+          .withMessageContaining("other must not be null");
+    }
+
+    @Test
+    @DisplayName("race() handles both failing")
+    void raceHandlesBothFailing() {
+      CompletableFuturePath<String> first =
+          CompletableFuturePath.failed(new RuntimeException("first error"));
+      CompletableFuturePath<String> second =
+          CompletableFuturePath.failed(new RuntimeException("second error"));
+
+      CompletableFuturePath<String> result = first.race(second);
+
+      assertThatThrownBy(result::join)
+          .isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("race() first succeeds while second fails")
+    void raceFirstSucceedsSecondFails() {
+      CompletableFuturePath<String> success = CompletableFuturePath.completed("success");
+      CompletableFuturePath<String> failure =
+          CompletableFuturePath.failed(new RuntimeException("error"));
+
+      CompletableFuturePath<String> result = success.race(failure);
+
+      assertThat(result.join()).isEqualTo("success");
+    }
+
+    @Test
+    @DisplayName("race() second succeeds while first fails")
+    void raceSecondSucceedsFirstFails() {
+      CompletableFuturePath<String> failure =
+          CompletableFuturePath.failed(new RuntimeException("error"));
+      CompletableFuturePath<String> success = CompletableFuturePath.completed("success");
+
+      CompletableFuturePath<String> result = failure.race(success);
+
+      assertThat(result.join()).isEqualTo("success");
+    }
+
+    @Test
+    @DisplayName("race() quick success beats delayed failure")
+    void raceQuickSuccessBeatsDelayedFailure() {
+      CompletableFuturePath<String> delayedFailure =
+          CompletableFuturePath.supplyAsync(
+              () -> {
+                try {
+                  Thread.sleep(100);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                throw new RuntimeException("delayed failure");
+              });
+
+      CompletableFuturePath<String> quickSuccess = CompletableFuturePath.completed("quick success");
+
+      CompletableFuturePath<String> result = quickSuccess.race(delayedFailure);
+
+      assertThat(result.join()).isEqualTo("quick success");
+    }
+  }
+
+  @Nested
+  @DisplayName("Retry Operations")
+  class RetryOperationsTests {
+
+    @Test
+    @DisplayName("supplyAsyncWithRetry() retries on failure")
+    void supplyAsyncWithRetryRetriesOnFailure() {
+      AtomicInteger attempts = new AtomicInteger(0);
+
+      RetryPolicy policy = RetryPolicy.fixed(5, Duration.ofMillis(10));
+      CompletableFuturePath<String> result =
+          CompletableFuturePath.supplyAsyncWithRetry(
+              () -> {
+                if (attempts.incrementAndGet() < 3) {
+                  throw new RuntimeException("Flaky failure");
+                }
+                return "success";
+              },
+              policy);
+
+      assertThat(result.join()).isEqualTo("success");
+      assertThat(attempts.get()).isGreaterThanOrEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("supplyAsyncWithRetry() validates null supplier")
+    void supplyAsyncWithRetryValidatesNullSupplier() {
+      RetryPolicy policy = RetryPolicy.fixed(3, Duration.ofMillis(10));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> CompletableFuturePath.supplyAsyncWithRetry(null, policy))
+          .withMessageContaining("supplier must not be null");
+    }
+
+    @Test
+    @DisplayName("supplyAsyncWithRetry() validates null policy")
+    void supplyAsyncWithRetryValidatesNullPolicy() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> CompletableFuturePath.supplyAsyncWithRetry(() -> "test", null))
+          .withMessageContaining("policy must not be null");
+    }
+
+    @Test
+    @DisplayName("supplyAsyncWithRetry() convenience method works")
+    void supplyAsyncWithRetryConvenienceMethodWorks() {
+      AtomicInteger attempts = new AtomicInteger(0);
+
+      CompletableFuturePath<String> result =
+          CompletableFuturePath.supplyAsyncWithRetry(
+              () -> {
+                if (attempts.incrementAndGet() < 2) {
+                  throw new RuntimeException("Flaky");
+                }
+                return "done";
+              },
+              3,
+              Duration.ofMillis(10));
+
+      assertThat(result.join()).isEqualTo("done");
+    }
+
+    @Test
+    @DisplayName("supplyAsyncWithRetry() succeeds on first attempt")
+    void supplyAsyncWithRetrySucceedsOnFirstAttempt() {
+      AtomicInteger attempts = new AtomicInteger(0);
+
+      RetryPolicy policy = RetryPolicy.fixed(3, Duration.ofMillis(10));
+      CompletableFuturePath<String> result =
+          CompletableFuturePath.supplyAsyncWithRetry(
+              () -> {
+                attempts.incrementAndGet();
+                return "immediate";
+              },
+              policy);
+
+      assertThat(result.join()).isEqualTo("immediate");
+      assertThat(attempts.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("deprecated withRetry() validates null policy")
+    @SuppressWarnings("deprecation")
+    void deprecatedWithRetryValidatesNullPolicy() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withRetry(null))
+          .withMessageContaining("policy must not be null");
+    }
+
+    @Test
+    @DisplayName("deprecated withRetry() works for already-completed future")
+    @SuppressWarnings("deprecation")
+    void deprecatedWithRetryWorksForCompletedFuture() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed("immediate");
+
+      RetryPolicy policy = RetryPolicy.fixed(3, Duration.ofMillis(10));
+      CompletableFuturePath<String> result = path.withRetry(policy);
+
+      assertThat(result.join()).isEqualTo("immediate");
+    }
+
+    @Test
+    @DisplayName("deprecated retry() convenience method works for already-completed future")
+    @SuppressWarnings("deprecation")
+    void deprecatedRetryConvenienceMethodWorks() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed("immediate");
+
+      CompletableFuturePath<String> result = path.retry(3, Duration.ofMillis(10));
+
+      assertThat(result.join()).isEqualTo("immediate");
     }
   }
 

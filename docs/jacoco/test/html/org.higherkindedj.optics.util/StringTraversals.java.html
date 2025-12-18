@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StringTraversals.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.optics.util</a> &gt; <span class="el_source">StringTraversals.java</span></div><h1>StringTraversals.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.util;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NullMarked;
+
+/**
+ * A final utility class providing static factory methods for creating {@link Traversal}s for {@link
+ * String} types.
+ *
+ * &lt;p&gt;These combinators enable text processing operations by breaking strings into smaller units
+ * (characters, words, lines) that can be traversed and modified.
+ *
+ * &lt;p&gt;All traversals maintain referential transparency and preserve immutability.
+ *
+ * &lt;p&gt;Example usage:
+ *
+ * &lt;pre&gt;{@code
+ * // Transform each character
+ * Traversal&lt;String, Character&gt; charTraversal = StringTraversals.chars();
+ * String uppercased = Traversals.modify(charTraversal, Character::toUpperCase, &quot;hello&quot;);
+ * // Result: &quot;HELLO&quot;
+ *
+ * // Transform each word
+ * Traversal&lt;String, String&gt; wordTraversal = StringTraversals.worded();
+ * String result = Traversals.modify(wordTraversal, String::toUpperCase, &quot;hello world&quot;);
+ * // Result: &quot;HELLO WORLD&quot;
+ *
+ * // Transform each line
+ * Traversal&lt;String, String&gt; lineTraversal = StringTraversals.lined();
+ * String prefixed = Traversals.modify(lineTraversal, line -&gt; &quot;&gt; &quot; + line, &quot;line1\nline2&quot;);
+ * // Result: &quot;&gt; line1\n&gt; line2&quot;
+ * }&lt;/pre&gt;
+ */
+@NullMarked
+public final class StringTraversals {
+
+  /** Private constructor to prevent instantiation. */
+  private StringTraversals() {}
+
+  /**
+   * Creates a {@code Traversal} that focuses on each character in a string.
+   *
+   * &lt;p&gt;The string is decomposed into individual characters, each of which can be transformed via an
+   * effectful function. The transformed characters are then recombined into a new string.
+   *
+   * &lt;p&gt;Empty strings produce an empty traversal (zero elements focused).
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;String, Character&gt; charTraversal = StringTraversals.chars();
+   *
+   * // Uppercase all characters
+   * String result = Traversals.modify(charTraversal, Character::toUpperCase, &quot;hello&quot;);
+   * // Result: &quot;HELLO&quot;
+   *
+   * // Get all characters
+   * List&lt;Character&gt; chars = Traversals.getAll(charTraversal, &quot;abc&quot;);
+   * // Result: ['a', 'b', 'c']
+   *
+   * // Filter vowels and uppercase them (via composition)
+   * Traversal&lt;String, Character&gt; vowels = charTraversal.filtered(c -&gt;
+   *     &quot;aeiouAEIOU&quot;.indexOf(c) &gt;= 0
+   * );
+   * String modified = Traversals.modify(vowels, Character::toUpperCase, &quot;hello world&quot;);
+   * // Result: &quot;hEllO wOrld&quot;
+   * }&lt;/pre&gt;
+   *
+   * @return A {@code Traversal} focusing on each character in a string.
+   */
+  public static Traversal&lt;String, Character&gt; chars() {
+<span class="fc" id="L80">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F&gt; Kind&lt;F, String&gt; modifyF(
+          final Function&lt;Character, Kind&lt;F, Character&gt;&gt; f,
+          final String source,
+          final Applicative&lt;F&gt; applicative) {
+
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L88">          return applicative.of(source);</span>
+        }
+
+        // Convert string to list of characters
+<span class="fc" id="L92">        final List&lt;Character&gt; charList =</span>
+<span class="fc" id="L93">            source.chars().mapToObj(c -&gt; (char) c).collect(Collectors.toList());</span>
+
+        // Traverse the character list
+<span class="fc" id="L96">        final Kind&lt;F, List&lt;Character&gt;&gt; traversedChars =</span>
+<span class="fc" id="L97">            Traversals.traverseList(charList, f, applicative);</span>
+
+        // Reconstruct string from characters
+<span class="fc" id="L100">        return applicative.map(</span>
+            chars -&gt; {
+<span class="fc" id="L102">              final StringBuilder sb = new StringBuilder(chars.size());</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">              for (final Character ch : chars) {</span>
+<span class="fc" id="L104">                sb.append(ch);</span>
+<span class="fc" id="L105">              }</span>
+<span class="fc" id="L106">              return sb.toString();</span>
+            },
+            traversedChars);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that splits a string by whitespace and focuses on each word.
+   *
+   * &lt;p&gt;The string is split using {@code &quot;\\s+&quot;} (one or more whitespace characters), producing a
+   * list of words. Each word can be transformed via an effectful function. The transformed words
+   * are then joined back with single spaces.
+   *
+   * &lt;p&gt;&lt;b&gt;Note:&lt;/b&gt; Multiple consecutive whitespace characters are normalized to a single space in
+   * the output when words are present. Leading and trailing whitespace is removed when joining
+   * words.
+   *
+   * &lt;p&gt;Empty strings or strings containing only whitespace produce an empty traversal (focusing on
+   * zero words), and {@code modify} operations preserve the original string unchanged.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;String, String&gt; wordTraversal = StringTraversals.worded();
+   *
+   * // Uppercase each word
+   * String result = Traversals.modify(wordTraversal, String::toUpperCase, &quot;hello world&quot;);
+   * // Result: &quot;HELLO WORLD&quot;
+   *
+   * // Get all words
+   * List&lt;String&gt; words = Traversals.getAll(wordTraversal, &quot;foo  bar\tbaz&quot;);
+   * // Result: [&quot;foo&quot;, &quot;bar&quot;, &quot;baz&quot;]
+   *
+   * // Capitalize first letter of each word
+   * String capitalized = Traversals.modify(
+   *     wordTraversal,
+   *     word -&gt; word.substring(0, 1).toUpperCase() + word.substring(1).toLowerCase(),
+   *     &quot;hello WORLD&quot;
+   * );
+   * // Result: &quot;Hello World&quot;
+   * }&lt;/pre&gt;
+   *
+   * @return A {@code Traversal} focusing on each word in a string.
+   */
+  public static Traversal&lt;String, String&gt; worded() {
+<span class="fc" id="L152">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F&gt; Kind&lt;F, String&gt; modifyF(
+          final Function&lt;String, Kind&lt;F, String&gt;&gt; f,
+          final String source,
+          final Applicative&lt;F&gt; applicative) {
+
+<span class="fc" id="L159">        final String trimmed = source.trim();</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        if (trimmed.isEmpty()) {</span>
+<span class="fc" id="L161">          return applicative.of(source);</span>
+        }
+
+        // Split by whitespace (one or more whitespace characters)
+<span class="fc" id="L165">        final List&lt;String&gt; words =</span>
+<span class="fc" id="L166">            Arrays.stream(trimmed.split(&quot;\\s+&quot;)).collect(Collectors.toList());</span>
+
+        // Traverse the word list
+<span class="fc" id="L169">        final Kind&lt;F, List&lt;String&gt;&gt; traversedWords = Traversals.traverseList(words, f, applicative);</span>
+
+        // Join words back with single spaces
+<span class="fc" id="L172">        return applicative.map(wordList -&gt; String.join(&quot; &quot;, wordList), traversedWords);</span>
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} that splits a string by line separators and focuses on each line.
+   *
+   * &lt;p&gt;The string is split using line separators ({@code \n}, {@code \r\n}, or {@code \r}). Each
+   * line can be transformed via an effectful function. The transformed lines are then joined back
+   * with {@code \n} (Unix-style line separator).
+   *
+   * &lt;p&gt;&lt;b&gt;Note:&lt;/b&gt; The output normalizes all line separators to {@code \n}. If you need to
+   * preserve the original line separator style, consider using a different approach.
+   *
+   * &lt;p&gt;Empty strings produce an empty traversal. Strings with no line separators focus on the
+   * entire string as a single line.
+   *
+   * &lt;p&gt;Example:
+   *
+   * &lt;pre&gt;{@code
+   * Traversal&lt;String, String&gt; lineTraversal = StringTraversals.lined();
+   *
+   * // Prefix each line
+   * String result = Traversals.modify(lineTraversal, line -&gt; &quot;&gt; &quot; + line, &quot;foo\nbar\nbaz&quot;);
+   * // Result: &quot;&gt; foo\n&gt; bar\n&gt; baz&quot;
+   *
+   * // Get all lines
+   * List&lt;String&gt; lines = Traversals.getAll(lineTraversal, &quot;line1\nline2\nline3&quot;);
+   * // Result: [&quot;line1&quot;, &quot;line2&quot;, &quot;line3&quot;]
+   *
+   * // Number each line
+   * AtomicInteger counter = new AtomicInteger(1);
+   * String numbered = Traversals.modify(
+   *     lineTraversal,
+   *     line -&gt; counter.getAndIncrement() + &quot;. &quot; + line,
+   *     &quot;first\nsecond\nthird&quot;
+   * );
+   * // Result: &quot;1. first\n2. second\n3. third&quot;
+   * }&lt;/pre&gt;
+   *
+   * @return A {@code Traversal} focusing on each line in a string.
+   */
+  public static Traversal&lt;String, String&gt; lined() {
+<span class="fc" id="L216">    return new Traversal&lt;&gt;() {</span>
+      @Override
+      public &lt;F&gt; Kind&lt;F, String&gt; modifyF(
+          final Function&lt;String, Kind&lt;F, String&gt;&gt; f,
+          final String source,
+          final Applicative&lt;F&gt; applicative) {
+
+<span class="fc bfc" id="L223" title="All 2 branches covered.">        if (source.isEmpty()) {</span>
+<span class="fc" id="L224">          return applicative.of(source);</span>
+        }
+
+        // Split by line separators (\n, \r\n, or \r)
+<span class="fc" id="L228">        final List&lt;String&gt; lines = Arrays.asList(source.split(&quot;\\r?\\n|\\r&quot;));</span>
+
+        // Traverse the line list
+<span class="fc" id="L231">        final Kind&lt;F, List&lt;String&gt;&gt; traversedLines = Traversals.traverseList(lines, f, applicative);</span>
+
+        // Join lines back with \n (Unix-style line separator)
+<span class="fc" id="L234">        return applicative.map(lineList -&gt; String.join(&quot;\n&quot;, lineList), traversedLines);</span>
+      }
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

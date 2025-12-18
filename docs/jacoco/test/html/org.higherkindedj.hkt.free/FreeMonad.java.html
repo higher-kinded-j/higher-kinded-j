@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FreeMonad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.free</a> &gt; <span class="el_source">FreeMonad.java</span></div><h1>FreeMonad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.free;
+
+import static org.higherkindedj.hkt.free.FreeKindHelper.FREE;
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Monad implementation for {@link FreeKind}.
+ *
+ * &lt;p&gt;Provides Functor, Applicative, and Monad operations for the Free type. The Free monad allows
+ * building programs as data structures that can be interpreted in different ways.
+ *
+ * @param &lt;F&gt; The functor type representing the instruction set
+ */
+public class FreeMonad&lt;F&gt; extends FreeFunctor&lt;F&gt; implements Monad&lt;FreeKind.Witness&lt;F&gt;&gt; {
+
+<span class="fc" id="L24">  private static final Class&lt;FreeMonad&gt; FREE_MONAD_CLASS = FreeMonad.class;</span>
+
+  /**
+   * Creates a new FreeMonad instance. Note: Unlike some other monads in this codebase, Free
+   * requires a type parameter F, so we cannot use a singleton instance.
+   */
+  public FreeMonad() {
+<span class="fc" id="L31">    super();</span>
+<span class="fc" id="L32">  }</span>
+
+  /**
+   * Lifts a pure value into the Free monad context.
+   *
+   * @param &lt;A&gt; The type of the value
+   * @param value The value to lift, can be null
+   * @return A Kind representing Pure(value)
+   */
+  @Override
+  public &lt;A&gt; Kind&lt;FreeKind.Witness&lt;F&gt;, A&gt; of(@Nullable A value) {
+<span class="fc" id="L43">    return FREE.widen(Free.pure(value));</span>
+  }
+
+  /**
+   * Sequentially composes two Free computations.
+   *
+   * &lt;p&gt;This operation is stack-safe due to the use of the FlatMapped constructor, which defers the
+   * actual computation until interpretation time.
+   *
+   * @param &lt;A&gt; The type of the value in the input Free
+   * @param &lt;B&gt; The type of the value in the resulting Free
+   * @param f The function to apply to the value. Must not be null.
+   * @param ma The Free to transform. Must not be null.
+   * @return The result of the computation chain
+   * @throws NullPointerException if f or ma is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ma cannot be unwrapped
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;FreeKind.Witness&lt;F&gt;, B&gt; flatMap(
+      Function&lt;? super A, ? extends Kind&lt;FreeKind.Witness&lt;F&gt;, B&gt;&gt; f,
+      Kind&lt;FreeKind.Witness&lt;F&gt;, A&gt; ma) {
+<span class="fc" id="L64">    Validation.function().validateFlatMap(f, ma, FREE_MONAD_CLASS);</span>
+
+<span class="fc" id="L66">    Free&lt;F, A&gt; freeA = FREE.narrow(ma);</span>
+
+<span class="fc" id="L68">    Free&lt;F, B&gt; resultFree =</span>
+<span class="fc" id="L69">        freeA.flatMap(</span>
+            a -&gt; {
+<span class="fc" id="L71">              Kind&lt;FreeKind.Witness&lt;F&gt;, B&gt; kindB = f.apply(a);</span>
+<span class="fc" id="L72">              Validation.function()</span>
+<span class="fc" id="L73">                  .requireNonNullResult(kindB, &quot;f&quot;, FREE_MONAD_CLASS, FLAT_MAP, Free.class);</span>
+<span class="fc" id="L74">              return FREE.narrow(kindB);</span>
+            });
+
+<span class="fc" id="L77">    return FREE.widen(resultFree);</span>
+  }
+
+  /**
+   * Applies a function wrapped in a Free to a value wrapped in a Free.
+   *
+   * &lt;p&gt;This is implemented using flatMap and map, maintaining stack safety.
+   *
+   * @param &lt;A&gt; The input type of the function
+   * @param &lt;B&gt; The output type of the function
+   * @param ff The Free containing the function. Must not be null.
+   * @param fa The Free containing the value. Must not be null.
+   * @return The result of applying the function
+   * @throws NullPointerException if ff or fa is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if ff or fa cannot be unwrapped
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;FreeKind.Witness&lt;F&gt;, B&gt; ap(
+      Kind&lt;FreeKind.Witness&lt;F&gt;, ? extends Function&lt;A, B&gt;&gt; ff, Kind&lt;FreeKind.Witness&lt;F&gt;, A&gt; fa) {
+<span class="fc" id="L96">    Validation.kind().validateAp(ff, fa, FREE_MONAD_CLASS);</span>
+
+<span class="fc" id="L98">    Free&lt;F, ? extends Function&lt;A, B&gt;&gt; freeF = FREE.narrow(ff);</span>
+<span class="fc" id="L99">    Free&lt;F, A&gt; freeA = FREE.narrow(fa);</span>
+
+    // Use flatMap and map for stack-safe implementation
+<span class="fc" id="L102">    Free&lt;F, B&gt; resultFree = freeF.flatMap(func -&gt; freeA.map(func));</span>
+<span class="fc" id="L103">    return FREE.widen(resultFree);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

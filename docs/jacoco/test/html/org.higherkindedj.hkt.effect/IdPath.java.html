@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdPath.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.effect</a> &gt; <span class="el_source">IdPath.java</span></div><h1>IdPath.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.effect;
+
+import java.util.Objects;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.maybe.Maybe;
+
+/**
+ * A fluent path wrapper for {@link Id} values.
+ *
+ * &lt;p&gt;{@code IdPath} is the simplest path type, representing a pure computation with no effects. It
+ * always contains a value and never fails. This makes it useful for:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Testing path compositions without introducing effects
+ *   &lt;li&gt;Lifting pure values into the Effect Path API
+ *   &lt;li&gt;Generic programming where a path type is required
+ * &lt;/ul&gt;
+ *
+ * &lt;h2&gt;Creating IdPath instances&lt;/h2&gt;
+ *
+ * &lt;p&gt;Use the {@link Path} factory class to create instances:
+ *
+ * &lt;pre&gt;{@code
+ * IdPath&lt;User&gt; path = Path.id(user);
+ * IdPath&lt;User&gt; fromId = Path.idPath(Id.of(user));
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Composing operations&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * IdPath&lt;String&gt; result = Path.id(user)
+ *     .map(User::getName)
+ *     .via(name -&gt; Path.id(name.toUpperCase()));
+ * }&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Converting to other paths&lt;/h2&gt;
+ *
+ * &lt;pre&gt;{@code
+ * MaybePath&lt;User&gt; maybe = Path.id(user).toMaybePath();
+ * EitherPath&lt;Error, User&gt; either = Path.id(user).toEitherPath();
+ * }&lt;/pre&gt;
+ *
+ * @param &lt;A&gt; the type of the contained value
+ */
+public final class IdPath&lt;A&gt; implements Chainable&lt;A&gt; {
+
+  private final Id&lt;A&gt; value;
+
+  /**
+   * Creates a new IdPath wrapping the given Id.
+   *
+   * @param value the Id to wrap; must not be null
+   */
+<span class="fc" id="L64">  IdPath(Id&lt;A&gt; value) {</span>
+<span class="fc" id="L65">    this.value = Objects.requireNonNull(value, &quot;value must not be null&quot;);</span>
+<span class="fc" id="L66">  }</span>
+
+  /**
+   * Returns the underlying Id value.
+   *
+   * @return the wrapped Id
+   */
+  public Id&lt;A&gt; run() {
+<span class="fc" id="L74">    return value;</span>
+  }
+
+  /**
+   * Returns the contained value directly.
+   *
+   * &lt;p&gt;Since IdPath always contains a value, this method always succeeds.
+   *
+   * @return the contained value
+   */
+  public A get() {
+<span class="fc" id="L85">    return value.value();</span>
+  }
+
+  // ===== Conversions =====
+
+  /**
+   * Converts this IdPath to a MaybePath.
+   *
+   * &lt;p&gt;The resulting MaybePath will contain the value (Just) since IdPath always has a value. If
+   * the value is null, the result is Nothing.
+   *
+   * @return a MaybePath containing the value
+   */
+  public MaybePath&lt;A&gt; toMaybePath() {
+<span class="fc" id="L99">    A v = value.value();</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">    return v != null ? new MaybePath&lt;&gt;(Maybe.just(v)) : new MaybePath&lt;&gt;(Maybe.nothing());</span>
+  }
+
+  /**
+   * Converts this IdPath to an EitherPath.
+   *
+   * &lt;p&gt;The resulting EitherPath will be Right since IdPath always has a value.
+   *
+   * @param &lt;E&gt; the error type for the resulting EitherPath
+   * @return an EitherPath containing the value as Right
+   */
+  public &lt;E&gt; EitherPath&lt;E, A&gt; toEitherPath() {
+<span class="fc" id="L112">    return new EitherPath&lt;&gt;(Either.right(value.value()));</span>
+  }
+
+  // ===== Composable implementation =====
+
+  @Override
+  public &lt;B&gt; IdPath&lt;B&gt; map(Function&lt;? super A, ? extends B&gt; mapper) {
+<span class="fc" id="L119">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+<span class="fc" id="L120">    return new IdPath&lt;&gt;(value.map(mapper));</span>
+  }
+
+  @Override
+  public IdPath&lt;A&gt; peek(Consumer&lt;? super A&gt; consumer) {
+<span class="fc" id="L125">    Objects.requireNonNull(consumer, &quot;consumer must not be null&quot;);</span>
+<span class="fc" id="L126">    consumer.accept(value.value());</span>
+<span class="fc" id="L127">    return this;</span>
+  }
+
+  // ===== Combinable implementation =====
+
+  @Override
+  public &lt;B, C&gt; IdPath&lt;C&gt; zipWith(
+      Combinable&lt;B&gt; other, BiFunction&lt;? super A, ? super B, ? extends C&gt; combiner) {
+<span class="fc" id="L135">    Objects.requireNonNull(other, &quot;other must not be null&quot;);</span>
+<span class="fc" id="L136">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+<span class="fc bfc" id="L138" title="All 2 branches covered.">    if (!(other instanceof IdPath&lt;?&gt; otherId)) {</span>
+<span class="fc" id="L139">      throw new IllegalArgumentException(&quot;Cannot zipWith non-IdPath: &quot; + other.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L143">    IdPath&lt;B&gt; typedOther = (IdPath&lt;B&gt;) otherId;</span>
+
+<span class="fc" id="L145">    return new IdPath&lt;&gt;(Id.of(combiner.apply(this.value.value(), typedOther.value.value())));</span>
+  }
+
+  /**
+   * Combines this path with two others using a ternary function.
+   *
+   * @param second the second path; must not be null
+   * @param third the third path; must not be null
+   * @param combiner the function to combine the values; must not be null
+   * @param &lt;B&gt; the type of the second path's value
+   * @param &lt;C&gt; the type of the third path's value
+   * @param &lt;D&gt; the type of the combined result
+   * @return a new path containing the combined result
+   */
+  public &lt;B, C, D&gt; IdPath&lt;D&gt; zipWith3(
+      IdPath&lt;B&gt; second,
+      IdPath&lt;C&gt; third,
+      Function3&lt;? super A, ? super B, ? super C, ? extends D&gt; combiner) {
+<span class="fc" id="L163">    Objects.requireNonNull(second, &quot;second must not be null&quot;);</span>
+<span class="fc" id="L164">    Objects.requireNonNull(third, &quot;third must not be null&quot;);</span>
+<span class="fc" id="L165">    Objects.requireNonNull(combiner, &quot;combiner must not be null&quot;);</span>
+
+<span class="fc" id="L167">    return new IdPath&lt;&gt;(</span>
+<span class="fc" id="L168">        Id.of(combiner.apply(this.value.value(), second.value.value(), third.value.value())));</span>
+  }
+
+  // ===== Chainable implementation =====
+
+  @Override
+  public &lt;B&gt; IdPath&lt;B&gt; via(Function&lt;? super A, ? extends Chainable&lt;B&gt;&gt; mapper) {
+<span class="fc" id="L175">    Objects.requireNonNull(mapper, &quot;mapper must not be null&quot;);</span>
+
+<span class="fc" id="L177">    Chainable&lt;B&gt; result = mapper.apply(value.value());</span>
+<span class="fc" id="L178">    Objects.requireNonNull(result, &quot;mapper must not return null&quot;);</span>
+
+<span class="fc bfc" id="L180" title="All 2 branches covered.">    if (!(result instanceof IdPath&lt;?&gt; idPath)) {</span>
+<span class="fc" id="L181">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L182">          &quot;via mapper must return IdPath, got: &quot; + result.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L186">    IdPath&lt;B&gt; typedResult = (IdPath&lt;B&gt;) idPath;</span>
+<span class="fc" id="L187">    return typedResult;</span>
+  }
+
+  @Override
+  public &lt;B&gt; IdPath&lt;B&gt; then(Supplier&lt;? extends Chainable&lt;B&gt;&gt; supplier) {
+<span class="fc" id="L192">    Objects.requireNonNull(supplier, &quot;supplier must not be null&quot;);</span>
+
+<span class="fc" id="L194">    Chainable&lt;B&gt; result = supplier.get();</span>
+<span class="fc" id="L195">    Objects.requireNonNull(result, &quot;supplier must not return null&quot;);</span>
+
+<span class="fc bfc" id="L197" title="All 2 branches covered.">    if (!(result instanceof IdPath&lt;?&gt; idPath)) {</span>
+<span class="fc" id="L198">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L199">          &quot;then supplier must return IdPath, got: &quot; + result.getClass());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L203">    IdPath&lt;B&gt; typedResult = (IdPath&lt;B&gt;) idPath;</span>
+<span class="fc" id="L204">    return typedResult;</span>
+  }
+
+  // ===== Object methods =====
+
+  @Override
+  public boolean equals(Object obj) {
+<span class="fc bfc" id="L211" title="All 2 branches covered.">    if (this == obj) return true;</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">    if (!(obj instanceof IdPath&lt;?&gt; other)) return false;</span>
+<span class="fc" id="L213">    return Objects.equals(value, other.value);</span>
+  }
+
+  @Override
+  public int hashCode() {
+<span class="fc" id="L218">    return Objects.hashCode(value);</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="fc" id="L223">    return &quot;IdPath(&quot; + value.value() + &quot;)&quot;;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

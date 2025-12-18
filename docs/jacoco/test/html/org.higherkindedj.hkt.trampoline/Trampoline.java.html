@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Trampoline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.trampoline</a> &gt; <span class="el_source">Trampoline.java</span></div><h1>Trampoline.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.trampoline;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Represents a stack-safe computation that can be trampolined to avoid stack overflow errors in
+ * deeply recursive computations.
+ *
+ * &lt;p&gt;A {@code Trampoline} is a data structure that allows tail-recursive computations to be
+ * converted into iterative ones, thus avoiding {@link StackOverflowError} on deep recursion. This
+ * is particularly useful for recursive algorithms that would otherwise exceed the JVM's call stack
+ * limit.
+ *
+ * &lt;p&gt;&lt;b&gt;Key Characteristics:&lt;/b&gt;
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;Stack Safety:&lt;/b&gt; Converts recursive calls into data structures that are processed
+ *       iteratively, preventing stack overflow.
+ *   &lt;li&gt;&lt;b&gt;Lazy Evaluation:&lt;/b&gt; Computations are not executed until {@link #run()} is explicitly
+ *       called.
+ *   &lt;li&gt;&lt;b&gt;Composability:&lt;/b&gt; Trampolined computations can be chained using {@link #map(Function)}
+ *       and {@link #flatMap(Function)}.
+ *   &lt;li&gt;&lt;b&gt;Tail Call Optimisation:&lt;/b&gt; Effectively provides tail-call optimisation for Java, which
+ *       lacks native support for it.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Use Cases:&lt;/b&gt;
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Converting deeply recursive algorithms to stack-safe iterative ones
+ *   &lt;li&gt;Implementing mutually recursive functions without stack overflow
+ *   &lt;li&gt;Processing deeply nested data structures (e.g., trees with millions of nodes)
+ *   &lt;li&gt;Implementing interpreters and evaluators that need to handle deep call chains
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Example - Factorial:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Naive recursive factorial would overflow for large n
+ * // Stack-safe trampolined version:
+ * Trampoline&lt;BigInteger&gt; factorial(BigInteger n, BigInteger acc) {
+ *     if (n.compareTo(BigInteger.ZERO) &lt;= 0) {
+ *         return Trampoline.done(acc);
+ *     }
+ *     return Trampoline.defer(() -&gt;
+ *         factorial(n.subtract(BigInteger.ONE), n.multiply(acc))
+ *     );
+ * }
+ *
+ * // Safe for very large numbers
+ * BigInteger result = factorial(BigInteger.valueOf(100000), BigInteger.ONE).run();
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Example - Mutual Recursion:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * Trampoline&lt;Boolean&gt; isEven(int n) {
+ *     if (n == 0) return Trampoline.done(true);
+ *     return Trampoline.defer(() -&gt; isOdd(n - 1));
+ * }
+ *
+ * Trampoline&lt;Boolean&gt; isOdd(int n) {
+ *     if (n == 0) return Trampoline.done(false);
+ *     return Trampoline.defer(() -&gt; isEven(n - 1));
+ * }
+ *
+ * boolean result = isEven(1000000).run(); // Stack-safe!
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Implementation Notes:&lt;/b&gt;
+ *
+ * &lt;p&gt;This implementation uses three constructors:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link Done} - Represents a completed computation with a final value
+ *   &lt;li&gt;{@link More} - Represents a suspended computation (deferred thunk)
+ *   &lt;li&gt;{@link FlatMap} - Represents a sequenced computation (right-associated bind)
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;The {@link #run()} method uses an iterative algorithm with an explicit continuation stack to
+ * evaluate the trampoline in constant stack space, regardless of recursion depth.
+ *
+ * @param &lt;A&gt; The type of the value produced when the computation completes.
+ */
+public sealed interface Trampoline&lt;A&gt; permits Trampoline.Done, Trampoline.More, Trampoline.FlatMap {
+
+<span class="fc" id="L95">  Class&lt;Trampoline&gt; TRAMPOLINE_CLASS = Trampoline.class;</span>
+
+  /**
+   * Represents a completed computation that holds a final value.
+   *
+   * @param &lt;A&gt; The type of the value held.
+   * @param value The final value of the computation. Can be {@code null} if {@code A} is a nullable
+   *     type.
+   */
+  record Done&lt;A&gt;(A value) implements Trampoline&lt;A&gt; {
+    /**
+     * Compact constructor for validation.
+     *
+     * @param value The value to hold (may be null for nullable types).
+     */
+<span class="fc" id="L110">    public Done {</span>
+      // No validation needed - value can be null for nullable types
+<span class="fc" id="L112">    }</span>
+  }
+
+  /**
+   * Represents a suspended computation that will be evaluated later. This is used to defer a
+   * recursive call and convert it into a data structure.
+   *
+   * @param &lt;A&gt; The type of the value that will be produced.
+   * @param next A supplier that produces the next {@code Trampoline} step. Must not be {@code null}
+   *     and must not return {@code null}.
+   */
+  record More&lt;A&gt;(Supplier&lt;Trampoline&lt;A&gt;&gt; next) implements Trampoline&lt;A&gt; {
+    /**
+     * Compact constructor with validation.
+     *
+     * @param next The supplier for the next trampoline step. Must not be null.
+     * @throws NullPointerException if {@code next} is {@code null}.
+     */
+<span class="fc" id="L130">    public More {</span>
+<span class="fc" id="L131">      Validation.coreType().requireValue(next, TRAMPOLINE_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L132">    }</span>
+  }
+
+  /**
+   * Represents a sequenced computation resulting from {@link #flatMap(Function)}. This constructor
+   * is essential for stack safety as it allows right-association of bind operations.
+   *
+   * @param &lt;A&gt; The type of the intermediate value.
+   * @param &lt;B&gt; The type of the final value.
+   * @param sub The sub-computation that produces a value of type {@code A}. Must not be {@code
+   *     null}.
+   * @param f The function that takes the result of {@code sub} and produces the next computation.
+   *     Must not be {@code null} and must not return {@code null}.
+   */
+  record FlatMap&lt;A, B&gt;(Trampoline&lt;A&gt; sub, Function&lt;A, Trampoline&lt;B&gt;&gt; f) implements Trampoline&lt;B&gt; {
+    /**
+     * Compact constructor with validation.
+     *
+     * @param sub The sub-computation. Must not be null.
+     * @param f The continuation function. Must not be null.
+     * @throws NullPointerException if {@code sub} or {@code f} is {@code null}.
+     */
+<span class="fc" id="L154">    public FlatMap {</span>
+<span class="fc" id="L155">      Validation.coreType().requireValue(sub, TRAMPOLINE_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L156">      Validation.function().requireFunction(f, &quot;f&quot;, TRAMPOLINE_CLASS, CONSTRUCTION);</span>
+<span class="fc" id="L157">    }</span>
+  }
+
+  /**
+   * Creates a completed {@code Trampoline} with the given value.
+   *
+   * @param &lt;A&gt; The type of the value.
+   * @param value The final value. Can be {@code null} if {@code A} is a nullable type.
+   * @return A {@code Trampoline} that immediately completes with the given value. Never {@code
+   *     null}.
+   */
+  static &lt;A&gt; Trampoline&lt;A&gt; done(A value) {
+<span class="fc" id="L169">    return new Done&lt;&gt;(value);</span>
+  }
+
+  /**
+   * Creates a suspended {@code Trampoline} that defers computation. This is the primary method for
+   * converting recursive calls into trampolined form.
+   *
+   * &lt;p&gt;The supplier should produce the next step of the computation, typically a recursive call
+   * wrapped in another {@code Trampoline}.
+   *
+   * @param &lt;A&gt; The type of the value that will eventually be produced.
+   * @param next A supplier that produces the next {@code Trampoline} step. Must not be {@code null}
+   *     and must not return {@code null}.
+   * @return A {@code Trampoline} representing the deferred computation. Never {@code null}.
+   * @throws NullPointerException if {@code next} is {@code null}.
+   */
+  static &lt;A&gt; Trampoline&lt;A&gt; defer(Supplier&lt;Trampoline&lt;A&gt;&gt; next) {
+<span class="fc" id="L186">    Validation.function().requireFunction(next, &quot;next&quot;, TRAMPOLINE_CLASS, DEFER);</span>
+<span class="fc" id="L187">    return new More&lt;&gt;(next);</span>
+  }
+
+  /**
+   * Transforms the result of this {@code Trampoline} computation using the provided mapping
+   * function, maintaining stack safety.
+   *
+   * &lt;p&gt;The mapping function is not executed until {@link #run()} is called, and the mapping itself
+   * does not increase stack depth.
+   *
+   * @param &lt;B&gt; The type of the value produced by the mapping function.
+   * @param f The mapping function. Must not be {@code null}.
+   * @return A new {@code Trampoline} that will apply the mapping function to the result. Never
+   *     {@code null}.
+   * @throws NullPointerException if {@code f} is {@code null}.
+   */
+  default &lt;B&gt; Trampoline&lt;B&gt; map(Function&lt;? super A, ? extends B&gt; f) {
+<span class="fc" id="L204">    Validation.function().requireMapper(f, &quot;f&quot;, TRAMPOLINE_CLASS, MAP);</span>
+<span class="fc" id="L205">    return flatMap(a -&gt; done(f.apply(a)));</span>
+  }
+
+  /**
+   * Sequences this {@code Trampoline} computation with another, maintaining stack safety. This is
+   * the monadic bind operation for {@code Trampoline}.
+   *
+   * &lt;p&gt;The key to stack safety is that this method does not immediately evaluate anything - it
+   * constructs a {@link FlatMap} data structure that will be processed iteratively by {@link
+   * #run()}.
+   *
+   * @param &lt;B&gt; The type of the value produced by the next computation.
+   * @param f A function that takes the result of this computation and produces the next {@code
+   *     Trampoline}. Must not be {@code null} and must not return {@code null}.
+   * @return A new {@code Trampoline} representing the sequenced computation. Never {@code null}.
+   * @throws NullPointerException if {@code f} is {@code null}.
+   */
+  default &lt;B&gt; Trampoline&lt;B&gt; flatMap(Function&lt;? super A, ? extends Trampoline&lt;? extends B&gt;&gt; f) {
+<span class="fc" id="L223">    Validation.function().requireFlatMapper(f, &quot;f&quot;, TRAMPOLINE_CLASS, FLAT_MAP);</span>
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L225">    Function&lt;A, Trampoline&lt;B&gt;&gt; castedF =</span>
+        a -&gt; {
+<span class="fc" id="L227">          Trampoline&lt;? extends B&gt; result = f.apply(a);</span>
+<span class="fc" id="L228">          Validation.function()</span>
+<span class="fc" id="L229">              .requireNonNullResult(result, &quot;f&quot;, TRAMPOLINE_CLASS, FLAT_MAP, TRAMPOLINE_CLASS);</span>
+          @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L231">          Trampoline&lt;B&gt; casted = (Trampoline&lt;B&gt;) result;</span>
+<span class="fc" id="L232">          return casted;</span>
+        };
+<span class="fc" id="L234">    return new FlatMap&lt;&gt;(this, castedF);</span>
+  }
+
+  /**
+   * Internal sealed interface for type-safe continuation handling. This encapsulates the necessary
+   * type erasure in one controlled location, avoiding multiple unsafe casts throughout the {@link
+   * #run()} method.
+   *
+   * &lt;p&gt;The continuation stack in {@link #run()} stores functions with heterogeneous types (e.g.,
+   * {@code Function&lt;A, Trampoline&lt;B&gt;&gt;}, {@code Function&lt;B, Trampoline&lt;C&gt;&gt;}, etc.). Rather than
+   * using raw types or multiple unchecked casts, this interface provides a type-safe wrapper that
+   * handles the necessary Object-level casting in a single, controlled location.
+   */
+  sealed interface Continuation permits Continuation.FlatMapCont {
+    /**
+     * Applies the continuation to a value, producing the next trampoline step.
+     *
+     * @param value The value from the previous computation (passed as Object for stack
+     *     homogeneity).
+     * @return The next trampoline step.
+     */
+    Trampoline&lt;?&gt; apply(Object value);
+
+    /**
+     * Implementation of continuation for {@link FlatMap} operations. This record wraps a flatMap
+     * function and handles the necessary type cast in a controlled manner.
+     *
+     * &lt;p&gt;The single {@code @SuppressWarnings(&quot;unchecked&quot;)} annotation in the {@link #apply(Object)}
+     * method is safe because:
+     *
+     * &lt;ol&gt;
+     *   &lt;li&gt;The continuation is created in the {@code FlatMap} case with the correct type
+     *   &lt;li&gt;It's only called with the value produced by evaluating {@code flatMap.sub()}
+     *   &lt;li&gt;That value is guaranteed to be of type {@code X} by construction
+     * &lt;/ol&gt;
+     *
+     * @param &lt;X&gt; The input type of the function (must match the result type of the
+     *     sub-computation).
+     * @param &lt;Y&gt; The output type of the trampoline produced by the function.
+     * @param f The flatMap function that transforms a value of type X into the next trampoline
+     *     step.
+     */
+<span class="fc" id="L276">    record FlatMapCont&lt;X, Y&gt;(Function&lt;X, Trampoline&lt;Y&gt;&gt; f) implements Continuation {</span>
+      @Override
+      @SuppressWarnings(&quot;unchecked&quot;)
+      public Trampoline&lt;Y&gt; apply(Object value) {
+        // Single controlled unsafe cast: Object -&gt; X
+        // This is safe because we only call this with the value produced by the sub-computation,
+        // which is guaranteed to be of type X
+<span class="fc" id="L283">        return f.apply((X) value);</span>
+      }
+    }
+  }
+
+  /**
+   * Evaluates this {@code Trampoline} computation in a stack-safe manner, returning the final
+   * result.
+   *
+   * &lt;p&gt;This method uses an iterative algorithm with an explicit continuation stack to process the
+   * trampoline structure. Regardless of how deeply nested the recursive calls were, this method
+   * executes in constant stack space.
+   *
+   * &lt;p&gt;&lt;b&gt;Algorithm:&lt;/b&gt; The implementation uses a continuation-passing style with an explicit
+   * stack (a {@link Deque}) to track pending {@link FlatMap} continuations. It processes the
+   * trampoline structure iteratively:
+   *
+   * &lt;ol&gt;
+   *   &lt;li&gt;Start with the current trampoline
+   *   &lt;li&gt;If it's {@link More}, unwrap it and continue
+   *   &lt;li&gt;If it's {@link FlatMap}, wrap the function in a {@link Continuation.FlatMapCont}, push it
+   *       onto the stack, and process the sub-computation
+   *   &lt;li&gt;If it's {@link Done}, apply any pending continuations from the stack
+   *   &lt;li&gt;Repeat until there are no more continuations and we have a final {@link Done} value
+   * &lt;/ol&gt;
+   *
+   * &lt;p&gt;&lt;b&gt;Type Safety:&lt;/b&gt; The method uses a {@link Continuation} wrapper to safely handle the
+   * heterogeneous types on the continuation stack. This design confines the single necessary unsafe
+   * cast to the {@link Continuation.FlatMapCont#apply(Object)} method, making the type erasure
+   * explicit, documented, and verified to be safe.
+   *
+   * @return The final computed value. Can be {@code null} if {@code A} is a nullable type.
+   */
+  default A run() {
+<span class="fc" id="L317">    Trampoline&lt;?&gt; current = this;</span>
+<span class="fc" id="L318">    Deque&lt;Continuation&gt; stack = new ArrayDeque&lt;&gt;();</span>
+
+    while (true) {
+<span class="fc bfc" id="L321" title="All 3 branches covered.">      switch (current) {</span>
+<span class="fc" id="L322">        case Done&lt;?&gt; done -&gt; {</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">          if (stack.isEmpty()) {</span>
+            // Final result: safe cast because we started with Trampoline&lt;A&gt;
+            // and all transformations preserve the final result type
+            @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L327">            A result = (A) done.value();</span>
+<span class="fc" id="L328">            return result;</span>
+          }
+          // Apply the next continuation from the stack
+<span class="fc" id="L331">          current = stack.removeLast().apply(done.value());</span>
+<span class="fc" id="L332">        }</span>
+<span class="fc" id="L333">        case More&lt;?&gt; more -&gt; {</span>
+<span class="fc" id="L334">          current = more.next().get();</span>
+<span class="fc" id="L335">        }</span>
+<span class="fc" id="L336">        case FlatMap&lt;?, ?&gt; flatMap -&gt; {</span>
+          // Wrap the function in a continuation and push it onto the stack
+          // The continuation captures the correct types and handles casting internally
+<span class="fc" id="L339">          stack.addLast(new Continuation.FlatMapCont&lt;&gt;(flatMap.f()));</span>
+<span class="fc" id="L340">          current = flatMap.sub();</span>
+<span class="fc" id="L341">        }</span>
+      }
+    }
+  }
+
+  /**
+   * Evaluates this {@code Trampoline} and returns the result. Alias for {@link #run()}.
+   *
+   * @return The final computed value. Can be {@code null} if {@code A} is a nullable type.
+   */
+  default A runT() {
+<span class="fc" id="L352">    return run();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

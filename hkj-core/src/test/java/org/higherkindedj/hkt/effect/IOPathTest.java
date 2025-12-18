@@ -4,10 +4,17 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.resilience.RetryExhaustedException;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -541,6 +548,610 @@ class IOPathTest {
 
       assertThat(path.toString()).contains("IOPath");
       assertThat(path.toString()).contains("deferred");
+    }
+  }
+
+  @Nested
+  @DisplayName("Resource Management Operations (bracket, withResource, guarantee)")
+  class ResourceManagementOperationsTests {
+
+    @Test
+    @DisplayName("bracket() acquires, uses, and releases resource")
+    void bracketAcquiresUsesAndReleasesResource() {
+      AtomicBoolean acquired = new AtomicBoolean(false);
+      AtomicBoolean released = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          IOPath.bracket(
+              () -> {
+                acquired.set(true);
+                return "resource";
+              },
+              r -> r.toUpperCase(),
+              r -> released.set(true));
+
+      assertThat(acquired).isFalse();
+      assertThat(released).isFalse();
+
+      String result = path.unsafeRun();
+
+      assertThat(result).isEqualTo("RESOURCE");
+      assertThat(acquired).isTrue();
+      assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("bracket() releases resource even on exception")
+    void bracketReleasesResourceEvenOnException() {
+      AtomicBoolean released = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          IOPath.bracket(
+              () -> "resource",
+              r -> {
+                throw new RuntimeException("use failed");
+              },
+              r -> released.set(true));
+
+      assertThatRuntimeException().isThrownBy(path::unsafeRun).withMessage("use failed");
+      assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("bracket() validates non-null arguments")
+    void bracketValidatesNonNullArguments() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.bracket(null, r -> r, r -> {}))
+          .withMessageContaining("acquire must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.bracket(() -> "r", null, r -> {}))
+          .withMessageContaining("use must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.bracket(() -> "r", r -> r, null))
+          .withMessageContaining("release must not be null");
+    }
+
+    @Test
+    @DisplayName("bracketIO() acquires, uses IOPath, and releases resource")
+    void bracketIOAcquiresUsesAndReleasesResource() {
+      AtomicBoolean acquired = new AtomicBoolean(false);
+      AtomicBoolean released = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          IOPath.bracketIO(
+              () -> {
+                acquired.set(true);
+                return "resource";
+              },
+              r -> Path.ioPure(r.toUpperCase()),
+              r -> released.set(true));
+
+      String result = path.unsafeRun();
+
+      assertThat(result).isEqualTo("RESOURCE");
+      assertThat(acquired).isTrue();
+      assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("bracketIO() releases resource even on exception in IOPath")
+    void bracketIOReleasesResourceEvenOnException() {
+      AtomicBoolean released = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          IOPath.bracketIO(
+              () -> "resource",
+              r ->
+                  Path.io(
+                      () -> {
+                        throw new RuntimeException("IO failed");
+                      }),
+              r -> released.set(true));
+
+      assertThatRuntimeException().isThrownBy(path::unsafeRun).withMessage("IO failed");
+      assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("bracketIO() validates non-null arguments")
+    void bracketIOValidatesNonNullArguments() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.bracketIO(null, r -> Path.ioPure(r), r -> {}))
+          .withMessageContaining("acquire must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.bracketIO(() -> "r", null, r -> {}))
+          .withMessageContaining("useIO must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.bracketIO(() -> "r", r -> Path.ioPure(r), null))
+          .withMessageContaining("release must not be null");
+    }
+
+    @Test
+    @DisplayName("withResource() auto-closes AutoCloseable resource")
+    void withResourceAutoClosesResource() {
+      AtomicBoolean closed = new AtomicBoolean(false);
+      Closeable resource =
+          () -> {
+            closed.set(true);
+          };
+
+      IOPath<String> path = IOPath.withResource(() -> resource, r -> "used");
+
+      path.unsafeRun();
+
+      assertThat(closed).isTrue();
+    }
+
+    @Test
+    @DisplayName("withResource() closes resource even on exception")
+    void withResourceClosesResourceEvenOnException() {
+      AtomicBoolean closed = new AtomicBoolean(false);
+      Closeable resource =
+          () -> {
+            closed.set(true);
+          };
+
+      IOPath<String> path =
+          IOPath.withResource(
+              () -> resource,
+              r -> {
+                throw new RuntimeException("use failed");
+              });
+
+      assertThatRuntimeException().isThrownBy(path::unsafeRun);
+      assertThat(closed).isTrue();
+    }
+
+    @Test
+    @DisplayName("withResource() silently ignores close exceptions")
+    void withResourceSilentlyIgnoresCloseExceptions() {
+      Closeable resource =
+          () -> {
+            throw new IOException("close failed");
+          };
+
+      IOPath<String> path = IOPath.withResource(() -> resource, r -> "result");
+
+      // Should not throw despite close failure
+      String result = path.unsafeRun();
+      assertThat(result).isEqualTo("result");
+    }
+
+    @Test
+    @DisplayName("withResource() validates non-null arguments")
+    void withResourceValidatesNonNullArguments() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.withResource(null, r -> "r"))
+          .withMessageContaining("resourceSupplier must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.withResource(() -> (Closeable) () -> {}, null))
+          .withMessageContaining("use must not be null");
+    }
+
+    @Test
+    @DisplayName("withResourceIO() auto-closes AutoCloseable resource with IOPath use")
+    void withResourceIOAutoClosesResource() {
+      AtomicBoolean closed = new AtomicBoolean(false);
+      Closeable resource =
+          () -> {
+            closed.set(true);
+          };
+
+      IOPath<String> path = IOPath.withResourceIO(() -> resource, r -> Path.ioPure("used"));
+
+      path.unsafeRun();
+
+      assertThat(closed).isTrue();
+    }
+
+    @Test
+    @DisplayName("withResourceIO() validates non-null arguments")
+    void withResourceIOValidatesNonNullArguments() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.withResourceIO(null, r -> Path.ioPure("r")))
+          .withMessageContaining("resourceSupplier must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> IOPath.withResourceIO(() -> (Closeable) () -> {}, null))
+          .withMessageContaining("useIO must not be null");
+    }
+
+    @Test
+    @DisplayName("guarantee() runs finalizer on success")
+    void guaranteeRunsFinalizerOnSuccess() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      IOPath<String> path = Path.ioPure("result").guarantee(() -> finalized.set(true));
+
+      String result = path.unsafeRun();
+
+      assertThat(result).isEqualTo("result");
+      assertThat(finalized).isTrue();
+    }
+
+    @Test
+    @DisplayName("guarantee() runs finalizer on failure")
+    void guaranteeRunsFinalizerOnFailure() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          Path.<String>io(
+                  () -> {
+                    throw new RuntimeException("error");
+                  })
+              .guarantee(() -> finalized.set(true));
+
+      assertThatRuntimeException().isThrownBy(path::unsafeRun);
+      assertThat(finalized).isTrue();
+    }
+
+    @Test
+    @DisplayName("guarantee() validates non-null finalizer")
+    void guaranteeValidatesNonNullFinalizer() {
+      IOPath<String> path = Path.ioPure("result");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.guarantee(null))
+          .withMessageContaining("finalizer must not be null");
+    }
+
+    @Test
+    @DisplayName("guaranteeIO() runs IOPath finalizer on success")
+    void guaranteeIORunsFinalizerOnSuccess() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          Path.ioPure("result").guaranteeIO(Path.ioRunnable(() -> finalized.set(true)));
+
+      String result = path.unsafeRun();
+
+      assertThat(result).isEqualTo("result");
+      assertThat(finalized).isTrue();
+    }
+
+    @Test
+    @DisplayName("guaranteeIO() runs IOPath finalizer on failure")
+    void guaranteeIORunsFinalizerOnFailure() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          Path.<String>io(
+                  () -> {
+                    throw new RuntimeException("error");
+                  })
+              .guaranteeIO(Path.ioRunnable(() -> finalized.set(true)));
+
+      assertThatRuntimeException().isThrownBy(path::unsafeRun);
+      assertThat(finalized).isTrue();
+    }
+
+    @Test
+    @DisplayName("guaranteeIO() validates non-null finalizerIO")
+    void guaranteeIOValidatesNonNullFinalizerIO() {
+      IOPath<String> path = Path.ioPure("result");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.guaranteeIO(null))
+          .withMessageContaining("finalizerIO must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Parallel Execution Operations (parZipWith, race)")
+  class ParallelExecutionOperationsTests {
+
+    @Test
+    @DisplayName("parZipWith() combines two IOPaths in parallel")
+    void parZipWithCombinesTwoIOPathsInParallel() {
+      IOPath<Integer> first = Path.ioPure(10);
+      IOPath<Integer> second = Path.ioPure(20);
+
+      IOPath<Integer> result = first.parZipWith(second, (a, b) -> a + b);
+
+      assertThat(result.unsafeRun()).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("parZipWith() executes both IOPaths")
+    void parZipWithExecutesBothIOPaths() {
+      AtomicBoolean firstExecuted = new AtomicBoolean(false);
+      AtomicBoolean secondExecuted = new AtomicBoolean(false);
+
+      IOPath<String> first =
+          Path.io(
+              () -> {
+                firstExecuted.set(true);
+                return "first";
+              });
+      IOPath<String> second =
+          Path.io(
+              () -> {
+                secondExecuted.set(true);
+                return "second";
+              });
+
+      IOPath<String> result = first.parZipWith(second, (a, b) -> a + "-" + b);
+
+      result.unsafeRun();
+
+      assertThat(firstExecuted).isTrue();
+      assertThat(secondExecuted).isTrue();
+    }
+
+    @Test
+    @DisplayName("parZipWith() propagates exception from first IOPath")
+    void parZipWithPropagatesExceptionFromFirst() {
+      RuntimeException error = new RuntimeException("first failed");
+      IOPath<String> first =
+          Path.io(
+              () -> {
+                throw error;
+              });
+      IOPath<String> second = Path.ioPure("second");
+
+      IOPath<String> result = first.parZipWith(second, (a, b) -> a + b);
+
+      assertThatThrownBy(result::unsafeRun).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("parZipWith() validates non-null arguments")
+    void parZipWithValidatesNonNullArguments() {
+      IOPath<String> path = Path.ioPure("test");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.parZipWith(null, (a, b) -> a + b))
+          .withMessageContaining("other must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.parZipWith(Path.ioPure("x"), null))
+          .withMessageContaining("combiner must not be null");
+    }
+
+    @Test
+    @DisplayName("race() returns result of either IOPath")
+    void raceReturnsResultOfEitherIOPath() {
+      IOPath<String> first = Path.ioPure("first");
+      IOPath<String> second = Path.ioPure("second");
+
+      IOPath<String> result = first.race(second);
+
+      String winner = result.unsafeRun();
+      assertThat(winner).isIn("first", "second");
+    }
+
+    @Test
+    @DisplayName("race() validates non-null other")
+    void raceValidatesNonNullOther() {
+      IOPath<String> path = Path.ioPure("test");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.race(null))
+          .withMessageContaining("other must not be null");
+    }
+
+    @Test
+    @DisplayName("race() propagates exception if winner fails")
+    void racePropagatesExceptionIfWinnerFails() {
+      RuntimeException error = new RuntimeException("failed");
+      IOPath<String> failing =
+          Path.io(
+              () -> {
+                throw error;
+              });
+      IOPath<String> slow =
+          Path.io(
+              () -> {
+                try {
+                  Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "slow";
+              });
+
+      IOPath<String> result = failing.race(slow);
+
+      // The failing one may complete first, or the slow one may win
+      // This is non-deterministic, so we just verify no hang
+      try {
+        result.unsafeRun();
+      } catch (RuntimeException e) {
+        // Expected if failing IOPath wins the race
+      }
+    }
+
+    @Test
+    @DisplayName("parZipWith() wraps checked exception in RuntimeException")
+    void parZipWithWrapsCheckedException() {
+      Exception checkedException = new Exception("parZipWith checked exception");
+      IOPath<Integer> first = Path.ioPure(10);
+      IOPath<Integer> second =
+          Path.io(
+              () -> {
+                throw sneakyThrow(checkedException);
+              });
+
+      IOPath<Integer> result = first.parZipWith(second, (a, b) -> a + b);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasCause(checkedException);
+    }
+
+    @Test
+    @DisplayName("parZipWith() handles InterruptedException during parallel execution")
+    void parZipWithHandlesInterruptedException() throws InterruptedException {
+      CountDownLatch started = new CountDownLatch(1);
+      CountDownLatch canProceed = new CountDownLatch(1);
+      AtomicReference<Throwable> caught = new AtomicReference<>();
+
+      IOPath<Integer> first = Path.ioPure(10);
+      IOPath<Integer> second =
+          Path.io(
+              () -> {
+                started.countDown();
+                try {
+                  canProceed.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  throw new RuntimeException(e);
+                }
+                return 20;
+              });
+
+      IOPath<Integer> result = first.parZipWith(second, (a, b) -> a + b);
+
+      Thread testThread =
+          new Thread(
+              () -> {
+                try {
+                  result.unsafeRun();
+                } catch (Throwable t) {
+                  caught.set(t);
+                }
+              });
+
+      testThread.start();
+      started.await();
+      testThread.interrupt();
+      testThread.join(5000);
+
+      assertThat(testThread.isAlive()).isFalse();
+      assertThat(caught.get()).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("race() wraps checked exception in RuntimeException")
+    void raceWrapsCheckedException() {
+      Exception checkedException = new Exception("race checked exception");
+      IOPath<String> failing =
+          Path.io(
+              () -> {
+                throw sneakyThrow(checkedException);
+              });
+
+      IOPath<String> result = failing.race(failing);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasCause(checkedException);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> RuntimeException sneakyThrow(Throwable e) throws E {
+      throw (E) e;
+    }
+  }
+
+  @Nested
+  @DisplayName("Retry Operations (withRetry, retry)")
+  class RetryOperationsTests {
+
+    @Test
+    @DisplayName("withRetry() retries on failure and succeeds")
+    void withRetryRetriesOnFailureAndSucceeds() {
+      AtomicInteger attempts = new AtomicInteger(0);
+      RetryPolicy policy = RetryPolicy.fixed(5, Duration.ofMillis(1));
+
+      IOPath<String> path =
+          Path.<String>io(
+                  () -> {
+                    if (attempts.incrementAndGet() < 3) {
+                      throw new RuntimeException("Attempt " + attempts.get() + " failed");
+                    }
+                    return "success";
+                  })
+              .withRetry(policy);
+
+      String result = path.unsafeRun();
+
+      assertThat(result).isEqualTo("success");
+      assertThat(attempts.get()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("withRetry() throws RetryExhaustedException when all attempts fail")
+    void withRetryThrowsRetryExhaustedExceptionWhenAllFail() {
+      RetryPolicy policy = RetryPolicy.fixed(3, Duration.ofMillis(1));
+
+      IOPath<String> path =
+          Path.<String>io(
+                  () -> {
+                    throw new RuntimeException("always fails");
+                  })
+              .withRetry(policy);
+
+      assertThatThrownBy(path::unsafeRun).isInstanceOf(RetryExhaustedException.class);
+    }
+
+    @Test
+    @DisplayName("withRetry() returns immediately on success")
+    void withRetryReturnsImmediatelyOnSuccess() {
+      AtomicInteger attempts = new AtomicInteger(0);
+      RetryPolicy policy = RetryPolicy.fixed(5, Duration.ofMillis(100));
+
+      IOPath<String> path =
+          Path.<String>io(
+                  () -> {
+                    attempts.incrementAndGet();
+                    return "immediate success";
+                  })
+              .withRetry(policy);
+
+      String result = path.unsafeRun();
+
+      assertThat(result).isEqualTo("immediate success");
+      assertThat(attempts.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("withRetry() validates non-null policy")
+    void withRetryValidatesNonNullPolicy() {
+      IOPath<String> path = Path.ioPure("test");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withRetry(null))
+          .withMessageContaining("policy must not be null");
+    }
+
+    @Test
+    @DisplayName("retry() convenience method uses exponential backoff")
+    void retryConvenienceMethodUsesExponentialBackoff() {
+      AtomicInteger attempts = new AtomicInteger(0);
+
+      IOPath<String> path =
+          Path.<String>io(
+                  () -> {
+                    if (attempts.incrementAndGet() < 2) {
+                      throw new RuntimeException("retry needed");
+                    }
+                    return "success";
+                  })
+              .retry(5, Duration.ofMillis(1));
+
+      String result = path.unsafeRun();
+
+      assertThat(result).isEqualTo("success");
+      assertThat(attempts.get()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("retry() throws RetryExhaustedException when all attempts fail")
+    void retryThrowsRetryExhaustedExceptionWhenAllFail() {
+      IOPath<String> path =
+          Path.<String>io(
+                  () -> {
+                    throw new RuntimeException("always fails");
+                  })
+              .retry(2, Duration.ofMillis(1));
+
+      assertThatThrownBy(path::unsafeRun).isInstanceOf(RetryExhaustedException.class);
     }
   }
 

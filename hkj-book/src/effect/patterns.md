@@ -383,6 +383,110 @@ shows the pattern.
 
 ---
 
+## Resilience: Retry with Backoff
+
+> *"The protocol specified exponential backoff: wait one second, try again;
+> wait two seconds, try again; wait four seconds..."*
+>
+> — Neal Stephenson, *Cryptonomicon*
+
+Transient failures—network blips, brief overloads—often succeed on retry.
+But retrying immediately can worsen the problem. The `RetryPolicy` API
+provides configurable backoff strategies.
+
+### Creating Retry Policies
+
+```java
+// Fixed delay: 100ms between each of 3 attempts
+RetryPolicy fixed = RetryPolicy.fixed(3, Duration.ofMillis(100));
+
+// Exponential backoff: 1s, 2s, 4s, 8s...
+RetryPolicy exponential = RetryPolicy.exponentialBackoff(5, Duration.ofSeconds(1));
+
+// With jitter to prevent thundering herd
+RetryPolicy jittered = RetryPolicy.exponentialBackoffWithJitter(5, Duration.ofSeconds(1));
+```
+
+### Applying Retry to Paths
+
+```java
+IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
+    .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
+
+// Convenience method for simple cases
+IOPath<Response> simple = IOPath.delay(() -> httpClient.get(url))
+    .retry(3);  // Uses default exponential backoff
+```
+
+### Configuring Retry Behaviour
+
+Policies are immutable but configurable:
+
+```java
+RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
+    .withMaxDelay(Duration.ofSeconds(30))   // Cap maximum wait
+    .retryOn(IOException.class);             // Only retry I/O errors
+```
+
+### Selective Retry
+
+Not all errors should trigger retry:
+
+```java
+RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
+    .retryIf(ex ->
+        ex instanceof IOException ||
+        ex instanceof TimeoutException ||
+        (ex instanceof HttpException http && http.statusCode() >= 500));
+```
+
+### Combining Retry with Fallback
+
+```java
+IOPath<Data> robust = fetchFromPrimary()
+    .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)))
+    .handleErrorWith(e -> {
+        log.warn("Primary exhausted, trying backup");
+        return fetchFromBackup()
+            .withRetry(RetryPolicy.fixed(2, Duration.ofMillis(100)));
+    })
+    .recover(e -> {
+        log.error("All sources failed", e);
+        return Data.empty();
+    });
+```
+
+### Handling Exhausted Retries
+
+When all attempts fail, `RetryExhaustedException` is thrown:
+
+```java
+try {
+    resilient.unsafeRun();
+} catch (RetryExhaustedException e) {
+    log.error("All retries failed: {}", e.getMessage());
+    Throwable lastFailure = e.getCause();
+    return fallbackValue;
+}
+```
+
+### Retry Pattern Quick Reference
+
+| Strategy | Use Case |
+|----------|----------|
+| `fixed(n, delay)` | Known recovery time |
+| `exponentialBackoff(n, initial)` | Unknown recovery time |
+| `exponentialBackoffWithJitter(n, initial)` | Multiple clients retrying |
+| `.retryOn(ExceptionType.class)` | Selective retry |
+| `.withMaxDelay(duration)` | Cap exponential growth |
+
+~~~admonish tip title="See Also"
+See [Advanced Effect Topics](advanced_topics.md) for comprehensive coverage of
+resilience patterns including resource management with `bracket` and `guarantee`.
+~~~
+
+---
+
 ## Testing Patterns
 
 Path-returning methods are straightforward to test. The explicit success/failure
@@ -617,10 +721,13 @@ void processOrder(OrderRequest request) {
 | Repository wrapping | Maybe → Either at boundary | `toEitherPath` |
 | Service chaining | Sequential dependent calls | `via`, `mapError` |
 | Fallback chain | Multiple sources | `recoverWith` |
-| Resource management | Acquire/use/release | `ensuring` |
+| Resource management | Acquire/use/release | `bracket`, `withResource` |
+| Cleanup guarantee | Ensure finalizer runs | `guarantee` |
 | Effect pipeline | Deferred composition | `via`, `then`, `unsafeRun` |
 | Error enrichment | Add context | `mapError` |
 | Circuit breaker | Protect failing service | `recover`, `recoverWith` |
+| Retry with backoff | Transient failures | `withRetry`, `RetryPolicy` |
+| Selective retry | Specific exception types | `.retryOn()`, `.retryIf()` |
 
 ---
 

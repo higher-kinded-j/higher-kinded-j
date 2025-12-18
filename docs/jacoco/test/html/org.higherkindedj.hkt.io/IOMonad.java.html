@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IOMonad.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.io</a> &gt; <span class="el_source">IOMonad.java</span></div><h1>IOMonad.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.io;
+
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Implements the {@link Monad} type class for {@link IO}, using {@link IOKind.Witness} as the
+ * higher-kinded type witness.
+ *
+ * &lt;p&gt;This implementation provides the ability to sequence IO computations, where the second
+ * computation depends on the result of the first, while maintaining lazy evaluation semantics. This
+ * class is a stateless singleton, accessible via {@link #INSTANCE}.
+ *
+ * @see Monad
+ * @see IOApplicative
+ * @see IO
+ * @see IOKind
+ * @see IOKind.Witness
+ * @see IOKindHelper
+ */
+public class IOMonad extends IOApplicative implements Monad&lt;IOKind.Witness&gt; {
+
+<span class="fc" id="L30">  private static final Class&lt;IOMonad&gt; IO_MONAD_CLASS = IOMonad.class;</span>
+
+  /** Singleton instance of {@code IOMonad}. */
+<span class="fc" id="L33">  public static final IOMonad INSTANCE = new IOMonad();</span>
+
+  /** Private constructor to enforce the singleton pattern. */
+<span class="fc" id="L36">  protected IOMonad() {</span>
+    // Private constructor
+<span class="fc" id="L38">  }</span>
+
+  /**
+   * Sequentially composes two IO computations, where the second computation (produced by function
+   * {@code f}) depends on the result of the first computation ({@code ma}).
+   *
+   * &lt;p&gt;When the resulting IO is executed, it first runs the first IO computation to get a value,
+   * then applies the function {@code f} to that value to get a new IO computation, and finally runs
+   * that new IO computation to get the final result.
+   *
+   * &lt;p&gt;This operation maintains lazy evaluation - no computations are performed until {@code
+   * unsafeRunSync()} is called on the resulting IO.
+   *
+   * @param &lt;A&gt; The type of the result of the first computation {@code ma}.
+   * @param &lt;B&gt; The type of the result of the second computation returned by function {@code f}.
+   * @param f A function that takes the result of the first computation and returns a new {@code
+   *     Kind&lt;IOKind.Witness, B&gt;} representing the next computation. Must not be null.
+   * @param ma A {@code Kind&lt;IOKind.Witness, A&gt;} representing the first IO computation. Must not be
+   *     null.
+   * @return A {@code Kind&lt;IOKind.Witness, B&gt;} representing the sequenced IO computation. Never
+   *     null.
+   * @throws NullPointerException if {@code f} or {@code ma} is null.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} or the {@code Kind}
+   *     returned by {@code f} cannot be unwrapped.
+   */
+  @Override
+  public &lt;A, B&gt; Kind&lt;IOKind.Witness, B&gt; flatMap(
+      Function&lt;? super A, ? extends Kind&lt;IOKind.Witness, B&gt;&gt; f, Kind&lt;IOKind.Witness, A&gt; ma) {
+
+<span class="fc" id="L67">    Validation.function().validateFlatMap(f, ma, IO_MONAD_CLASS);</span>
+
+<span class="fc" id="L69">    IO&lt;A&gt; ioA = IO_OP.narrow(ma);</span>
+    // Adapt f: A -&gt; Kind&lt;IO.Witness, B&gt; to A -&gt; IO&lt;B&gt; for IO's flatMap
+<span class="fc" id="L71">    IO&lt;B&gt; ioB =</span>
+<span class="fc" id="L72">        ioA.flatMap(</span>
+            a -&gt; {
+<span class="fc" id="L74">              var kindB = f.apply(a);</span>
+<span class="fc" id="L75">              Validation.function()</span>
+<span class="fc" id="L76">                  .requireNonNullResult(kindB, &quot;f&quot;, IO_MONAD_CLASS, FLAT_MAP, Kind.class);</span>
+<span class="fc" id="L77">              return IO_OP.narrow(kindB);</span>
+            });
+<span class="fc" id="L79">    return IO_OP.widen(ioB);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

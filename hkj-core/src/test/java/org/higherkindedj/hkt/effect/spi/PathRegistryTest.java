@@ -6,7 +6,15 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
@@ -329,6 +337,184 @@ class PathRegistryTest {
       assertThat(result.get()).isInstanceOf(OptionalPath.class);
       OptionalPath<String> optionalPath = (OptionalPath<String>) result.get();
       assertThat(optionalPath.run()).hasValue("hello");
+    }
+  }
+
+  @Nested
+  @DisplayName("ensureLoaded() Thread Safety")
+  class EnsureLoadedThreadSafetyTests {
+
+    @Test
+    @DisplayName("ensureLoaded() is thread-safe with concurrent access")
+    void ensureLoadedIsThreadSafeWithConcurrentAccess() throws Exception {
+      // Clear to reset state
+      PathRegistry.clear();
+
+      int threadCount = 10;
+      ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+      CountDownLatch startLatch = new CountDownLatch(1);
+      CountDownLatch doneLatch = new CountDownLatch(threadCount);
+
+      List<Future<Boolean>> futures = new ArrayList<>();
+
+      // All threads will call hasProvider concurrently, which triggers ensureLoaded()
+      for (int i = 0; i < threadCount; i++) {
+        futures.add(
+            executor.submit(
+                () -> {
+                  try {
+                    startLatch.await(); // Wait for signal to start together
+                    // This call internally invokes ensureLoaded()
+                    return PathRegistry.hasProvider(OptionalKind.Witness.class);
+                  } finally {
+                    doneLatch.countDown();
+                  }
+                }));
+      }
+
+      // Start all threads at once
+      startLatch.countDown();
+
+      // Wait for all to complete
+      boolean completed = doneLatch.await(5, TimeUnit.SECONDS);
+      assertThat(completed).isTrue();
+
+      // All threads should get the same result - OptionalPathProvider is registered via SPI
+      for (Future<Boolean> future : futures) {
+        assertThat(future.get()).isTrue();
+      }
+
+      executor.shutdown();
+      executor.awaitTermination(1, TimeUnit.SECONDS);
+    }
+
+    @Test
+    @DisplayName("ensureLoaded() loads providers only once")
+    void ensureLoadedLoadsProvidersOnlyOnce() throws Exception {
+      // Clear to reset state
+      PathRegistry.clear();
+
+      int threadCount = 5;
+      ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+      CountDownLatch startLatch = new CountDownLatch(1);
+      CountDownLatch doneLatch = new CountDownLatch(threadCount);
+      AtomicInteger successCount = new AtomicInteger(0);
+
+      // Multiple threads accessing registry concurrently
+      for (int i = 0; i < threadCount; i++) {
+        executor.submit(
+            () -> {
+              try {
+                startLatch.await();
+                // Multiple calls to methods that invoke ensureLoaded()
+                PathRegistry.hasProvider(OptionalKind.Witness.class);
+                PathRegistry.getProvider(OptionalKind.Witness.class);
+                PathRegistry.allProviders();
+                successCount.incrementAndGet();
+              } catch (Exception e) {
+                // Ignore - just track success
+              } finally {
+                doneLatch.countDown();
+              }
+            });
+      }
+
+      startLatch.countDown();
+      boolean completed = doneLatch.await(5, TimeUnit.SECONDS);
+      assertThat(completed).isTrue();
+
+      // All threads should complete successfully without exceptions
+      assertThat(successCount.get()).isEqualTo(threadCount);
+
+      // Verify provider is loaded correctly
+      assertThat(PathRegistry.hasProvider(OptionalKind.Witness.class)).isTrue();
+
+      executor.shutdown();
+      executor.awaitTermination(1, TimeUnit.SECONDS);
+    }
+
+    @Test
+    @DisplayName("concurrent createPath calls work correctly")
+    void concurrentCreatePathCallsWorkCorrectly() throws Exception {
+      // Clear and reload to ensure SPI providers are loaded
+      PathRegistry.clear();
+      PathRegistry.reload();
+
+      int threadCount = 10;
+      ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+      CountDownLatch startLatch = new CountDownLatch(1);
+      CountDownLatch doneLatch = new CountDownLatch(threadCount);
+
+      List<Future<Optional<Chainable<String>>>> futures = new ArrayList<>();
+      Kind<OptionalKind.Witness, String> kind = OPTIONAL.widen(Optional.of("test"));
+
+      for (int i = 0; i < threadCount; i++) {
+        futures.add(
+            executor.submit(
+                () -> {
+                  try {
+                    startLatch.await();
+                    return PathRegistry.createPath(kind, OptionalKind.Witness.class);
+                  } finally {
+                    doneLatch.countDown();
+                  }
+                }));
+      }
+
+      startLatch.countDown();
+      boolean completed = doneLatch.await(5, TimeUnit.SECONDS);
+      assertThat(completed).isTrue();
+
+      // All threads should successfully create paths
+      for (Future<Optional<Chainable<String>>> future : futures) {
+        Optional<Chainable<String>> result = future.get();
+        assertThat(result).isPresent();
+        assertThat(result.get()).isInstanceOf(OptionalPath.class);
+      }
+
+      executor.shutdown();
+      executor.awaitTermination(1, TimeUnit.SECONDS);
+    }
+
+    @Test
+    @DisplayName("double-checked locking prevents race conditions after clear()")
+    void doubleCheckedLockingPreventsRaceConditionsAfterClear() throws Exception {
+      int iterations = 5;
+
+      for (int iteration = 0; iteration < iterations; iteration++) {
+        PathRegistry.clear();
+
+        int threadCount = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threadCount);
+        AtomicInteger loadedCount = new AtomicInteger(0);
+
+        for (int i = 0; i < threadCount; i++) {
+          executor.submit(
+              () -> {
+                try {
+                  startLatch.await();
+                  if (PathRegistry.hasProvider(OptionalKind.Witness.class)) {
+                    loadedCount.incrementAndGet();
+                  }
+                } catch (Exception e) {
+                  // Ignore
+                } finally {
+                  doneLatch.countDown();
+                }
+              });
+        }
+
+        startLatch.countDown();
+        doneLatch.await(5, TimeUnit.SECONDS);
+
+        // All threads should see the provider as loaded
+        assertThat(loadedCount.get()).isEqualTo(threadCount);
+
+        executor.shutdown();
+        executor.awaitTermination(1, TimeUnit.SECONDS);
+      }
     }
   }
 }

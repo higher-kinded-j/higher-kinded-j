@@ -10,6 +10,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
+import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Monoid;
@@ -18,12 +19,15 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.spi.PathRegistry;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.free.Free;
+import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.state.State;
+import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.writer.Writer;
@@ -115,6 +119,9 @@ import org.jspecify.annotations.Nullable;
  * @see CompletableFuturePath
  * @see NonDetPath
  * @see StreamPath
+ * @see TrampolinePath
+ * @see FreePath
+ * @see FreeApPath
  */
 public final class Path {
 
@@ -919,5 +926,133 @@ public final class Path {
     Objects.requireNonNull(kind, "kind must not be null");
     Objects.requireNonNull(witnessType, "witnessType must not be null");
     return PathRegistry.createPath(kind, witnessType);
+  }
+
+  // ===== TrampolinePath factory methods =====
+
+  /**
+   * Creates a TrampolinePath with an immediate value.
+   *
+   * @param value the completed value
+   * @param <A> the value type
+   * @return a TrampolinePath containing the value
+   */
+  public static <A> TrampolinePath<A> trampolineDone(A value) {
+    return TrampolinePath.done(value);
+  }
+
+  /**
+   * Creates a TrampolinePath with a deferred computation.
+   *
+   * <p>This is the key method for achieving stack safety. Instead of making a recursive call
+   * directly, wrap the call in {@code trampolineDefer}.
+   *
+   * @param supplier supplies the next TrampolinePath step; must not be null
+   * @param <A> the value type
+   * @return a TrampolinePath representing the deferred computation
+   * @throws NullPointerException if supplier is null
+   */
+  public static <A> TrampolinePath<A> trampolineDefer(Supplier<TrampolinePath<A>> supplier) {
+    return TrampolinePath.defer(supplier);
+  }
+
+  /**
+   * Creates a TrampolinePath from an existing Trampoline.
+   *
+   * @param trampoline the Trampoline to wrap; must not be null
+   * @param <A> the value type
+   * @return a TrampolinePath wrapping the Trampoline
+   * @throws NullPointerException if trampoline is null
+   */
+  public static <A> TrampolinePath<A> trampoline(Trampoline<A> trampoline) {
+    return TrampolinePath.of(trampoline);
+  }
+
+  // ===== FreePath factory methods =====
+
+  /**
+   * Creates a FreePath containing a pure value.
+   *
+   * @param value the value to wrap
+   * @param functor the Functor instance for F; must not be null
+   * @param <F> the functor witness type
+   * @param <A> the value type
+   * @return a FreePath containing the value
+   * @throws NullPointerException if functor is null
+   */
+  public static <F, A> FreePath<F, A> freePure(A value, Functor<F> functor) {
+    return FreePath.pure(value, functor);
+  }
+
+  /**
+   * Lifts a functor value into FreePath.
+   *
+   * @param fa the functor value to lift; must not be null
+   * @param functor the Functor instance for F; must not be null
+   * @param <F> the functor witness type
+   * @param <A> the result type
+   * @return a FreePath containing the lifted instruction
+   * @throws NullPointerException if fa or functor is null
+   */
+  public static <F, A> FreePath<F, A> freeLift(Kind<F, A> fa, Functor<F> functor) {
+    return FreePath.liftF(fa, functor);
+  }
+
+  /**
+   * Creates a FreePath from an existing Free monad.
+   *
+   * @param free the Free monad to wrap; must not be null
+   * @param functor the Functor instance for F; must not be null
+   * @param <F> the functor witness type
+   * @param <A> the value type
+   * @return a FreePath wrapping the Free monad
+   * @throws NullPointerException if free or functor is null
+   */
+  public static <F, A> FreePath<F, A> free(Free<F, A> free, Functor<F> functor) {
+    return FreePath.of(free, functor);
+  }
+
+  // ===== FreeApPath factory methods =====
+
+  /**
+   * Creates a FreeApPath containing a pure value.
+   *
+   * @param value the value to wrap
+   * @param functor the Functor instance for F; must not be null
+   * @param <F> the functor witness type
+   * @param <A> the value type
+   * @return a FreeApPath containing the value
+   * @throws NullPointerException if functor is null
+   */
+  public static <F, A> FreeApPath<F, A> freeApPure(A value, Functor<F> functor) {
+    return FreeApPath.pure(value, functor);
+  }
+
+  /**
+   * Lifts a functor value into FreeApPath.
+   *
+   * @param fa the functor value to lift; must not be null
+   * @param functor the Functor instance for F; must not be null
+   * @param <F> the functor witness type
+   * @param <A> the result type
+   * @return a FreeApPath containing the lifted instruction
+   * @throws NullPointerException if fa or functor is null
+   */
+  public static <F, A> FreeApPath<F, A> freeApLift(Kind<F, A> fa, Functor<F> functor) {
+    return FreeApPath.liftF(fa, functor);
+  }
+
+  /**
+   * Creates a FreeApPath from an existing FreeAp.
+   *
+   * @param freeAp the FreeAp to wrap; must not be null
+   * @param functor the Functor instance for F; must not be null
+   * @param <F> the functor witness type
+   * @param <A> the value type
+   * @return a FreeApPath wrapping the FreeAp
+   * @throws NullPointerException if freeAp or functor is null
+   */
+  public static <F, A> FreeApPath<F, A> freeAp(FreeAp<F, A> freeAp, Functor<F> functor) {
+    return FreeApPath.of(freeAp, functor);
   }
 }

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IO.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">hkj-core</a> &gt; <a href="index.source.html" class="el_package">org.higherkindedj.hkt.io</a> &gt; <span class="el_source">IO.java</span></div><h1>IO.java</h1><pre class="source lang-java linenums">// Copyright (c) 2025 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.hkt.io;
+
+import static org.higherkindedj.hkt.util.validation.Operation.*;
+
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.util.validation.Validation;
+
+/**
+ * Represents a computation that, when executed, can perform side effects and produce a value of
+ * type {@code A}. The {@code IO} monad is a core pattern in functional programming for isolating
+ * and managing side effects (e.g., network requests, file system operations, database calls,
+ * console I/O) in a controlled manner.
+ *
+ * &lt;p&gt;An {@code IO&lt;A&gt;} instance does not perform any action when it's created. Instead, it acts as a
+ * description or a &quot;recipe&quot; for a computation that will be executed only when explicitly
+ * instructed, typically by calling {@link #unsafeRunSync()}. This deferred execution allows for
+ * referential transparency and enables building complex effectful programs that remain testable and
+ * composable.
+ *
+ * &lt;p&gt;&lt;b&gt;Key Characteristics:&lt;/b&gt;
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;Laziness:&lt;/b&gt; Effects are not executed upon creation of an {@code IO} value, but only
+ *       when explicitly run.
+ *   &lt;li&gt;&lt;b&gt;Purity:&lt;/b&gt; Constructing and combining {@code IO} values are pure operations. The
+ *       impurity (side effect) is deferred until execution.
+ *   &lt;li&gt;&lt;b&gt;Composability:&lt;/b&gt; {@code IO} operations can be easily chained and combined using
+ *       methods like {@link #map(Function)} and {@link #flatMap(Function)} to build more complex
+ *       effectful workflows.
+ *   &lt;li&gt;&lt;b&gt;HKT Integration:&lt;/b&gt; {@code IO&lt;A&gt;} directly extends {@link IOKind IOKind&lt;A&gt;}, making it
+ *       a first-class participant in the Higher-Kinded-J HKT simulation. This means widen/narrow
+ *       operations via {@link IOKindHelper} have zero runtime overhead (simple type-safe casts
+ *       rather than wrapper object allocation).
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;
+ *
+ * &lt;pre&gt;{@code
+ * // Describes reading a line from the console
+ * IO&lt;String&gt; readLine = IO.delay(() -&gt; {
+ *     System.out.print(&quot;Enter your name: &quot;);
+ *     return new java.util.Scanner(System.in).nextLine();
+ * });
+ *
+ * // Describes printing a string to the console
+ * IO&lt;Unit&gt; printLine(String message) {
+ *     return IO.delay(() -&gt; {
+ *         System.out.println(message);
+ *         return Unit.INSTANCE;
+ *     });
+ * }
+ *
+ * // Combine descriptions
+ * IO&lt;Unit&gt; greetUser = readLine.flatMap(name -&gt;
+ *     printLine(&quot;Hello, &quot; + name + &quot;!&quot;)
+ * );
+ *
+ * // Nothing has happened yet.
+ * // To actually perform the I/O:
+ * // greetUser.unsafeRunSync(); // This will prompt for input and then print the greeting.
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;The name {@code unsafeRunSync} highlights that executing the {@code IO} operation can have
+ * side effects and, in a synchronous context, may block. In more advanced scenarios, {@code IO}
+ * types often provide asynchronous execution methods (e.g., {@code unsafeRunAsync}).
+ *
+ * @param &lt;A&gt; The type of the value produced by the computation when it is executed. For {@code IO}
+ *     actions that don't produce a meaningful value (e.g., printing to console), {@link Unit} is
+ *     often used as the type parameter {@code A}.
+ */
+@FunctionalInterface
+public interface IO&lt;A&gt; extends IOKind&lt;A&gt; {
+
+  /**
+   * Executes the described computation synchronously, potentially performing side effects and
+   * returning a result of type {@code A}.
+   *
+   * &lt;p&gt;This method is typically called at the &quot;end of the world&quot; in an application, where the
+   * declarative description of the program (built using {@code IO}) is finally interpreted and
+   * executed.
+   *
+   * &lt;p&gt;&lt;b&gt;Warning:&lt;/b&gt; As the name suggests, calling this method can be &quot;unsafe&quot; in a purely
+   * functional context because it triggers the actual side effects. If the computation involves
+   * blocking operations, this method will block the calling thread. Any exceptions thrown by the
+   * underlying computation will propagate out of this method.
+   *
+   * @return The result of the computation of type {@code A}. If {@code A} is {@link Unit}, this
+   *     typically returns {@link Unit#INSTANCE}.
+   */
+  A unsafeRunSync();
+
+  /**
+   * Creates an {@code IO&lt;A&gt;} instance that defers a computation described by the given {@link
+   * Supplier}. The provided {@code Supplier} (often referred to as a &quot;thunk&quot;) encapsulates the
+   * effectful operation. It will only be executed when {@link #unsafeRunSync()} is called on the
+   * resulting {@code IO} instance.
+   *
+   * &lt;p&gt;This is the primary way to lift an arbitrary block of code (especially one with side
+   * effects) into an {@code IO} context, making it lazy and composable.
+   *
+   * @param thunk A {@link Supplier} that, when called, will execute the desired computation and
+   *     produce a value of type {@code A}. Must not be null.
+   * @param &lt;A&gt; The type of the value produced by the thunk.
+   * @return A new {@code IO&lt;A&gt;} instance representing the deferred computation. Never null.
+   * @throws NullPointerException if {@code thunk} is null.
+   */
+  static &lt;A&gt; IO&lt;A&gt; delay(Supplier&lt;A&gt; thunk) {
+<span class="fc" id="L113">    Validation.function().requireFunction(thunk, &quot;thunk&quot;, IO.class, DELAY);</span>
+<span class="fc" id="L114">    return thunk::get;</span>
+  }
+
+  /**
+   * Transforms the result of this {@code IO} computation using the provided mapping function {@code
+   * f}, without altering its effectful nature. The original {@code IO} action is performed, and its
+   * result is then passed to the function {@code f}. The entire operation remains deferred until
+   * {@link #unsafeRunSync()} is called.
+   *
+   * &lt;p&gt;This is the Functor {@code map} operation for {@code IO}.
+   *
+   * &lt;p&gt;If this {@code IO} instance represents the computation {@code effectfulGetA()}, then {@code
+   * map(f)} represents {@code effectfulGetA().thenApply(f)}.
+   *
+   * @param f A non-null function to apply to the result of this {@code IO} computation. It takes a
+   *     value of type {@code A} and returns a value of type {@code B}.
+   * @param &lt;B&gt; The type of the value produced by the mapping function and thus by the new {@code
+   *     IO}.
+   * @return A new {@code IO&lt;B&gt;} that, when run, will execute this {@code IO}'s computation and then
+   *     apply the mapping function {@code f} to its result. Never null.
+   * @throws NullPointerException if {@code f} is null.
+   */
+  default &lt;B&gt; IO&lt;B&gt; map(Function&lt;? super A, ? extends B&gt; f) {
+<span class="fc" id="L137">    Validation.function().requireMapper(f, &quot;f&quot;, IO.class, MAP);</span>
+<span class="fc" id="L138">    return IO.delay(() -&gt; f.apply(this.unsafeRunSync()));</span>
+  }
+
+  /**
+   * Composes this {@code IO} computation with another {@code IO}-producing function {@code f}. This
+   * method allows sequencing of {@code IO} operations, where the next operation depends on the
+   * result of the current one.
+   *
+   * &lt;p&gt;First, this {@code IO} computation is run (when the resulting {@code IO} is eventually run).
+   * Its result (of type {@code A}) is then passed to the function {@code f}, which produces a new
+   * {@code IO&lt;B&gt;}. This new {@code IO&lt;B&gt;} is then also run. The entire sequence is deferred.
+   *
+   * &lt;p&gt;This is the Monad {@code flatMap} (or {@code bind}) operation for {@code IO}. It is
+   * essential for chaining operations that themselves produce {@code IO} values, ensuring that
+   * effects are properly sequenced and encapsulated.
+   *
+   * @param f A non-null function that takes the result of this {@code IO} computation (type {@code
+   *     A}) and returns a new {@code IO&lt;B&gt;} representing the next computation. The {@code IO}
+   *     returned by this function must not be null.
+   * @param &lt;B&gt; The type of the value produced by the {@code IO} returned by function {@code f}.
+   * @return A new {@code IO&lt;B&gt;} that, when run, will execute this {@code IO}'s computation, apply
+   *     function {@code f} to its result to get a new {@code IO}, and then execute that new {@code
+   *     IO}. Never null.
+   * @throws NullPointerException if {@code f} is null, or if {@code f} returns a null {@code IO}.
+   */
+  default &lt;B&gt; IO&lt;B&gt; flatMap(Function&lt;? super A, ? extends IO&lt;B&gt;&gt; f) {
+<span class="fc" id="L164">    Validation.function().requireFlatMapper(f, &quot;f&quot;, IO.class, FLAT_MAP);</span>
+<span class="fc" id="L165">    return IO.delay(</span>
+        () -&gt; {
+<span class="fc" id="L167">          A a = this.unsafeRunSync();</span>
+<span class="fc" id="L168">          IO&lt;B&gt; nextIO = f.apply(a);</span>
+<span class="fc" id="L169">          Validation.function().requireNonNullResult(nextIO, &quot;f&quot;, IO.class, FLAT_MAP, IO.class);</span>
+<span class="fc" id="L170">          return nextIO.unsafeRunSync();</span>
+        });
+  }
+
+  /**
+   * Creates an IO from a side-effecting Runnable. The IO will execute the runnable and return Unit.
+   *
+   * &lt;p&gt;This is the preferred way to lift side effects into IO when no return value is needed.
+   *
+   * &lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;
+   *
+   * &lt;pre&gt;{@code
+   * IO&lt;Unit&gt; print = IO.fromRunnable(() -&gt; System.out.println(&quot;Hello&quot;));
+   * IO&lt;Unit&gt; sequence = print
+   *     .flatMap(_ -&gt; IO.fromRunnable(() -&gt; System.out.println(&quot;World&quot;)));
+   * }&lt;/pre&gt;
+   *
+   * @param runnable The side effect to execute, must not be null
+   * @return An IO&lt;Unit&gt; that executes the runnable
+   * @throws NullPointerException if runnable is null
+   */
+  static IO&lt;Unit&gt; fromRunnable(Runnable runnable) {
+<span class="fc" id="L192">    Objects.requireNonNull(runnable, &quot;runnable cannot be null&quot;);</span>
+<span class="fc" id="L193">    return IO.delay(</span>
+        () -&gt; {
+<span class="fc" id="L195">          runnable.run();</span>
+<span class="fc" id="L196">          return Unit.INSTANCE;</span>
+        });
+  }
+
+  /**
+   * Discards the result of this IO, replacing it with Unit. Useful for side-effecting operations
+   * where the return value is not interesting.
+   *
+   * &lt;p&gt;&lt;b&gt;Example:&lt;/b&gt;
+   *
+   * &lt;pre&gt;{@code
+   * IO&lt;Integer&gt; writeDb = database.write(data); // Returns row count
+   * IO&lt;Unit&gt; justWrite = writeDb.asUnit(); // Discard the count
+   * }&lt;/pre&gt;
+   *
+   * @return An IO&lt;Unit&gt; that performs the same side effect but returns Unit
+   */
+  default IO&lt;Unit&gt; asUnit() {
+<span class="fc" id="L214">    return this.map(a -&gt; Unit.INSTANCE);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

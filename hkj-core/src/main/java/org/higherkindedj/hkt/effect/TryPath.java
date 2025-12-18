@@ -201,14 +201,12 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    */
   public TryPath<A> peekFailure(Consumer<? super Throwable> consumer) {
     Objects.requireNonNull(consumer, "consumer must not be null");
-    if (value.isFailure()) {
-      value.fold(
-          a -> null,
-          ex -> {
-            consumer.accept(ex);
-            return null;
-          });
-    }
+    value.fold(
+        a -> null, // Success case - do nothing
+        ex -> {
+          consumer.accept(ex);
+          return null;
+        });
     return this;
   }
 

@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect.capability;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.GenericPath;
 import org.higherkindedj.hkt.effect.IdPath;
 import org.higherkindedj.hkt.effect.LazyPath;
@@ -12,6 +13,7 @@ import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.ReaderPath;
 import org.higherkindedj.hkt.effect.StreamPath;
+import org.higherkindedj.hkt.effect.TrampolinePath;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.effect.WithStatePath;
 import org.higherkindedj.hkt.effect.WriterPath;
@@ -63,7 +65,9 @@ public sealed interface Chainable<A> extends Combinable<A>
         LazyPath,
         ListPath,
         NonDetPath,
-        StreamPath {
+        StreamPath,
+        TrampolinePath,
+        FreePath {
 
   /**
    * Chains a dependent computation that returns a path.

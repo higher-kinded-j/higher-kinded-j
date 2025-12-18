@@ -148,20 +148,33 @@ The Effect Path API provides a fluent, type-safe approach to composing effect ty
 | [CompletableFuturePathExample.java](src/main/java/org/higherkindedj/example/effect/CompletableFuturePathExample.java) | Async computations with CompletableFuturePath | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CompletableFuturePathExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
 | [CollectionPathsExample.java](src/main/java/org/higherkindedj/example/effect/CollectionPathsExample.java) | ListPath and StreamPath for collection effects | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.CollectionPathsExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
 
+### Stack-Safety, Resources, Parallelism & Resilience
+
+| Example | Description | Run Command | Documentation |
+|---------|-------------|-------------|---------------|
+| [TrampolinePathExample.java](src/main/java/org/higherkindedj/example/effect/TrampolinePathExample.java) | Stack-safe recursion with TrampolinePath: factorial, fibonacci, mutual recursion | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.TrampolinePathExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
+| [FreePathExample.java](src/main/java/org/higherkindedj/example/effect/FreePathExample.java) | Building DSLs with FreePath and FreeApPath: Console DSL, Key-Value Store DSL | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.FreePathExample` | [Path Types](https://higher-kinded-j.github.io/latest/effect/path_types.html) |
+| [ResourceManagementExample.java](src/main/java/org/higherkindedj/example/effect/ResourceManagementExample.java) | Safe resource handling with bracket, withResource, and guarantee | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ResourceManagementExample` | [Patterns and Recipes](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
+| [ParallelExecutionExample.java](src/main/java/org/higherkindedj/example/effect/ParallelExecutionExample.java) | Parallel execution with parZipWith, parSequence, race | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ParallelExecutionExample` | [Composition Patterns](https://higher-kinded-j.github.io/latest/effect/composition.html) |
+| [ResilienceExample.java](src/main/java/org/higherkindedj/example/effect/ResilienceExample.java) | Retry patterns with RetryPolicy: fixed delay, exponential backoff, jitter | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.effect.ResilienceExample` | [Patterns and Recipes](https://higher-kinded-j.github.io/latest/effect/patterns.html) |
+
 ### Path Types Overview
 
 - **MaybePath\<A\>**: Represents computations that may produce a value (Just) or nothing
 - **EitherPath\<E, A\>**: Represents computations with typed error handling (Left/Right)
 - **TryPath\<A\>**: Represents computations that may throw exceptions
-- **IOPath\<A\>**: Represents deferred side-effectful computations
+- **IOPath\<A\>**: Represents deferred side-effectful computations with resource management, parallel execution, and retry support
 - **ValidationPath\<E, A\>**: Represents validations that accumulate errors
 - **ReaderPath\<R, A\>**: Represents computations that read from an environment (dependency injection)
 - **WithStatePath\<S, A\>**: Represents stateful computations that thread state
 - **WriterPath\<W, A\>**: Represents computations that accumulate output (logging, audit)
 - **LazyPath\<A\>**: Represents deferred, memoised computations
-- **CompletableFuturePath\<A\>**: Represents async computations
+- **CompletableFuturePath\<A\>**: Represents async computations with parallel execution and retry support
 - **ListPath\<A\>**: Represents list effects with positional zipping
 - **StreamPath\<A\>**: Represents lazy stream effects
+- **TrampolinePath\<A\>**: Represents stack-safe recursive computations
+- **FreePath\<F, A\>**: Represents Free monad computations for building interpretable DSLs
+- **FreeApPath\<F, A\>**: Represents Free Applicative computations for parallel-friendly DSLs
 
 ---
 
