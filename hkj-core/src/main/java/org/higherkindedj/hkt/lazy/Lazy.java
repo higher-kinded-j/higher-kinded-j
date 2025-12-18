@@ -134,6 +134,18 @@ public final class Lazy<A> {
         });
   }
 
+  /**
+   * Returns whether this Lazy computation has been evaluated.
+   *
+   * <p>A Lazy is considered evaluated after {@link #force()} has been called at least once,
+   * regardless of whether the computation succeeded or threw an exception.
+   *
+   * @return {@code true} if the computation has been evaluated, {@code false} otherwise.
+   */
+  public boolean isEvaluated() {
+    return evaluated;
+  }
+
   @Override
   public String toString() {
     if (evaluated) {

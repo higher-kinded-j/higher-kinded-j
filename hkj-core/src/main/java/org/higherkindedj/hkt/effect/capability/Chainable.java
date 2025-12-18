@@ -6,8 +6,15 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.GenericPath;
 import org.higherkindedj.hkt.effect.IdPath;
+import org.higherkindedj.hkt.effect.LazyPath;
+import org.higherkindedj.hkt.effect.ListPath;
+import org.higherkindedj.hkt.effect.NonDetPath;
 import org.higherkindedj.hkt.effect.OptionalPath;
+import org.higherkindedj.hkt.effect.ReaderPath;
+import org.higherkindedj.hkt.effect.StreamPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
+import org.higherkindedj.hkt.effect.WithStatePath;
+import org.higherkindedj.hkt.effect.WriterPath;
 
 /**
  * A capability interface representing types that support sequencing dependent computations.
@@ -44,7 +51,19 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  * @param <A> the type of the contained value
  */
 public sealed interface Chainable<A> extends Combinable<A>
-    permits Recoverable, Effectful, ValidationPath, IdPath, OptionalPath, GenericPath {
+    permits Recoverable,
+        Effectful,
+        ValidationPath,
+        IdPath,
+        OptionalPath,
+        GenericPath,
+        ReaderPath,
+        WithStatePath,
+        WriterPath,
+        LazyPath,
+        ListPath,
+        NonDetPath,
+        StreamPath {
 
   /**
    * Chains a dependent computation that returns a path.

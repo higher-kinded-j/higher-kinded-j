@@ -2,19 +2,31 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.effect.spi.PathRegistry;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.reader.Reader;
+import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.writer.Writer;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -96,6 +108,13 @@ import org.jspecify.annotations.Nullable;
  * @see IdPath
  * @see OptionalPath
  * @see GenericPath
+ * @see ReaderPath
+ * @see WithStatePath
+ * @see WriterPath
+ * @see LazyPath
+ * @see CompletableFuturePath
+ * @see NonDetPath
+ * @see StreamPath
  */
 public final class Path {
 
@@ -452,5 +471,453 @@ public final class Path {
    */
   public static <F, A> GenericPath<F, A> genericPure(A value, Monad<F> monad) {
     return GenericPath.pure(value, monad);
+  }
+
+  // ===== ReaderPath factory methods =====
+
+  /**
+   * Creates a ReaderPath from an existing Reader.
+   *
+   * @param reader the Reader to wrap; must not be null
+   * @param <R> the environment type
+   * @param <A> the value type
+   * @return a ReaderPath wrapping the Reader
+   * @throws NullPointerException if reader is null
+   */
+  public static <R, A> ReaderPath<R, A> reader(Reader<R, A> reader) {
+    Objects.requireNonNull(reader, "reader must not be null");
+    return new ReaderPath<>(reader);
+  }
+
+  /**
+   * Creates a ReaderPath that returns a pure value, ignoring the environment.
+   *
+   * @param value the value to return
+   * @param <R> the environment type (phantom)
+   * @param <A> the value type
+   * @return a ReaderPath that always returns the given value
+   */
+  public static <R, A> ReaderPath<R, A> readerPure(A value) {
+    return ReaderPath.pure(value);
+  }
+
+  /**
+   * Creates a ReaderPath that returns the entire environment.
+   *
+   * @param <R> the environment type
+   * @return a ReaderPath that returns the environment
+   */
+  public static <R> ReaderPath<R, R> ask() {
+    return ReaderPath.ask();
+  }
+
+  /**
+   * Creates a ReaderPath that extracts a value from the environment.
+   *
+   * @param f the function to extract from the environment; must not be null
+   * @param <R> the environment type
+   * @param <A> the extracted value type
+   * @return a ReaderPath that extracts from the environment
+   * @throws NullPointerException if f is null
+   */
+  public static <R, A> ReaderPath<R, A> asks(Function<? super R, ? extends A> f) {
+    return ReaderPath.asks(f);
+  }
+
+  // ===== WithStatePath factory methods =====
+
+  /**
+   * Creates a WithStatePath from an existing State.
+   *
+   * @param state the State to wrap; must not be null
+   * @param <S> the state type
+   * @param <A> the value type
+   * @return a WithStatePath wrapping the State
+   * @throws NullPointerException if state is null
+   */
+  public static <S, A> WithStatePath<S, A> state(State<S, A> state) {
+    Objects.requireNonNull(state, "state must not be null");
+    return new WithStatePath<>(state);
+  }
+
+  /**
+   * Creates a WithStatePath that returns a pure value without modifying state.
+   *
+   * @param value the value to return
+   * @param <S> the state type
+   * @param <A> the value type
+   * @return a WithStatePath that always returns the given value
+   */
+  public static <S, A> WithStatePath<S, A> statePure(A value) {
+    return WithStatePath.pure(value);
+  }
+
+  /**
+   * Creates a WithStatePath that returns the current state.
+   *
+   * @param <S> the state type
+   * @return a WithStatePath that returns the state
+   */
+  public static <S> WithStatePath<S, S> getState() {
+    return WithStatePath.get();
+  }
+
+  /**
+   * Creates a WithStatePath that sets the state.
+   *
+   * @param newState the new state; must not be null
+   * @param <S> the state type
+   * @return a WithStatePath that sets the state and returns Unit
+   * @throws NullPointerException if newState is null
+   */
+  public static <S> WithStatePath<S, Unit> setState(S newState) {
+    return WithStatePath.set(newState);
+  }
+
+  /**
+   * Creates a WithStatePath that modifies the state.
+   *
+   * @param f the function to modify state; must not be null
+   * @param <S> the state type
+   * @return a WithStatePath that modifies state and returns Unit
+   * @throws NullPointerException if f is null
+   */
+  public static <S> WithStatePath<S, Unit> modifyState(UnaryOperator<S> f) {
+    return WithStatePath.modify(f);
+  }
+
+  // ===== WriterPath factory methods =====
+
+  /**
+   * Creates a WriterPath from an existing Writer.
+   *
+   * @param writer the Writer to wrap; must not be null
+   * @param monoid the Monoid for log accumulation; must not be null
+   * @param <W> the log type
+   * @param <A> the value type
+   * @return a WriterPath wrapping the Writer
+   * @throws NullPointerException if writer or monoid is null
+   */
+  public static <W, A> WriterPath<W, A> writer(Writer<W, A> writer, Monoid<W> monoid) {
+    Objects.requireNonNull(writer, "writer must not be null");
+    Objects.requireNonNull(monoid, "monoid must not be null");
+    return new WriterPath<>(writer, monoid);
+  }
+
+  /**
+   * Creates a WriterPath with a pure value and empty log.
+   *
+   * @param value the value to return
+   * @param monoid the Monoid for log accumulation; must not be null
+   * @param <W> the log type
+   * @param <A> the value type
+   * @return a WriterPath with empty log
+   * @throws NullPointerException if monoid is null
+   */
+  public static <W, A> WriterPath<W, A> writerPure(A value, Monoid<W> monoid) {
+    return WriterPath.pure(value, monoid);
+  }
+
+  /**
+   * Creates a WriterPath that only produces log output.
+   *
+   * @param log the log to produce; must not be null
+   * @param monoid the Monoid for log accumulation; must not be null
+   * @param <W> the log type
+   * @return a WriterPath that produces log and returns Unit
+   * @throws NullPointerException if log or monoid is null
+   */
+  public static <W> WriterPath<W, Unit> tell(W log, Monoid<W> monoid) {
+    return WriterPath.tell(log, monoid);
+  }
+
+  // ===== LazyPath factory methods =====
+
+  /**
+   * Creates a LazyPath from an existing Lazy.
+   *
+   * @param lazy the Lazy to wrap; must not be null
+   * @param <A> the value type
+   * @return a LazyPath wrapping the Lazy
+   * @throws NullPointerException if lazy is null
+   */
+  public static <A> LazyPath<A> lazy(Lazy<A> lazy) {
+    Objects.requireNonNull(lazy, "lazy must not be null");
+    return new LazyPath<>(lazy);
+  }
+
+  /**
+   * Creates an already-evaluated LazyPath.
+   *
+   * @param value the value
+   * @param <A> the value type
+   * @return a LazyPath holding the value
+   */
+  public static <A> LazyPath<A> lazyNow(A value) {
+    return LazyPath.now(value);
+  }
+
+  /**
+   * Creates a LazyPath that defers computation.
+   *
+   * @param supplier the computation to defer; must not be null
+   * @param <A> the value type
+   * @return a LazyPath that defers computation
+   * @throws NullPointerException if supplier is null
+   */
+  public static <A> LazyPath<A> lazyDefer(Supplier<? extends A> supplier) {
+    return LazyPath.defer(supplier);
+  }
+
+  // ===== CompletableFuturePath factory methods =====
+
+  /**
+   * Creates a CompletableFuturePath from an existing CompletableFuture.
+   *
+   * @param future the CompletableFuture to wrap; must not be null
+   * @param <A> the value type
+   * @return a CompletableFuturePath wrapping the future
+   * @throws NullPointerException if future is null
+   */
+  public static <A> CompletableFuturePath<A> future(CompletableFuture<A> future) {
+    return CompletableFuturePath.fromFuture(future);
+  }
+
+  /**
+   * Creates an already-completed CompletableFuturePath.
+   *
+   * @param value the completed value
+   * @param <A> the value type
+   * @return a completed CompletableFuturePath
+   */
+  public static <A> CompletableFuturePath<A> futureCompleted(A value) {
+    return CompletableFuturePath.completed(value);
+  }
+
+  /**
+   * Creates a failed CompletableFuturePath.
+   *
+   * @param exception the exception; must not be null
+   * @param <A> the value type
+   * @return a failed CompletableFuturePath
+   * @throws NullPointerException if exception is null
+   */
+  public static <A> CompletableFuturePath<A> futureFailed(Exception exception) {
+    return CompletableFuturePath.failed(exception);
+  }
+
+  /**
+   * Creates a CompletableFuturePath from an async computation.
+   *
+   * @param supplier the async computation; must not be null
+   * @param <A> the value type
+   * @return a CompletableFuturePath running asynchronously
+   * @throws NullPointerException if supplier is null
+   */
+  public static <A> CompletableFuturePath<A> futureAsync(Supplier<A> supplier) {
+    return CompletableFuturePath.supplyAsync(supplier);
+  }
+
+  // ===== NonDetPath factory methods =====
+
+  /**
+   * Creates a NonDetPath from an existing List.
+   *
+   * @param list the list to wrap; must not be null
+   * @param <A> the element type
+   * @return a NonDetPath wrapping the list
+   * @throws NullPointerException if list is null
+   */
+  public static <A> NonDetPath<A> list(List<A> list) {
+    return NonDetPath.of(list);
+  }
+
+  /**
+   * Creates a NonDetPath from varargs.
+   *
+   * @param elements the elements
+   * @param <A> the element type
+   * @return a NonDetPath containing the elements
+   */
+  @SafeVarargs
+  public static <A> NonDetPath<A> list(A... elements) {
+    return NonDetPath.of(elements);
+  }
+
+  /**
+   * Creates a NonDetPath with a single element.
+   *
+   * @param value the single element
+   * @param <A> the element type
+   * @return a NonDetPath containing one element
+   */
+  public static <A> NonDetPath<A> listPure(A value) {
+    return NonDetPath.pure(value);
+  }
+
+  /**
+   * Creates an empty NonDetPath.
+   *
+   * @param <A> the element type
+   * @return an empty NonDetPath
+   */
+  public static <A> NonDetPath<A> listEmpty() {
+    return NonDetPath.empty();
+  }
+
+  // ===== ListPath factory methods =====
+
+  /**
+   * Creates a ListPath from a List.
+   *
+   * <p>ListPath uses positional zipWith semantics (pairs corresponding elements), unlike NonDetPath
+   * which uses Cartesian product semantics.
+   *
+   * @param list the list to wrap; must not be null
+   * @param <A> the element type
+   * @return a ListPath wrapping the list
+   * @throws NullPointerException if list is null
+   */
+  public static <A> ListPath<A> listPath(List<A> list) {
+    return ListPath.of(list);
+  }
+
+  /**
+   * Creates a ListPath from varargs.
+   *
+   * @param elements the elements
+   * @param <A> the element type
+   * @return a ListPath containing the elements
+   */
+  @SafeVarargs
+  public static <A> ListPath<A> listPath(A... elements) {
+    return ListPath.of(elements);
+  }
+
+  /**
+   * Creates a ListPath with a single element.
+   *
+   * @param value the single element
+   * @param <A> the element type
+   * @return a ListPath containing one element
+   */
+  public static <A> ListPath<A> listPathPure(A value) {
+    return ListPath.pure(value);
+  }
+
+  /**
+   * Creates an empty ListPath.
+   *
+   * @param <A> the element type
+   * @return an empty ListPath
+   */
+  public static <A> ListPath<A> listPathEmpty() {
+    return ListPath.empty();
+  }
+
+  /**
+   * Creates a ListPath from a range of integers.
+   *
+   * @param startInclusive the start value (inclusive)
+   * @param endExclusive the end value (exclusive)
+   * @return a ListPath containing integers in the range
+   */
+  public static ListPath<Integer> listPathRange(int startInclusive, int endExclusive) {
+    return ListPath.range(startInclusive, endExclusive);
+  }
+
+  // ===== StreamPath factory methods =====
+
+  /**
+   * Creates a StreamPath from an existing Stream.
+   *
+   * <p>Note: The stream is materialized for reusability.
+   *
+   * @param stream the stream to wrap; must not be null
+   * @param <A> the element type
+   * @return a StreamPath wrapping the stream
+   * @throws NullPointerException if stream is null
+   */
+  public static <A> StreamPath<A> stream(Stream<A> stream) {
+    return StreamPath.of(stream);
+  }
+
+  /**
+   * Creates a StreamPath from a List.
+   *
+   * @param list the list to stream; must not be null
+   * @param <A> the element type
+   * @return a StreamPath streaming the list
+   * @throws NullPointerException if list is null
+   */
+  public static <A> StreamPath<A> streamFromList(List<A> list) {
+    return StreamPath.fromList(list);
+  }
+
+  /**
+   * Creates a StreamPath with a single element.
+   *
+   * @param value the single element
+   * @param <A> the element type
+   * @return a StreamPath containing one element
+   */
+  public static <A> StreamPath<A> streamPure(A value) {
+    return StreamPath.pure(value);
+  }
+
+  /**
+   * Creates an empty StreamPath.
+   *
+   * @param <A> the element type
+   * @return an empty StreamPath
+   */
+  public static <A> StreamPath<A> streamEmpty() {
+    return StreamPath.empty();
+  }
+
+  /**
+   * Creates an infinite StreamPath by iteration.
+   *
+   * <p><b>Warning:</b> Use {@code take()} to limit infinite streams.
+   *
+   * @param seed the initial value
+   * @param f the iteration function; must not be null
+   * @param <A> the element type
+   * @return an infinite StreamPath
+   * @throws NullPointerException if f is null
+   */
+  public static <A> StreamPath<A> streamIterate(A seed, UnaryOperator<A> f) {
+    return StreamPath.iterate(seed, f);
+  }
+
+  // ===== PathRegistry integration =====
+
+  /**
+   * Creates a Path from any registered Kind type using the PathRegistry.
+   *
+   * <p>This method looks up a {@link org.higherkindedj.hkt.effect.spi.PathProvider} for the given
+   * witness type and uses it to create an appropriate Path wrapper.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // With a registered custom effect type
+   * Kind<ApiResultKind.Witness, User> kind = apiService.getUser(id);
+   * Optional<Chainable<User>> path = Path.from(kind, ApiResultKind.Witness.class);
+   * }</pre>
+   *
+   * @param kind the Kind value to wrap; must not be null
+   * @param witnessType the witness type class
+   * @param <F> the witness type
+   * @param <A> the value type
+   * @return an Optional containing the path if a provider is registered
+   * @throws NullPointerException if kind or witnessType is null
+   * @see org.higherkindedj.hkt.effect.spi.PathRegistry
+   * @see org.higherkindedj.hkt.effect.spi.PathProvider
+   */
+  public static <F, A> Optional<Chainable<A>> from(Kind<F, A> kind, Class<?> witnessType) {
+    Objects.requireNonNull(kind, "kind must not be null");
+    Objects.requireNonNull(witnessType, "witnessType must not be null");
+    return PathRegistry.createPath(kind, witnessType);
   }
 }

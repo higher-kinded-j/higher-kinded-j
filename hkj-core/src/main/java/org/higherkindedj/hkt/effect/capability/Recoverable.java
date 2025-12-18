@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect.capability;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.effect.CompletableFuturePath;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.TryPath;
@@ -38,7 +39,7 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  * @param <A> the type of the contained value
  */
 public sealed interface Recoverable<E, A> extends Chainable<A>
-    permits MaybePath, EitherPath, TryPath, ValidationPath {
+    permits MaybePath, EitherPath, TryPath, ValidationPath, CompletableFuturePath {
 
   /**
    * Recovers from an error by providing a fallback value.
