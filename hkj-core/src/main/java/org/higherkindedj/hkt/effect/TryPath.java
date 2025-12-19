@@ -17,6 +17,8 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 
 /**
  * A fluent path wrapper for {@link Try} values.
@@ -387,6 +389,69 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   public TryPath<A> mapException(Function<? super Throwable, ? extends Throwable> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     return value.fold(a -> this, ex -> new TryPath<>(Try.failure(mapper.apply(ex))));
+  }
+
+  // ===== FocusPath Bridge Methods =====
+
+  /**
+   * Applies a {@link FocusPath} to navigate within the Success value.
+   *
+   * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
+   * inside an effect context. Since FocusPath always focuses on exactly one element, the result is
+   * always a successful navigation if this TryPath is a Success.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<Config, String> apiKeyPath = ConfigFocus.apiKey();
+   *
+   * TryPath<Config> configPath = Path.tryOf(() -> loadConfig());
+   * TryPath<String> apiKey = configPath.focus(apiKeyPath);
+   * // Equivalent to: configPath.map(apiKeyPath::get)
+   * }</pre>
+   *
+   * @param path the FocusPath to apply
+   * @param <B> the focused type
+   * @return a new TryPath containing the focused value
+   */
+  public <B> TryPath<B> focus(FocusPath<A, B> path) {
+    Objects.requireNonNull(path, "path must not be null");
+    return map(path::get);
+  }
+
+  /**
+   * Applies an {@link AffinePath} to navigate within the Success value.
+   *
+   * <p>This bridges from the effect domain to the optics domain. If the AffinePath doesn't match, a
+   * Failure is returned with the exception provided by the supplier. This allows converting partial
+   * optics failures to exceptions.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<Config, String> optionalKeyPath = ConfigFocus.optionalApiKey();
+   *
+   * TryPath<Config> configPath = Path.tryOf(() -> loadConfig());
+   * TryPath<String> apiKey = configPath.focus(
+   *     optionalKeyPath,
+   *     () -> new IllegalStateException("API key not configured"));
+   * // Returns Failure if config has no API key
+   * }</pre>
+   *
+   * @param path the AffinePath to apply
+   * @param exceptionIfAbsent supplies the exception if the path doesn't match
+   * @param <B> the focused type
+   * @return a new TryPath containing the focused value or a Failure
+   */
+  public <B> TryPath<B> focus(
+      AffinePath<A, B> path, Supplier<? extends Throwable> exceptionIfAbsent) {
+    Objects.requireNonNull(path, "path must not be null");
+    Objects.requireNonNull(exceptionIfAbsent, "exceptionIfAbsent must not be null");
+    return via(
+        a ->
+            path.getOptional(a)
+                .map(Path::success)
+                .orElseGet(() -> Path.failure(exceptionIfAbsent.get())));
   }
 
   // ===== Object methods =====

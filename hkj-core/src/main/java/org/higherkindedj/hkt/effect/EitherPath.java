@@ -17,6 +17,8 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 
 /**
  * A fluent path wrapper for {@link Either} values.
@@ -355,6 +357,65 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
   public <E2> EitherPath<E2, A> mapError(Function<? super E, ? extends E2> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     return new EitherPath<>(value.mapLeft(mapper));
+  }
+
+  // ===== FocusPath Bridge Methods =====
+
+  /**
+   * Applies a {@link FocusPath} to navigate within the Right value.
+   *
+   * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
+   * inside an effect context. Since FocusPath always focuses on exactly one element, the result is
+   * always a successful navigation if this EitherPath contains a Right value.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<User, String> namePath = UserFocus.name();
+   *
+   * EitherPath<Error, User> userPath = Path.right(user);
+   * EitherPath<Error, String> name = userPath.focus(namePath);
+   * // Equivalent to: userPath.map(namePath::get)
+   * }</pre>
+   *
+   * @param path the FocusPath to apply
+   * @param <B> the focused type
+   * @return a new EitherPath containing the focused value
+   */
+  public <B> EitherPath<E, B> focus(FocusPath<A, B> path) {
+    Objects.requireNonNull(path, "path must not be null");
+    return map(path::get);
+  }
+
+  /**
+   * Applies an {@link AffinePath} to navigate within the Right value.
+   *
+   * <p>This bridges from the effect domain to the optics domain. If the AffinePath doesn't match, a
+   * Left is returned with the provided error value. This allows converting partial optics failures
+   * to typed errors.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<User, String> emailPath = UserFocus.optionalEmail();
+   *
+   * EitherPath<Error, User> userPath = Path.right(user);
+   * EitherPath<Error, String> email = userPath.focus(emailPath, Error.of("Email not found"));
+   * // Returns Left(Error.of("Email not found")) if user has no email
+   * }</pre>
+   *
+   * @param path the AffinePath to apply
+   * @param errorIfAbsent the error to use if the path doesn't match
+   * @param <B> the focused type
+   * @return a new EitherPath containing the focused value or the error
+   */
+  public <B> EitherPath<E, B> focus(AffinePath<A, B> path, E errorIfAbsent) {
+    Objects.requireNonNull(path, "path must not be null");
+    return via(
+        a ->
+            path.getOptional(a)
+                .<EitherPath<E, B>>map(Path::right)
+                .orElseGet(() -> Path.left(errorIfAbsent)));
   }
 
   // ===== Object methods =====

@@ -466,6 +466,64 @@ class IOPathResourceAndParallelTest {
           .isThrownBy(() -> path.race(null))
           .withMessageContaining("other must not be null");
     }
+
+    @Test
+    @DisplayName("race() handles thread interruption")
+    void raceHandlesThreadInterruption() throws InterruptedException {
+      CountDownLatch operationStarted = new CountDownLatch(1);
+      CountDownLatch canComplete = new CountDownLatch(1);
+
+      // Both operations wait indefinitely until canComplete is triggered
+      IOPath<String> first =
+          Path.io(
+              () -> {
+                operationStarted.countDown();
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "first";
+              });
+
+      IOPath<String> second =
+          Path.io(
+              () -> {
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "second";
+              });
+
+      IOPath<String> raceResult = first.race(second);
+
+      Thread testThread = Thread.currentThread();
+
+      // Schedule an interrupt after the operation starts
+      Thread interrupter =
+          new Thread(
+              () -> {
+                try {
+                  operationStarted.await();
+                  Thread.sleep(50); // Give time for race to start waiting
+                  testThread.interrupt();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              });
+      interrupter.start();
+
+      assertThatThrownBy(raceResult::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("interrupted");
+
+      // Clean up
+      canComplete.countDown();
+      interrupter.join(1000);
+      Thread.interrupted(); // Clear interrupt status
+    }
   }
 
   // ===== PathOps Parallel Tests =====
@@ -593,6 +651,72 @@ class IOPathResourceAndParallelTest {
           .isThrownBy(() -> PathOps.parZip3(path, path, path, null))
           .withMessageContaining("combiner must not be null");
     }
+
+    @Test
+    @DisplayName("parZip3() handles thread interruption")
+    void parZip3HandlesThreadInterruption() throws InterruptedException {
+      CountDownLatch operationStarted = new CountDownLatch(1);
+      CountDownLatch canComplete = new CountDownLatch(1);
+
+      IOPath<Integer> first =
+          Path.io(
+              () -> {
+                operationStarted.countDown();
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 1;
+              });
+
+      IOPath<Integer> second =
+          Path.io(
+              () -> {
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 2;
+              });
+
+      IOPath<Integer> third =
+          Path.io(
+              () -> {
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 3;
+              });
+
+      IOPath<Integer> result = PathOps.parZip3(first, second, third, (a, b, c) -> a + b + c);
+
+      Thread testThread = Thread.currentThread();
+
+      Thread interrupter =
+          new Thread(
+              () -> {
+                try {
+                  operationStarted.await();
+                  Thread.sleep(50);
+                  testThread.interrupt();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              });
+      interrupter.start();
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("interrupted");
+
+      canComplete.countDown();
+      interrupter.join(1000);
+      Thread.interrupted();
+    }
   }
 
   @Nested
@@ -625,6 +749,84 @@ class IOPathResourceAndParallelTest {
       assertThatNullPointerException()
           .isThrownBy(() -> PathOps.parZip4(path, path, path, path, null))
           .withMessageContaining("combiner must not be null");
+    }
+
+    @Test
+    @DisplayName("parZip4() handles thread interruption")
+    void parZip4HandlesThreadInterruption() throws InterruptedException {
+      CountDownLatch operationStarted = new CountDownLatch(1);
+      CountDownLatch canComplete = new CountDownLatch(1);
+
+      IOPath<Integer> first =
+          Path.io(
+              () -> {
+                operationStarted.countDown();
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 1;
+              });
+
+      IOPath<Integer> second =
+          Path.io(
+              () -> {
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 2;
+              });
+
+      IOPath<Integer> third =
+          Path.io(
+              () -> {
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 3;
+              });
+
+      IOPath<Integer> fourth =
+          Path.io(
+              () -> {
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return 4;
+              });
+
+      IOPath<Integer> result =
+          PathOps.parZip4(first, second, third, fourth, (a, b, c, d) -> a + b + c + d);
+
+      Thread testThread = Thread.currentThread();
+
+      Thread interrupter =
+          new Thread(
+              () -> {
+                try {
+                  operationStarted.await();
+                  Thread.sleep(50);
+                  testThread.interrupt();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              });
+      interrupter.start();
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("interrupted");
+
+      canComplete.countDown();
+      interrupter.join(1000);
+      Thread.interrupted();
     }
   }
 
@@ -740,6 +942,61 @@ class IOPathResourceAndParallelTest {
       IOPath<String> result = PathOps.raceIO(List.of(fail1, fail2));
 
       assertThatThrownBy(result::unsafeRun).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("raceIO() handles thread interruption")
+    void raceIOHandlesThreadInterruption() throws InterruptedException {
+      CountDownLatch operationStarted = new CountDownLatch(1);
+      CountDownLatch canComplete = new CountDownLatch(1);
+
+      IOPath<String> first =
+          Path.io(
+              () -> {
+                operationStarted.countDown();
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "first";
+              });
+
+      IOPath<String> second =
+          Path.io(
+              () -> {
+                try {
+                  canComplete.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return "second";
+              });
+
+      IOPath<String> result = PathOps.raceIO(List.of(first, second));
+
+      Thread testThread = Thread.currentThread();
+
+      Thread interrupter =
+          new Thread(
+              () -> {
+                try {
+                  operationStarted.await();
+                  Thread.sleep(50);
+                  testThread.interrupt();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              });
+      interrupter.start();
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("interrupted");
+
+      canComplete.countDown();
+      interrupter.join(1000);
+      Thread.interrupted();
     }
   }
 }

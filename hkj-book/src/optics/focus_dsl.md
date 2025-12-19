@@ -663,6 +663,183 @@ TraversalPath<Company, Employee> tracedEmployees = CompanyFocus.employees()
 
 ---
 
+## Bridging to Effect Paths
+
+Focus paths and Effect paths share the same `via` composition operator but navigate different
+domains. The bridge API enables seamless transitions between them.
+
+```
+                    FOCUS-EFFECT BRIDGE
+
+    ┌─────────────────────────────────────────────────────┐
+    │                   Optics Domain                      │
+    │  FocusPath<S, A> ──────────────────────────────────  │
+    │  AffinePath<S, A> ──────────────────────────────────│
+    │  TraversalPath<S, A> ───────────────────────────────│
+    └──────────────────────────┬──────────────────────────┘
+                               │
+                               │ toMaybePath(source)
+                               │ toEitherPath(source, error)
+                               │ toTryPath(source, supplier)
+                               ▼
+    ┌─────────────────────────────────────────────────────┐
+    │                   Effects Domain                     │
+    │  MaybePath<A> ──────────────────────────────────────│
+    │  EitherPath<E, A> ──────────────────────────────────│
+    │  TryPath<A> ────────────────────────────────────────│
+    │  IOPath<A> ─────────────────────────────────────────│
+    │  ValidationPath<E, A> ──────────────────────────────│
+    └──────────────────────────┬──────────────────────────┘
+                               │
+                               │ focus(FocusPath)
+                               │ focus(AffinePath, error)
+                               ▼
+    ┌─────────────────────────────────────────────────────┐
+    │           Back to Optics (within effect)             │
+    │  EffectPath<B> ─────────────────────────────────────│
+    └─────────────────────────────────────────────────────┘
+```
+
+### Direction 1: FocusPath → EffectPath
+
+Extract a value using optics and wrap it in an effect for further processing:
+
+```java
+// FocusPath always has a value, so these always succeed
+FocusPath<User, String> namePath = UserFocus.name();
+MaybePath<String> maybeName = namePath.toMaybePath(user);          // → Just(name)
+EitherPath<E, String> eitherName = namePath.toEitherPath(user);    // → Right(name)
+TryPath<String> tryName = namePath.toTryPath(user);                // → Success(name)
+
+// AffinePath may not have a value
+AffinePath<User, String> emailPath = UserFocus.email();  // Optional<String> → String
+MaybePath<String> maybeEmail = emailPath.toMaybePath(user);        // → Just or Nothing
+EitherPath<String, String> eitherEmail =
+    emailPath.toEitherPath(user, "Email not configured");          // → Right or Left
+```
+
+**Bridge Methods on FocusPath:**
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `toMaybePath(S)` | `MaybePath<A>` | Always `Just(value)` |
+| `toEitherPath(S)` | `EitherPath<E, A>` | Always `Right(value)` |
+| `toTryPath(S)` | `TryPath<A>` | Always `Success(value)` |
+| `toIdPath(S)` | `IdPath<A>` | Trivial effect wrapper |
+
+**Bridge Methods on AffinePath:**
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `toMaybePath(S)` | `MaybePath<A>` | `Just` if present, `Nothing` otherwise |
+| `toEitherPath(S, E)` | `EitherPath<E, A>` | `Right` if present, `Left(error)` otherwise |
+| `toTryPath(S, Supplier<Throwable>)` | `TryPath<A>` | `Success` or `Failure` |
+| `toOptionalPath(S)` | `OptionalPath<A>` | Wraps in Java `Optional` effect |
+
+**Bridge Methods on TraversalPath:**
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `toListPath(S)` | `ListPath<A>` | All focused values as list |
+| `toStreamPath(S)` | `StreamPath<A>` | Lazy stream of values |
+| `toMaybePath(S)` | `MaybePath<A>` | First value if any |
+
+### Direction 2: EffectPath.focus()
+
+Apply structural navigation inside an effect context:
+
+```java
+// Start with an effect containing a complex structure
+EitherPath<Error, User> userPath = Path.right(user);
+
+// Navigate within the effect using optics
+EitherPath<Error, String> namePath = userPath.focus(UserFocus.name());
+
+// AffinePath requires an error for the absent case
+EitherPath<Error, String> emailPath =
+    userPath.focus(UserFocus.email(), new Error("Email required"));
+```
+
+**focus() Method Signatures:**
+
+| Effect Type | FocusPath Signature | AffinePath Signature |
+|-------------|---------------------|----------------------|
+| `MaybePath<A>` | `focus(FocusPath<A, B>)` → `MaybePath<B>` | `focus(AffinePath<A, B>)` → `MaybePath<B>` |
+| `EitherPath<E, A>` | `focus(FocusPath<A, B>)` → `EitherPath<E, B>` | `focus(AffinePath<A, B>, E)` → `EitherPath<E, B>` |
+| `TryPath<A>` | `focus(FocusPath<A, B>)` → `TryPath<B>` | `focus(AffinePath<A, B>, Supplier<Throwable>)` → `TryPath<B>` |
+| `IOPath<A>` | `focus(FocusPath<A, B>)` → `IOPath<B>` | `focus(AffinePath<A, B>, Supplier<RuntimeException>)` → `IOPath<B>` |
+| `ValidationPath<E, A>` | `focus(FocusPath<A, B>)` → `ValidationPath<E, B>` | `focus(AffinePath<A, B>, E)` → `ValidationPath<E, B>` |
+| `IdPath<A>` | `focus(FocusPath<A, B>)` → `IdPath<B>` | `focus(AffinePath<A, B>)` → `MaybePath<B>` |
+
+### When to Use Each Direction
+
+**Use FocusPath → EffectPath when:**
+- You have data and want to start an effect pipeline
+- Extracting values that need validation or async processing
+- Converting optic results into monadic workflows
+
+```java
+// Extract and validate
+EitherPath<ValidationError, String> validated =
+    UserFocus.email()
+        .toEitherPath(user, new ValidationError("Email required"))
+        .via(email -> validateEmailFormat(email));
+```
+
+**Use EffectPath.focus() when:**
+- You're already in an effect context (e.g., after a service call)
+- Drilling down into effect results
+- Building validation pipelines that extract and check nested fields
+
+```java
+// Service returns effect, then navigate
+EitherPath<Error, Order> orderResult = orderService.findById(orderId);
+EitherPath<Error, String> customerName =
+    orderResult
+        .focus(OrderFocus.customer())
+        .focus(CustomerFocus.name());
+```
+
+### Practical Example: Validation Pipeline
+
+Combining both directions for a complete validation workflow:
+
+```java
+// Domain model
+record RegistrationForm(String username, Optional<String> email, Address address) {}
+record Address(String street, Optional<String> postcode) {}
+
+// Validation using Focus-Effect bridge
+EitherPath<List<String>, RegistrationForm> validateForm(RegistrationForm form) {
+    var formPath = Path.<List<String>, RegistrationForm>right(form);
+
+    // Validate username (always present)
+    var usernameValid = formPath
+        .focus(FormFocus.username())
+        .via(name -> name.length() >= 3
+            ? Path.right(name)
+            : Path.left(List.of("Username too short")));
+
+    // Validate email if present
+    var emailValid = formPath
+        .focus(FormFocus.email(), List.of("Email required for notifications"))
+        .via(email -> email.contains("@")
+            ? Path.right(email)
+            : Path.left(List.of("Invalid email format")));
+
+    // Combine validations
+    return usernameValid.via(u -> emailValid.map(e -> form));
+}
+```
+
+~~~admonish tip title="See Also"
+- [Effect Path Overview](../effect/effect_path_overview.md) - Railway model and effect composition
+- [Focus-Effect Integration](../effect/focus_integration.md) - Complete bridging guide
+- [Capability Interfaces](../effect/capabilities.md) - Powers behind effect operations
+~~~
+
+---
+
 ## Generated Class Structure
 
 For a record like:

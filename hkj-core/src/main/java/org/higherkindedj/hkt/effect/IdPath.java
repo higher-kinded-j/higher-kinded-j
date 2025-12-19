@@ -13,6 +13,8 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 
 /**
  * A fluent path wrapper for {@link Id} values.
@@ -202,6 +204,40 @@ public final class IdPath<A> implements Chainable<A> {
     @SuppressWarnings("unchecked")
     IdPath<B> typedResult = (IdPath<B>) idPath;
     return typedResult;
+  }
+
+  // ===== Focus Bridge Methods =====
+
+  /**
+   * Applies a {@link FocusPath} to navigate within the contained value.
+   *
+   * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
+   * inside an Id context.
+   *
+   * @param path the FocusPath to apply; must not be null
+   * @param <B> the focused type
+   * @return a new IdPath containing the focused value
+   * @throws NullPointerException if path is null
+   */
+  public <B> IdPath<B> focus(FocusPath<A, B> path) {
+    Objects.requireNonNull(path, "path must not be null");
+    return map(path::get);
+  }
+
+  /**
+   * Applies an {@link AffinePath} to navigate within the contained value.
+   *
+   * <p>This bridges from the effect domain to the optics domain. Since IdPath always contains a
+   * value, a MaybePath is returned to handle the case where the AffinePath doesn't match.
+   *
+   * @param path the AffinePath to apply; must not be null
+   * @param <B> the focused type
+   * @return a MaybePath containing the focused value if the path matches
+   * @throws NullPointerException if path is null
+   */
+  public <B> MaybePath<B> focus(AffinePath<A, B> path) {
+    Objects.requireNonNull(path, "path must not be null");
+    return path.getOptional(value.value()).map(Path::just).orElseGet(Path::nothing);
   }
 
   // ===== Object methods =====

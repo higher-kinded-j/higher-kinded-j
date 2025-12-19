@@ -67,6 +67,7 @@
     - [FreeApPath](effect/path_freeap.md)
   - [Composition Patterns](effect/composition.md)
   - [Type Conversions](effect/conversions.md)
+  - [Focus-Effect Integration](effect/focus_integration.md)
   - [Patterns and Recipes](effect/patterns.md)
   - [Advanced Effects](effect/advanced_effects.md)
   - [Advanced Topics](effect/advanced_topics.md)
